@@ -7,11 +7,13 @@ fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
+    let map = luminol::data::rmxp_structs::rpg::Map::new(15, 15);
+
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        "Luminol",
         native_options,
-        Box::new(|cc| Box::new(luminol::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(luminol::App::new(cc))),
     );
 }
 
@@ -28,7 +30,7 @@ fn main() {
     eframe::start_web(
         "the_canvas_id", // hardcode it
         web_options,
-        Box::new(|cc| Box::new(luminol::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(luminol::App::new(cc))),
     )
     .expect("failed to start eframe");
 }
