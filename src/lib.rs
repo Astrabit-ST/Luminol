@@ -1,13 +1,18 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 mod app;
-pub mod data {
+mod gui {
+    pub mod about;
+    pub mod top_bar;
+    pub mod window;
+}
+mod data {
     pub mod rgss_structs;
     pub mod rmxp_structs;
 }
-pub mod marshal {
+mod marshal {
     pub mod deserialize;
-    pub mod serialize;
     pub mod error;
+    pub mod serialize;
 }
 pub use app::App;
