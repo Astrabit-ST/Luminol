@@ -7,33 +7,33 @@ use serde::{Deserialize, Serialize};
 /// Used all over the place in RGSS.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
-    red: u8,
-    green: u8,
-    blue: u8,
-    alpha: u8,
+    red: f32,
+    green: f32,
+    blue: f32,
+    alpha: f32,
 }
 
 // Default values
 impl Default for Color {
     fn default() -> Self {
         Self {
-            red: 255,
-            green: 255,
-            blue: 255,
-            alpha: 255,
+            red: 255.0,
+            green: 255.0,
+            blue: 255.0,
+            alpha: 255.0,
         }
     }
 }
 
 /// **A struct representing an offset to an RGBA color.**
 /// 
-/// Its members are i16 but must not exceed the range of 255..-255.
+/// Its members are f32 but must not exceed the range of 255..-255.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Tone {
-    red: i16,
-    green: i16,
-    blue: i16,
-    gray: i16,
+    red: f32,
+    green: f32,
+    blue: f32,
+    gray: f32,
 }
 
 /// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust. 
