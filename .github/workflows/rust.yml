@@ -19,8 +19,8 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Install GTK3 and ATK
-        run: sudo apt install libgtk-3-0 libatk1.0-dev
+      - name: Install libraries
+        run: sudo apt install libgtk-3-0 libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -37,8 +37,8 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
           override: true
-      - name: Install GTK3 and ATK
-        run: sudo apt install libgtk-3-0 libatk1.0-dev
+      - name: Install libraries
+        run: sudo apt install libgtk-3-0 libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -71,8 +71,8 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt
-      - name: Install GTK3 and ATK
-        run: sudo apt install libgtk-3-0 libatk1.0-dev
+      - name: Install libraries
+        run: sudo apt install libgtk-3-0 libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -89,8 +89,8 @@ jobs:
           toolchain: stable
           override: true
           components: clippy
-      - name: Install GTK3 and ATK
-        run: sudo apt install libgtk-3-0 libatk1.0-dev
+      - name: Install libraries
+        run: sudo apt install libgtk-3-0 libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
@@ -107,8 +107,6 @@ jobs:
           toolchain: 1.61.0
           target: wasm32-unknown-unknown
           override: true
-      - name: Install GTK3 and ATK
-        run: sudo apt install libgtk-3-0 libatk1.0-dev
       - name: Download and install Trunk binary
         run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
       - name: Build
