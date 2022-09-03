@@ -7,10 +7,6 @@ fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    let map = luminol::data::rmxp_structs::rpg::Map::default();
-    let bytes = luminol::marshal::serialize::to_bytes(&map);
-    println!("{:?}", bytes);
-
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
         "Luminol",

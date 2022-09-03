@@ -1,4 +1,5 @@
 use crate::marshal::error::{Error, Result};
+use num_traits::int::PrimInt;
 use serde::{ser, Serialize};
 
 pub struct Serializer {
@@ -18,6 +19,15 @@ where
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
+}
+
+impl Serializer {
+    fn process_digit<T>(self, d: T) -> Result<()>
+    where
+        T: PrimInt,
+    {
+        Ok(())
+    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
@@ -128,11 +138,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_newtype_struct<T>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<()>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
@@ -182,11 +188,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         Ok(self)
     }
 
@@ -319,12 +321,6 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl Serializer {
-    fn process_digit<T>(self, d: T) -> Result<()> {
         Ok(())
     }
 }

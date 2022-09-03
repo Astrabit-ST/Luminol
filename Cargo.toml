@@ -11,10 +11,12 @@ rust-version = "1.60"
 [dependencies]
 egui = "0.19.0"
 eframe = { version = "0.19.0", features = ["persistence"] }
-serde = { version = "1", features = ["derive"] } # You only need this if you want app persistence
+serde = { version = "1", features = ["derive"] }
+ron = "0.8"
 ndarray = { version = "0.15.6", features = ["serde"] }
 rfd = "0.10.0"
 derive-new = "0.5"
+num-traits = "0.2"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
