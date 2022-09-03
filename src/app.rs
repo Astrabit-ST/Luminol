@@ -24,7 +24,32 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("New Project...").clicked() {
+                    
+                }
+                if ui.button("Open Project").clicked() {
+
+                }
+                if ui.button("Close Project").clicked() {
+
+                }
+                if ui.button("Save Project").clicked() {
+
+                }
+                ui.separator();
+                if ui.button("Compress Game Data...").clicked() {
+
+                }
+                ui.separator();
+                if ui.button("Exit Luminol").clicked() {
+                    frame.close();
+                }
+            });
+        });
+
         egui::Window::new("Test").show(ctx, |ui| {
             ui.button("test buton!")
         });
