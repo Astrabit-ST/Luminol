@@ -5,7 +5,9 @@ pub mod rpg {
     use eframe::epaint::ahash::HashMap;
 
     use crate::data::rgss_structs::*;
+    use serde::{Deserialize, Serialize};
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Map {
         tileset_id: i32,
         width: usize,
@@ -20,6 +22,7 @@ pub mod rpg {
         events: HashMap<String, event::Event>,
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct MapInfo {
         name: String,
         parent_id: i32,
@@ -31,10 +34,13 @@ pub mod rpg {
 
     // FIXME: Use something else instead of modules to group structs like this.
     mod event {
+        use serde::{Deserialize, Serialize};
         mod page {
             use crate::data::rmxp_structs::rpg::EventCommand;
             use crate::data::rmxp_structs::rpg::MoveRoute;
+            use serde::{Deserialize, Serialize};
 
+            #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Condition {
                 switch1_valid: bool,
                 switch2_valid: bool,
@@ -47,6 +53,7 @@ pub mod rpg {
                 self_switch_ch: char,
             }
 
+            #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Graphic {
                 tile_id: i32,
                 character_name: String,
@@ -57,6 +64,7 @@ pub mod rpg {
                 blend_type: i32,
             }
 
+            #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Page {
                 conditon: Condition,
                 graphic: Graphic,
@@ -74,6 +82,7 @@ pub mod rpg {
             }
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Event {
             id: i32,
             name: String,
@@ -87,31 +96,33 @@ pub mod rpg {
     // TODO: Make commands an enum instead of a struct.
     // This would be better for serialization, performance, and readability.
     // For now I'm not messing with the RMXP data format, but I will eventually.
-
     // TODO: I'd like to add a custom *.lumina format in the future that is built from the ground up. No more rmxp garbage.
+    #[derive(Debug, Deserialize, Serialize)]
     pub enum ParameterType {
         Number(i32),
         String(String),
         Color(Color),
         Tone(Tone),
     }
+
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct EventCommand {
         code: i32,
         indent: i32,
         parameters: Vec<ParameterType>,
     }
-
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct MoveRoute {
         repeat: bool,
         skippable: bool,
         list: Vec<MoveCommand>,
     }
-
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct MoveCommand {
         code: i32,
         parameters: Vec<ParameterType>,
     }
-
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Actor {
         id: i32,
         name: String,
@@ -139,12 +150,13 @@ pub mod rpg {
 
     mod class {
         use crate::data::rgss_structs::Table1;
-
+        use serde::{Deserialize, Serialize};
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Learning {
             level: i32,
             skill_id: i32,
         }
-
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Class {
             id: i32,
             name: String,
@@ -159,6 +171,7 @@ pub mod rpg {
 
     // FIXME: I don't use the battle system, so I'm unsure what some of these types *should* be.
     // I plan to support the battle system but that comes after everything else.
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Skill {
         id: i32,
         name: String,
@@ -188,6 +201,7 @@ pub mod rpg {
     }
 
     // FIXME: There are a lot of repeated fields here. I should probably make a trait for them.
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Item {
         id: i32,
         name: String,
@@ -216,6 +230,7 @@ pub mod rpg {
         minus_state_set: Vec<i32>,
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Weapon {
         id: i32,
         name: String,
@@ -236,6 +251,7 @@ pub mod rpg {
         minus_state_set: Vec<i32>,
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Armor {
         id: i32,
         name: String,
@@ -257,7 +273,9 @@ pub mod rpg {
 
     pub mod enemy {
         use crate::data::rgss_structs::Table1;
+        use serde::{Deserialize, Serialize};
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Action {
             kind: i32,
             basic: i32,
@@ -270,6 +288,7 @@ pub mod rpg {
             rating: i32,
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Enemy {
             id: i32,
             name: String,
@@ -300,6 +319,8 @@ pub mod rpg {
     }
 
     pub mod troop {
+        use serde::{Deserialize, Serialize};
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Member {
             enemy_id: i32,
             x: i32,
@@ -310,7 +331,9 @@ pub mod rpg {
 
         pub mod page {
             use crate::data::rmxp_structs::rpg::EventCommand;
+            use serde::{Deserialize, Serialize};
 
+            #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Condition {
                 turn_valid: bool,
                 enemy_valid: bool,
@@ -325,6 +348,7 @@ pub mod rpg {
                 switch_id: i32,
             }
 
+            #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Page {
                 condition: Condition,
                 span: i32,
@@ -332,6 +356,7 @@ pub mod rpg {
             }
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Troop {
             id: i32,
             name: String,
@@ -340,6 +365,7 @@ pub mod rpg {
         }
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct State {
         id: i32,
         name: String,
@@ -373,14 +399,17 @@ pub mod rpg {
 
     pub mod animation {
         use crate::data::rgss_structs::{Color, Table2};
+        use serde::{Deserialize, Serialize};
 
         use super::AudioFile;
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Frame {
             cell_max: i32,
             cell_data: Table2,
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Timing {
             frame: i32,
             se: AudioFile,
@@ -390,6 +419,7 @@ pub mod rpg {
             condition: i32,
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Animation {
             id: i32,
             name: String,
@@ -402,6 +432,7 @@ pub mod rpg {
         }
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Tileset {
         id: i32,
         name: String,
@@ -422,6 +453,7 @@ pub mod rpg {
         terrain_tags: Table1,
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct CommonEvent {
         id: i32,
         name: String,
@@ -432,7 +464,9 @@ pub mod rpg {
 
     pub mod system {
         use super::AudioFile;
+        use serde::{Deserialize, Serialize};
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct Words {
             gold: String,
             hp: String,
@@ -455,6 +489,7 @@ pub mod rpg {
             equip: String,
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct TestBattler {
             actor_id: i32,
             level: i32,
@@ -465,6 +500,7 @@ pub mod rpg {
             armor4_id: i32,
         }
 
+        #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct System {
             magic_number: i32,
             party_members: Vec<i32>,
@@ -504,6 +540,7 @@ pub mod rpg {
         }
     }
 
+    #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct AudioFile {
         name: String,
         volume: u8,

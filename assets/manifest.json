@@ -1,6 +1,6 @@
 {
-  "name": "egui Template PWA",
-  "short_name": "egui-template-pwa",
+  "name": "Luminol Editor",
+  "short_name": "Luminol",
   "icons": [
     {
       "src": "./icon-256.png",

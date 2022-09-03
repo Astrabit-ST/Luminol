@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 use ndarray::{Array1, Array2, Array3};
+use serde::{Deserialize, Serialize};
 
 /// **A struct representing an RGBA color.**
 /// 
 /// Used all over the place in RGSS.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
     red: u8,
     green: u8,
@@ -26,7 +28,7 @@ impl Default for Color {
 /// **A struct representing an offset to an RGBA color.**
 /// 
 /// Its members are i16 but must not exceed the range of 255..-255.
-#[derive(Default)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Tone {
     red: i16,
     green: i16,
