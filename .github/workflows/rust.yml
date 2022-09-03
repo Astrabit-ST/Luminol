@@ -20,7 +20,7 @@ jobs:
           toolchain: stable
           override: true
       - name: Install GTK3
-        run: apt install libgtk-3-0
+        run: sudo apt install libgtk-3-0
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -38,7 +38,7 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
       - name: Install GTK3
-        run: apt install libgtk-3-0
+        run: sudo apt install libgtk-3-0
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -72,7 +72,7 @@ jobs:
           override: true
           components: rustfmt
       - name: Install GTK3
-        run: apt install libgtk-3-0
+        run: sudo apt install libgtk-3-0
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -90,7 +90,7 @@ jobs:
           override: true
           components: clippy
       - name: Install GTK3
-        run: apt install libgtk-3-0
+        run: sudo apt install libgtk-3-0
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
@@ -108,7 +108,7 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
       - name: Install GTK3
-        run: apt install libgtk-3-0
+        run: sidp apt install libgtk-3-0
       - name: Download and install Trunk binary
         run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
       - name: Build
