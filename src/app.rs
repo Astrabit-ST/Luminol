@@ -7,7 +7,7 @@ pub struct App {
     pub path: Option<String>,
     #[serde(skip)]
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    pub windows: Vec<Box<dyn Window>>,
+    windows: Vec<Box<dyn Window>>,
 }
 
 impl Default for App {
@@ -23,6 +23,13 @@ impl App {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
+    }
+
+    pub fn add_window(&mut self, window: Box<dyn Window>) {
+        if self.windows.iter().any(|w| w.name() == window.name()) {
+            return;
+        }
+        self.windows.push(window);
     }
 }
 

@@ -17,6 +17,10 @@ impl About {
 }
 
 impl super::window::Window for About {
+    fn name(&self) -> String {
+        "About".to_string()
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")
@@ -24,8 +28,9 @@ impl super::window::Window for About {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
+                // Center the widgets vertically for cleanliness.
                 ui.vertical_centered(|ui| {
-                    self.icon.show_scaled(ui, 0.5);
+                    self.icon.show_scaled(ui, 0.5); // We scale the icon down since it's pretty huge.
                     ui.heading("Luminol");
 
                     ui.separator();

@@ -39,7 +39,7 @@ impl App {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                self.windows.push(Box::new(super::about::About::new()));
+                self.add_window(Box::new(super::about::About::new()));
             };
         });
     }
