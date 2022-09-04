@@ -38,7 +38,9 @@ impl App {
         ui.separator();
 
         ui.menu_button("Help", |ui| {
-            if ui.button("About...").clicked() {};
+            if ui.button("About...").clicked() {
+                self.windows.push(Box::new(super::about::About::new()));
+            };
         });
     }
 }
