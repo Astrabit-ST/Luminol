@@ -4,7 +4,8 @@ use crate::gui::window::Window;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
-    pub path: Option<String>,
+    #[serde(skip)]
+    pub filesystem: crate::filesystem::Filesystem,
     #[serde(skip)]
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
     windows: Vec<Box<dyn Window>>,
@@ -13,7 +14,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            path: None,
+            filesystem: crate::filesystem::Filesystem::new(),
             windows: Vec::new(),
         }
     }
@@ -50,17 +51,6 @@ impl eframe::App for App {
                 self.top_bar(ui, frame)
             })
         });
-
-        // Check if the dropped files is not empty.
-        if !ctx.input().raw.dropped_files.is_empty() {
-            // This is a pretty ugly hack to assume that the file is a project file and there's only one.
-            // FIXME: Don't do this.
-            self.path = if let Some(path) = ctx.input().raw.dropped_files[0].path.clone() {
-                Some(path.display().to_string())
-            } else {
-                None
-            }
-        }
 
         // Iterate through all the windows and clean them up if necessary.
         self.windows.retain_mut(|window| {

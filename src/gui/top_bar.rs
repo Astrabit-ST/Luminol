@@ -1,10 +1,12 @@
+use eframe::epaint::ahash::HashMap;
+
 use crate::app::App;
 
 impl App {
     pub fn top_bar(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         ui.menu_button("File", |ui| {
-            ui.label(if let Some(path) = &self.path {
-                format!("Current project:\n{}", path)
+            ui.label(if let Some(path) = &self.filesystem.project_path {
+                format!("Current project:\n{}", path.display())
             } else {
                 "No project open".to_string()
             });
@@ -13,16 +15,17 @@ impl App {
 
             #[cfg(not(target_arch = "wasm32"))]
             if ui.button("Open Project").clicked() {
-                if let Some(path) = rfd::FileDialog::default()
+                if let Some(mut path) = rfd::FileDialog::default()
                     .add_filter("project file", &["rxproj", "lum"])
                     .pick_file()
                 {
-                    self.path = Some(path.display().to_string())
+                    path.pop(); // Pop off filename
+                    self.filesystem.project_path = Some(path);
                 }
             }
 
             if ui.button("Close Project").clicked() {
-                self.path = None
+                self.filesystem.project_path = None
             }
 
             if ui.button("Save Project").clicked() {}

@@ -1,8 +1,10 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 mod app;
+
 mod gui {
     pub mod about;
+    pub mod map_picker;
     pub mod top_bar;
     pub mod window;
 }
@@ -15,6 +17,18 @@ mod marshal {
     pub mod error;
     pub mod serialize;
 }
+
+mod filesystem {
+    #[cfg(not(target_arch = "wasm32"))]
+    mod filesystem;
+    #[cfg(target_arch = "wasm32")]
+    mod filesystem_wasm32;
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use filesystem::*;
+    #[cfg(target_arch = "wasm32")]
+    pub use filesystem_wasm32::*;
+}
+
 pub use app::App;
 
 /// Embedded icon 256x256 in size.
