@@ -7,7 +7,17 @@ fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    let native_options = eframe::NativeOptions::default();
+    let mut native_options = eframe::NativeOptions::default();
+    native_options.drag_and_drop_support = true;
+
+    let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");
+
+    native_options.icon_data = Some(eframe::IconData {
+        width: image.width(),
+        height: image.height(),
+        rgba: image.into_bytes(),
+    });
+
     eframe::run_native(
         "Luminol",
         native_options,

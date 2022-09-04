@@ -12,9 +12,9 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        Self { 
+        Self {
             path: None,
-            windows: Vec::new()
+            windows: Vec::new(),
         }
     }
 }

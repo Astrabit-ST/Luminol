@@ -16,3 +16,6 @@ mod marshal {
     pub mod serialize;
 }
 pub use app::App;
+
+/// Embedded icon 256x256 in size.
+pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");

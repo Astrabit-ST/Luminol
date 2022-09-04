@@ -10,6 +10,8 @@ rust-version = "1.60"
 
 [dependencies]
 egui = "0.19.0"
+egui_extras = { version = "0.19.0", features = ["svg", "image"] }
+image = { version = "0.24", features = ["jpeg", "png"] }
 eframe = { version = "0.19.0", features = ["persistence"] }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
