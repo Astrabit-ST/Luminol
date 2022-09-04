@@ -30,6 +30,7 @@ impl App {
 
             if ui.button("Save Project").clicked() {}
 
+            #[cfg(not(target_arch = "wasm32"))]
             ui.separator();
 
             #[cfg(not(target_arch = "wasm32"))]
