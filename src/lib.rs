@@ -13,7 +13,7 @@ mod data {
     pub mod rmxp_structs;
 }
 mod marshal {
-    pub mod deserialize;
+    //pub mod deserialize;
     pub mod error;
     pub mod serialize;
 }

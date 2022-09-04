@@ -22,10 +22,12 @@ where
 }
 
 impl Serializer {
-    fn process_digit<T>(self, d: T) -> Result<()>
+    fn process_digit<T>(&mut self, d: T) -> Result<()>
     where
         T: PrimInt,
     {
+        self.output.push(b'i');
+        self.output.push(0x04);
         Ok(())
     }
 }
@@ -78,6 +80,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // ! Unimplemented
 
     fn serialize_i8(self, v: i8) -> Result<()> {
+        self.process_digit(v);
         Ok(())
     }
 
