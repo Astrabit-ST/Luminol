@@ -5,30 +5,37 @@ use crate::app::App;
 impl App {
     pub fn top_bar(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         ui.menu_button("File", |ui| {
-            ui.label(if let Some(path) = &self.filesystem.project_path {
+            ui.label(if let Some(path) = self.filesystem.project_path() {
                 format!("Current project:\n{}", path.display())
             } else {
                 "No project open".to_string()
             });
 
             if ui.button("New Project").clicked() {}
-
-            #[cfg(not(target_arch = "wasm32"))]
+            
             if ui.button("Open Project").clicked() {
+                #[cfg(not(target_arch = "wasm32"))]
                 if let Some(mut path) = rfd::FileDialog::default()
                     .add_filter("project file", &["rxproj", "lum"])
                     .pick_file()
                 {
                     path.pop(); // Pop off filename
-                    self.filesystem.project_path = Some(path);
+                    self.filesystem.load_project(path)
                 }
             }
 
-            if ui.button("Close Project").clicked() {
-                self.filesystem.project_path = None
-            }
+            ui.separator();
 
-            if ui.button("Save Project").clicked() {}
+            ui.add_enabled_ui(self.filesystem.project_loaded(), |ui| {
+                if ui.button("Close Project").clicked() {
+                    self.filesystem.unload_project();
+                    self.clean_windows()
+                }
+
+                if ui.button("Save Project").clicked() {
+                    self.filesystem.save_cached()
+                }
+            });
 
             #[cfg(not(target_arch = "wasm32"))]
             ui.separator();
@@ -41,9 +48,17 @@ impl App {
 
         ui.separator();
 
+        ui.add_enabled_ui(self.filesystem.project_loaded(), |ui| {
+            if ui.button("Maps").clicked() {
+                self.add_window(super::map_picker::MapPicker::new())
+            }
+        });
+
+        ui.separator();
+
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                self.add_window(Box::new(super::about::About::new()));
+                self.add_window(super::about::About::new());
             };
         });
     }

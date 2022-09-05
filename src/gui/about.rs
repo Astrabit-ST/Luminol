@@ -8,7 +8,7 @@ impl About {
     pub fn new() -> Self {
         Self {
             // We load the icon here so it isn't loaded every frame. That would be bad if we did.
-            // It would be better to load the image at compile time and only use one image instance 
+            // It would be better to load the image at compile time and only use one image instance
             // (as we load the image once at start for the icon) but this is the best I can do.
             icon: egui_extras::RetainedImage::from_image_bytes("icon", crate::ICON)
                 .expect("Failed to load Icon data."),
@@ -21,7 +21,12 @@ impl super::window::Window for About {
         "About".to_string()
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        _: Option<&mut crate::filesystem::data_cache::DataCache>,
+    ) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")
             // Open is passed in. egui sets it to false if the window is closed.

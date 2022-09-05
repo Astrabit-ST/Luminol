@@ -26,11 +26,21 @@ impl App {
         Default::default()
     }
 
-    pub fn add_window(&mut self, window: Box<dyn Window>) {
+    /// A function to add a window.
+    pub fn add_window<T>(&mut self, window: T)
+    where
+        T: Window + 'static,
+    {
         if self.windows.iter().any(|w| w.name() == window.name()) {
             return;
         }
-        self.windows.push(window);
+        self.windows.push(Box::new(window));
+    }
+
+    /// Clean all windows that need the data cache.
+    /// This is usually when a project is closed.
+    pub fn clean_windows(&mut self) {
+        self.windows.retain(|window| !window.requires_cache())
     }
 }
 
@@ -56,7 +66,7 @@ impl eframe::App for App {
         self.windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
-            window.show(ctx, &mut open);
+            window.show(ctx, &mut open, self.filesystem.data_cache());
             open
         })
     }

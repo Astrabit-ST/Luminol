@@ -24,9 +24,10 @@ mod filesystem {
     #[cfg(target_arch = "wasm32")]
     mod filesystem_wasm32;
     #[cfg(not(target_arch = "wasm32"))]
-    pub use filesystem::*;
+    pub use filesystem::Filesystem;
     #[cfg(target_arch = "wasm32")]
-    pub use filesystem_wasm32::*;
+    pub use filesystem_wasm32::Filesystem;
+    pub mod data_cache;
 }
 
 pub use app::App;
