@@ -1,6 +1,3 @@
-use crate::data::rmxp_structs::rpg;
-use std::collections::HashMap;
-
 /// The map picker window.
 /// Displays a list of maps in a tree.
 /// Maps can be double clicked to open them in a map editor.
@@ -22,7 +19,7 @@ impl super::window::Window for MapPicker {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mapinfos = &mut data_cache.expect("Data Cache not loaded").mapinfos;
-                
+
                 for ele in mapinfos.iter() {
                     ui.label(&ele.1.name);
                 }

@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Native filesystem implementation.
+#[derive(Default)]
 pub struct Filesystem {
     project_path: Option<PathBuf>,
     data_cache: Option<super::data_cache::DataCache>,
@@ -10,8 +11,7 @@ pub struct Filesystem {
 impl Filesystem {
     pub fn new() -> Self {
         Self {
-            project_path: None,
-            data_cache: None,
+            ..Default::default()
         }
     }
 

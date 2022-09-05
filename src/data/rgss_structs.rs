@@ -3,7 +3,7 @@ use ndarray::{Array1, Array2, Array3};
 use serde::{Deserialize, Serialize};
 
 /// **A struct representing an RGBA color.**
-/// 
+///
 /// Used all over the place in RGSS.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
@@ -26,7 +26,7 @@ impl Default for Color {
 }
 
 /// **A struct representing an offset to an RGBA color.**
-/// 
+///
 /// Its members are f32 but must not exceed the range of 255..-255.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Tone {
@@ -36,7 +36,7 @@ pub struct Tone {
     gray: f32,
 }
 
-/// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust. 
+/// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust.
 /// We don't particularly need dynamically sized arrays anyway.
 pub type Table1 = Array1<i16>;
 pub type Table2 = Array2<i16>;

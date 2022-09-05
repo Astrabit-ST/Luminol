@@ -1,5 +1,3 @@
-use eframe::epaint::ahash::HashMap;
-
 use crate::app::App;
 
 impl App {
@@ -12,7 +10,7 @@ impl App {
             });
 
             if ui.button("New Project").clicked() {}
-            
+
             if ui.button("Open Project").clicked() {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(mut path) = rfd::FileDialog::default()

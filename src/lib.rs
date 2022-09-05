@@ -20,11 +20,11 @@ mod marshal {
 
 mod filesystem {
     #[cfg(not(target_arch = "wasm32"))]
-    mod filesystem;
+    mod filesystem_native;
     #[cfg(target_arch = "wasm32")]
     mod filesystem_wasm32;
     #[cfg(not(target_arch = "wasm32"))]
-    pub use filesystem::Filesystem;
+    pub use filesystem_native::Filesystem;
     #[cfg(target_arch = "wasm32")]
     pub use filesystem_wasm32::Filesystem;
     pub mod data_cache;

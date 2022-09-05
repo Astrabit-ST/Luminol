@@ -1,3 +1,7 @@
+#![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(unused_must_use)]
+
 use crate::marshal::error::{Error, Result};
 use num_traits::int::PrimInt;
 use serde::{ser, Serialize};
