@@ -1,4 +1,5 @@
 use crate::data::rmxp_structs::rpg::MapInfo;
+use std::collections::HashMap;
 
 /// The map picker window.
 /// Displays a list of maps in a tree.
@@ -8,6 +9,30 @@ pub struct MapPicker {}
 impl MapPicker {
     pub fn new() -> Self {
         Self {}
+    }
+
+    pub fn render_submap(
+        &self,
+        id: &i32,
+        children_data: &HashMap<i32, Vec<i32>>,
+        mapinfos: &HashMap<i32, MapInfo>,
+        ui: &mut egui::Ui,
+    ) {
+        // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
+        let map_name = &mapinfos.get(id).unwrap().name;
+        // Does this map have children?
+        if children_data.contains_key(id) {
+            // Render a collapsing header.
+            ui.collapsing(map_name, |ui| {
+                for id in children_data.get(id).unwrap() {
+                    // Render children.
+                    self.render_submap(id, children_data, mapinfos, ui)
+                }
+            });
+        } else {
+            // Just display a label otherwise.
+            ui.label(map_name);
+        }
     }
 }
 
@@ -21,27 +46,28 @@ impl super::window::Window for MapPicker {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mapinfos = &mut data_cache.expect("Data Cache not loaded").mapinfos;
-                let mut vec = Vec::from_iter(mapinfos.iter());
+                let mut sorted_maps = Vec::from_iter(mapinfos.iter());
 
-                vec.sort_by(|a, b| a.1.order.cmp(&b.1.order));
+                // We sort maps by their order.
+                sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
 
+                // We preprocess maps to figure out what has nodes and what doesn't.
+                // This should result in an ordered hashmap of all the maps and their children.
+                let mut children_data: HashMap<i32, Vec<i32>> = HashMap::new();
+                for (id, map) in sorted_maps {
+                    // Is there an entry for our parent?
+                    // If not, then just add a blank vector to it.
+                    let children = children_data.entry(map.parent_id).or_insert(vec![]);
+                    children.push(*id);
+                }
+                children_data.entry(0).or_insert(vec![]); // If there is no `0` entry (i.e. there are no maps) then add one.
+
+                // Now we can actually render all maps.
                 ui.collapsing("root", |ui| {
-                    let mut map_stack = vec![0];
-                    let mut ui_stack = vec![ui];
-
-                    for (id, map) in vec {
-                        while map_stack.len() > 0
-                            && id
-                                != map_stack
-                                    .last()
-                                    .expect("There should be at least 1 element")
-                        {
-                            map_stack.pop();
-                        }
-                        map_stack.push(*id);
-                        egui::CollapsingHeader::new(&map.name)
-                            .id_source(format!("mapinfo_{}_{}", &map.name, id))
-                            .show(ui_stack.last_mut().unwrap(), |ui| {});
+                    // There will always be a map `0`.
+                    // `0` is assumed to be the root map.
+                    for id in children_data.get(&0).unwrap() {
+                        self.render_submap(id, &children_data, mapinfos, ui);
                     }
                 });
             })
