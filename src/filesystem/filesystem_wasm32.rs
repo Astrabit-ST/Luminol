@@ -1,4 +1,13 @@
 use std::path::PathBuf;
+use wasm_bindgen::prelude::{wasm_bindgen, Closure};
+use wasm_bindgen::{JsValue, JsCast};
+
+// Javascript interface for filesystem
+#[wasm_bindgen(module = "/assets/filesystem.js")]
+extern "C" {
+    async fn js_open_project() -> JsValue;
+    fn js_filesystem_supported() -> bool;
+}
 
 pub struct Filesystem {
     pub project_path: Option<PathBuf>,
@@ -7,6 +16,10 @@ pub struct Filesystem {
 
 impl Filesystem {
     pub fn new() -> Self {
+        if !js_filesystem_supported() {
+            rfd::MessageDialog::new().set_description("Filesystem not supported on this browser").show();
+            panic!("Filesystem not supported on this browser");
+        }
         Self {
             project_path: None,
             data_cache: None,
@@ -47,5 +60,12 @@ impl Filesystem {
             .as_ref()
             .expect("No Data Cache Loaded")
             .save();
+    }
+
+    pub async fn try_open_project(&mut self) {
+        let path = js_open_project().await;
+        
+        //path.pop(); // Pop off filename
+        //self.load_project(path)
     }
 }

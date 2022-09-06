@@ -13,13 +13,7 @@ impl App {
 
             if ui.button("Open Project").clicked() {
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Some(mut path) = rfd::FileDialog::default()
-                    .add_filter("project file", &["rxproj", "lum"])
-                    .pick_file()
-                {
-                    path.pop(); // Pop off filename
-                    self.filesystem.load_project(path)
-                }
+                self.filesystem.try_open_project()
             }
 
             ui.separator();

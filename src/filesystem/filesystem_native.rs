@@ -58,4 +58,14 @@ impl Filesystem {
             .expect("No Data Cache Loaded")
             .save();
     }
+
+    pub fn try_open_project(&mut self) {
+        if let Some(mut path) = rfd::FileDialog::default()
+            .add_filter("project file", &["rxproj", "lum"])
+            .pick_file()
+        {
+            path.pop(); // Pop off filename
+            self.load_project(path)
+        }
+    }
 }

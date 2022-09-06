@@ -1239,6 +1239,7 @@ dependencies = [
  "egui",
  "egui_extras",
  "image",
+ "js-sys",
  "ndarray",
  "num-traits",
  "rfd",
@@ -1246,6 +1247,8 @@ dependencies = [
  "serde",
  "tracing-subscriber",
  "tracing-wasm",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
