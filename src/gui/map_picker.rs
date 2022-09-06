@@ -1,5 +1,6 @@
 use crate::data::rmxp_structs::rpg::MapInfo;
 use std::collections::HashMap;
+use super::window::UpdateInfo;
 
 /// The map picker window.
 /// Displays a list of maps in a tree.
@@ -37,15 +38,11 @@ impl MapPicker {
 }
 
 impl super::window::Window for MapPicker {
-    fn show(
-        &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
-        data_cache: Option<&mut crate::filesystem::data_cache::DataCache>,
-    ) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &mut UpdateInfo) {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                let mapinfos = &mut data_cache.expect("Data Cache not loaded").mapinfos;
+                let mut filesystem = info.filesystem.borrow_mut();
+                let mapinfos = &mut filesystem.data_cache().expect("Data Cache not loaded").mapinfos;
                 let mut sorted_maps = Vec::from_iter(mapinfos.iter());
 
                 // We sort maps by their order.

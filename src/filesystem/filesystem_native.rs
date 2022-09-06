@@ -59,7 +59,7 @@ impl Filesystem {
             .save();
     }
 
-    pub fn try_open_project(&mut self) {
+    pub async fn try_open_project(&mut self) {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()

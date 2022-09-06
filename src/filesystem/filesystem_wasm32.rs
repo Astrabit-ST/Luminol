@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use wasm_bindgen::prelude::{wasm_bindgen, Closure};
-use wasm_bindgen::{JsValue, JsCast};
+use wasm_bindgen::prelude::{wasm_bindgen};
+use wasm_bindgen::{JsValue};
 
 // Javascript interface for filesystem
 #[wasm_bindgen(module = "/assets/filesystem.js")]

@@ -1,3 +1,5 @@
+use super::window::UpdateInfo;
+
 /// A basic about window.
 /// Shows some info on Luminol, along with an icon.
 pub struct About {
@@ -21,12 +23,7 @@ impl super::window::Window for About {
         "About".to_string()
     }
 
-    fn show(
-        &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
-        _: Option<&mut crate::filesystem::data_cache::DataCache>,
-    ) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _: &mut UpdateInfo) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")
             // Open is passed in. egui sets it to false if the window is closed.

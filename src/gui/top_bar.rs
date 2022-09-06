@@ -1,9 +1,22 @@
-use crate::app::App;
+use super::window::UpdateInfo;
+use poll_promise::Promise;
 
-impl App {
-    pub fn top_bar(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+pub struct TopBar {
+    project_open_promise: Option<Promise<()>>,
+}
+
+impl TopBar {
+    pub fn new() -> Self {
+        Self {
+            project_open_promise: None,
+        }
+    }
+
+    pub fn ui(&mut self, info: &mut UpdateInfo, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        let mut filesystem = info.filesystem.borrow_mut();
+
         ui.menu_button("File", |ui| {
-            ui.label(if let Some(path) = self.filesystem.project_path() {
+            ui.label(if let Some(path) = filesystem.project_path() {
                 format!("Current project:\n{}", path.display())
             } else {
                 "No project open".to_string()
@@ -11,21 +24,22 @@ impl App {
 
             if ui.button("New Project").clicked() {}
 
-            if ui.button("Open Project").clicked() {
-                #[cfg(not(target_arch = "wasm32"))]
-                self.filesystem.try_open_project()
+            if self.project_open_promise.is_none() {
+                if ui.button("Open Project").clicked() {}
+            } else {
+                ui.spinner();
             }
 
             ui.separator();
 
-            ui.add_enabled_ui(self.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(filesystem.project_loaded(), |ui| {
                 if ui.button("Close Project").clicked() {
-                    self.filesystem.unload_project();
-                    self.clean_windows()
+                    filesystem.unload_project();
+                    info.windows.borrow_mut().clean_windows()
                 }
 
                 if ui.button("Save Project").clicked() {
-                    self.filesystem.save_cached()
+                    filesystem.save_cached()
                 }
             });
 
@@ -40,9 +54,11 @@ impl App {
 
         ui.separator();
 
-        ui.add_enabled_ui(self.filesystem.project_loaded(), |ui| {
+        ui.add_enabled_ui(filesystem.project_loaded(), |ui| {
             if ui.button("Maps").clicked() {
-                self.add_window(super::map_picker::MapPicker::new())
+                info.windows
+                    .borrow_mut()
+                    .add_window(super::map_picker::MapPicker::new())
             }
         });
 
@@ -50,7 +66,9 @@ impl App {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                self.add_window(super::about::About::new());
+                info.windows
+                    .borrow_mut()
+                    .add_window(super::about::About::new());
             };
         });
     }

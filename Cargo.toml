@@ -19,6 +19,7 @@ ndarray = { version = "0.15.6", features = ["serde"] }
 rfd = "0.10.0"
 derive-new = "0.5"
 num-traits = "0.2"
+poll-promise = "0.1.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
