@@ -19,11 +19,13 @@ ndarray = { version = "0.15.6", features = ["serde"] }
 rfd = "0.10.0"
 derive-new = "0.5"
 num-traits = "0.2"
-poll-promise = "0.1.0"
+pollster = "0.2.5"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-subscriber = "0.3"
+poll-promise = { version = "0.1.0", features = ["tokio"], git = "https://github.com/EmbarkStudios/poll-promise.git" }
+tokio = { version = "1.21.0", features = ["sync", "macros", "rt"], default-features = false }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -32,6 +34,7 @@ tracing-wasm = "0.2"
 wasm-bindgen = "0.2.82"
 wasm-bindgen-futures = "0.4.32"
 js-sys = "0.3.59"
+poll-promise = { version = "0.1.0", features = ["web"], git = "https://github.com/EmbarkStudios/poll-promise.git" }
 
 [profile.release]
 opt-level = 2 # fast and small wasm

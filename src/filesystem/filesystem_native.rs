@@ -1,36 +1,37 @@
+use std::cell::RefCell;
 use std::fs;
+use std::sync::Mutex;
 use std::path::PathBuf;
 
+use super::data_cache::DataCache;
+
 /// Native filesystem implementation.
-#[derive(Default)]
 pub struct Filesystem {
-    project_path: Option<PathBuf>,
-    data_cache: Option<super::data_cache::DataCache>,
+    project_path: Mutex<RefCell<Option<PathBuf>>>,
 }
 
 impl Filesystem {
     pub fn new() -> Self {
         Self {
-            ..Default::default()
+            project_path: Mutex::new(RefCell::new(None))
         }
     }
 
-    pub fn unload_project(&mut self) {
-        self.project_path = None;
-        self.data_cache = None;
+    pub fn unload_project(&self) {
+        *self.project_path.lock().unwrap().borrow_mut() = None;
     }
 
     pub fn project_loaded(&self) -> bool {
-        self.project_path.is_some()
+        self.project_path.lock().unwrap().borrow().is_some()
     }
 
-    pub fn project_path(&self) -> &Option<PathBuf> {
-        &self.project_path
+    pub fn project_path(&self) -> Option<PathBuf> {
+        self.project_path.lock().unwrap().borrow().clone()
     }
 
-    pub fn load_project(&mut self, path: PathBuf) {
-        self.project_path = Some(path);
-        self.data_cache = Some(super::data_cache::DataCache::load(self));
+    pub fn load_project(&self, path: PathBuf, cache: &DataCache) {
+        *self.project_path.lock().unwrap().borrow_mut() = Some(path);
+        cache.load(self);
     }
 
     pub fn read_data<T>(&self, path: &str) -> ron::error::SpannedResult<T>
@@ -39,6 +40,9 @@ impl Filesystem {
     {
         let path = self
             .project_path
+            .lock()
+            .unwrap()
+            .borrow()
             .as_ref()
             .expect("Project path not specified")
             .join("Data_RON")
@@ -48,24 +52,17 @@ impl Filesystem {
         ron::from_str(&data)
     }
 
-    pub fn data_cache(&mut self) -> Option<&mut super::data_cache::DataCache> {
-        self.data_cache.as_mut()
+    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) {
+        data_cache.save();
     }
 
-    pub fn save_cached(&self) {
-        self.data_cache
-            .as_ref()
-            .expect("No Data Cache Loaded")
-            .save();
-    }
-
-    pub async fn try_open_project(&mut self) {
+    pub async fn try_open_project(&self, cache: &DataCache) {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()
         {
             path.pop(); // Pop off filename
-            self.load_project(path)
+            self.load_project(path, cache)
         }
     }
 }

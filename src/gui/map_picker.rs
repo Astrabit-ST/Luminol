@@ -38,14 +38,17 @@ impl MapPicker {
 }
 
 impl super::window::Window for MapPicker {
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &mut UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo) {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                let mut filesystem = info.filesystem.borrow_mut();
-                let mapinfos = &mut filesystem.data_cache().expect("Data Cache not loaded").mapinfos;
-                let mut sorted_maps = Vec::from_iter(mapinfos.iter());
+                // Aquire the data cache.
+                let cache = info.data_cache.get();
+                let mut cache = cache.borrow_mut();
+                
+                let mapinfos = cache.mapinfos.as_mut().expect("MapInfos not loaded.");
 
                 // We sort maps by their order.
+                let mut sorted_maps = Vec::from_iter(mapinfos.iter());
                 sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
 
                 // We preprocess maps to figure out what has nodes and what doesn't.

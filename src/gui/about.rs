@@ -23,7 +23,7 @@ impl super::window::Window for About {
         "About".to_string()
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _: &mut UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _: &UpdateInfo) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")
             // Open is passed in. egui sets it to false if the window is closed.

@@ -1,17 +1,19 @@
-use std::{cell::RefCell, rc::Rc};
-use crate::{gui::window::{Windows, UpdateInfo}, filesystem::Filesystem};
+use std::sync::Arc;
+use crate::{gui::window::{Windows, UpdateInfo}, filesystem::{Filesystem, data_cache::DataCache}};
 
 pub struct App {
-    filesystem: Rc<RefCell<Filesystem>>,
-    windows: Rc<RefCell<Windows>>,
+    filesystem: Arc<Filesystem>,
+    data_cache: Arc<DataCache>,
+    windows: Arc<Windows>,
     top_bar: crate::gui::top_bar::TopBar
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
-            filesystem: Rc::new(RefCell::new(Filesystem::new())),
-            windows: Rc::new(RefCell::new(Windows::new())),
+            filesystem: Arc::new(Filesystem::new()),
+            data_cache: Arc::new(DataCache::new()),
+            windows: Arc::new(Windows::new()),
             top_bar: crate::gui::top_bar::TopBar::new()
         }
     }
@@ -33,8 +35,9 @@ impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
-            let mut update_info = UpdateInfo {
+            let update_info = UpdateInfo {
                 filesystem: self.filesystem.clone(),
+                data_cache: self.data_cache.clone(),
                 windows: self.windows.clone()
             };
 
@@ -43,10 +46,10 @@ impl eframe::App for App {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(&mut update_info, ui, frame);
+                self.top_bar.ui(&update_info, ui, frame);
             });
 
-            self.windows.borrow_mut().update(ctx, &mut update_info);
+            self.windows.update(ctx, &update_info);
         });
     }
 }
