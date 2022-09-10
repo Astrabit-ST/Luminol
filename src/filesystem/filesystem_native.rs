@@ -56,7 +56,7 @@ impl Filesystem {
         data_cache.save();
     }
 
-    pub async fn try_open_project(&self, cache: &DataCache) {
+    pub fn try_open_project(&self, cache: &DataCache) {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()

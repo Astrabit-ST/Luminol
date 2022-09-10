@@ -2,8 +2,8 @@ export async function js_open_project() {
     const pickerOpts = {
       mode: "readwrite"
     }
-    let [fileHandle] = await window.showDirectoryPicker(pickerOpts);
-    return fileHandle;
+    
+    return window.showDirectoryPicker(pickerOpts).await;
 }
 
 export function js_filesystem_supported() {

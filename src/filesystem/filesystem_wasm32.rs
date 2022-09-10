@@ -6,10 +6,25 @@ use wasm_bindgen::JsValue;
 
 use super::data_cache::DataCache;
 
+/// Arbitrary stack size of 50kib.
+const ASYNCIFY_STACK_SIZE: usize = 50 * 1024;
+/// Scratch space used by Asyncify to save/restore stacks.
+static ASYNCIFY_STACK: [u8; ASYNCIFY_STACK_SIZE] = [0; ASYNCIFY_STACK_SIZE];
+
+#[no_mangle]
+extern "C" fn get_asyncify_stack_space_ptr() -> i32 {
+    ASYNCIFY_STACK.as_ptr() as i32
+}
+
+#[no_mangle]
+extern "C" fn get_asyncify_stack_space_size() -> i32 {
+    ASYNCIFY_STACK_SIZE as i32
+}
+
 // Javascript interface for filesystem
 #[wasm_bindgen(module = "/assets/filesystem.js")]
 extern "C" {
-    async fn js_open_project() -> JsValue;
+    fn js_open_project() -> JsValue;
     fn js_filesystem_supported() -> bool;
 }
 
@@ -58,18 +73,7 @@ impl Filesystem {
         data_cache.save();
     }
 
-    pub async fn try_open_project(&self, cache: &DataCache) {
-        let handle = js_open_project().await;
-        // Should have this field
-        let path = PathBuf::from(
-            js_sys::Reflect::get(&handle, &JsValue::from("name"))
-                .unwrap()
-                .as_string()
-                .unwrap(),
-        );
-        *self.project_path.lock().unwrap().borrow_mut() = Some(path);
-
-        //path.pop(); // Pop off filename
-        //self.load_project(path)
+    pub fn try_open_project(&self, cache: &DataCache) {
+        let handle = js_open_project();
     }
 }

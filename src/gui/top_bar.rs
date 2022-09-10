@@ -1,15 +1,9 @@
 use super::window::UpdateInfo;
-use poll_promise::Promise;
-
-pub struct TopBar {
-    project_open_promise: Option<Promise<()>>,
-}
+pub struct TopBar {}
 
 impl TopBar {
     pub fn new() -> Self {
-        Self {
-            project_open_promise: None,
-        }
+        Self {}
     }
 
     pub fn ui(&mut self, info: &UpdateInfo, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
@@ -22,23 +16,8 @@ impl TopBar {
 
             if ui.button("New Project").clicked() {}
 
-            if self.project_open_promise.is_none() {
-                if ui.button("Open Project").clicked() {
-                    let filesystem = info.filesystem.clone();
-                    let data_cache = info.data_cache.clone();
-
-                    let promise = Promise::spawn_async(async {
-                        pollster::block_on(async {
-                            let filesystem = filesystem;
-                            let data_cache = data_cache;
-                            filesystem.try_open_project(data_cache.as_ref()).await
-                        })
-                    });
-
-                    self.project_open_promise = Some(promise);
-                }
-            } else {
-                ui.spinner();
+            if ui.button("Open Project").clicked() {
+                info.filesystem.try_open_project(&info.data_cache);
             }
 
             ui.separator();
@@ -78,11 +57,5 @@ impl TopBar {
                 info.windows.add_window(super::about::About::new());
             };
         });
-
-        if let Some(p) = &self.project_open_promise {
-            if p.ready().is_some() {
-                self.project_open_promise = None
-            }
-        }
     }
 }
