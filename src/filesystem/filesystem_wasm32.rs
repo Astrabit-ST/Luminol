@@ -29,6 +29,7 @@ extern "C" {
 
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
+    handle: RefCell<Option<JsValue>>
 }
 
 impl Filesystem {
@@ -41,27 +42,28 @@ impl Filesystem {
         }
         Self {
             project_path: RefCell::new(None),
+            handle: RefCell::new(None)
         }
     }
 
     pub fn unload_project(&self) {
-        *self.project_path.lock().unwrap().borrow_mut() = None;
+        *self.project_path.borrow_mut() = None;
     }
 
     pub fn project_loaded(&self) -> bool {
-        self.project_path.lock().unwrap().borrow().is_some()
+        self.project_path.borrow().is_some()
     }
 
     pub fn project_path(&self) -> Option<PathBuf> {
-        self.project_path.lock().unwrap().borrow().clone()
+        self.project_path.borrow().clone()
     }
 
     pub fn load_project(&self, path: PathBuf, cache: &DataCache) {
-        *self.project_path.lock().unwrap().borrow_mut() = Some(path);
+        *self.project_path.borrow_mut() = Some(path);
         cache.load(self);
     }
 
-    pub fn read_data<T>(&self, path: &str) -> Result<T, &str>
+    pub fn read_data<T>(&self, _path: &str) -> Result<T, &str>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -73,6 +75,7 @@ impl Filesystem {
     }
 
     pub fn try_open_project(&self, cache: &DataCache) {
-        let handle = js_open_project();
+        *self.handle.borrow_mut() = Some(js_open_project());
+        self.load_project(PathBuf::from("Project"), cache);
     }
 }

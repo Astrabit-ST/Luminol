@@ -6,6 +6,7 @@ impl TopBar {
         Self {}
     }
 
+    #[allow(unused_variables)]
     pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         ui.menu_button("File", |ui| {
             ui.label(if let Some(path) = info.filesystem.project_path() {
