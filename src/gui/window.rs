@@ -10,7 +10,7 @@ pub struct UpdateInfo<'a> {
 
 pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: RefCell<Vec<Box<dyn Window + Send>>>,
+    windows: RefCell<Vec<Box<dyn Window>>>,
 }
 
 impl Windows {
@@ -23,7 +23,7 @@ impl Windows {
     /// A function to add a window.
     pub fn add_window<T>(&self, window: T)
     where
-        T: Window + Send + 'static,
+        T: Window + 'static,
     {
         let mut windows = self.windows.borrow_mut();
         if windows.iter().any(|w| w.name() == window.name()) {
@@ -36,7 +36,7 @@ impl Windows {
     /// This is usually when a project is closed.
     pub fn clean_windows(&self) {
         let mut windows = self.windows.borrow_mut();
-        windows.retain(|window| !window.requires_cache())
+        windows.retain(|window| !window.requires_filesystem())
     }
 
     pub fn update(&self, ctx: &egui::Context, info: &UpdateInfo<'_>) {
@@ -60,7 +60,7 @@ pub trait Window {
     fn name(&self) -> String;
 
     ///  A function to determine if this window needs the data cache.
-    fn requires_cache(&self) -> bool {
+    fn requires_filesystem(&self) -> bool {
         false
     }
 }

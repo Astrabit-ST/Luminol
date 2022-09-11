@@ -33,6 +33,28 @@ impl Filesystem {
         cache.load(self);
     }
 
+    pub fn dir_children(&self, path: &str) -> fs::ReadDir {
+        fs::read_dir(
+            self.project_path
+                .borrow()
+                .as_ref()
+                .expect("Project path not specified")
+                .join(path),
+        )
+        .expect("Directory missing")
+    }
+
+    pub fn file(&self, path: &str) -> fs::File {
+        fs::File::open(
+            self.project_path
+                .borrow()
+                .as_ref()
+                .expect("Project path not specified")
+                .join(path),
+        )
+        .expect("No file or directory")
+    }
+
     pub fn read_data<T>(&self, path: &str) -> ron::error::SpannedResult<T>
     where
         T: serde::de::DeserializeOwned,

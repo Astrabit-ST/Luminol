@@ -76,7 +76,7 @@ impl super::window::Window for MapPicker {
         "Map Picker".to_string()
     }
 
-    fn requires_cache(&self) -> bool {
+    fn requires_filesystem(&self) -> bool {
         true
     }
 }

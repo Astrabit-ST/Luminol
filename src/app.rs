@@ -36,13 +36,13 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
-            let update_info = UpdateInfo {
-                filesystem: &self.filesystem,
-                data_cache: &self.data_cache,
-                windows: &self.windows,
-            };
+        let update_info = UpdateInfo {
+            filesystem: &self.filesystem,
+            data_cache: &self.data_cache,
+            windows: &self.windows,
+        };
 
+        egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
                 // Turn off button frame.
@@ -50,8 +50,10 @@ impl eframe::App for App {
                 // Show the bar
                 self.top_bar.ui(&update_info, ui, frame);
             });
-
-            self.windows.update(ctx, &update_info);
         });
+
+        egui::CentralPanel::default().show(ctx, |_ui| {});
+
+        self.windows.update(ctx, &update_info);
     }
 }

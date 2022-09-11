@@ -5,6 +5,7 @@ mod app;
 mod gui {
     pub mod about;
     pub mod map_picker;
+    pub mod sound_test;
     pub mod top_bar;
     pub mod window;
 }

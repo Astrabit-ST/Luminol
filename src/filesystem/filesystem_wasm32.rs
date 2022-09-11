@@ -29,7 +29,7 @@ extern "C" {
 
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
-    handle: RefCell<Option<JsValue>>
+    handle: RefCell<Option<JsValue>>,
 }
 
 impl Filesystem {
@@ -42,7 +42,7 @@ impl Filesystem {
         }
         Self {
             project_path: RefCell::new(None),
-            handle: RefCell::new(None)
+            handle: RefCell::new(None),
         }
     }
 

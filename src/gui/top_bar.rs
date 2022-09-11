@@ -8,6 +8,10 @@ impl TopBar {
 
     #[allow(unused_variables)]
     pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        egui::widgets::global_dark_light_mode_switch(ui);
+
+        ui.separator();
+
         ui.menu_button("File", |ui| {
             ui.label(if let Some(path) = info.filesystem.project_path() {
                 format!("Current project:\n{}", path.display())
@@ -48,6 +52,10 @@ impl TopBar {
         ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
             if ui.button("Maps").clicked() {
                 info.windows.add_window(super::map_picker::MapPicker::new())
+            }
+
+            if ui.button("Sound Test").clicked() {
+                info.windows.add_window(super::sound_test::SoundTest::new())
             }
         });
 
