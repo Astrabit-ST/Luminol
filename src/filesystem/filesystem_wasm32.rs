@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
@@ -29,7 +28,7 @@ extern "C" {
 }
 
 pub struct Filesystem {
-    project_path: Mutex<RefCell<Option<PathBuf>>>,
+    project_path: RefCell<Option<PathBuf>>,
 }
 
 impl Filesystem {
@@ -41,7 +40,7 @@ impl Filesystem {
             panic!("Filesystem not supported on this browser");
         }
         Self {
-            project_path: Mutex::new(RefCell::new(None)),
+            project_path: RefCell::new(None),
         }
     }
 

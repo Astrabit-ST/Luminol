@@ -1,6 +1,6 @@
+use super::window::UpdateInfo;
 use crate::data::rmxp_structs::rpg::MapInfo;
 use std::collections::HashMap;
-use super::window::UpdateInfo;
 
 /// The map picker window.
 /// Displays a list of maps in a tree.
@@ -13,7 +13,6 @@ impl MapPicker {
     }
 
     pub fn render_submap(
-        &self,
         id: &i32,
         children_data: &HashMap<i32, Vec<i32>>,
         mapinfos: &HashMap<i32, MapInfo>,
@@ -27,7 +26,7 @@ impl MapPicker {
             ui.collapsing(map_name, |ui| {
                 for id in children_data.get(id).unwrap() {
                     // Render children.
-                    self.render_submap(id, children_data, mapinfos, ui)
+                    Self::render_submap(id, children_data, mapinfos, ui)
                 }
             });
         } else {
@@ -38,13 +37,12 @@ impl MapPicker {
 }
 
 impl super::window::Window for MapPicker {
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo<'_>) {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 // Aquire the data cache.
-                let cache = info.data_cache.get();
-                let mut cache = cache.borrow_mut();
-                
+                let mut cache = info.data_cache.borrow_mut();
+
                 let mapinfos = cache.mapinfos.as_mut().expect("MapInfos not loaded.");
 
                 // We sort maps by their order.
@@ -67,7 +65,7 @@ impl super::window::Window for MapPicker {
                     // There will always be a map `0`.
                     // `0` is assumed to be the root map.
                     for id in children_data.get(&0).unwrap() {
-                        self.render_submap(id, &children_data, mapinfos, ui);
+                        Self::render_submap(id, &children_data, mapinfos, ui);
                     }
                 });
             })

@@ -1,36 +1,35 @@
 use std::cell::RefCell;
 use std::fs;
-use std::sync::Mutex;
 use std::path::PathBuf;
 
 use super::data_cache::DataCache;
 
 /// Native filesystem implementation.
 pub struct Filesystem {
-    project_path: Mutex<RefCell<Option<PathBuf>>>,
+    project_path: RefCell<Option<PathBuf>>,
 }
 
 impl Filesystem {
     pub fn new() -> Self {
         Self {
-            project_path: Mutex::new(RefCell::new(None))
+            project_path: RefCell::new(None),
         }
     }
 
     pub fn unload_project(&self) {
-        *self.project_path.lock().unwrap().borrow_mut() = None;
+        *self.project_path.borrow_mut() = None;
     }
 
     pub fn project_loaded(&self) -> bool {
-        self.project_path.lock().unwrap().borrow().is_some()
+        self.project_path.borrow().is_some()
     }
 
     pub fn project_path(&self) -> Option<PathBuf> {
-        self.project_path.lock().unwrap().borrow().clone()
+        self.project_path.borrow().clone()
     }
 
     pub fn load_project(&self, path: PathBuf, cache: &DataCache) {
-        *self.project_path.lock().unwrap().borrow_mut() = Some(path);
+        *self.project_path.borrow_mut() = Some(path);
         cache.load(self);
     }
 
@@ -40,8 +39,6 @@ impl Filesystem {
     {
         let path = self
             .project_path
-            .lock()
-            .unwrap()
             .borrow()
             .as_ref()
             .expect("Project path not specified")

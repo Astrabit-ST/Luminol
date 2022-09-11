@@ -1,23 +1,22 @@
-use std::{sync::{Mutex, Arc}};
 pub use std::cell::RefCell;
 
-use crate::filesystem::{Filesystem, data_cache::DataCache};
+use crate::filesystem::{data_cache::DataCache, Filesystem};
 /// Passed to windows and widgets when updating.
-pub struct UpdateInfo {
-    pub filesystem: Arc<Filesystem>,
-    pub data_cache: Arc<DataCache>,
-    pub windows: Arc<Windows>,
+pub struct UpdateInfo<'a> {
+    pub filesystem: &'a Filesystem,
+    pub data_cache: &'a DataCache,
+    pub windows: &'a Windows,
 }
 
 pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: Mutex<RefCell<Vec<Box<dyn Window + Send>>>>,
+    windows: RefCell<Vec<Box<dyn Window + Send>>>,
 }
 
 impl Windows {
     pub fn new() -> Self {
         Self {
-            windows: Mutex::new(RefCell::new(Vec::new())),
+            windows: RefCell::new(Vec::new()),
         }
     }
 
@@ -26,8 +25,7 @@ impl Windows {
     where
         T: Window + Send + 'static,
     {
-        let windows = self.windows.lock().unwrap();
-        let mut windows = windows.borrow_mut();
+        let mut windows = self.windows.borrow_mut();
         if windows.iter().any(|w| w.name() == window.name()) {
             return;
         }
@@ -37,15 +35,13 @@ impl Windows {
     /// Clean all windows that need the data cache.
     /// This is usually when a project is closed.
     pub fn clean_windows(&self) {
-        let mut windows = self.windows.lock().unwrap();
-        let windows = windows.get_mut();
+        let mut windows = self.windows.borrow_mut();
         windows.retain(|window| !window.requires_cache())
     }
 
-    pub fn update(&self, ctx: &egui::Context, info: &UpdateInfo) {
+    pub fn update(&self, ctx: &egui::Context, info: &UpdateInfo<'_>) {
         // Iterate through all the windows and clean them up if necessary.
-        let mut windows = self.windows.lock().unwrap();
-        let windows = windows.get_mut();
+        let mut windows = self.windows.borrow_mut();
         windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
@@ -58,7 +54,7 @@ impl Windows {
 /// A basic trait describing a window that can show itself.
 /// A mutable bool is passed to it and is set to false if it is closed.
 pub trait Window {
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo<'_>);
 
     /// Required to prevent duplication.
     fn name(&self) -> String;

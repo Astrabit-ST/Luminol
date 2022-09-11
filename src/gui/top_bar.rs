@@ -6,7 +6,7 @@ impl TopBar {
         Self {}
     }
 
-    pub fn ui(&mut self, info: &UpdateInfo, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         ui.menu_button("File", |ui| {
             ui.label(if let Some(path) = info.filesystem.project_path() {
                 format!("Current project:\n{}", path.display())
@@ -17,7 +17,7 @@ impl TopBar {
             if ui.button("New Project").clicked() {}
 
             if ui.button("Open Project").clicked() {
-                info.filesystem.try_open_project(&info.data_cache);
+                info.filesystem.try_open_project(info.data_cache);
             }
 
             ui.separator();
@@ -29,7 +29,7 @@ impl TopBar {
                 }
 
                 if ui.button("Save Project").clicked() {
-                    info.filesystem.save_cached(info.data_cache.as_ref())
+                    info.filesystem.save_cached(info.data_cache)
                 }
             });
 

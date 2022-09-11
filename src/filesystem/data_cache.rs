@@ -1,10 +1,13 @@
 use crate::data::rmxp_structs::rpg;
-use std::{cell::{RefCell,}, collections::HashMap, sync::{Mutex, MutexGuard}};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
+};
 
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 pub struct DataCache {
-    inner: Mutex<RefCell<Inner>>,
+    inner: RefCell<Inner>,
 }
 
 #[derive(Default)]
@@ -15,20 +18,27 @@ pub struct Inner {
 impl DataCache {
     pub fn new() -> Self {
         Self {
-            inner: Mutex::new(RefCell::new(Inner::default())),
+            inner: RefCell::new(Inner::default()),
         }
     }
 
     pub fn load(&self, filesystem: &crate::filesystem::Filesystem) {
-        let inner = self.inner.lock().unwrap();
-        let mut inner = inner.borrow_mut();
-        inner.mapinfos = Some(filesystem
-            .read_data("MapInfos.ron")
-            .expect("Failed to load Map Infos"));
+        let mut inner = self.inner.borrow_mut();
+        inner.mapinfos = Some(
+            filesystem
+                .read_data("MapInfos.ron")
+                .expect("Failed to load Map Infos"),
+        );
     }
 
-    pub fn get(&self) -> MutexGuard<'_, RefCell<Inner>> {
-        self.inner.lock().unwrap()
+    // TODO: Find a better way.
+    pub fn borrow_mut(&self) -> RefMut<'_, Inner> {
+        self.inner.borrow_mut()
+    }
+
+    #[allow(dead_code)]
+    pub fn borrow(&self) -> Ref<'_, Inner> {
+        self.inner.borrow()
     }
 
     pub fn save(&self) {}
