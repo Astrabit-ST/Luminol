@@ -1,5 +1,5 @@
-use super::window::UpdateInfo;
 use crate::data::rmxp_structs::rpg::MapInfo;
+use crate::UpdateInfo;
 use std::collections::HashMap;
 
 /// The map picker window.
@@ -16,22 +16,45 @@ impl MapPicker {
         id: &i32,
         children_data: &HashMap<i32, Vec<i32>>,
         mapinfos: &HashMap<i32, MapInfo>,
+        info: &UpdateInfo<'_>,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
-        let map_name = &mapinfos.get(id).unwrap().name;
+        let map_info = mapinfos.get(id).unwrap();
+        let map_name = &map_info.name;
         // Does this map have children?
         if children_data.contains_key(id) {
-            // Render a collapsing header.
-            ui.collapsing(map_name, |ui| {
+            // Render a custom collapsing header.
+            // It's custom so we can add a button to open a map.
+            egui::collapsing_header::CollapsingState::load_with_default_open(
+                ui.ctx(),
+                ui.make_persistent_id(format!("map_info_{}", id)),
+                map_info.expanded,
+            )
+            .show_header(ui, |ui| {
+                // Has the user
+                if ui.button(map_name).double_clicked() {
+                    info.tabs.borrow_mut().push_to_focused_leaf(Box::new(
+                        crate::tabs::map::Map::new(*id, map_name.clone()),
+                    ))
+                }
+            })
+            .body(|ui| {
                 for id in children_data.get(id).unwrap() {
                     // Render children.
-                    Self::render_submap(id, children_data, mapinfos, ui)
+                    Self::render_submap(id, children_data, mapinfos, info, ui)
                 }
             });
         } else {
             // Just display a label otherwise.
-            ui.label(map_name);
+            if ui.button(map_name).double_clicked() {
+                info.tabs
+                    .borrow_mut()
+                    .push_to_focused_leaf(Box::new(crate::tabs::map::Map::new(
+                        *id,
+                        map_name.clone(),
+                    )))
+            }
         }
     }
 }
@@ -65,7 +88,7 @@ impl super::window::Window for MapPicker {
                     // There will always be a map `0`.
                     // `0` is assumed to be the root map.
                     for id in children_data.get(&0).unwrap() {
-                        Self::render_submap(id, &children_data, mapinfos, ui);
+                        Self::render_submap(id, &children_data, mapinfos, info, ui);
                     }
                 });
             })

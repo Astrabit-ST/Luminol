@@ -1,13 +1,18 @@
+use std::cell::RefCell;
+
 use crate::{
     filesystem::{data_cache::DataCache, Filesystem},
-    gui::window::{UpdateInfo, Windows},
+    tabs::tab::{TabViewer, Tree},
+    windows::window::Windows,
+    UpdateInfo,
 };
 
 pub struct App {
     filesystem: Filesystem,
     data_cache: DataCache,
     windows: Windows,
-    top_bar: crate::gui::top_bar::TopBar,
+    top_bar: crate::top_bar::TopBar,
+    tree: RefCell<Tree>,
 }
 
 impl Default for App {
@@ -16,7 +21,8 @@ impl Default for App {
             filesystem: Filesystem::new(),
             data_cache: DataCache::new(),
             windows: Windows::new(),
-            top_bar: crate::gui::top_bar::TopBar::new(),
+            top_bar: crate::top_bar::TopBar::new(),
+            tree: RefCell::new(Tree::new(vec![])),
         }
     }
 }
@@ -40,6 +46,7 @@ impl eframe::App for App {
             filesystem: &self.filesystem,
             data_cache: &self.data_cache,
             windows: &self.windows,
+            tabs: &self.tree,
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
@@ -52,7 +59,12 @@ impl eframe::App for App {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |_ui| {});
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.group(|ui| {
+                egui_dock::DockArea::new(&mut self.tree.borrow_mut())
+                    .show_inside(ui, &mut TabViewer { info: &update_info })
+            })
+        });
 
         self.windows.update(ctx, &update_info);
     }

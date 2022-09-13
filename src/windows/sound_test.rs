@@ -1,4 +1,4 @@
-use super::window::UpdateInfo;
+use crate::UpdateInfo;
 use rodio::{Decoder, OutputStream, Sink};
 use strum::Display;
 use strum::EnumIter;

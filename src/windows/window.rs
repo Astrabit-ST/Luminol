@@ -1,12 +1,6 @@
 pub use std::cell::RefCell;
 
-use crate::filesystem::{data_cache::DataCache, Filesystem};
-/// Passed to windows and widgets when updating.
-pub struct UpdateInfo<'a> {
-    pub filesystem: &'a Filesystem,
-    pub data_cache: &'a DataCache,
-    pub windows: &'a Windows,
-}
+use crate::UpdateInfo;
 
 pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().

@@ -1,4 +1,4 @@
-use super::window::UpdateInfo;
+use crate::UpdateInfo;
 
 /// A basic about window.
 /// Shows some info on Luminol, along with an icon.

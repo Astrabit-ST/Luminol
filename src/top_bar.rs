@@ -1,4 +1,4 @@
-use super::window::UpdateInfo;
+use crate::UpdateInfo;
 pub struct TopBar {}
 
 impl TopBar {
@@ -51,11 +51,13 @@ impl TopBar {
 
         ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
             if ui.button("Maps").clicked() {
-                info.windows.add_window(super::map_picker::MapPicker::new())
+                info.windows
+                    .add_window(crate::windows::map_picker::MapPicker::new())
             }
 
             if ui.button("Sound Test").clicked() {
-                info.windows.add_window(super::sound_test::SoundTest::new())
+                info.windows
+                    .add_window(crate::windows::sound_test::SoundTest::new())
             }
         });
 
@@ -63,7 +65,7 @@ impl TopBar {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                info.windows.add_window(super::about::About::new());
+                info.windows.add_window(crate::windows::about::About::new());
             };
         });
     }
