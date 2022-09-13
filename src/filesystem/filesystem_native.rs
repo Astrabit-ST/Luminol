@@ -61,13 +61,32 @@ impl Filesystem {
             .expect("Project path not specified")
             .join("Data_RON")
             .join(path);
+        println!("Loading {}", path.display());
 
         let data = fs::read_to_string(path)?;
         ron::from_str(&data)
     }
 
+    pub fn save_data<T>(&self, path: &str, data: &T) -> Result<(), std::io::Error>
+    where
+        T: serde::ser::Serialize,
+    {
+        let path = self
+            .project_path
+            .borrow()
+            .as_ref()
+            .expect("Project path not specified")
+            .join("Data_RON")
+            .join(path);
+        println!("saving {}", path.display());
+
+        let contents = ron::ser::to_string_pretty(data, ron::ser::PrettyConfig::default())
+            .expect("Failed to serialize data");
+        fs::write(path, contents)
+    }
+
     pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) {
-        data_cache.save();
+        data_cache.save(self);
     }
 
     pub fn try_open_project(&self, cache: &DataCache) {

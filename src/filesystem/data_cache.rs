@@ -4,6 +4,8 @@ use std::{
     collections::HashMap,
 };
 
+use super::Filesystem;
+
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
@@ -13,17 +15,34 @@ pub struct DataCache {
 
 #[derive(Default)]
 pub struct Inner {
+    pub tilesets: Option<Vec<rpg::Tileset>>,
     pub mapinfos: Option<HashMap<i32, rpg::MapInfo>>,
+    pub maps: HashMap<i32, rpg::Map>,
 }
 
 impl DataCache {
-    pub fn load(&self, filesystem: &crate::filesystem::Filesystem) {
+    pub fn load(&self, filesystem: &Filesystem) {
         let mut inner = self.inner.borrow_mut();
         inner.mapinfos = Some(
             filesystem
                 .read_data("MapInfos.ron")
                 .expect("Failed to load Map Infos"),
         );
+
+        inner.tilesets = Some(
+            filesystem
+                .read_data("Tilesets.ron")
+                .expect("Failed to load Tilesets"),
+        );
+    }
+
+    pub fn load_map(&self, filesystem: &Filesystem, id: i32) {
+        let mut inner = self.inner.borrow_mut();
+        inner.maps.entry(id).or_insert_with(|| {
+            filesystem
+                .read_data(&format!("Map{:0>3}.ron", id))
+                .expect("Failed to load map")
+        });
     }
 
     // TODO: Find a better way.
@@ -36,5 +55,23 @@ impl DataCache {
         self.inner.borrow()
     }
 
-    pub fn save(&self) {}
+    pub fn save(&self, filesystem: &Filesystem) {
+        // Write map data and clear map cache.
+        let mut inner = self.inner.borrow_mut();
+        for (id, map) in inner.maps.drain() {
+            filesystem
+                .save_data(&format!("Map{:0>3}.ron", id), &map)
+                .expect("Failed to write Map data");
+        }
+        if let Some(tilesets) = inner.tilesets.as_ref() {
+            filesystem
+                .save_data("Tilesets.ron", tilesets)
+                .expect("Failed to write Tileset data");
+        }
+        if let Some(mapinfos) = inner.mapinfos.as_ref() {
+            filesystem
+                .save_data("MapInfos.ron", mapinfos)
+                .expect("Failed to write MapInfos data");
+        }
+    }
 }

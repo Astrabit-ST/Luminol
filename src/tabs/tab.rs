@@ -5,12 +5,14 @@ use crate::UpdateInfo;
 
 pub type Tree = egui_dock::Tree<Box<dyn Tab>>;
 
+/// Helper struct for tabs.
 pub struct Tabs {
     tree: RefCell<Tree>,
 }
 
 impl Default for Tabs {
     fn default() -> Self {
+        // Add the basic "get started" tab
         Self {
             tree: RefCell::new(Tree::new(vec![Box::new(Started::new())])),
         }
@@ -30,6 +32,10 @@ impl Tabs {
         T: Tab + 'static,
     {
         self.tree.borrow_mut().push_to_focused_leaf(Box::new(tab));
+    }
+
+    pub fn clean_tabs(&self) {
+        todo!()
     }
 }
 
@@ -53,4 +59,8 @@ pub trait Tab {
     fn name(&self) -> String;
 
     fn show(&mut self, ui: &mut egui::Ui, info: &UpdateInfo<'_>);
+
+    fn requires_filesystem(&self) -> bool {
+        false
+    }
 }

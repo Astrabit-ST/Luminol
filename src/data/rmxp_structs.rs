@@ -104,6 +104,12 @@ pub mod rpg {
         Color(Color),
         Tone(Tone),
         AudioFile(AudioFile),
+        Float(f32),
+        MoveRoute(MoveRoute),
+        MoveCommand(MoveCommand),
+        Array(Vec<String>),
+        TrueClass(bool),
+        FalseClass(bool),
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]

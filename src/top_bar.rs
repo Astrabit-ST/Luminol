@@ -16,7 +16,9 @@ impl TopBar {
                 "No project open".to_string()
             });
 
-            if ui.button("New Project").clicked() {}
+            if ui.button("New Project").clicked() {
+                todo!()
+            }
 
             if ui.button("Open Project").clicked() {
                 info.filesystem.try_open_project(info.data_cache);
@@ -27,7 +29,8 @@ impl TopBar {
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Close Project").clicked() {
                     info.filesystem.unload_project();
-                    info.windows.clean_windows()
+                    info.windows.clean_windows();
+                    info.tabs.clean_tabs();
                 }
 
                 if ui.button("Save Project").clicked() {

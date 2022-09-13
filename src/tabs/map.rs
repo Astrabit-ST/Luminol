@@ -14,7 +14,9 @@ impl super::tab::Tab for Map {
         format!("Map {}: {}", self.id, self.name)
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, _info: &crate::UpdateInfo<'_>) {
+    fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
         ui.label(format!("Map number {}", self.id));
+
+        info.data_cache.load_map(info.filesystem, self.id);
     }
 }
