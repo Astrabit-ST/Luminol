@@ -9,13 +9,15 @@ pub struct Tabs {
     tree: RefCell<Tree>,
 }
 
-impl Tabs {
-    pub fn new() -> Self {
+impl Default for Tabs {
+    fn default() -> Self {
         Self {
             tree: RefCell::new(Tree::new(vec![Box::new(Started::new())])),
         }
     }
+}
 
+impl Tabs {
     pub fn ui(&self, ui: &mut egui::Ui, info: &UpdateInfo<'_>) {
         ui.group(|ui| {
             egui_dock::DockArea::new(&mut self.tree.borrow_mut())

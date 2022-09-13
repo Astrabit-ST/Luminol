@@ -6,6 +6,7 @@ use std::{
 
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
+#[derive(Default)]
 pub struct DataCache {
     inner: RefCell<Inner>,
 }
@@ -16,12 +17,6 @@ pub struct Inner {
 }
 
 impl DataCache {
-    pub fn new() -> Self {
-        Self {
-            inner: RefCell::new(Inner::default()),
-        }
-    }
-
     pub fn load(&self, filesystem: &crate::filesystem::Filesystem) {
         let mut inner = self.inner.borrow_mut();
         inner.mapinfos = Some(

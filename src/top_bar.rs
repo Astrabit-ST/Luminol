@@ -1,11 +1,8 @@
 use crate::UpdateInfo;
+#[derive(Default)]
 pub struct TopBar {}
 
 impl TopBar {
-    pub fn new() -> Self {
-        Self {}
-    }
-
     #[allow(unused_variables)]
     pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         egui::widgets::global_dark_light_mode_switch(ui);

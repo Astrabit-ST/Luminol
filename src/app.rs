@@ -1,28 +1,18 @@
 use crate::{
     filesystem::{data_cache::DataCache, Filesystem},
     tabs::tab::Tabs,
+    top_bar::TopBar,
     windows::window::Windows,
     UpdateInfo,
 };
 
+#[derive(Default)]
 pub struct App {
     filesystem: Filesystem,
     data_cache: DataCache,
     windows: Windows,
-    top_bar: crate::top_bar::TopBar,
+    top_bar: TopBar,
     tabs: Tabs,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            filesystem: Filesystem::new(),
-            data_cache: DataCache::new(),
-            windows: Windows::new(),
-            top_bar: crate::top_bar::TopBar::new(),
-            tabs: Tabs::new(),
-        }
-    }
 }
 
 impl App {

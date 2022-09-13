@@ -2,18 +2,13 @@ pub use std::cell::RefCell;
 
 use crate::UpdateInfo;
 
+#[derive(Default)]
 pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
     windows: RefCell<Vec<Box<dyn Window>>>,
 }
 
 impl Windows {
-    pub fn new() -> Self {
-        Self {
-            windows: RefCell::new(Vec::new()),
-        }
-    }
-
     /// A function to add a window.
     pub fn add_window<T>(&self, window: T)
     where

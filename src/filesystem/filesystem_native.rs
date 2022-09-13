@@ -5,17 +5,12 @@ use std::path::PathBuf;
 use super::data_cache::DataCache;
 
 /// Native filesystem implementation.
+#[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
 }
 
 impl Filesystem {
-    pub fn new() -> Self {
-        Self {
-            project_path: RefCell::new(None),
-        }
-    }
-
     pub fn unload_project(&self) {
         *self.project_path.borrow_mut() = None;
     }
