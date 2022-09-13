@@ -1,4 +1,35 @@
+use std::cell::RefCell;
+
+use super::started::Started;
 use crate::UpdateInfo;
+
+pub type Tree = egui_dock::Tree<Box<dyn Tab>>;
+
+pub struct Tabs {
+    tree: RefCell<Tree>,
+}
+
+impl Tabs {
+    pub fn new() -> Self {
+        Self {
+            tree: RefCell::new(Tree::new(vec![Box::new(Started::new())])),
+        }
+    }
+
+    pub fn ui(&self, ui: &mut egui::Ui, info: &UpdateInfo<'_>) {
+        ui.group(|ui| {
+            egui_dock::DockArea::new(&mut self.tree.borrow_mut())
+                .show_inside(ui, &mut TabViewer { info });
+        });
+    }
+
+    pub fn add_tab<T>(&self, tab: T)
+    where
+        T: Tab + 'static,
+    {
+        self.tree.borrow_mut().push_to_focused_leaf(Box::new(tab));
+    }
+}
 
 pub struct TabViewer<'a> {
     pub info: &'a UpdateInfo<'a>,
@@ -21,5 +52,3 @@ pub trait Tab {
 
     fn show(&mut self, ui: &mut egui::Ui, info: &UpdateInfo<'_>);
 }
-
-pub type Tree = egui_dock::Tree<Box<dyn Tab>>;

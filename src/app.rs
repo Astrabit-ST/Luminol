@@ -1,8 +1,6 @@
-use std::cell::RefCell;
-
 use crate::{
     filesystem::{data_cache::DataCache, Filesystem},
-    tabs::tab::{TabViewer, Tree},
+    tabs::tab::Tabs,
     windows::window::Windows,
     UpdateInfo,
 };
@@ -12,7 +10,7 @@ pub struct App {
     data_cache: DataCache,
     windows: Windows,
     top_bar: crate::top_bar::TopBar,
-    tree: RefCell<Tree>,
+    tabs: Tabs,
 }
 
 impl Default for App {
@@ -22,7 +20,7 @@ impl Default for App {
             data_cache: DataCache::new(),
             windows: Windows::new(),
             top_bar: crate::top_bar::TopBar::new(),
-            tree: RefCell::new(Tree::new(vec![])),
+            tabs: Tabs::new(),
         }
     }
 }
@@ -42,11 +40,13 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // This struct is passed to windows and widgets so they can modify internal state.
+        // Bit jank but it works.
         let update_info = UpdateInfo {
             filesystem: &self.filesystem,
             data_cache: &self.data_cache,
             windows: &self.windows,
-            tabs: &self.tree,
+            tabs: &self.tabs,
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
@@ -59,13 +59,12 @@ impl eframe::App for App {
             });
         });
 
+        // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.group(|ui| {
-                egui_dock::DockArea::new(&mut self.tree.borrow_mut())
-                    .show_inside(ui, &mut TabViewer { info: &update_info })
-            })
+            self.tabs.ui(ui, &update_info);
         });
 
+        // Update all windows.
         self.windows.update(ctx, &update_info);
     }
 }

@@ -12,6 +12,7 @@ mod top_bar;
 
 mod tabs {
     pub mod map;
+    pub mod started;
     pub mod tab;
 }
 
@@ -37,10 +38,7 @@ mod filesystem {
     pub mod data_cache;
 }
 
-use std::cell::RefCell;
-
 pub use app::App;
-use tabs::tab::Tree;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
@@ -51,5 +49,5 @@ pub struct UpdateInfo<'a> {
     pub filesystem: &'a Filesystem,
     pub data_cache: &'a DataCache,
     pub windows: &'a windows::window::Windows,
-    pub tabs: &'a RefCell<Tree>,
+    pub tabs: &'a tabs::tab::Tabs,
 }

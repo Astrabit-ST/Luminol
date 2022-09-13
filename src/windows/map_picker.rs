@@ -34,9 +34,8 @@ impl MapPicker {
             .show_header(ui, |ui| {
                 // Has the user
                 if ui.button(map_name).double_clicked() {
-                    info.tabs.borrow_mut().push_to_focused_leaf(Box::new(
-                        crate::tabs::map::Map::new(*id, map_name.clone()),
-                    ))
+                    info.tabs
+                        .add_tab(crate::tabs::map::Map::new(*id, map_name.clone()))
                 }
             })
             .body(|ui| {
@@ -49,11 +48,7 @@ impl MapPicker {
             // Just display a label otherwise.
             if ui.button(map_name).double_clicked() {
                 info.tabs
-                    .borrow_mut()
-                    .push_to_focused_leaf(Box::new(crate::tabs::map::Map::new(
-                        *id,
-                        map_name.clone(),
-                    )))
+                    .add_tab(crate::tabs::map::Map::new(*id, map_name.clone()))
             }
         }
     }

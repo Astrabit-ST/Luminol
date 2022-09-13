@@ -20,7 +20,7 @@ jobs:
           toolchain: stable
           override: true
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev alsa-lib
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -38,7 +38,7 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev alsa-lib
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -54,7 +54,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev
+      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev alsa-lib
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -72,7 +72,7 @@ jobs:
           override: true
           components: rustfmt
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev alsa-lib
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -90,7 +90,7 @@ jobs:
           override: true
           components: clippy
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev alsa-lib
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
