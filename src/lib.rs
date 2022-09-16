@@ -8,7 +8,12 @@ mod windows {
     pub mod sound_test;
     pub mod window;
 }
-mod top_bar;
+
+mod components {
+    pub mod top_bar;
+    pub mod toolbar;
+    pub mod tilemap;
+}
 
 mod tabs {
     pub mod map;

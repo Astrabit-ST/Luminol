@@ -1,7 +1,7 @@
 use crate::{
+    components::{toolbar::Toolbar, top_bar::TopBar},
     filesystem::{data_cache::DataCache, Filesystem},
     tabs::tab::Tabs,
-    top_bar::TopBar,
     windows::window::Windows,
     UpdateInfo,
 };
@@ -12,6 +12,7 @@ pub struct App {
     data_cache: DataCache,
     windows: Windows,
     top_bar: TopBar,
+    toolbar: Toolbar,
     tabs: Tabs,
 }
 
@@ -48,6 +49,14 @@ impl eframe::App for App {
                 self.top_bar.ui(&update_info, ui, frame);
             });
         });
+
+        egui::SidePanel::left("toolbar")
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    self.toolbar.ui(&update_info, ui);
+                });
+            });
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {

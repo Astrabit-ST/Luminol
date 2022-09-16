@@ -31,7 +31,15 @@ impl Tabs {
     where
         T: Tab + 'static,
     {
-        self.tree.borrow_mut().push_to_focused_leaf(Box::new(tab));
+        let mut tree = self.tree.borrow_mut();
+        for n in tree.iter() {
+            if let egui_dock::Node::Leaf { tabs, .. } = n {
+                if tabs.iter().any(|t| t.name() == tab.name()) {
+                    return;
+                }
+            }
+        }
+        tree.push_to_focused_leaf(Box::new(tab));
     }
 
     pub fn clean_tabs(&self) {
