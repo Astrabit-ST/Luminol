@@ -1,5 +1,11 @@
+#! Rust Build Output
 /target
+/marshal/target
 /dist
 
 #! GDB-related files
 .gdb_*
+
+#! Ruby Output Files
+/marshal_ruby
+/marshal_luminol
