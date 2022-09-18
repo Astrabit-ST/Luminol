@@ -1595,6 +1595,7 @@ dependencies = [
  "num-traits",
  "rfd",
  "ron",
+ "ruby-marshal",
  "serde",
  "strum",
  "tracing-subscriber",
@@ -2403,6 +2404,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "921904a62e410e37e215c40381b7117f830d9d89ba60ab5236170541dd25646b"
 dependencies = [
  "xmlparser",
+]
+
+[[package]]
+name = "ruby-marshal"
+version = "0.0.1"
+dependencies = [
+ "num-traits",
+ "serde",
 ]
 
 [[package]]

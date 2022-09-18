@@ -24,6 +24,7 @@ egui_dock = "0.2.1"
 wgpu = "0.13.1"
 kira = "0.7.0"
 egui-notify = "0.4.0"
+ruby-marshal = { path = "marshal" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
