@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 #![allow(unused_must_use)]
 
-use crate::marshal::error::{Error, Result};
+use crate::error::{Error, Result};
 use num_traits::int::PrimInt;
 use serde::{ser, Serialize};
 
@@ -31,8 +31,41 @@ impl Serializer {
         T: PrimInt,
     {
         self.output.push(b'i');
-        self.output.push(0x04);
+        match d.to_i128() { // Serialization of `long` values
+            Some(mut i) => {
+                if i == 0 {
+                    self.output.push(0x0);
+                } else if 0 < i && i < 123 {
+                    self.output.push((i + 5) as u8);
+                } else if -124 < i && i < 0 {
+                    self.output.push(((i - 5) & 0xff) as u8);
+                }
+
+                let mut chars: Vec<u8> = Vec::new();
+                for ii in 0..i32::BITS as i32 {
+                    chars.push((i & 0xff) as u8);
+                    i = i << 8;
+                    if i == 0 {
+                        chars[0] = ii as u8;
+                        break;
+                    }
+                    if i == -1 {
+                        chars[0] = -ii as u8;
+                        break;
+                    }
+                }
+            },
+            None => {
+                
+            }
+        }
         Ok(())
+    }
+
+    fn write_rstr(&mut self, v: &str) {
+        for character in v.bytes() {
+            self.output.push(character);
+        }
     }
 }
 
@@ -77,55 +110,77 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_none()
     }
 
+	fn serialize_i8(self, v: i8) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_i16(self, v: i16) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_i32(self, v: i32) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_i64(self, v: i64) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_i128(self, v: i128) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_u8(self, v: u8) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_u16(self, v: u16) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_u32(self, v: u32) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_u64(self, v: u64) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_u128(self, v: u128) -> Result<()> {
+        self.process_digit(v)
+    }
+
+    fn serialize_f32(self, v: f32) -> Result<()> {
+        self.serialize_f64(v as f64)
+    }
+
+    fn serialize_f64(self, v: f64) -> Result<()> {
+        if v.is_infinite() || v.is_nan() || v == 0.0 {
+            if v.is_infinite()  {
+                if v < 0.0 {
+                    self.write_rstr("-inf");
+                } else {
+                    self.write_rstr("inf");
+                }
+            } else if v.is_nan() {
+                self.write_rstr("nan");
+            } else if v == 0.0 {
+                self.write_rstr("0");
+            }
+            return Ok(())
+        }
+
+		let dtoa = v.to_string();
+
+        Ok(())
+    }
+
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         self.serialize_unit()
     }
 
-    // ! Unimplemented
-
-    fn serialize_i8(self, v: i8) -> Result<()> {
-        self.process_digit(v);
-        Ok(())
-    }
-
-    fn serialize_i16(self, v: i16) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_i32(self, v: i32) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_i64(self, v: i64) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_u8(self, v: u8) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_u16(self, v: u16) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_u32(self, v: u32) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_u64(self, v: u64) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_f32(self, v: f32) -> Result<()> {
-        Ok(())
-    }
-
-    fn serialize_f64(self, v: f64) -> Result<()> {
-        Ok(())
-    }
-
     fn serialize_char(self, v: char) -> Result<()> {
-        Ok(())
+        self.serialize_str(v.to_string().as_str())
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
@@ -133,6 +188,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
+        for byte in v {
+            self.output.push(*byte);
+        }
         Ok(())
     }
 

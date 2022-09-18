@@ -27,11 +27,6 @@ mod data {
     pub mod rgss_structs;
     pub mod rmxp_structs;
 }
-mod marshal {
-    //pub mod deserialize;
-    pub mod error;
-    pub mod serialize;
-}
 
 mod filesystem {
     #[cfg(not(target_arch = "wasm32"))]
