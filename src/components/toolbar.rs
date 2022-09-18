@@ -5,7 +5,7 @@ use strum::IntoEnumIterator;
 
 #[derive(Default)]
 pub struct Toolbar {
-    state: ToolbarState
+    state: ToolbarState,
 }
 
 // TODO: Move to UpdateInfo

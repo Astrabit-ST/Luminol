@@ -1,18 +1,7 @@
-use crate::UpdateInfo;
-use rodio::{Decoder, OutputStream, Sink};
-use strum::Display;
-use strum::EnumIter;
 use strum::IntoEnumIterator;
 
-/// Different sound sources.
-#[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum Source {
-    BGM,
-    BGS,
-    ME,
-    SE,
-}
+use crate::audio::Source;
+use crate::UpdateInfo;
 
 /// A tab for a sound (be it BGM, ME, SE, etc)
 /// Optionally can be in 'picker' mode to pick a sound effect.
@@ -22,20 +11,16 @@ pub struct SoundTab {
     volume: u8,
     pitch: u8,
     selected_track: String,
-    sink: Sink,
 }
 
 impl SoundTab {
     pub fn new(source: Source, picker: bool) -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
         Self {
             picker,
             source,
             volume: 100,
             pitch: 100,
             selected_track: "".to_string(),
-            sink,
         }
     }
 
@@ -48,29 +33,19 @@ impl SoundTab {
                     ui.horizontal(|ui| {
                         if ui.button("Play").clicked() && !self.selected_track.is_empty() {
                             let path = format!("Audio/{}/{}", source_str, &self.selected_track);
-                            // Do we need to loop?
-                            match self.source {
-                                // If not, just play a regular sound:
-                                Source::SE | Source::ME => self.sink.append(
-                                    Decoder::new(info.filesystem.file(&path))
-                                        .expect("Failed to create decoder"),
-                                ),
-                                // Stop the current track and loop music
-                                _ => {
-                                    self.sink.stop();
-                                    self.sink.append(
-                                        Decoder::new_looped(info.filesystem.file(&path))
-                                            .expect("Failed to create decoder"),
-                                    )
-                                }
-                            }
                             // Play it.
-                            self.sink.play();
+                            info.audio.play(
+                                info.filesystem,
+                                &path,
+                                self.volume,
+                                self.pitch,
+                                &self.source,
+                            );
                         }
 
                         if ui.button("Stop").clicked() {
                             // Stop sound.
-                            self.sink.stop();
+                            info.audio.stop(&self.source);
                         }
                     });
 
@@ -85,7 +60,7 @@ impl SoundTab {
                             )
                             .changed()
                         {
-                            self.sink.set_volume(self.volume as f32 / 100.0);
+                            info.audio.set_volume(self.volume, &self.source);
                         };
                         // Add a pitch slider.
                         // If it's changed, update the pitch.
@@ -97,7 +72,7 @@ impl SoundTab {
                             )
                             .changed()
                         {
-                            self.sink.set_speed(self.pitch as f32 / 100.0);
+                            info.audio.set_pitch(self.pitch, &self.source);
                         };
                     });
 

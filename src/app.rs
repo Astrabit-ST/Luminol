@@ -1,4 +1,5 @@
 use crate::{
+    audio::Audio,
     components::{toolbar::Toolbar, top_bar::TopBar},
     filesystem::{data_cache::DataCache, Filesystem},
     tabs::tab::Tabs,
@@ -14,6 +15,7 @@ pub struct App {
     top_bar: TopBar,
     toolbar: Toolbar,
     tabs: Tabs,
+    audio: Audio,
 }
 
 impl App {
@@ -38,6 +40,7 @@ impl eframe::App for App {
             data_cache: &self.data_cache,
             windows: &self.windows,
             tabs: &self.tabs,
+            audio: &self.audio,
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {

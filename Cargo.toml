@@ -20,9 +20,10 @@ rfd = "0.10.0"
 derive-new = "0.5"
 num-traits = "0.2"
 strum = { version = "0.24.1", features = ["derive"] }
-rodio = { version = "0.15.0" }
 egui_dock = "0.2.1"
 wgpu = "0.13.1"
+kira = "0.7.0"
+egui-notify = "0.4.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

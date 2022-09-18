@@ -2,6 +2,8 @@
 
 mod app;
 
+mod audio;
+
 mod windows {
     pub mod about;
     pub mod map_picker;
@@ -10,9 +12,9 @@ mod windows {
 }
 
 mod components {
-    pub mod top_bar;
-    pub mod toolbar;
     pub mod tilemap;
+    pub mod toolbar;
+    pub mod top_bar;
 }
 
 mod tabs {
@@ -55,4 +57,5 @@ pub struct UpdateInfo<'a> {
     pub data_cache: &'a DataCache,
     pub windows: &'a windows::window::Windows,
     pub tabs: &'a tabs::tab::Tabs,
+    pub audio: &'a audio::Audio,
 }

@@ -39,15 +39,12 @@ impl Filesystem {
         .expect("Directory missing")
     }
 
-    pub fn file(&self, path: &str) -> fs::File {
-        fs::File::open(
-            self.project_path
-                .borrow()
-                .as_ref()
-                .expect("Project path not specified")
-                .join(path),
-        )
-        .expect("No file or directory")
+    pub fn path_to(&self, path: &str) -> PathBuf {
+        self.project_path
+            .borrow()
+            .as_ref()
+            .expect("Project path not specified")
+            .join(path)
     }
 
     pub fn read_data<T>(&self, path: &str) -> ron::error::SpannedResult<T>

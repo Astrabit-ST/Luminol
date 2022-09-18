@@ -23,6 +23,7 @@ impl super::tab::Tab for Map {
         format!("Map {}: {}", self.id, self.name)
     }
 
+    #[allow(unused_variables, unused_mut)]
     fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
         // Load the map if it isn't loaded.
         info.data_cache.load_map(info.filesystem, self.id);
