@@ -1,24 +1,11 @@
 use std::cell::RefCell;
+use std::fs::{File, self};
+use std::io::BufReader;
 use std::path::PathBuf;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
 use super::data_cache::DataCache;
-
-/// Arbitrary stack size of 50kib.
-const ASYNCIFY_STACK_SIZE: usize = 50 * 1024;
-/// Scratch space used by Asyncify to save/restore stacks.
-static ASYNCIFY_STACK: [u8; ASYNCIFY_STACK_SIZE] = [0; ASYNCIFY_STACK_SIZE];
-
-#[no_mangle]
-extern "C" fn get_asyncify_stack_space_ptr() -> i32 {
-    ASYNCIFY_STACK.as_ptr() as i32
-}
-
-#[no_mangle]
-extern "C" fn get_asyncify_stack_space_size() -> i32 {
-    ASYNCIFY_STACK_SIZE as i32
-}
 
 // Javascript interface for filesystem
 #[wasm_bindgen(module = "/assets/filesystem.js")]
@@ -27,6 +14,7 @@ extern "C" {
     fn js_filesystem_supported() -> bool;
 }
 
+#[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
     handle: RefCell<Option<JsValue>>,
@@ -70,8 +58,35 @@ impl Filesystem {
         Err("NYI for wasm32")
     }
 
+    pub fn dir_children(&self, path: &str) -> fs::ReadDir {
+        fs::read_dir(
+            self.project_path
+                .borrow()
+                .as_ref()
+                .expect("Project path not specified")
+                .join(path),
+        )
+        .expect("Directory missing")
+    }
+
+    pub fn bufreader(&self, path: &str) -> BufReader<File> {
+        let path = self.project_path
+            .borrow()
+            .as_ref()
+            .expect("Project path not specified")
+            .join(path);
+        BufReader::new(File::open(path).expect("Failed to open file"))
+    }
+
+    pub fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), ()>
+    where
+        T: serde::ser::Serialize,
+    {
+        Ok(())
+    }
+
     pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) {
-        data_cache.save();
+        data_cache.save(self);
     }
 
     pub fn try_open_project(&self, cache: &DataCache) {

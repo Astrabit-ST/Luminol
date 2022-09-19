@@ -1,13 +1,7 @@
-use kira::{
-    manager::{backend::cpal::CpalBackend, AudioManager, AudioManagerSettings},
-    sound::{
-        streaming::{StreamingSoundData, StreamingSoundHandle, StreamingSoundSettings},
-        FromFileError,
-    },
-    tween::Tween,
-};
+use rodio::Decoder;
+use rodio::{OutputStream, OutputStreamHandle, Sink};
 
-use std::{cell::RefCell, collections::HashMap, time::Duration};
+use std::{cell::RefCell, collections::HashMap};
 use strum::Display;
 use strum::EnumIter;
 
@@ -28,28 +22,21 @@ pub struct Audio {
 }
 
 struct Inner {
-    manager: AudioManager,
-    sounds: HashMap<Source, StreamingSoundHandle<FromFileError>>,
+    outputstream: (OutputStream, OutputStreamHandle),
+    sinks: HashMap<Source, Sink>,
 }
 
 impl Default for Audio {
     fn default() -> Self {
-        let manager = AudioManager::<CpalBackend>::new(AudioManagerSettings::default())
-            .expect("Failed to create audio manager");
+        let outputstream = OutputStream::try_default().unwrap();
         Self {
             inner: RefCell::new(Inner {
-                manager,
-                sounds: HashMap::new(),
+                outputstream,
+                sinks: HashMap::new(),
             }),
         }
     }
 }
-
-const TWEEN: Tween = Tween {
-    duration: Duration::ZERO,
-    start_time: kira::StartTime::Immediate,
-    easing: kira::tween::Easing::Linear,
-};
 
 impl Audio {
     pub fn play(
@@ -61,45 +48,51 @@ impl Audio {
         source: &Source,
     ) {
         let mut inner = self.inner.borrow_mut();
-        // Play sound
-        let sound = inner
-            .manager
-            .play(
-                StreamingSoundData::from_file(
-                    filesystem.path_to(path),
-                    StreamingSoundSettings::default()
-                        .volume(volume as f64 / 100.)
-                        .playback_rate(pitch as f64 / 100.),
-                )
-                .expect("Failed to load sound"),
-            )
-            .expect("Failed to create sound");
-        // Add it to hash, stop the current one if it's playing.
-        if let Some(mut s) = inner.sounds.insert(*source, sound) {
-            s.stop(TWEEN).expect("Failed to stop sound");
+        // Create a sink
+        let sink = Sink::try_new(&inner.outputstream.1).expect("Failed to create sink");
+        // Append the sound
+        let bufreader = filesystem.bufreader(path);
+        // Select decoder type based on sound source
+        match source {
+            Source::SE | Source::ME => {
+                // Non looping
+                sink.append(Decoder::new(bufreader).expect("Failed to create decoder"))
+            }
+            _ => {
+                // Looping
+                sink.append(Decoder::new_looped(bufreader).expect("Failed to create decoder"))
+            }
+        }
+
+        // Set pitch and volume
+        sink.set_speed(pitch as f32 / 100.);
+        sink.set_volume(volume as f32 / 100.);
+        // Play sound.
+        sink.play();
+        // Add sink to hash, stop the current one if it's there.
+        if let Some(s) = inner.sinks.insert(*source, sink) {
+            s.stop();
         };
     }
 
     pub fn set_pitch(&self, pitch: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
-        if let Some(s) = inner.sounds.get_mut(source) {
-            s.set_playback_rate(pitch as f64 / 100., TWEEN)
-                .expect("Failed to change sound pitch");
+        if let Some(s) = inner.sinks.get_mut(source) {
+            s.set_speed(pitch as f32 / 100.);
         }
     }
 
     pub fn set_volume(&self, volume: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
-        if let Some(s) = inner.sounds.get_mut(source) {
-            s.set_volume(volume as f64 / 100., TWEEN)
-                .expect("Failed to change sound volume");
+        if let Some(s) = inner.sinks.get_mut(source) {
+            s.set_volume(volume as f32 / 100.);
         }
     }
 
     pub fn stop(&self, source: &Source) {
         let mut inner = self.inner.borrow_mut();
-        if let Some(s) = inner.sounds.get_mut(source) {
-            s.stop(TWEEN).expect("Failed to stop sound");
+        if let Some(s) = inner.sinks.get_mut(source) {
+            s.stop();
         }
     }
 }

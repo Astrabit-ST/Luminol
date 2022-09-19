@@ -22,7 +22,7 @@ jobs:
       - uses: actions-rs/toolchain@v1 # get rust toolchain for wasm
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           target: wasm32-unknown-unknown
           override: true
       - name: Rust Cache # cache the rust build artefacts

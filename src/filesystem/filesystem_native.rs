@@ -1,5 +1,6 @@
 use std::cell::RefCell;
-use std::fs;
+use std::fs::{self, File};
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use super::data_cache::DataCache;
@@ -39,12 +40,13 @@ impl Filesystem {
         .expect("Directory missing")
     }
 
-    pub fn path_to(&self, path: &str) -> PathBuf {
-        self.project_path
+    pub fn bufreader(&self, path: &str) -> BufReader<File> {
+        let path = self.project_path
             .borrow()
             .as_ref()
             .expect("Project path not specified")
-            .join(path)
+            .join(path);
+        BufReader::new(File::open(path).expect("Failed to open file"))
     }
 
     pub fn read_data<T>(&self, path: &str) -> ron::error::SpannedResult<T>
