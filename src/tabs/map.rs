@@ -1,4 +1,5 @@
 use ndarray::Axis;
+use num_traits::Zero;
 
 pub struct Map {
     id: i32,
@@ -37,7 +38,7 @@ impl super::tab::Tab for Map {
 
                 ui.separator();
 
-                ui.add(egui::Slider::new(&mut self.scale, 15..=150).text("Scale"));
+                ui.add(egui::Slider::new(&mut self.scale, 1..=200).text("Scale"));
 
                 ui.separator();
 
@@ -74,7 +75,19 @@ impl super::tab::Tab for Map {
         egui::Frame::canvas(ui.style()).show(ui, |ui| {
             egui::ScrollArea::both()
                 .auto_shrink([false, false])
-                .show_viewport(ui, |ui, rect| {})
+                .show(ui, |ui| {
+                    let spacing = 16. * (self.scale as f32 / 100.);
+                    egui::Grid::new(format!("map_{}_grid", self.id))
+                        .spacing([spacing, spacing])
+                        .show(ui, |ui| {
+                            for (i, ele) in map.data.iter().enumerate() {
+                                ui.label(ele.to_string());
+                                if (i % map.width).is_zero() {
+                                    ui.end_row();
+                                }
+                            }
+                        });
+                })
         });
     }
 }
