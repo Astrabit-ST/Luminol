@@ -41,7 +41,8 @@ impl Filesystem {
     }
 
     pub fn bufreader(&self, path: &str) -> BufReader<File> {
-        let path = self.project_path
+        let path = self
+            .project_path
             .borrow()
             .as_ref()
             .expect("Project path not specified")

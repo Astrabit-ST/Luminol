@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::fs::{File, self};
+use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::PathBuf;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -70,7 +70,8 @@ impl Filesystem {
     }
 
     pub fn bufreader(&self, path: &str) -> BufReader<File> {
-        let path = self.project_path
+        let path = self
+            .project_path
             .borrow()
             .as_ref()
             .expect("Project path not specified")

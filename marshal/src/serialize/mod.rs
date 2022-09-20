@@ -31,7 +31,8 @@ impl Serializer {
         T: PrimInt,
     {
         self.output.push(b'i');
-        match d.to_i128() { // Serialization of `long` values
+        match d.to_i128() {
+            // Serialization of `long` values
             Some(mut i) => {
                 if i == 0 {
                     self.output.push(0x0);
@@ -54,10 +55,8 @@ impl Serializer {
                         break;
                     }
                 }
-            },
-            None => {
-                
             }
+            None => {}
         }
         Ok(())
     }
@@ -110,7 +109,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_none()
     }
 
-	fn serialize_i8(self, v: i8) -> Result<()> {
+    fn serialize_i8(self, v: i8) -> Result<()> {
         self.process_digit(v)
     }
 
@@ -156,7 +155,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         if v.is_infinite() || v.is_nan() || v == 0.0 {
-            if v.is_infinite()  {
+            if v.is_infinite() {
                 if v < 0.0 {
                     self.write_rstr("-inf");
                 } else {
@@ -167,10 +166,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
             } else if v == 0.0 {
                 self.write_rstr("0");
             }
-            return Ok(())
+            return Ok(());
         }
 
-		let dtoa = v.to_string();
+        let dtoa = v.to_string();
 
         Ok(())
     }

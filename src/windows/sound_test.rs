@@ -80,7 +80,7 @@ impl SoundTab {
             // Get folder children.
             let folder_children: Vec<_> = info
                 .filesystem
-                .dir_children(&format!("Audio/{}", self.source.to_string()))
+                .dir_children(&format!("Audio/{}", self.source))
                 .collect();
             // Get row height.
             let row_height = ui.text_style_height(&egui::TextStyle::Body);
@@ -114,7 +114,7 @@ impl SoundTab {
 
     fn play(&self, info: &UpdateInfo<'_>) {
         // Get path.
-        let path = format!("Audio/{}/{}", self.source.to_string(), &self.selected_track);
+        let path = format!("Audio/{}/{}", self.source, &self.selected_track);
         // Play it.
         info.audio.play(
             info.filesystem,
