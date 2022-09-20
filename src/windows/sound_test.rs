@@ -25,22 +25,13 @@ impl SoundTab {
     }
 
     pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui) {
-        let source_str = self.source.to_string();
         egui::SidePanel::right("sound_tab_controls")
             .resizable(false)
             .show_inside(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Play").clicked() && !self.selected_track.is_empty() {
-                            let path = format!("Audio/{}/{}", source_str, &self.selected_track);
-                            // Play it.
-                            info.audio.play(
-                                info.filesystem,
-                                &path,
-                                self.volume,
-                                self.pitch,
-                                &self.source,
-                            );
+                            self.play(info);
                         }
 
                         if ui.button("Stop").clicked() {
@@ -86,27 +77,52 @@ impl SoundTab {
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
+            // Get folder children.
             let folder_children: Vec<_> = info
                 .filesystem
-                .dir_children(&format!("Audio/{}", source_str))
+                .dir_children(&format!("Audio/{}", self.source.to_string()))
                 .collect();
+            // Get row height.
             let row_height = ui.text_style_height(&egui::TextStyle::Body);
+            // Group together so it looks nicer.
             ui.group(|ui| {
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
+                    // Show only visible rows.
                     .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
                         for entry in &folder_children[row_range] {
+                            // FIXME: Very hacky
                             let str = entry
                                 .as_ref()
                                 .expect("There should be an entry here.")
                                 .file_name()
                                 .into_string()
                                 .expect("Failed to convert path into a UTF-8 string.");
-                            ui.selectable_value(&mut self.selected_track, str.clone(), str);
+                            // Did the user double click a sound?
+                            if ui
+                                .selectable_value(&mut self.selected_track, str.clone(), str)
+                                .double_clicked()
+                            {
+                                // Play it if they did.
+                                self.play(info);
+                            };
                         }
                     });
             });
         });
+    }
+
+    fn play(&self, info: &UpdateInfo<'_>) {
+        // Get path.
+        let path = format!("Audio/{}/{}", self.source.to_string(), &self.selected_track);
+        // Play it.
+        info.audio.play(
+            info.filesystem,
+            &path,
+            self.volume,
+            self.pitch,
+            &self.source,
+        );
     }
 }
 
@@ -119,7 +135,9 @@ pub struct SoundTest {
 impl SoundTest {
     pub fn new() -> Self {
         Self {
+            // Create all sources.
             sources: Source::iter().map(|s| SoundTab::new(s, false)).collect(),
+            // By default, bgm is selected.
             selected_source: Source::BGM,
         }
     }
@@ -133,7 +151,7 @@ impl super::window::Window for SoundTest {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo<'_>) {
         egui::Window::new("Sound Test").open(open).show(ctx, |ui| {
             egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
-                // Display the
+                // Display the tab selector.
                 ui.horizontal_wrapped(|ui| {
                     for source in self.sources.iter() {
                         if ui
