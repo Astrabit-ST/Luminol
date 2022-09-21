@@ -12,6 +12,7 @@ mod windows {
 }
 
 mod components {
+    pub mod map_toolbar;
     pub mod tilemap;
     pub mod toolbar;
     pub mod top_bar;
@@ -38,6 +39,7 @@ mod filesystem {
     #[cfg(target_arch = "wasm32")]
     pub use filesystem_wasm32::Filesystem;
     pub mod data_cache;
+    pub mod image_cache;
 }
 
 pub use app::App;

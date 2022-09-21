@@ -1,11 +1,10 @@
-use ndarray::Axis;
-use num_traits::Zero;
+use crate::components::tilemap::Tilemap;
 
 pub struct Map {
-    id: i32,
-    name: String,
-    scale: u8,
-    selected_layer: usize,
+    pub id: i32,
+    pub name: String,
+    pub selected_layer: usize,
+    pub tilemap: Tilemap,
 }
 
 impl Map {
@@ -13,8 +12,8 @@ impl Map {
         Self {
             id,
             name,
-            scale: 100,
             selected_layer: 0,
+            tilemap: Tilemap::new(),
         }
     }
 }
@@ -29,65 +28,16 @@ impl super::tab::Tab for Map {
         // Load the map if it isn't loaded.
         info.data_cache.load_map(info.filesystem, self.id);
         let mut cache = info.data_cache.borrow_mut();
-        let mut map = cache.maps.get(&self.id).expect("No map loaded with ID");
+        let mut map = cache.maps.get_mut(&self.id).expect("No map loaded with ID");
 
         // Display the toolbar.
-        egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(format!("Map {}: {}", self.name, self.id));
-
-                ui.separator();
-
-                ui.add(egui::Slider::new(&mut self.scale, 1..=200).text("Scale"));
-
-                ui.separator();
-
-                // Find the number of layers.
-                let layers = map.data.len_of(Axis(0));
-                egui::ComboBox::from_label("Layers")
-                    // Format the text based on what layer is selected.
-                    .selected_text(if self.selected_layer > layers {
-                        "Events".to_string()
-                    } else {
-                        format!("Layer {}", self.selected_layer + 1)
-                    })
-                    .show_ui(ui, |ui| {
-                        // TODO: Add layer enable button
-                        // Display all layers.
-                        for layer in 0..layers {
-                            ui.selectable_value(
-                                &mut self.selected_layer,
-                                layer,
-                                format!("Layer {}", layer + 1),
-                            );
-                        }
-                        // Display event layer.
-                        ui.selectable_value(&mut self.selected_layer, layers + 1, "Events");
-                    })
-            });
-        });
+        self.toolbar(ui, map);
 
         // Display the tilepicker.
         egui::SidePanel::left(format!("map_{}_tilepicker", self.id)).show_inside(ui, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {});
         });
 
-        egui::Frame::canvas(ui.style()).show(ui, |ui| {
-            egui::ScrollArea::both()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    let spacing = 16. * (self.scale as f32 / 100.);
-                    egui::Grid::new(format!("map_{}_grid", self.id))
-                        .spacing([spacing, spacing])
-                        .show(ui, |ui| {
-                            for (i, ele) in map.data.iter().enumerate() {
-                                ui.label(ele.to_string());
-                                if (i % map.width).is_zero() {
-                                    ui.end_row();
-                                }
-                            }
-                        });
-                })
-        });
+        egui::CentralPanel::default().show_inside(ui, |ui| self.tilemap.ui(ui, map));
     }
 }

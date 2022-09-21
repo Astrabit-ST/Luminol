@@ -67,6 +67,16 @@ impl Filesystem {
         ron::from_str(&data)
     }
 
+    pub fn read_bytes(&self, path: &str) -> Result<Vec<u8>, std::io::Error> {
+        let path = self
+            .project_path
+            .borrow()
+            .as_ref()
+            .expect("Project path not specified")
+            .join(path);
+        fs::read(path)
+    }
+
     pub fn save_data<T>(&self, path: &str, data: &T) -> Result<(), std::io::Error>
     where
         T: serde::ser::Serialize,
