@@ -44,7 +44,7 @@ impl super::window::Window for About {
 
                     ui.label(format!(
                         "Authors: \n{}",
-                        env!("CARGO_PKG_AUTHORS").replace(':', ",\n")
+                        env!("CARGO_PKG_AUTHORS").replace(':', "\n")
                     ))
                 })
             });
