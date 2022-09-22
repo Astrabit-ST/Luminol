@@ -1,7 +1,7 @@
 use crate::data::rmxp_structs::rpg;
 use std::{
     cell::{RefCell, RefMut},
-    collections::HashMap, 
+    collections::HashMap,
 };
 
 use super::Filesystem;

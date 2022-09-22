@@ -55,35 +55,26 @@ impl Filesystem {
     where
         T: serde::de::DeserializeOwned,
     {
-        Err("NYI for wasm32")
+        todo!()
+    }
+
+    pub fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, std::io::Error> {
+        todo!()
     }
 
     pub fn dir_children(&self, path: &str) -> fs::ReadDir {
-        fs::read_dir(
-            self.project_path
-                .borrow()
-                .as_ref()
-                .expect("Project path not specified")
-                .join(path),
-        )
-        .expect("Directory missing")
+        todo!()
     }
 
     pub fn bufreader(&self, path: &str) -> BufReader<File> {
-        let path = self
-            .project_path
-            .borrow()
-            .as_ref()
-            .expect("Project path not specified")
-            .join(path);
-        BufReader::new(File::open(path).expect("Failed to open file"))
+        todo!()
     }
 
     pub fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), ()>
     where
         T: serde::ser::Serialize,
     {
-        Ok(())
+        todo!()
     }
 
     pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) {
@@ -91,7 +82,6 @@ impl Filesystem {
     }
 
     pub fn try_open_project(&self, cache: &DataCache) {
-        *self.handle.borrow_mut() = Some(js_open_project());
-        self.load_project(PathBuf::from("Project"), cache);
+        todo!()
     }
 }

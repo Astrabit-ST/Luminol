@@ -82,7 +82,7 @@ impl super::window::Window for MapPicker {
                     // There will always be a map `0`.
                     // `0` is assumed to be the root map.
                     for id in children_data.get(&0).unwrap() {
-                        Self::render_submap(id, &children_data, &mapinfos, info, ui);
+                        Self::render_submap(id, &children_data, mapinfos, info, ui);
                     }
                 });
             })
