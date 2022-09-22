@@ -27,6 +27,9 @@ impl super::tab::Tab for Map {
     fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
         // Load the map if it isn't loaded.
         let mut map = info.data_cache.load_map(info.filesystem, self.id);
+        let tilesets = info.data_cache.tilesets();
+        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+        let tileset = &tilesets.as_ref().expect("Tilesets not loaded")[map.tileset_id as usize - 1];
 
         // Display the toolbar.
         self.toolbar(ui, &mut map);
@@ -37,7 +40,8 @@ impl super::tab::Tab for Map {
         });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            self.tilemap.ui(ui, &mut map, self.id, "crystal_caves.png", info)
+            self.tilemap
+                .ui(ui, &mut map, self.id, &tileset.tileset_name, info)
         });
     }
 }

@@ -74,7 +74,7 @@ impl Tilemap {
         ui.painter().rect_stroke(
             map_rect,
             5.0,
-            egui::Stroke::new(1.0, egui::Color32::DARK_GRAY),
+            egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
         );
 
         let xsize = map.data.len_of(Axis(2));
@@ -131,7 +131,7 @@ impl Tilemap {
             ui.painter().rect_stroke(
                 visible_rect,
                 5.0,
-                egui::Stroke::new(1.0, egui::Color32::BLUE),
+                egui::Stroke::new(1.0, egui::Color32::YELLOW),
             );
         }
     }

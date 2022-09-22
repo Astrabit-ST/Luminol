@@ -18,7 +18,17 @@ impl ImageCache {
             images.entry(path.clone()).or_insert_with(|| {
                 egui_extras::RetainedImage::from_image_bytes(
                     "",
-                    &filesystem.read_bytes(&path).expect("Failed to read data"),
+                    &filesystem
+                        .read_bytes(&format!("{}.png", path))
+                        .unwrap_or_else(|_| {
+                            filesystem
+                                .read_bytes(&format!("{}.jpg", path))
+                                .unwrap_or_else(|_| {
+                                    filesystem
+                                        .read_bytes(&format!("{}.jpg", path))
+                                        .expect("Failed to read image from path")
+                                })
+                        }),
                 )
                 .expect("Failed to load image")
             })

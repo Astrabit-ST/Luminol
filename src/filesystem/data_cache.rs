@@ -1,7 +1,7 @@
 use crate::data::rmxp_structs::rpg;
 use std::{
     cell::{RefCell, RefMut},
-    collections::HashMap,
+    collections::HashMap, 
 };
 
 use super::Filesystem;
@@ -10,35 +10,31 @@ use super::Filesystem;
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
 pub struct DataCache {
-    inner: RefCell<Inner>,
-}
-
-#[derive(Default)]
-pub struct Inner {
-    pub tilesets: Option<Vec<rpg::Tileset>>,
-    pub mapinfos: Option<HashMap<i32, rpg::MapInfo>>,
-    pub maps: HashMap<i32, rpg::Map>,
+    tilesets: RefCell<Option<Vec<rpg::Tileset>>>,
+    mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
+    maps: RefCell<HashMap<i32, rpg::Map>>,
 }
 
 impl DataCache {
     pub fn load(&self, filesystem: &Filesystem) {
-        let mut inner = self.inner.borrow_mut();
-        inner.mapinfos = Some(
+        *self.mapinfos.borrow_mut() = Some(
             filesystem
                 .read_data("MapInfos.ron")
                 .expect("Failed to load Map Infos"),
         );
 
-        inner.tilesets = Some(
+        *self.tilesets.borrow_mut() = Some(
             filesystem
                 .read_data("Tilesets.ron")
                 .expect("Failed to load Tilesets"),
         );
+
+        self.maps.borrow_mut().clear();
     }
 
     pub fn load_map(&self, filesystem: &Filesystem, id: i32) -> RefMut<'_, rpg::Map> {
-        RefMut::map(self.inner.borrow_mut(), |inner| {
-            inner.maps.entry(id).or_insert_with(|| {
+        RefMut::map(self.maps.borrow_mut(), |maps| {
+            maps.entry(id).or_insert_with(|| {
                 filesystem
                     .read_data(&format!("Map{:0>3}.ron", id))
                     .expect("Failed to load map")
@@ -47,31 +43,26 @@ impl DataCache {
     }
 
     pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
-        RefMut::map(self.inner.borrow_mut(), |i| {
-            &mut i.mapinfos
-        })
+        self.mapinfos.borrow_mut()
     }
 
     pub fn tilesets(&self) -> RefMut<'_, Option<Vec<rpg::Tileset>>> {
-        RefMut::map(self.inner.borrow_mut(), |i| {
-            &mut i.tilesets
-        })
+        self.tilesets.borrow_mut()
     }
 
     pub fn save(&self, filesystem: &Filesystem) {
         // Write map data and clear map cache.
-        let mut inner = self.inner.borrow_mut();
-        for (id, map) in inner.maps.drain() {
+        for (id, map) in self.maps.borrow_mut().drain() {
             filesystem
                 .save_data(&format!("Map{:0>3}.ron", id), &map)
                 .expect("Failed to write Map data");
         }
-        if let Some(tilesets) = inner.tilesets.as_ref() {
+        if let Some(tilesets) = self.tilesets.borrow_mut().as_ref() {
             filesystem
                 .save_data("Tilesets.ron", tilesets)
                 .expect("Failed to write Tileset data");
         }
-        if let Some(mapinfos) = inner.mapinfos.as_ref() {
+        if let Some(mapinfos) = self.mapinfos.borrow_mut().as_ref() {
             filesystem
                 .save_data("MapInfos.ron", mapinfos)
                 .expect("Failed to write MapInfos data");
