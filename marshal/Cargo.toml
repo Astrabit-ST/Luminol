@@ -5,13 +5,13 @@ edition = "2021"
 description = """
 `ruby-marshal` is a Serde crate for parsing Ruby Dumped Object Format called "Marshal".
 """
-homepage = "https://github.com/Speak2Erase/Luminol"
+homepage = "https://github.com/Speak2Erase/Luminol/marshal"
 repository = "https://github.com/Speak2Erase/Luminol"
-license = "../LICENSE"
-keywords = ["ruby", "marshal", "ruby marshal", "luminol", "speak2erase"]
+license = "GPL-3.0"
+keywords = ["ruby", "marshal", "ruby-marshal", "luminol"]
 categories = ["parser-implementations"]
 authors = [
-	"Lily Lyons <lily@nowaffles.com>"
+	"Egor Poleshko <somedevfox@gmail.com>",
 ]
 
 [dependencies]

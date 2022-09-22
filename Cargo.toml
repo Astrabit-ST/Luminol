@@ -5,9 +5,10 @@ authors = ["Lily Lyons <lily@nowaffles.com>", "Egor Poleshko <somedevfox@gmail.c
 edition = "2021"
 rust-version = "1.62"
 description = "Luminol is a FOSS recreation of RPG Maker XP in Rust with love ❤️"
+license = "GPL-3.0"
 readme = "README.md"
 repository = "https://github.com/Speak2Erase/Luminol"
-keywords = ["gamedev", "rpg", "rpg maker"]
+keywords = ["gamedev", "rpg", "rpg-maker"]
 categories = ["games"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -47,6 +48,8 @@ rodio = { version = "0.16.0", features = ["wasm-bindgen", "symphonia-all"], defa
 [profile.release]
 opt-level = 2 # fast and small wasm
 
+[workspace]
+members = ["marshal"]
 
 [patch.crates-io]
 
