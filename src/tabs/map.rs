@@ -30,18 +30,22 @@ impl super::tab::Tab for Map {
         let tilesets = info.data_cache.tilesets();
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets.as_ref().expect("Tilesets not loaded")[map.tileset_id as usize - 1];
+        let tileset_path = format!("Graphics/Tilesets/{}", tileset.tileset_name);
+        let tileset_tex = info.images.load_image(tileset_path, info.filesystem);
 
         // Display the toolbar.
         self.toolbar(ui, &mut map);
 
         // Display the tilepicker.
-        egui::SidePanel::left(format!("map_{}_tilepicker", self.id)).show_inside(ui, |ui| {
-            egui::ScrollArea::both().show(ui, |ui| {});
-        });
+        egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
+            .default_width(256.)
+            .show_inside(ui, |ui| {
+                egui::ScrollArea::both().show(ui, |ui| {
+                    tileset_tex.show(ui);
+                });
+            });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            self.tilemap
-                .ui(ui, &mut map, self.id, &tileset.tileset_name, info)
-        });
+        egui::CentralPanel::default()
+            .show_inside(ui, |ui| self.tilemap.ui(ui, &mut map, self.id, tileset_tex));
     }
 }

@@ -1,4 +1,7 @@
+use std::cell::RefMut;
+
 use egui::{Pos2, Vec2};
+use egui_extras::RetainedImage;
 use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
@@ -23,8 +26,7 @@ impl Tilemap {
         ui: &mut egui::Ui,
         map: &mut rpg::Map,
         map_id: i32,
-        tileset_name: &str,
-        info: &crate::UpdateInfo<'_>,
+        tileset_tex: RefMut<'_, RetainedImage>,
     ) {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
@@ -62,29 +64,20 @@ impl Tilemap {
         let tile_size = 32. * scale;
         let canvas_pos = canvas_center + self.pan;
 
+        let xsize = map.data.len_of(Axis(2));
+        let ysize = map.data.len_of(Axis(1));
+
+        let tile_width = 32. / tileset_tex.width() as f32;
+        let tile_height = 32. / tileset_tex.height() as f32;
+
         let width2 = (map.width / 2) as f32;
-        let height2 = (map.height / 2) as f32;
+        let height2 = (map.height / 2) as f32 + 0.5;
 
         let pos = egui::Vec2::new(width2 * tile_size, height2 as f32 * tile_size);
         let map_rect = egui::Rect {
             min: canvas_pos - pos,
             max: canvas_pos + pos,
         };
-
-        ui.painter().rect_stroke(
-            map_rect,
-            5.0,
-            egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
-        );
-
-        let xsize = map.data.len_of(Axis(2));
-        let ysize = map.data.len_of(Axis(1));
-
-        let tileset_path = format!("Graphics/Tilesets/{}", tileset_name);
-        let tileset_tex = info.images.load_image(tileset_path, info.filesystem);
-
-        let tile_width = 32. / tileset_tex.width() as f32;
-        let tile_height = 32. / tileset_tex.height() as f32;
 
         // Iterate through all tiles.
         for (idx, ele) in map.data.iter().enumerate() {
@@ -117,6 +110,12 @@ impl Tilemap {
                     .paint_at(ui, tile_rect);
             }
         }
+
+        ui.painter().rect_stroke(
+            map_rect,
+            5.0,
+            egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
+        );
 
         if self.visible_display {
             let width2: f32 = 20. / 2.;
