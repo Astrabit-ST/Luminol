@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use egui::{Pos2, Vec2};
 use egui_extras::RetainedImage;
 use ndarray::Axis;
@@ -43,6 +45,7 @@ impl Tilemap {
         map_id: i32,
         tileset_tex: &RetainedImage,
         autotile_texs: &[Option<RetainedImage>],
+        event_texs: &HashMap<String, Option<RetainedImage>>,
     ) {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
@@ -167,6 +170,66 @@ impl Tilemap {
                     }
                 }
             }
+        }
+
+        for (_, event) in map.events.iter() {
+            // aaaaaaaa
+            let graphic = &event.pages[0].graphic;
+            let tex = event_texs.get(&graphic.character_name).unwrap();
+            if let Some(tex) = tex {
+                let cw = (tex.width() / 4) as f32;
+                let ch = (tex.height() / 4) as f32;
+
+                let c_rect = egui::Rect::from_min_size(
+                    map_rect.min
+                        + egui::Vec2::new(
+                            (event.x as f32 * tile_size) + ((16. - (cw / 2.)) * scale),
+                            (event.y as f32 * tile_size) + ((32. - ch) * scale),
+                        ),
+                    egui::vec2(cw * scale, ch * scale),
+                );
+
+                let cx = (graphic.pattern as f32 * cw) / tex.width() as f32;
+                let cy = (((graphic.direction - 2) / 2) as f32 * ch) / tex.height() as f32;
+
+                let uv = egui::Rect::from_min_size(
+                    Pos2::new(cx, cy),
+                    egui::vec2(cw / tex.width() as f32, ch / tex.height() as f32),
+                );
+
+                egui::Image::new(tex.texture_id(ui.ctx()), tex.size_vec2())
+                    .uv(uv)
+                    .paint_at(ui, c_rect);
+            } else if graphic.tile_id.is_positive() {
+                let tile_rect = egui::Rect::from_min_size(
+                    map_rect.min
+                        + egui::Vec2::new(event.x as f32 * tile_size, event.y as f32 * tile_size),
+                    egui::Vec2::splat(tile_size),
+                );
+
+                let tile_x = ((graphic.tile_id - 384) as usize % (tileset_tex.width() / 32)) as f32
+                    * tile_width;
+                let tile_y = ((graphic.tile_id - 384) as usize / (tileset_tex.width() / 32)) as f32
+                    * tile_height;
+
+                let uv = egui::Rect::from_min_size(
+                    Pos2::new(tile_x, tile_y),
+                    egui::vec2(tile_width, tile_height),
+                );
+
+                egui::Image::new(tileset_tex.texture_id(ui.ctx()), tileset_tex.size_vec2())
+                    .uv(uv)
+                    .paint_at(ui, tile_rect);
+            }
+
+            let box_rect = egui::Rect::from_min_size(
+                map_rect.min
+                    + egui::Vec2::new(event.x as f32 * tile_size, event.y as f32 * tile_size),
+                egui::Vec2::splat(tile_size),
+            );
+
+            ui.painter()
+                .rect_stroke(box_rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
         }
 
         ui.painter().rect_stroke(

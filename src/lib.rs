@@ -58,6 +58,7 @@ mod filesystem {
 }
 
 pub use app::App;
+use egui::TextureFilter;
 use egui_extras::RetainedImage;
 
 /// Embedded icon 256x256 in size.
@@ -73,20 +74,12 @@ pub struct UpdateInfo<'a> {
     pub audio: &'a audio::Audio,
 }
 
-pub fn load_image(path: String, filesystem: &Filesystem) -> RetainedImage {
+pub fn load_image(path: String, filesystem: &Filesystem) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         "",
         &filesystem
             .read_bytes(&format!("{}.png", path))
-            .unwrap_or_else(|_| {
-                filesystem
-                    .read_bytes(&format!("{}.jpg", path))
-                    .unwrap_or_else(|_| {
-                        filesystem
-                            .read_bytes(&format!("{}.jpg", path))
-                            .expect("Failed to read image from path")
-                    })
-            }),
+            .map_err(|e| e.to_string())?,
     )
-    .expect("Failed to load image")
+    .map(|i| i.with_texture_filter(TextureFilter::Nearest))
 }

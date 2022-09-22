@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use egui_extras::RetainedImage;
 
 use crate::{components::tilemap::Tilemap, load_image, UpdateInfo};
@@ -26,6 +28,7 @@ pub struct Map {
     pub tilemap: Tilemap,
     tileset_tex: RetainedImage,
     autotile_texs: Vec<Option<RetainedImage>>,
+    event_texs: HashMap<String, Option<RetainedImage>>,
 }
 
 impl Map {
@@ -37,22 +40,33 @@ impl Map {
 
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets.as_ref().expect("Tilesets not loaded")[map.tileset_id as usize - 1];
-        let tileset_path = format!("Graphics/Tilesets/{}", tileset.tileset_name);
 
         // Load tileset textures.
-        let tileset_tex = load_image(tileset_path, info.filesystem);
-        let autotile_texs: Vec<_> = tileset
+        let tileset_tex = load_image(
+            format!("Graphics/Tilesets/{}", tileset.tileset_name),
+            info.filesystem,
+        )
+        .unwrap();
+        let autotile_texs = tileset
             .autotile_names
             .iter()
-            .map(|str| {
-                if str.is_empty() {
-                    None
-                } else {
-                    Some(load_image(
-                        format!("Graphics/Autotiles/{}", str),
+            .map(|str| load_image(format!("Graphics/Autotiles/{}", str), info.filesystem).ok())
+            .collect();
+
+        let event_texs = map
+            .events
+            .iter()
+            .map(|(_, e)| {
+                let char_name = e.pages[0].graphic.character_name.clone();
+
+                (
+                    char_name.clone(),
+                    load_image(
+                        format!("Graphics/Characters/{}", char_name),
                         info.filesystem,
-                    ))
-                }
+                    )
+                    .ok(),
+                )
             })
             .collect();
 
@@ -63,6 +77,7 @@ impl Map {
             tilemap: Tilemap::new(),
             tileset_tex,
             autotile_texs,
+            event_texs,
         }
     }
 }
@@ -96,6 +111,7 @@ impl super::tab::Tab for Map {
                 self.id,
                 &self.tileset_tex,
                 &self.autotile_texs,
+                &self.event_texs,
             )
         });
     }
