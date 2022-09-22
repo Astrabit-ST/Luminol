@@ -55,4 +55,5 @@ pub struct UpdateInfo<'a> {
     pub windows: &'a windows::window::Windows,
     pub tabs: &'a tabs::tab::Tabs,
     pub audio: &'a audio::Audio,
+    pub images: &'a filesystem::image_cache::ImageCache,
 }

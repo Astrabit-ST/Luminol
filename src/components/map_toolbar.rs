@@ -9,7 +9,11 @@ impl Map {
 
                 ui.separator();
 
-                ui.add(egui::Slider::new(&mut self.tilemap.scale, 1..=200).text("Scale"));
+                ui.add(
+                    egui::Slider::new(&mut self.tilemap.scale, 1.0..=200.)
+                        .text("Scale")
+                        .fixed_decimals(0),
+                );
 
                 ui.separator();
 

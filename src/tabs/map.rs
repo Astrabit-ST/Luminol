@@ -26,18 +26,18 @@ impl super::tab::Tab for Map {
     #[allow(unused_variables, unused_mut)]
     fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
         // Load the map if it isn't loaded.
-        info.data_cache.load_map(info.filesystem, self.id);
-        let mut cache = info.data_cache.borrow_mut();
-        let mut map = cache.maps.get_mut(&self.id).expect("No map loaded with ID");
+        let mut map = info.data_cache.load_map(info.filesystem, self.id);
 
         // Display the toolbar.
-        self.toolbar(ui, map);
+        self.toolbar(ui, &mut map);
 
         // Display the tilepicker.
         egui::SidePanel::left(format!("map_{}_tilepicker", self.id)).show_inside(ui, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {});
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| self.tilemap.ui(ui, map));
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            self.tilemap.ui(ui, &mut map, self.id, "crystal_caves.png", info)
+        });
     }
 }

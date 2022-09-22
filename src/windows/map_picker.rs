@@ -59,9 +59,8 @@ impl super::window::Window for MapPicker {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 // Aquire the data cache.
-                let mut cache = info.data_cache.borrow_mut();
-
-                let mapinfos = cache.mapinfos.as_mut().expect("MapInfos not loaded.");
+                let mapinfos = info.data_cache.map_infos();
+                let mapinfos = mapinfos.as_ref().expect("Mapinfos not loaded.");
 
                 // We sort maps by their order.
                 let mut sorted_maps = Vec::from_iter(mapinfos.iter());
@@ -83,7 +82,7 @@ impl super::window::Window for MapPicker {
                     // There will always be a map `0`.
                     // `0` is assumed to be the root map.
                     for id in children_data.get(&0).unwrap() {
-                        Self::render_submap(id, &children_data, mapinfos, info, ui);
+                        Self::render_submap(id, &children_data, &mapinfos, info, ui);
                     }
                 });
             })

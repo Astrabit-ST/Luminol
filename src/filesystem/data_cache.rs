@@ -1,6 +1,6 @@
 use crate::data::rmxp_structs::rpg;
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{RefCell, RefMut},
     collections::HashMap,
 };
 
@@ -36,23 +36,26 @@ impl DataCache {
         );
     }
 
-    pub fn load_map(&self, filesystem: &Filesystem, id: i32) {
-        let mut inner = self.inner.borrow_mut();
-        inner.maps.entry(id).or_insert_with(|| {
-            filesystem
-                .read_data(&format!("Map{:0>3}.ron", id))
-                .expect("Failed to load map")
-        });
+    pub fn load_map(&self, filesystem: &Filesystem, id: i32) -> RefMut<'_, rpg::Map> {
+        RefMut::map(self.inner.borrow_mut(), |inner| {
+            inner.maps.entry(id).or_insert_with(|| {
+                filesystem
+                    .read_data(&format!("Map{:0>3}.ron", id))
+                    .expect("Failed to load map")
+            })
+        })
     }
 
-    // TODO: Find a better way.
-    pub fn borrow_mut(&self) -> RefMut<'_, Inner> {
-        self.inner.borrow_mut()
+    pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
+        RefMut::map(self.inner.borrow_mut(), |i| {
+            &mut i.mapinfos
+        })
     }
 
-    #[allow(dead_code)]
-    pub fn borrow(&self) -> Ref<'_, Inner> {
-        self.inner.borrow()
+    pub fn tilesets(&self) -> RefMut<'_, Option<Vec<rpg::Tileset>>> {
+        RefMut::map(self.inner.borrow_mut(), |i| {
+            &mut i.tilesets
+        })
     }
 
     pub fn save(&self, filesystem: &Filesystem) {
