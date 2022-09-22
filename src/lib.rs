@@ -1,21 +1,20 @@
 #![warn(clippy::all, rust_2018_idioms)]
 // Copyright (C) 2022 Lily Lyons
-// 
+//
 // This file is part of Luminol.
-// 
+//
 // Luminol is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Luminol is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
 
 mod app;
 
@@ -56,10 +55,10 @@ mod filesystem {
     #[cfg(target_arch = "wasm32")]
     pub use filesystem_wasm32::Filesystem;
     pub mod data_cache;
-    pub mod image_cache;
 }
 
 pub use app::App;
+use egui_extras::RetainedImage;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
@@ -72,5 +71,22 @@ pub struct UpdateInfo<'a> {
     pub windows: &'a windows::window::Windows,
     pub tabs: &'a tabs::tab::Tabs,
     pub audio: &'a audio::Audio,
-    pub images: &'a filesystem::image_cache::ImageCache,
+}
+
+pub fn load_image(path: String, filesystem: &Filesystem) -> RetainedImage {
+    egui_extras::RetainedImage::from_image_bytes(
+        "",
+        &filesystem
+            .read_bytes(&format!("{}.png", path))
+            .unwrap_or_else(|_| {
+                filesystem
+                    .read_bytes(&format!("{}.jpg", path))
+                    .unwrap_or_else(|_| {
+                        filesystem
+                            .read_bytes(&format!("{}.jpg", path))
+                            .expect("Failed to read image from path")
+                    })
+            }),
+    )
+    .expect("Failed to load image")
 }

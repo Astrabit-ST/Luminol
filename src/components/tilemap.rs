@@ -1,21 +1,19 @@
 // Copyright (C) 2022 Lily Lyons
-// 
+//
 // This file is part of Luminol.
-// 
+//
 // Luminol is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Luminol is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
-use std::cell::RefMut;
 
 use egui::{Pos2, Vec2};
 use egui_extras::RetainedImage;
@@ -43,7 +41,8 @@ impl Tilemap {
         ui: &mut egui::Ui,
         map: &mut rpg::Map,
         map_id: i32,
-        tileset_tex: RefMut<'_, RetainedImage>,
+        tileset_tex: &RetainedImage,
+        autotile_texs: &Vec<Option<RetainedImage>>,
     ) {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
@@ -79,6 +78,7 @@ impl Tilemap {
 
         let scale = self.scale / 100.;
         let tile_size = 32. * scale;
+        let at_tile_size = 16. * scale;
         let canvas_pos = canvas_center + self.pan;
 
         let xsize = map.data.len_of(Axis(2));
@@ -87,8 +87,8 @@ impl Tilemap {
         let tile_width = 32. / tileset_tex.width() as f32;
         let tile_height = 32. / tileset_tex.height() as f32;
 
-        let width2 = (map.width / 2) as f32;
-        let height2 = (map.height / 2) as f32 + 0.5;
+        let width2 = map.width as f32 / 2.;
+        let height2 = map.height as f32 / 2.;
 
         let pos = egui::Vec2::new(width2 * tile_size, height2 as f32 * tile_size);
         let map_rect = egui::Rect {
@@ -98,6 +98,10 @@ impl Tilemap {
 
         // Iterate through all tiles.
         for (idx, ele) in map.data.iter().enumerate() {
+            if *ele < 48 {
+                continue;
+            }
+
             // We grab the x and y through some simple means.
             let (x, y) = (
                 // We reset the x every xsize elements.
@@ -125,6 +129,43 @@ impl Tilemap {
                 egui::Image::new(tileset_tex.texture_id(ui.ctx()), tileset_tex.size_vec2())
                     .uv(uv)
                     .paint_at(ui, tile_rect);
+            } else {
+                // holy shit
+                let autotile_id = (ele / 48) - 1;
+
+                if let Some(autotile_tex) = &autotile_texs[autotile_id as usize] {
+                    let tile_width = 16. / autotile_tex.width() as f32;
+                    let tile_height = 16. / autotile_tex.height() as f32;
+
+                    for s_a in 0..2 {
+                        for s_b in 0..2 {
+                            let tile_rect = egui::Rect::from_min_size(
+                                map_rect.min
+                                    + egui::Vec2::new(
+                                        (x as f32 * tile_size) + (s_a as f32 * at_tile_size),
+                                        (y as f32 * tile_size) + (s_b as f32 * at_tile_size),
+                                    ),
+                                egui::Vec2::splat(at_tile_size),
+                            );
+
+                            let ti = AUTOTILES[*ele as usize % 48][s_a + (s_b * 2)];
+                            let tx = (ti % 6) as f32 * tile_width;
+                            let ty = (ti / 6) as f32 * tile_height;
+
+                            let uv = egui::Rect::from_min_size(
+                                Pos2::new(tx, ty),
+                                egui::vec2(tile_width, tile_height),
+                            );
+
+                            egui::Image::new(
+                                autotile_tex.texture_id(ui.ctx()),
+                                autotile_tex.size_vec2(),
+                            )
+                            .uv(uv)
+                            .paint_at(ui, tile_rect);
+                        }
+                    }
+                }
             }
         }
 
@@ -135,10 +176,10 @@ impl Tilemap {
         );
 
         if self.visible_display {
-            let width2: f32 = 20. / 2.;
-            let height2: f32 = 14. / 2.;
+            let width2: f32 = (640. / 2.) * scale;
+            let height2: f32 = (480. / 2.) * scale;
 
-            let pos = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
+            let pos = egui::Vec2::new(width2, height2);
             let visible_rect = egui::Rect {
                 min: canvas_center - pos,
                 max: canvas_center + pos,
@@ -152,3 +193,54 @@ impl Tilemap {
         }
     }
 }
+
+const AUTOTILES: [[i32; 4]; 48] = [
+    [26, 27, 32, 33],
+    [4, 27, 32, 33],
+    [26, 5, 32, 33],
+    [4, 5, 32, 33],
+    [26, 27, 32, 11],
+    [4, 27, 32, 11],
+    [26, 5, 32, 11],
+    [4, 5, 32, 11],
+    [26, 27, 10, 33],
+    [4, 27, 10, 33],
+    [26, 5, 10, 33],
+    [4, 5, 10, 33],
+    [26, 27, 10, 11],
+    [4, 27, 10, 11],
+    [26, 5, 10, 11],
+    [4, 5, 10, 11],
+    [24, 25, 30, 31],
+    [24, 5, 30, 31],
+    [24, 25, 30, 11],
+    [24, 5, 30, 11],
+    [14, 15, 20, 21],
+    [14, 15, 20, 11],
+    [14, 15, 10, 21],
+    [14, 15, 10, 11],
+    [28, 29, 34, 35],
+    [28, 29, 10, 35],
+    [4, 29, 34, 35],
+    [4, 29, 10, 35],
+    [38, 39, 44, 45],
+    [4, 39, 44, 45],
+    [38, 5, 44, 45],
+    [4, 5, 44, 45],
+    [24, 29, 30, 35],
+    [14, 15, 44, 45],
+    [12, 13, 18, 19],
+    [12, 13, 18, 11],
+    [16, 17, 22, 23],
+    [16, 17, 10, 23],
+    [40, 41, 46, 47],
+    [4, 41, 46, 47],
+    [36, 37, 42, 43],
+    [36, 5, 42, 43],
+    [12, 17, 18, 23],
+    [12, 13, 42, 43],
+    [36, 41, 42, 47],
+    [16, 17, 46, 47],
+    [12, 17, 42, 47],
+    [0, 1, 6, 7],
+];
