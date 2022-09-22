@@ -42,7 +42,7 @@ impl Tilemap {
         map: &mut rpg::Map,
         map_id: i32,
         tileset_tex: &RetainedImage,
-        autotile_texs: &Vec<Option<RetainedImage>>,
+        autotile_texs: &[Option<RetainedImage>],
     ) {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();

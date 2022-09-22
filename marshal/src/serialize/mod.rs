@@ -1,21 +1,20 @@
 #![allow(unused_variables)]
 // Copyright (C) 2022 Lily Lyons
-// 
+//
 // This file is part of Luminol.
-// 
+//
 // Luminol is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Luminol is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
 #![allow(dead_code)]
 #![allow(unused_must_use)]
 
@@ -48,32 +47,28 @@ impl Serializer {
         T: PrimInt,
     {
         self.output.push(b'i');
-        match d.to_i128() {
-            // Serialization of `long` values
-            Some(mut i) => {
-                if i == 0 {
-                    self.output.push(0x0);
-                } else if 0 < i && i < 123 {
-                    self.output.push((i + 5) as u8);
-                } else if -124 < i && i < 0 {
-                    self.output.push(((i - 5) & 0xff) as u8);
-                }
+        if let Some(mut i) = d.to_i128() {
+            if i == 0 {
+                self.output.push(0x0);
+            } else if 0 < i && i < 123 {
+                self.output.push((i + 5) as u8);
+            } else if -124 < i && i < 0 {
+                self.output.push(((i - 5) & 0xff) as u8);
+            }
 
-                let mut chars: Vec<u8> = Vec::new();
-                for ii in 0..i32::BITS as i32 {
-                    chars.push((i & 0xff) as u8);
-                    i = i << 8;
-                    if i == 0 {
-                        chars[0] = ii as u8;
-                        break;
-                    }
-                    if i == -1 {
-                        chars[0] = -ii as u8;
-                        break;
-                    }
+            let mut chars: Vec<u8> = Vec::new();
+            for ii in 0..i32::BITS as i32 {
+                chars.push((i & 0xff) as u8);
+                i <<= 8;
+                if i == 0 {
+                    chars[0] = ii as u8;
+                    break;
+                }
+                if i == -1 {
+                    chars[0] = -ii as u8;
+                    break;
                 }
             }
-            None => {}
         }
         Ok(())
     }
