@@ -15,7 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use egui::{Pos2, Vec2};
 use egui_extras::RetainedImage;
@@ -27,6 +30,8 @@ pub struct Tilemap {
     pan: Vec2,
     pub scale: f32,
     pub visible_display: bool,
+    ani_idx: i32,
+    ani_instant: Instant,
 }
 
 impl Tilemap {
@@ -35,6 +40,8 @@ impl Tilemap {
             pan: Vec2::ZERO,
             scale: 100.,
             visible_display: false,
+            ani_idx: 0,
+            ani_instant: Instant::now(),
         }
     }
 
@@ -47,6 +54,11 @@ impl Tilemap {
         autotile_texs: &[Option<RetainedImage>],
         event_texs: &HashMap<String, Option<RetainedImage>>,
     ) {
+        if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
+            self.ani_instant = Instant::now();
+            self.ani_idx += 1;
+        }
+
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect);
@@ -152,7 +164,11 @@ impl Tilemap {
                             );
 
                             let ti = AUTOTILES[*ele as usize % 48][s_a + (s_b * 2)];
-                            let tx = (ti % 6) as f32 * tile_width;
+
+                            let tx = ti % 6;
+                            let tx_off = (self.ani_idx as usize % (autotile_tex.width() / 96)) * 6;
+                            let tx = (tx + tx_off as i32) as f32 * tile_width;
+
                             let ty = (ti / 6) as f32 * tile_height;
 
                             let uv = egui::Rect::from_min_size(
@@ -254,6 +270,9 @@ impl Tilemap {
                 egui::Stroke::new(1.0, egui::Color32::YELLOW),
             );
         }
+
+        ui.ctx()
+            .request_repaint_after(Duration::from_secs_f32((1. / 60.) * 16.));
     }
 }
 
