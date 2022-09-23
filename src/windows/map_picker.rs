@@ -17,6 +17,7 @@
 
 use crate::data::rmxp_structs::rpg::MapInfo;
 use crate::UpdateInfo;
+use crate::tabs::map::Map;
 use std::collections::HashMap;
 
 /// The map picker window.
@@ -51,8 +52,7 @@ impl MapPicker {
             .show_header(ui, |ui| {
                 // Has the user
                 if ui.button(map_name).double_clicked() {
-                    info.tabs
-                        .add_tab(crate::tabs::map::Map::new(*id, map_name.clone(), info))
+                    Self::create_map_tab(*id, map_name.clone(), info);
                 }
             })
             .body(|ui| {
@@ -64,9 +64,14 @@ impl MapPicker {
         } else {
             // Just display a label otherwise.
             if ui.button(map_name).double_clicked() {
-                info.tabs
-                    .add_tab(crate::tabs::map::Map::new(*id, map_name.clone(), info))
+                Self::create_map_tab(*id, map_name.clone(), info);
             }
+        }
+    }
+
+    fn create_map_tab(id: i32, name: String, info: &UpdateInfo<'_>) {
+        if let Some(m) = Map::new(id, name, info) {
+            info.tabs.add_tab(m);
         }
     }
 }

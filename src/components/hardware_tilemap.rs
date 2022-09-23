@@ -25,6 +25,7 @@ pub struct Tilemap {
     pub visible_display: bool,
 }
 
+#[allow(dead_code)]
 impl Tilemap {
     pub fn new() -> Self {
         Self {

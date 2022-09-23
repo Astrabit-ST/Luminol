@@ -41,30 +41,33 @@ impl Filesystem {
         self.project_path.borrow().clone()
     }
 
-    pub fn load_project(&self, path: PathBuf, cache: &DataCache) {
+    pub fn load_project(&self, path: PathBuf, cache: &DataCache) -> Result<(), String> {
         *self.project_path.borrow_mut() = Some(path);
-        cache.load(self);
+        cache.load(self).map_err(|e| {
+            *self.project_path.borrow_mut() = None;
+            e
+        })
     }
 
-    pub fn dir_children(&self, path: &str) -> fs::ReadDir {
+    pub fn dir_children(&self, path: &str) -> Result<fs::ReadDir, String> {
         fs::read_dir(
             self.project_path
                 .borrow()
                 .as_ref()
-                .expect("Project path not specified")
+                .ok_or_else(|| "Project not open".to_string())?
                 .join(path),
         )
-        .expect("Directory missing")
+        .map_err(|e| e.to_string())
     }
 
-    pub fn bufreader(&self, path: &str) -> BufReader<File> {
+    pub fn bufreader(&self, path: &str) -> Result<BufReader<File>, String> {
         let path = self
             .project_path
             .borrow()
             .as_ref()
-            .expect("Project path not specified")
+            .ok_or_else(|| "Project not open".to_string())?
             .join(path);
-        BufReader::new(File::open(path).expect("Failed to open file"))
+        Ok(BufReader::new(File::open(path).map_err(|e| e.to_string())?))
     }
 
     pub fn read_data<T>(&self, path: &str) -> ron::error::SpannedResult<T>
@@ -84,17 +87,17 @@ impl Filesystem {
         ron::from_str(&data)
     }
 
-    pub fn read_bytes(&self, path: &str) -> Result<Vec<u8>, std::io::Error> {
+    pub fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
         let path = self
             .project_path
             .borrow()
             .as_ref()
-            .expect("Project path not specified")
+            .ok_or_else(|| "Project not open".to_string())?
             .join(path);
-        fs::read(path)
+        fs::read(path).map_err(|e| e.to_string())
     }
 
-    pub fn save_data<T>(&self, path: &str, data: &T) -> Result<(), std::io::Error>
+    pub fn save_data<T>(&self, path: &str, data: &T) -> Result<(), String>
     where
         T: serde::ser::Serialize,
     {
@@ -102,27 +105,29 @@ impl Filesystem {
             .project_path
             .borrow()
             .as_ref()
-            .expect("Project path not specified")
+            .ok_or_else(|| "Project not open".to_string())?
             .join("Data_RON")
             .join(path);
         println!("saving {}", path.display());
 
         let contents = ron::ser::to_string_pretty(data, ron::ser::PrettyConfig::default())
-            .expect("Failed to serialize data");
-        fs::write(path, contents)
+            .map_err(|e| e.to_string())?;
+        fs::write(path, contents).map_err(|e| e.to_string())
     }
 
-    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) {
-        data_cache.save(self);
+    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) -> Result<(), String> {
+        data_cache.save(self)
     }
 
-    pub fn try_open_project(&self, cache: &DataCache) {
+    pub fn try_open_project(&self, cache: &DataCache) -> Result<(), String> {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()
         {
             path.pop(); // Pop off filename
             self.load_project(path, cache)
+        } else {
+            Err("No project loaded".to_string())
         }
     }
 }

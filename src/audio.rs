@@ -22,7 +22,7 @@ use std::{cell::RefCell, collections::HashMap};
 use strum::Display;
 use strum::EnumIter;
 
-use crate::filesystem::Filesystem;
+use crate::UpdateInfo;
 
 /// Different sound sources.
 #[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy, Hash)]
@@ -56,28 +56,45 @@ impl Default for Audio {
 }
 
 impl Audio {
-    pub fn play(
-        &self,
-        filesystem: &Filesystem,
-        path: &str,
-        volume: u8,
-        pitch: u8,
-        source: &Source,
-    ) {
+    pub fn play(&self, info: &UpdateInfo<'_>, path: &str, volume: u8, pitch: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
         // Create a sink
-        let sink = Sink::try_new(&inner.outputstream.1).expect("Failed to create sink");
+        let sink = match Sink::try_new(&inner.outputstream.1) {
+            Ok(s) => s,
+            Err(e) => {
+                info.toasts.error(e.to_string());
+                return;
+            }
+        };
         // Append the sound
-        let bufreader = filesystem.bufreader(path);
+        let bufreader = match info.filesystem.bufreader(path) {
+            Ok(b) => b,
+            Err(e) => {
+                info.toasts.error(e);
+                return;
+            }
+        };
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {
                 // Non looping
-                sink.append(Decoder::new(bufreader).expect("Failed to create decoder"))
+                sink.append(match Decoder::new(bufreader) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        info.toasts.error(e.to_string());
+                        return;
+                    }
+                })
             }
             _ => {
                 // Looping
-                sink.append(Decoder::new_looped(bufreader).expect("Failed to create decoder"))
+                sink.append(match Decoder::new_looped(bufreader) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        info.toasts.error(e.to_string());
+                        return;
+                    }
+                })
             }
         }
 

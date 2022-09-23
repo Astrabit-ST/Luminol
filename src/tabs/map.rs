@@ -32,9 +32,15 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new(id: i32, name: String, info: &UpdateInfo<'_>) -> Self {
+    pub fn new(id: i32, name: String, info: &UpdateInfo<'_>) -> Option<Self> {
         // Get the map.
-        let map = info.data_cache.load_map(info.filesystem, id);
+        let map = match info.data_cache.load_map(info.filesystem, id) {
+            Ok(m) => m,
+            Err(e) => {
+                info.toasts.error(e);
+                return None;
+            }
+        };
         // Get tilesets.
         let tilesets = info.data_cache.tilesets();
 
@@ -70,7 +76,7 @@ impl Map {
             })
             .collect();
 
-        Self {
+        Some(Self {
             id,
             name,
             selected_layer: 0,
@@ -78,7 +84,7 @@ impl Map {
             tileset_tex,
             autotile_texs,
             event_texs,
-        }
+        })
     }
 }
 
@@ -90,7 +96,13 @@ impl super::tab::Tab for Map {
     #[allow(unused_variables, unused_mut)]
     fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
         // Get the map.
-        let mut map = info.data_cache.load_map(info.filesystem, self.id);
+        let mut map = match info.data_cache.load_map(info.filesystem, self.id) {
+            Ok(m) => m,
+            Err(e) => {
+                info.toasts.error(e);
+                return;
+            }
+        };
 
         // Display the toolbar.
         self.toolbar(ui, &mut map);

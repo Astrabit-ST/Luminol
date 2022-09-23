@@ -95,10 +95,17 @@ impl SoundTab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Get folder children.
-            let folder_children: Vec<_> = info
+            let folder_children: Vec<_> = match info
                 .filesystem
                 .dir_children(&format!("Audio/{}", self.source))
-                .collect();
+            {
+                Ok(d) => d.collect(),
+                Err(e) => {
+                    info.toasts.error(e);
+                    return;
+                }
+            };
+
             // Get row height.
             let row_height = ui.text_style_height(&egui::TextStyle::Body);
             // Group together so it looks nicer.
@@ -133,13 +140,8 @@ impl SoundTab {
         // Get path.
         let path = format!("Audio/{}/{}", self.source, &self.selected_track);
         // Play it.
-        info.audio.play(
-            info.filesystem,
-            &path,
-            self.volume,
-            self.pitch,
-            &self.source,
-        );
+        info.audio
+            .play(info, &path, self.volume, self.pitch, &self.source);
     }
 }
 

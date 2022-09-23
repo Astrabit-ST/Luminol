@@ -17,7 +17,7 @@
 
 use crate::{
     audio::Audio,
-    components::{toolbar::Toolbar, top_bar::TopBar},
+    components::{toasts::Toasts, toolbar::Toolbar, top_bar::TopBar},
     filesystem::{data_cache::DataCache, Filesystem},
     tabs::tab::Tabs,
     windows::window::Windows,
@@ -33,6 +33,7 @@ pub struct App {
     toolbar: Toolbar,
     tabs: Tabs,
     audio: Audio,
+    toasts: Toasts,
 }
 
 impl App {
@@ -58,6 +59,7 @@ impl eframe::App for App {
             windows: &self.windows,
             tabs: &self.tabs,
             audio: &self.audio,
+            toasts: &self.toasts,
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
@@ -85,5 +87,8 @@ impl eframe::App for App {
 
         // Update all windows.
         self.windows.update(ctx, &update_info);
+
+        // Show toasts.
+        self.toasts.show(ctx);
     }
 }

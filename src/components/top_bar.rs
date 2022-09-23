@@ -38,7 +38,11 @@ impl TopBar {
             }
 
             if ui.button("Open Project").clicked() {
-                info.filesystem.try_open_project(info.data_cache);
+                if let Err(e) = info.filesystem.try_open_project(info.data_cache) {
+                    info.toasts.error(e);
+                } else {
+                    info.toasts.info("Opened project successfully!");
+                }
             }
 
             ui.separator();
@@ -51,7 +55,9 @@ impl TopBar {
                 }
 
                 if ui.button("Save Project").clicked() {
-                    info.filesystem.save_cached(info.data_cache)
+                    if let Err(e) = info.filesystem.save_cached(info.data_cache) {
+                        info.toasts.error(e);
+                    }
                 }
             });
 

@@ -29,15 +29,16 @@ mod windows {
 
 mod components {
     pub mod map_toolbar;
+    pub mod toasts;
     pub mod toolbar;
     pub mod top_bar;
 
-    pub mod software_tilemap;
     pub mod hardware_tilemap;
-    #[cfg(feature = "software-tilemap")]
-    pub use software_tilemap as tilemap;
+    pub mod software_tilemap;
     #[cfg(not(feature = "software-tilemap"))]
     pub use hardware_tilemap as tilemap;
+    #[cfg(feature = "software-tilemap")]
+    pub use software_tilemap as tilemap;
 }
 
 mod tabs {
@@ -64,6 +65,7 @@ mod filesystem {
 }
 
 pub use app::App;
+use components::toasts::Toasts;
 use egui::TextureFilter;
 use egui_extras::RetainedImage;
 
@@ -78,6 +80,7 @@ pub struct UpdateInfo<'a> {
     pub windows: &'a windows::window::Windows,
     pub tabs: &'a tabs::tab::Tabs,
     pub audio: &'a audio::Audio,
+    pub toasts: &'a Toasts,
 }
 
 pub fn load_image(path: String, filesystem: &Filesystem) -> Result<RetainedImage, String> {

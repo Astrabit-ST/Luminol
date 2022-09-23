@@ -33,30 +33,38 @@ pub struct DataCache {
 }
 
 impl DataCache {
-    pub fn load(&self, filesystem: &Filesystem) {
+    pub fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
         *self.mapinfos.borrow_mut() = Some(
             filesystem
                 .read_data("MapInfos.ron")
-                .expect("Failed to load Map Infos"),
+                .map_err(|_| "Failed to read MapInfos")?,
         );
 
         *self.tilesets.borrow_mut() = Some(
             filesystem
                 .read_data("Tilesets.ron")
-                .expect("Failed to load Tilesets"),
+                .map_err(|_| "Failed to read Tilesets")?,
         );
 
         self.maps.borrow_mut().clear();
+        Ok(())
     }
 
-    pub fn load_map(&self, filesystem: &Filesystem, id: i32) -> RefMut<'_, rpg::Map> {
-        RefMut::map(self.maps.borrow_mut(), |maps| {
-            maps.entry(id).or_insert_with(|| {
-                filesystem
-                    .read_data(&format!("Map{:0>3}.ron", id))
-                    .expect("Failed to load map")
-            })
-        })
+    pub fn load_map(
+        &self,
+        filesystem: &Filesystem,
+        id: i32,
+    ) -> Result<RefMut<'_, rpg::Map>, String> {
+        let has_map = self.maps.borrow().contains_key(&id);
+        if !has_map {
+            let map = filesystem
+                .read_data(&format!("Map{:0>3}.ron", id))
+                .map_err(|_| "Failed to load map")?;
+            self.maps.borrow_mut().insert(id, map);
+        }
+        Ok(RefMut::map(self.maps.borrow_mut(), |maps| {
+            maps.get_mut(&id).unwrap()
+        }))
     }
 
     pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
@@ -67,22 +75,23 @@ impl DataCache {
         self.tilesets.borrow_mut()
     }
 
-    pub fn save(&self, filesystem: &Filesystem) {
+    pub fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
         // Write map data and clear map cache.
         for (id, map) in self.maps.borrow_mut().drain() {
             filesystem
                 .save_data(&format!("Map{:0>3}.ron", id), &map)
-                .expect("Failed to write Map data");
+                .map_err(|_| "Failed to write Map data")?
         }
         if let Some(tilesets) = self.tilesets.borrow_mut().as_ref() {
             filesystem
                 .save_data("Tilesets.ron", tilesets)
-                .expect("Failed to write Tileset data");
+                .map_err(|_| "Failed to write Tileset data")?;
         }
         if let Some(mapinfos) = self.mapinfos.borrow_mut().as_ref() {
             filesystem
                 .save_data("MapInfos.ron", mapinfos)
-                .expect("Failed to write MapInfos data");
+                .map_err(|_| "Failed to write MapInfos data")?;
         }
+        Ok(())
     }
 }
