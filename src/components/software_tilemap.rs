@@ -26,6 +26,7 @@ use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
 
+#[allow(dead_code)]
 pub struct Tilemap {
     pan: Vec2,
     pub scale: f32,
@@ -34,6 +35,7 @@ pub struct Tilemap {
     ani_instant: Instant,
 }
 
+#[allow(dead_code)]
 impl Tilemap {
     pub fn new() -> Self {
         Self {

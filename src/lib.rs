@@ -29,9 +29,15 @@ mod windows {
 
 mod components {
     pub mod map_toolbar;
-    pub mod tilemap;
     pub mod toolbar;
     pub mod top_bar;
+
+    pub mod software_tilemap;
+    pub mod hardware_tilemap;
+    #[cfg(feature = "software-tilemap")]
+    pub use software_tilemap as tilemap;
+    #[cfg(not(feature = "software-tilemap"))]
+    pub use hardware_tilemap as tilemap;
 }
 
 mod tabs {
