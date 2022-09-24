@@ -23,6 +23,7 @@ use std::{
 use egui::{Pos2, Vec2};
 use egui_extras::RetainedImage;
 use ndarray::Axis;
+use num_traits::Zero;
 
 use crate::data::rmxp_structs::rpg;
 
@@ -51,7 +52,6 @@ impl Tilemap {
         &mut self,
         ui: &mut egui::Ui,
         map: &mut rpg::Map,
-        map_id: i32,
         tileset_tex: &RetainedImage,
         autotile_texs: &[Option<RetainedImage>],
         event_texs: &HashMap<String, Option<RetainedImage>>,
@@ -65,18 +65,22 @@ impl Tilemap {
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect);
 
-        let response = ui.interact(
-            canvas_rect,
-            egui::Id::new(format!("map_canvas_{}", map_id)),
-            egui::Sense::click_and_drag(),
-        );
+        let response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
         // Handle zoom
         if response.hovered() {
-            self.scale *= 10.0;
-            self.scale += ui.input().scroll_delta.y * 5.0;
-            self.scale /= 10.0;
-            self.scale = 0.1_f32.max(self.scale);
+            let delta = ui.input().scroll_delta.y * 5.0;
+            if !delta.is_zero() {
+                if let Some(pos) = response.hover_pos() {
+                    let old_scale = self.scale;
+
+                    self.scale += delta / 10.;
+                    self.scale = 0.1_f32.max(self.scale);
+
+                    let pos_norm = (pos - self.pan - canvas_center) / old_scale;
+                    self.pan = pos - canvas_center - pos_norm * self.scale;
+                }
+            }
         }
 
         // Handle pan

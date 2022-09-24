@@ -39,7 +39,6 @@ impl Tilemap {
         &mut self,
         ui: &mut egui::Ui,
         map: &mut rpg::Map,
-        map_id: i32,
         tileset_tex: &RetainedImage,
         autotile_texs: &[Option<RetainedImage>],
         event_texs: &HashMap<String, Option<RetainedImage>>,

@@ -117,14 +117,15 @@ impl super::tab::Tab for Map {
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            self.tilemap.ui(
-                ui,
-                &mut map,
-                self.id,
-                &self.tileset_tex,
-                &self.autotile_texs,
-                &self.event_texs,
-            )
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.tilemap.ui(
+                    ui,
+                    &mut map,
+                    &self.tileset_tex,
+                    &self.autotile_texs,
+                    &self.event_texs,
+                )
+            })
         });
     }
 }

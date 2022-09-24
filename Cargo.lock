@@ -1567,7 +1567,6 @@ dependencies = [
  "tracing-wasm",
  "wasm-bindgen",
  "web-sys",
- "wgpu",
 ]
 
 [[package]]
