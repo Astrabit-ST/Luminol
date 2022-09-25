@@ -17,7 +17,9 @@
 
 use std::collections::HashMap;
 
+use egui::Pos2;
 use egui_extras::RetainedImage;
+use ndarray::Axis;
 
 use crate::{components::tilemap::Tilemap, load_image, UpdateInfo};
 
@@ -25,7 +27,10 @@ pub struct Map {
     pub id: i32,
     pub name: String,
     pub selected_layer: usize,
+    pub toggled_layers: Vec<bool>,
+    pub cursor_pos: Pos2,
     pub tilemap: Tilemap,
+    pub selected_tile: i16,
     tileset_tex: RetainedImage,
     autotile_texs: Vec<Option<RetainedImage>>,
     event_texs: HashMap<String, Option<RetainedImage>>,
@@ -76,11 +81,15 @@ impl Map {
             })
             .collect();
 
+        let layers_max = map.data.len_of(Axis(0)) + 1;
         Some(Self {
             id,
             name,
-            selected_layer: 0,
+            selected_layer: layers_max,
+            toggled_layers: vec![true; layers_max],
+            cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(),
+            selected_tile: 0,
             tileset_tex,
             autotile_texs,
             event_texs,
@@ -112,19 +121,58 @@ impl super::tab::Tab for Map {
             .default_width(256.)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    self.tileset_tex.show(ui);
+                    let (rect, response) =
+                        ui.allocate_exact_size(self.tileset_tex.size_vec2(), egui::Sense::click());
+
+                    egui::Image::new(
+                        self.tileset_tex.texture_id(ui.ctx()),
+                        self.tileset_tex.size_vec2(),
+                    )
+                    .paint_at(ui, rect);
+
+                    if response.clicked() {
+                        if let Some(pos) = response.interact_pointer_pos() {
+                            let mut pos = (pos - rect.min) / 32.;
+                            pos.x = pos.x.floor();
+                            pos.y = pos.y.floor();
+                            self.selected_tile = (pos.x + pos.y * 8.) as i16;
+                        }
+                    }
+                    let cursor_x = self.selected_tile % 8 * 32;
+                    let cursor_y = self.selected_tile / 8 * 32;
+                    ui.painter().rect_stroke(
+                        egui::Rect::from_min_size(
+                            rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
+                            egui::Vec2::splat(32.),
+                        ),
+                        5.0,
+                        egui::Stroke::new(1.0, egui::Color32::WHITE),
+                    );
                 });
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                self.tilemap.ui(
+                let response = self.tilemap.ui(
                     ui,
-                    &mut map,
+                    &map,
+                    &mut self.cursor_pos,
                     &self.tileset_tex,
                     &self.autotile_texs,
                     &self.event_texs,
-                )
+                    &self.toggled_layers,
+                    self.selected_layer,
+                );
+
+                let layers_max = map.data.len_of(Axis(0));
+                if response.dragged()
+                    && self.selected_layer < layers_max
+                    && !ui.input().modifiers.command
+                {
+                    let map_x = self.cursor_pos.x as usize;
+                    let map_y = self.cursor_pos.y as usize;
+                    map.data[[self.selected_layer, map_y, map_x]] = self.selected_tile + 384;
+                }
             })
         });
     }

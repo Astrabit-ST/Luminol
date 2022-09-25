@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use egui::{Pos2, Vec2};
 use egui_extras::RetainedImage;
 use std::collections::HashMap;
 
@@ -23,6 +24,7 @@ use crate::data::rmxp_structs::rpg;
 pub struct Tilemap {
     pub scale: f32,
     pub visible_display: bool,
+    pub pan: Vec2,
 }
 
 #[allow(dead_code)]
@@ -31,6 +33,7 @@ impl Tilemap {
         Self {
             scale: 100.,
             visible_display: false,
+            pan: Vec2::ZERO,
         }
     }
 
@@ -38,10 +41,17 @@ impl Tilemap {
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        map: &mut rpg::Map,
+        map: &rpg::Map,
+        cursor_pos: &mut Pos2,
         tileset_tex: &RetainedImage,
         autotile_texs: &[Option<RetainedImage>],
         event_texs: &HashMap<String, Option<RetainedImage>>,
+        toggled_layers: &Vec<bool>,
+        selected_layer: usize,
     ) {
+        let canvas_rect = ui.max_rect();
+        let canvas_center = canvas_rect.center();
+
+        let response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
     }
 }

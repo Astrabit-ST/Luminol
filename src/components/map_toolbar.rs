@@ -27,7 +27,7 @@ impl Map {
                 ui.separator();
 
                 ui.add(
-                    egui::Slider::new(&mut self.tilemap.scale, 1.0..=200.)
+                    egui::Slider::new(&mut self.tilemap.scale, 15.0..=200.)
                         .text("Scale")
                         .fixed_decimals(0),
                 );
@@ -36,26 +36,37 @@ impl Map {
 
                 // Find the number of layers.
                 let layers = map.data.len_of(Axis(0));
-                egui::ComboBox::from_label("Layers")
+                ui.menu_button(
                     // Format the text based on what layer is selected.
-                    .selected_text(if self.selected_layer > layers {
-                        "Events".to_string()
+                    if self.selected_layer > layers {
+                        "Events ⏷".to_string()
                     } else {
-                        format!("Layer {}", self.selected_layer + 1)
-                    })
-                    .show_ui(ui, |ui| {
+                        format!("Layer {} ⏷", self.selected_layer + 1)
+                    },
+                    |ui| {
                         // TODO: Add layer enable button
                         // Display all layers.
-                        for layer in 0..layers {
-                            ui.selectable_value(
+                        ui.columns(2, |columns| {
+                            columns[1].visuals_mut().button_frame = true;
+
+                            for layer in 0..layers {
+                                columns[0].selectable_value(
+                                    &mut self.selected_layer,
+                                    layer,
+                                    format!("Layer {}", layer + 1),
+                                );
+                                columns[1].checkbox(&mut self.toggled_layers[layer], "👁");
+                            }
+                            // Display event layer.
+                            columns[0].selectable_value(
                                 &mut self.selected_layer,
-                                layer,
-                                format!("Layer {}", layer + 1),
+                                layers + 1,
+                                "Events",
                             );
-                        }
-                        // Display event layer.
-                        ui.selectable_value(&mut self.selected_layer, layers + 1, "Events");
-                    });
+                            columns[1].checkbox(&mut self.toggled_layers[layers], "👁");
+                        });
+                    },
+                );
 
                 ui.separator();
 
