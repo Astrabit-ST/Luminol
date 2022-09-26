@@ -15,6 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+/*
+This file handles the 'software' tilemap.
+Despite the name of the file, the tilemap is not actually rendered with software rendering.
+The textures, backend, etc are all hardware rendered.
+However all the draw calls are not batched like hardware rendering and so it is slower than hardware.
+It's not all bad, though- it's quite fast.
+*/
+
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -65,11 +73,13 @@ impl Tilemap {
         toggled_layers: &[bool],
         selected_layer: usize,
     ) -> Response {
+        // Every 16 frames update autotile animation index
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
             self.ani_idx += 1;
         }
 
+        // Allocate the largest size we can for the tilemap
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect);
@@ -77,26 +87,31 @@ impl Tilemap {
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
         // Handle zoom
-        if response.hovered() {
+        if let Some(pos) = response.hover_pos() {
+            // We need to store the old scale before applying any transformations
+            let old_scale = self.scale;
             let delta = ui.input().scroll_delta.y * 5.0;
 
-            if let Some(pos) = response.hover_pos() {
-                let old_scale = self.scale;
+            // Apply scroll and cap max zoom to 15%
+            self.scale += delta / 30.;
+            self.scale = 15.0_f32.max(self.scale);
 
-                self.scale += delta / 30.;
-                self.scale = 15.0_f32.max(self.scale);
+            // Get the normalized cursor position relative to pan
+            let pos_norm = (pos - self.pan - canvas_center) / old_scale;
+            // Offset the pan to the cursor remains in the same place
+            // Still not sure how the math works out, if it ain't broke don't fix it
+            self.pan = pos - canvas_center - pos_norm * self.scale;
 
-                let pos_norm = (pos - self.pan - canvas_center) / old_scale;
-                self.pan = pos - canvas_center - pos_norm * self.scale;
-
-                let tile_size = (self.scale / 100.) * 32.;
-                let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
-                    + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
-                pos_tile.x = pos_tile.x.floor().max(0.0).min(map.width as f32 - 1.);
-                pos_tile.y = pos_tile.y.floor().max(0.0).min(map.height as f32 - 1.);
-                if selected_layer < map.data.len_of(Axis(0)) || response.clicked() {
-                    *cursor_pos = pos_tile.to_pos2();
-                }
+            // Figure out the tile the cursor is hovering over
+            let tile_size = (self.scale / 100.) * 32.;
+            let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
+                + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
+            // Force the cursor to a tile instead of in-between
+            pos_tile.x = pos_tile.x.floor().max(0.0).min(map.width as f32 - 1.);
+            pos_tile.y = pos_tile.y.floor().max(0.0).min(map.height as f32 - 1.);
+            // Handle input
+            if selected_layer < map.data.len_of(Axis(0)) || response.clicked() {
+                *cursor_pos = pos_tile.to_pos2();
             }
         }
 
@@ -107,13 +122,14 @@ impl Tilemap {
             self.pan += response.drag_delta();
         }
 
-        // Handle cursor
+        // Handle cursor icon
         if panning_map_view {
             response = response.on_hover_cursor(egui::CursorIcon::Grabbing);
         } else {
             response = response.on_hover_cursor(egui::CursorIcon::Grab);
         }
 
+        // Determine some values which are relatively constant
         let scale = self.scale / 100.;
         let tile_size = 32. * scale;
         let at_tile_size = 16. * scale;
@@ -134,13 +150,18 @@ impl Tilemap {
             max: canvas_pos + pos,
         };
 
+        // Do we need to render a panorama?
         if let Some(pano_tex) = &textures.pano_tex {
+            // Find the minimum number of panoramas we can fit in the map size (should fit the screen)
             let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
+            // We want to display more not less than we possibly can
             pano_repeat.x = pano_repeat.x.ceil();
             pano_repeat.y = pano_repeat.y.ceil();
 
+            // Iterate through ranges
             for y in 0..(pano_repeat.y as usize) {
                 for x in 0..(pano_repeat.x as usize) {
+                    // Display the panorama
                     let pano_rect = egui::Rect::from_min_size(
                         map_rect.min
                             + egui::vec2(
@@ -172,18 +193,23 @@ impl Tilemap {
                 idx / (xsize * ysize),
             );
 
+            // Is the layer toggled off?
             if !toggled_layers[z] {
                 continue;
             }
 
+            // Find tile bounds
             let tile_rect = egui::Rect::from_min_size(
                 map_rect.min + egui::Vec2::new(x as f32 * tile_size, y as f32 * tile_size),
                 egui::Vec2::splat(tile_size),
             );
 
+            // Do we draw an autotile or regular tile?
             if *ele >= 384 {
+                // Normalize element
                 let ele = ele - 384;
 
+                // Calculate UV coordinates
                 let tile_x =
                     (ele as usize % (textures.tileset_tex.width() / 32)) as f32 * tile_width;
                 let tile_y =
@@ -194,6 +220,7 @@ impl Tilemap {
                     egui::vec2(tile_width, tile_height),
                 );
 
+                // Display tile
                 egui::Image::new(
                     textures.tileset_tex.texture_id(ui.ctx()),
                     textures.tileset_tex.size_vec2(),
@@ -202,14 +229,18 @@ impl Tilemap {
                 .paint_at(ui, tile_rect);
             } else {
                 // holy shit
+                // Find what autotile we're displaying
                 let autotile_id = (ele / 48) - 1;
 
                 if let Some(autotile_tex) = &textures.autotile_texs[autotile_id as usize] {
+                    // Get the relative tile size
                     let tile_width = 16. / autotile_tex.width() as f32;
                     let tile_height = 16. / autotile_tex.height() as f32;
 
+                    // Display each autotile corner (taken from r48)
                     for s_a in 0..2 {
                         for s_b in 0..2 {
+                            // Find tile display rectangle
                             let tile_rect = egui::Rect::from_min_size(
                                 map_rect.min
                                     + egui::Vec2::new(
@@ -219,19 +250,24 @@ impl Tilemap {
                                 egui::Vec2::splat(at_tile_size),
                             );
 
+                            // Calculate tile index
                             let ti = AUTOTILES[*ele as usize % 48][s_a + (s_b * 2)];
 
+                            // Calculate tile x
                             let tx = ti % 6;
+                            // Offset by animation amount
                             let tx_off = (self.ani_idx as usize % (autotile_tex.width() / 96)) * 6;
                             let tx = (tx + tx_off as i32) as f32 * tile_width;
-
+                            // Calculate tile y
                             let ty = (ti / 6) as f32 * tile_height;
 
+                            // Find uv
                             let uv = egui::Rect::from_min_size(
                                 Pos2::new(tx, ty),
                                 egui::vec2(tile_width, tile_height),
                             );
 
+                            // Display corner
                             egui::Image::new(
                                 autotile_tex.texture_id(ui.ctx()),
                                 autotile_tex.size_vec2(),
@@ -244,18 +280,23 @@ impl Tilemap {
             }
         }
 
+        // Do we display events?
         if *toggled_layers.last().unwrap() {
             for (_, event) in map.events.iter() {
                 // aaaaaaaa
+                // Get graphic and texture
                 let graphic = &event.pages[0].graphic;
                 let tex = textures
                     .event_texs
                     .get(&(graphic.character_name.clone(), graphic.character_hue))
                     .unwrap();
                 if let Some(tex) = tex {
+                    // FInd character width and height
                     let cw = (tex.width() / 4) as f32;
                     let ch = (tex.height() / 4) as f32;
 
+                    // The math here display the character correctly.
+                    // Why it works? Dunno.
                     let c_rect = egui::Rect::from_min_size(
                         map_rect.min
                             + egui::Vec2::new(
@@ -265,6 +306,7 @@ impl Tilemap {
                         egui::vec2(cw * scale, ch * scale),
                     );
 
+                    // Find UV coords.
                     let cx = (graphic.pattern as f32 * cw) / tex.width() as f32;
                     let cy = (((graphic.direction - 2) / 2) as f32 * ch) / tex.height() as f32;
 
@@ -273,10 +315,13 @@ impl Tilemap {
                         egui::vec2(cw / tex.width() as f32, ch / tex.height() as f32),
                     );
 
+                    // Display the character.
                     egui::Image::new(tex.texture_id(ui.ctx()), tex.size_vec2())
                         .uv(uv)
                         .paint_at(ui, c_rect);
+                // Do we need to display a tile instead?
                 } else if graphic.tile_id.is_positive() {
+                    // Same logic for tiles. See above.
                     let tile_rect = egui::Rect::from_min_size(
                         map_rect.min
                             + egui::Vec2::new(
@@ -308,6 +353,7 @@ impl Tilemap {
                     .paint_at(ui, tile_rect);
                 }
 
+                // Display the event box.
                 let box_rect = egui::Rect::from_min_size(
                     map_rect.min
                         + egui::Vec2::new(event.x as f32 * tile_size, event.y as f32 * tile_size),
@@ -322,10 +368,11 @@ impl Tilemap {
             }
         }
 
+        // Display the fog if we should.
+        // Uses an almost identical method to panoramas with an added scale.
         if let Some(fog_tex) = &textures.fog_tex {
             let zoom = (textures.fog_zoom as f32 / 100.) * scale;
-            let mut fox_repeat =
-                map_rect.size() / (fog_tex.size_vec2() * zoom);
+            let mut fox_repeat = map_rect.size() / (fog_tex.size_vec2() * zoom);
             fox_repeat.x = fox_repeat.x.ceil();
             fox_repeat.y = fox_repeat.y.ceil();
 
@@ -340,22 +387,22 @@ impl Tilemap {
                         fog_tex.size_vec2() * zoom,
                     );
 
-                    egui::Image::new(
-                        fog_tex.texture_id(ui.ctx()),
-                        fog_tex.size_vec2() * zoom,
-                    )
-                    .paint_at(ui, fog_rect);
+                    egui::Image::new(fog_tex.texture_id(ui.ctx()), fog_tex.size_vec2() * zoom)
+                        .paint_at(ui, fog_rect);
                 }
             }
         }
 
+        // Outline the map.
         ui.painter().rect_stroke(
             map_rect,
             5.0,
             egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
         );
 
+        // Do we display the visible region?
         if self.visible_display {
+            // Determine the visible region.
             let width2: f32 = (640. / 2.) * scale;
             let height2: f32 = (480. / 2.) * scale;
 
@@ -365,6 +412,7 @@ impl Tilemap {
                 max: canvas_center + pos,
             };
 
+            // Show the region.
             ui.painter().rect_stroke(
                 visible_rect,
                 5.0,
@@ -372,6 +420,7 @@ impl Tilemap {
             );
         }
 
+        // Display cursor.
         let cursor_rect = egui::Rect::from_min_size(
             map_rect.min + (cursor_pos.to_vec2() * tile_size),
             Vec2::splat(tile_size),
@@ -382,13 +431,18 @@ impl Tilemap {
             egui::Stroke::new(1.0, egui::Color32::YELLOW),
         );
 
+        // Every 16 frames request a repaint. This is for autotile animations.
         ui.ctx()
             .request_repaint_after(Duration::from_secs_f32((1. / 60.) * 16.));
 
+        // Return response.
         response
     }
 }
 
+// Hardcoded list of tiles from r48 and old python Luminol.
+// There seems to be very little pattern in autotile IDs so this is sadly
+// the best we can do.
 const AUTOTILES: [[i32; 4]; 48] = [
     [26, 27, 32, 33],
     [4, 27, 32, 33],

@@ -14,12 +14,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
+#![allow(unused_imports)]
 use egui::Pos2;
 use ndarray::Axis;
+use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
     components::tilemap::{Textures, Tilemap},
+    data::rmxp_structs::rpg,
     load_image_software, UpdateInfo,
 };
 
@@ -49,56 +51,8 @@ impl Map {
 
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets.as_ref().expect("Tilesets not loaded")[map.tileset_id as usize - 1];
-
-        // Load tileset textures.
-        let tileset_tex = load_image_software(
-            format!("Graphics/Tilesets/{}", tileset.tileset_name),
-            0,
-            info.filesystem,
-        )
-        .unwrap();
-        let autotile_texs = tileset
-            .autotile_names
-            .iter()
-            .map(|str| {
-                load_image_software(format!("Graphics/Autotiles/{}", str), 0, info.filesystem).ok()
-            })
-            .collect();
-
-        let event_texs = map
-            .events
-            .iter()
-            .map(|(_, e)| {
-                let graphic = &e.pages[0].graphic;
-                let char_name = graphic.character_name.clone();
-
-                (
-                    (char_name.clone(), graphic.character_hue),
-                    load_image_software(
-                        format!("Graphics/Characters/{}", char_name),
-                        graphic.character_hue,
-                        info.filesystem,
-                    )
-                    .ok(),
-                )
-            })
-            .collect();
-
-        let fog_tex = load_image_software(
-            format!("Graphics/Fogs/{}", tileset.fog_name),
-            tileset.fog_hue,
-            info.filesystem,
-        )
-        .ok();
-
-        let pano_tex = load_image_software(
-            format!("Graphics/Panoramas/{}", tileset.panorama_name),
-            tileset.panorama_hue,
-            info.filesystem,
-        )
-        .ok();
-
         let layers_max = map.data.len_of(Axis(0)) + 1;
+
         Some(Self {
             id,
             name,
@@ -107,14 +61,7 @@ impl Map {
             cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(),
             selected_tile: 0,
-            textures: Textures {
-                autotile_texs,
-                tileset_tex,
-                event_texs,
-                fog_tex,
-                fog_zoom: tileset.fog_zoom,
-                pano_tex,
-            },
+            textures: Self::load_textures(map, tileset, info),
         })
     }
 }
@@ -143,32 +90,7 @@ impl super::tab::Tab for Map {
             .default_width(256.)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    let (rect, response) = ui.allocate_exact_size(
-                        self.textures.tileset_tex.size_vec2(),
-                        egui::Sense::click(),
-                    );
-
-                    egui::Image::new(self.textures.tileset_tex.texture_id(ui.ctx()), rect.size())
-                        .paint_at(ui, rect);
-
-                    if response.clicked() {
-                        if let Some(pos) = response.interact_pointer_pos() {
-                            let mut pos = (pos - rect.min) / 32.;
-                            pos.x = pos.x.floor();
-                            pos.y = pos.y.floor();
-                            self.selected_tile = (pos.x + pos.y * 8.) as i16;
-                        }
-                    }
-                    let cursor_x = self.selected_tile % 8 * 32;
-                    let cursor_y = self.selected_tile / 8 * 32;
-                    ui.painter().rect_stroke(
-                        egui::Rect::from_min_size(
-                            rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
-                            egui::Vec2::splat(32.),
-                        ),
-                        5.0,
-                        egui::Stroke::new(1.0, egui::Color32::WHITE),
-                    );
+                    self.tilepicker(ui);
                 });
             });
 
@@ -194,5 +116,111 @@ impl super::tab::Tab for Map {
                 }
             })
         });
+    }
+}
+
+impl Map {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "software-tilemap")] {
+            fn load_textures(map: RefMut<'_, rpg::Map>, tileset: &rpg::Tileset, info: &UpdateInfo<'_>) -> Textures {
+                // Load tileset textures.
+                let tileset_tex = load_image_software(
+                    format!("Graphics/Tilesets/{}", tileset.tileset_name),
+                    0,
+                    info.filesystem,
+                )
+                .unwrap();
+                let autotile_texs: Vec<_> = tileset
+                    .autotile_names
+                    .iter()
+                    .map(|str| {
+                        load_image_software(format!("Graphics/Autotiles/{}", str), 0, info.filesystem).ok()
+                    })
+                    .collect();
+
+                let event_texs: HashMap<_, _> = map
+                    .events
+                    .iter()
+                    .map(|(_, e)| {
+                        let graphic = &e.pages[0].graphic;
+                        let char_name = graphic.character_name.clone();
+
+                        (
+                            (char_name.clone(), graphic.character_hue),
+                            load_image_software(
+                                format!("Graphics/Characters/{}", char_name),
+                                graphic.character_hue,
+                                info.filesystem,
+                            )
+                            .ok(),
+                        )
+                    })
+                    .collect();
+
+                let fog_tex = load_image_software(
+                    format!("Graphics/Fogs/{}", tileset.fog_name),
+                    tileset.fog_hue,
+                    info.filesystem,
+                )
+                .ok();
+
+                let pano_tex = load_image_software(
+                    format!("Graphics/Panoramas/{}", tileset.panorama_name),
+                    tileset.panorama_hue,
+                    info.filesystem,
+                )
+                .ok();
+
+                Textures {
+                    autotile_texs,
+                    tileset_tex,
+                    event_texs,
+                    fog_tex,
+                    fog_zoom: tileset.fog_zoom,
+                    pano_tex,
+                }
+            }
+        } else {
+            fn load_textures(_map: RefMut<'_, rpg::Map>, _tileset: &rpg::Tileset, _info: &UpdateInfo<'_>) -> Textures {
+                Textures {  }
+            }
+        }
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "software-tilemap")] {
+            fn tilepicker(&mut self, ui: &mut egui::Ui) {
+                let (rect, response) = ui.allocate_exact_size(
+                    self.textures.tileset_tex.size_vec2(),
+                    egui::Sense::click(),
+                );
+
+                egui::Image::new(self.textures.tileset_tex.texture_id(ui.ctx()), rect.size())
+                    .paint_at(ui, rect);
+
+                if response.clicked() {
+                    if let Some(pos) = response.interact_pointer_pos() {
+                        let mut pos = (pos - rect.min) / 32.;
+                        pos.x = pos.x.floor();
+                        pos.y = pos.y.floor();
+                        self.selected_tile = (pos.x + pos.y * 8.) as i16;
+                    }
+                }
+                let cursor_x = self.selected_tile % 8 * 32;
+                let cursor_y = self.selected_tile / 8 * 32;
+                ui.painter().rect_stroke(
+                    egui::Rect::from_min_size(
+                        rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
+                        egui::Vec2::splat(32.),
+                    ),
+                    5.0,
+                    egui::Stroke::new(1.0, egui::Color32::WHITE),
+                );
+            }
+        } else {
+            fn tilepicker(&mut self, _ui: &mut egui::Ui) {
+
+            }
+        }
     }
 }

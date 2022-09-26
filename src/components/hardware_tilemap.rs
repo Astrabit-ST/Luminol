@@ -15,7 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use egui::{Pos2, Vec2};
+use std::sync::Arc;
+
+use eframe::egui_wgpu::{self, wgpu};
+use egui::{Pos2, Response, Vec2};
 
 use crate::data::rmxp_structs::rpg;
 
@@ -46,10 +49,49 @@ impl Tilemap {
         textures: &Textures,
         toggled_layers: &[bool],
         selected_layer: usize,
-    ) {
+    ) -> Response {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
 
         let response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
+
+        let callback = Arc::new(
+            egui_wgpu::CallbackFn::new()
+                .prepare(move |device, queue, resources| {
+                    let renderer: &TilemapRenderResources =
+                        resources.get().expect("Failed to get renderer.");
+                    renderer.prepare(device, queue);
+                })
+                .paint(move |info, pass, resources| {
+                    let renderer: &TilemapRenderResources =
+                        resources.get().expect("Failed to get renderer.");
+                    renderer.paint(pass);
+                }),
+        );
+
+        let callback = egui::PaintCallback {
+            rect: canvas_rect,
+            callback,
+        };
+
+        ui.painter().add(callback);
+
+        response
+    }
+}
+
+pub struct TilemapRenderResources {}
+
+impl TilemapRenderResources {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    fn prepare(&self, _device: &wgpu::Device, _queue: &wgpu::Queue) {
+        println!("prepare");
+    }
+
+    fn paint(&self, _pass: &mut wgpu::RenderPass<'_>) {
+        println!("paint");
     }
 }
