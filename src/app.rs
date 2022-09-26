@@ -76,6 +76,7 @@ impl eframe::App for App {
             tabs: &self.tabs,
             audio: &self.audio,
             toasts: &self.toasts,
+            frame
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
@@ -84,7 +85,7 @@ impl eframe::App for App {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(&update_info, ui, frame);
+                self.top_bar.ui(&update_info, ui);
             });
         });
 

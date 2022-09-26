@@ -81,6 +81,7 @@ pub struct UpdateInfo<'a> {
     pub tabs: &'a tabs::tab::Tabs,
     pub audio: &'a audio::Audio,
     pub toasts: &'a Toasts,
+    pub frame: &'a eframe::Frame,
 }
 
 pub fn load_image_software(

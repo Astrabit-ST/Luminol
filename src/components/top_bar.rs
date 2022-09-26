@@ -21,7 +21,7 @@ pub struct TopBar {}
 
 impl TopBar {
     #[allow(unused_variables)]
-    pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.separator();
@@ -60,14 +60,6 @@ impl TopBar {
                     }
                 }
             });
-
-            #[cfg(not(target_arch = "wasm32"))]
-            ui.separator();
-
-            #[cfg(not(target_arch = "wasm32"))]
-            if ui.button("Exit Luminol").clicked() {
-                frame.close()
-            }
         });
 
         ui.separator();
