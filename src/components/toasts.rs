@@ -15,12 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use egui_notify::{Toasts as ToastsInner, Toast};
+use egui_notify::{Toast, Toasts as ToastsInner};
 use std::cell::RefCell;
 
 #[derive(Default)]
 pub struct Toasts {
-    inner: RefCell<ToastsInner>
+    inner: RefCell<ToastsInner>,
 }
 
 // We wrap the toasts structs in a RefCell to maintain interior mutability.

@@ -16,10 +16,10 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use egui::{Pos2, Vec2};
-use egui_extras::RetainedImage;
-use std::collections::HashMap;
 
 use crate::data::rmxp_structs::rpg;
+
+pub struct Textures {}
 
 pub struct Tilemap {
     pub scale: f32,
@@ -43,10 +43,8 @@ impl Tilemap {
         ui: &mut egui::Ui,
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
-        tileset_tex: &RetainedImage,
-        autotile_texs: &[Option<RetainedImage>],
-        event_texs: &HashMap<String, Option<RetainedImage>>,
-        toggled_layers: &Vec<bool>,
+        textures: &Textures,
+        toggled_layers: &[bool],
         selected_layer: usize,
     ) {
         let canvas_rect = ui.max_rect();

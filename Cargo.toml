@@ -37,6 +37,7 @@ software-tilemap = []
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-subscriber = "0.3"
 rodio = { version = "0.16.0", features = ["symphonia-all"], default-features = false }
+wgpu = { version = "0.13.1" }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -46,6 +47,7 @@ wasm-bindgen = "0.2.82"
 js-sys = "0.3.59"
 web-sys = "0.3.59"
 rodio = { version = "0.16.0", features = ["wasm-bindgen", "symphonia-all"], default-features = false }
+wgpu = { version = "0.13.1", features = ["webgl"]}
 
 [profile.release]
 opt-level = 2 # fast and small wasm

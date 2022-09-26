@@ -83,12 +83,14 @@ pub struct UpdateInfo<'a> {
     pub toasts: &'a Toasts,
 }
 
-pub fn load_image(path: String, filesystem: &Filesystem) -> Result<RetainedImage, String> {
+pub fn load_image_software(
+    path: String,
+    _hue: i32,
+    filesystem: &Filesystem,
+) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
-        "",
-        &filesystem
-            .read_bytes(&format!("{}.png", path))
-            .map_err(|e| e.to_string())?,
+        path.clone(),
+        &filesystem.read_bytes(&format!("{}.png", path))?,
     )
     .map(|i| i.with_texture_filter(TextureFilter::Nearest))
 }

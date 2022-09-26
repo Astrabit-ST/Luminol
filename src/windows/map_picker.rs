@@ -16,8 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::data::rmxp_structs::rpg::MapInfo;
-use crate::UpdateInfo;
 use crate::tabs::map::Map;
+use crate::UpdateInfo;
 use std::collections::HashMap;
 
 /// The map picker window.

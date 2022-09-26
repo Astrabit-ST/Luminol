@@ -15,13 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-
 use egui::Pos2;
-use egui_extras::RetainedImage;
 use ndarray::Axis;
 
-use crate::{components::tilemap::Tilemap, load_image, UpdateInfo};
+use crate::{
+    components::tilemap::{Textures, Tilemap},
+    load_image_software, UpdateInfo,
+};
 
 pub struct Map {
     pub id: i32,
@@ -31,9 +31,7 @@ pub struct Map {
     pub cursor_pos: Pos2,
     pub tilemap: Tilemap,
     pub selected_tile: i16,
-    tileset_tex: RetainedImage,
-    autotile_texs: Vec<Option<RetainedImage>>,
-    event_texs: HashMap<String, Option<RetainedImage>>,
+    textures: Textures,
 }
 
 impl Map {
@@ -53,33 +51,52 @@ impl Map {
         let tileset = &tilesets.as_ref().expect("Tilesets not loaded")[map.tileset_id as usize - 1];
 
         // Load tileset textures.
-        let tileset_tex = load_image(
+        let tileset_tex = load_image_software(
             format!("Graphics/Tilesets/{}", tileset.tileset_name),
+            0,
             info.filesystem,
         )
         .unwrap();
         let autotile_texs = tileset
             .autotile_names
             .iter()
-            .map(|str| load_image(format!("Graphics/Autotiles/{}", str), info.filesystem).ok())
+            .map(|str| {
+                load_image_software(format!("Graphics/Autotiles/{}", str), 0, info.filesystem).ok()
+            })
             .collect();
 
         let event_texs = map
             .events
             .iter()
             .map(|(_, e)| {
-                let char_name = e.pages[0].graphic.character_name.clone();
+                let graphic = &e.pages[0].graphic;
+                let char_name = graphic.character_name.clone();
 
                 (
-                    char_name.clone(),
-                    load_image(
+                    (char_name.clone(), graphic.character_hue),
+                    load_image_software(
                         format!("Graphics/Characters/{}", char_name),
+                        graphic.character_hue,
                         info.filesystem,
                     )
                     .ok(),
                 )
             })
             .collect();
+
+        let fog_tex = load_image_software(
+            format!("Graphics/Fogs/{}", tileset.fog_name),
+            tileset.fog_hue,
+            info.filesystem,
+        )
+        .ok();
+
+        let pano_tex = load_image_software(
+            format!("Graphics/Panoramas/{}", tileset.panorama_name),
+            tileset.panorama_hue,
+            info.filesystem,
+        )
+        .ok();
 
         let layers_max = map.data.len_of(Axis(0)) + 1;
         Some(Self {
@@ -90,9 +107,14 @@ impl Map {
             cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(),
             selected_tile: 0,
-            tileset_tex,
-            autotile_texs,
-            event_texs,
+            textures: Textures {
+                autotile_texs,
+                tileset_tex,
+                event_texs,
+                fog_tex,
+                fog_zoom: tileset.fog_zoom,
+                pano_tex,
+            },
         })
     }
 }
@@ -121,14 +143,13 @@ impl super::tab::Tab for Map {
             .default_width(256.)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    let (rect, response) =
-                        ui.allocate_exact_size(self.tileset_tex.size_vec2(), egui::Sense::click());
+                    let (rect, response) = ui.allocate_exact_size(
+                        self.textures.tileset_tex.size_vec2(),
+                        egui::Sense::click(),
+                    );
 
-                    egui::Image::new(
-                        self.tileset_tex.texture_id(ui.ctx()),
-                        self.tileset_tex.size_vec2(),
-                    )
-                    .paint_at(ui, rect);
+                    egui::Image::new(self.textures.tileset_tex.texture_id(ui.ctx()), rect.size())
+                        .paint_at(ui, rect);
 
                     if response.clicked() {
                         if let Some(pos) = response.interact_pointer_pos() {
@@ -157,9 +178,7 @@ impl super::tab::Tab for Map {
                     ui,
                     &map,
                     &mut self.cursor_pos,
-                    &self.tileset_tex,
-                    &self.autotile_texs,
-                    &self.event_texs,
+                    &self.textures,
                     &self.toggled_layers,
                     self.selected_layer,
                 );

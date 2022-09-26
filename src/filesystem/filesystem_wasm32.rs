@@ -34,7 +34,6 @@ extern "C" {
 #[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
-    handle: RefCell<Option<JsValue>>,
 }
 
 impl Filesystem {
@@ -47,7 +46,6 @@ impl Filesystem {
         }
         Self {
             project_path: RefCell::new(None),
-            handle: RefCell::new(None),
         }
     }
 
@@ -63,42 +61,48 @@ impl Filesystem {
         self.project_path.borrow().clone()
     }
 
-    pub fn load_project(&self, path: PathBuf, cache: &DataCache) {
+    pub fn load_project(&self, path: PathBuf, cache: &DataCache) -> Result<(), String> {
         *self.project_path.borrow_mut() = Some(path);
-        cache.load(self);
+        cache.load(self).map_err(|e| {
+            *self.project_path.borrow_mut() = None;
+            e
+        })
     }
 
-    pub fn read_data<T>(&self, _path: &str) -> Result<T, &str>
+    pub fn dir_children(&self, _path: &str) -> Result<fs::ReadDir, String> {
+        Err("Not implemented".to_string())
+    }
+
+    pub fn bufreader(&self, _path: &str) -> Result<BufReader<File>, String> {
+        Err("Not implemented".to_string())
+    }
+
+    pub fn read_data<T>(&self, _path: &str) -> ron::error::SpannedResult<T>
     where
         T: serde::de::DeserializeOwned,
     {
-        todo!()
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::Eof,
+            position: ron::error::Position { line: 0, col: 0 },
+        })
     }
 
-    pub fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, std::io::Error> {
-        todo!()
+    pub fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, String> {
+        Err("Not implemented".to_string())
     }
 
-    pub fn dir_children(&self, path: &str) -> fs::ReadDir {
-        todo!()
-    }
-
-    pub fn bufreader(&self, path: &str) -> BufReader<File> {
-        todo!()
-    }
-
-    pub fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), ()>
+    pub fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), String>
     where
         T: serde::ser::Serialize,
     {
-        todo!()
+        Err("Not implemented".to_string())
     }
 
-    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) {
-        data_cache.save(self);
+    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) -> Result<(), String> {
+        data_cache.save(self)
     }
 
-    pub fn try_open_project(&self, cache: &DataCache) {
-        todo!()
+    pub fn try_open_project(&self, _cache: &DataCache) -> Result<(), String> {
+        Err("Not implemented".to_string())
     }
 }

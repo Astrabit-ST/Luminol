@@ -26,6 +26,15 @@ use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
 
+pub struct Textures {
+    pub tileset_tex: RetainedImage,
+    pub autotile_texs: Vec<Option<RetainedImage>>,
+    pub event_texs: HashMap<(String, i32), Option<RetainedImage>>,
+    pub fog_tex: Option<RetainedImage>,
+    pub fog_zoom: i32,
+    pub pano_tex: Option<RetainedImage>,
+}
+
 #[allow(dead_code)]
 pub struct Tilemap {
     pub pan: Vec2,
@@ -52,10 +61,8 @@ impl Tilemap {
         ui: &mut egui::Ui,
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
-        tileset_tex: &RetainedImage,
-        autotile_texs: &[Option<RetainedImage>],
-        event_texs: &HashMap<String, Option<RetainedImage>>,
-        toggled_layers: &Vec<bool>,
+        textures: &Textures,
+        toggled_layers: &[bool],
         selected_layer: usize,
     ) -> Response {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
@@ -87,9 +94,7 @@ impl Tilemap {
                     + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
                 pos_tile.x = pos_tile.x.floor().max(0.0).min(map.width as f32 - 1.);
                 pos_tile.y = pos_tile.y.floor().max(0.0).min(map.height as f32 - 1.);
-                if selected_layer < map.data.len_of(Axis(0)) {
-                    *cursor_pos = pos_tile.to_pos2();
-                } else if response.clicked() {
+                if selected_layer < map.data.len_of(Axis(0)) || response.clicked() {
                     *cursor_pos = pos_tile.to_pos2();
                 }
             }
@@ -117,8 +122,8 @@ impl Tilemap {
         let xsize = map.data.len_of(Axis(2));
         let ysize = map.data.len_of(Axis(1));
 
-        let tile_width = 32. / tileset_tex.width() as f32;
-        let tile_height = 32. / tileset_tex.height() as f32;
+        let tile_width = 32. / textures.tileset_tex.width() as f32;
+        let tile_height = 32. / textures.tileset_tex.height() as f32;
 
         let width2 = map.width as f32 / 2.;
         let height2 = map.height as f32 / 2.;
@@ -128,6 +133,28 @@ impl Tilemap {
             min: canvas_pos - pos,
             max: canvas_pos + pos,
         };
+
+        if let Some(pano_tex) = &textures.pano_tex {
+            let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
+            pano_repeat.x = pano_repeat.x.ceil();
+            pano_repeat.y = pano_repeat.y.ceil();
+
+            for y in 0..(pano_repeat.y as usize) {
+                for x in 0..(pano_repeat.x as usize) {
+                    let pano_rect = egui::Rect::from_min_size(
+                        map_rect.min
+                            + egui::vec2(
+                                (pano_tex.width() * x) as f32 * scale,
+                                (pano_tex.height() * y) as f32 * scale,
+                            ),
+                        pano_tex.size_vec2() * scale,
+                    );
+
+                    egui::Image::new(pano_tex.texture_id(ui.ctx()), pano_tex.size_vec2() * scale)
+                        .paint_at(ui, pano_rect);
+                }
+            }
+        }
 
         // Iterate through all tiles.
         for (idx, ele) in map.data.iter().enumerate() {
@@ -157,22 +184,27 @@ impl Tilemap {
             if *ele >= 384 {
                 let ele = ele - 384;
 
-                let tile_x = (ele as usize % (tileset_tex.width() / 32)) as f32 * tile_width;
-                let tile_y = (ele as usize / (tileset_tex.width() / 32)) as f32 * tile_height;
+                let tile_x =
+                    (ele as usize % (textures.tileset_tex.width() / 32)) as f32 * tile_width;
+                let tile_y =
+                    (ele as usize / (textures.tileset_tex.width() / 32)) as f32 * tile_height;
 
                 let uv = egui::Rect::from_min_size(
                     Pos2::new(tile_x, tile_y),
                     egui::vec2(tile_width, tile_height),
                 );
 
-                egui::Image::new(tileset_tex.texture_id(ui.ctx()), tileset_tex.size_vec2())
-                    .uv(uv)
-                    .paint_at(ui, tile_rect);
+                egui::Image::new(
+                    textures.tileset_tex.texture_id(ui.ctx()),
+                    textures.tileset_tex.size_vec2(),
+                )
+                .uv(uv)
+                .paint_at(ui, tile_rect);
             } else {
                 // holy shit
                 let autotile_id = (ele / 48) - 1;
 
-                if let Some(autotile_tex) = &autotile_texs[autotile_id as usize] {
+                if let Some(autotile_tex) = &textures.autotile_texs[autotile_id as usize] {
                     let tile_width = 16. / autotile_tex.width() as f32;
                     let tile_height = 16. / autotile_tex.height() as f32;
 
@@ -216,7 +248,10 @@ impl Tilemap {
             for (_, event) in map.events.iter() {
                 // aaaaaaaa
                 let graphic = &event.pages[0].graphic;
-                let tex = event_texs.get(&graphic.character_name).unwrap();
+                let tex = textures
+                    .event_texs
+                    .get(&(graphic.character_name.clone(), graphic.character_hue))
+                    .unwrap();
                 if let Some(tex) = tex {
                     let cw = (tex.width() / 4) as f32;
                     let ch = (tex.height() / 4) as f32;
@@ -251,10 +286,12 @@ impl Tilemap {
                         egui::Vec2::splat(tile_size),
                     );
 
-                    let tile_x = ((graphic.tile_id - 384) as usize % (tileset_tex.width() / 32))
+                    let tile_x = ((graphic.tile_id - 384) as usize
+                        % (textures.tileset_tex.width() / 32))
                         as f32
                         * tile_width;
-                    let tile_y = ((graphic.tile_id - 384) as usize / (tileset_tex.width() / 32))
+                    let tile_y = ((graphic.tile_id - 384) as usize
+                        / (textures.tileset_tex.width() / 32))
                         as f32
                         * tile_height;
 
@@ -263,9 +300,12 @@ impl Tilemap {
                         egui::vec2(tile_width, tile_height),
                     );
 
-                    egui::Image::new(tileset_tex.texture_id(ui.ctx()), tileset_tex.size_vec2())
-                        .uv(uv)
-                        .paint_at(ui, tile_rect);
+                    egui::Image::new(
+                        textures.tileset_tex.texture_id(ui.ctx()),
+                        textures.tileset_tex.size_vec2(),
+                    )
+                    .uv(uv)
+                    .paint_at(ui, tile_rect);
                 }
 
                 let box_rect = egui::Rect::from_min_size(
@@ -279,6 +319,33 @@ impl Tilemap {
                     5.0,
                     egui::Stroke::new(1.0, egui::Color32::WHITE),
                 );
+            }
+        }
+
+        if let Some(fog_tex) = &textures.fog_tex {
+            let zoom = (textures.fog_zoom as f32 / 100.) * scale;
+            let mut fox_repeat =
+                map_rect.size() / (fog_tex.size_vec2() * zoom);
+            fox_repeat.x = fox_repeat.x.ceil();
+            fox_repeat.y = fox_repeat.y.ceil();
+
+            for y in 0..(fox_repeat.y as usize) {
+                for x in 0..(fox_repeat.x as usize) {
+                    let fog_rect = egui::Rect::from_min_size(
+                        map_rect.min
+                            + egui::vec2(
+                                (fog_tex.width() * x) as f32 * zoom,
+                                (fog_tex.height() * y) as f32 * zoom,
+                            ),
+                        fog_tex.size_vec2() * zoom,
+                    );
+
+                    egui::Image::new(
+                        fog_tex.texture_id(ui.ctx()),
+                        fog_tex.size_vec2() * zoom,
+                    )
+                    .paint_at(ui, fog_rect);
+                }
             }
         }
 
