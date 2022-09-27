@@ -38,23 +38,7 @@ pub struct App {
 
 impl App {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // If we aren't using a software tilemap create a tilemap renderer and add it to the callaback resources
-        // Bit of a shit system but ah well I'll have to fix it when I figure things out
-        cfg_if::cfg_if! {
-            if #[cfg(not(feature = "software-tilemap"))] {
-                let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("Failed to get wgpu render state");
-
-                let tilemap_renderer = crate::components::tilemap::TilemapRenderResources::new();
-
-                wgpu_render_state
-                    .egui_rpass
-                    .write()
-                    .paint_callback_resources
-                    .insert(tilemap_renderer);
-            }
-        }
-
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
     }
 }

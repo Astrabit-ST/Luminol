@@ -17,7 +17,7 @@ categories = ["games"]
 egui = "0.19.0"
 egui_extras = { version = "0.19.0", features = ["svg", "image"] }
 image = { version = "0.24", features = ["jpeg", "png"] }
-eframe = { version = "0.19.0", features = ["persistence", "wgpu"], default-features = false }
+eframe = { version = "0.19.0", features = ["persistence"] }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
 ndarray = { version = "0.15.6", features = ["serde"] }
@@ -37,7 +37,6 @@ software-tilemap = []
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-subscriber = "0.3"
 rodio = { version = "0.16.0", features = ["symphonia-all"], default-features = false }
-wgpu = { version = "0.13.1" }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -47,10 +46,22 @@ wasm-bindgen = "0.2.82"
 js-sys = "0.3.59"
 web-sys = "0.3.59"
 rodio = { version = "0.16.0", features = ["wasm-bindgen", "symphonia-all"], default-features = false }
-wgpu = { version = "0.13.1", features = ["webgl"]}
 
+# Fast and performant.
 [profile.release]
-opt-level = 2 # fast and small wasm
+opt-level = 3
+lto = "thin"
+
+# Enable only a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable max optimizations for dependencies, but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+
+# See why config is set up this way.
+# https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
 members = ["marshal"]
