@@ -1,51 +1,5 @@
-[package]
-name = "luminol"
-version = "0.2.0"
-authors = ["Lily Lyons <lily@nowaffles.com>", "Egor Poleshko <somedevfox@gmail.com>"]
-edition = "2021"
-rust-version = "1.62"
-description = "Luminol is a FOSS recreation of RPG Maker XP in Rust with love ❤️"
-license = "GPL-3.0"
-readme = "README.md"
-repository = "https://github.com/Speak2Erase/Luminol"
-keywords = ["gamedev", "rpg", "rpg-maker"]
-categories = ["games"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-egui = "0.19.0"
-egui_extras = { version = "0.19.0", features = ["svg", "image"] }
-image = { version = "0.24", features = ["jpeg", "png"] }
-eframe = { version = "0.19.0", features = ["persistence"] }
-serde = { version = "1", features = ["derive"] }
-ron = "0.8"
-ndarray = { version = "0.15.6", features = ["serde"] }
-rfd = "0.10.0"
-num-traits = "0.2"
-strum = { version = "0.24.1", features = ["derive"] }
-egui_dock = "0.2.1"
-egui-notify = "0.4.0"
-ruby-marshal = { version = "0.0.1", path = "marshal" }
-cfg-if = "1.0.0"
-
-[features]
-# default = ["software-tilemap"]
-software-tilemap = []
-
-# native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tracing-subscriber = "0.3"
-rodio = { version = "0.16.0", features = ["symphonia-all"], default-features = false }
-
-# web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.6"
-tracing-wasm = "0.2"
-wasm-bindgen = "0.2.82"
-js-sys = "0.3.59"
-web-sys = "0.3.59"
-rodio = { version = "0.16.0", features = ["wasm-bindgen", "symphonia-all"], default-features = false }
+[workspace]
+members = ["marshal", "luminol-gui"]
 
 # Fast and performant.
 [profile.release]
@@ -62,9 +16,6 @@ opt-level = 3
 
 # See why config is set up this way.
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
-
-[workspace]
-members = ["marshal"]
 
 [patch.crates-io]
 

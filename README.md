@@ -4,7 +4,7 @@
 
 Luminol is an experimental remake of the RPG Maker XP editor in Rust with love ❤️.
 
-Luminol targets wasm and native builds with eframe. Luminol also temporarily uses [Rusty Object Notation](https://github.com/ron-rs/ron) (`.ron`) for serialization.
+Luminol targets wasm and native builds. Luminol also temporarily uses [Rusty Object Notation](https://github.com/ron-rs/ron) (`.ron`) for serialization.
 Marshal `.rxdata` is planned, and a custom `.lumina` format is also planned.
 
 Luminol _may_ use `Lua` for plugins in the future. It is something I am actively looking into.
