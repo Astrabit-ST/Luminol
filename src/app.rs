@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct Luminol {
+pub struct App {
     filesystem: Filesystem,
     data_cache: DataCache,
     windows: Windows,
@@ -36,14 +36,21 @@ pub struct Luminol {
     toasts: Toasts,
 }
 
-impl Luminol {
-    /// Alias for default.
-    pub fn new() -> Self {
+impl App {
+    /// Called once before the first frame.
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
+    }
+}
+
+impl eframe::App for App {
+    /// Called by the frame work to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value::<Option<()>>(storage, eframe::APP_KEY, &None);
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
-    pub fn update(&mut self, ctx: &egui::Context) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // This struct is passed to windows and widgets so they can modify internal state.
         // Bit jank but it works.
         let update_info = UpdateInfo {
@@ -53,6 +60,7 @@ impl Luminol {
             tabs: &self.tabs,
             audio: &self.audio,
             toasts: &self.toasts,
+            frame
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {

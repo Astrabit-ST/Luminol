@@ -29,11 +29,8 @@ impl About {
             // We load the icon here so it isn't loaded every frame. That would be bad if we did.
             // It would be better to load the image at compile time and only use one image instance
             // (as we load the image once at start for the icon) but this is the best I can do.
-            icon: egui_extras::RetainedImage::from_image_bytes(
-                "icon",
-                include_bytes!("../../../assets/icon-256.png"),
-            )
-            .expect("Failed to load Icon data."),
+            icon: egui_extras::RetainedImage::from_image_bytes("icon", crate::ICON)
+                .expect("Failed to load Icon data."),
         }
     }
 }

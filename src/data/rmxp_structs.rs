@@ -2,7 +2,7 @@
 // FIXME: i32 is too big for most values.
 // We should use u16 or u8 for most things.
 pub mod rpg {
-    use std::collections::HashMap;
+    use eframe::epaint::ahash::HashMap;
 
     use crate::data::rgss_structs::*;
     use serde::{Deserialize, Serialize};
