@@ -20,7 +20,7 @@ use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::PathBuf;
 
-use super::data_cache::DataCache;
+use crate::data::data_cache::DataCache;
 
 /// Native filesystem implementation.
 #[derive(Default)]
@@ -115,7 +115,7 @@ impl Filesystem {
         fs::write(path, contents).map_err(|e| e.to_string())
     }
 
-    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) -> Result<(), String> {
+    pub fn save_cached(&self, data_cache: &DataCache) -> Result<(), String> {
         data_cache.save(self)
     }
 

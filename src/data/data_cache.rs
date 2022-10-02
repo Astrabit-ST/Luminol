@@ -21,7 +21,7 @@ use std::{
     collections::HashMap,
 };
 
-use super::Filesystem;
+use crate::filesystem::Filesystem;
 
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.

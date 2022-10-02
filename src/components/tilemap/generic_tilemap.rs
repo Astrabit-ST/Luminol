@@ -24,24 +24,14 @@ It's not all bad, though- it's quite fast.
 */
 
 use std::{
-    collections::HashMap,
     time::{Duration, Instant},
 };
 
 use egui::{Pos2, Response, Vec2};
-use egui_extras::RetainedImage;
+use crate::components::tilemap::Textures;
 use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
-
-pub struct Textures {
-    pub tileset_tex: RetainedImage,
-    pub autotile_texs: Vec<Option<RetainedImage>>,
-    pub event_texs: HashMap<(String, i32), Option<RetainedImage>>,
-    pub fog_tex: Option<RetainedImage>,
-    pub fog_zoom: i32,
-    pub pano_tex: Option<RetainedImage>,
-}
 
 #[allow(dead_code)]
 pub struct Tilemap {
@@ -437,6 +427,33 @@ impl Tilemap {
 
         // Return response.
         response
+    }
+
+    pub fn tilepicker(&self, ui: &mut egui::Ui, textures: &Textures, selected_tile: &mut i16) {
+        let (rect, response) =
+            ui.allocate_exact_size(textures.tileset_tex.size_vec2(), egui::Sense::click());
+
+        egui::Image::new(textures.tileset_tex.texture_id(ui.ctx()), rect.size())
+            .paint_at(ui, rect);
+
+        if response.clicked() {
+            if let Some(pos) = response.interact_pointer_pos() {
+                let mut pos = (pos - rect.min) / 32.;
+                pos.x = pos.x.floor();
+                pos.y = pos.y.floor();
+                *selected_tile = (pos.x + pos.y * 8.) as i16;
+            }
+        }
+        let cursor_x = *selected_tile % 8 * 32;
+        let cursor_y = *selected_tile / 8 * 32;
+        ui.painter().rect_stroke(
+            egui::Rect::from_min_size(
+                rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
+                egui::Vec2::splat(32.),
+            ),
+            5.0,
+            egui::Stroke::new(1.0, egui::Color32::WHITE),
+        );
     }
 }
 

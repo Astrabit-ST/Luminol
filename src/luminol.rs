@@ -18,14 +18,15 @@
 use crate::{
     audio::Audio,
     components::{toasts::Toasts, toolbar::Toolbar, top_bar::TopBar},
-    filesystem::{data_cache::DataCache, Filesystem},
+    data::data_cache::DataCache,
+    filesystem::Filesystem,
     tabs::tab::Tabs,
     windows::window::Windows,
     UpdateInfo,
 };
 
 #[derive(Default)]
-pub struct App {
+pub struct Luminol {
     filesystem: Filesystem,
     data_cache: DataCache,
     windows: Windows,
@@ -36,21 +37,21 @@ pub struct App {
     toasts: Toasts,
 }
 
-impl App {
+impl Luminol {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
     }
 }
 
-impl eframe::App for App {
+impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value::<Option<()>>(storage, eframe::APP_KEY, &None);
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // This struct is passed to windows and widgets so they can modify internal state.
         // Bit jank but it works.
         let update_info = UpdateInfo {
@@ -60,7 +61,6 @@ impl eframe::App for App {
             tabs: &self.tabs,
             audio: &self.audio,
             toasts: &self.toasts,
-            frame
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {

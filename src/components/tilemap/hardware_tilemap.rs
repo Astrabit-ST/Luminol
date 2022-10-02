@@ -17,9 +17,8 @@
 
 use egui::{Pos2, Response, Vec2};
 
+use crate::components::tilemap::Textures;
 use crate::data::rmxp_structs::rpg;
-
-pub struct Textures {}
 
 pub struct Tilemap {
     pub scale: f32,
@@ -50,8 +49,31 @@ impl Tilemap {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
 
-        let response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
+        ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag())
+    }
 
-        response
+    pub fn tilepicker(&self, ui: &mut egui::Ui, textures: &Textures, selected_tile: &mut i16) {
+        let (rect, response) =
+            ui.allocate_exact_size(textures.tileset_tex.size_vec2(), egui::Sense::click());
+
+        if response.clicked() {
+            if let Some(pos) = response.interact_pointer_pos() {
+                let mut pos = (pos - rect.min) / 32.;
+                pos.x = pos.x.floor();
+                pos.y = pos.y.floor();
+                *selected_tile = (pos.x + pos.y * 8.) as i16;
+            }
+        }
+
+        let cursor_x = *selected_tile % 8 * 32;
+        let cursor_y = *selected_tile / 8 * 32;
+        ui.painter().rect_stroke(
+            egui::Rect::from_min_size(
+                rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
+                egui::Vec2::splat(32.),
+            ),
+            5.0,
+            egui::Stroke::new(1.0, egui::Color32::WHITE),
+        );
     }
 }

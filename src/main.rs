@@ -38,7 +38,7 @@ fn main() {
     eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| Box::new(luminol::App::new(cc))),
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
     );
 }
 
@@ -55,7 +55,7 @@ fn main() {
     eframe::start_web(
         "the_canvas_id", // hardcode it
         web_options,
-        Box::new(|cc| Box::new(luminol::App::new(cc))),
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
     )
     .expect("failed to start eframe");
 }

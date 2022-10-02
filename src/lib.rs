@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-mod app;
+mod luminol;
 
 mod audio;
 
@@ -33,12 +33,29 @@ mod components {
     pub mod toolbar;
     pub mod top_bar;
 
-    pub mod hardware_tilemap;
-    pub mod software_tilemap;
-    #[cfg(not(feature = "software-tilemap"))]
-    pub use hardware_tilemap as tilemap;
-    #[cfg(feature = "software-tilemap")]
-    pub use software_tilemap as tilemap;
+    pub mod tilemap {
+        use std::collections::HashMap;
+        use egui_extras::RetainedImage;
+
+        pub struct Textures {
+            pub tileset_tex: RetainedImage,
+            pub autotile_texs: Vec<Option<RetainedImage>>,
+            pub event_texs: HashMap<(String, i32), Option<RetainedImage>>,
+            pub fog_tex: Option<RetainedImage>,
+            pub fog_zoom: i32,
+            pub pano_tex: Option<RetainedImage>,
+        }
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "generic-tilemap")] {
+                pub mod generic_tilemap;
+                pub use generic_tilemap::Tilemap;
+            } else {
+                pub mod hardware_tilemap;
+                pub use hardware_tilemap::Tilemap;
+            }
+        }
+    }
 }
 
 mod tabs {
@@ -48,31 +65,34 @@ mod tabs {
 }
 
 mod data {
+    pub mod data_cache;
     pub mod rgss_structs;
     pub mod rmxp_structs;
 }
 
 mod filesystem {
-    #[cfg(not(target_arch = "wasm32"))]
-    mod filesystem_native;
-    #[cfg(target_arch = "wasm32")]
-    mod filesystem_wasm32;
-    #[cfg(not(target_arch = "wasm32"))]
-    pub use filesystem_native::Filesystem;
-    #[cfg(target_arch = "wasm32")]
-    pub use filesystem_wasm32::Filesystem;
-    pub mod data_cache;
+    cfg_if::cfg_if! {
+        if #[cfg(not(target_arch = "wasm32"))] {
+            mod filesystem_native;
+            pub use filesystem_native::Filesystem;
+        } else {
+            mod filesystem_wasm32;
+            pub use filesystem_wasm32::Filesystem;
+        }
+    }
 }
 
-pub use app::App;
 use components::toasts::Toasts;
 use egui::TextureFilter;
 use egui_extras::RetainedImage;
+pub use luminol::Luminol;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 
-use crate::filesystem::{data_cache::DataCache, Filesystem};
+use crate::data::data_cache::DataCache;
+use crate::filesystem::Filesystem;
+
 /// Passed to windows and widgets when updating.
 pub struct UpdateInfo<'a> {
     pub filesystem: &'a Filesystem,
@@ -81,7 +101,6 @@ pub struct UpdateInfo<'a> {
     pub tabs: &'a tabs::tab::Tabs,
     pub audio: &'a audio::Audio,
     pub toasts: &'a Toasts,
-    pub frame: &'a eframe::Frame,
 }
 
 pub fn load_image_software(
