@@ -19,7 +19,8 @@
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-fn main() {
+#[tokio::main]
+async fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -35,11 +36,12 @@ fn main() {
         ..Default::default()
     };
 
-    eframe::run_native(
-        "Luminol",
-        native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-    );
+        eframe::run_native(
+            "Luminol",
+            native_options,
+            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+        );
+    
 }
 
 // when compiling to web using trunk.

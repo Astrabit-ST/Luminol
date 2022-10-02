@@ -62,6 +62,16 @@ impl Tabs {
     pub fn clean_tabs(&self) {
         todo!()
     }
+
+    #[cfg(feature = "discord-rpc")]
+    pub fn discord_display(&self) -> String {
+        let mut tree = self.tree.borrow_mut();
+        if let Some((_, tab)) = tree.find_active() {
+            tab.discord_display()
+        } else {
+            "No tab open".to_string()
+        }
+    }
 }
 
 pub struct TabViewer<'a> {
@@ -87,5 +97,10 @@ pub trait Tab {
 
     fn requires_filesystem(&self) -> bool {
         false
+    }
+
+    #[cfg(feature = "discord-rpc")]
+    fn discord_display(&self) -> String {
+        "Idling".to_string()
     }
 }

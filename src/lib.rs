@@ -82,6 +82,9 @@ mod filesystem {
     }
 }
 
+#[cfg(feature = "discord-rpc")]
+mod discord;
+
 use components::toasts::Toasts;
 use egui::TextureFilter;
 use egui_extras::RetainedImage;

@@ -35,6 +35,8 @@ pub struct Luminol {
     tabs: Tabs,
     audio: Audio,
     toasts: Toasts,
+    #[cfg(feature = "discord-rpc")]
+    discord: crate::discord::DiscordClient,
 }
 
 impl Luminol {
@@ -91,5 +93,14 @@ impl eframe::App for Luminol {
 
         // Show toasts.
         self.toasts.show(ctx);
+
+        // Update discord
+        #[cfg(feature = "discord-rpc")]
+        self.discord.update(
+            self.tabs.discord_display(),
+            self.filesystem
+                .project_path()
+                .map(|p| p.display().to_string()),
+        );
     }
 }

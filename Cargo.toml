@@ -31,11 +31,15 @@ cfg-if = "1.0.0"
 
 [features]
 generic-tilemap = []
+discord-rpc = ["discord-sdk", "poll-promise"]
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-subscriber = "0.3"
 rodio = { version = "0.16.0", features = ["symphonia-all"], default-features = false }
+discord-sdk = { version = "0.3.0", optional = true }
+poll-promise = { version = "0.1.0", optional = true, features = ["tokio"] }
+tokio = { version = "1.21.2", features = ["full"] }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

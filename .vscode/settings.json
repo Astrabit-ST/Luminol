@@ -1,5 +1,6 @@
 {
 	"licenser.license": "GPLv3",
 	"licenser.author": "Lily Lyons",
-	"licenser.disableAutoHeaderInsertion": false
+	"licenser.disableAutoHeaderInsertion": false,
+	"rust-analyzer.cargo.features": ["discord-rpc"]
 }

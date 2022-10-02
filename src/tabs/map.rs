@@ -117,6 +117,11 @@ impl super::tab::Tab for Map {
             })
         });
     }
+
+    #[cfg(feature = "discord-rpc")]
+    fn discord_display(&self) -> String {
+        format!("Editing Map<{}>: {}", self.id, self.name)
+    }
 }
 
 impl Map {
