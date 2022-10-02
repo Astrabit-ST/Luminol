@@ -23,12 +23,10 @@ However all the draw calls are not batched like hardware rendering and so it is 
 It's not all bad, though- it's quite fast.
 */
 
-use std::{
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-use egui::{Pos2, Response, Vec2};
 use crate::components::tilemap::Textures;
+use egui::{Pos2, Response, Vec2};
 use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
@@ -433,8 +431,7 @@ impl Tilemap {
         let (rect, response) =
             ui.allocate_exact_size(textures.tileset_tex.size_vec2(), egui::Sense::click());
 
-        egui::Image::new(textures.tileset_tex.texture_id(ui.ctx()), rect.size())
-            .paint_at(ui, rect);
+        egui::Image::new(textures.tileset_tex.texture_id(ui.ctx()), rect.size()).paint_at(ui, rect);
 
         if response.clicked() {
             if let Some(pos) = response.interact_pointer_pos() {

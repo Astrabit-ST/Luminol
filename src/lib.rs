@@ -34,8 +34,8 @@ mod components {
     pub mod top_bar;
 
     pub mod tilemap {
-        use std::collections::HashMap;
         use egui_extras::RetainedImage;
+        use std::collections::HashMap;
 
         pub struct Textures {
             pub tileset_tex: RetainedImage,

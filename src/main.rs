@@ -36,12 +36,11 @@ async fn main() {
         ..Default::default()
     };
 
-        eframe::run_native(
-            "Luminol",
-            native_options,
-            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-        );
-    
+    eframe::run_native(
+        "Luminol",
+        native_options,
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+    );
 }
 
 // when compiling to web using trunk.

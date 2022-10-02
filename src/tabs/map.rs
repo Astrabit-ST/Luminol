@@ -20,7 +20,7 @@ use ndarray::Axis;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
-    components::tilemap::{Tilemap, Textures},
+    components::tilemap::{Textures, Tilemap},
     data::rmxp_structs::rpg,
     load_image_software, UpdateInfo,
 };
@@ -90,7 +90,8 @@ impl super::tab::Tab for Map {
             .default_width(256.)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    self.tilemap.tilepicker(ui, &self.textures, &mut self.selected_tile);
+                    self.tilemap
+                        .tilepicker(ui, &self.textures, &mut self.selected_tile);
                 });
             });
 

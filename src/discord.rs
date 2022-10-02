@@ -15,7 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::{SystemTime, Instant, Duration}};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant, SystemTime},
+};
 
 pub struct DiscordClient {
     discord: Arc<discord_sdk::Discord>,
@@ -60,10 +63,10 @@ impl DiscordClient {
                         project_name
                             .map_or("No project open".to_string(), |n| format!("Editing {}", n)),
                     )
-                    .assets(
-                        discord_sdk::activity::Assets::default()
-                            .large("icon-1024".to_string(), Some("https://luminol.dev".to_string())),
-                    )
+                    .assets(discord_sdk::activity::Assets::default().large(
+                        "icon-1024".to_string(),
+                        Some("https://luminol.dev".to_string()),
+                    ))
                     .start_timestamp(start_time);
 
                 // Update the activity.
@@ -72,7 +75,7 @@ impl DiscordClient {
                 Instant::now()
             }));
 
-        if let Some(instant) =  promise.ready() {
+        if let Some(instant) = promise.ready() {
             // Don't over-ping the API. It has a limit of 5 requests every 20 seconds.
             if instant.elapsed() > Duration::from_secs(4) {
                 self.activity_promise = None;

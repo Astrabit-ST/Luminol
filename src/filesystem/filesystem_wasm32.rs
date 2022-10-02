@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
-use super::data_cache::DataCache;
+use crate::data::data_cache::DataCache;
 
 // Javascript interface for filesystem
 #[wasm_bindgen(module = "/assets/filesystem.js")]
@@ -98,7 +98,7 @@ impl Filesystem {
         Err("Not implemented".to_string())
     }
 
-    pub fn save_cached(&self, data_cache: &super::data_cache::DataCache) -> Result<(), String> {
+    pub fn save_cached(&self, data_cache: &DataCache) -> Result<(), String> {
         data_cache.save(self)
     }
 
