@@ -108,14 +108,14 @@ pub struct UpdateInfo<'a> {
     pub toasts: &'a Toasts,
 }
 
-pub fn load_image_software(
+pub async fn load_image_software(
     path: String,
     _hue: i32,
     filesystem: Arc<Filesystem>,
 ) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),
-        &filesystem.read_bytes(&format!("{}.png", path))?,
+        &filesystem.read_bytes(&format!("{}.png", path)).await?,
     )
     .map(|i| i.with_texture_filter(TextureFilter::Nearest))
 }

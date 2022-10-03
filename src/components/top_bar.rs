@@ -21,6 +21,7 @@ use crate::UpdateInfo;
 #[derive(Default)]
 pub struct TopBar {
     open_project_promise: Option<Promise<Result<(), String>>>,
+    save_project_promise: Option<Promise<Result<(), String>>>,
 }
 
 impl TopBar {
@@ -46,7 +47,7 @@ impl TopBar {
                     let filesystem = info.filesystem.clone();
                     let data_cache = info.data_cache.clone();
 
-                    self.open_project_promise = Some(Promise::spawn_async(async move {
+                    self.open_project_promise = Some(Promise::spawn_local(async move {
                         filesystem.try_open_project(data_cache).await
                     }));
                 }
@@ -70,10 +71,24 @@ impl TopBar {
                     info.tabs.clean_tabs();
                 }
 
-                if ui.button("Save Project").clicked() {
-                    if let Err(e) = info.filesystem.save_cached(info.data_cache.clone()) {
-                        info.toasts.error(e);
+                if self.save_project_promise.is_none() {
+                    if ui.button("Save Project").clicked() {
+                        let filesystem = info.filesystem.clone();
+                        let data_cache = info.data_cache.clone();
+
+                        self.save_project_promise = Some(Promise::spawn_local(async move {
+                            filesystem.save_cached(data_cache).await
+                        }));
                     }
+                } else {
+                    if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
+                        match r {
+                            Ok(_) => {}
+                            Err(e) => info.toasts.error(e),
+                        }
+                        self.save_project_promise = None;
+                    }
+                    ui.spinner();
                 }
             });
         });

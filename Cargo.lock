@@ -2108,7 +2108,7 @@ dependencies = [
 [[package]]
 name = "poll-promise"
 version = "0.1.0"
-source = "git+https://github.com/EmbarkStudios/poll-promise#089c99062e289808b8077457f84b01f5c347aa28"
+source = "git+https://github.com/Speak2Erase/poll-promise?rev=b85dbc7#b85dbc7a5d63c43f517aba6fc724575924558b2d"
 dependencies = [
  "static_assertions",
  "tokio",

@@ -18,11 +18,10 @@
 use rodio::Decoder;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 
+use std::sync::Arc;
 use std::{cell::RefCell, collections::HashMap};
 use strum::Display;
 use strum::EnumIter;
-
-use crate::UpdateInfo;
 
 /// Different sound sources.
 #[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy, Hash)]
@@ -56,45 +55,28 @@ impl Default for Audio {
 }
 
 impl Audio {
-    pub fn play(&self, info: &UpdateInfo<'_>, path: &str, volume: u8, pitch: u8, source: &Source) {
+    pub async fn play(
+        &self,
+        filesystem: Arc<crate::filesystem::Filesystem>,
+        path: &str,
+        volume: u8,
+        pitch: u8,
+        source: &Source,
+    ) -> Result<(), String> {
         let mut inner = self.inner.borrow_mut();
         // Create a sink
-        let sink = match Sink::try_new(&inner.outputstream.1) {
-            Ok(s) => s,
-            Err(e) => {
-                info.toasts.error(e.to_string());
-                return;
-            }
-        };
+        let sink = Sink::try_new(&inner.outputstream.1).map_err(|e| e.to_string())?;
         // Append the sound
-        let bufreader = match info.filesystem.bufreader(path) {
-            Ok(b) => b,
-            Err(e) => {
-                info.toasts.error(e);
-                return;
-            }
-        };
+        let cursor = filesystem.bufreader(path).await?;
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {
                 // Non looping
-                sink.append(match Decoder::new(bufreader) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        info.toasts.error(e.to_string());
-                        return;
-                    }
-                })
+                sink.append(Decoder::new(cursor).map_err(|e| e.to_string())?)
             }
             _ => {
                 // Looping
-                sink.append(match Decoder::new_looped(bufreader) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        info.toasts.error(e.to_string());
-                        return;
-                    }
-                })
+                sink.append(Decoder::new_looped(cursor).map_err(|e| e.to_string())?)
             }
         }
 
@@ -107,6 +89,8 @@ impl Audio {
         if let Some(s) = inner.sinks.insert(*source, sink) {
             s.stop();
         };
+
+        Ok(())
     }
 
     pub fn set_pitch(&self, pitch: u8, source: &Source) {

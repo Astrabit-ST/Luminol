@@ -31,16 +31,18 @@ pub struct DataCache {
 }
 
 impl DataCache {
-    pub fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
+    pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
         *self.mapinfos.lock() = Some(
             filesystem
                 .read_data("MapInfos.ron")
+                .await
                 .map_err(|_| "Failed to read MapInfos")?,
         );
 
         *self.tilesets.lock() = Some(
             filesystem
                 .read_data("Tilesets.ron")
+                .await
                 .map_err(|_| "Failed to read Tilesets")?,
         );
 
@@ -48,7 +50,7 @@ impl DataCache {
         Ok(())
     }
 
-    pub fn load_map(
+    pub async fn load_map(
         &self,
         filesystem: Arc<Filesystem>,
         id: i32,
@@ -58,6 +60,7 @@ impl DataCache {
         if !has_map {
             let map = filesystem
                 .read_data(&format!("Map{:0>3}.ron", id))
+                .await
                 .map_err(|_| "Failed to load map")?;
             map_lock.insert(id, map);
         }
@@ -72,21 +75,25 @@ impl DataCache {
         self.tilesets.lock()
     }
 
-    pub fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
+    pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
         // Write map data and clear map cache.
-        for (id, map) in self.maps.lock().drain() {
+        let mut maps = self.maps.lock();
+        for (id, map) in maps.drain() {
             filesystem
                 .save_data(&format!("Map{:0>3}.ron", id), &map)
+                .await
                 .map_err(|_| "Failed to write Map data")?
         }
         if let Some(tilesets) = self.tilesets.lock().as_ref() {
             filesystem
                 .save_data("Tilesets.ron", tilesets)
+                .await
                 .map_err(|_| "Failed to write Tileset data")?;
         }
         if let Some(mapinfos) = self.mapinfos.lock().as_ref() {
             filesystem
                 .save_data("MapInfos.ron", mapinfos)
+                .await
                 .map_err(|_| "Failed to write MapInfos data")?;
         }
         Ok(())

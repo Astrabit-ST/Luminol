@@ -3,5 +3,5 @@
 	"licenser.author": "Lily Lyons",
 	"licenser.disableAutoHeaderInsertion": false,
 	"rust-analyzer.cargo.features": ["discord-rpc"],
-	"rust-analyzer.cargo.target": "wasm32-unknown-unknown"
+	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown"
 }

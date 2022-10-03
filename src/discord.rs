@@ -55,7 +55,7 @@ impl DiscordClient {
         // We do this async to avoid blocking the main thread.
         let promise = self
             .activity_promise
-            .get_or_insert(poll_promise::Promise::spawn_async(async move {
+            .get_or_insert(poll_promise::Promise::spawn_local(async move {
                 // Create the activity.
                 let activity = discord_sdk::activity::ActivityBuilder::default()
                     .details(detail_text)

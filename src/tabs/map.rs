@@ -143,7 +143,12 @@ impl Map {
             .autotile_names
             .iter()
             .map(|str| {
-                load_image_software(format!("Graphics/Autotiles/{}", str), 0, info.filesystem.clone()).ok()
+                load_image_software(
+                    format!("Graphics/Autotiles/{}", str),
+                    0,
+                    info.filesystem.clone(),
+                )
+                .ok()
             })
             .collect();
 
