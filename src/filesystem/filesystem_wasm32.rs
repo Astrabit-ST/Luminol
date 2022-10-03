@@ -15,11 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use parking_lot::Mutex;
+use std::cell::RefCell;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::rc::Rc;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
@@ -37,8 +37,8 @@ extern "C" {
 
 #[derive(Default)]
 pub struct Filesystem {
-    project_path: Mutex<Option<PathBuf>>,
-    handle: Mutex<Option<JsValue>>,
+    project_path: RefCell<Option<PathBuf>>,
+    handle: RefCell<Option<JsValue>>,
 }
 
 impl Filesystem {
@@ -55,28 +55,28 @@ impl Filesystem {
     }
 
     pub fn unload_project(&self) {
-        *self.project_path.lock() = None;
+        *self.project_path.borrow_mut() = None;
     }
 
     pub fn project_loaded(&self) -> bool {
-        self.project_path.lock().is_some()
+        self.project_path.borrow().is_some()
     }
 
     pub fn project_path(&self) -> Option<PathBuf> {
-        self.project_path.lock().clone()
+        self.project_path.borrow().clone()
     }
 
-    pub fn load_project(&self, handle: JsValue, cache: Arc<DataCache>) -> Result<(), String> {
-        *self.project_path.lock() = Some(PathBuf::from(
+    pub fn load_project(&self, handle: JsValue, cache: Rc<DataCache>) -> Result<(), String> {
+        *self.project_path.borrow_mut() = Some(PathBuf::from(
             js_sys::Reflect::get(&handle, &JsValue::from("name"))
                 .unwrap()
                 .as_string()
                 .unwrap(),
         ));
-        *self.handle.lock() = Some(handle);
+        *self.handle.borrow_mut() = Some(handle);
         cache.load(self).map_err(|e| {
-            *self.handle.lock() = None;
-            *self.project_path.lock() = None;
+            *self.handle.borrow_mut() = None;
+            *self.project_path.borrow_mut() = None;
             e
         })
     }
@@ -110,11 +110,11 @@ impl Filesystem {
         Err("Not implemented".to_string())
     }
 
-    pub fn save_cached(&self, data_cache: Arc<DataCache>) -> Result<(), String> {
+    pub fn save_cached(&self, data_cache: Rc<DataCache>) -> Result<(), String> {
         data_cache.save(self)
     }
 
-    pub async fn try_open_project(&self, cache: Arc<DataCache>) -> Result<(), String> {
+    pub async fn try_open_project(&self, cache: Rc<DataCache>) -> Result<(), String> {
         let handle = js_open_project()
             .await
             .map_err(|_| "No project loaded".to_string())?;

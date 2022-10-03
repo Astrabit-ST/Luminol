@@ -16,12 +16,12 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{
-    sync::Arc,
+    rc::Rc,
     time::{Duration, Instant, SystemTime},
 };
 
 pub struct DiscordClient {
-    discord: Arc<discord_sdk::Discord>,
+    discord: Rc<discord_sdk::Discord>,
     activity_promise: Option<poll_promise::Promise<Instant>>,
     start_time: SystemTime,
 }
@@ -41,7 +41,7 @@ impl Default for DiscordClient {
         .expect("Failed to create discord");
 
         Self {
-            discord: Arc::new(discord),
+            discord: Rc::new(discord),
             activity_promise: None,
             start_time: SystemTime::now(),
         }

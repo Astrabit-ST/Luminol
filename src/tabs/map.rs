@@ -17,7 +17,6 @@
 #![allow(unused_imports)]
 use egui::Pos2;
 use ndarray::Axis;
-use parking_lot::MappedMutexGuard;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
@@ -128,7 +127,7 @@ impl super::tab::Tab for Map {
 
 impl Map {
     fn load_textures(
-        map: MappedMutexGuard<'_, rpg::Map>,
+        map: RefMut<'_, rpg::Map>,
         tileset: &rpg::Tileset,
         info: &UpdateInfo<'_>,
     ) -> Textures {

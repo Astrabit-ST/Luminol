@@ -1564,7 +1564,6 @@ dependencies = [
  "js-sys",
  "ndarray",
  "num-traits",
- "parking_lot",
  "poll-promise",
  "rfd",
  "rodio",

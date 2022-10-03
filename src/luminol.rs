@@ -25,12 +25,12 @@ use crate::{
     UpdateInfo,
 };
 
-use std::sync::Arc;
+use std::rc::Rc;
 
 #[derive(Default)]
 pub struct Luminol {
-    filesystem: Arc<Filesystem>,
-    data_cache: Arc<DataCache>,
+    filesystem: Rc<Filesystem>,
+    data_cache: Rc<DataCache>,
     windows: Windows,
     top_bar: TopBar,
     toolbar: Toolbar,

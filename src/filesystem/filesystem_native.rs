@@ -15,36 +15,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use parking_lot::Mutex;
+use std::cell::RefCell;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use crate::data::data_cache::DataCache;
 
 /// Native filesystem implementation.
 #[derive(Default)]
 pub struct Filesystem {
-    project_path: Mutex<Option<PathBuf>>,
+    project_path: RefCell<Option<PathBuf>>,
 }
 
 impl Filesystem {
     pub fn unload_project(&self) {
-        *self.project_path.lock() = None;
+        *self.project_path.borrow_mut() = None;
     }
 
     pub fn project_loaded(&self) -> bool {
-        self.project_path.lock().is_some()
+        self.project_path.borrow().is_some()
     }
 
     pub fn project_path(&self) -> Option<PathBuf> {
-        self.project_path.lock().clone()
+        self.project_path.borrow().clone()
     }
 
-    pub async fn load_project(&self, path: PathBuf, cache: Arc<DataCache>) -> Result<(), String> {
-        *self.project_path.lock() = Some(path);
+    pub async fn load_project(&self, path: PathBuf, cache: Rc<DataCache>) -> Result<(), String> {
+        *self.project_path.borrow_mut() = Some(path);
         cache.load(self).await.map_err(|e| {
-            *self.project_path.lock() = None;
+            *self.project_path.borrow_mut() = None;
             e
         })
     }
@@ -54,7 +54,7 @@ impl Filesystem {
         // It'd take an external library or some hacking that I'm not up for currently.
         std::fs::read_dir(
             self.project_path
-                .lock()
+                .borrow()
                 .as_ref()
                 .ok_or_else(|| "Project not open".to_string())?
                 .join(path),
@@ -77,7 +77,7 @@ impl Filesystem {
     {
         let path = self
             .project_path
-            .lock()
+            .borrow()
             .as_ref()
             .expect("Project path not specified")
             .join("Data_RON")
@@ -91,7 +91,7 @@ impl Filesystem {
     pub async fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
         let path = self
             .project_path
-            .lock()
+            .borrow()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
@@ -104,7 +104,7 @@ impl Filesystem {
     {
         let path = self
             .project_path
-            .lock()
+            .borrow()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join("Data_RON")
@@ -118,11 +118,11 @@ impl Filesystem {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn save_cached(&self, data_cache: Arc<DataCache>) -> Result<(), String> {
+    pub async fn save_cached(&self, data_cache: Rc<DataCache>) -> Result<(), String> {
         data_cache.save(self).await
     }
 
-    pub async fn try_open_project(&self, cache: Arc<DataCache>) -> Result<(), String> {
+    pub async fn try_open_project(&self, cache: Rc<DataCache>) -> Result<(), String> {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()

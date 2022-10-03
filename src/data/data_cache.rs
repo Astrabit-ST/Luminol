@@ -16,8 +16,11 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::data::rmxp_structs::rpg;
-use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    cell::{RefCell, RefMut},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use crate::filesystem::Filesystem;
 
@@ -25,72 +28,72 @@ use crate::filesystem::Filesystem;
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
 pub struct DataCache {
-    tilesets: Mutex<Option<Vec<rpg::Tileset>>>,
-    mapinfos: Mutex<Option<HashMap<i32, rpg::MapInfo>>>,
-    maps: Mutex<HashMap<i32, rpg::Map>>,
+    tilesets: RefCell<Option<Vec<rpg::Tileset>>>,
+    mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
+    maps: RefCell<HashMap<i32, rpg::Map>>,
 }
 
 impl DataCache {
     pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
-        *self.mapinfos.lock() = Some(
+        *self.mapinfos.borrow_mut() = Some(
             filesystem
                 .read_data("MapInfos.ron")
                 .await
                 .map_err(|_| "Failed to read MapInfos")?,
         );
 
-        *self.tilesets.lock() = Some(
+        *self.tilesets.borrow_mut() = Some(
             filesystem
                 .read_data("Tilesets.ron")
                 .await
                 .map_err(|_| "Failed to read Tilesets")?,
         );
 
-        self.maps.lock().clear();
+        self.maps.borrow_mut().clear();
         Ok(())
     }
 
     pub async fn load_map(
         &self,
-        filesystem: Arc<Filesystem>,
+        filesystem: Rc<Filesystem>,
         id: i32,
-    ) -> Result<MappedMutexGuard<'_, rpg::Map>, String> {
-        let mut map_lock = self.maps.lock();
-        let has_map = map_lock.contains_key(&id);
+    ) -> Result<RefMut<'_, rpg::Map>, String> {
+        let has_map = self.maps.borrow().contains_key(&id);
         if !has_map {
             let map = filesystem
                 .read_data(&format!("Map{:0>3}.ron", id))
                 .await
                 .map_err(|_| "Failed to load map")?;
-            map_lock.insert(id, map);
+            self.maps.borrow_mut().insert(id, map);
         }
-        Ok(MutexGuard::map(map_lock, |m| m.get_mut(&id).unwrap()))
+        Ok(RefMut::map(self.maps.borrow_mut(), |m| {
+            m.get_mut(&id).unwrap()
+        }))
     }
 
-    pub fn map_infos(&self) -> MutexGuard<'_, Option<HashMap<i32, rpg::MapInfo>>> {
-        self.mapinfos.lock()
+    pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
+        self.mapinfos.borrow_mut()
     }
 
-    pub fn tilesets(&self) -> MutexGuard<'_, Option<Vec<rpg::Tileset>>> {
-        self.tilesets.lock()
+    pub fn tilesets(&self) -> RefMut<'_, Option<Vec<rpg::Tileset>>> {
+        self.tilesets.borrow_mut()
     }
 
     pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
         // Write map data and clear map cache.
-        let mut maps = self.maps.lock();
-        for (id, map) in maps.drain() {
+        for (id, map) in self.maps.borrow_mut().drain() {
             filesystem
                 .save_data(&format!("Map{:0>3}.ron", id), &map)
                 .await
                 .map_err(|_| "Failed to write Map data")?
         }
-        if let Some(tilesets) = self.tilesets.lock().as_ref() {
+        if let Some(tilesets) = self.tilesets.borrow().as_ref() {
             filesystem
                 .save_data("Tilesets.ron", tilesets)
                 .await
                 .map_err(|_| "Failed to write Tileset data")?;
         }
-        if let Some(mapinfos) = self.mapinfos.lock().as_ref() {
+        if let Some(mapinfos) = self.mapinfos.borrow().as_ref() {
             filesystem
                 .save_data("MapInfos.ron", mapinfos)
                 .await

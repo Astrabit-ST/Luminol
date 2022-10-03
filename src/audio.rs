@@ -18,7 +18,7 @@
 use rodio::Decoder;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 
-use std::sync::Arc;
+use std::rc::Rc;
 use std::{cell::RefCell, collections::HashMap};
 use strum::Display;
 use strum::EnumIter;
@@ -57,7 +57,7 @@ impl Default for Audio {
 impl Audio {
     pub async fn play(
         &self,
-        filesystem: Arc<crate::filesystem::Filesystem>,
+        filesystem: Rc<crate::filesystem::Filesystem>,
         path: &str,
         volume: u8,
         pitch: u8,

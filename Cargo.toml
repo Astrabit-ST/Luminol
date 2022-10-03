@@ -28,7 +28,6 @@ egui_dock = "0.2.1"
 egui-notify = "0.4.0"
 ruby-marshal = { version = "0.0.1", path = "marshal" }
 cfg-if = "1.0.0"
-parking_lot = "0.12.1"
 
 [features]
 generic-tilemap = []
