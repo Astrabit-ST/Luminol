@@ -36,7 +36,7 @@ pub struct Luminol {
     toolbar: Toolbar,
     tabs: Tabs,
     audio: Audio,
-    toasts: Arc<Toasts>,
+    toasts: Toasts,
     #[cfg(feature = "discord-rpc")]
     discord: crate::discord::DiscordClient,
 }
@@ -64,7 +64,7 @@ impl eframe::App for Luminol {
             windows: &self.windows,
             tabs: &self.tabs,
             audio: &self.audio,
-            toasts: self.toasts.clone(),
+            toasts: &self.toasts,
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {

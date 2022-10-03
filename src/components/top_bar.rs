@@ -54,7 +54,7 @@ impl TopBar {
                 if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
                     match r {
                         Ok(_) => info.toasts.info("Opened project successfully!"),
-                        Err(_) => info.toasts.error("Failed to open project"),
+                        Err(e) => info.toasts.error(e),
                     }
                     self.open_project_promise = None;
                 }

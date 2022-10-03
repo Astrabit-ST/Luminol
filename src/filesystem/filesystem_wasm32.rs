@@ -15,10 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cell::RefCell;
+use parking_lot::Mutex;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::sync::Arc;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
@@ -27,13 +28,17 @@ use crate::data::data_cache::DataCache;
 // Javascript interface for filesystem
 #[wasm_bindgen(module = "/assets/filesystem.js")]
 extern "C" {
-    fn js_open_project() -> JsValue;
+    #[wasm_bindgen(catch)]
+    async fn js_open_project() -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(catch)]
+    async fn js_read_file(handle: JsValue, _path: String) -> Result<JsValue, JsValue>;
     fn js_filesystem_supported() -> bool;
 }
 
 #[derive(Default)]
 pub struct Filesystem {
-    project_path: RefCell<Option<PathBuf>>,
+    project_path: Mutex<Option<PathBuf>>,
+    handle: Mutex<Option<JsValue>>,
 }
 
 impl Filesystem {
@@ -45,26 +50,33 @@ impl Filesystem {
             panic!("Filesystem not supported on this browser");
         }
         Self {
-            project_path: RefCell::new(None),
+            ..Default::default()
         }
     }
 
     pub fn unload_project(&self) {
-        *self.project_path.borrow_mut() = None;
+        *self.project_path.lock() = None;
     }
 
     pub fn project_loaded(&self) -> bool {
-        self.project_path.borrow().is_some()
+        self.project_path.lock().is_some()
     }
 
     pub fn project_path(&self) -> Option<PathBuf> {
-        self.project_path.borrow().clone()
+        self.project_path.lock().clone()
     }
 
-    pub fn load_project(&self, path: PathBuf, cache: &DataCache) -> Result<(), String> {
-        *self.project_path.borrow_mut() = Some(path);
+    pub fn load_project(&self, handle: JsValue, cache: Arc<DataCache>) -> Result<(), String> {
+        *self.project_path.lock() = Some(PathBuf::from(
+            js_sys::Reflect::get(&handle, &JsValue::from("name"))
+                .unwrap()
+                .as_string()
+                .unwrap(),
+        ));
+        *self.handle.lock() = Some(handle);
         cache.load(self).map_err(|e| {
-            *self.project_path.borrow_mut() = None;
+            *self.handle.lock() = None;
+            *self.project_path.lock() = None;
             e
         })
     }
@@ -98,11 +110,15 @@ impl Filesystem {
         Err("Not implemented".to_string())
     }
 
-    pub fn save_cached(&self, data_cache: &DataCache) -> Result<(), String> {
+    pub fn save_cached(&self, data_cache: Arc<DataCache>) -> Result<(), String> {
         data_cache.save(self)
     }
 
-    pub fn try_open_project(&self, _cache: &DataCache) -> Result<(), String> {
-        Err("Not implemented".to_string())
+    pub async fn try_open_project(&self, cache: Arc<DataCache>) -> Result<(), String> {
+        let handle = js_open_project()
+            .await
+            .map_err(|_| "No project loaded".to_string())?;
+
+        self.load_project(handle, cache)
     }
 }

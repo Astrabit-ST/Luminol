@@ -105,7 +105,7 @@ pub struct UpdateInfo<'a> {
     pub windows: &'a windows::window::Windows,
     pub tabs: &'a tabs::tab::Tabs,
     pub audio: &'a audio::Audio,
-    pub toasts: Arc<Toasts>,
+    pub toasts: &'a Toasts,
 }
 
 pub fn load_image_software(
