@@ -25,16 +25,18 @@ use crate::{
     UpdateInfo,
 };
 
+use std::sync::Arc;
+
 #[derive(Default)]
 pub struct Luminol {
-    filesystem: Filesystem,
-    data_cache: DataCache,
+    filesystem: Arc<Filesystem>,
+    data_cache: Arc<DataCache>,
     windows: Windows,
     top_bar: TopBar,
     toolbar: Toolbar,
     tabs: Tabs,
     audio: Audio,
-    toasts: Toasts,
+    toasts: Arc<Toasts>,
     #[cfg(feature = "discord-rpc")]
     discord: crate::discord::DiscordClient,
 }
@@ -57,12 +59,12 @@ impl eframe::App for Luminol {
         // This struct is passed to windows and widgets so they can modify internal state.
         // Bit jank but it works.
         let update_info = UpdateInfo {
-            filesystem: &self.filesystem,
-            data_cache: &self.data_cache,
+            filesystem: self.filesystem.clone(),
+            data_cache: self.data_cache.clone(),
             windows: &self.windows,
             tabs: &self.tabs,
             audio: &self.audio,
-            toasts: &self.toasts,
+            toasts: self.toasts.clone(),
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {

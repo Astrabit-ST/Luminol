@@ -17,6 +17,7 @@
 #![allow(unused_imports)]
 use egui::Pos2;
 use ndarray::Axis;
+use parking_lot::MappedMutexGuard;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
@@ -39,7 +40,7 @@ pub struct Map {
 impl Map {
     pub fn new(id: i32, name: String, info: &UpdateInfo<'_>) -> Option<Self> {
         // Get the map.
-        let map = match info.data_cache.load_map(info.filesystem, id) {
+        let map = match info.data_cache.load_map(info.filesystem.clone(), id) {
             Ok(m) => m,
             Err(e) => {
                 info.toasts.error(e);
@@ -74,7 +75,7 @@ impl super::tab::Tab for Map {
     #[allow(unused_variables, unused_mut)]
     fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
         // Get the map.
-        let mut map = match info.data_cache.load_map(info.filesystem, self.id) {
+        let mut map = match info.data_cache.load_map(info.filesystem.clone(), self.id) {
             Ok(m) => m,
             Err(e) => {
                 info.toasts.error(e);
@@ -127,7 +128,7 @@ impl super::tab::Tab for Map {
 
 impl Map {
     fn load_textures(
-        map: RefMut<'_, rpg::Map>,
+        map: MappedMutexGuard<'_, rpg::Map>,
         tileset: &rpg::Tileset,
         info: &UpdateInfo<'_>,
     ) -> Textures {
@@ -135,14 +136,14 @@ impl Map {
         let tileset_tex = load_image_software(
             format!("Graphics/Tilesets/{}", tileset.tileset_name),
             0,
-            info.filesystem,
+            info.filesystem.clone(),
         )
         .unwrap();
         let autotile_texs: Vec<_> = tileset
             .autotile_names
             .iter()
             .map(|str| {
-                load_image_software(format!("Graphics/Autotiles/{}", str), 0, info.filesystem).ok()
+                load_image_software(format!("Graphics/Autotiles/{}", str), 0, info.filesystem.clone()).ok()
             })
             .collect();
 
@@ -158,7 +159,7 @@ impl Map {
                     load_image_software(
                         format!("Graphics/Characters/{}", char_name),
                         graphic.character_hue,
-                        info.filesystem,
+                        info.filesystem.clone(),
                     )
                     .ok(),
                 )
@@ -168,14 +169,14 @@ impl Map {
         let fog_tex = load_image_software(
             format!("Graphics/Fogs/{}", tileset.fog_name),
             tileset.fog_hue,
-            info.filesystem,
+            info.filesystem.clone(),
         )
         .ok();
 
         let pano_tex = load_image_software(
             format!("Graphics/Panoramas/{}", tileset.panorama_name),
             tileset.panorama_hue,
-            info.filesystem,
+            info.filesystem.clone(),
         )
         .ok();
 

@@ -15,9 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use poll_promise::Promise;
+
 use crate::UpdateInfo;
 #[derive(Default)]
-pub struct TopBar {}
+pub struct TopBar {
+    open_project_promise: Option<Promise<Result<(), String>>>,
+}
 
 impl TopBar {
     #[allow(unused_variables)]
@@ -37,12 +41,24 @@ impl TopBar {
                 todo!()
             }
 
-            if ui.button("Open Project").clicked() {
-                if let Err(e) = info.filesystem.try_open_project(info.data_cache) {
-                    info.toasts.error(e);
-                } else {
-                    info.toasts.info("Opened project successfully!");
+            if self.open_project_promise.is_none() {
+                if ui.button("Open Project").clicked() {
+                    let filesystem = info.filesystem.clone();
+                    let data_cache = info.data_cache.clone();
+
+                    self.open_project_promise = Some(Promise::spawn_async(async move {
+                        filesystem.try_open_project(data_cache).await
+                    }));
                 }
+            } else {
+                if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
+                    match r {
+                        Ok(_) => info.toasts.info("Opened project successfully!"),
+                        Err(_) => info.toasts.error("Failed to open project"),
+                    }
+                    self.open_project_promise = None;
+                }
+                ui.spinner();
             }
 
             ui.separator();
@@ -55,7 +71,7 @@ impl TopBar {
                 }
 
                 if ui.button("Save Project").clicked() {
-                    if let Err(e) = info.filesystem.save_cached(info.data_cache) {
+                    if let Err(e) = info.filesystem.save_cached(info.data_cache.clone()) {
                         info.toasts.error(e);
                     }
                 }
