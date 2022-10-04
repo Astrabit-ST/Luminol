@@ -17,6 +17,7 @@
 #![allow(unused_imports)]
 use egui::Pos2;
 use ndarray::Axis;
+use poll_promise::Promise;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
@@ -33,35 +34,20 @@ pub struct Map {
     pub cursor_pos: Pos2,
     pub tilemap: Tilemap,
     pub selected_tile: i16,
-    textures: Textures,
+    textures: Promise<Textures>,
 }
 
 impl Map {
     pub fn new(id: i32, name: String, info: &UpdateInfo<'_>) -> Option<Self> {
-        // Get the map.
-        let map = match info.data_cache.load_map(info.filesystem.clone(), id) {
-            Ok(m) => m,
-            Err(e) => {
-                info.toasts.error(e);
-                return None;
-            }
-        };
-        // Get tilesets.
-        let tilesets = info.data_cache.tilesets();
-
-        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-        let tileset = &tilesets.as_ref().expect("Tilesets not loaded")[map.tileset_id as usize - 1];
-        let layers_max = map.data.len_of(Axis(0)) + 1;
-
         Some(Self {
             id,
             name,
-            selected_layer: layers_max,
-            toggled_layers: vec![true; layers_max],
+            selected_layer: 0,
+            toggled_layers: Vec::new(),
             cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(),
             selected_tile: 0,
-            textures: Self::load_textures(map, tileset, info),
+            textures: Promise::spawn_local(async move { Self::load_data(info, id).await.unwrap() }),
         })
     }
 }
@@ -73,50 +59,52 @@ impl super::tab::Tab for Map {
 
     #[allow(unused_variables, unused_mut)]
     fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
-        // Get the map.
-        let mut map = match info.data_cache.load_map(info.filesystem.clone(), self.id) {
-            Ok(m) => m,
-            Err(e) => {
-                info.toasts.error(e);
-                return;
-            }
-        };
+        // Are we done loading data?
+        if let Some(textures) = self.textures.ready() {
+            // Get the map.
+            let mut map = info.data_cache.get_map(self.id);
 
-        // Display the toolbar.
-        self.toolbar(ui, &mut map);
+            // Display the toolbar.
+            self.toolbar(ui, &mut map);
 
-        // Display the tilepicker.
-        egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
-            .default_width(256.)
-            .show_inside(ui, |ui| {
-                egui::ScrollArea::both().show(ui, |ui| {
-                    self.tilemap
-                        .tilepicker(ui, &self.textures, &mut self.selected_tile);
+            // Display the tilepicker.
+            egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
+                .default_width(256.)
+                .show_inside(ui, |ui| {
+                    egui::ScrollArea::both().show(ui, |ui| {
+                        self.tilemap
+                            .tilepicker(ui, &textures, &mut self.selected_tile);
+                    });
                 });
+
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                    let response = self.tilemap.ui(
+                        ui,
+                        &map,
+                        &mut self.cursor_pos,
+                        &textures,
+                        &self.toggled_layers,
+                        self.selected_layer,
+                    );
+
+                    let layers_max = map.data.len_of(Axis(0));
+                    if response.dragged()
+                        && self.selected_layer < layers_max
+                        && !ui.input().modifiers.command
+                    {
+                        let map_x = self.cursor_pos.x as usize;
+                        let map_y = self.cursor_pos.y as usize;
+                        map.data[[self.selected_layer, map_y, map_x]] = self.selected_tile + 384;
+                    }
+                })
             });
-
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let response = self.tilemap.ui(
-                    ui,
-                    &map,
-                    &mut self.cursor_pos,
-                    &self.textures,
-                    &self.toggled_layers,
-                    self.selected_layer,
-                );
-
-                let layers_max = map.data.len_of(Axis(0));
-                if response.dragged()
-                    && self.selected_layer < layers_max
-                    && !ui.input().modifiers.command
-                {
-                    let map_x = self.cursor_pos.x as usize;
-                    let map_y = self.cursor_pos.y as usize;
-                    map.data[[self.selected_layer, map_y, map_x]] = self.selected_tile + 384;
-                }
-            })
-        });
+        } else {
+            // If not, just display a spinner.
+            ui.centered_and_justified(|ui| {
+                ui.spinner();
+            });
+        }
     }
 
     #[cfg(feature = "discord-rpc")]
@@ -126,55 +114,71 @@ impl super::tab::Tab for Map {
 }
 
 impl Map {
-    fn load_textures(
-        map: RefMut<'_, rpg::Map>,
-        tileset: &rpg::Tileset,
-        info: &UpdateInfo<'_>,
-    ) -> Textures {
+    async fn load_data(info: &UpdateInfo<'_>, id: i32) -> Result<Textures, String> {
+        // Load the map.
+        let map = info
+            .data_cache
+            .load_map(info.filesystem.clone(), id)
+            .await?;
+        // Get tilesets.
+        let tilesets = info.data_cache.tilesets();
+
+        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+        let tileset = &tilesets.as_ref().ok_or("Tilesets not loaded".to_string())?
+            [map.tileset_id as usize - 1];
+
         // Load tileset textures.
         let tileset_tex = load_image_software(
             format!("Graphics/Tilesets/{}", tileset.tileset_name),
             0,
             info.filesystem.clone(),
         )
-        .unwrap();
-        let autotile_texs: Vec<_> = tileset
-            .autotile_names
-            .iter()
-            .map(|str| {
+        .await?;
+
+        // Create an async iter over the autotile textures.
+        let autotile_texs_iter = tileset.autotile_names.iter().map(|str| async move {
+            load_image_software(
+                format!("Graphics/Autotiles/{}", str),
+                0,
+                info.filesystem.clone(),
+            )
+            .await
+            .ok()
+        });
+
+        // Await all the futures.
+        let autotile_texs = futures::future::join_all(autotile_texs_iter).await;
+
+        // Similar deal as to the autotiles.
+        let event_texs_iter = map.events.iter().map(|(_, e)| async {
+            let graphic = &e.pages[0].graphic;
+            let char_name = graphic.character_name.clone();
+
+            (
+                (char_name.clone(), graphic.character_hue),
                 load_image_software(
-                    format!("Graphics/Autotiles/{}", str),
-                    0,
+                    format!("Graphics/Characters/{}", char_name),
+                    graphic.character_hue,
                     info.filesystem.clone(),
                 )
-                .ok()
-            })
+                .await
+                .ok(),
+            )
+        });
+
+        // Unfortunately since join_all produces a vec, we need to convert it to a hashmap.
+        let event_texs: HashMap<_, _> = futures::future::join_all(event_texs_iter)
+            .await
+            .into_iter()
             .collect();
 
-        let event_texs: HashMap<_, _> = map
-            .events
-            .iter()
-            .map(|(_, e)| {
-                let graphic = &e.pages[0].graphic;
-                let char_name = graphic.character_name.clone();
-
-                (
-                    (char_name.clone(), graphic.character_hue),
-                    load_image_software(
-                        format!("Graphics/Characters/{}", char_name),
-                        graphic.character_hue,
-                        info.filesystem.clone(),
-                    )
-                    .ok(),
-                )
-            })
-            .collect();
-
+        // These two are pretty simple.
         let fog_tex = load_image_software(
             format!("Graphics/Fogs/{}", tileset.fog_name),
             tileset.fog_hue,
             info.filesystem.clone(),
         )
+        .await
         .ok();
 
         let pano_tex = load_image_software(
@@ -182,15 +186,17 @@ impl Map {
             tileset.panorama_hue,
             info.filesystem.clone(),
         )
+        .await
         .ok();
 
-        Textures {
+        // Finally create and return the struct.
+        Ok(Textures {
             autotile_texs,
             tileset_tex,
             event_texs,
             fog_tex,
             fog_zoom: tileset.fog_zoom,
             pano_tex,
-        }
+        })
     }
 }

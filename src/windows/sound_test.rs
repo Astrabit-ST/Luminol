@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use poll_promise::Promise;
 use strum::IntoEnumIterator;
 
 use crate::audio::Source;
@@ -28,16 +29,23 @@ pub struct SoundTab {
     volume: u8,
     pitch: u8,
     selected_track: String,
+    folder_children: Promise<Vec<String>>,
 }
 
 impl SoundTab {
-    pub fn new(source: Source, picker: bool) -> Self {
+    pub fn new(source: Source, info: &UpdateInfo<'_>, picker: bool) -> Self {
         Self {
             picker,
             source,
             volume: 100,
             pitch: 100,
             selected_track: "".to_string(),
+            folder_children: Promise::spawn_local(async move {
+                info.filesystem
+                    .dir_children(&format!("Audio/{}", source))
+                    .await
+                    .unwrap()
+            }),
         }
     }
 
@@ -95,44 +103,37 @@ impl SoundTab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Get folder children.
-            let folder_children: Vec<_> = match info
-                .filesystem
-                .dir_children(&format!("Audio/{}", self.source))
-            {
-                Ok(d) => d.collect(),
-                Err(e) => {
-                    info.toasts.error(e);
-                    return;
-                }
-            };
-
-            // Get row height.
-            let row_height = ui.text_style_height(&egui::TextStyle::Body);
-            // Group together so it looks nicer.
-            ui.group(|ui| {
-                egui::ScrollArea::both()
-                    .auto_shrink([false, false])
-                    // Show only visible rows.
-                    .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
-                        for entry in &folder_children[row_range] {
-                            // FIXME: Very hacky
-                            let str = entry
-                                .as_ref()
-                                .expect("There should be an entry here.")
-                                .file_name()
-                                .into_string()
-                                .expect("Failed to convert path into a UTF-8 string.");
-                            // Did the user double click a sound?
-                            if ui
-                                .selectable_value(&mut self.selected_track, str.clone(), str)
-                                .double_clicked()
-                            {
-                                // Play it if they did.
-                                self.play(info);
-                            };
-                        }
-                    });
-            });
+            if let Some(folder_children) = self.folder_children.ready() {
+                // Get row height.
+                let row_height = ui.text_style_height(&egui::TextStyle::Body);
+                // Group together so it looks nicer.
+                ui.group(|ui| {
+                    egui::ScrollArea::both()
+                        .auto_shrink([false, false])
+                        // Show only visible rows.
+                        .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
+                            for entry in &folder_children[row_range] {
+                                // FIXME: Very hacky
+                                // Did the user double click a sound?
+                                if ui
+                                    .selectable_value(
+                                        &mut self.selected_track,
+                                        entry.clone(),
+                                        entry,
+                                    )
+                                    .double_clicked()
+                                {
+                                    // Play it if they did.
+                                    self.play(info);
+                                };
+                            }
+                        });
+                });
+            } else {
+                ui.centered_and_justified(|ui| {
+                    ui.spinner();
+                });
+            }
         });
     }
 
@@ -141,7 +142,7 @@ impl SoundTab {
         let path = format!("Audio/{}/{}", self.source, &self.selected_track);
         // Play it.
         info.audio
-            .play(info, &path, self.volume, self.pitch, &self.source);
+            .play(info.filesystem, &path, self.volume, self.pitch, &self.source);
     }
 }
 
@@ -152,10 +153,12 @@ pub struct SoundTest {
 }
 
 impl SoundTest {
-    pub fn new() -> Self {
+    pub fn new(info: &UpdateInfo<'_>) -> Self {
         Self {
             // Create all sources.
-            sources: Source::iter().map(|s| SoundTab::new(s, false)).collect(),
+            sources: Source::iter()
+                .map(|s| SoundTab::new(s, info, false))
+                .collect(),
             // By default, bgm is selected.
             selected_source: Source::BGM,
         }

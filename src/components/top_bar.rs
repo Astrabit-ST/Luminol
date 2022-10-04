@@ -103,7 +103,7 @@ impl TopBar {
 
             if ui.button("Sound Test").clicked() {
                 info.windows
-                    .add_window(crate::windows::sound_test::SoundTest::new())
+                    .add_window(crate::windows::sound_test::SoundTest::new(info))
             }
         });
 
