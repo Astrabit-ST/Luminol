@@ -18,7 +18,6 @@
 use std::cell::RefCell;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use crate::data::data_cache::DataCache;
 
@@ -41,7 +40,7 @@ impl Filesystem {
         self.project_path.borrow().clone()
     }
 
-    pub async fn load_project(&self, path: PathBuf, cache: Rc<DataCache>) -> Result<(), String> {
+    pub async fn load_project(&self, path: PathBuf, cache: &'static DataCache) -> Result<(), String> {
         *self.project_path.borrow_mut() = Some(path);
         cache.load(self).await.map_err(|e| {
             *self.project_path.borrow_mut() = None;
@@ -118,11 +117,11 @@ impl Filesystem {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn save_cached(&self, data_cache: Rc<DataCache>) -> Result<(), String> {
+    pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {
         data_cache.save(self).await
     }
 
-    pub async fn try_open_project(&self, cache: Rc<DataCache>) -> Result<(), String> {
+    pub async fn try_open_project(&self, cache: &'static DataCache) -> Result<(), String> {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()

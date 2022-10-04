@@ -28,7 +28,7 @@ impl super::tab::Tab for Started {
         "Get Started".to_string()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, _info: &crate::UpdateInfo<'_>) {
+    fn show(&mut self, ui: &mut egui::Ui, _info: &'static crate::UpdateInfo) {
         ui.centered_and_justified(|ui| {
             ui.heading("Luminol");
         });

@@ -19,7 +19,6 @@ use crate::data::rmxp_structs::rpg;
 use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
-    rc::Rc,
 };
 
 use crate::filesystem::Filesystem;
@@ -55,7 +54,7 @@ impl DataCache {
 
     pub async fn load_map(
         &self,
-        filesystem: Rc<Filesystem>,
+        filesystem: &'static Filesystem,
         id: i32,
     ) -> Result<RefMut<'_, rpg::Map>, String> {
         let has_map = self.maps.borrow().contains_key(&id);

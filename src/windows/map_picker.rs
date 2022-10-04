@@ -34,7 +34,7 @@ impl MapPicker {
         id: &i32,
         children_data: &HashMap<i32, Vec<i32>>,
         mapinfos: &HashMap<i32, MapInfo>,
-        info: &UpdateInfo<'_>,
+        info: &'static UpdateInfo,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
@@ -69,7 +69,7 @@ impl MapPicker {
         }
     }
 
-    fn create_map_tab(id: i32, name: String, info: &UpdateInfo<'_>) {
+    fn create_map_tab(id: i32, name: String, info: &'static UpdateInfo) {
         if let Some(m) = Map::new(id, name, info) {
             info.tabs.add_tab(m);
         }
@@ -77,7 +77,7 @@ impl MapPicker {
 }
 
 impl super::window::Window for MapPicker {
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo<'_>) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
         egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 // Aquire the data cache.

@@ -16,27 +16,14 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    audio::Audio,
-    components::{toasts::Toasts, toolbar::Toolbar, top_bar::TopBar},
-    data::data_cache::DataCache,
-    filesystem::Filesystem,
-    tabs::tab::Tabs,
-    windows::window::Windows,
+    components::{toolbar::Toolbar, top_bar::TopBar},
     UpdateInfo,
 };
 
-use std::rc::Rc;
-
-#[derive(Default)]
 pub struct Luminol {
-    filesystem: Rc<Filesystem>,
-    data_cache: Rc<DataCache>,
-    windows: Windows,
     top_bar: TopBar,
     toolbar: Toolbar,
-    tabs: Tabs,
-    audio: Audio,
-    toasts: Toasts,
+    info: &'static UpdateInfo,
     #[cfg(feature = "discord-rpc")]
     discord: crate::discord::DiscordClient,
 }
@@ -44,7 +31,13 @@ pub struct Luminol {
 impl Luminol {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Default::default()
+        Self {
+            top_bar: TopBar::default(),
+            toolbar: Toolbar::default(),
+            info: Box::leak(Box::new(UpdateInfo::default())), // This is bad but I don't care
+            #[cfg(feature = "discord-rpc")]
+            discord: crate::discord::DiscordClient::default(),
+        }
     }
 }
 
@@ -56,24 +49,13 @@ impl eframe::App for Luminol {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // This struct is passed to windows and widgets so they can modify internal state.
-        // Bit jank but it works.
-        let update_info = UpdateInfo {
-            filesystem: self.filesystem.clone(),
-            data_cache: self.data_cache.clone(),
-            windows: &self.windows,
-            tabs: &self.tabs,
-            audio: &self.audio,
-            toasts: &self.toasts,
-        };
-
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(&update_info, ui);
+                self.top_bar.ui(self.info, ui);
             });
         });
 
@@ -81,26 +63,26 @@ impl eframe::App for Luminol {
             .resizable(false)
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
-                    self.toolbar.ui(&update_info, ui);
+                    self.toolbar.ui(self.info, ui);
                 });
             });
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.tabs.ui(ui, &update_info);
+            self.info.tabs.ui(ui, self.info);
         });
 
         // Update all windows.
-        self.windows.update(ctx, &update_info);
+        self.info.windows.update(ctx, self.info);
 
         // Show toasts.
-        self.toasts.show(ctx);
+        self.info.toasts.show(ctx);
 
         // Update discord
         #[cfg(feature = "discord-rpc")]
         self.discord.update(
-            self.tabs.discord_display(),
-            self.filesystem
+            self.info.tabs.discord_display(),
+            self.info.filesystem
                 .project_path()
                 .map(|p| p.display().to_string()),
         );

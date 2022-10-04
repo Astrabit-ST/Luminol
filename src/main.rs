@@ -19,8 +19,7 @@
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-#[tokio::main]
-async fn main() {
+fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -36,11 +35,15 @@ async fn main() {
         ..Default::default()
     };
 
-    eframe::run_native(
-        "Luminol",
-        native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-    );
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let set = tokio::task::LocalSet::new();
+    set.block_on(&rt, async move {
+        eframe::run_native(
+            "Luminol",
+            native_options,
+            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+        );
+    });
 }
 
 // when compiling to web using trunk.

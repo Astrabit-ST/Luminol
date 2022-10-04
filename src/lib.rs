@@ -85,8 +85,6 @@ mod filesystem {
 #[cfg(feature = "discord-rpc")]
 mod discord;
 
-use std::rc::Rc;
-
 use components::toasts::Toasts;
 use egui::TextureFilter;
 use egui_extras::RetainedImage;
@@ -99,19 +97,20 @@ use crate::data::data_cache::DataCache;
 use crate::filesystem::Filesystem;
 
 /// Passed to windows and widgets when updating.
-pub struct UpdateInfo<'a> {
-    pub filesystem: Rc<Filesystem>,
-    pub data_cache: Rc<DataCache>,
-    pub windows: &'a windows::window::Windows,
-    pub tabs: &'a tabs::tab::Tabs,
-    pub audio: &'a audio::Audio,
-    pub toasts: &'a Toasts,
+#[derive(Default)]
+pub struct UpdateInfo {
+    pub filesystem: Filesystem,
+    pub data_cache: DataCache,
+    pub windows: windows::window::Windows,
+    pub tabs: tabs::tab::Tabs,
+    pub audio: audio::Audio,
+    pub toasts: Toasts,
 }
 
 pub async fn load_image_software(
     path: String,
     _hue: i32,
-    filesystem: Rc<Filesystem>,
+    filesystem: &'static Filesystem,
 ) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),

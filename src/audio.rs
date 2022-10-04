@@ -18,7 +18,6 @@
 use rodio::Decoder;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 
-use std::rc::Rc;
 use std::{cell::RefCell, collections::HashMap};
 use strum::Display;
 use strum::EnumIter;
@@ -57,17 +56,17 @@ impl Default for Audio {
 impl Audio {
     pub async fn play(
         &self,
-        filesystem: Rc<crate::filesystem::Filesystem>,
-        path: &str,
+        filesystem: &'static crate::filesystem::Filesystem,
+        path: String,
         volume: u8,
         pitch: u8,
-        source: &Source,
+        source: Source,
     ) -> Result<(), String> {
         let mut inner = self.inner.borrow_mut();
         // Create a sink
         let sink = Sink::try_new(&inner.outputstream.1).map_err(|e| e.to_string())?;
         // Append the sound
-        let cursor = filesystem.bufreader(path).await?;
+        let cursor = filesystem.bufreader(&path).await?;
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {
@@ -86,7 +85,7 @@ impl Audio {
         // Play sound.
         sink.play();
         // Add sink to hash, stop the current one if it's there.
-        if let Some(s) = inner.sinks.insert(*source, sink) {
+        if let Some(s) = inner.sinks.insert(source, sink) {
             s.stop();
         };
 

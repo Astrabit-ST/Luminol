@@ -1,6 +1,6 @@
 [package]
 name = "luminol"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Lily Lyons <lily@nowaffles.com>", "Egor Poleshko <somedevfox@gmail.com>"]
 edition = "2021"
 rust-version = "1.62"
@@ -31,6 +31,7 @@ cfg-if = "1.0.0"
 futures = "0.3.24"
 
 [features]
+default = ["generic-tilemap"]
 generic-tilemap = []
 discord-rpc = ["discord-sdk"]
 

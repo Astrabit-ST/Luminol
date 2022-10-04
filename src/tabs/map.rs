@@ -38,7 +38,7 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new(id: i32, name: String, info: &UpdateInfo<'_>) -> Option<Self> {
+    pub fn new(id: i32, name: String, info: &'static UpdateInfo) -> Option<Self> {
         Some(Self {
             id,
             name,
@@ -58,14 +58,14 @@ impl super::tab::Tab for Map {
     }
 
     #[allow(unused_variables, unused_mut)]
-    fn show(&mut self, ui: &mut egui::Ui, info: &crate::UpdateInfo<'_>) {
+    fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
         // Are we done loading data?
         if let Some(textures) = self.textures.ready() {
             // Get the map.
             let mut map = info.data_cache.get_map(self.id);
 
             // Display the toolbar.
-            self.toolbar(ui, &mut map);
+            // self.toolbar(ui, &mut map);
 
             // Display the tilepicker.
             egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
@@ -114,11 +114,11 @@ impl super::tab::Tab for Map {
 }
 
 impl Map {
-    async fn load_data(info: &UpdateInfo<'_>, id: i32) -> Result<Textures, String> {
+    async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<Textures, String> {
         // Load the map.
         let map = info
             .data_cache
-            .load_map(info.filesystem.clone(), id)
+            .load_map(&info.filesystem, id)
             .await?;
         // Get tilesets.
         let tilesets = info.data_cache.tilesets();
@@ -131,7 +131,7 @@ impl Map {
         let tileset_tex = load_image_software(
             format!("Graphics/Tilesets/{}", tileset.tileset_name),
             0,
-            info.filesystem.clone(),
+            &info.filesystem,
         )
         .await?;
 
@@ -140,7 +140,7 @@ impl Map {
             load_image_software(
                 format!("Graphics/Autotiles/{}", str),
                 0,
-                info.filesystem.clone(),
+                &info.filesystem,
             )
             .await
             .ok()
@@ -159,7 +159,7 @@ impl Map {
                 load_image_software(
                     format!("Graphics/Characters/{}", char_name),
                     graphic.character_hue,
-                    info.filesystem.clone(),
+                    &info.filesystem,
                 )
                 .await
                 .ok(),
@@ -176,7 +176,7 @@ impl Map {
         let fog_tex = load_image_software(
             format!("Graphics/Fogs/{}", tileset.fog_name),
             tileset.fog_hue,
-            info.filesystem.clone(),
+            &info.filesystem,
         )
         .await
         .ok();
@@ -184,7 +184,7 @@ impl Map {
         let pano_tex = load_image_software(
             format!("Graphics/Panoramas/{}", tileset.panorama_name),
             tileset.panorama_hue,
-            info.filesystem.clone(),
+            &info.filesystem,
         )
         .await
         .ok();

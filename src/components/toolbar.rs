@@ -42,7 +42,7 @@ pub enum Pencil {
 
 impl Toolbar {
     #[allow(unused_variables)]
-    pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         for e in Pencil::iter() {
             ui.radio_value(&mut self.state.pencil, e, e.to_string());
         }

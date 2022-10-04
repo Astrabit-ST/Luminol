@@ -33,7 +33,7 @@ pub struct SoundTab {
 }
 
 impl SoundTab {
-    pub fn new(source: Source, info: &UpdateInfo<'_>, picker: bool) -> Self {
+    pub fn new(source: Source, info: &'static UpdateInfo, picker: bool) -> Self {
         Self {
             picker,
             source,
@@ -49,7 +49,7 @@ impl SoundTab {
         }
     }
 
-    pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         egui::SidePanel::right("sound_tab_controls")
             .resizable(false)
             .show_inside(ui, |ui| {
@@ -108,26 +108,26 @@ impl SoundTab {
                 let row_height = ui.text_style_height(&egui::TextStyle::Body);
                 // Group together so it looks nicer.
                 ui.group(|ui| {
-                    egui::ScrollArea::both()
-                        .auto_shrink([false, false])
-                        // Show only visible rows.
-                        .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
-                            for entry in &folder_children[row_range] {
-                                // FIXME: Very hacky
-                                // Did the user double click a sound?
-                                if ui
-                                    .selectable_value(
-                                        &mut self.selected_track,
-                                        entry.clone(),
-                                        entry,
-                                    )
-                                    .double_clicked()
-                                {
-                                    // Play it if they did.
-                                    self.play(info);
-                                };
-                            }
-                        });
+                    // egui::ScrollArea::both()
+                    //     .auto_shrink([false, false])
+                    //     // Show only visible rows.
+                    //     .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
+                    //         for entry in &folder_children[row_range] {
+                    //             // FIXME: Very hacky
+                    //             // Did the user double click a sound?
+                    //             if ui
+                    //                 .selectable_value(
+                    //                     &mut self.selected_track,
+                    //                     entry.clone(),
+                    //                     entry,
+                    //                 )
+                    //                 .double_clicked()
+                    //             {
+                    //                 // Play it if they did.
+                    //                 self.play(info);
+                    //             };
+                    //         }
+                    //     });
                 });
             } else {
                 ui.centered_and_justified(|ui| {
@@ -137,12 +137,12 @@ impl SoundTab {
         });
     }
 
-    fn play(&self, info: &UpdateInfo<'_>) {
+    fn play(&self, info: &'static UpdateInfo) {
         // Get path.
         let path = format!("Audio/{}/{}", self.source, &self.selected_track);
         // Play it.
         info.audio
-            .play(info.filesystem, &path, self.volume, self.pitch, &self.source);
+            .play(&info.filesystem, path, self.volume, self.pitch, self.source);
     }
 }
 
@@ -153,7 +153,7 @@ pub struct SoundTest {
 }
 
 impl SoundTest {
-    pub fn new(info: &UpdateInfo<'_>) -> Self {
+    pub fn new(info: &'static UpdateInfo) -> Self {
         Self {
             // Create all sources.
             sources: Source::iter()
@@ -170,7 +170,7 @@ impl super::window::Window for SoundTest {
         "Sound Test".to_string()
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo<'_>) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
         egui::Window::new("Sound Test").open(open).show(ctx, |ui| {
             egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
                 // Display the tab selector.

@@ -16,10 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cell::RefCell;
-use std::fs::{self, File};
-use std::io::BufReader;
+use std::io::Cursor;
 use std::path::PathBuf;
-use std::rc::Rc;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
@@ -66,7 +64,7 @@ impl Filesystem {
         self.project_path.borrow().clone()
     }
 
-    pub fn load_project(&self, handle: JsValue, cache: Rc<DataCache>) -> Result<(), String> {
+    pub async fn load_project(&self, handle: JsValue, cache: &'static DataCache) -> Result<(), String> {
         *self.project_path.borrow_mut() = Some(PathBuf::from(
             js_sys::Reflect::get(&handle, &JsValue::from("name"))
                 .unwrap()
@@ -74,22 +72,22 @@ impl Filesystem {
                 .unwrap(),
         ));
         *self.handle.borrow_mut() = Some(handle);
-        cache.load(self).map_err(|e| {
+        cache.load(self).await.map_err(|e| {
             *self.handle.borrow_mut() = None;
             *self.project_path.borrow_mut() = None;
             e
         })
     }
 
-    pub fn dir_children(&self, _path: &str) -> Result<fs::ReadDir, String> {
+    pub async fn dir_children(&self, _path: &str) -> Result<Vec<String>, String> {
         Err("Not implemented".to_string())
     }
 
-    pub fn bufreader(&self, _path: &str) -> Result<BufReader<File>, String> {
+    pub async fn bufreader(&self, _path: &str) -> Result<Cursor<Vec<u8>>, String> {
         Err("Not implemented".to_string())
     }
 
-    pub fn read_data<T>(&self, _path: &str) -> ron::error::SpannedResult<T>
+    pub async fn read_data<T>(&self, _path: &str) -> ron::error::SpannedResult<T>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -99,26 +97,26 @@ impl Filesystem {
         })
     }
 
-    pub fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, String> {
+    pub async fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, String> {
         Err("Not implemented".to_string())
     }
 
-    pub fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), String>
+    pub async fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), String>
     where
         T: serde::ser::Serialize,
     {
         Err("Not implemented".to_string())
     }
 
-    pub fn save_cached(&self, data_cache: Rc<DataCache>) -> Result<(), String> {
-        data_cache.save(self)
+    pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {
+        data_cache.save(self).await
     }
 
-    pub async fn try_open_project(&self, cache: Rc<DataCache>) -> Result<(), String> {
+    pub async fn try_open_project(&self, cache: &'static DataCache) -> Result<(), String> {
         let handle = js_open_project()
             .await
             .map_err(|_| "No project loaded".to_string())?;
 
-        self.load_project(handle, cache)
+        self.load_project(handle, cache).await
     }
 }

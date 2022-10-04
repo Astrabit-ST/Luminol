@@ -37,7 +37,7 @@ impl Default for Tabs {
 }
 
 impl Tabs {
-    pub fn ui(&self, ui: &mut egui::Ui, info: &UpdateInfo<'_>) {
+    pub fn ui(&self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
         ui.group(|ui| {
             egui_dock::DockArea::new(&mut self.tree.borrow_mut())
                 .show_inside(ui, &mut TabViewer { info });
@@ -74,11 +74,11 @@ impl Tabs {
     }
 }
 
-pub struct TabViewer<'a> {
-    pub info: &'a UpdateInfo<'a>,
+pub struct TabViewer {
+    pub info: &'static UpdateInfo,
 }
 
-impl<'a> egui_dock::TabViewer for TabViewer<'a> {
+impl egui_dock::TabViewer for TabViewer {
     type Tab = Box<dyn Tab>;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
@@ -93,7 +93,7 @@ impl<'a> egui_dock::TabViewer for TabViewer<'a> {
 pub trait Tab {
     fn name(&self) -> String;
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &UpdateInfo<'_>);
+    fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo);
 
     fn requires_filesystem(&self) -> bool {
         false

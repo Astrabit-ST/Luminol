@@ -45,7 +45,7 @@ impl Windows {
         windows.retain(|window| !window.requires_filesystem())
     }
 
-    pub fn update(&self, ctx: &egui::Context, info: &UpdateInfo<'_>) {
+    pub fn update(&self, ctx: &egui::Context, info: &'static UpdateInfo) {
         // Iterate through all the windows and clean them up if necessary.
         let mut windows = self.windows.borrow_mut();
         windows.retain_mut(|window| {
@@ -60,7 +60,7 @@ impl Windows {
 /// A basic trait describing a window that can show itself.
 /// A mutable bool is passed to it and is set to false if it is closed.
 pub trait Window {
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &UpdateInfo<'_>);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo);
 
     /// Required to prevent duplication.
     fn name(&self) -> String;

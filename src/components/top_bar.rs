@@ -26,7 +26,7 @@ pub struct TopBar {
 
 impl TopBar {
     #[allow(unused_variables)]
-    pub fn ui(&mut self, info: &UpdateInfo<'_>, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.separator();
@@ -44,11 +44,8 @@ impl TopBar {
 
             if self.open_project_promise.is_none() {
                 if ui.button("Open Project").clicked() {
-                    let filesystem = info.filesystem.clone();
-                    let data_cache = info.data_cache.clone();
-
                     self.open_project_promise = Some(Promise::spawn_local(async move {
-                        filesystem.try_open_project(data_cache).await
+                        info.filesystem.try_open_project(&info.data_cache).await
                     }));
                 }
             } else {
@@ -73,11 +70,8 @@ impl TopBar {
 
                 if self.save_project_promise.is_none() {
                     if ui.button("Save Project").clicked() {
-                        let filesystem = info.filesystem.clone();
-                        let data_cache = info.data_cache.clone();
-
                         self.save_project_promise = Some(Promise::spawn_local(async move {
-                            filesystem.save_cached(data_cache).await
+                            info.filesystem.save_cached(&info.data_cache).await
                         }));
                     }
                 } else {
