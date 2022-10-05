@@ -62,9 +62,12 @@ impl Audio {
         pitch: u8,
         source: Source,
     ) -> Result<(), String> {
-        let mut inner = self.inner.borrow_mut();
         // Create a sink
-        let sink = Sink::try_new(&inner.outputstream.1).map_err(|e| e.to_string())?;
+        let sink = {
+            let inner = self.inner.borrow();
+
+            Sink::try_new(&inner.outputstream.1).map_err(|e| e.to_string())?
+        };
         // Append the sound
         let cursor = filesystem.bufreader(&path).await?;
         // Select decoder type based on sound source
@@ -85,7 +88,7 @@ impl Audio {
         // Play sound.
         sink.play();
         // Add sink to hash, stop the current one if it's there.
-        if let Some(s) = inner.sinks.insert(source, sink) {
+        if let Some(s) = self.inner.borrow_mut().sinks.insert(source, sink) {
             s.stop();
         };
 

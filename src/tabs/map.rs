@@ -79,7 +79,7 @@ impl super::tab::Tab for Map {
                 .show_inside(ui, |ui| {
                     egui::ScrollArea::both().show(ui, |ui| {
                         self.tilemap
-                            .tilepicker(ui, &textures, &mut self.selected_tile);
+                            .tilepicker(ui, textures, &mut self.selected_tile);
                     });
                 });
 
@@ -89,7 +89,7 @@ impl super::tab::Tab for Map {
                         ui,
                         &map,
                         &mut self.cursor_pos,
-                        &textures,
+                        textures,
                         &self.toggled_layers,
                         self.selected_layer,
                     );
@@ -122,16 +122,14 @@ impl super::tab::Tab for Map {
 impl Map {
     async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<Textures, String> {
         // Load the map.
-        let map = info
-            .data_cache
-            .load_map(&info.filesystem, id)
-            .await?;
+        let map = info.data_cache.load_map(&info.filesystem, id).await?;
         // Get tilesets.
         let tilesets = info.data_cache.tilesets();
 
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-        let tileset = &tilesets.as_ref().ok_or("Tilesets not loaded".to_string())?
-            [map.tileset_id as usize - 1];
+        let tileset = &tilesets
+            .as_ref()
+            .ok_or_else(|| "Tilesets not loaded".to_string())?[map.tileset_id as usize - 1];
 
         // Load tileset textures.
         let tileset_tex = load_image_software(
@@ -143,13 +141,9 @@ impl Map {
 
         // Create an async iter over the autotile textures.
         let autotile_texs_iter = tileset.autotile_names.iter().map(|str| async move {
-            load_image_software(
-                format!("Graphics/Autotiles/{}", str),
-                0,
-                &info.filesystem,
-            )
-            .await
-            .ok()
+            load_image_software(format!("Graphics/Autotiles/{}", str), 0, &info.filesystem)
+                .await
+                .ok()
         });
 
         // Await all the futures.

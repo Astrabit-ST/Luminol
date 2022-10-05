@@ -40,7 +40,7 @@ discord-rpc = ["discord-sdk"]
 tracing-subscriber = "0.3"
 rodio = { version = "0.16.0", features = ["symphonia-all"], default-features = false }
 poll-promise = { version = "0.1.0", features = ["smol", "tick-poll"] }
-tokio = { version = "1.21.2", features = ["macros"] }
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
 async-fs = "1.6.0"
 discord-sdk = { version = "0.3.0", optional = true }
 
@@ -54,6 +54,7 @@ js-sys = "0.3.59"
 web-sys = "0.3.59"
 rodio = { version = "0.16.0", features = ["wasm-bindgen", "symphonia-all"], default-features = false }
 poll-promise = { version = "0.1.0", features = ["web"] }
+wasm-timer = "0.2.5"
 
 # Fast and performant.
 [profile.release]

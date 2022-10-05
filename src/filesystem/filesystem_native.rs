@@ -40,7 +40,11 @@ impl Filesystem {
         self.project_path.borrow().clone()
     }
 
-    pub async fn load_project(&self, path: PathBuf, cache: &'static DataCache) -> Result<(), String> {
+    pub async fn load_project(
+        &self,
+        path: PathBuf,
+        cache: &'static DataCache,
+    ) -> Result<(), String> {
         *self.project_path.borrow_mut() = Some(path);
         cache.load(self).await.map_err(|e| {
             *self.project_path.borrow_mut() = None;
@@ -83,7 +87,9 @@ impl Filesystem {
             .join(path);
         println!("Loading {}", path.display());
 
-        let data = async_fs::read_to_string(path).await.map_err(|e| e.to_string())?;
+        let data = async_fs::read_to_string(path)
+            .await
+            .map_err(|e| e.to_string())?;
         ron::from_str(&data).map_err(|e| e.to_string())
     }
 

@@ -70,13 +70,8 @@ impl DataCache {
         }))
     }
 
-    pub fn get_map(
-        &self,
-        id: i32,
-    ) -> RefMut<'_, rpg::Map> {
-        RefMut::map(self.maps.borrow_mut(), |maps| {
-            maps.get_mut(&id).unwrap()
-        })
+    pub fn get_map(&self, id: i32) -> RefMut<'_, rpg::Map> {
+        RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
     }
 
     pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {

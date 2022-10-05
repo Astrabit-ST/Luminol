@@ -28,8 +28,16 @@ use crate::data::data_cache::DataCache;
 extern "C" {
     #[wasm_bindgen(catch)]
     async fn js_open_project() -> Result<JsValue, JsValue>;
+
     #[wasm_bindgen(catch)]
     async fn js_read_file(path: JsValue) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    async fn js_read_bytes(path: JsValue) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    async fn js_dir_children(path: JsValue) -> Result<JsValue, JsValue>;
+
     fn js_filesystem_supported() -> bool;
 }
 
@@ -75,12 +83,20 @@ impl Filesystem {
         })
     }
 
-    pub async fn dir_children(&self, _path: &str) -> Result<Vec<String>, String> {
-        Err("Not implemented".to_string())
+    pub async fn dir_children(&self, path: &str) -> Result<Vec<String>, String> {
+        js_dir_children(JsValue::from_str(path))
+            .await
+            .map(|ref children| {
+                js_sys::Array::from(children)
+                    .iter()
+                    .map(|child| child.as_string().unwrap())
+                    .collect()
+            })
+            .map_err(|_| "JS Error".to_string())
     }
 
-    pub async fn bufreader(&self, _path: &str) -> Result<Cursor<Vec<u8>>, String> {
-        Err("Not implemented".to_string())
+    pub async fn bufreader(&self, path: &str) -> Result<Cursor<Vec<u8>>, String> {
+        Ok(Cursor::new(self.read_bytes(path).await?))
     }
 
     pub async fn read_data<T>(&self, path: &str) -> Result<T, String>
@@ -90,13 +106,16 @@ impl Filesystem {
         let str = js_read_file(JsValue::from_str(&format!("Data_RON/{}", path)))
             .await
             .map(|s| s.as_string().unwrap())
-            .map_err(|s| "JS error".to_string())?;
+            .map_err(|_| "JS error".to_string())?;
 
         ron::from_str(&str).map_err(|e| e.to_string())
     }
 
-    pub async fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, String> {
-        Err("Not implemented".to_string())
+    pub async fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        js_read_bytes(JsValue::from_str(path))
+            .await
+            .map(|bytes| js_sys::Uint8Array::try_from(bytes).unwrap().to_vec())
+            .map_err(|_| "JS error".to_string())
     }
 
     pub async fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), String>

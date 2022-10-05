@@ -23,7 +23,11 @@ However all the draw calls are not batched like hardware rendering and so it is 
 It's not all bad, though- it's quite fast.
 */
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::Instant;
 
 use crate::components::tilemap::Textures;
 use egui::{Pos2, Response, Vec2};

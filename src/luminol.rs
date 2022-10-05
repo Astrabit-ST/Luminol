@@ -82,7 +82,8 @@ impl eframe::App for Luminol {
         #[cfg(feature = "discord-rpc")]
         self.discord.update(
             self.info.tabs.discord_display(),
-            self.info.filesystem
+            self.info
+                .filesystem
                 .project_path()
                 .map(|p| p.display().to_string()),
         );
