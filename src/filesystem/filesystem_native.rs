@@ -70,7 +70,7 @@ impl Filesystem {
         Ok(Cursor::new(self.read_bytes(path).await?))
     }
 
-    pub async fn read_data<T>(&self, path: &str) -> ron::error::SpannedResult<T>
+    pub async fn read_data<T>(&self, path: &str) -> Result<T, String>
     where
         T: serde::de::DeserializeOwned,
     {

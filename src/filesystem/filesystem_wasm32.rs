@@ -29,14 +29,13 @@ extern "C" {
     #[wasm_bindgen(catch)]
     async fn js_open_project() -> Result<JsValue, JsValue>;
     #[wasm_bindgen(catch)]
-    async fn js_read_file(handle: JsValue, _path: String) -> Result<JsValue, JsValue>;
+    async fn js_read_file(path: JsValue) -> Result<JsValue, JsValue>;
     fn js_filesystem_supported() -> bool;
 }
 
 #[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
-    handle: RefCell<Option<JsValue>>,
 }
 
 impl Filesystem {
@@ -64,16 +63,13 @@ impl Filesystem {
         self.project_path.borrow().clone()
     }
 
-    pub async fn load_project(&self, handle: JsValue, cache: &'static DataCache) -> Result<(), String> {
-        *self.project_path.borrow_mut() = Some(PathBuf::from(
-            js_sys::Reflect::get(&handle, &JsValue::from("name"))
-                .unwrap()
-                .as_string()
-                .unwrap(),
-        ));
-        *self.handle.borrow_mut() = Some(handle);
+    pub async fn load_project(
+        &self,
+        path: JsValue,
+        cache: &'static DataCache,
+    ) -> Result<(), String> {
+        *self.project_path.borrow_mut() = Some(PathBuf::from(path.as_string().unwrap()));
         cache.load(self).await.map_err(|e| {
-            *self.handle.borrow_mut() = None;
             *self.project_path.borrow_mut() = None;
             e
         })
@@ -87,14 +83,16 @@ impl Filesystem {
         Err("Not implemented".to_string())
     }
 
-    pub async fn read_data<T>(&self, _path: &str) -> ron::error::SpannedResult<T>
+    pub async fn read_data<T>(&self, path: &str) -> Result<T, String>
     where
         T: serde::de::DeserializeOwned,
     {
-        Err(ron::error::SpannedError {
-            code: ron::error::Error::Eof,
-            position: ron::error::Position { line: 0, col: 0 },
-        })
+        let str = js_read_file(JsValue::from_str(&format!("Data_RON/{}", path)))
+            .await
+            .map(|s| s.as_string().unwrap())
+            .map_err(|s| "JS error".to_string())?;
+
+        ron::from_str(&str).map_err(|e| e.to_string())
     }
 
     pub async fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, String> {
