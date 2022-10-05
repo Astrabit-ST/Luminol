@@ -78,11 +78,19 @@ impl MapPicker {
 
 impl super::window::Window for MapPicker {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
-        egui::Window::new("Map Picker").open(open).show(ctx, |ui| {
+        let mut window_open = true;
+        egui::Window::new("Map Picker").open(&mut window_open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 // Aquire the data cache.
                 let mapinfos = info.data_cache.map_infos();
-                let mapinfos = mapinfos.as_ref().expect("Mapinfos not loaded.");
+                let mapinfos = match mapinfos.as_ref() {
+                    Some(m) => m,
+                    None => {
+                        *open = false;
+                        info.toasts.error("MapInfos not loaded.");
+                        return;
+                    }
+                };
 
                 // We sort maps by their order.
                 let mut sorted_maps = Vec::from_iter(mapinfos.iter());
@@ -109,6 +117,7 @@ impl super::window::Window for MapPicker {
                 });
             })
         });
+        *open = window_open;
     }
 
     fn name(&self) -> String {

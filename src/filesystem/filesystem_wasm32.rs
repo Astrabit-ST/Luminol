@@ -92,7 +92,7 @@ impl Filesystem {
                     .map(|child| child.as_string().unwrap())
                     .collect()
             })
-            .map_err(|_| "JS Error".to_string())
+            .map_err(|s| format!("JS Error {:#?}", s))
     }
 
     pub async fn bufreader(&self, path: &str) -> Result<Cursor<Vec<u8>>, String> {
@@ -106,7 +106,7 @@ impl Filesystem {
         let str = js_read_file(JsValue::from_str(&format!("Data_RON/{}", path)))
             .await
             .map(|s| s.as_string().unwrap())
-            .map_err(|_| "JS error".to_string())?;
+            .map_err(|s| format!("JS Error {:#?}", s))?;
 
         ron::from_str(&str).map_err(|e| e.to_string())
     }
@@ -115,7 +115,7 @@ impl Filesystem {
         js_read_bytes(JsValue::from_str(path))
             .await
             .map(|bytes| js_sys::Uint8Array::try_from(bytes).unwrap().to_vec())
-            .map_err(|_| "JS error".to_string())
+            .map_err(|s| format!("JS Error {:#?}", s))
     }
 
     pub async fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), String>

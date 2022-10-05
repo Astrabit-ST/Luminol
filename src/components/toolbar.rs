@@ -44,7 +44,7 @@ impl Toolbar {
     #[allow(unused_variables)]
     pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         for e in Pencil::iter() {
-            ui.radio_value(&mut self.state.pencil, e, e.to_string());
+            ui.selectable_value(&mut self.state.pencil, e, e.to_string());
         }
     }
 }

@@ -38,14 +38,14 @@ impl DataCache {
             filesystem
                 .read_data("MapInfos.ron")
                 .await
-                .map_err(|_| "Failed to read MapInfos")?,
+                .map_err(|s| format!("Failed to read MapInfos: {}", s))?,
         );
 
         *self.tilesets.borrow_mut() = Some(
             filesystem
                 .read_data("Tilesets.ron")
                 .await
-                .map_err(|_| "Failed to read Tilesets")?,
+                .map_err(|s| format!("Failed to read Tilesets: {}", s))?,
         );
 
         self.maps.borrow_mut().clear();

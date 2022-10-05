@@ -38,9 +38,7 @@ impl TopBar {
                 "No project open".to_string()
             });
 
-            if ui.button("New Project").clicked() {
-                todo!()
-            }
+            if ui.button("New Project").clicked() {}
 
             if self.open_project_promise.is_none() {
                 if ui.button("Open Project").clicked() {
@@ -85,6 +83,13 @@ impl TopBar {
                     ui.spinner();
                 }
             });
+
+            ui.separator();
+
+            if ui.button("Egui Settings").clicked() {
+                info.windows
+                    .add_window(crate::windows::misc::EguiSettings::new())
+            }
         });
 
         ui.separator();
@@ -107,6 +112,22 @@ impl TopBar {
             if ui.button("About...").clicked() {
                 info.windows.add_window(crate::windows::about::About::new());
             };
+
+            ui.separator();
+
+            if ui.button("Egui Inspection").clicked() {
+                info.windows
+                    .add_window(crate::windows::misc::EguiInspection::new())
+            }
+
+            if ui.button("Egui Memory").clicked() {
+                info.windows
+                    .add_window(crate::windows::misc::EguiMemory::new())
+            }
+
+            let mut debug_on_hover = ui.ctx().debug_on_hover();
+            ui.toggle_value(&mut debug_on_hover, "Debug on hover");
+            ui.ctx().set_debug_on_hover(debug_on_hover);
         });
     }
 }

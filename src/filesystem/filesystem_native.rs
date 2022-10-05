@@ -82,10 +82,9 @@ impl Filesystem {
             .project_path
             .borrow()
             .as_ref()
-            .expect("Project path not specified")
+            .ok_or_else(|| "Project not open".to_string())?
             .join("Data_RON")
             .join(path);
-        println!("Loading {}", path.display());
 
         let data = async_fs::read_to_string(path)
             .await
@@ -114,7 +113,6 @@ impl Filesystem {
             .ok_or_else(|| "Project not open".to_string())?
             .join("Data_RON")
             .join(path);
-        println!("saving {}", path.display());
 
         let contents = ron::ser::to_string_pretty(data, ron::ser::PrettyConfig::default())
             .map_err(|e| e.to_string())?;
