@@ -133,6 +133,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-executor"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "871f9bb5e0a22eeb7e8cf16641feb87c9dc67032ccf8ff49e772eb9941d3a965"
+dependencies = [
+ "async-task",
+ "concurrent-queue",
+ "fastrand",
+ "futures-lite",
+ "once_cell",
+ "slab",
+]
+
+[[package]]
 name = "async-fs"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -145,12 +159,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-io"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e21f3a490c72b3b0cf44962180e60045de2925d8dff97918f7ee43c8f637c7"
+dependencies = [
+ "autocfg",
+ "concurrent-queue",
+ "futures-lite",
+ "libc",
+ "log",
+ "once_cell",
+ "parking",
+ "polling",
+ "slab",
+ "socket2",
+ "waker-fn",
+ "winapi",
+]
+
+[[package]]
 name = "async-lock"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e97a171d191782fba31bb902b14ad94e24a68145032b7eedf871ab0bc0d077b6"
 dependencies = [
  "event-listener",
+]
+
+[[package]]
+name = "async-net"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4051e67316bc7eff608fe723df5d32ed639946adcd69e07df41fd42a7b411f1f"
+dependencies = [
+ "async-io",
+ "autocfg",
+ "blocking",
+ "futures-lite",
+]
+
+[[package]]
+name = "async-process"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02111fd8655a613c25069ea89fc8d9bb89331fa77486eb3bc059ee757cfa481c"
+dependencies = [
+ "async-io",
+ "autocfg",
+ "blocking",
+ "cfg-if",
+ "event-listener",
+ "futures-lite",
+ "libc",
+ "once_cell",
+ "signal-hook",
+ "winapi",
 ]
 
 [[package]]
@@ -2185,12 +2249,26 @@ dependencies = [
 [[package]]
 name = "poll-promise"
 version = "0.1.0"
-source = "git+https://github.com/Speak2Erase/poll-promise?rev=b85dbc7#b85dbc7a5d63c43f517aba6fc724575924558b2d"
+source = "git+https://github.com/Speak2Erase/poll-promise?rev=47688e8#47688e8730a117e85029fc4ee445299a8e5dbd01"
 dependencies = [
+ "smol",
  "static_assertions",
- "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "polling"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "899b00b9c8ab553c743b3e11e87c5c7d423b2a2de229ba95b24a756344748011"
+dependencies = [
+ "autocfg",
+ "cfg-if",
+ "libc",
+ "log",
+ "wepoll-ffi",
+ "winapi",
 ]
 
 [[package]]
@@ -2571,6 +2649,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
 
 [[package]]
+name = "signal-hook"
+version = "0.3.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a253b5e89e2698464fc26b545c9edceb338e18a89effeeecfea192c3025be29d"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
 name = "signal-hook-registry"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2645,6 +2733,24 @@ checksum = "0a345c870a1fae0b1b779085e81b51e614767c239e93503588e54c5b17f4b0e8"
 dependencies = [
  "smithay-client-toolkit",
  "wayland-client",
+]
+
+[[package]]
+name = "smol"
+version = "1.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85cf3b5351f3e783c1d79ab5fc604eeed8b8ae9abd36b166e8b87a089efd85e4"
+dependencies = [
+ "async-channel",
+ "async-executor",
+ "async-fs",
+ "async-io",
+ "async-lock",
+ "async-net",
+ "async-process",
+ "blocking",
+ "futures-lite",
+ "once_cell",
 ]
 
 [[package]]
@@ -3036,14 +3142,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9e03c497dc955702ba729190dc4aac6f2a0ce97f913e5b1b5912fc5039d9099"
 dependencies = [
  "autocfg",
- "bytes",
  "libc",
- "memchr",
  "mio",
  "num_cpus",
- "parking_lot",
  "pin-project-lite",
- "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "winapi",
@@ -3458,6 +3560,15 @@ name = "weezl"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
+
+[[package]]
+name = "wepoll-ffi"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d743fdedc5c64377b5fc2bc036b01c7fd642205a0d96356034ae3404d49eb7fb"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "widestring"

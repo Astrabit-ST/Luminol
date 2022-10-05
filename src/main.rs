@@ -19,7 +19,9 @@
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-fn main() {
+// Sadly we need tokio for the discord sdk :(
+#[tokio::main]
+async fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -35,15 +37,11 @@ fn main() {
         ..Default::default()
     };
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let set = tokio::task::LocalSet::new();
-    set.block_on(&rt, async move {
-        eframe::run_native(
-            "Luminol",
-            native_options,
-            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-        );
-    });
+    eframe::run_native(
+        "Luminol",
+        native_options,
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+    );
 }
 
 // when compiling to web using trunk.

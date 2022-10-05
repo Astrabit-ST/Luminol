@@ -83,8 +83,8 @@ impl Filesystem {
             .join(path);
         println!("Loading {}", path.display());
 
-        let data = async_fs::read_to_string(path).await?;
-        ron::from_str(&data)
+        let data = async_fs::read_to_string(path).await.map_err(|e| e.to_string())?;
+        ron::from_str(&data).map_err(|e| e.to_string())
     }
 
     pub async fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {

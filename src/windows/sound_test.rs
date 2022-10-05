@@ -30,6 +30,7 @@ pub struct SoundTab {
     pitch: u8,
     selected_track: String,
     folder_children: Promise<Vec<String>>,
+    play_promise: Option<Promise<()>>,
 }
 
 impl SoundTab {
@@ -46,6 +47,7 @@ impl SoundTab {
                     .await
                     .unwrap()
             }),
+            play_promise: None,
         }
     }
 
@@ -137,12 +139,22 @@ impl SoundTab {
         });
     }
 
-    fn play(&self, info: &'static UpdateInfo) {
+    fn play(&mut self, info: &'static UpdateInfo) {
         // Get path.
         let path = format!("Audio/{}/{}", self.source, &self.selected_track);
+        let pitch = self.pitch;
+        let volume = self.volume;
+        let source = self.source;
         // Play it.
-        info.audio
-            .play(&info.filesystem, path, self.volume, self.pitch, self.source);
+        self.play_promise = Some(Promise::spawn_local(async move {
+            if let Err(e) = info
+                .audio
+                .play(&info.filesystem, path, volume, pitch, source)
+                .await
+            {
+                info.toasts.error(e);
+            }
+        }));
     }
 }
 

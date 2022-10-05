@@ -64,6 +64,12 @@ impl super::tab::Tab for Map {
             // Get the map.
             let mut map = info.data_cache.get_map(self.id);
 
+            // If there are no toggled layers (i.e we just loaded the map)
+            // then fill up the vector with `true`;
+            if self.toggled_layers.is_empty() {
+                self.toggled_layers = vec![true; map.data.len_of(Axis(0))]
+            }
+
             // Display the toolbar.
             // self.toolbar(ui, &mut map);
 
