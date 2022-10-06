@@ -15,12 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-#[cfg(windows)]
 fn main() {
-    let mut res = winres::WindowsResource::new();
-    res.set_icon("assets/windows-icon.ico");
-    res.compile().unwrap();
+    #[cfg(windows)]
+    {
+        let mut res = winres::WindowsResource::new();
+        res.set_icon("assets/windows-icon.ico");
+        let _ = res.compile();
+    }
 }
-
-#[cfg(not(windows))]
-fn main() {}
