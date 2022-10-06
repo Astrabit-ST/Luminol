@@ -124,6 +124,7 @@ impl SoundTab {
                 // Group together so it looks nicer.
                 ui.group(|ui| {
                     egui::ScrollArea::both()
+                        .id_source(self.source)
                         .auto_shrink([false, false])
                         // Show only visible rows.
                         .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {

@@ -54,7 +54,7 @@ impl Default for Filesystem {
             panic!("Filesystem not supported on this browser");
         }
         Self {
-            project_path: RefCell::new(None)
+            project_path: RefCell::new(None),
         }
     }
 }
