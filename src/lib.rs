@@ -29,7 +29,6 @@ mod windows {
 }
 
 mod components {
-    pub mod map_toolbar;
     pub mod toasts;
     pub mod toolbar;
     pub mod top_bar;

@@ -58,7 +58,20 @@ impl SoundTab {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Play").clicked() && !self.selected_track.is_empty() {
-                            self.play(info);
+                            let path = format!("Audio/{}/{}", self.source, &self.selected_track);
+                            let pitch = self.pitch;
+                            let volume = self.volume;
+                            let source = self.source;
+                            // Play it.
+                            self.play_promise = Some(Promise::spawn_local(async move {
+                                if let Err(e) = info
+                                    .audio
+                                    .play(&info.filesystem, path, volume, pitch, source)
+                                    .await
+                                {
+                                    info.toasts.error(e);
+                                }
+                            }));
                         }
 
                         if ui.button("Stop").clicked() {
@@ -110,26 +123,40 @@ impl SoundTab {
                 let row_height = ui.text_style_height(&egui::TextStyle::Body);
                 // Group together so it looks nicer.
                 ui.group(|ui| {
-                    // egui::ScrollArea::both()
-                    //     .auto_shrink([false, false])
-                    //     // Show only visible rows.
-                    //     .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
-                    //         for entry in &folder_children[row_range] {
-                    //             // FIXME: Very hacky
-                    //             // Did the user double click a sound?
-                    //             if ui
-                    //                 .selectable_value(
-                    //                     &mut self.selected_track,
-                    //                     entry.clone(),
-                    //                     entry,
-                    //                 )
-                    //                 .double_clicked()
-                    //             {
-                    //                 // Play it if they did.
-                    //                 self.play(info);
-                    //             };
-                    //         }
-                    //     });
+                    egui::ScrollArea::both()
+                        .auto_shrink([false, false])
+                        // Show only visible rows.
+                        .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
+                            for entry in &folder_children[row_range] {
+                                // FIXME: Very hacky
+                                // Did the user double click a sound?
+                                if ui
+                                    .selectable_value(
+                                        &mut self.selected_track,
+                                        entry.clone(),
+                                        entry,
+                                    )
+                                    .double_clicked()
+                                {
+                                    // Play it if they did.
+                                    let path =
+                                        format!("Audio/{}/{}", self.source, &self.selected_track);
+                                    let pitch = self.pitch;
+                                    let volume = self.volume;
+                                    let source = self.source;
+                                    // Play it.
+                                    self.play_promise = Some(Promise::spawn_local(async move {
+                                        if let Err(e) = info
+                                            .audio
+                                            .play(&info.filesystem, path, volume, pitch, source)
+                                            .await
+                                        {
+                                            info.toasts.error(e);
+                                        }
+                                    }));
+                                };
+                            }
+                        });
                 });
             } else {
                 ui.centered_and_justified(|ui| {
@@ -137,24 +164,6 @@ impl SoundTab {
                 });
             }
         });
-    }
-
-    fn play(&mut self, info: &'static UpdateInfo) {
-        // Get path.
-        let path = format!("Audio/{}/{}", self.source, &self.selected_track);
-        let pitch = self.pitch;
-        let volume = self.volume;
-        let source = self.source;
-        // Play it.
-        self.play_promise = Some(Promise::spawn_local(async move {
-            if let Err(e) = info
-                .audio
-                .play(&info.filesystem, path, volume, pitch, source)
-                .await
-            {
-                info.toasts.error(e);
-            }
-        }));
     }
 }
 

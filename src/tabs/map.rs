@@ -67,11 +67,64 @@ impl super::tab::Tab for Map {
             // If there are no toggled layers (i.e we just loaded the map)
             // then fill up the vector with `true`;
             if self.toggled_layers.is_empty() {
-                self.toggled_layers = vec![true; map.data.len_of(Axis(0))]
+                self.toggled_layers = vec![true; map.data.len_of(Axis(0)) + 1];
+                self.selected_layer = map.data.len_of(Axis(0)) + 1;
             }
 
             // Display the toolbar.
-            // self.toolbar(ui, &mut map);
+            egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(format!("Map {}: {}", self.name, self.id));
+
+                    ui.separator();
+
+                    ui.add(
+                        egui::Slider::new(&mut self.tilemap.scale, 15.0..=200.)
+                            .text("Scale")
+                            .fixed_decimals(0),
+                    );
+
+                    ui.separator();
+
+                    // Find the number of layers.
+                    let layers = map.data.len_of(Axis(0));
+                    ui.menu_button(
+                        // Format the text based on what layer is selected.
+                        if self.selected_layer > layers {
+                            "Events ⏷".to_string()
+                        } else {
+                            format!("Layer {} ⏷", self.selected_layer + 1)
+                        },
+                        |ui| {
+                            // TODO: Add layer enable button
+                            // Display all layers.
+                            ui.columns(2, |columns| {
+                                columns[1].visuals_mut().button_frame = true;
+
+                                for layer in 0..layers {
+                                    columns[0].selectable_value(
+                                        &mut self.selected_layer,
+                                        layer,
+                                        format!("Layer {}", layer + 1),
+                                    );
+                                    columns[1].checkbox(&mut self.toggled_layers[layer], "👁");
+                                }
+                                // Display event layer.
+                                columns[0].selectable_value(
+                                    &mut self.selected_layer,
+                                    layers + 1,
+                                    "Events",
+                                );
+                                columns[1].checkbox(&mut self.toggled_layers[layers], "👁");
+                            });
+                        },
+                    );
+
+                    ui.separator();
+
+                    ui.checkbox(&mut self.tilemap.visible_display, "Display Visible Area");
+                });
+            });
 
             // Display the tilepicker.
             egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
