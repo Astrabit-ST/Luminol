@@ -10,11 +10,13 @@ Marshal `.rxdata` is planned, and a custom `.lumina` format is also planned.
 Luminol _may_ use `Lua` for plugins in the future. It is something I am actively looking into.
 
 You can obtain RON versions of RPG Maker XP data using [rmxp_extractor](https://rubygems.org/gems/rmxp_extractor).
+Run `rmxp_extractor export ron` in your project folder to fully export all of your data. Due to pretty printing it may take unusually long.
+Using linux to do this is best since Ruby is very fast on linux.
 
 ---
 
 ## Running luminol
 
-wasm builds are deployed to [luminol.dev](https://luminol.dev/#dev) wasm is temporarily on hold for now to speed up development.
+wasm builds are deployed to [luminol.dev](https://luminol.dev/#dev)! They work great and are deployed using the awesome [trunk](https://trunkrs.dev)
 
 Native builds are the main focus at the moment, but no official releases will be made until Luminol os stable and usable.

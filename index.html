@@ -14,6 +14,10 @@
     <!-- this is the base url relative to which other urls will be constructed. trunk will insert this from the public-url option -->
     <base data-trunk-public-url />
 
+    <meta name="description" content="FOSS RPG Maker editor">
+    <meta name="keywords" content="games">
+    <meta name="author" content="Lily Madeline Lyons">
+
     <link data-trunk rel="icon" href="assets/favicon.ico">
 
 
@@ -114,11 +118,12 @@
                 transform: rotate(360deg);
             }
         }
-
     </style>
 </head>
 
 <body>
+    <!-- Hack to allow us to play audio. -->
+    <iframe allow="autoplay" , style="display: none"></iframe>
     <!-- The WASM code will resize the canvas dynamically -->
     <!-- the id is hardcoded in main.rs . so, make sure both match. -->
     <canvas id="the_canvas_id"></canvas>
