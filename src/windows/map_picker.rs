@@ -104,10 +104,10 @@ impl super::window::Window for MapPicker {
                     for (id, map) in sorted_maps {
                         // Is there an entry for our parent?
                         // If not, then just add a blank vector to it.
-                        let children = children_data.entry(map.parent_id).or_insert(vec![]);
+                        let children = children_data.entry(map.parent_id).or_default();
                         children.push(*id);
                     }
-                    children_data.entry(0).or_insert(vec![]); // If there is no `0` entry (i.e. there are no maps) then add one.
+                    children_data.entry(0).or_default(); // If there is no `0` entry (i.e. there are no maps) then add one.
 
                     // Now we can actually render all maps.
                     ui.collapsing("root", |ui| {

@@ -60,7 +60,12 @@ impl Tabs {
     }
 
     pub fn clean_tabs(&self) {
-        todo!()
+        let mut tree = self.tree.borrow_mut();
+        for node in tree.iter_mut() {
+            if let egui_dock::Node::Leaf { tabs, .. } = node {
+                tabs.drain_filter(|t| t.requires_filesystem());
+            }
+        }
     }
 
     #[cfg(feature = "discord-rpc")]

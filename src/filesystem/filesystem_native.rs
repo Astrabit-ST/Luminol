@@ -102,10 +102,7 @@ impl Filesystem {
         async_fs::read(path).await.map_err(|e| e.to_string())
     }
 
-    pub async fn save_data<T>(&self, path: &str, data: &T) -> Result<(), String>
-    where
-        T: serde::ser::Serialize,
-    {
+    pub async fn save_data(&self, path: &str, data: &str) -> Result<(), String> {
         let path = self
             .project_path
             .borrow()
@@ -114,11 +111,7 @@ impl Filesystem {
             .join("Data_RON")
             .join(path);
 
-        let contents = ron::ser::to_string_pretty(data, ron::ser::PrettyConfig::default())
-            .map_err(|e| e.to_string())?;
-        async_fs::write(path, contents)
-            .await
-            .map_err(|e| e.to_string())
+        async_fs::write(path, data).await.map_err(|e| e.to_string())
     }
 
     pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {

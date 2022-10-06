@@ -38,7 +38,9 @@ impl TopBar {
                 "No project open".to_string()
             });
 
-            if ui.button("New Project").clicked() {}
+            if ui.button("New Project").clicked() {
+                info.toasts.error("Not implemented");
+            }
 
             if self.open_project_promise.is_none() {
                 if ui.button("Open Project").clicked() {

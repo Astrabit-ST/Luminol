@@ -41,13 +41,12 @@ extern "C" {
     fn js_filesystem_supported() -> bool;
 }
 
-#[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
 }
 
-impl Filesystem {
-    pub fn new() -> Self {
+impl Default for Filesystem {
+    fn default() -> Self {
         if !js_filesystem_supported() {
             rfd::MessageDialog::new()
                 .set_description("Filesystem not supported on this browser")
@@ -58,7 +57,9 @@ impl Filesystem {
             ..Default::default()
         }
     }
+}
 
+impl Filesystem {
     pub fn unload_project(&self) {
         *self.project_path.borrow_mut() = None;
     }
@@ -118,10 +119,7 @@ impl Filesystem {
             .map_err(|s| format!("JS Error {:#?}", s))
     }
 
-    pub async fn save_data<T>(&self, _path: &str, _data: &T) -> Result<(), String>
-    where
-        T: serde::ser::Serialize,
-    {
+    pub async fn save_data(&self, _path: &str, _data: &str) -> Result<(), String> {
         Err("Not implemented".to_string())
     }
 

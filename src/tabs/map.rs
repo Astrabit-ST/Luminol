@@ -170,30 +170,72 @@ impl super::tab::Tab for Map {
     fn discord_display(&self) -> String {
         format!("Editing Map<{}>: {}", self.id, self.name)
     }
+
+    fn requires_filesystem(&self) -> bool {
+        true
+    }
 }
 
 impl Map {
     async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<Textures, String> {
         // Load the map.
-        let map = info.data_cache.load_map(&info.filesystem, id).await?;
-        // Get tilesets.
-        let tilesets = info.data_cache.tilesets();
+        let tileset_name;
+        let autotile_names;
 
-        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-        let tileset = &tilesets
-            .as_ref()
-            .ok_or_else(|| "Tilesets not loaded".to_string())?[map.tileset_id as usize - 1];
+        let event_names: Vec<_>;
+
+        let fog_name;
+        let fog_hue;
+        let fog_zoom;
+
+        let pano_name;
+        let pano_hue;
+
+        // We get all the variables we need from here so we don't borrow the refcell across an await.
+        // This could be done with a RwLock or a Mutex but this is more practical.
+        // We do have to clone variables but this is negligble compared to the alternative.
+        {
+            let map = info.data_cache.load_map(&info.filesystem, id).await?;
+            // Get tilesets.
+            let tilesets = info.data_cache.tilesets();
+
+            // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+            let tileset = &tilesets
+                .as_ref()
+                .ok_or_else(|| "Tilesets not loaded".to_string())?[map.tileset_id as usize - 1];
+
+            tileset_name = tileset.tileset_name.clone();
+            autotile_names = tileset.autotile_names.clone();
+
+            event_names = map
+                .events
+                .values()
+                .map(|e| {
+                    (
+                        e.pages[0].graphic.character_name.clone(),
+                        e.pages[0].graphic.character_hue,
+                    )
+                })
+                .collect();
+
+            fog_name = tileset.fog_name.clone();
+            fog_hue = tileset.fog_hue;
+            fog_zoom = tileset.fog_zoom;
+
+            pano_name = tileset.panorama_name.clone();
+            pano_hue = tileset.panorama_hue;
+        }
 
         // Load tileset textures.
         let tileset_tex = load_image_software(
-            format!("Graphics/Tilesets/{}", tileset.tileset_name),
+            format!("Graphics/Tilesets/{}", tileset_name),
             0,
             &info.filesystem,
         )
         .await?;
 
         // Create an async iter over the autotile textures.
-        let autotile_texs_iter = tileset.autotile_names.iter().map(|str| async move {
+        let autotile_texs_iter = autotile_names.iter().map(|str| async move {
             load_image_software(format!("Graphics/Autotiles/{}", str), 0, &info.filesystem)
                 .await
                 .ok()
@@ -203,15 +245,12 @@ impl Map {
         let autotile_texs = futures::future::join_all(autotile_texs_iter).await;
 
         // Similar deal as to the autotiles.
-        let event_texs_iter = map.events.iter().map(|(_, e)| async {
-            let graphic = &e.pages[0].graphic;
-            let char_name = graphic.character_name.clone();
-
+        let event_texs_iter = event_names.iter().map(|(char_name, hue)| async move {
             (
-                (char_name.clone(), graphic.character_hue),
+                (char_name.clone(), *hue),
                 load_image_software(
                     format!("Graphics/Characters/{}", char_name),
-                    graphic.character_hue,
+                    *hue,
                     &info.filesystem,
                 )
                 .await
@@ -227,16 +266,16 @@ impl Map {
 
         // These two are pretty simple.
         let fog_tex = load_image_software(
-            format!("Graphics/Fogs/{}", tileset.fog_name),
-            tileset.fog_hue,
+            format!("Graphics/Fogs/{}", fog_name),
+            fog_hue,
             &info.filesystem,
         )
         .await
         .ok();
 
         let pano_tex = load_image_software(
-            format!("Graphics/Panoramas/{}", tileset.panorama_name),
-            tileset.panorama_hue,
+            format!("Graphics/Panoramas/{}", pano_name),
+            pano_hue,
             &info.filesystem,
         )
         .await
@@ -248,7 +287,7 @@ impl Map {
             tileset_tex,
             event_texs,
             fog_tex,
-            fog_zoom: tileset.fog_zoom,
+            fog_zoom,
             pano_tex,
         })
     }

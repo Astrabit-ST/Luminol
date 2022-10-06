@@ -51,7 +51,7 @@ impl Default for DiscordClient {
 impl DiscordClient {
     pub fn update(&mut self, detail_text: String, project_name: Option<String>) {
         let discord = self.discord.clone();
-        let start_time = self.start_time.clone();
+        let start_time = self.start_time;
         // We do this async to avoid blocking the main thread.
         let promise = self
             .activity_promise

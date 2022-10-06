@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use ron::ser::{to_string_pretty, PrettyConfig};
+
 use crate::data::rmxp_structs::rpg;
 use std::{
     cell::{RefCell, RefMut},
@@ -84,21 +86,47 @@ impl DataCache {
 
     pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
         // Write map data and clear map cache.
-        for (id, map) in self.maps.borrow_mut().drain() {
+        // We serialize all of these first before writing them to the disk to avoid bringing a refcell across an await.
+        // A RwLock may be used in the future to solve this, though.
+        let maps_strs: HashMap<_, _> = self
+            .maps
+            .borrow_mut()
+            .drain()
+            .map(|(id, map)| {
+                (
+                    id,
+                    to_string_pretty(&map, PrettyConfig::default()).map_err(|e| e.to_string()),
+                )
+            })
+            .collect();
+
+        for (id, map) in maps_strs {
             filesystem
-                .save_data(&format!("Map{:0>3}.ron", id), &map)
+                .save_data(&format!("Map{:0>3}.ron", id), &map?)
                 .await
                 .map_err(|_| "Failed to write Map data")?
         }
-        if let Some(tilesets) = self.tilesets.borrow().as_ref() {
+
+        let tilesets_str = self
+            .tilesets
+            .borrow()
+            .as_ref()
+            .map(|t| to_string_pretty(&t, PrettyConfig::default()).map_err(|e| e.to_string()));
+        if let Some(tilesets_str) = tilesets_str {
             filesystem
-                .save_data("Tilesets.ron", tilesets)
+                .save_data("Tilesets.ron", &tilesets_str?)
                 .await
                 .map_err(|_| "Failed to write Tileset data")?;
         }
-        if let Some(mapinfos) = self.mapinfos.borrow().as_ref() {
+
+        let mapinfos_str = self
+            .mapinfos
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+        if let Some(mapinfos_str) = mapinfos_str {
             filesystem
-                .save_data("MapInfos.ron", mapinfos)
+                .save_data("MapInfos.ron", &mapinfos_str?)
                 .await
                 .map_err(|_| "Failed to write MapInfos data")?;
         }
