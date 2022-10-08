@@ -22,10 +22,12 @@ use std::sync::Arc;
 use eframe::glow::NativeTexture;
 use egui::{Pos2, Response, Vec2};
 
+use super::TilemapDef;
 use crate::data::rmxp_structs::rpg;
 use crate::glow::{self, HasContext};
 use crate::UpdateInfo;
 
+#[allow(dead_code)]
 pub struct Textures {
     pub tileset_tex: NativeTexture,
     pub autotile_texs: Vec<Option<NativeTexture>>,
@@ -40,6 +42,7 @@ pub struct Tilemap {
     pub visible_display: bool,
     pub pan: Vec2,
     vao: glow::NativeVertexArray,
+    load_data: poll_promise::Promise<()>,
 }
 
 // We only want to create shaders once. This setup allows us to do that.
@@ -106,7 +109,7 @@ unsafe fn with_hardware_shaders(gl: Arc<glow::Context>, mut f: impl FnMut(glow::
 
 #[allow(dead_code)]
 impl TilemapDef for Tilemap {
-    pub fn new(info: &'static UpdateInfo) -> Self {
+    fn new(info: &'static UpdateInfo, id: i32) -> Self {
         let vao = unsafe {
             let gl = info.gl.clone();
 
@@ -160,16 +163,18 @@ impl TilemapDef for Tilemap {
             visible_display: false,
             pan: Vec2::ZERO,
             vao,
+            load_data: poll_promise::Promise::spawn_local(async move {
+                Self::load_data(info, id).await.unwrap()
+            }),
         }
     }
 
     #[allow(unused_variables)]
-    pub fn ui(
+    fn ui(
         &mut self,
         ui: &mut egui::Ui,
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
-        textures: &Textures,
         toggled_layers: &[bool],
         selected_layer: usize,
     ) -> Response {
@@ -202,7 +207,7 @@ impl TilemapDef for Tilemap {
         response
     }
 
-    pub fn tilepicker(&self, ui: &mut egui::Ui, _textures: &Textures, selected_tile: &mut i16) {
+    fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
         let (rect, response) = ui.allocate_exact_size(egui::vec2(256., 256.), egui::Sense::click()); // textures.tileset_tex.size_vec2(), egui::Sense::click());
 
         if response.clicked() {
@@ -224,5 +229,17 @@ impl TilemapDef for Tilemap {
             5.0,
             egui::Stroke::new(1.0, egui::Color32::WHITE),
         );
+    }
+
+    fn textures_loaded(&self) -> bool {
+        self.load_data.ready().is_some()
+    }
+}
+
+impl Tilemap {
+    async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<(), String> {
+        let _map = info.data_cache.load_map(&info.filesystem, id).await?;
+
+        Ok(())
     }
 }

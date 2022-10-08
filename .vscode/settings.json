@@ -4,7 +4,6 @@
 	"licenser.disableAutoHeaderInsertion": false,
 	"rust-analyzer.cargo.features": [
 		"discord-rpc",
-		"generic-tilemap"
 	],
 	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
 	"editor.formatOnSave": true,
