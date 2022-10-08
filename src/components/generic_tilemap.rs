@@ -16,12 +16,19 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 /*
-This file handles the 'software' tilemap.
-Despite the name of the file, the tilemap is not actually rendered with software rendering.
-The textures, backend, etc are all hardware rendered.
-However all the draw calls are not batched like hardware rendering and so it is slower than hardware.
-It's not all bad, though- it's quite fast.
+This file serves as a baseline for how to handle the tilemap.
+It's never used anywhere, never will be used anywhere.
+It generally shows how the tilemap should work.
 */
+
+pub struct Textures {
+    pub tileset_tex: RetainedImage,
+    pub autotile_texs: Vec<Option<RetainedImage>>,
+    pub event_texs: HashMap<(String, i32), Option<RetainedImage>>,
+    pub fog_tex: Option<RetainedImage>,
+    pub fog_zoom: i32,
+    pub pano_tex: Option<RetainedImage>,
+}
 
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
@@ -34,6 +41,7 @@ use egui::{Pos2, Response, Vec2};
 use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
+use crate::UpdateInfo;
 
 #[allow(dead_code)]
 pub struct Tilemap {
@@ -46,7 +54,7 @@ pub struct Tilemap {
 
 #[allow(dead_code)]
 impl Tilemap {
-    pub fn new() -> Self {
+    pub fn new(info: &'static UpdateInfo) -> Self {
         Self {
             pan: Vec2::ZERO,
             scale: 100.,

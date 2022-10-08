@@ -30,11 +30,11 @@ pub struct Luminol {
 
 impl Luminol {
     /// Called once before the first frame.
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self {
             top_bar: TopBar::default(),
             toolbar: Toolbar::default(),
-            info: Box::leak(Box::new(UpdateInfo::default())), // This is bad but I don't care
+            info: Box::leak(Box::new(UpdateInfo::new(cc.gl.as_ref().unwrap().clone()))), // This is bad but I don't care
             #[cfg(feature = "discord-rpc")]
             discord: crate::discord::DiscordClient::default(),
         }

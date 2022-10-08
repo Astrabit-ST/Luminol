@@ -23,7 +23,7 @@ use std::{cell::RefMut, collections::HashMap};
 use crate::{
     components::tilemap::{Textures, Tilemap},
     data::rmxp_structs::rpg,
-    load_image_software, UpdateInfo,
+    load_image_hardware, load_image_software, UpdateInfo,
 };
 
 pub struct Map {
@@ -45,7 +45,7 @@ impl Map {
             selected_layer: 0,
             toggled_layers: Vec::new(),
             cursor_pos: Pos2::ZERO,
-            tilemap: Tilemap::new(),
+            tilemap: Tilemap::new(info),
             selected_tile: 0,
             textures: Promise::spawn_local(async move { Self::load_data(info, id).await.unwrap() }),
         })
@@ -177,6 +177,7 @@ impl super::tab::Tab for Map {
 }
 
 impl Map {
+    #[allow(unused_variables, unused_assignments)]
     async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<Textures, String> {
         // Load the map.
         let tileset_name;
@@ -227,16 +228,12 @@ impl Map {
         }
 
         // Load tileset textures.
-        let tileset_tex = load_image_software(
-            format!("Graphics/Tilesets/{}", tileset_name),
-            0,
-            &info.filesystem,
-        )
-        .await?;
+        let tileset_tex =
+            load_image_hardware(format!("Graphics/Tilesets/{}", tileset_name), info).await?;
 
         // Create an async iter over the autotile textures.
         let autotile_texs_iter = autotile_names.iter().map(|str| async move {
-            load_image_software(format!("Graphics/Autotiles/{}", str), 0, &info.filesystem)
+            load_image_hardware(format!("Graphics/Autotiles/{}", str), info)
                 .await
                 .ok()
         });
@@ -248,13 +245,9 @@ impl Map {
         let event_texs_iter = event_names.iter().map(|(char_name, hue)| async move {
             (
                 (char_name.clone(), *hue),
-                load_image_software(
-                    format!("Graphics/Characters/{}", char_name),
-                    *hue,
-                    &info.filesystem,
-                )
-                .await
-                .ok(),
+                load_image_hardware(format!("Graphics/Characters/{}", char_name), info)
+                    .await
+                    .ok(),
             )
         });
 
@@ -265,21 +258,13 @@ impl Map {
             .collect();
 
         // These two are pretty simple.
-        let fog_tex = load_image_software(
-            format!("Graphics/Fogs/{}", fog_name),
-            fog_hue,
-            &info.filesystem,
-        )
-        .await
-        .ok();
+        let fog_tex = load_image_hardware(format!("Graphics/Fogs/{}", fog_name), info)
+            .await
+            .ok();
 
-        let pano_tex = load_image_software(
-            format!("Graphics/Panoramas/{}", pano_name),
-            pano_hue,
-            &info.filesystem,
-        )
-        .await
-        .ok();
+        let pano_tex = load_image_hardware(format!("Graphics/Panoramas/{}", pano_name), info)
+            .await
+            .ok();
 
         // Finally create and return the struct.
         Ok(Textures {

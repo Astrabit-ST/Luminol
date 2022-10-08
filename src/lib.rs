@@ -34,29 +34,7 @@ mod components {
     pub mod toolbar;
     pub mod top_bar;
 
-    pub mod tilemap {
-        use egui_extras::RetainedImage;
-        use std::collections::HashMap;
-
-        pub struct Textures {
-            pub tileset_tex: RetainedImage,
-            pub autotile_texs: Vec<Option<RetainedImage>>,
-            pub event_texs: HashMap<(String, i32), Option<RetainedImage>>,
-            pub fog_tex: Option<RetainedImage>,
-            pub fog_zoom: i32,
-            pub pano_tex: Option<RetainedImage>,
-        }
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "generic-tilemap")] {
-                pub mod generic_tilemap;
-                pub use generic_tilemap::Tilemap;
-            } else {
-                pub mod hardware_tilemap;
-                pub use hardware_tilemap::Tilemap;
-            }
-        }
-    }
+    pub mod tilemap;
 }
 
 mod tabs {
@@ -86,7 +64,10 @@ mod filesystem {
 #[cfg(feature = "discord-rpc")]
 mod discord;
 
+use std::sync::Arc;
+
 use components::toasts::Toasts;
+pub use eframe::egui_glow::glow;
 use egui::TextureFilter;
 use egui_extras::RetainedImage;
 pub use luminol::Luminol;
@@ -98,7 +79,6 @@ use crate::data::data_cache::DataCache;
 use crate::filesystem::Filesystem;
 
 /// Passed to windows and widgets when updating.
-#[derive(Default)]
 pub struct UpdateInfo {
     pub filesystem: Filesystem,
     pub data_cache: DataCache,
@@ -106,16 +86,61 @@ pub struct UpdateInfo {
     pub tabs: tabs::tab::Tabs,
     pub audio: audio::Audio,
     pub toasts: Toasts,
+    pub gl: Arc<glow::Context>,
+}
+
+impl UpdateInfo {
+    pub fn new(gl: Arc<glow::Context>) -> Self {
+        Self {
+            filesystem: Default::default(),
+            data_cache: Default::default(),
+            windows: Default::default(),
+            tabs: Default::default(),
+            audio: Default::default(),
+            toasts: Default::default(),
+            gl,
+        }
+    }
 }
 
 pub async fn load_image_software(
     path: String,
-    _hue: i32,
-    filesystem: &'static Filesystem,
+    info: &'static UpdateInfo,
 ) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),
-        &filesystem.read_bytes(&format!("{}.png", path)).await?,
+        &info.filesystem.read_bytes(&format!("{}.png", path)).await?,
     )
     .map(|i| i.with_texture_filter(TextureFilter::Nearest))
+}
+
+pub async fn load_image_hardware(
+    path: String,
+    info: &'static UpdateInfo,
+) -> Result<glow::NativeTexture, String> {
+    use glow::HasContext;
+
+    let image =
+        image::load_from_memory(&info.filesystem.read_bytes(&format!("{}.png", path)).await?)
+            .map_err(|e| e.to_string())?;
+
+    unsafe {
+        let texture = info.gl.create_texture()?;
+        info.gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+
+        info.gl.tex_image_2d(
+            glow::TEXTURE_2D,
+            0,
+            glow::RGBA as _,
+            image.width() as _,
+            image.height() as _,
+            0,
+            glow::RGBA,
+            glow::UNSIGNED_BYTE,
+            Some(image.as_bytes()),
+        );
+        info.gl.generate_mipmap(glow::TEXTURE_2D);
+
+        Ok(texture)
+    }
 }
