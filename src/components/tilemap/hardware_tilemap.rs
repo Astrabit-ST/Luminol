@@ -105,7 +105,7 @@ unsafe fn with_hardware_shaders(gl: Arc<glow::Context>, mut f: impl FnMut(glow::
 }
 
 #[allow(dead_code)]
-impl Tilemap {
+impl TilemapDef for Tilemap {
     pub fn new(info: &'static UpdateInfo) -> Self {
         let vao = unsafe {
             let gl = info.gl.clone();

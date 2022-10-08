@@ -17,31 +17,24 @@
 
 /*
 This file serves as a baseline for how to handle the tilemap.
-It's never used anywhere, never will be used anywhere.
-It generally shows how the tilemap should work.
+It's slow and should only be used as a reference for how the tilemap works.
 */
 
-pub struct Textures {
-    pub tileset_tex: RetainedImage,
-    pub autotile_texs: Vec<Option<RetainedImage>>,
-    pub event_texs: HashMap<(String, i32), Option<RetainedImage>>,
-    pub fog_tex: Option<RetainedImage>,
-    pub fog_zoom: i32,
-    pub pano_tex: Option<RetainedImage>,
-}
-
+use egui_extras::RetainedImage;
+use std::collections::HashMap;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 
-use crate::components::tilemap::Textures;
 use egui::{Pos2, Response, Vec2};
 use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
-use crate::UpdateInfo;
+use crate::{load_image_software, UpdateInfo};
+
+use super::TilemapDef;
 
 #[allow(dead_code)]
 pub struct Tilemap {
@@ -50,29 +43,97 @@ pub struct Tilemap {
     pub visible_display: bool,
     ani_idx: i32,
     ani_instant: Instant,
+    load_promise: poll_promise::Promise<Textures>,
 }
 
+pub struct Textures {
+    tileset_tex: RetainedImage,
+    autotile_texs: Vec<Option<RetainedImage>>,
+    event_texs: HashMap<(String, i32), Option<RetainedImage>>,
+    fog_tex: Option<RetainedImage>,
+    fog_zoom: i32,
+    pano_tex: Option<RetainedImage>,
+}
+
+// Hardcoded list of tiles from r48 and old python Luminol.
+// There seems to be very little pattern in autotile IDs so this is sadly
+// the best we can do.
+const AUTOTILES: [[i32; 4]; 48] = [
+    [26, 27, 32, 33],
+    [4, 27, 32, 33],
+    [26, 5, 32, 33],
+    [4, 5, 32, 33],
+    [26, 27, 32, 11],
+    [4, 27, 32, 11],
+    [26, 5, 32, 11],
+    [4, 5, 32, 11],
+    [26, 27, 10, 33],
+    [4, 27, 10, 33],
+    [26, 5, 10, 33],
+    [4, 5, 10, 33],
+    [26, 27, 10, 11],
+    [4, 27, 10, 11],
+    [26, 5, 10, 11],
+    [4, 5, 10, 11],
+    [24, 25, 30, 31],
+    [24, 5, 30, 31],
+    [24, 25, 30, 11],
+    [24, 5, 30, 11],
+    [14, 15, 20, 21],
+    [14, 15, 20, 11],
+    [14, 15, 10, 21],
+    [14, 15, 10, 11],
+    [28, 29, 34, 35],
+    [28, 29, 10, 35],
+    [4, 29, 34, 35],
+    [4, 29, 10, 35],
+    [38, 39, 44, 45],
+    [4, 39, 44, 45],
+    [38, 5, 44, 45],
+    [4, 5, 44, 45],
+    [24, 29, 30, 35],
+    [14, 15, 44, 45],
+    [12, 13, 18, 19],
+    [12, 13, 18, 11],
+    [16, 17, 22, 23],
+    [16, 17, 10, 23],
+    [40, 41, 46, 47],
+    [4, 41, 46, 47],
+    [36, 37, 42, 43],
+    [36, 5, 42, 43],
+    [12, 17, 18, 23],
+    [12, 13, 42, 43],
+    [36, 41, 42, 47],
+    [16, 17, 46, 47],
+    [12, 17, 42, 47],
+    [0, 1, 6, 7],
+];
+
 #[allow(dead_code)]
-impl Tilemap {
-    pub fn new(info: &'static UpdateInfo) -> Self {
+impl TilemapDef for Tilemap {
+    fn new(info: &'static UpdateInfo, id: i32) -> Self {
         Self {
             pan: Vec2::ZERO,
             scale: 100.,
             visible_display: false,
             ani_idx: 0,
             ani_instant: Instant::now(),
+            load_promise: poll_promise::Promise::spawn_local(async move {
+                Self::load_data(info, id).await.unwrap()
+            }),
         }
     }
 
-    pub fn ui(
+    fn ui(
         &mut self,
         ui: &mut egui::Ui,
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
-        textures: &Textures,
         toggled_layers: &[bool],
         selected_layer: usize,
     ) -> Response {
+        let textures = self.load_promise.ready().unwrap();
+
         // Every 16 frames update autotile animation index
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
@@ -439,7 +500,9 @@ impl Tilemap {
         response
     }
 
-    pub fn tilepicker(&self, ui: &mut egui::Ui, textures: &Textures, selected_tile: &mut i16) {
+    fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
+        let textures = self.load_promise.ready().unwrap();
+
         let (rect, response) =
             ui.allocate_exact_size(textures.tileset_tex.size_vec2(), egui::Sense::click());
 
@@ -464,58 +527,110 @@ impl Tilemap {
             egui::Stroke::new(1.0, egui::Color32::WHITE),
         );
     }
+
+    fn textures_loaded(&self) -> bool {
+        self.load_promise.ready().is_some()
+    }
 }
 
-// Hardcoded list of tiles from r48 and old python Luminol.
-// There seems to be very little pattern in autotile IDs so this is sadly
-// the best we can do.
-const AUTOTILES: [[i32; 4]; 48] = [
-    [26, 27, 32, 33],
-    [4, 27, 32, 33],
-    [26, 5, 32, 33],
-    [4, 5, 32, 33],
-    [26, 27, 32, 11],
-    [4, 27, 32, 11],
-    [26, 5, 32, 11],
-    [4, 5, 32, 11],
-    [26, 27, 10, 33],
-    [4, 27, 10, 33],
-    [26, 5, 10, 33],
-    [4, 5, 10, 33],
-    [26, 27, 10, 11],
-    [4, 27, 10, 11],
-    [26, 5, 10, 11],
-    [4, 5, 10, 11],
-    [24, 25, 30, 31],
-    [24, 5, 30, 31],
-    [24, 25, 30, 11],
-    [24, 5, 30, 11],
-    [14, 15, 20, 21],
-    [14, 15, 20, 11],
-    [14, 15, 10, 21],
-    [14, 15, 10, 11],
-    [28, 29, 34, 35],
-    [28, 29, 10, 35],
-    [4, 29, 34, 35],
-    [4, 29, 10, 35],
-    [38, 39, 44, 45],
-    [4, 39, 44, 45],
-    [38, 5, 44, 45],
-    [4, 5, 44, 45],
-    [24, 29, 30, 35],
-    [14, 15, 44, 45],
-    [12, 13, 18, 19],
-    [12, 13, 18, 11],
-    [16, 17, 22, 23],
-    [16, 17, 10, 23],
-    [40, 41, 46, 47],
-    [4, 41, 46, 47],
-    [36, 37, 42, 43],
-    [36, 5, 42, 43],
-    [12, 17, 18, 23],
-    [12, 13, 42, 43],
-    [36, 41, 42, 47],
-    [16, 17, 46, 47],
-    [12, 17, 42, 47],
-    [0, 1, 6, 7],
-];
+impl Tilemap {
+    #[allow(unused_variables, unused_assignments)]
+    async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<Textures, String> {
+        // Load the map.
+        let tileset_name;
+        let autotile_names;
+
+        let event_names: Vec<_>;
+
+        let fog_name;
+        let fog_hue;
+        let fog_zoom;
+
+        let pano_name;
+        let pano_hue;
+
+        // We get all the variables we need from here so we don't borrow the refcell across an await.
+        // This could be done with a RwLock or a Mutex but this is more practical.
+        // We do have to clone variables but this is negligble compared to the alternative.
+        {
+            let map = info.data_cache.load_map(&info.filesystem, id).await?;
+            // Get tilesets.
+            let tilesets = info.data_cache.tilesets();
+
+            // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+            let tileset = &tilesets
+                .as_ref()
+                .ok_or_else(|| "Tilesets not loaded".to_string())?[map.tileset_id as usize - 1];
+
+            tileset_name = tileset.tileset_name.clone();
+            autotile_names = tileset.autotile_names.clone();
+
+            event_names = map
+                .events
+                .values()
+                .map(|e| {
+                    (
+                        e.pages[0].graphic.character_name.clone(),
+                        e.pages[0].graphic.character_hue,
+                    )
+                })
+                .collect();
+
+            fog_name = tileset.fog_name.clone();
+            fog_hue = tileset.fog_hue;
+            fog_zoom = tileset.fog_zoom;
+
+            pano_name = tileset.panorama_name.clone();
+            pano_hue = tileset.panorama_hue;
+        }
+
+        // Load tileset textures.
+        let tileset_tex =
+            load_image_software(format!("Graphics/Tilesets/{}", tileset_name), info).await?;
+
+        // Create an async iter over the autotile textures.
+        let autotile_texs_iter = autotile_names.iter().map(|str| async move {
+            load_image_software(format!("Graphics/Autotiles/{}", str), info)
+                .await
+                .ok()
+        });
+
+        // Await all the futures.
+        let autotile_texs = futures::future::join_all(autotile_texs_iter).await;
+
+        // Similar deal as to the autotiles.
+        let event_texs_iter = event_names.iter().map(|(char_name, hue)| async move {
+            (
+                (char_name.clone(), *hue),
+                load_image_software(format!("Graphics/Characters/{}", char_name), info)
+                    .await
+                    .ok(),
+            )
+        });
+
+        // Unfortunately since join_all produces a vec, we need to convert it to a hashmap.
+        let event_texs: HashMap<_, _> = futures::future::join_all(event_texs_iter)
+            .await
+            .into_iter()
+            .collect();
+
+        // These two are pretty simple.
+        let fog_tex = load_image_software(format!("Graphics/Fogs/{}", fog_name), info)
+            .await
+            .ok();
+
+        let pano_tex = load_image_software(format!("Graphics/Panoramas/{}", pano_name), info)
+            .await
+            .ok();
+
+        // Finally create and return the struct.
+        Ok(Textures {
+            autotile_texs,
+            tileset_tex,
+            event_texs,
+            fog_tex,
+            fog_zoom,
+            pano_tex,
+        })
+    }
+}

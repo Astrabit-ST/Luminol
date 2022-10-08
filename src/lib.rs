@@ -34,7 +34,36 @@ mod components {
     pub mod toolbar;
     pub mod top_bar;
 
-    pub mod tilemap;
+    pub mod tilemap {
+        use crate::{data::rmxp_structs::rpg, UpdateInfo};
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "generic-tilemap")] {
+                mod generic_tilemap;
+                pub use generic_tilemap::Tilemap;
+            } else {
+                mod hardware_tilemap;
+                pub use hardware_tilemap::Tilemap;
+            }
+        }
+
+        pub trait TilemapDef {
+            fn new(info: &'static UpdateInfo, id: i32) -> Self;
+
+            fn ui(
+                &mut self,
+                ui: &mut egui::Ui,
+                map: &rpg::Map,
+                cursor_pos: &mut egui::Pos2,
+                toggled_layers: &[bool],
+                selected_layer: usize,
+            ) -> egui::Response;
+
+            fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
+
+            fn textures_loaded(&self) -> bool;
+        }
+    }
 }
 
 mod tabs {
