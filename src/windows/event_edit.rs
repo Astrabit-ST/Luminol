@@ -280,15 +280,15 @@ impl Window for EventEdit {
                                         let uv = egui::Rect::from_min_size(
                                             egui::pos2(cx, cy),
                                             egui::vec2(
-                                                cw as f32 / tex.width() as f32,
-                                                ch as f32 / tex.height() as f32,
+                                                cw / tex.width() as f32,
+                                                ch / tex.height() as f32,
                                             ),
                                         );
 
                                         ui.add(
                                             egui::ImageButton::new(
                                                 tex.texture_id(ui.ctx()),
-                                                egui::vec2(cw as f32, ch as f32),
+                                                egui::vec2(cw, ch),
                                             )
                                             .uv(uv),
                                         )

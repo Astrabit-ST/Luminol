@@ -168,8 +168,8 @@ impl TilemapDef for Tilemap {
             let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
                 + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
             // Force the cursor to a tile instead of in-between
-            pos_tile.x = pos_tile.x.floor().max(0.0).min(map.width as f32 - 1.);
-            pos_tile.y = pos_tile.y.floor().max(0.0).min(map.height as f32 - 1.);
+            pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
+            pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
             // Handle input
             if selected_layer < map.data.len_of(Axis(0)) || response.clicked() {
                 *cursor_pos = pos_tile.to_pos2();
@@ -205,7 +205,7 @@ impl TilemapDef for Tilemap {
         let width2 = map.width as f32 / 2.;
         let height2 = map.height as f32 / 2.;
 
-        let pos = egui::Vec2::new(width2 * tile_size, height2 as f32 * tile_size);
+        let pos = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
         let map_rect = egui::Rect {
             min: canvas_pos - pos,
             max: canvas_pos + pos,
