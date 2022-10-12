@@ -23,6 +23,7 @@ mod audio;
 
 mod windows {
     pub mod about;
+    pub mod event_edit;
     pub mod map_picker;
     pub mod misc;
     pub mod sound_test;

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// **A struct representing an RGBA color.**
 ///
 /// Used all over the place in RGSS.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Color {
     red: f32,
     green: f32,
@@ -28,7 +28,7 @@ impl Default for Color {
 /// **A struct representing an offset to an RGBA color.**
 ///
 /// Its members are f32 but must not exceed the range of 255..-255.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct Tone {
     red: f32,
     green: f32,

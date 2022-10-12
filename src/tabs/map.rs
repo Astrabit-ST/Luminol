@@ -23,6 +23,7 @@ use std::{cell::RefMut, collections::HashMap};
 use crate::{
     components::tilemap::{Tilemap, TilemapDef},
     data::rmxp_structs::rpg,
+    windows::{event_edit::EventEdit, window::Windows},
     UpdateInfo,
 };
 
@@ -34,6 +35,7 @@ pub struct Map {
     pub cursor_pos: Pos2,
     pub tilemap: Tilemap,
     pub selected_tile: i16,
+    event_windows: Windows,
 }
 
 impl Map {
@@ -46,6 +48,7 @@ impl Map {
             cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(info, id),
             selected_tile: 0,
+            event_windows: Default::default(),
         })
     }
 }
@@ -61,6 +64,8 @@ impl super::tab::Tab for Map {
         if self.tilemap.textures_loaded() {
             // Get the map.
             let mut map = info.data_cache.get_map(self.id);
+            let tileset = info.data_cache.tilesets();
+            let tileset = &tileset.as_ref().unwrap()[map.tileset_id as usize - 1];
 
             // If there are no toggled layers (i.e we just loaded the map)
             // then fill up the vector with `true`;
@@ -144,13 +149,29 @@ impl super::tab::Tab for Map {
                     );
 
                     let layers_max = map.data.len_of(Axis(0));
+                    let map_x = self.cursor_pos.x as i32;
+                    let map_y = self.cursor_pos.y as i32;
+
                     if response.dragged()
                         && self.selected_layer < layers_max
                         && !ui.input().modifiers.command
                     {
-                        let map_x = self.cursor_pos.x as usize;
-                        let map_y = self.cursor_pos.y as usize;
-                        map.data[[self.selected_layer, map_y, map_x]] = self.selected_tile + 384;
+                        map.data[[self.selected_layer, map_y as usize, map_x as usize]] =
+                            self.selected_tile + 384;
+                    } else if response.double_clicked() && self.selected_layer >= layers_max {
+                        if let Some((id, event)) = map
+                            .events
+                            .iter()
+                            .find(|(id, event)| event.x == map_x && event.y == map_y)
+                        {
+                            self.event_windows.add_window(EventEdit::new(
+                                *id,
+                                self.id,
+                                event.clone(),
+                                tileset.tileset_name.clone(),
+                                info,
+                            ));
+                        }
                     }
                 })
             });
@@ -160,6 +181,8 @@ impl super::tab::Tab for Map {
                 ui.spinner();
             });
         }
+
+        self.event_windows.update(ui.ctx(), info);
     }
 
     #[cfg(feature = "discord-rpc")]

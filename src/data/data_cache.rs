@@ -29,6 +29,7 @@ use crate::filesystem::Filesystem;
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
 pub struct DataCache {
+    system: RefCell<Option<rpg::system::System>>,
     tilesets: RefCell<Option<Vec<rpg::Tileset>>>,
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
     maps: RefCell<HashMap<i32, rpg::Map>>,
@@ -36,6 +37,13 @@ pub struct DataCache {
 
 impl DataCache {
     pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
+        *self.system.borrow_mut() = Some(
+            filesystem
+                .read_data("System.ron")
+                .await
+                .map_err(|s| format!("Failed to read System: {}", s))?,
+        );
+
         *self.mapinfos.borrow_mut() = Some(
             filesystem
                 .read_data("MapInfos.ron")
@@ -82,6 +90,10 @@ impl DataCache {
 
     pub fn tilesets(&self) -> RefMut<'_, Option<Vec<rpg::Tileset>>> {
         self.tilesets.borrow_mut()
+    }
+
+    pub fn system(&self) -> RefMut<'_, Option<rpg::system::System>> {
+        self.system.borrow_mut()
     }
 
     pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {

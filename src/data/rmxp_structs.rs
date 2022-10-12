@@ -33,27 +33,27 @@ pub mod rpg {
     }
 
     // FIXME: Use something else instead of modules to group structs like this.
-    mod event {
+    pub mod event {
         use serde::{Deserialize, Serialize};
         mod page {
             use crate::data::rmxp_structs::rpg::EventCommand;
             use crate::data::rmxp_structs::rpg::MoveRoute;
             use serde::{Deserialize, Serialize};
 
-            #[derive(Default, Debug, Deserialize, Serialize)]
+            #[derive(Default, Debug, Deserialize, Serialize, Clone)]
             pub struct Condition {
                 pub switch1_valid: bool,
                 pub switch2_valid: bool,
                 pub variable_valid: bool,
                 pub self_switch_valid: bool,
-                pub switch1_id: i32,
-                pub switch2_id: i32,
-                pub variable_id: i32,
-                pub variable_value: i32,
+                pub switch1_id: usize,
+                pub switch2_id: usize,
+                pub variable_id: usize,
+                pub variable_value: usize,
                 pub self_switch_ch: String,
             }
 
-            #[derive(Default, Debug, Deserialize, Serialize)]
+            #[derive(Default, Debug, Deserialize, Serialize, Clone)]
             pub struct Graphic {
                 pub tile_id: i32,
                 pub character_name: String,
@@ -64,13 +64,13 @@ pub mod rpg {
                 pub blend_type: i32,
             }
 
-            #[derive(Default, Debug, Deserialize, Serialize)]
+            #[derive(Default, Debug, Deserialize, Serialize, Clone)]
             pub struct Page {
                 pub condition: Condition,
                 pub graphic: Graphic,
-                pub move_type: i32,
-                pub move_speed: i32,
-                pub move_frequency: i32,
+                pub move_type: usize,
+                pub move_speed: usize,
+                pub move_frequency: usize,
                 pub move_route: MoveRoute,
                 pub walk_anime: bool,
                 pub step_anime: bool,
@@ -82,7 +82,7 @@ pub mod rpg {
             }
         }
 
-        #[derive(Default, Debug, Deserialize, Serialize)]
+        #[derive(Default, Debug, Deserialize, Serialize, Clone)]
         pub struct Event {
             pub id: i32,
             pub name: String,
@@ -97,7 +97,7 @@ pub mod rpg {
     // This would be better for serialization, performance, and readability.
     // For now I'm not messing with the RMXP data format, but I will eventually.
     // TODO: I'd like to add a custom *.lumina format in the future that is built from the ground up. No more rmxp garbage.
-    #[derive(Debug, Deserialize, Serialize)]
+    #[derive(Debug, Deserialize, Serialize, Clone)]
     pub enum ParameterType {
         Integer(i32),
         String(String),
@@ -112,19 +112,19 @@ pub mod rpg {
         FalseClass(bool),
     }
 
-    #[derive(Default, Debug, Deserialize, Serialize)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct EventCommand {
         pub code: i32,
         pub indent: i32,
         pub parameters: Vec<ParameterType>,
     }
-    #[derive(Default, Debug, Deserialize, Serialize)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct MoveRoute {
         pub repeat: bool,
         pub skippable: bool,
         pub list: Vec<MoveCommand>,
     }
-    #[derive(Default, Debug, Deserialize, Serialize)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct MoveCommand {
         pub code: i32,
         pub parameters: Vec<ParameterType>,
@@ -509,45 +509,45 @@ pub mod rpg {
 
         #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct System {
-            magic_number: i32,
-            party_members: Vec<i32>,
-            elements: Vec<String>,
-            switches: Vec<String>,
-            variables: Vec<String>,
-            windowskin_name: String,
-            title_name: String,
-            gameover_name: String,
-            battle_transition: String,
-            title_bgm: AudioFile,
-            battle_bgm: AudioFile,
-            battle_end_me: AudioFile,
-            gameover_me: AudioFile,
-            cursor_se: AudioFile,
-            decision_se: AudioFile,
-            cancel_se: AudioFile,
-            buzzer_se: AudioFile,
-            equip_se: AudioFile,
-            shop_se: AudioFile,
-            save_se: AudioFile,
-            load_se: AudioFile,
-            battle_start_se: AudioFile,
-            escape_se: AudioFile,
-            actor_collapse_se: AudioFile,
-            enemy_collapse_se: AudioFile,
-            words: Words,
-            test_battlers: Vec<TestBattler>,
-            test_troop_id: i32,
-            start_map_id: i32,
-            start_x: i32,
-            start_y: i32,
-            battleback_name: String,
-            battler_name: String,
-            battler_hue: i32,
-            edit_map_id: i32,
+            pub magic_number: i32,
+            pub party_members: Vec<i32>,
+            pub elements: Vec<String>,
+            pub switches: Vec<String>,
+            pub variables: Vec<String>,
+            pub windowskin_name: String,
+            pub title_name: String,
+            pub gameover_name: String,
+            pub battle_transition: String,
+            pub title_bgm: AudioFile,
+            pub battle_bgm: AudioFile,
+            pub battle_end_me: AudioFile,
+            pub gameover_me: AudioFile,
+            pub cursor_se: AudioFile,
+            pub decision_se: AudioFile,
+            pub cancel_se: AudioFile,
+            pub buzzer_se: AudioFile,
+            pub equip_se: AudioFile,
+            pub shop_se: AudioFile,
+            pub save_se: AudioFile,
+            pub load_se: AudioFile,
+            pub battle_start_se: AudioFile,
+            pub escape_se: AudioFile,
+            pub actor_collapse_se: AudioFile,
+            pub enemy_collapse_se: AudioFile,
+            pub words: Words,
+            pub test_battlers: Vec<TestBattler>,
+            pub test_troop_id: i32,
+            pub start_map_id: i32,
+            pub start_x: i32,
+            pub start_y: i32,
+            pub battleback_name: String,
+            pub battler_name: String,
+            pub battler_hue: i32,
+            pub edit_map_id: i32,
         }
     }
 
-    #[derive(Default, Debug, Deserialize, Serialize)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct AudioFile {
         name: String,
         volume: u8,
