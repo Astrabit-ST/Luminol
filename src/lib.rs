@@ -147,7 +147,7 @@ pub async fn load_image_software(
 pub async fn load_image_hardware(
     path: String,
     info: &'static UpdateInfo,
-) -> Result<glow::NativeTexture, String> {
+) -> Result<glow::Texture, String> {
     use glow::HasContext;
 
     let image =

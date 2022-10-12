@@ -315,14 +315,14 @@ impl Window for EventEdit {
                                             format!("event_{}_{}_move_type", self.id, self.map_id),
                                             "Type",
                                         )
-                                        .selected_text(move_types[page.move_type - 1])
+                                        .selected_text(move_types[page.move_type])
                                         .show_ui(
                                             ui,
                                             |ui| {
                                                 for (id, name) in move_types.iter().enumerate() {
                                                     ui.selectable_value(
                                                         &mut page.move_type,
-                                                        id + 1,
+                                                        id,
                                                         *name,
                                                     );
                                                 }
@@ -337,14 +337,14 @@ impl Window for EventEdit {
                                             format!("event_{}_{}_move_speed", self.id, self.map_id),
                                             "Speed",
                                         )
-                                        .selected_text(move_speeds[page.move_speed - 1])
+                                        .selected_text(move_speeds[page.move_speed])
                                         .show_ui(
                                             ui,
                                             |ui| {
                                                 for (id, name) in move_speeds.iter().enumerate() {
                                                     ui.selectable_value(
                                                         &mut page.move_speed,
-                                                        id + 1,
+                                                        id,
                                                         *name,
                                                     );
                                                 }
@@ -355,14 +355,14 @@ impl Window for EventEdit {
                                             format!("event_{}_{}_move_freq", self.id, self.map_id),
                                             "Frequency",
                                         )
-                                        .selected_text(move_freqs[page.move_frequency - 1])
+                                        .selected_text(move_freqs[page.move_frequency])
                                         .show_ui(
                                             ui,
                                             |ui| {
                                                 for (id, name) in move_freqs.iter().enumerate() {
                                                     ui.selectable_value(
                                                         &mut page.move_frequency,
-                                                        id + 1,
+                                                        id,
                                                         *name,
                                                     );
                                                 }
