@@ -30,6 +30,12 @@ mod windows {
     pub mod window;
 }
 
+mod modals {
+    pub mod modal;
+    pub mod switch;
+    pub mod variable;
+}
+
 mod components {
     pub mod toasts;
     pub mod toolbar;

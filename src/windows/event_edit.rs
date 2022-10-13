@@ -1,8 +1,28 @@
+// Copyright (C) 2022 Lily Lyons
+//
+// This file is part of Luminol.
+//
+// Luminol is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Luminol is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
 use super::window::Window;
 use crate::data::rmxp_structs::rpg;
+use crate::modals::modal::Modal;
+use crate::modals::switch::SwitchModal;
+use crate::modals::variable::VariableModal;
 use crate::{load_image_software, UpdateInfo};
 
 pub struct EventEdit {
@@ -11,9 +31,8 @@ pub struct EventEdit {
     selected_page: usize,
     event: rpg::event::Event,
     page_graphics_promise: Promise<(Vec<Option<RetainedImage>>, RetainedImage)>,
+    modals: (bool, bool, bool),
 }
-
-// TODO: Use egui-modal
 
 impl EventEdit {
     pub fn new(
@@ -44,6 +63,7 @@ impl EventEdit {
                         .unwrap(),
                 )
             }),
+            modals: (false, false, false),
         }
     }
 }
@@ -58,8 +78,6 @@ impl Window for EventEdit {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         let mut win_open = true;
-        let system = info.data_cache.system();
-        let system = system.as_ref().unwrap();
 
         egui::Window::new(self.name())
             .id(egui::Id::new(format!("event_{}_{}", self.id, self.map_id)))
@@ -81,7 +99,12 @@ impl Window for EventEdit {
 
                     ui.horizontal(|ui| {
                         for (page, _) in self.event.pages.iter().enumerate() {
-                            ui.selectable_value(&mut self.selected_page, page, page.to_string());
+                            if ui
+                                .selectable_value(&mut self.selected_page, page, page.to_string())
+                                .clicked()
+                            {
+                                self.modals = (false, false, false)
+                            }
                         }
                     });
 
@@ -91,40 +114,19 @@ impl Window for EventEdit {
                             ui.label("Condition");
                             ui.group(|ui| {
                                 ui.horizontal(|ui| {
-                                    // FIXME: Stop using comboboxes and use modals
                                     ui.checkbox(&mut page.condition.switch1_valid, "Switch");
 
                                     ui.add_enabled_ui(page.condition.switch1_valid, |ui| {
-                                        egui::ComboBox::new(
-                                            format!(
-                                                "event_{}_{}_switch_1_combo",
-                                                self.id, self.map_id
-                                            ),
-                                            "is on",
-                                        )
-                                        .selected_text(&system.switches[page.condition.switch1_id])
-                                        .show_ui(
+                                        SwitchModal::new(format!(
+                                            "event_{}_{}_switch1",
+                                            self.id, self.map_id
+                                        ))
+                                        .button(
                                             ui,
-                                            |ui| {
-                                                egui::ScrollArea::vertical().show_rows(
-                                                    ui,
-                                                    ui.text_style_height(&egui::TextStyle::Body),
-                                                    system.switches.len(),
-                                                    |ui, rows| {
-                                                        for id in rows {
-                                                            ui.selectable_value(
-                                                                &mut page.condition.switch1_id,
-                                                                id,
-                                                                format!(
-                                                                    "'{}': {}",
-                                                                    system.switches[id], id
-                                                                ),
-                                                            );
-                                                        }
-                                                    },
-                                                )
-                                            },
-                                        )
+                                            &mut self.modals.0,
+                                            &mut page.condition.switch1_id,
+                                            info,
+                                        );
                                     });
                                 });
 
@@ -132,36 +134,16 @@ impl Window for EventEdit {
                                     ui.checkbox(&mut page.condition.switch2_valid, "Switch");
 
                                     ui.add_enabled_ui(page.condition.switch2_valid, |ui| {
-                                        egui::ComboBox::new(
-                                            format!(
-                                                "event_{}_{}_switch_2_combo",
-                                                self.id, self.map_id
-                                            ),
-                                            "is on",
-                                        )
-                                        .selected_text(&system.switches[page.condition.switch2_id])
-                                        .show_ui(
+                                        SwitchModal::new(format!(
+                                            "event_{}_{}_switch2",
+                                            self.id, self.map_id
+                                        ))
+                                        .button(
                                             ui,
-                                            |ui| {
-                                                egui::ScrollArea::vertical().show_rows(
-                                                    ui,
-                                                    ui.text_style_height(&egui::TextStyle::Body),
-                                                    system.switches.len(),
-                                                    |ui, rows| {
-                                                        for id in rows {
-                                                            ui.selectable_value(
-                                                                &mut page.condition.switch2_id,
-                                                                id,
-                                                                format!(
-                                                                    "'{}': {}",
-                                                                    system.switches[id], id
-                                                                ),
-                                                            );
-                                                        }
-                                                    },
-                                                )
-                                            },
-                                        )
+                                            &mut self.modals.1,
+                                            &mut page.condition.switch2_id,
+                                            info,
+                                        );
                                     });
                                 });
 
@@ -169,38 +151,16 @@ impl Window for EventEdit {
                                     ui.checkbox(&mut page.condition.variable_valid, "Variable");
 
                                     ui.add_enabled_ui(page.condition.variable_valid, |ui| {
-                                        egui::ComboBox::new(
-                                            format!(
-                                                "event_{}_{}_variable_combo",
-                                                self.id, self.map_id
-                                            ),
-                                            "is",
-                                        )
-                                        .selected_text(
-                                            &system.variables[page.condition.variable_id],
-                                        )
-                                        .show_ui(
+                                        VariableModal::new(format!(
+                                            "event_{}_{}_variable",
+                                            self.id, self.map_id
+                                        ))
+                                        .button(
                                             ui,
-                                            |ui| {
-                                                egui::ScrollArea::vertical().show_rows(
-                                                    ui,
-                                                    ui.text_style_height(&egui::TextStyle::Body),
-                                                    system.variables.len(),
-                                                    |ui, rows| {
-                                                        for id in rows {
-                                                            ui.selectable_value(
-                                                                &mut page.condition.variable_id,
-                                                                id,
-                                                                format!(
-                                                                    "'{}': {}",
-                                                                    system.variables[id], id
-                                                                ),
-                                                            );
-                                                        }
-                                                    },
-                                                )
-                                            },
-                                        )
+                                            &mut self.modals.2,
+                                            &mut page.condition.variable_id,
+                                            info,
+                                        );
                                     });
 
                                     ui.add_enabled(
@@ -297,7 +257,7 @@ impl Window for EventEdit {
                                     }
                                     .clicked()
                                     {
-                                        // TODO: Use modals and add an image picker
+                                        // TODO: Use modals for an image picker
                                     }
                                 });
 
