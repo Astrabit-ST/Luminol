@@ -38,6 +38,9 @@ pub struct Tone {
 
 /// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust.
 /// We don't particularly need dynamically sized arrays anyway.
+/// 1D Table.
 pub type Table1 = Array1<i16>;
+/// 2D Table.
 pub type Table2 = Array2<i16>;
+/// 3D table.
 pub type Table3 = Array3<i16>;

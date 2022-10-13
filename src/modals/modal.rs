@@ -17,19 +17,22 @@
 
 use crate::UpdateInfo;
 
-/// A basic trait describind a modal that edits some value.
+/// A basic trait describing a modal that edits some value.
 /// Modals can be open and will set their open state.
 /// They should (generally) respect the open bool passed to them and only show if it is true.
+///
+/// Modals are not persistent (unlike windows) and are not stored on the heap.
+/// They are stored on the stack and the stack *only*.
 // TODO: Make more featureful and general
 pub trait Modal {
-    // The output type for this modal.
+    /// The output type for this modal.
     type Data;
 
-    // Set the modal Id
+    /// Set the modal Id
     fn id(self, id: egui::Id) -> Self;
 
-    // Display a button to show this modal.
-    // It should call show.
+    /// Display a button to show this modal.
+    /// It should call show.
     fn button(
         self,
         ui: &mut egui::Ui,
@@ -38,7 +41,7 @@ pub trait Modal {
         info: &'static UpdateInfo,
     ) -> Self;
 
-    // Show this modal.
+    /// Show this modal.
     fn show(
         &mut self,
         ctx: &egui::Context,

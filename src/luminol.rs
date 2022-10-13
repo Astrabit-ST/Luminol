@@ -20,6 +20,7 @@ use crate::{
     UpdateInfo,
 };
 
+/// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
     toolbar: Toolbar,

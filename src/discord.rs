@@ -20,6 +20,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+/// A struct encapsulating the Discord client.
 pub struct DiscordClient {
     discord: Rc<discord_sdk::Discord>,
     activity_promise: Option<poll_promise::Promise<Instant>>,
@@ -49,6 +50,7 @@ impl Default for DiscordClient {
 }
 
 impl DiscordClient {
+    /// Update the client. (Changes status, etc)
     pub fn update(&mut self, detail_text: String, project_name: Option<String>) {
         let discord = self.discord.clone();
         let start_time = self.start_time;

@@ -1,4 +1,12 @@
+//! Luminol is a supercharged FOSS version of the RPG Maker XP editor.
+//!
+//! Authors:
+//!     Lily Madeline Lyons <lily@nowaffles.com>
+//!     Egor Poleshko <somedevfox@gmail.com>
+//!
+
 #![warn(clippy::all, rust_2018_idioms)]
+#![warn(missing_docs)]
 // Copyright (C) 2022 Lily Lyons
 //
 // This file is part of Luminol.
@@ -17,30 +25,48 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![feature(drain_filter)]
 
-mod luminol;
+/// The main Luminol application.
+pub mod luminol;
 
-mod audio;
+/// Audio related structs and funtions.
+pub mod audio;
 
-mod windows {
+/// Floating windows to be displayed anywhere.
+pub mod windows {
+    /// The about window.
     pub mod about;
+    /// The event editor.
     pub mod event_edit;
+    /// The map picker.
     pub mod map_picker;
+    /// Misc windows.
     pub mod misc;
+    /// The sound test.
     pub mod sound_test;
+    /// Traits and structs related to windows.
     pub mod window;
 }
 
-mod modals {
+/// Stack defined windows that edit values.
+pub mod modals {
+    /// Traits related to modals.
     pub mod modal;
+    /// The switch picker.
     pub mod switch;
+    /// The variable picker.
     pub mod variable;
 }
 
-mod components {
+/// Various UI components used throughout Luminol.
+pub mod components {
+    /// Toasts to be displayed for errors, information, etc.
     pub mod toasts;
+    /// The toolbar for changing tools used when editing maps.
     pub mod toolbar;
+    /// The toolbar for managing the project.
     pub mod top_bar;
 
+    /// The tilemap.
     pub mod tilemap {
         use crate::{data::rmxp_structs::rpg, UpdateInfo};
 
@@ -54,9 +80,12 @@ mod components {
             }
         }
 
+        /// A trait defining how a tilemap should function.
         pub trait TilemapDef {
+            /// Create a new tilemap.
             fn new(info: &'static UpdateInfo, id: i32) -> Self;
 
+            /// Display the tilemap.
             fn ui(
                 &mut self,
                 ui: &mut egui::Ui,
@@ -66,26 +95,38 @@ mod components {
                 selected_layer: usize,
             ) -> egui::Response;
 
+            /// Display the tile picker.
             fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
 
+            /// Check if the textures are loaded yet.
             fn textures_loaded(&self) -> bool;
         }
     }
 }
 
-mod tabs {
+/// Tabs to be displayed in the center of Luminol.
+pub mod tabs {
+    /// The map editor.
     pub mod map;
+    /// The getting started screen.
     pub mod started;
+    /// Traits and structs related to tabs.
     pub mod tab;
 }
 
-mod data {
+/// Structs related to Luminol's internal data.
+pub mod data {
+    /// The data cache, used to store things before writing them to the disk.
     pub mod data_cache;
+    /// RGSS structs.
     pub mod rgss_structs;
+    /// RMXP structs.
     pub mod rmxp_structs;
 }
 
-mod filesystem {
+/// Filesystem related structs.
+/// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
+pub mod filesystem {
     cfg_if::cfg_if! {
         if #[cfg(not(target_arch = "wasm32"))] {
             mod filesystem_native;
@@ -98,7 +139,8 @@ mod filesystem {
 }
 
 #[cfg(feature = "discord-rpc")]
-mod discord;
+/// Discord RPC related structs.
+pub mod discord;
 
 use std::sync::Arc;
 
@@ -116,16 +158,24 @@ use crate::filesystem::Filesystem;
 
 /// Passed to windows and widgets when updating.
 pub struct UpdateInfo {
+    /// Filesystem to be passed around.
     pub filesystem: Filesystem,
+    /// The data cache.
     pub data_cache: DataCache,
+    /// Windows that are displayed.
     pub windows: windows::window::Windows,
+    /// Tabs that are displayed.
     pub tabs: tabs::tab::Tabs,
+    /// Audio that's played.
     pub audio: audio::Audio,
+    /// Toasts to be displayed.
     pub toasts: Toasts,
+    /// The gl context.
     pub gl: Arc<glow::Context>,
 }
 
 impl UpdateInfo {
+    /// Create a new UpdateInfo.
     pub fn new(gl: Arc<glow::Context>) -> Self {
         Self {
             filesystem: Default::default(),
@@ -139,6 +189,7 @@ impl UpdateInfo {
     }
 }
 
+/// Load a RetainedImage from disk.
 pub async fn load_image_software(
     path: String,
     info: &'static UpdateInfo,
@@ -150,6 +201,7 @@ pub async fn load_image_software(
     .map(|i| i.with_texture_filter(TextureFilter::Nearest))
 }
 
+/// Load a gl texture from disk.
 pub async fn load_image_hardware(
     path: String,
     info: &'static UpdateInfo,

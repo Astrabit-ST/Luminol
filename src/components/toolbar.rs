@@ -20,18 +20,22 @@ use strum::Display;
 use strum::EnumIter;
 use strum::IntoEnumIterator;
 
+/// A toolbar for map editing controls.
 #[derive(Default)]
 pub struct Toolbar {
     state: ToolbarState,
 }
 
+/// The state of the toolbar.
 // TODO: Move to UpdateInfo
 #[derive(Default)]
 pub struct ToolbarState {
+    /// The currently selected pencil.
     pub pencil: Pencil,
 }
 
 #[derive(Default, EnumIter, Display, PartialEq, Eq, Clone, Copy)]
+#[allow(missing_docs)]
 pub enum Pencil {
     #[default]
     Pen,
@@ -41,6 +45,7 @@ pub enum Pencil {
 }
 
 impl Toolbar {
+    /// Display this toolbar.
     #[allow(unused_variables)]
     pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         for e in Pencil::iter() {

@@ -21,11 +21,13 @@ use crate::UpdateInfo;
 
 use super::modal::Modal;
 
+/// The variable picker modal.
 pub struct VariableModal {
     id: egui::Id,
 }
 
 impl VariableModal {
+    /// Create a new modal.
     pub fn new(id: impl Hash) -> Self {
         Self {
             id: egui::Id::new(id),

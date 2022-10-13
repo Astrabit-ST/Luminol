@@ -23,8 +23,8 @@ pub struct About {
     icon: egui_extras::RetainedImage,
 }
 
-impl About {
-    pub fn new() -> Self {
+impl Default for About {
+    fn default() -> Self {
         Self {
             // We load the icon here so it isn't loaded every frame. That would be bad if we did.
             // It would be better to load the image at compile time and only use one image instance

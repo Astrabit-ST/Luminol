@@ -17,13 +17,9 @@
 
 use super::window::Window;
 
+/// Egui settings window.
+#[derive(Default)]
 pub struct EguiSettings {}
-
-impl EguiSettings {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 impl Window for EguiSettings {
     fn name(&self) -> String {
@@ -37,13 +33,9 @@ impl Window for EguiSettings {
     }
 }
 
+/// Egui inspection window.
+#[derive(Default)]
 pub struct EguiInspection {}
-
-impl EguiInspection {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 impl Window for EguiInspection {
     fn name(&self) -> String {
@@ -57,13 +49,9 @@ impl Window for EguiInspection {
     }
 }
 
+/// Egui memory display.
+#[derive(Default)]
 pub struct EguiMemory {}
-
-impl EguiMemory {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 impl Window for EguiMemory {
     fn name(&self) -> String {

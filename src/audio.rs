@@ -25,6 +25,7 @@ use strum::EnumIter;
 /// Different sound sources.
 #[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy, Hash)]
 #[allow(clippy::upper_case_acronyms)]
+#[allow(missing_docs)]
 pub enum Source {
     BGM,
     BGS,
@@ -32,6 +33,7 @@ pub enum Source {
     SE,
 }
 
+/// A struct for playing Audio.
 pub struct Audio {
     inner: RefCell<Inner>,
 }
@@ -55,6 +57,7 @@ impl Default for Audio {
 }
 
 impl Audio {
+    /// Play a sound on a source.
     pub async fn play(
         &self,
         filesystem: &'static crate::filesystem::Filesystem,
@@ -96,6 +99,7 @@ impl Audio {
         Ok(())
     }
 
+    /// Set the pitch of a source.
     pub fn set_pitch(&self, pitch: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
         if let Some(s) = inner.sinks.get_mut(source) {
@@ -103,6 +107,7 @@ impl Audio {
         }
     }
 
+    /// Set the volume of a source.
     pub fn set_volume(&self, volume: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
         if let Some(s) = inner.sinks.get_mut(source) {
@@ -110,6 +115,7 @@ impl Audio {
         }
     }
 
+    /// Stop a source.
     pub fn stop(&self, source: &Source) {
         let mut inner = self.inner.borrow_mut();
         if let Some(s) = inner.sinks.get_mut(source) {

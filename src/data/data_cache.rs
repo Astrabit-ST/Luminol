@@ -36,6 +36,7 @@ pub struct DataCache {
 }
 
 impl DataCache {
+    /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
         *self.system.borrow_mut() = Some(
             filesystem
@@ -62,6 +63,7 @@ impl DataCache {
         Ok(())
     }
 
+    /// Load a map.
     pub async fn load_map(
         &self,
         filesystem: &'static Filesystem,
@@ -80,22 +82,30 @@ impl DataCache {
         }))
     }
 
+    /// Get a map that has been loaded. This function is not async unlike [`Self::load_map`].
+    /// #Panics
+    /// Will panic iftthe map has not been loaded already.
     pub fn get_map(&self, id: i32) -> RefMut<'_, rpg::Map> {
         RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
     }
 
+    /// Get MapInfos.
     pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
         self.mapinfos.borrow_mut()
     }
 
+    /// Get Tilesets.
     pub fn tilesets(&self) -> RefMut<'_, Option<Vec<rpg::Tileset>>> {
         self.tilesets.borrow_mut()
     }
 
+    /// Get system.
     pub fn system(&self) -> RefMut<'_, Option<rpg::system::System>> {
         self.system.borrow_mut()
     }
 
+    /// Save all cached data to disk.
+    /// Will flush the cache too.
     pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
         // Write map data and clear map cache.
         // We serialize all of these first before writing them to the disk to avoid bringing a refcell across an await.

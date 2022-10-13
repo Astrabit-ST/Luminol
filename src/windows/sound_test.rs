@@ -25,6 +25,7 @@ use crate::UpdateInfo;
 /// Optionally can be in 'picker' mode to pick a sound effect.
 pub struct SoundTab {
     picker: bool,
+    /// The source for this tab.
     pub source: Source,
     volume: u8,
     pitch: u8,
@@ -34,6 +35,7 @@ pub struct SoundTab {
 }
 
 impl SoundTab {
+    /// Create a new SoundTab
     pub fn new(source: Source, info: &'static UpdateInfo, picker: bool) -> Self {
         Self {
             picker,
@@ -51,6 +53,7 @@ impl SoundTab {
         }
     }
 
+    /// Display this SoundTab.
     pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         egui::SidePanel::right("sound_tab_controls")
             .resizable(false)
@@ -175,6 +178,7 @@ pub struct SoundTest {
 }
 
 impl SoundTest {
+    /// Create a new sound test window.
     pub fn new(info: &'static UpdateInfo) -> Self {
         Self {
             // Create all sources.

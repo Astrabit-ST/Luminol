@@ -1,6 +1,6 @@
 [package]
 name = "luminol"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Lily Lyons <lily@nowaffles.com>",
     "Egor Poleshko <somedevfox@gmail.com>",

@@ -18,6 +18,8 @@
 use poll_promise::Promise;
 
 use crate::UpdateInfo;
+
+/// The top bar for managing the project.
 #[derive(Default)]
 pub struct TopBar {
     open_project_promise: Option<Promise<Result<(), String>>>,
@@ -25,6 +27,7 @@ pub struct TopBar {
 }
 
 impl TopBar {
+    /// Display the top bar.
     #[allow(unused_variables)]
     pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
         egui::widgets::global_dark_light_mode_switch(ui);
@@ -90,7 +93,7 @@ impl TopBar {
 
             if ui.button("Egui Settings").clicked() {
                 info.windows
-                    .add_window(crate::windows::misc::EguiSettings::new())
+                    .add_window(crate::windows::misc::EguiSettings::default())
             }
         });
 
@@ -99,7 +102,7 @@ impl TopBar {
         ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
             if ui.button("Maps").clicked() {
                 info.windows
-                    .add_window(crate::windows::map_picker::MapPicker::new())
+                    .add_window(crate::windows::map_picker::MapPicker::default())
             }
 
             if ui.button("Sound Test").clicked() {
@@ -112,19 +115,20 @@ impl TopBar {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                info.windows.add_window(crate::windows::about::About::new());
+                info.windows
+                    .add_window(crate::windows::about::About::default());
             };
 
             ui.separator();
 
             if ui.button("Egui Inspection").clicked() {
                 info.windows
-                    .add_window(crate::windows::misc::EguiInspection::new())
+                    .add_window(crate::windows::misc::EguiInspection::default())
             }
 
             if ui.button("Egui Memory").clicked() {
                 info.windows
-                    .add_window(crate::windows::misc::EguiMemory::new())
+                    .add_window(crate::windows::misc::EguiMemory::default())
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();

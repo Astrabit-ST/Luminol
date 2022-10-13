@@ -20,7 +20,8 @@ use std::cell::RefCell;
 use super::started::Started;
 use crate::UpdateInfo;
 
-pub type Tree = egui_dock::Tree<Box<dyn Tab>>;
+/// The tree type;
+type Tree = egui_dock::Tree<Box<dyn Tab>>;
 
 /// Helper struct for tabs.
 pub struct Tabs {
@@ -37,6 +38,7 @@ impl Default for Tabs {
 }
 
 impl Tabs {
+    /// Display all tabs.
     pub fn ui(&self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
         ui.group(|ui| {
             egui_dock::DockArea::new(&mut self.tree.borrow_mut())
@@ -44,6 +46,7 @@ impl Tabs {
         });
     }
 
+    /// Add a tab.
     pub fn add_tab<T>(&self, tab: T)
     where
         T: Tab + 'static,
@@ -59,6 +62,7 @@ impl Tabs {
         tree.push_to_focused_leaf(Box::new(tab));
     }
 
+    /// Clean tabs by if they need the filesystem.
     pub fn clean_tabs(&self) {
         let mut tree = self.tree.borrow_mut();
         for node in tree.iter_mut() {
@@ -68,6 +72,7 @@ impl Tabs {
         }
     }
 
+    /// The discord rpc text to display.
     #[cfg(feature = "discord-rpc")]
     pub fn discord_display(&self) -> String {
         let mut tree = self.tree.borrow_mut();
@@ -79,7 +84,7 @@ impl Tabs {
     }
 }
 
-pub struct TabViewer {
+struct TabViewer {
     pub info: &'static UpdateInfo,
 }
 
@@ -95,15 +100,20 @@ impl egui_dock::TabViewer for TabViewer {
     }
 }
 
+/// A tab trait.
 pub trait Tab {
+    /// The name of the tab.
     fn name(&self) -> String;
 
+    /// Show this tab.
     fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo);
 
+    /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {
         false
     }
 
+    /// The discord rpc text to display for this tab.
     #[cfg(feature = "discord-rpc")]
     fn discord_display(&self) -> String {
         "Idling".to_string()

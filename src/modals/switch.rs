@@ -21,11 +21,13 @@ use crate::UpdateInfo;
 
 use super::modal::Modal;
 
+/// The switch picker modal.
 pub struct SwitchModal {
     id: egui::Id,
 }
 
 impl SwitchModal {
+    /// Create a new modal.
     pub fn new(id: impl Hash) -> Self {
         Self {
             id: egui::Id::new(id),

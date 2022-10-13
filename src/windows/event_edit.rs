@@ -25,6 +25,7 @@ use crate::modals::switch::SwitchModal;
 use crate::modals::variable::VariableModal;
 use crate::{load_image_software, UpdateInfo};
 
+/// The event editor window.
 pub struct EventEdit {
     id: i32,
     map_id: i32,
@@ -35,6 +36,7 @@ pub struct EventEdit {
 }
 
 impl EventEdit {
+    /// Create a new event editor.
     pub fn new(
         id: i32,
         map_id: i32,

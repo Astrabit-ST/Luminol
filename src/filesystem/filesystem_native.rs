@@ -28,18 +28,23 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
+    /// Unload the currently loaded project.
+    /// Does nothing if none is open.
     pub fn unload_project(&self) {
         *self.project_path.borrow_mut() = None;
     }
 
+    /// Is there a project loaded?
     pub fn project_loaded(&self) -> bool {
         self.project_path.borrow().is_some()
     }
 
+    /// Get the project path.
     pub fn project_path(&self) -> Option<PathBuf> {
         self.project_path.borrow().clone()
     }
 
+    /// Load a project and setup the Data Cache.
     pub async fn load_project(
         &self,
         path: PathBuf,
@@ -52,6 +57,7 @@ impl Filesystem {
         })
     }
 
+    /// Get the directory children of a path.
     pub async fn dir_children(&self, path: &str) -> Result<Vec<String>, String> {
         // I am too lazy to make this actually async.
         // It'd take an external library or some hacking that I'm not up for currently.
@@ -70,10 +76,15 @@ impl Filesystem {
         })
     }
 
+    /// Aquire a Cursor to a file.
+    /// FIXME: Rename
     pub async fn bufreader(&self, path: &str) -> Result<Cursor<Vec<u8>>, String> {
         Ok(Cursor::new(self.read_bytes(path).await?))
     }
 
+    /// Read a data file and deserialize it with RON (rusty object notation)
+    /// In the future this will take an optional parameter (type) to set the loading method.
+    /// (Options would be Marshal, RON, Lumina)
     pub async fn read_data<T>(&self, path: &str) -> Result<T, String>
     where
         T: serde::de::DeserializeOwned,
@@ -92,6 +103,7 @@ impl Filesystem {
         ron::from_str(&data).map_err(|e| e.to_string())
     }
 
+    /// Read bytes from a file.
     pub async fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
         let path = self
             .project_path
@@ -102,6 +114,7 @@ impl Filesystem {
         async_fs::read(path).await.map_err(|e| e.to_string())
     }
 
+    /// Save some file's data by serializing it with RON.
     pub async fn save_data(&self, path: &str, data: &str) -> Result<(), String> {
         let path = self
             .project_path
@@ -114,10 +127,12 @@ impl Filesystem {
         async_fs::write(path, data).await.map_err(|e| e.to_string())
     }
 
+    /// Save all cached files. An alias for [`DataCache::save`];
     pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {
         data_cache.save(self).await
     }
 
+    /// Try to open a project.
     pub async fn try_open_project(&self, cache: &'static DataCache) -> Result<(), String> {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])

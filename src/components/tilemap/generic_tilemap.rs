@@ -36,17 +36,22 @@ use crate::{load_image_software, UpdateInfo};
 
 use super::TilemapDef;
 
+/// A generic tilemap, implements TilemapDef.
+/// Does not use any special optimizations.
 #[allow(dead_code)]
 pub struct Tilemap {
+    /// The tilemap pan.
     pub pan: Vec2,
+    /// The scale of the tilemap.
     pub scale: f32,
+    /// Toggle to display the visible region in-game.
     pub visible_display: bool,
     ani_idx: i32,
     ani_instant: Instant,
     load_promise: poll_promise::Promise<Textures>,
 }
 
-pub struct Textures {
+struct Textures {
     tileset_tex: RetainedImage,
     autotile_texs: Vec<Option<RetainedImage>>,
     event_texs: HashMap<(String, i32), Option<RetainedImage>>,
@@ -55,9 +60,9 @@ pub struct Textures {
     pano_tex: Option<RetainedImage>,
 }
 
-// Hardcoded list of tiles from r48 and old python Luminol.
-// There seems to be very little pattern in autotile IDs so this is sadly
-// the best we can do.
+/// Hardcoded list of tiles from r48 and old python Luminol.
+/// There seems to be very little pattern in autotile IDs so this is sadly
+/// the best we can do.
 const AUTOTILES: [[i32; 4]; 48] = [
     [26, 27, 32, 33],
     [4, 27, 32, 33],

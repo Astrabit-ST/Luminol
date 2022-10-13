@@ -23,14 +23,11 @@ use std::collections::HashMap;
 /// The map picker window.
 /// Displays a list of maps in a tree.
 /// Maps can be double clicked to open them in a map editor.
+#[derive(Default)]
 pub struct MapPicker {}
 
 impl MapPicker {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn render_submap(
+    fn render_submap(
         id: &i32,
         children_data: &HashMap<i32, Vec<i32>>,
         mapinfos: &HashMap<i32, MapInfo>,

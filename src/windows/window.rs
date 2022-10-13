@@ -19,6 +19,9 @@ pub use std::cell::RefCell;
 
 use crate::UpdateInfo;
 
+/// A window management system to handle heap allocated windows
+///
+/// Will deny any duplicated window titles and is not specialized like modals
 #[derive(Default)]
 pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
@@ -45,6 +48,7 @@ impl Windows {
         windows.retain(|window| !window.requires_filesystem())
     }
 
+    /// Update and draw all windows.
     pub fn update(&self, ctx: &egui::Context, info: &'static UpdateInfo) {
         // Iterate through all the windows and clean them up if necessary.
         let mut windows = self.windows.borrow_mut();
@@ -57,9 +61,13 @@ impl Windows {
     }
 }
 
-/// A basic trait describing a window that can show itself.
-/// A mutable bool is passed to it and is set to false if it is closed.
+/// A heap allocated window, unlike modals which are stored on the stack.
+/// This makes them very unspecialized and they rely heavily on `UpdateInfo`.
+///
+/// However, they can store internal state and allow for multiple windows to be open at one time.
+/// This makes up for most of their losses. Modals are still useful in certain cases, though.
 pub trait Window {
+    /// Show this window.
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo);
 
     /// Required to prevent duplication.

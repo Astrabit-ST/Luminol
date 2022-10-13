@@ -27,18 +27,27 @@ use crate::{
     UpdateInfo,
 };
 
+/// The map editor.
 pub struct Map {
+    /// ID of the map that is being edited.
     pub id: i32,
+    /// Name of the map.
     pub name: String,
+    /// Selected layer.
     pub selected_layer: usize,
+    /// Toggled layers.
     pub toggled_layers: Vec<bool>,
+    /// The cursor position.
     pub cursor_pos: Pos2,
+    /// The tilemap.
     pub tilemap: Tilemap,
+    /// The selected tile in the tile picker.
     pub selected_tile: i16,
     event_windows: Windows,
 }
 
 impl Map {
+    /// Create a new map editor.
     pub fn new(id: i32, name: String, info: &'static UpdateInfo) -> Option<Self> {
         Some(Self {
             id,

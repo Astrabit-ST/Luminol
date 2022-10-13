@@ -15,11 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+/// The Luminol "get started screen" similar to vscode's.
+#[derive(Default)]
 pub struct Started {}
 
 impl Started {
+    /// Create a new starting screen.
     pub fn new() -> Self {
-        Self {}
+        Default::default()
     }
 }
 

@@ -18,6 +18,7 @@
 use egui_notify::{Toast, Toasts as ToastsInner};
 use std::cell::RefCell;
 
+/// A toasts management struct.
 #[derive(Default)]
 pub struct Toasts {
     inner: RefCell<ToastsInner>,
@@ -26,26 +27,32 @@ pub struct Toasts {
 // We wrap the toasts structs in a RefCell to maintain interior mutability.
 #[allow(dead_code)]
 impl Toasts {
+    /// Add a custom toast.
     pub fn add(&self, toast: Toast) {
         self.inner.borrow_mut().add(toast);
     }
 
+    /// Display an info toast.
     pub fn info(&self, caption: impl Into<String>) {
         self.inner.borrow_mut().info(caption);
     }
 
+    /// Display a warning toast.
     pub fn warning(&self, caption: impl Into<String>) {
         self.inner.borrow_mut().warning(caption);
     }
 
+    /// Display an error toast.
     pub fn error(&self, caption: impl Into<String>) {
         self.inner.borrow_mut().error(caption);
     }
 
+    /// Display a generic toast.
     pub fn basic(&self, caption: impl Into<String>) {
         self.inner.borrow_mut().basic(caption);
     }
 
+    /// Display all toasts.
     pub fn show(&self, ctx: &egui::Context) {
         self.inner.borrow_mut().show(ctx);
     }
