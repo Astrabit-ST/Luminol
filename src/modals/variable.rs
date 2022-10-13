@@ -56,7 +56,13 @@ impl Modal for VariableModal {
                 .button(format!("{}: {}", data, system.variables[*data]))
                 .clicked()
             {
-                *state = true
+                *state = true;
+
+                // (selected value, value to scroll to, filter text)
+                ui.ctx()
+                    .memory()
+                    .data
+                    .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
             }
         }
 
@@ -83,31 +89,61 @@ impl Modal for VariableModal {
                 let system = info.data_cache.system();
                 let system = system.as_ref().unwrap();
 
+                // (selected value, value to scroll to, filter text)
+                let mut memory: (usize, usize, String) = ctx.data().get_temp(self.id).unwrap();
+
                 ui.group(|ui| {
                     egui::ScrollArea::vertical()
                         .auto_shrink([false, false])
                         .max_height(384.)
-                        .show_rows(
-                            ui,
-                            ui.text_style_height(&egui::TextStyle::Body),
-                            system.variables.len(),
-                            |ui, rows| {
-                                for id in rows {
-                                    let response = ui.selectable_value(
-                                        data,
-                                        id,
-                                        format!("{}: {}", id, system.variables[id]),
-                                    );
+                        .show(ui, |ui| {
+                            for (id, name) in system
+                                .variables
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, s)| s.contains(&memory.2))
+                            {
+                                let id = id + 1;
+                                let mut text = egui::RichText::new(format!("{}: {}", id, name));
 
-                                    if response.double_clicked() {
-                                        *open = false;
-                                    }
+                                if memory.0 == id {
+                                    text = text.color(egui::Color32::YELLOW);
                                 }
-                            },
-                        )
+
+                                let response = ui.selectable_value(data, id, text);
+
+                                if memory.1 == id {
+                                    memory.1 = usize::MAX;
+                                    memory.0 = id;
+
+                                    response.scroll_to_me(None);
+                                }
+
+                                if response.double_clicked() {
+                                    *open = false;
+                                }
+                            }
+                        })
                 });
 
-                ui.horizontal(|ui| *open = !ui.button("Ok").clicked())
+                ui.horizontal(|ui| {
+                    *open = !ui.button("Ok").clicked();
+                    *open = !ui.button("Cancel").clicked();
+
+                    ui.label("Search 🔎");
+                    if ui
+                        .add(
+                            egui::DragValue::new(&mut memory.0)
+                                .clamp_range(0..=system.variables.len()),
+                        )
+                        .changed()
+                    {
+                        memory.1 = memory.0;
+                    };
+                    ui.text_edit_singleline(&mut memory.2);
+                });
+
+                ctx.data().insert_temp(self.id, memory);
             });
         *open = *open && win_open;
     }
