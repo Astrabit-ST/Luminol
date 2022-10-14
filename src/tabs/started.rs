@@ -17,7 +17,9 @@
 
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
-pub struct Started {}
+pub struct Started {
+    load_project_promise: Option<poll_promise::Promise<()>>,
+}
 
 impl Started {
     /// Create a new starting screen.
@@ -31,9 +33,49 @@ impl super::tab::Tab for Started {
         "Get Started".to_string()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, _info: &'static crate::UpdateInfo) {
-        ui.centered_and_justified(|ui| {
-            ui.heading("Luminol");
-        });
+    fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
+        ui.label(
+            egui::RichText::new("Luminol")
+                .size(40.)
+                .color(egui::Color32::LIGHT_GRAY),
+        );
+
+        ui.add_space(100.);
+
+        ui.heading("Start");
+        if ui
+            .button(egui::RichText::new("New Project").size(20.))
+            .clicked()
+        {}
+        if ui
+            .button(egui::RichText::new("Open Project").size(20.))
+            .clicked()
+        {}
+
+        ui.add_space(100.);
+
+        ui.heading("Recent");
+        if self
+            .load_project_promise
+            .is_some_and(|p| p.ready().is_none())
+        {
+            ui.spinner();
+        } else {
+            for path in info.saved_state.borrow().recent_projects.iter() {
+                if ui.button(path).clicked() {
+                    let path = path.clone();
+                    self.load_project_promise =
+                        Some(poll_promise::Promise::spawn_local(async move {
+                            if let Err(e) = info
+                                .filesystem
+                                .load_project(path.into(), &info.data_cache)
+                                .await
+                            {
+                                info.toasts.error(e);
+                            }
+                        }));
+                }
+            }
+        }
     }
 }

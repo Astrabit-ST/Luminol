@@ -23,10 +23,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-#![feature(drain_filter)]
+#![feature(drain_filter, is_some_with)]
 
 /// The main Luminol application.
 pub mod luminol;
+
+/// The state Luminol saves on shutdown.
+pub mod saved_state;
 
 /// Audio related structs and funtions.
 pub mod audio;
@@ -100,6 +103,9 @@ pub mod components {
 
             /// Check if the textures are loaded yet.
             fn textures_loaded(&self) -> bool;
+
+            /// Return the result of loading the tilemap.
+            fn load_result(&self) -> Result<(), String>;
         }
     }
 }
@@ -116,6 +122,8 @@ pub mod tabs {
 
 /// Structs related to Luminol's internal data.
 pub mod data {
+    /// Event command related enums
+    pub mod commands;
     /// The data cache, used to store things before writing them to the disk.
     pub mod data_cache;
     /// RGSS structs.
@@ -142,6 +150,7 @@ pub mod filesystem {
 /// Discord RPC related structs.
 pub mod discord;
 
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use components::toasts::Toasts;
@@ -149,6 +158,7 @@ pub use eframe::egui_glow::glow;
 use egui::TextureFilter;
 use egui_extras::RetainedImage;
 pub use luminol::Luminol;
+use saved_state::SavedState;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
@@ -172,11 +182,13 @@ pub struct UpdateInfo {
     pub toasts: Toasts,
     /// The gl context.
     pub gl: Arc<glow::Context>,
+    /// State to be saved.
+    pub saved_state: RefCell<SavedState>,
 }
 
 impl UpdateInfo {
     /// Create a new UpdateInfo.
-    pub fn new(gl: Arc<glow::Context>) -> Self {
+    pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
             filesystem: Default::default(),
             data_cache: Default::default(),
@@ -185,6 +197,7 @@ impl UpdateInfo {
             audio: Default::default(),
             toasts: Default::default(),
             gl,
+            saved_state: RefCell::new(state),
         }
     }
 }

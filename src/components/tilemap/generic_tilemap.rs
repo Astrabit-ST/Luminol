@@ -48,7 +48,7 @@ pub struct Tilemap {
     pub visible_display: bool,
     ani_idx: i32,
     ani_instant: Instant,
-    load_promise: poll_promise::Promise<Textures>,
+    load_promise: poll_promise::Promise<Result<Textures, String>>,
 }
 
 struct Textures {
@@ -124,7 +124,7 @@ impl TilemapDef for Tilemap {
             ani_idx: 0,
             ani_instant: Instant::now(),
             load_promise: poll_promise::Promise::spawn_local(async move {
-                Self::load_data(info, id).await.unwrap()
+                Self::load_data(info, id).await
             }),
         }
     }
@@ -137,7 +137,7 @@ impl TilemapDef for Tilemap {
         toggled_layers: &[bool],
         selected_layer: usize,
     ) -> Response {
-        let textures = self.load_promise.ready().unwrap();
+        let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
 
         // Every 16 frames update autotile animation index
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
@@ -506,7 +506,7 @@ impl TilemapDef for Tilemap {
     }
 
     fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
-        let textures = self.load_promise.ready().unwrap();
+        let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
 
         let (rect, response) =
             ui.allocate_exact_size(textures.tileset_tex.size_vec2(), egui::Sense::click());
@@ -535,6 +535,15 @@ impl TilemapDef for Tilemap {
 
     fn textures_loaded(&self) -> bool {
         self.load_promise.ready().is_some()
+    }
+
+    fn load_result(&self) -> Result<(), String> {
+        self.load_promise
+            .ready()
+            .unwrap()
+            .as_ref()
+            .map(|_| ())
+            .map_err(|e| e.clone())
     }
 }
 

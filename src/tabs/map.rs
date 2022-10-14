@@ -71,6 +71,11 @@ impl super::tab::Tab for Map {
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
         // Are we done loading data?
         if self.tilemap.textures_loaded() {
+            if let Err(e) = self.tilemap.load_result() {
+                info.toasts.error(e);
+                return;
+            }
+
             // Get the map.
             let mut map = info.data_cache.get_map(self.id);
             let tileset = info.data_cache.tilesets();

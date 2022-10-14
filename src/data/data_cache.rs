@@ -74,7 +74,7 @@ impl DataCache {
             let map = filesystem
                 .read_data(&format!("Map{:0>3}.ron", id))
                 .await
-                .map_err(|_| "Failed to load map")?;
+                .map_err(|e| format!("Failed to load map: {}", e))?;
             self.maps.borrow_mut().insert(id, map);
         }
         Ok(RefMut::map(self.maps.borrow_mut(), |m| {

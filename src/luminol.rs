@@ -15,8 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::VecDeque;
+
 use crate::{
     components::{toolbar::Toolbar, top_bar::TopBar},
+    saved_state::SavedState,
     UpdateInfo,
 };
 
@@ -32,10 +35,24 @@ pub struct Luminol {
 impl Luminol {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let mut state = SavedState {
+            recent_projects: VecDeque::new(),
+        };
+        state.recent_projects.reserve(10);
+
+        if let Some(storage) = cc.storage {
+            if let Some(_state) = eframe::get_value(storage, "SavedState") {
+                state = _state
+            }
+        }
+
         Self {
             top_bar: TopBar::default(),
             toolbar: Toolbar::default(),
-            info: Box::leak(Box::new(UpdateInfo::new(cc.gl.as_ref().unwrap().clone()))), // This is bad but I don't care
+            info: Box::leak(Box::new(UpdateInfo::new(
+                cc.gl.as_ref().unwrap().clone(),
+                state,
+            ))), // This is bad but I don't care
             #[cfg(feature = "discord-rpc")]
             discord: crate::discord::DiscordClient::default(),
         }
@@ -45,7 +62,7 @@ impl Luminol {
 impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value::<Option<()>>(storage, eframe::APP_KEY, &None);
+        eframe::set_value::<SavedState>(storage, "SavedState", &self.info.saved_state.borrow());
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -88,5 +105,13 @@ impl eframe::App for Luminol {
                 .project_path()
                 .map(|p| p.display().to_string()),
         );
+    }
+
+    fn persist_egui_memory(&self) -> bool {
+        true
+    }
+
+    fn persist_native_window(&self) -> bool {
+        true
     }
 }

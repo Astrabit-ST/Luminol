@@ -20,6 +20,7 @@ use std::io::Cursor;
 use std::path::PathBuf;
 
 use crate::data::data_cache::DataCache;
+use crate::UpdateInfo;
 
 /// Native filesystem implementation.
 #[derive(Default)]
@@ -133,13 +134,23 @@ impl Filesystem {
     }
 
     /// Try to open a project.
-    pub async fn try_open_project(&self, cache: &'static DataCache) -> Result<(), String> {
+    pub async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
         if let Some(mut path) = rfd::FileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()
         {
             path.pop(); // Pop off filename
-            self.load_project(path, cache).await
+            self.load_project(path, &info.data_cache).await.map(|_| {
+                let projects = &mut info.saved_state.borrow_mut().recent_projects;
+
+                let path = self.project_path().unwrap().display().to_string();
+                *projects = projects
+                    .iter()
+                    .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
+                    .collect();
+                projects.push_front(path);
+                projects.truncate(10);
+            })
         } else {
             Err("No project loaded".to_string())
         }

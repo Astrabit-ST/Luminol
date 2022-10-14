@@ -4,7 +4,7 @@
 pub mod rpg {
     use eframe::epaint::ahash::HashMap;
 
-    use crate::data::rgss_structs::*;
+    use crate::data::{commands::Command, rgss_structs::*};
     use serde::{Deserialize, Serialize};
 
     #[derive(Default, Debug, Deserialize, Serialize)]
@@ -36,8 +36,7 @@ pub mod rpg {
     pub mod event {
         use serde::{Deserialize, Serialize};
         mod page {
-            use crate::data::rmxp_structs::rpg::EventCommand;
-            use crate::data::rmxp_structs::rpg::MoveRoute;
+            use crate::data::{commands::Command, rmxp_structs::rpg::MoveRoute};
             use serde::{Deserialize, Serialize};
 
             #[derive(Default, Debug, Deserialize, Serialize, Clone)]
@@ -78,7 +77,7 @@ pub mod rpg {
                 pub through: bool,
                 pub always_on_top: bool,
                 pub trigger: i32,
-                pub list: Vec<EventCommand>,
+                pub list: Vec<Command>,
             }
         }
 
@@ -112,12 +111,13 @@ pub mod rpg {
         FalseClass(bool),
     }
 
-    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
-    pub struct EventCommand {
-        pub code: i32,
-        pub indent: i32,
-        pub parameters: Vec<ParameterType>,
-    }
+    // #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+    // pub struct EventCommand {
+    //     pub code: i32,
+    //     pub indent: i32,
+    //     pub parameters: Vec<ParameterType>,
+    // }
+
     #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct MoveRoute {
         pub repeat: bool,
@@ -337,8 +337,9 @@ pub mod rpg {
         }
 
         pub mod page {
-            use crate::data::rmxp_structs::rpg::EventCommand;
             use serde::{Deserialize, Serialize};
+
+            use crate::data::commands::Command;
 
             #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Condition {
@@ -359,7 +360,7 @@ pub mod rpg {
             pub struct Page {
                 pub condition: Condition,
                 pub span: i32,
-                pub list: Vec<EventCommand>,
+                pub list: Vec<Command>,
             }
         }
 
@@ -466,7 +467,7 @@ pub mod rpg {
         name: String,
         trigger: i32,
         switch_id: i32,
-        list: Vec<EventCommand>,
+        list: Vec<Command>,
     }
 
     pub mod system {

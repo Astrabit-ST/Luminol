@@ -48,7 +48,7 @@ impl TopBar {
             if self.open_project_promise.is_none() {
                 if ui.button("Open Project").clicked() {
                     self.open_project_promise = Some(Promise::spawn_local(async move {
-                        info.filesystem.try_open_project(&info.data_cache).await
+                        info.filesystem.try_open_project(info).await
                     }));
                 }
             } else {
