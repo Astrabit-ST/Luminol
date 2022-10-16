@@ -986,6 +986,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum-as-inner"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9720bba047d567ffc8a3cba48bf19126600e249ab7f128e9233e6376976a116"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "epaint"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1717,6 +1729,8 @@ dependencies = [
  "egui-notify",
  "egui_dock",
  "egui_extras",
+ "enum-as-inner",
+ "epaint",
  "futures",
  "git-version",
  "image",

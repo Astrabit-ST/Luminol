@@ -4,7 +4,7 @@
 pub mod rpg {
     use eframe::epaint::ahash::HashMap;
 
-    use crate::data::{commands::Command, rgss_structs::*};
+    use crate::data::{commands::*, rgss_structs::*};
     use serde::{Deserialize, Serialize};
 
     #[derive(Default, Debug, Deserialize, Serialize)]
@@ -96,27 +96,6 @@ pub mod rpg {
     // This would be better for serialization, performance, and readability.
     // For now I'm not messing with the RMXP data format, but I will eventually.
     // TODO: I'd like to add a custom *.lumina format in the future that is built from the ground up. No more rmxp garbage.
-    #[derive(Debug, Deserialize, Serialize, Clone)]
-    pub enum ParameterType {
-        Integer(i32),
-        String(String),
-        Color(Color),
-        Tone(Tone),
-        AudioFile(AudioFile),
-        Float(f32),
-        MoveRoute(MoveRoute),
-        MoveCommand(MoveCommand),
-        Array(Vec<String>),
-        TrueClass(bool),
-        FalseClass(bool),
-    }
-
-    // #[derive(Default, Debug, Deserialize, Serialize, Clone)]
-    // pub struct EventCommand {
-    //     pub code: i32,
-    //     pub indent: i32,
-    //     pub parameters: Vec<ParameterType>,
-    // }
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct MoveRoute {
@@ -124,11 +103,7 @@ pub mod rpg {
         pub skippable: bool,
         pub list: Vec<MoveCommand>,
     }
-    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
-    pub struct MoveCommand {
-        pub code: i32,
-        pub parameters: Vec<ParameterType>,
-    }
+
     #[derive(Default, Debug, Deserialize, Serialize)]
     pub struct Actor {
         pub id: i32,

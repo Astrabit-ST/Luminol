@@ -66,7 +66,7 @@ impl eframe::App for Luminol {
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {

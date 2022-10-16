@@ -23,7 +23,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-#![feature(drain_filter, is_some_with)]
+#![feature(drain_filter, is_some_and)]
 
 /// The main Luminol application.
 pub mod luminol;
@@ -62,6 +62,8 @@ pub mod modals {
 
 /// Various UI components used throughout Luminol.
 pub mod components {
+    /// Command editor for events
+    pub mod command_view;
     /// Toasts to be displayed for errors, information, etc.
     pub mod toasts;
     /// The toolbar for changing tools used when editing maps.

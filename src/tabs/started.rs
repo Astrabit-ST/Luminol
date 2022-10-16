@@ -57,6 +57,7 @@ impl super::tab::Tab for Started {
         ui.heading("Recent");
         if self
             .load_project_promise
+            .as_ref()
             .is_some_and(|p| p.ready().is_none())
         {
             ui.spinner();

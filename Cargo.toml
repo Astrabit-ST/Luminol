@@ -20,6 +20,7 @@ build = "build.rs"
 [dependencies]
 egui = "0.19.0"
 egui_extras = { version = "0.19.0", features = ["svg", "image"] }
+epaint = "0.19.0"
 image = { version = "0.24", features = ["jpeg", "png"] }
 eframe = { version = "0.19.0", features = ["persistence"] }
 serde = { version = "1", features = ["derive"] }
@@ -35,6 +36,7 @@ cfg-if = "1.0.0"
 futures = "0.3.24"
 git-version = "0.3.5"
 once_cell = "1.15.0"
+enum-as-inner = "0.5.1"
 
 [features]
 default = ["generic-tilemap"]

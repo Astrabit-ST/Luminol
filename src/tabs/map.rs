@@ -73,6 +73,7 @@ impl super::tab::Tab for Map {
         if self.tilemap.textures_loaded() {
             if let Err(e) = self.tilemap.load_result() {
                 info.toasts.error(e);
+                // FIXME: This will not! close the map tab
                 return;
             }
 
