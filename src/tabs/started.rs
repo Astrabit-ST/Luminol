@@ -54,6 +54,7 @@ impl super::tab::Tab for Started {
 
         ui.add_space(100.);
 
+        #[cfg(not(target_arch = "wasm32"))]
         ui.heading("Recent");
         if self
             .load_project_promise

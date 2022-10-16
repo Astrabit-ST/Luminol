@@ -14,6 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+#![allow(missing_docs)]
 
 use std::cell::RefCell;
 use std::io::Cursor;
@@ -21,7 +22,7 @@ use std::path::PathBuf;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
-use crate::data::data_cache::DataCache;
+use crate::{data::data_cache::DataCache, UpdateInfo};
 
 // Javascript interface for filesystem
 #[wasm_bindgen(module = "/assets/filesystem.js")]
@@ -127,11 +128,11 @@ impl Filesystem {
         data_cache.save(self).await
     }
 
-    pub async fn try_open_project(&self, cache: &'static DataCache) -> Result<(), String> {
+    pub async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
         let handle = js_open_project()
             .await
             .map_err(|_| "No project loaded".to_string())?;
 
-        self.load_project(handle, cache).await
+        self.load_project(handle, &info.data_cache).await
     }
 }
