@@ -91,8 +91,16 @@ pub enum CommandKind {
         kind: i32,
         params: Vec<ParameterType>,
     },
+    /// Else, id 411
+    Else,
     /// Loop
     Loop,
+    /// Comment, id 108
+    Comment { text: String },
+    /// CommentExt, id 408
+    CommentExt { text: String },
+    /// Wait, id 106
+    Wait { time: i32 },
 
     //? Special commands ?//
     /// Invalid, invalid command ID
@@ -133,10 +141,20 @@ impl From<EventCommand> for Command {
                 401 => TextExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
+                106 => Wait {
+                    time: parameters[0].clone().into_integer().unwrap(),
+                },
+                108 => Comment {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+                408 => CommentExt {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
                 111 => Conditional {
                     kind: parameters[0].clone().into_integer().unwrap(),
                     params: parameters[1..].to_vec(),
                 },
+                411 => Else,
                 112 => Loop,
                 _ => Invalid { code },
             },

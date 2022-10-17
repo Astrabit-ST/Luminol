@@ -22,6 +22,7 @@ use crate::data::commands::{Command, CommandKind::*};
 const CONTROL_FLOW: Color32 = Color32::BLUE;
 const ERROR: Color32 = Color32::RED;
 const NORMAL: Color32 = Color32::WHITE;
+const COMMENT: Color32 = Color32::GREEN;
 
 /// An event command viewer.
 
@@ -41,37 +42,57 @@ impl<'co> CommandView<'co> {
             .auto_shrink([false, false])
             .max_height(500.)
             .show(ui, |ui| {
-                let mut iter = self.commands.iter_mut().enumerate();
-                let mut selected_index = ui
-                    .memory()
-                    .data
-                    .get_temp(egui::Id::new("command_view_selected_index"));
-                let mut selected_index = *selected_index.get_or_insert(0);
-
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
                 ui.visuals_mut().override_text_color = Some(NORMAL);
                 ui.visuals_mut().button_frame = false;
 
-                while let Some((ele, cmd)) = iter.next() {
-                    Self::render_command(ui, ele, cmd, &mut iter, &mut selected_index);
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        for (ele, cmd) in self.commands.iter().enumerate() {
+                            ui.selectable_label(false, format!("{:0>3}>", ele))
+                                .clicked();
 
-                    if cmd.kind.is_break() {
-                        continue;
-                    }
-                }
+                            #[allow(clippy::single_match)]
+                            match cmd.kind {
+                                Break => {
+                                    ui.selectable_label(false, "").clicked();
+                                }
+                                _ => (),
+                            }
+                        }
+                    });
 
-                if ui.input().key_pressed(egui::Key::ArrowUp) {
-                    selected_index =
-                        (selected_index + self.commands.len() - 1) % self.commands.len()
-                }
-                if ui.input().key_pressed(egui::Key::ArrowDown) {
-                    selected_index =
-                        (selected_index + self.commands.len() + 1) % self.commands.len()
-                }
+                    ui.vertical(|ui| {
+                        let mut iter = self.commands.iter_mut().enumerate();
+                        let mut selected_index = ui
+                            .memory()
+                            .data
+                            .get_temp(egui::Id::new("command_view_selected_index"));
+                        let mut selected_index = *selected_index.get_or_insert(0);
 
-                ui.memory()
-                    .data
-                    .insert_temp(egui::Id::new("command_view_selected_index"), selected_index);
+                        while let Some((ele, cmd)) = iter.next() {
+                            Self::render_command(ui, ele, cmd, &mut iter, &mut selected_index);
+
+                            if cmd.kind.is_break() {
+                                continue;
+                            }
+                        }
+
+                        if ui.input().key_pressed(egui::Key::ArrowUp) {
+                            selected_index =
+                                (selected_index + self.commands.len() - 1) % self.commands.len()
+                        }
+                        if ui.input().key_pressed(egui::Key::ArrowDown) {
+                            selected_index =
+                                (selected_index + self.commands.len() + 1) % self.commands.len()
+                        }
+
+                        ui.memory().data.insert_temp(
+                            egui::Id::new("command_view_selected_index"),
+                            selected_index,
+                        );
+                    });
+                });
             });
     }
 
@@ -82,64 +103,81 @@ impl<'co> CommandView<'co> {
         iter: &mut impl Iterator<Item = (usize, &'iter mut Command)>,
         selected_index: &mut usize,
     ) {
-        const INDENT_STR: &str = "   ";
-
         let Command { indent, kind } = cmd;
 
-        if kind.is_break() {
-            ui.selectable_value(
-                selected_index,
-                ele,
-                format!("{:0>3}>{}@>", ele, INDENT_STR.repeat(*indent)),
-            );
-        }
+        let response = match kind {
+            Break => {
+                ui.vertical(|ui| {
+                    ui.selectable_value(selected_index, ele, "@>");
 
-        let response = ui
-            .horizontal(|ui| {
-                ui.label(format!("{:0>3}>{}", ele, INDENT_STR.repeat(*indent)));
-
-                match kind {
-                    Break => {
-                        ui.selectable_value(
-                            selected_index,
-                            ele,
-                            RichText::new("Branch End").color(CONTROL_FLOW),
-                        );
-                    }
-                    Text { text } => {
-                        ui.selectable_value(selected_index, ele, format!("Show Text: {}", text));
-                    }
-                    TextExt { text } => {
-                        ui.label(format!("         :  {}", text));
-                    }
-                    Conditional { .. } => {
-                        Self::collapsible(
-                            "Conditional Branch".to_string(),
-                            ui,
-                            ele,
-                            iter,
-                            selected_index,
-                        );
-                    }
-                    Loop => {
-                        Self::collapsible("Loop".to_string(), ui, ele, iter, selected_index);
-                    }
-                    Invalid { code } => {
-                        if ui
-                            .selectable_value(
-                                selected_index,
-                                ele,
-                                RichText::new(format!("Invalid Command {}", code)).color(ERROR),
-                            )
-                            .double_clicked()
-                        {};
-                    }
-                    _ => {
-                        ui.selectable_value(selected_index, ele, "???");
-                    }
-                };
-            })
-            .response;
+                    ui.colored_label(CONTROL_FLOW, "Branch End");
+                })
+                .response
+            }
+            Text { text } => {
+                ui.selectable_value(selected_index, ele, format!("Show Text: {}", text))
+            }
+            TextExt { text } => ui.label(format!("          :  {}", text)),
+            Conditional { .. } => {
+                //
+                Self::collapsible(
+                    "Conditional Branch".to_string(),
+                    ui,
+                    ele,
+                    indent,
+                    iter,
+                    selected_index,
+                )
+                .header_response
+            }
+            Else => {
+                Self::collapsible("Else".to_string(), ui, ele, indent, iter, selected_index)
+                    .header_response
+            }
+            Loop => {
+                //
+                Self::collapsible("Loop".to_string(), ui, ele, indent, iter, selected_index)
+                    .header_response
+            }
+            Comment { text } => {
+                //
+                ui.selectable_value(
+                    selected_index,
+                    ele,
+                    RichText::new(format!("Comment: {}", text)).color(COMMENT),
+                )
+            }
+            CommentExt { text } => {
+                ui.selectable_value(
+                    selected_index,
+                    ele,
+                    //                               "Comment: {}"
+                    RichText::new(format!("       : {}", text)).color(COMMENT),
+                )
+            }
+            Invalid { code } => {
+                //
+                ui.selectable_value(
+                    selected_index,
+                    ele,
+                    RichText::new(format!("Invalid Command {} 🔥", code)).color(ERROR),
+                )
+                .on_hover_text(
+                    RichText::new("This happens when Luminol does not recognize a command ID.")
+                        .color(ERROR),
+                )
+            }
+            _ => {
+                //
+                ui.selectable_value(selected_index, ele, format!("{:?} ???", kind))
+                    .on_hover_text(
+                        RichText::new(
+                            "Luminol recognizes this command, but there is no code to render it.",
+                        )
+                        .color(ERROR),
+                    )
+            }
+        };
 
         if *selected_index == ele
             && (ui.input().key_pressed(egui::Key::ArrowUp)
@@ -153,39 +191,73 @@ impl<'co> CommandView<'co> {
         text: String,
         ui: &mut egui::Ui,
         ele: usize,
+        indent: &mut usize,
         iter: &mut impl Iterator<Item = (usize, &'iter mut Command)>,
         selected_index: &mut usize,
     ) -> CollapsingResponse<()> {
-        let response = egui::CollapsingHeader::new(RichText::new(text).color(CONTROL_FLOW))
-            .default_open(true)
-            .id_source(format!("{}_collapsible_command", ele))
-            .show(ui, |ui| {
-                while let Some((ele, cmd)) = iter.next() {
-                    Self::render_command(ui, ele, cmd, iter, selected_index);
+        ui.vertical(|ui| {
+            let header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                ui.ctx(),
+                egui::Id::new(format!("{}_collapsible_command", ele)),
+                true,
+            );
+            let openness = header.openness(ui.ctx());
 
-                    if iter
-                        .peekable()
-                        .peek()
-                        .is_some_and(|(_, cmd)| !cmd.kind.is_break())
-                    {
-                        break;
+            let ret_response = header
+                .show_header(ui, |ui| {
+                    ui.selectable_value(
+                        selected_index,
+                        ele,
+                        RichText::new(text).color(CONTROL_FLOW),
+                    )
+                })
+                .body(|ui| {
+                    while let Some((ele, cmd)) = iter.next() {
+                        let is_break = cmd.kind.is_break() || cmd.kind.is_else();
+
+                        Self::render_command(ui, ele, cmd, iter, selected_index);
+
+                        if is_break {
+                            break;
+                        }
                     }
+                });
+
+            let response = if let Some(ret_response_2) = ret_response.2 {
+                egui::collapsing_header::CollapsingResponse {
+                    header_response: ret_response.0,
+                    body_response: Some(ret_response_2.response),
+                    body_returned: Some(()),
+                    openness,
                 }
-            });
-        if response.fully_closed() {
-            Self::break_until(iter)
-        }
-        response
+            } else {
+                CollapsingResponse {
+                    header_response: ret_response.0,
+                    body_response: None,
+                    body_returned: None,
+                    openness,
+                }
+            };
+
+            if response.fully_closed() {
+                Self::break_until(iter, indent)
+            }
+            response
+        })
+        .inner
     }
 
-    fn break_until<'iter>(iter: &mut impl Iterator<Item = (usize, &'iter mut Command)>) {
+    fn break_until<'iter>(
+        iter: &mut impl Iterator<Item = (usize, &'iter mut Command)>,
+        _indent: &mut usize,
+    ) {
         while let Some((_, cmd)) = iter.next() {
             if cmd.kind.is_break() {
                 break;
             }
 
             match cmd.kind {
-                Loop | Conditional { .. } => Self::break_until(iter),
+                Loop | Else | Conditional { .. } => Self::break_until(iter, _indent),
                 _ => (),
             }
         }
