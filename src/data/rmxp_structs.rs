@@ -314,7 +314,7 @@ pub mod rpg {
         pub mod page {
             use serde::{Deserialize, Serialize};
 
-            use crate::data::commands::Command;
+            use crate::data::commands::CommandTree;
 
             #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Condition {
@@ -335,7 +335,7 @@ pub mod rpg {
             pub struct Page {
                 pub condition: Condition,
                 pub span: i32,
-                pub list: Vec<Command>,
+                pub list: CommandTree,
             }
         }
 

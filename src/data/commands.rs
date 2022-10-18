@@ -17,6 +17,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::btree;
 #[allow(unused_imports)]
 use super::{rgss_structs::*, rmxp_structs::rpg};
 use enum_as_inner::EnumAsInner;
@@ -46,7 +47,7 @@ impl From<String> for ParameterType {
 // FIXME: NOT ALL OF THESE ARE KNOWN
 
 /// An enum representing event commands.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(from = "EventCommand")]
 #[serde(into = "EventCommand")]
 pub struct Command {
@@ -56,7 +57,7 @@ pub struct Command {
     pub kind: CommandKind,
 }
 
-#[derive(Debug, Clone, EnumAsInner)]
+#[derive(Debug, Clone, Default, EnumAsInner)]
 #[allow(missing_docs)]
 pub enum CommandKind {
     /// Show text, id 101
@@ -109,6 +110,9 @@ pub enum CommandKind {
     Custom { params: Vec<ParameterType> },
     /// Break from...?
     Break,
+
+    #[default]
+    Unknown,
 }
 
 use CommandKind::*;
@@ -184,4 +188,14 @@ impl From<Command> for EventCommand {
 pub struct MoveCommand {
     pub code: i32,
     pub parameters: Vec<ParameterType>,
+}
+
+/// A tree of commands.
+/// Is used by [`rpg::event::page::Page`] and [`rpg::CommonEvent`].
+pub type CommandTree = btree::Node<Command>;
+
+impl From<Vec<Command>> for CommandTree {
+    fn from(value: Vec<Command>) -> Self {
+        Self::new(value[0].clone(), None, None)
+    }
 }
