@@ -4,7 +4,7 @@
 pub mod rpg {
     use eframe::epaint::ahash::HashMap;
 
-    use crate::data::{commands::*, rgss_structs::*};
+    use crate::data::{command_tree::Node, commands::*, rgss_structs::*};
     use serde::{Deserialize, Serialize};
 
     #[derive(Default, Debug, Deserialize, Serialize)]
@@ -36,7 +36,7 @@ pub mod rpg {
     pub mod event {
         use serde::{Deserialize, Serialize};
         mod page {
-            use crate::data::{commands::Command, rmxp_structs::rpg::MoveRoute};
+            use crate::data::{command_tree::Node, rmxp_structs::rpg::MoveRoute};
             use serde::{Deserialize, Serialize};
 
             #[derive(Default, Debug, Deserialize, Serialize, Clone)]
@@ -77,7 +77,7 @@ pub mod rpg {
                 pub through: bool,
                 pub always_on_top: bool,
                 pub trigger: i32,
-                pub list: Vec<Command>,
+                pub list: Node,
             }
         }
 
@@ -97,7 +97,7 @@ pub mod rpg {
     // For now I'm not messing with the RMXP data format, but I will eventually.
     // TODO: I'd like to add a custom *.lumina format in the future that is built from the ground up. No more rmxp garbage.
 
-    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
     pub struct MoveRoute {
         pub repeat: bool,
         pub skippable: bool,
@@ -314,7 +314,7 @@ pub mod rpg {
         pub mod page {
             use serde::{Deserialize, Serialize};
 
-            use crate::data::commands::CommandTree;
+            use crate::data::command_tree::Node;
 
             #[derive(Default, Debug, Deserialize, Serialize)]
             pub struct Condition {
@@ -335,7 +335,7 @@ pub mod rpg {
             pub struct Page {
                 pub condition: Condition,
                 pub span: i32,
-                pub list: CommandTree,
+                pub list: Node,
             }
         }
 
@@ -442,7 +442,7 @@ pub mod rpg {
         name: String,
         trigger: i32,
         switch_id: i32,
-        list: Vec<Command>,
+        list: Node,
     }
 
     pub mod system {
@@ -523,7 +523,7 @@ pub mod rpg {
         }
     }
 
-    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
     pub struct AudioFile {
         name: String,
         volume: u8,

@@ -15,17 +15,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::iter::Peekable;
+
 use serde::{Deserialize, Serialize};
 
+use super::commands::*;
+
 /// A simple binary tree.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Node<T> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "Vec<Command>")]
+#[serde(into = "Vec<Command>")]
+pub struct Node {
     /// The left branch.
-    left: Option<Box<Node<T>>>,
+    left: Option<Box<Node>>,
     /// The right branch.
-    right: Option<Box<Node<T>>>,
+    right: Option<Box<Node>>,
     /// The data for this Node.
-    pub data: T,
+    pub data: Command,
+}
+
+impl Default for Node {
+    fn default() -> Self {
+        Self {
+            left: None,
+            right: None,
+            data: Command {
+                indent: 0,
+                kind: Break,
+            },
+        }
+    }
 }
 
 /// Branch type
@@ -36,9 +55,9 @@ pub enum Branch {
     Right,
 }
 
-impl<T> Node<T> {
+impl Node {
     /// Create a new Node
-    pub fn new(data: T, left: Option<Node<T>>, right: Option<Node<T>>) -> Self {
+    pub fn new(data: Command, left: Option<Node>, right: Option<Node>) -> Self {
         Self {
             data,
             left: left.map(Box::new),
@@ -59,7 +78,7 @@ impl<T> Node<T> {
     /// If this node has a branch, call the provided closure.
     ///
     /// If not, just return [`self`]
-    pub fn branch(&mut self, branch: Branch, mut f: impl FnMut(&mut Node<T>)) -> &mut Self {
+    pub fn branch(&mut self, branch: Branch, mut f: impl FnMut(&mut Node)) -> &mut Self {
         if let Some(ref mut branch) = self.get_branch(branch) {
             f(branch.as_mut())
         }
@@ -69,7 +88,7 @@ impl<T> Node<T> {
     /// Sever a branch, returning it.
     ///
     /// Returns [`None`] if there was no branch in the first place.
-    pub fn sever(&mut self, branch: Branch) -> Option<Node<T>> {
+    pub fn sever(&mut self, branch: Branch) -> Option<Node> {
         self.get_branch(branch).take().map(|n| *n)
     }
 
@@ -82,10 +101,10 @@ impl<T> Node<T> {
     /// (Behaves like [`Self::swap`])
     pub fn insert(
         &mut self,
-        node: Option<Node<T>>,
+        node: Option<Node>,
         branch_from: Branch,
         branch_to: Branch,
-    ) -> Option<Node<T>> {
+    ) -> Option<Node> {
         // Get the node as a box.
         let mut node = node.map(Box::new);
         let branch = self.get_branch(branch_from);
@@ -104,16 +123,62 @@ impl<T> Node<T> {
     /// Swap a node on the branch of this node.
     ///
     /// If this node had something on the branch it is returned.
-    pub fn swap(&mut self, node: Option<Node<T>>, branch: Branch) -> Option<Node<T>> {
+    pub fn swap(&mut self, node: Option<Node>, branch: Branch) -> Option<Node> {
         let mut node = node.map(Box::new);
         std::mem::swap(self.get_branch(branch), &mut node);
         node.map(|n| *n)
     }
 
-    fn get_branch(&mut self, branch: Branch) -> &mut Option<Box<Node<T>>> {
+    fn get_branch(&mut self, branch: Branch) -> &mut Option<Box<Node>> {
         match branch {
             Branch::Left => &mut self.left,
             Branch::Right => &mut self.right,
         }
+    }
+
+    fn flatten(self, vec: &mut Vec<Command>) {
+        vec.push(self.data);
+
+        if let Some(right) = self.right {
+            right.flatten(vec)
+        }
+
+        if let Some(left) = self.left {
+            left.flatten(vec)
+        }
+    }
+
+    fn from_iter(iter: &mut Peekable<impl Iterator<Item = Command>>) -> Option<Node> {
+        iter.next().map(|self_command| {
+            let right = if iter
+                .peek()
+                .is_some_and(|other_command| other_command.indent > self_command.indent)
+            {
+                Self::from_iter(iter)
+            } else {
+                None
+            };
+
+            Self::new(self_command, Self::from_iter(iter), right)
+        })
+    }
+}
+
+impl From<Vec<Command>> for Node {
+    fn from(value: Vec<Command>) -> Self {
+        let n = Self::from_iter(&mut value.clone().into_iter().peekable()).unwrap();
+        println!("{:#?}", n);
+
+        assert_eq!(Vec::from(n.clone()), value);
+
+        n
+    }
+}
+
+impl From<Node> for Vec<Command> {
+    fn from(value: Node) -> Self {
+        let mut vec = Vec::new();
+        value.flatten(&mut vec);
+        vec
     }
 }

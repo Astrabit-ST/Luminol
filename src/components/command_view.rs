@@ -17,7 +17,10 @@
 
 use egui::{CollapsingResponse, Color32, RichText};
 
-use crate::data::commands::{Command, CommandKind::*};
+use crate::data::{
+    command_tree::Node,
+    commands::{Command, CommandKind::*},
+};
 
 const CONTROL_FLOW: Color32 = Color32::BLUE;
 const ERROR: Color32 = Color32::RED;
@@ -27,12 +30,12 @@ const COMMENT: Color32 = Color32::GREEN;
 /// An event command viewer.
 
 pub struct CommandView<'co> {
-    commands: &'co mut Vec<Command>,
+    commands: &'co mut Node,
 }
 
 impl<'co> CommandView<'co> {
     /// Create a new command viewer.
-    pub fn new(commands: &'co mut Vec<Command>) -> Self {
+    pub fn new(commands: &'co mut Node) -> Self {
         Self { commands }
     }
 
@@ -46,53 +49,53 @@ impl<'co> CommandView<'co> {
                 ui.visuals_mut().override_text_color = Some(NORMAL);
                 ui.visuals_mut().button_frame = false;
 
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        for (ele, cmd) in self.commands.iter().enumerate() {
-                            ui.selectable_label(false, format!("{:0>3}>", ele))
-                                .clicked();
-
-                            #[allow(clippy::single_match)]
-                            match cmd.kind {
-                                Break => {
-                                    ui.selectable_label(false, "").clicked();
-                                }
-                                _ => (),
-                            }
-                        }
-                    });
-
-                    ui.vertical(|ui| {
-                        let mut iter = self.commands.iter_mut().enumerate();
-                        let mut selected_index = ui
-                            .memory()
-                            .data
-                            .get_temp(egui::Id::new("command_view_selected_index"));
-                        let mut selected_index = *selected_index.get_or_insert(0);
-
-                        while let Some((ele, cmd)) = iter.next() {
-                            Self::render_command(ui, ele, cmd, &mut iter, &mut selected_index);
-
-                            if cmd.kind.is_break() {
-                                continue;
-                            }
-                        }
-
-                        if ui.input().key_pressed(egui::Key::ArrowUp) {
-                            selected_index =
-                                (selected_index + self.commands.len() - 1) % self.commands.len()
-                        }
-                        if ui.input().key_pressed(egui::Key::ArrowDown) {
-                            selected_index =
-                                (selected_index + self.commands.len() + 1) % self.commands.len()
-                        }
-
-                        ui.memory().data.insert_temp(
-                            egui::Id::new("command_view_selected_index"),
-                            selected_index,
-                        );
-                    });
-                });
+                // ui.horizontal(|ui| {
+                //     ui.vertical(|ui| {
+                //         for (ele, cmd) in self.commands.iter().enumerate() {
+                //             ui.selectable_label(false, format!("{:0>3}>", ele))
+                //                 .clicked();
+                //
+                //             #[allow(clippy::single_match)]
+                //             match cmd.kind {
+                //                 Break => {
+                //                     ui.selectable_label(false, "").clicked();
+                //                 }
+                //                 _ => (),
+                //             }
+                //         }
+                //     });
+                //
+                //     ui.vertical(|ui| {
+                //         let mut iter = self.commands.iter_mut().enumerate();
+                //         let mut selected_index = ui
+                //             .memory()
+                //             .data
+                //             .get_temp(egui::Id::new("command_view_selected_index"));
+                //         let mut selected_index = *selected_index.get_or_insert(0);
+                //
+                //         while let Some((ele, cmd)) = iter.next() {
+                //             Self::render_command(ui, ele, cmd, &mut iter, &mut selected_index);
+                //
+                //             if cmd.kind.is_break() {
+                //                 continue;
+                //             }
+                //         }
+                //
+                //         if ui.input().key_pressed(egui::Key::ArrowUp) {
+                //             selected_index =
+                //                 (selected_index + self.commands.len() - 1) % self.commands.len()
+                //         }
+                //         if ui.input().key_pressed(egui::Key::ArrowDown) {
+                //             selected_index =
+                //                 (selected_index + self.commands.len() + 1) % self.commands.len()
+                //         }
+                //
+                //         ui.memory().data.insert_temp(
+                //             egui::Id::new("command_view_selected_index"),
+                //             selected_index,
+                //         );
+                //     });
+                // });
             });
     }
 

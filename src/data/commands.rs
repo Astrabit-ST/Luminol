@@ -17,12 +17,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::btree;
 #[allow(unused_imports)]
 use super::{rgss_structs::*, rmxp_structs::rpg};
 use enum_as_inner::EnumAsInner;
 
-#[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner)]
+#[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner, PartialEq)]
 #[allow(missing_docs)]
 pub enum ParameterType {
     Integer(i32),
@@ -47,7 +46,7 @@ impl From<String> for ParameterType {
 // FIXME: NOT ALL OF THESE ARE KNOWN
 
 /// An enum representing event commands.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(from = "EventCommand")]
 #[serde(into = "EventCommand")]
 pub struct Command {
@@ -57,7 +56,7 @@ pub struct Command {
     pub kind: CommandKind,
 }
 
-#[derive(Debug, Clone, Default, EnumAsInner)]
+#[derive(Debug, Clone, EnumAsInner, PartialEq)]
 #[allow(missing_docs)]
 pub enum CommandKind {
     /// Show text, id 101
@@ -110,14 +109,11 @@ pub enum CommandKind {
     Custom { params: Vec<ParameterType> },
     /// Break from...?
     Break,
-
-    #[default]
-    Unknown,
 }
 
-use CommandKind::*;
+pub use CommandKind::*;
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[allow(missing_docs)]
 pub struct EventCommand {
     pub code: i32,
@@ -183,19 +179,9 @@ impl From<Command> for EventCommand {
     }
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone)]
+#[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[allow(missing_docs)]
 pub struct MoveCommand {
     pub code: i32,
     pub parameters: Vec<ParameterType>,
-}
-
-/// A tree of commands.
-/// Is used by [`rpg::event::page::Page`] and [`rpg::CommonEvent`].
-pub type CommandTree = btree::Node<Command>;
-
-impl From<Vec<Command>> for CommandTree {
-    fn from(value: Vec<Command>) -> Self {
-        Self::new(value[0].clone(), None, None)
-    }
 }

@@ -125,7 +125,7 @@ pub mod tabs {
 /// Structs related to Luminol's internal data.
 pub mod data {
     /// The tree data structure for commands
-    pub mod btree;
+    pub mod command_tree;
     /// Event command related enums
     pub mod commands;
     /// The data cache, used to store things before writing them to the disk.
