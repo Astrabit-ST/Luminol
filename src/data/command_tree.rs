@@ -150,28 +150,30 @@ impl Node {
 
     fn from_iter(iter: &mut Peekable<impl Iterator<Item = Command>>) -> Option<Node> {
         iter.next().map(|self_command| {
-            let right = if iter
+            let mut right = None;
+            if iter
                 .peek()
                 .is_some_and(|other_command| other_command.indent > self_command.indent)
             {
-                Self::from_iter(iter)
-            } else {
-                None
-            };
+                right = Self::from_iter(iter)
+            }
 
-            Self::new(self_command, Self::from_iter(iter), right)
+            let mut left = None;
+            if iter
+                .peek()
+                .is_some_and(|other_command| other_command.indent == self_command.indent)
+            {
+                left = Self::from_iter(iter)
+            }
+
+            Self::new(self_command, left, right)
         })
     }
 }
 
 impl From<Vec<Command>> for Node {
     fn from(value: Vec<Command>) -> Self {
-        let n = Self::from_iter(&mut value.clone().into_iter().peekable()).unwrap();
-        println!("{:#?}", n);
-
-        assert_eq!(Vec::from(n.clone()), value);
-
-        n
+        Self::from_iter(&mut value.into_iter().peekable()).unwrap()
     }
 }
 
