@@ -101,10 +101,17 @@ pub enum CommandKind {
     CommentExt { text: String },
     /// Wait, id 106
     Wait { time: i32 },
+    /// Script, id 355
+    Script { text: String },
+    /// Extended script, id 655
+    ScriptExt { text: String },
 
     //? Special commands ?//
     /// Invalid, invalid command ID
-    Invalid { code: i32 },
+    Invalid {
+        code: i32,
+        parameters: Vec<ParameterType>,
+    },
     /// Fields: (params: [`Vec<ParameterType>`])
     Custom { params: Vec<ParameterType> },
     /// Break from...?
@@ -150,13 +157,19 @@ impl From<EventCommand> for Command {
                 408 => CommentExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
+                355 => Script {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+                655 => ScriptExt {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
                 111 => Conditional {
                     kind: parameters[0].clone().into_integer().unwrap(),
                     params: parameters[1..].to_vec(),
                 },
                 411 => Else,
                 112 => Loop,
-                _ => Invalid { code },
+                _ => Invalid { code, parameters },
             },
         }
     }

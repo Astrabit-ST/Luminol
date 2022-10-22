@@ -26,6 +26,7 @@ const CONTROL_FLOW: Color32 = Color32::BLUE;
 const ERROR: Color32 = Color32::RED;
 const NORMAL: Color32 = Color32::WHITE;
 const COMMENT: Color32 = Color32::GREEN;
+const SCRIPT: Color32 = Color32::YELLOW;
 
 /// An event command viewer.
 
@@ -86,7 +87,10 @@ impl<'co> CommandView<'co> {
             Text { text } => {
                 ui.selectable_value(selected_index, *index, format!("Show Text: {}", text))
             }
-            TextExt { text } => ui.label(format!("          :  {}", text)),
+            TextExt { text } => {
+                //
+                ui.label(format!("          :  {}", text))
+            }
             Conditional { .. } => {
                 Self::collapsible(
                     "Conditional Branch".to_string(),
@@ -122,7 +126,26 @@ impl<'co> CommandView<'co> {
                     RichText::new(format!("       : {}", text)).color(COMMENT),
                 )
             }
-            Invalid { code } => {
+            Wait { time } => {
+                ui.selectable_value(selected_index, *index, format!("Wait {} frames", time))
+            }
+            Script { text } => {
+                //
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("Script: {}", text)).color(SCRIPT),
+                )
+            }
+            ScriptExt { text } => {
+                //
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("      : {}", text)).color(SCRIPT),
+                )
+            }
+            Invalid { code, parameters } => {
                 //
                 ui.selectable_value(
                     selected_index,
@@ -132,7 +155,8 @@ impl<'co> CommandView<'co> {
                 .on_hover_text(
                     RichText::new("This happens when Luminol does not recognize a command ID.")
                         .color(ERROR),
-                )
+                );
+                ui.colored_label(ERROR, format!("{:?}", parameters))
             }
             _ => {
                 //
