@@ -48,7 +48,6 @@ impl Window for CommonEventEdit {
             })
     }
 
-    #[allow(unused_variables)]
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name())
             .default_width(500.)

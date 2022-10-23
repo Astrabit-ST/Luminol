@@ -17,6 +17,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::rmxp_structs::intermediate;
 #[allow(unused_imports)]
 use super::{rgss_structs::*, rmxp_structs::rpg};
 use enum_as_inner::EnumAsInner;
@@ -47,8 +48,8 @@ impl From<String> for ParameterType {
 
 /// An enum representing event commands.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(from = "EventCommand")]
-#[serde(into = "EventCommand")]
+#[serde(from = "intermediate::EventCommand")]
+#[serde(into = "intermediate::EventCommand")]
 pub struct Command {
     /// Command indent
     pub indent: usize,
@@ -106,7 +107,13 @@ pub enum CommandKind {
     /// Extended script, id 655
     ScriptExt { text: String },
 
+    /// Move route, id 209
+    MoveRoute { target: i32, route: rpg::MoveRoute },
+
     //? Special commands ?//
+    /// Special editor move command display.
+    /// We don't need it.
+    MoveDisplay,
     /// Invalid, invalid command ID
     Invalid {
         code: i32,
@@ -120,19 +127,11 @@ pub enum CommandKind {
 
 pub use CommandKind::*;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[allow(missing_docs)]
-pub struct EventCommand {
-    pub code: i32,
-    pub indent: usize,
-    pub parameters: Vec<ParameterType>,
-}
-
 // TODO: Make this a macro
 
-impl From<EventCommand> for Command {
-    fn from(cmd: EventCommand) -> Self {
-        let EventCommand {
+impl From<intermediate::EventCommand> for Command {
+    fn from(cmd: intermediate::EventCommand) -> Self {
+        let intermediate::EventCommand {
             code,
             indent,
             parameters,
@@ -141,14 +140,14 @@ impl From<EventCommand> for Command {
         Self {
             indent,
             kind: match code {
-                0 => Break,
+                0 => CommandKind::Break,
                 101 => Text {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
                 401 => TextExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
-                106 => Wait {
+                106 => CommandKind::Wait {
                     time: parameters[0].clone().into_integer().unwrap(),
                 },
                 108 => Comment {
@@ -157,7 +156,7 @@ impl From<EventCommand> for Command {
                 408 => CommentExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
-                355 => Script {
+                355 => CommandKind::Script {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
                 655 => ScriptExt {
@@ -169,7 +168,12 @@ impl From<EventCommand> for Command {
                 },
                 411 => Else,
                 112 => Loop,
-                _ => Invalid { code, parameters },
+                209 => MoveRoute {
+                    target: *parameters[0].as_integer().unwrap(),
+                    route: parameters[1].as_move_route().unwrap().clone(),
+                },
+                509 => MoveDisplay,
+                _ => CommandKind::Invalid { code, parameters },
             },
         }
     }
@@ -177,7 +181,7 @@ impl From<EventCommand> for Command {
 
 // TODO: Make this a macro
 
-impl From<Command> for EventCommand {
+impl From<Command> for intermediate::EventCommand {
     fn from(cmd: Command) -> Self {
         let (code, parameters) = match cmd.kind {
             Text { text } => (101, vec![text.into()]),
@@ -192,9 +196,231 @@ impl From<Command> for EventCommand {
     }
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
+/// An enum representing move commands.
 #[allow(missing_docs)]
-pub struct MoveCommand {
-    pub code: i32,
-    pub parameters: Vec<ParameterType>,
+#[derive(Debug, Clone, EnumAsInner, PartialEq, Serialize, Deserialize)]
+#[serde(from = "intermediate::MoveCommand")]
+#[serde(into = "intermediate::MoveCommand")]
+pub enum MoveCommand {
+    /// Move down, id 1
+    Down,
+    /// Move left, id 2
+    Left,
+    /// Move right, id 3
+    Right,
+    /// Move up, id 4
+    Up,
+    /// Move lower left, 5
+    LowerLeft,
+    /// Move lower right, 6
+    LowerRight,
+    /// Move upper left, 7
+    UpperLeft,
+    /// Move upper right, 8
+    UpperRight,
+    /// Move random, 9
+    Random,
+    /// Move towards player, 10
+    MoveTowards,
+    /// Move away from player, 11
+    MoveAway,
+    /// Step forward, 12
+    Forward,
+    /// Step backwards, 13
+    Backwards,
+    /// Jump, 14
+    Jump {
+        x_plus: i32,
+        y_plus: i32,
+    },
+    /// Wait, 15
+    Wait {
+        time: i32,
+    },
+    /// Turn down, 16
+    TurnDown,
+    /// Turn down, 17
+    TurnLeft,
+    /// Turn down, 18
+    TurnRight,
+    /// Turn down, 19
+    TurnUp,
+    /// Turn right 90, 20
+    TurnRight90,
+    /// Turn left 90, 21
+    TurnLeft90,
+    /// Turn 180, 22
+    Turn180,
+    /// Turn right or left 90, 23
+    TurnRightOrLeft,
+    /// Turn random, 24
+    TurnRandom,
+    /// Turn towards player, 25
+    TurnTowardsPlayer,
+    /// Turn away from player, 26
+    TurnAwayFromPlayer,
+    /// Switch ON, 27
+    SwitchON {
+        switch_id: i32,
+    },
+    /// Switch OFF, 28
+    SwitchOFF {
+        switch_id: i32,
+    },
+    /// Change speed, 29
+    ChangeSpeed {
+        speed: i32,
+    },
+    /// Change freq, 30
+    ChangeFreq {
+        freq: i32,
+    },
+    /// Move anim ON, 31
+    MoveON,
+    /// Move anim OFF, 32
+    MoveOFF,
+    /// Stop anim ON, 33
+    StopON,
+    /// Stop anim OFF, 34
+    StopOFF,
+    /// Direction fix ON, 35
+    DirFixON,
+    /// Direction fix OFF, 36
+    DirFixOFF,
+    /// Through ON, 37
+    ThroughON,
+    /// Through OFF, 38
+    ThroughOFF,
+    /// Always on top ON, 39
+    AlwaysTopON,
+    /// Always on top OFF, 40
+    AlwaysTopOFF,
+    /// Change graphic, 41
+    ChangeGraphic {
+        character_name: String,
+        character_hue: i32,
+        direction: i32,
+        pattern: i32,
+    },
+    /// Change opacity, 42
+    ChangeOpacity {
+        opacity: i32,
+    },
+    /// Change blending, 43
+    ChangeBlend {
+        blend: i32,
+    },
+    /// Play SE, 44
+    PlaySE {
+        audiofile: rpg::AudioFile,
+    },
+    /// Script, 45
+    Script {
+        text: String,
+    },
+
+    Break,
+    Invalid {
+        code: i32,
+        parameters: Vec<ParameterType>,
+    },
+}
+
+pub use MoveCommand::*;
+
+impl From<intermediate::MoveCommand> for MoveCommand {
+    fn from(value: intermediate::MoveCommand) -> Self {
+        let intermediate::MoveCommand { code, parameters } = value;
+
+        match code {
+            1 => Down,
+            2 => Left,
+            3 => Right,
+            4 => Up,
+            5 => LowerLeft,
+            6 => LowerRight,
+            7 => UpperLeft,
+            8 => UpperRight,
+            9 => Random,
+            10 => MoveTowards,
+            11 => MoveAway,
+            12 => Forward,
+            13 => Backwards,
+            14 => Jump {
+                x_plus: *parameters[0].as_integer().unwrap(),
+                y_plus: *parameters[1].as_integer().unwrap(),
+            },
+            15 => MoveCommand::Wait {
+                time: *parameters[0].as_integer().unwrap(),
+            },
+            16 => TurnDown,
+            17 => TurnLeft,
+            18 => TurnRight,
+            19 => TurnUp,
+            20 => TurnRight90,
+            21 => TurnLeft90,
+            22 => Turn180,
+            23 => TurnRightOrLeft,
+            24 => TurnRandom,
+            25 => TurnTowardsPlayer,
+            26 => TurnAwayFromPlayer,
+            27 => SwitchON {
+                switch_id: *parameters[0].as_integer().unwrap(),
+            },
+            28 => SwitchOFF {
+                switch_id: *parameters[0].as_integer().unwrap(),
+            },
+            29 => ChangeSpeed {
+                speed: *parameters[0].as_integer().unwrap(),
+            },
+            30 => ChangeFreq {
+                freq: *parameters[0].as_integer().unwrap(),
+            },
+            31 => MoveON,
+            32 => MoveOFF,
+            33 => StopON,
+            34 => StopOFF,
+            35 => DirFixON,
+            36 => DirFixOFF,
+            37 => ThroughON,
+            38 => ThroughOFF,
+            39 => AlwaysTopON,
+            40 => AlwaysTopOFF,
+            41 => ChangeGraphic {
+                character_name: parameters[0].as_string().unwrap().clone(),
+                character_hue: *parameters[1].as_integer().unwrap(),
+                direction: *parameters[2].as_integer().unwrap(),
+                pattern: *parameters[3].as_integer().unwrap(),
+            },
+            42 => ChangeOpacity {
+                opacity: *parameters[0].as_integer().unwrap(),
+            },
+            43 => ChangeBlend {
+                blend: *parameters[0].as_integer().unwrap(),
+            },
+            44 => PlaySE {
+                audiofile: parameters[0].as_audio_file().unwrap().clone(),
+            },
+            45 => Self::Script {
+                text: parameters[0].as_string().unwrap().clone(),
+            },
+
+            0 => Self::Break,
+            _ => MoveCommand::Invalid { code, parameters },
+        }
+    }
+}
+
+impl From<MoveCommand> for intermediate::MoveCommand {
+    fn from(value: MoveCommand) -> Self {
+        let (code, parameters) = match value {
+            Down => (1, vec![]),
+            Left => (2, vec![]),
+            Right => (3, vec![]),
+            Up => (4, vec![]),
+            _ => (0, vec![]),
+        };
+
+        Self { code, parameters }
+    }
 }

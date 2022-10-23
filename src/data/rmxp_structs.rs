@@ -530,3 +530,23 @@ pub mod rpg {
         pitch: u8,
     }
 }
+
+pub mod intermediate {
+    use crate::data::commands::ParameterType;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Deserialize, Serialize, Clone)]
+    #[allow(missing_docs)]
+    pub struct EventCommand {
+        pub code: i32,
+        pub indent: usize,
+        pub parameters: Vec<ParameterType>,
+    }
+
+    #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
+    #[allow(missing_docs)]
+    pub struct MoveCommand {
+        pub code: i32,
+        pub parameters: Vec<ParameterType>,
+    }
+}

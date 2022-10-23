@@ -87,15 +87,14 @@ impl<'co> CommandView<'co> {
                     ui.selectable_value(selected_index, *index, "@>");
 
                     ui.colored_label(CONTROL_FLOW, "Branch End");
-                })
-                .response
+                });
             }
             Text { text } => {
-                ui.selectable_value(selected_index, *index, format!("Show Text: {}", text))
+                ui.selectable_value(selected_index, *index, format!("Show Text: {}", text));
             }
             TextExt { text } => {
                 //
-                ui.label(format!("          :  {}", text))
+                ui.label(format!("          :  {}", text));
             }
             Conditional { .. } => {
                 Self::collapsible(
@@ -105,8 +104,7 @@ impl<'co> CommandView<'co> {
                     index,
                     selected_index,
                     custom_id_source,
-                )
-                .header_response
+                );
             }
             Else => {
                 Self::collapsible(
@@ -116,8 +114,7 @@ impl<'co> CommandView<'co> {
                     index,
                     selected_index,
                     custom_id_source,
-                )
-                .header_response
+                );
             }
             Loop => {
                 //
@@ -128,8 +125,7 @@ impl<'co> CommandView<'co> {
                     index,
                     selected_index,
                     custom_id_source,
-                )
-                .header_response
+                );
             }
             Comment { text } => {
                 //
@@ -137,7 +133,7 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new(format!("Comment: {}", text)).color(COMMENT),
-                )
+                );
             }
             CommentExt { text } => {
                 ui.selectable_value(
@@ -145,10 +141,10 @@ impl<'co> CommandView<'co> {
                     *index,
                     //                               "Comment: {}"
                     RichText::new(format!("       : {}", text)).color(COMMENT),
-                )
+                );
             }
             Wait { time } => {
-                ui.selectable_value(selected_index, *index, format!("Wait {} frames", time))
+                ui.selectable_value(selected_index, *index, format!("Wait {} frames", time));
             }
             Script { text } => {
                 //
@@ -156,7 +152,7 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new(format!("Script: {}", text)).color(SCRIPT),
-                )
+                );
             }
             ScriptExt { text } => {
                 //
@@ -164,7 +160,7 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new(format!("      : {}", text)).color(SCRIPT),
-                )
+                );
             }
             Invalid { code, parameters } => {
                 //
@@ -177,17 +173,22 @@ impl<'co> CommandView<'co> {
                     RichText::new("This happens when Luminol does not recognize a command ID.")
                         .color(ERROR),
                 );
-                ui.colored_label(ERROR, format!("{:?}", parameters))
+                ui.colored_label(ERROR, format!("Parameters: \n{:#?}", parameters));
             }
+            MoveDisplay => {}
             _ => {
                 //
-                ui.selectable_value(selected_index, *index, format!("{:?} ???", kind))
-                    .on_hover_text(
-                        RichText::new(
-                            "Luminol recognizes this command, but there is no code to render it.",
-                        )
-                        .color(ERROR),
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("{:#?} ???", kind)).color(SCRIPT),
+                )
+                .on_hover_text(
+                    RichText::new(
+                        "Luminol recognizes this command, but there is no code to render it.",
                     )
+                    .color(ERROR),
+                );
             }
         };
 
