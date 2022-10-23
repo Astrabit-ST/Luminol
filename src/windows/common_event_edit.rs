@@ -52,6 +52,7 @@ impl Window for CommonEventEdit {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name())
             .default_width(500.)
+            .id(egui::Id::new("common_events_edit"))
             .open(open)
             .show(ctx, |ui| {
                 let mut common_events = info.data_cache.common_events();

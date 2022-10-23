@@ -234,6 +234,10 @@ impl TilemapDef for Tilemap {
     fn textures_loaded(&self) -> bool {
         self.load_data.ready().is_some()
     }
+
+    fn load_result(&self) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 impl Tilemap {
