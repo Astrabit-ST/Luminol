@@ -365,7 +365,16 @@ impl Window for EventEdit {
                     2 => {
                         ui.vertical(|ui| {
                             ui.group(|ui| {
-                                CommandView::new(&mut page.list).ui(ui);
+                                egui::ScrollArea::both()
+                                    .max_height(500.)
+                                    .auto_shrink([false; 2])
+                                    .show(ui, |ui| {
+                                        CommandView::new(
+                                            &mut page.list,
+                                            &format!("map_event_{}_{}", self.id, self.map_id),
+                                        )
+                                        .ui(ui);
+                                    });
                             });
                         });
                     }

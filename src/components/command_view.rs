@@ -32,38 +32,43 @@ const SCRIPT: Color32 = Color32::YELLOW;
 
 pub struct CommandView<'co> {
     commands: &'co mut Node,
+    custom_id_source: &'co str,
 }
 
 impl<'co> CommandView<'co> {
     /// Create a new command viewer.
-    pub fn new(commands: &'co mut Node) -> Self {
-        Self { commands }
+    pub fn new(commands: &'co mut Node, custom_id_source: &'co str) -> Self {
+        Self {
+            commands,
+            custom_id_source,
+        }
     }
 
     /// Show the viewer.
     pub fn ui(self, ui: &mut egui::Ui) {
-        egui::ScrollArea::both()
-            .auto_shrink([false, false])
-            .max_height(500.)
-            .show(ui, |ui| {
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
-                ui.visuals_mut().override_text_color = Some(NORMAL);
-                ui.visuals_mut().button_frame = false;
+        ui.vertical(|ui| {
+            ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
+            ui.visuals_mut().override_text_color = Some(NORMAL);
+            ui.visuals_mut().button_frame = false;
 
-                ui.vertical(|ui| {
-                    let mut selected_index = ui
-                        .memory()
-                        .data
-                        .get_temp(egui::Id::new("command_view_selected_index"));
-                    let mut selected_index = *selected_index.get_or_insert(1000);
+            let mut selected_index = ui
+                .memory()
+                .data
+                .get_temp(egui::Id::new("command_view_selected_index"));
+            let mut selected_index = *selected_index.get_or_insert(1000);
 
-                    Self::render_command(ui, self.commands, &mut 0, &mut selected_index);
+            Self::render_command(
+                ui,
+                self.commands,
+                &mut 0,
+                &mut selected_index,
+                self.custom_id_source,
+            );
 
-                    ui.memory()
-                        .data
-                        .insert_temp(egui::Id::new("command_view_selected_index"), selected_index);
-                });
-            });
+            ui.memory()
+                .data
+                .insert_temp(egui::Id::new("command_view_selected_index"), selected_index);
+        });
     }
 
     fn render_command(
@@ -71,6 +76,7 @@ impl<'co> CommandView<'co> {
         node: &mut Node,
         index: &mut usize,
         selected_index: &mut usize,
+        custom_id_source: &'co str,
     ) {
         *index += 1;
 
@@ -98,17 +104,32 @@ impl<'co> CommandView<'co> {
                     node,
                     index,
                     selected_index,
+                    custom_id_source,
                 )
                 .header_response
             }
             Else => {
-                Self::collapsible("Else".to_string(), ui, node, index, selected_index)
-                    .header_response
+                Self::collapsible(
+                    "Else".to_string(),
+                    ui,
+                    node,
+                    index,
+                    selected_index,
+                    custom_id_source,
+                )
+                .header_response
             }
             Loop => {
                 //
-                Self::collapsible("Loop".to_string(), ui, node, index, selected_index)
-                    .header_response
+                Self::collapsible(
+                    "Loop".to_string(),
+                    ui,
+                    node,
+                    index,
+                    selected_index,
+                    custom_id_source,
+                )
+                .header_response
             }
             Comment { text } => {
                 //
@@ -171,7 +192,7 @@ impl<'co> CommandView<'co> {
         };
 
         node.branch(Branch::Left, |node| {
-            Self::render_command(ui, node, index, selected_index);
+            Self::render_command(ui, node, index, selected_index, custom_id_source);
         });
     }
 
@@ -181,11 +202,15 @@ impl<'co> CommandView<'co> {
         node: &mut Node,
         index: &mut usize,
         selected_index: &mut usize,
+        custom_id_source: &'co str,
     ) -> CollapsingResponse<()> {
         ui.vertical(|ui| {
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
-                egui::Id::new(format!("{}_collapsible_command", index)),
+                egui::Id::new(format!(
+                    "{}_{}_collapsible_command",
+                    custom_id_source, index
+                )),
                 true,
             );
             let openness = header.openness(ui.ctx());
@@ -200,7 +225,7 @@ impl<'co> CommandView<'co> {
                 })
                 .body(|ui| {
                     node.branch(Branch::Right, |node| {
-                        Self::render_command(ui, node, index, selected_index)
+                        Self::render_command(ui, node, index, selected_index, custom_id_source)
                     })
                 });
 

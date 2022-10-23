@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use poll_promise::Promise;
 
 use crate::UpdateInfo;
@@ -24,12 +26,18 @@ use crate::UpdateInfo;
 pub struct TopBar {
     open_project_promise: Option<Promise<Result<(), String>>>,
     save_project_promise: Option<Promise<Result<(), String>>>,
+    egui_settings_open: bool,
 }
 
 impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
-    pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
+    pub fn ui(
+        &mut self,
+        info: &'static UpdateInfo,
+        ui: &mut egui::Ui,
+        style: &mut Arc<egui::Style>,
+    ) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.separator();
@@ -91,10 +99,9 @@ impl TopBar {
 
             ui.separator();
 
-            if ui.button("Egui Settings").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::EguiSettings::default())
-            }
+            // Or these together so if one OR the other is true the window shows.
+            self.egui_settings_open =
+                ui.button("Egui Settings").clicked() || self.egui_settings_open;
         });
 
         ui.separator();
@@ -103,6 +110,11 @@ impl TopBar {
             if ui.button("Maps").clicked() {
                 info.windows
                     .add_window(crate::windows::map_picker::MapPicker::default())
+            }
+
+            if ui.button("Common Events").clicked() {
+                info.windows
+                    .add_window(crate::windows::common_event_edit::CommonEventEdit::default())
             }
 
             if ui.button("Sound Test").clicked() {
@@ -135,5 +147,14 @@ impl TopBar {
             ui.toggle_value(&mut debug_on_hover, "Debug on hover");
             ui.ctx().set_debug_on_hover(debug_on_hover);
         });
+
+        let ctx = ui.ctx();
+        // Because style_ui makes a new style, AND we can't pass the style to a dedicated window, we handle the logic here.
+        egui::Window::new("Egui Settings")
+            .open(&mut self.egui_settings_open)
+            .show(ui.ctx(), |ui| {
+                ctx.style_ui(ui);
+                *style = ctx.style();
+            });
     }
 }

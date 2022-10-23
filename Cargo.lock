@@ -926,8 +926,7 @@ dependencies = [
 [[package]]
 name = "egui_dock"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99738776bf594f50e59322bbbd7879f956445e0a7ddfe3e1ccbf35876d83f121"
+source = "git+https://github.com/Adanos020/egui_dock?rev=ae1907505c94a4923328ebf956bd0c054a1a4091#ae1907505c94a4923328ebf956bd0c054a1a4091"
 dependencies = [
  "egui",
 ]

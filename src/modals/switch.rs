@@ -55,7 +55,7 @@ impl Modal for SwitchModal {
             let system = system.as_ref().unwrap();
 
             if ui
-                .button(format!("{}: {}", data, system.switches[*data]))
+                .button(format!("{}: {}", data, system.switches[*data - 1]))
                 .clicked()
             {
                 *state = true;

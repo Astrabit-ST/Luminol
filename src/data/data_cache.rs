@@ -33,6 +33,7 @@ pub struct DataCache {
     tilesets: RefCell<Option<Vec<rpg::Tileset>>>,
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
     maps: RefCell<HashMap<i32, rpg::Map>>,
+    common_events: RefCell<Option<Vec<rpg::CommonEvent>>>,
 }
 
 impl DataCache {
@@ -57,6 +58,13 @@ impl DataCache {
                 .read_data("Tilesets.ron")
                 .await
                 .map_err(|s| format!("Failed to read Tilesets: {}", s))?,
+        );
+
+        *self.common_events.borrow_mut() = Some(
+            filesystem
+                .read_data("CommonEvents.ron")
+                .await
+                .map_err(|s| format!("Failed to read Common Events: {}", s))?,
         );
 
         self.maps.borrow_mut().clear();
@@ -102,6 +110,11 @@ impl DataCache {
     /// Get system.
     pub fn system(&self) -> RefMut<'_, Option<rpg::system::System>> {
         self.system.borrow_mut()
+    }
+
+    /// Get Common Events.
+    pub fn common_events(&self) -> RefMut<'_, Option<Vec<rpg::CommonEvent>>> {
+        self.common_events.borrow_mut()
     }
 
     /// Save all cached data to disk.

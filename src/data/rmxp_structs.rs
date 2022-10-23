@@ -436,13 +436,13 @@ pub mod rpg {
         pub terrain_tags: Table1,
     }
 
-    #[derive(Default, Debug, Deserialize, Serialize)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct CommonEvent {
-        id: i32,
-        name: String,
-        trigger: i32,
-        switch_id: i32,
-        list: Node,
+        pub id: usize,
+        pub name: String,
+        pub trigger: usize,
+        pub switch_id: usize,
+        pub list: Node,
     }
 
     pub mod system {

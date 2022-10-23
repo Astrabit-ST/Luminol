@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cell::RefCell;
+use std::{cell::RefCell, hash::Hash};
 
 use super::started::Started;
 use crate::UpdateInfo;
@@ -26,6 +26,7 @@ type Tree = egui_dock::Tree<Box<dyn Tab>>;
 /// Helper struct for tabs.
 pub struct Tabs {
     tree: RefCell<Tree>,
+    id: egui::Id,
 }
 
 impl Default for Tabs {
@@ -33,15 +34,25 @@ impl Default for Tabs {
         // Add the basic "get started" tab
         Self {
             tree: RefCell::new(Tree::new(vec![Box::new(Started::new())])),
+            id: egui::Id::new("tab_area"),
         }
     }
 }
 
 impl Tabs {
+    /// Create a new Tab viewer without any tabs.
+    pub fn new(id: impl Hash) -> Self {
+        Self {
+            id: egui::Id::new(id),
+            tree: Default::default(),
+        }
+    }
+
     /// Display all tabs.
     pub fn ui(&self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
         ui.group(|ui| {
             egui_dock::DockArea::new(&mut self.tree.borrow_mut())
+                .id(self.id)
                 .show_inside(ui, &mut TabViewer { info });
         });
     }
@@ -72,6 +83,12 @@ impl Tabs {
         }
     }
 
+    /// Returns the name of the focused tab.
+    pub fn focused_name(&self) -> Option<String> {
+        let mut tree = self.tree.borrow_mut();
+        tree.find_active().map(|(_, t)| t.name())
+    }
+
     /// The discord rpc text to display.
     #[cfg(feature = "discord-rpc")]
     pub fn discord_display(&self) -> String {
@@ -98,6 +115,10 @@ impl egui_dock::TabViewer for TabViewer {
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         tab.show(ui, self.info);
     }
+
+    fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
+        tab.force_close()
+    }
 }
 
 /// A tab trait.
@@ -110,6 +131,11 @@ pub trait Tab {
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {
+        false
+    }
+
+    /// Does this tab need to be closed?
+    fn force_close(&mut self) -> bool {
         false
     }
 

@@ -17,22 +17,6 @@
 
 use super::window::Window;
 
-/// Egui settings window.
-#[derive(Default)]
-pub struct EguiSettings {}
-
-impl Window for EguiSettings {
-    fn name(&self) -> String {
-        "Egui Settings".to_string()
-    }
-
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {
-        egui::Window::new(self.name())
-            .open(open)
-            .show(ctx, |ui| ctx.settings_ui(ui));
-    }
-}
-
 /// Egui inspection window.
 #[derive(Default)]
 pub struct EguiInspection {}

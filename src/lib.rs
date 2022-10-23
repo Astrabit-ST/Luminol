@@ -38,6 +38,8 @@ pub mod audio;
 pub mod windows {
     /// The about window.
     pub mod about;
+    /// The common event editor.
+    pub mod common_event_edit;
     /// The event editor.
     pub mod event_edit;
     /// The map picker.

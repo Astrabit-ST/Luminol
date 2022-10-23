@@ -26,6 +26,7 @@ use crate::UpdateInfo;
 #[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
+    loading_project: RefCell<bool>,
 }
 
 impl Filesystem {
@@ -37,7 +38,7 @@ impl Filesystem {
 
     /// Is there a project loaded?
     pub fn project_loaded(&self) -> bool {
-        self.project_path.borrow().is_some()
+        self.project_path.borrow().is_some() && !*self.loading_project.borrow()
     }
 
     /// Get the project path.
@@ -52,10 +53,15 @@ impl Filesystem {
         cache: &'static DataCache,
     ) -> Result<(), String> {
         *self.project_path.borrow_mut() = Some(path);
-        cache.load(self).await.map_err(|e| {
+
+        *self.loading_project.borrow_mut() = true;
+        let result = cache.load(self).await.map_err(|e| {
             *self.project_path.borrow_mut() = None;
             e
-        })
+        });
+        *self.loading_project.borrow_mut() = false;
+
+        result
     }
 
     /// Get the directory children of a path.

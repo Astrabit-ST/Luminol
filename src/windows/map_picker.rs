@@ -60,9 +60,12 @@ impl MapPicker {
             });
         } else {
             // Just display a label otherwise.
-            if ui.button(map_name).double_clicked() {
-                Self::create_map_tab(*id, map_name.clone(), info);
-            }
+            ui.horizontal(|ui| {
+                ui.add_space(ui.spacing().indent);
+                if ui.button(map_name).double_clicked() {
+                    Self::create_map_tab(*id, map_name.clone(), info);
+                }
+            });
         }
     }
 
@@ -79,42 +82,46 @@ impl super::window::Window for MapPicker {
         egui::Window::new("Map Picker")
             .open(&mut window_open)
             .show(ctx, |ui| {
-                egui::ScrollArea::both().show(ui, |ui| {
-                    // Aquire the data cache.
-                    let mapinfos = info.data_cache.map_infos();
-                    let mapinfos = match mapinfos.as_ref() {
-                        Some(m) => m,
-                        None => {
-                            *open = false;
-                            info.toasts.error("MapInfos not loaded.");
-                            return;
+                egui::ScrollArea::both()
+                    .auto_shrink([false; 2])
+                    .show(ui, |ui| {
+                        // Aquire the data cache.
+                        let mapinfos = info.data_cache.map_infos();
+                        let mapinfos = match mapinfos.as_ref() {
+                            Some(m) => m,
+                            None => {
+                                *open = false;
+                                info.toasts.error("MapInfos not loaded.");
+                                return;
+                            }
+                        };
+
+                        // We sort maps by their order.
+                        let mut sorted_maps = Vec::from_iter(mapinfos.iter());
+                        sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
+
+                        // We preprocess maps to figure out what has nodes and what doesn't.
+                        // This should result in an ordered hashmap of all the maps and their children.
+                        let mut children_data: HashMap<i32, Vec<i32>> = HashMap::new();
+                        for (id, map) in sorted_maps {
+                            // Is there an entry for our parent?
+                            // If not, then just add a blank vector to it.
+                            let children = children_data.entry(map.parent_id).or_default();
+                            children.push(*id);
                         }
-                    };
+                        children_data.entry(0).or_default(); // If there is no `0` entry (i.e. there are no maps) then add one.
 
-                    // We sort maps by their order.
-                    let mut sorted_maps = Vec::from_iter(mapinfos.iter());
-                    sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
-
-                    // We preprocess maps to figure out what has nodes and what doesn't.
-                    // This should result in an ordered hashmap of all the maps and their children.
-                    let mut children_data: HashMap<i32, Vec<i32>> = HashMap::new();
-                    for (id, map) in sorted_maps {
-                        // Is there an entry for our parent?
-                        // If not, then just add a blank vector to it.
-                        let children = children_data.entry(map.parent_id).or_default();
-                        children.push(*id);
-                    }
-                    children_data.entry(0).or_default(); // If there is no `0` entry (i.e. there are no maps) then add one.
-
-                    // Now we can actually render all maps.
-                    ui.collapsing("root", |ui| {
-                        // There will always be a map `0`.
-                        // `0` is assumed to be the root map.
-                        for id in children_data.get(&0).unwrap() {
-                            Self::render_submap(id, &children_data, mapinfos, info, ui);
-                        }
-                    });
-                })
+                        // Now we can actually render all maps.
+                        egui::CollapsingHeader::new("root")
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                // There will always be a map `0`.
+                                // `0` is assumed to be the root map.
+                                for id in children_data.get(&0).unwrap() {
+                                    Self::render_submap(id, &children_data, mapinfos, info, ui);
+                                }
+                            });
+                    })
             });
         *open = window_open;
     }

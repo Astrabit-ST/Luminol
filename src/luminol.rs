@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use crate::{
     components::{toolbar::Toolbar, top_bar::TopBar},
@@ -28,6 +29,7 @@ pub struct Luminol {
     top_bar: TopBar,
     toolbar: Toolbar,
     info: &'static UpdateInfo,
+    style: Arc<egui::Style>,
     #[cfg(feature = "discord-rpc")]
     discord: crate::discord::DiscordClient,
 }
@@ -35,16 +37,22 @@ pub struct Luminol {
 impl Luminol {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut state = SavedState {
-            recent_projects: VecDeque::new(),
-        };
-        state.recent_projects.reserve(10);
+        let storage = cc.storage.unwrap();
 
-        if let Some(storage) = cc.storage {
-            if let Some(_state) = eframe::get_value(storage, "SavedState") {
-                state = _state
-            }
-        }
+        let state = eframe::get_value(storage, "SavedState").map_or_else(
+            || {
+                let mut state = SavedState {
+                    recent_projects: VecDeque::new(),
+                };
+                state.recent_projects.reserve(10);
+                state
+            },
+            |s| s,
+        );
+
+        let style =
+            eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
+        cc.egui_ctx.set_style(style.clone());
 
         Self {
             top_bar: TopBar::default(),
@@ -53,6 +61,7 @@ impl Luminol {
                 cc.gl.as_ref().unwrap().clone(),
                 state,
             ))), // This is bad but I don't care
+            style,
             #[cfg(feature = "discord-rpc")]
             discord: crate::discord::DiscordClient::default(),
         }
@@ -63,6 +72,7 @@ impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value::<SavedState>(storage, "SavedState", &self.info.saved_state.borrow());
+        eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -73,7 +83,7 @@ impl eframe::App for Luminol {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(self.info, ui);
+                self.top_bar.ui(self.info, ui, &mut self.style);
             });
         });
 

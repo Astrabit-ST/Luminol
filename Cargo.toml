@@ -99,6 +99,7 @@ members = ["marshal"]
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/Speak2Erase/poll-promise", rev = "47688e8" }
+egui_dock = { git = "https://github.com/Adanos020/egui_dock", rev = "ae1907505c94a4923328ebf956bd0c054a1a4091" }
 
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
