@@ -76,7 +76,6 @@ winres = "0.1"
 OriginalFilename = "Luminol.exe"
 ProductName = "Luminol"
 ProductVersion = "0.3.0"
-FileDescription = "FOSS RPG Maker Editor"
 
 # Fast and performant.
 [profile.release]

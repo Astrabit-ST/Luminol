@@ -99,11 +99,11 @@ impl Modal for VariableModal {
                         .auto_shrink([false, false])
                         .max_height(384.)
                         .show(ui, |ui| {
-                            for (id, name) in system
-                                .variables
-                                .iter()
-                                .enumerate()
-                                .filter(|(_, s)| s.contains(&memory.2))
+                            for (id, name) in
+                                system.variables.iter().enumerate().filter(|(id, s)| {
+                                    (id + 1).to_string().contains(&memory.2)
+                                        || s.contains(&memory.2)
+                                })
                             {
                                 let id = id + 1;
                                 let mut text = egui::RichText::new(format!("{}: {}", id, name));
@@ -132,7 +132,6 @@ impl Modal for VariableModal {
                     *open = !ui.button("Ok").clicked();
                     *open = !ui.button("Cancel").clicked();
 
-                    ui.label("Search 🔎");
                     if ui
                         .add(
                             egui::DragValue::new(&mut memory.0)
@@ -142,7 +141,9 @@ impl Modal for VariableModal {
                     {
                         memory.1 = memory.0;
                     };
-                    ui.text_edit_singleline(&mut memory.2);
+                    egui::TextEdit::singleline(&mut memory.2)
+                        .hint_text("Search 🔎")
+                        .show(ui);
                 });
 
                 ctx.data().insert_temp(self.id, memory);
