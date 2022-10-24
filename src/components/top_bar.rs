@@ -117,6 +117,11 @@ impl TopBar {
                     .add_window(crate::windows::common_event_edit::CommonEventEdit::default())
             }
 
+            if ui.button("Scripts").clicked() {
+                info.windows
+                    .add_window(crate::windows::script_edit::ScriptEdit::default())
+            }
+
             if ui.button("Sound Test").clicked() {
                 info.windows
                     .add_window(crate::windows::sound_test::SoundTest::new(info))

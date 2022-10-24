@@ -561,4 +561,12 @@ pub mod intermediate {
         pub code: i32,
         pub parameters: Vec<ParameterType>,
     }
+
+    #[allow(missing_docs)]
+    #[derive(Debug, Deserialize, Serialize, Clone)]
+    pub struct Script {
+        pub id: usize,
+        pub name: String,
+        pub data: Vec<u8>,
+    }
 }

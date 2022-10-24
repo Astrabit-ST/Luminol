@@ -25,6 +25,8 @@ use std::{
 
 use crate::filesystem::Filesystem;
 
+use super::rmxp_structs::intermediate;
+
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
@@ -34,6 +36,7 @@ pub struct DataCache {
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
     maps: RefCell<HashMap<i32, rpg::Map>>,
     common_events: RefCell<Option<Vec<rpg::CommonEvent>>>,
+    scripts: RefCell<Option<Vec<intermediate::Script>>>,
 }
 
 impl DataCache {
@@ -65,6 +68,18 @@ impl DataCache {
                 .read_data("CommonEvents.ron")
                 .await
                 .map_err(|s| format!("Failed to read Common Events: {}", s))?,
+        );
+
+        let mut scripts = filesystem.read_data("xScripts.ron").await;
+
+        if let Err(e) = scripts {
+            println!("Attempted loading xScripts failed with {}", e);
+
+            scripts = filesystem.read_data("Scripts.ron").await;
+        }
+
+        *self.scripts.borrow_mut() = Some(
+            scripts.map_err(|s| format!("Failed to read Scripts (tried xScripts first): {}", s))?,
         );
 
         self.maps.borrow_mut().clear();
@@ -115,6 +130,11 @@ impl DataCache {
     /// Get Common Events.
     pub fn common_events(&self) -> RefMut<'_, Option<Vec<rpg::CommonEvent>>> {
         self.common_events.borrow_mut()
+    }
+
+    /// Get Scripts.
+    pub fn scripts(&self) -> RefMut<'_, Option<Vec<intermediate::Script>>> {
+        self.scripts.borrow_mut()
     }
 
     /// Save all cached data to disk.

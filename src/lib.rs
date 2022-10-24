@@ -46,6 +46,8 @@ pub mod windows {
     pub mod map_picker;
     /// Misc windows.
     pub mod misc;
+    /// The script editor
+    pub mod script_edit;
     /// The sound test.
     pub mod sound_test;
     /// Traits and structs related to windows.
@@ -66,6 +68,8 @@ pub mod modals {
 pub mod components {
     /// Command editor for events
     pub mod command_view;
+    /// Syntax highlighter
+    pub mod syntax_highlighting;
     /// Toasts to be displayed for errors, information, etc.
     pub mod toasts;
     /// The toolbar for changing tools used when editing maps.

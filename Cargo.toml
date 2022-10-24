@@ -37,7 +37,9 @@ futures = "0.3.24"
 git-version = "0.3.5"
 once_cell = "1.15.0"
 enum-as-inner = "0.5.1"
-slab = { version  = "0.4", features = ["serde"] }
+slab = { version = "0.4", features = ["serde"] }
+flate2 = "1.0.24"
+syntect = "5.0"
 
 [features]
 default = ["generic-tilemap"]
