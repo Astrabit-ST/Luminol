@@ -31,7 +31,7 @@ num-traits = "0.2"
 strum = { version = "0.24.1", features = ["derive"] }
 egui_dock = "0.2.1"
 egui-notify = "0.4.0"
-ruby-marshal = { version = "0.0.1", path = "marshal" }
+ruby-marshal-rs = { version = "0.1.0", path = "ruby-marshal-rs" }
 cfg-if = "1.0.0"
 futures = "0.3.24"
 git-version = "0.3.5"
@@ -95,7 +95,7 @@ opt-level = 3
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = ["marshal"]
+members = ["ruby-marshal-rs"]
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/Speak2Erase/poll-promise", rev = "47688e8" }

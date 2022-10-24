@@ -1,0 +1,3 @@
+[submodule "ruby-marshal-rs"]
+	path = ruby-marshal-rs
+	url = https://git.somedevfox.ru/somedevfox/ruby-marshal-rs

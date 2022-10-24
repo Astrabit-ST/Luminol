@@ -1751,7 +1751,7 @@ dependencies = [
  "rfd",
  "rodio",
  "ron",
- "ruby-marshal",
+ "ruby-marshal-rs",
  "serde",
  "slab",
  "strum",
@@ -2587,10 +2587,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "ruby-marshal"
-version = "0.0.1"
+name = "ruby-marshal-rs"
+version = "0.1.0"
 dependencies = [
- "num-traits",
  "serde",
 ]
 
