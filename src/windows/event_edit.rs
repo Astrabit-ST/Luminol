@@ -28,7 +28,7 @@ use crate::{load_image_software, UpdateInfo};
 
 /// The event editor window.
 pub struct EventEdit {
-    id: i32,
+    id: usize,
     map_id: i32,
     selected_page: usize,
     event: rpg::event::Event,
@@ -40,7 +40,7 @@ pub struct EventEdit {
 impl EventEdit {
     /// Create a new event editor.
     pub fn new(
-        id: i32,
+        id: usize,
         map_id: i32,
         event: rpg::event::Event,
         tileset_name: String,
@@ -390,7 +390,7 @@ impl Window for EventEdit {
 
                     if apply_clicked || ok_clicked {
                         let mut map = info.data_cache.get_map(self.map_id);
-                        map.events.insert(self.id, self.event.clone());
+                        map.events[self.id] = self.event.clone();
                     }
 
                     if cancel_clicked || ok_clicked {

@@ -1,6 +1,6 @@
 [package]
 name = "luminol"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
     "Lily Lyons <lily@nowaffles.com>",
     "Egor Poleshko <somedevfox@gmail.com>",
@@ -37,6 +37,7 @@ futures = "0.3.24"
 git-version = "0.3.5"
 once_cell = "1.15.0"
 enum-as-inner = "0.5.1"
+slab = { version  = "0.4", features = ["serde"] }
 
 [features]
 default = ["generic-tilemap"]
@@ -75,7 +76,7 @@ winres = "0.1"
 [package.metadata.winres]
 OriginalFilename = "Luminol.exe"
 ProductName = "Luminol"
-ProductVersion = "0.3.0"
+ProductVersion = "0.3.2"
 
 # Fast and performant.
 [profile.release]

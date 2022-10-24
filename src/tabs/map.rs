@@ -43,6 +43,8 @@ pub struct Map {
     pub tilemap: Tilemap,
     /// The selected tile in the tile picker.
     pub selected_tile: i16,
+    dragged_event: usize,
+    dragging_event: bool,
     event_windows: Windows,
 }
 
@@ -57,6 +59,8 @@ impl Map {
             cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(info, id),
             selected_tile: 0,
+            dragged_event: 0,
+            dragging_event: false,
             event_windows: Default::default(),
         })
     }
@@ -67,7 +71,6 @@ impl super::tab::Tab for Map {
         format!("Map {}: {}", self.id, self.name)
     }
 
-    #[allow(unused_variables, unused_mut)]
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
         // Are we done loading data?
         if self.tilemap.textures_loaded() {
@@ -155,13 +158,9 @@ impl super::tab::Tab for Map {
 
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    let response = self.tilemap.ui(
-                        ui,
-                        &map,
-                        &mut self.cursor_pos,
-                        &self.toggled_layers,
-                        self.selected_layer,
-                    );
+                    let response =
+                        self.tilemap
+                            .ui(ui, &map, &mut self.cursor_pos, &self.toggled_layers);
 
                     let layers_max = map.data.len_of(Axis(0));
                     let map_x = self.cursor_pos.x as i32;
@@ -173,19 +172,60 @@ impl super::tab::Tab for Map {
                     {
                         map.data[[self.selected_layer, map_y as usize, map_x as usize]] =
                             self.selected_tile + 384;
-                    } else if response.double_clicked() && self.selected_layer >= layers_max {
-                        if let Some((id, event)) = map
+                    } else if self.selected_layer >= layers_max {
+                        if response.double_clicked() {
+                            if let Some((id, event)) = map
+                                .events
+                                .iter()
+                                .find(|(_, event)| event.x == map_x && event.y == map_y)
+                            {
+                                self.event_windows.add_window(EventEdit::new(
+                                    id,
+                                    self.id,
+                                    event.clone(),
+                                    tileset.tileset_name.clone(),
+                                    info,
+                                ));
+                            } else {
+                                let id = map.events.vacant_key();
+                                let event = rpg::event::Event::new(map_x, map_y, id);
+
+                                map.events.insert(event.clone());
+
+                                self.event_windows.add_window(EventEdit::new(
+                                    id,
+                                    self.id,
+                                    event,
+                                    tileset.tileset_name.clone(),
+                                    info,
+                                ));
+                            }
+                        } else if response.drag_started() {
+                            if let Some((id, _)) = map
+                                .events
+                                .iter()
+                                .find(|(_, event)| event.x == map_x && event.y == map_y)
+                            {
+                                self.dragged_event = id;
+                                self.dragging_event = true;
+                            }
+                        } else if response.dragged() && self.dragging_event {
+                            map.events[self.dragged_event].x = map_x;
+                            map.events[self.dragged_event].y = map_y;
+                        } else if response.drag_released() {
+                            self.dragging_event = false;
+                        }
+                    }
+
+                    if ui.input().key_pressed(egui::Key::Delete)
+                        || ui.input().key_pressed(egui::Key::Backspace)
+                    {
+                        if let Some((id, _)) = map
                             .events
                             .iter()
-                            .find(|(id, event)| event.x == map_x && event.y == map_y)
+                            .find(|(_, event)| event.x == map_x && event.y == map_y)
                         {
-                            self.event_windows.add_window(EventEdit::new(
-                                *id,
-                                self.id,
-                                event.clone(),
-                                tileset.tileset_name.clone(),
-                                info,
-                            ));
+                            map.events.remove(id);
                         }
                     }
                 })

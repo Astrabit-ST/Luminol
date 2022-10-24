@@ -176,7 +176,6 @@ impl TilemapDef for Tilemap {
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
         toggled_layers: &[bool],
-        selected_layer: usize,
     ) -> Response {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();

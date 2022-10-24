@@ -2,7 +2,7 @@
 // FIXME: i32 is too big for most values.
 // We should use u16 or u8 for most things.
 pub mod rpg {
-    use eframe::epaint::ahash::HashMap;
+    use slab::Slab;
 
     use crate::data::{command_tree::Node, commands::*, rgss_structs::*};
     use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub mod rpg {
         pub encounter_list: Vec<i32>,
         pub encounter_step: i32,
         pub data: Table3,
-        pub events: HashMap<i32, event::Event>,
+        pub events: Slab<event::Event>,
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
@@ -81,13 +81,25 @@ pub mod rpg {
             }
         }
 
-        #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+        #[derive(Debug, Deserialize, Serialize, Clone)]
         pub struct Event {
-            pub id: i32,
+            pub id: usize,
             pub name: String,
             pub x: i32,
             pub y: i32,
             pub pages: Vec<page::Page>,
+        }
+
+        impl Event {
+            pub fn new(x: i32, y: i32, id: usize) -> Self {
+                Self {
+                    id,
+                    name: format!("EV{:0>3}", id),
+                    x,
+                    y,
+                    pages: vec![page::Page::default()],
+                }
+            }
         }
     }
 

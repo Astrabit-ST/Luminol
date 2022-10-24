@@ -135,7 +135,6 @@ impl TilemapDef for Tilemap {
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
         toggled_layers: &[bool],
-        selected_layer: usize,
     ) -> Response {
         let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
 
@@ -176,9 +175,7 @@ impl TilemapDef for Tilemap {
             pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
             // Handle input
-            if selected_layer < map.data.len_of(Axis(0)) || response.clicked() {
-                *cursor_pos = pos_tile.to_pos2();
-            }
+            *cursor_pos = pos_tile.to_pos2();
         }
 
         // Handle pan
@@ -581,8 +578,8 @@ impl Tilemap {
 
             event_names = map
                 .events
-                .values()
-                .map(|e| {
+                .iter()
+                .map(|(_, e)| {
                     (
                         e.pages[0].graphic.character_name.clone(),
                         e.pages[0].graphic.character_hue,
