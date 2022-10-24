@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2 # repo checkout
+        with:
+          submodules: true
       - uses: actions-rs/toolchain@v1 # get rust toolchain for wasm
         with:
           profile: minimal
