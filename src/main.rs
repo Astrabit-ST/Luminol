@@ -17,13 +17,18 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+// TODO: Use eyre!
+use color_eyre::Result;
+
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 // Sadly we need tokio for the discord sdk :(
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
+
+    color_eyre::install()?;
 
     let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");
 
@@ -42,13 +47,17 @@ async fn main() {
         native_options,
         Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
     );
+
+    Ok(())
 }
 
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
-fn main() {
+fn main() -> Result<()> {
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
+
+    color_eyre::install()?;
 
     // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();
@@ -60,4 +69,6 @@ fn main() {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
     )
     .expect("failed to start eframe");
+
+    Ok(())
 }

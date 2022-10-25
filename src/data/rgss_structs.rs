@@ -36,6 +36,8 @@ pub struct Tone {
     gray: f32,
 }
 
+/// TODO: Stop using ndarray!
+
 /// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust.
 /// We don't particularly need dynamically sized arrays anyway.
 /// 1D Table.

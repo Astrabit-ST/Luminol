@@ -39,7 +39,7 @@ pub mod rpg {
             use crate::data::{command_tree::Node, rmxp_structs::rpg::MoveRoute};
             use serde::{Deserialize, Serialize};
 
-            #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+            #[derive(Debug, Deserialize, Serialize, Clone)]
             pub struct Condition {
                 pub switch1_valid: bool,
                 pub switch2_valid: bool,
@@ -52,7 +52,23 @@ pub mod rpg {
                 pub self_switch_ch: String,
             }
 
-            #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+            impl Default for Condition {
+                fn default() -> Self {
+                    Self {
+                        switch1_valid: false,
+                        switch2_valid: false,
+                        variable_valid: false,
+                        self_switch_valid: false,
+                        switch1_id: 1,
+                        switch2_id: 1,
+                        variable_id: 1,
+                        variable_value: 0,
+                        self_switch_ch: "A".to_string(),
+                    }
+                }
+            }
+
+            #[derive(Debug, Deserialize, Serialize, Clone)]
             pub struct Graphic {
                 pub tile_id: i32,
                 pub character_name: String,
@@ -63,7 +79,21 @@ pub mod rpg {
                 pub blend_type: i32,
             }
 
-            #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+            impl Default for Graphic {
+                fn default() -> Self {
+                    Self {
+                        tile_id: 0,
+                        character_name: "".to_string(),
+                        character_hue: 0,
+                        direction: 2,
+                        pattern: 0,
+                        opacity: 255,
+                        blend_type: 0,
+                    }
+                }
+            }
+
+            #[derive(Debug, Deserialize, Serialize, Clone)]
             pub struct Page {
                 pub condition: Condition,
                 pub graphic: Graphic,
@@ -78,6 +108,26 @@ pub mod rpg {
                 pub always_on_top: bool,
                 pub trigger: i32,
                 pub list: Node,
+            }
+
+            impl Default for Page {
+                fn default() -> Self {
+                    Self {
+                        condition: Condition::default(),
+                        graphic: Graphic::default(),
+                        move_type: 0,
+                        move_speed: 3,
+                        move_frequency: 3,
+                        move_route: Default::default(),
+                        walk_anime: true,
+                        step_anime: false,
+                        direction_fix: false,
+                        through: false,
+                        always_on_top: false,
+                        trigger: 0,
+                        list: Node::default(),
+                    }
+                }
             }
         }
 
@@ -102,12 +152,6 @@ pub mod rpg {
             }
         }
     }
-
-    // FIXME: Add more parameter types, 2 is not enough.
-    // TODO: Make commands an enum instead of a struct.
-    // This would be better for serialization, performance, and readability.
-    // For now I'm not messing with the RMXP data format, but I will eventually.
-    // TODO: I'd like to add a custom *.lumina format in the future that is built from the ground up. No more rmxp garbage.
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
     pub struct MoveRoute {
