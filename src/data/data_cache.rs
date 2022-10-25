@@ -107,7 +107,7 @@ impl DataCache {
 
     /// Get a map that has been loaded. This function is not async unlike [`Self::load_map`].
     /// #Panics
-    /// Will panic iftthe map has not been loaded already.
+    /// Will panic if the map has not been loaded already.
     pub fn get_map(&self, id: i32) -> RefMut<'_, rpg::Map> {
         RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
     }
@@ -143,17 +143,17 @@ impl DataCache {
         // Write map data and clear map cache.
         // We serialize all of these first before writing them to the disk to avoid bringing a refcell across an await.
         // A RwLock may be used in the future to solve this, though.
-        let maps_strs: HashMap<_, _> = self
-            .maps
-            .borrow_mut()
-            .drain()
-            .map(|(id, map)| {
-                (
-                    id,
-                    to_string_pretty(&map, PrettyConfig::default()).map_err(|e| e.to_string()),
-                )
-            })
-            .collect();
+        let maps_strs: HashMap<_, _> = {
+            let maps = self.maps.borrow();
+            maps.iter()
+                .map(|(id, map)| {
+                    (
+                        *id,
+                        to_string_pretty(&map, PrettyConfig::default()).map_err(|e| e.to_string()),
+                    )
+                })
+                .collect()
+        };
 
         for (id, map) in maps_strs {
             filesystem

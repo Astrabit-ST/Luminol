@@ -581,9 +581,9 @@ pub mod rpg {
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
     pub struct AudioFile {
-        name: String,
-        volume: u8,
-        pitch: u8,
+        pub name: String,
+        pub volume: u8,
+        pub pitch: u8,
     }
 }
 

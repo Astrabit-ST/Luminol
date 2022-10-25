@@ -17,16 +17,22 @@
 
 use egui::{CollapsingResponse, Color32, RichText};
 
-use crate::data::{
-    command_tree::{Branch, Node},
-    commands::{Command, CommandKind::*},
+use crate::{
+    data::{
+        command_tree::{Branch, Node},
+        commands::{Command, CommandKind::*, MOVE_SPEEDS},
+    },
+    UpdateInfo,
 };
 
-const CONTROL_FLOW: Color32 = Color32::BLUE;
+const CONTROL_FLOW: Color32 = Color32::from_rgb(0, 102, 255);
 const ERROR: Color32 = Color32::RED;
 const NORMAL: Color32 = Color32::WHITE;
 const COMMENT: Color32 = Color32::GREEN;
 const SCRIPT: Color32 = Color32::YELLOW;
+const MOVE_ROUTE: Color32 = Color32::from_rgb(252, 140, 3);
+const DATA: Color32 = Color32::from_rgb(252, 93, 93);
+const AUDIO: Color32 = Color32::from_rgb(101, 252, 232);
 
 /// An event command viewer.
 
@@ -45,7 +51,7 @@ impl<'co> CommandView<'co> {
     }
 
     /// Show the viewer.
-    pub fn ui(self, ui: &mut egui::Ui) {
+    pub fn ui(self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
         ui.vertical(|ui| {
             ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
             ui.visuals_mut().override_text_color = Some(NORMAL);
@@ -63,6 +69,7 @@ impl<'co> CommandView<'co> {
                 &mut 0,
                 &mut selected_index,
                 self.custom_id_source,
+                info,
             );
 
             ui.memory()
@@ -77,17 +84,14 @@ impl<'co> CommandView<'co> {
         index: &mut usize,
         selected_index: &mut usize,
         custom_id_source: &'co str,
+        info: &'static UpdateInfo,
     ) {
         *index += 1;
 
         let Command { kind, .. } = &mut node.data;
         match kind {
-            Break => {
-                ui.vertical(|ui| {
-                    ui.selectable_value(selected_index, *index, "@>");
-
-                    ui.colored_label(CONTROL_FLOW, "Branch End");
-                });
+            Insert => {
+                ui.selectable_value(selected_index, *index, "@>");
             }
             Text { text } => {
                 ui.selectable_value(selected_index, *index, format!("Show Text: {}", text));
@@ -104,6 +108,7 @@ impl<'co> CommandView<'co> {
                     index,
                     selected_index,
                     custom_id_source,
+                    info,
                 );
             }
             Else => {
@@ -114,6 +119,14 @@ impl<'co> CommandView<'co> {
                     index,
                     selected_index,
                     custom_id_source,
+                    info,
+                );
+            }
+            BranchEnd => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Branch End").color(CONTROL_FLOW),
                 );
             }
             Loop => {
@@ -125,6 +138,21 @@ impl<'co> CommandView<'co> {
                     index,
                     selected_index,
                     custom_id_source,
+                    info,
+                );
+            }
+            BreakLoop => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Break Loop").color(CONTROL_FLOW),
+                );
+            }
+            LoopEnd => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Loop End").color(CONTROL_FLOW),
                 );
             }
             Comment { text } => {
@@ -144,7 +172,7 @@ impl<'co> CommandView<'co> {
                 );
             }
             Wait { time } => {
-                ui.selectable_value(selected_index, *index, format!("Wait {} frames", time));
+                ui.selectable_value(selected_index, *index, format!("Wait {} frames", *time * 2));
             }
             Script { text } => {
                 //
@@ -176,6 +204,64 @@ impl<'co> CommandView<'co> {
                 ui.colored_label(ERROR, format!("Parameters: \n{:#?}", parameters));
             }
             MoveDisplay => {}
+            WaitMoveRoute => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Wait for Move's completion").color(MOVE_ROUTE),
+                );
+            }
+            ControlSwitches { range, state } => {
+                let str = format!(
+                    "Set Switch{} = {}",
+                    if range.end() == range.start() {
+                        let system = info.data_cache.system();
+                        let system = system.as_ref().unwrap();
+
+                        format!(" [{}: {}]", range.start(), system.switches[*range.start()])
+                    } else {
+                        format!("es [{}..{}]", range.start(), range.end())
+                    },
+                    match state {
+                        true => "ON",
+                        false => "OFF",
+                    }
+                );
+
+                ui.selectable_value(selected_index, *index, RichText::new(str).color(DATA));
+            }
+            PlaySE { file } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Play SE \"{}\", vol: {}, pitch: {}",
+                        file.name, file.volume, file.pitch
+                    ))
+                    .color(AUDIO),
+                );
+            }
+            ScrollScreen {
+                direction,
+                distance,
+                speed,
+            } => {
+                let str = format!(
+                    "Scroll Map {} {} tiles, speed {}: {}",
+                    match *direction {
+                        2 => "Down",
+                        4 => "Left",
+                        6 => "Right",
+                        8 => "Up",
+                        _ => unreachable!(),
+                    },
+                    distance,
+                    speed,
+                    MOVE_SPEEDS[*speed - 1]
+                );
+
+                ui.selectable_value(selected_index, *index, RichText::new(str).color(MOVE_ROUTE));
+            }
             _ => {
                 //
                 ui.selectable_value(
@@ -193,7 +279,7 @@ impl<'co> CommandView<'co> {
         };
 
         node.branch(Branch::Left, |node| {
-            Self::render_command(ui, node, index, selected_index, custom_id_source);
+            Self::render_command(ui, node, index, selected_index, custom_id_source, info);
         });
     }
 
@@ -204,6 +290,7 @@ impl<'co> CommandView<'co> {
         index: &mut usize,
         selected_index: &mut usize,
         custom_id_source: &'co str,
+        info: &'static UpdateInfo,
     ) -> CollapsingResponse<()> {
         ui.vertical(|ui| {
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -226,7 +313,14 @@ impl<'co> CommandView<'co> {
                 })
                 .body(|ui| {
                     node.branch(Branch::Right, |node| {
-                        Self::render_command(ui, node, index, selected_index, custom_id_source)
+                        Self::render_command(
+                            ui,
+                            node,
+                            index,
+                            selected_index,
+                            custom_id_source,
+                            info,
+                        )
                     })
                 });
 

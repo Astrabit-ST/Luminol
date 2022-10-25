@@ -20,6 +20,7 @@ use poll_promise::Promise;
 
 use super::window::Window;
 use crate::components::command_view::CommandView;
+use crate::data::commands::{MOVE_FREQS, MOVE_SPEEDS, MOVE_TYPES};
 use crate::data::rmxp_structs::rpg;
 use crate::modals::modal::Modal;
 use crate::modals::switch::SwitchModal;
@@ -217,21 +218,15 @@ impl Window for EventEdit {
                                     });
                                 });
 
-                                let move_types = ["Fixed", "Random", "Approach", "Custom"];
-                                let move_speeds =
-                                    ["Slowest", "Slower", "Slow", "Fast", "Faster", "Fastest"];
-                                let move_freqs =
-                                    ["Lowest", "Lower", "Low", "High", "Higher", "Highest"];
-
                                 ui.label("Autonomous Movement");
                                 ui.group(|ui| {
                                     egui::ComboBox::new(
                                         format!("event_{}_{}_move_type", self.id, self.map_id),
                                         "Type",
                                     )
-                                    .selected_text(move_types[page.move_type])
+                                    .selected_text(MOVE_TYPES[page.move_type])
                                     .show_ui(ui, |ui| {
-                                        for (id, name) in move_types.iter().enumerate() {
+                                        for (id, name) in MOVE_TYPES.iter().enumerate() {
                                             ui.selectable_value(&mut page.move_type, id, *name);
                                         }
                                     });
@@ -244,9 +239,9 @@ impl Window for EventEdit {
                                         format!("event_{}_{}_move_speed", self.id, self.map_id),
                                         "Speed",
                                     )
-                                    .selected_text(move_speeds[page.move_speed - 1])
+                                    .selected_text(MOVE_SPEEDS[page.move_speed - 1])
                                     .show_ui(ui, |ui| {
-                                        for (id, name) in move_speeds.iter().enumerate() {
+                                        for (id, name) in MOVE_SPEEDS.iter().enumerate() {
                                             ui.selectable_value(
                                                 &mut page.move_speed,
                                                 id + 1,
@@ -259,9 +254,9 @@ impl Window for EventEdit {
                                         format!("event_{}_{}_move_freq", self.id, self.map_id),
                                         "Frequency",
                                     )
-                                    .selected_text(move_freqs[page.move_frequency - 1])
+                                    .selected_text(MOVE_FREQS[page.move_frequency - 1])
                                     .show_ui(ui, |ui| {
-                                        for (id, name) in move_freqs.iter().enumerate() {
+                                        for (id, name) in MOVE_FREQS.iter().enumerate() {
                                             ui.selectable_value(
                                                 &mut page.move_frequency,
                                                 id + 1,
@@ -373,7 +368,7 @@ impl Window for EventEdit {
                                             &mut page.list,
                                             &format!("map_event_{}_{}", self.id, self.map_id),
                                         )
-                                        .ui(ui);
+                                        .ui(ui, info);
                                     });
                             });
                         });

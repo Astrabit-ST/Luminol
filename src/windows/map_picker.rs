@@ -30,34 +30,38 @@ impl MapPicker {
     fn render_submap(
         id: &i32,
         children_data: &HashMap<i32, Vec<i32>>,
-        mapinfos: &HashMap<i32, MapInfo>,
+        mapinfos: &mut HashMap<i32, MapInfo>,
         info: &'static UpdateInfo,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
-        let map_info = mapinfos.get(id).unwrap();
+        let map_info = mapinfos.get_mut(id).unwrap();
         let map_name = &map_info.name;
         // Does this map have children?
         if children_data.contains_key(id) {
             // Render a custom collapsing header.
             // It's custom so we can add a button to open a map.
-            egui::collapsing_header::CollapsingState::load_with_default_open(
+            let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
                 ui.make_persistent_id(format!("map_info_{}", id)),
                 map_info.expanded,
-            )
-            .show_header(ui, |ui| {
-                // Has the user
-                if ui.button(map_name).double_clicked() {
-                    Self::create_map_tab(*id, map_name.clone(), info);
-                }
-            })
-            .body(|ui| {
-                for id in children_data.get(id).unwrap() {
-                    // Render children.
-                    Self::render_submap(id, children_data, mapinfos, info, ui)
-                }
-            });
+            );
+
+            map_info.expanded = header.openness(ui.ctx()) >= 1.;
+
+            header
+                .show_header(ui, |ui| {
+                    // Has the user
+                    if ui.button(map_name).double_clicked() {
+                        Self::create_map_tab(*id, map_name.clone(), info);
+                    }
+                })
+                .body(|ui| {
+                    for id in children_data.get(id).unwrap() {
+                        // Render children.
+                        Self::render_submap(id, children_data, mapinfos, info, ui)
+                    }
+                });
         } else {
             // Just display a label otherwise.
             ui.horizontal(|ui| {
@@ -86,8 +90,8 @@ impl super::window::Window for MapPicker {
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
-                        let mapinfos = info.data_cache.map_infos();
-                        let mapinfos = match mapinfos.as_ref() {
+                        let mut mapinfos = info.data_cache.map_infos();
+                        let mapinfos = match mapinfos.as_mut() {
                             Some(m) => m,
                             None => {
                                 *open = false;

@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::ops::RangeInclusive;
+
 use serde::{Deserialize, Serialize};
 
 use super::rmxp_structs::intermediate;
@@ -94,21 +96,47 @@ pub enum CommandKind {
     },
     /// Else, id 411
     Else,
-    /// Loop
+    /// Branch end, id 412
+    BranchEnd,
+    /// Loop, id 112
     Loop,
+    /// Loop end, id 413
+    LoopEnd,
     /// Comment, id 108
     Comment { text: String },
     /// CommentExt, id 408
     CommentExt { text: String },
     /// Wait, id 106
     Wait { time: i32 },
+
+    /// Break Loop, id 113
+    BreakLoop,
+
+    /// Control switches, id 121
+    ControlSwitches {
+        range: RangeInclusive<usize>,
+        state: bool,
+    },
+
     /// Script, id 355
     Script { text: String },
     /// Extended script, id 655
     ScriptExt { text: String },
 
+    /// Scroll screen, id 203
+    ScrollScreen {
+        direction: usize,
+        distance: usize,
+        speed: usize,
+    },
+
     /// Move route, id 209
     MoveRoute { target: i32, route: rpg::MoveRoute },
+    /// Wait until move route finished, id 210
+    WaitMoveRoute,
+
+    /// Play SE, id 250
+    PlaySE { file: rpg::AudioFile },
 
     //? Special commands ?//
     /// Special editor move command display.
@@ -121,8 +149,8 @@ pub enum CommandKind {
     },
     /// Fields: (params: [`Vec<ParameterType>`])
     Custom { params: Vec<ParameterType> },
-    /// Break from...?
-    Break,
+    /// Insert command
+    Insert,
 }
 
 pub use CommandKind::*;
@@ -140,7 +168,7 @@ impl From<intermediate::EventCommand> for Command {
         Self {
             indent,
             kind: match code {
-                0 => CommandKind::Break,
+                0 => CommandKind::Insert,
                 101 => Text {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
@@ -156,6 +184,11 @@ impl From<intermediate::EventCommand> for Command {
                 408 => CommentExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
+                121 => ControlSwitches {
+                    range: (parameters[0].clone().into_integer().unwrap() as usize)
+                        ..=(parameters[1].clone().into_integer().unwrap() as usize),
+                    state: parameters[2].clone().into_integer().unwrap() == 0,
+                },
                 355 => CommandKind::Script {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
@@ -167,10 +200,22 @@ impl From<intermediate::EventCommand> for Command {
                     params: parameters[1..].to_vec(),
                 },
                 411 => Else,
+                412 => BranchEnd,
                 112 => Loop,
+                113 => BreakLoop,
+                413 => LoopEnd,
+                203 => ScrollScreen {
+                    direction: parameters[0].clone().into_integer().unwrap() as usize,
+                    distance: parameters[1].clone().into_integer().unwrap() as usize,
+                    speed: parameters[2].clone().into_integer().unwrap() as usize,
+                },
                 209 => MoveRoute {
                     target: *parameters[0].as_integer().unwrap(),
                     route: parameters[1].as_move_route().unwrap().clone(),
+                },
+                210 => WaitMoveRoute,
+                250 => CommandKind::PlaySE {
+                    file: parameters[0].as_audio_file().unwrap().clone(),
                 },
                 509 => MoveDisplay,
                 _ => CommandKind::Invalid { code, parameters },
@@ -312,7 +357,7 @@ pub enum MoveCommand {
     },
     /// Play SE, 44
     PlaySE {
-        audiofile: rpg::AudioFile,
+        file: rpg::AudioFile,
     },
     /// Script, 45
     Script {
@@ -398,8 +443,8 @@ impl From<intermediate::MoveCommand> for MoveCommand {
             43 => ChangeBlend {
                 blend: *parameters[0].as_integer().unwrap(),
             },
-            44 => PlaySE {
-                audiofile: parameters[0].as_audio_file().unwrap().clone(),
+            44 => Self::PlaySE {
+                file: parameters[0].as_audio_file().unwrap().clone(),
             },
             45 => Self::Script {
                 text: parameters[0].as_string().unwrap().clone(),
@@ -424,3 +469,12 @@ impl From<MoveCommand> for intermediate::MoveCommand {
         Self { code, parameters }
     }
 }
+
+/// TODO: Make into enums
+
+/// Move types
+pub const MOVE_TYPES: [&str; 4] = ["Fixed", "Random", "Approach", "Custom"];
+/// Move speeds
+pub const MOVE_SPEEDS: [&str; 6] = ["Slowest", "Slower", "Slow", "Fast", "Faster", "Fastest"];
+/// Move frequencies
+pub const MOVE_FREQS: [&str; 6] = ["Lowest", "Lower", "Low", "High", "Higher", "Highest"];

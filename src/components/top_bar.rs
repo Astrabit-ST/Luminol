@@ -40,6 +40,13 @@ impl TopBar {
     ) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
+        let mut open_project = ui.input().modifiers.command
+            && ui.input().key_pressed(egui::Key::O)
+            && info.filesystem.project_loaded();
+        let mut save_project = ui.input().modifiers.command
+            && ui.input().key_pressed(egui::Key::S)
+            && info.filesystem.project_loaded();
+
         ui.separator();
 
         ui.menu_button("File", |ui| {
@@ -54,19 +61,8 @@ impl TopBar {
             }
 
             if self.open_project_promise.is_none() {
-                if ui.button("Open Project").clicked() {
-                    self.open_project_promise = Some(Promise::spawn_local(async move {
-                        info.filesystem.try_open_project(info).await
-                    }));
-                }
+                open_project |= ui.button("Open Project").clicked();
             } else {
-                if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
-                    match r {
-                        Ok(_) => info.toasts.info("Opened project successfully!"),
-                        Err(e) => info.toasts.error(e),
-                    }
-                    self.open_project_promise = None;
-                }
                 ui.spinner();
             }
 
@@ -80,19 +76,8 @@ impl TopBar {
                 }
 
                 if self.save_project_promise.is_none() {
-                    if ui.button("Save Project").clicked() {
-                        self.save_project_promise = Some(Promise::spawn_local(async move {
-                            info.filesystem.save_cached(&info.data_cache).await
-                        }));
-                    }
+                    save_project |= ui.button("Save Project").clicked();
                 } else {
-                    if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
-                        match r {
-                            Ok(_) => {}
-                            Err(e) => info.toasts.error(e),
-                        }
-                        self.save_project_promise = None;
-                    }
                     ui.spinner();
                 }
             });
@@ -161,5 +146,38 @@ impl TopBar {
                 ctx.style_ui(ui);
                 *style = ctx.style();
             });
+
+        if open_project {
+            self.open_project_promise = Some(Promise::spawn_local(async move {
+                info.filesystem.try_open_project(info).await
+            }));
+        }
+
+        if save_project {
+            info.toasts.info("Saving project...");
+            self.save_project_promise = Some(Promise::spawn_local(async move {
+                info.filesystem.save_cached(&info.data_cache).await
+            }));
+        }
+
+        if self.open_project_promise.is_some() {
+            if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
+                match r {
+                    Ok(_) => info.toasts.info("Opened project successfully!"),
+                    Err(e) => info.toasts.error(e),
+                }
+                self.open_project_promise = None;
+            }
+        }
+
+        if self.save_project_promise.is_some() {
+            if let Some(r) = self.save_project_promise.as_ref().unwrap().ready() {
+                match r {
+                    Ok(_) => info.toasts.info("Saved project sucessfully!"),
+                    Err(e) => info.toasts.error(e),
+                }
+                self.save_project_promise = None;
+            }
+        }
     }
 }

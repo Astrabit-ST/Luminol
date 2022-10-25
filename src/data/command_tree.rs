@@ -41,7 +41,7 @@ impl Default for Node {
             right: None,
             data: Command {
                 indent: 0,
-                kind: Break,
+                kind: Insert,
             },
         }
     }

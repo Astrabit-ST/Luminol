@@ -162,7 +162,7 @@ impl Tab for CommonEventTab {
                     &mut self.event.list,
                     &format!("common_event_{}", self.event.id),
                 )
-                .ui(ui);
+                .ui(ui, info);
             });
     }
 
