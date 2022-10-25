@@ -29,7 +29,6 @@ use std::time::Instant;
 use wasm_timer::Instant;
 
 use egui::{Pos2, Response, Vec2};
-use ndarray::Axis;
 
 use crate::data::rmxp_structs::rpg;
 use crate::{load_image_software, UpdateInfo};
@@ -198,8 +197,8 @@ impl TilemapDef for Tilemap {
         let at_tile_size = 16. * scale;
         let canvas_pos = canvas_center + self.pan;
 
-        let xsize = map.data.len_of(Axis(2));
-        let ysize = map.data.len_of(Axis(1));
+        let xsize = map.data.xsize();
+        let ysize = map.data.ysize();
 
         let tile_width = 32. / textures.tileset_tex.width() as f32;
         let tile_height = 32. / textures.tileset_tex.height() as f32;

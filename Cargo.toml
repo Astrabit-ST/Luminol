@@ -25,7 +25,6 @@ image = { version = "0.24", features = ["jpeg", "png"] }
 eframe = { version = "0.19.0", features = ["persistence"] }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
-ndarray = { version = "0.15.6", features = ["serde"] }
 rfd = "0.10.0"
 num-traits = "0.2"
 strum = { version = "0.24.1", features = ["derive"] }

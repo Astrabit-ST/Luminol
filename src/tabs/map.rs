@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![allow(unused_imports)]
 use egui::Pos2;
-use ndarray::Axis;
 use poll_promise::Promise;
 use std::{cell::RefMut, collections::HashMap};
 
@@ -88,8 +87,8 @@ impl super::tab::Tab for Map {
             // If there are no toggled layers (i.e we just loaded the map)
             // then fill up the vector with `true`;
             if self.toggled_layers.is_empty() {
-                self.toggled_layers = vec![true; map.data.len_of(Axis(0)) + 1];
-                self.selected_layer = map.data.len_of(Axis(0)) + 1;
+                self.toggled_layers = vec![true; map.data.zsize() + 1];
+                self.selected_layer = map.data.zsize() + 1;
             }
 
             // Display the toolbar.
@@ -108,7 +107,7 @@ impl super::tab::Tab for Map {
                     ui.separator();
 
                     // Find the number of layers.
-                    let layers = map.data.len_of(Axis(0));
+                    let layers = map.data.zsize();
                     ui.menu_button(
                         // Format the text based on what layer is selected.
                         if self.selected_layer > layers {
@@ -162,7 +161,7 @@ impl super::tab::Tab for Map {
                         self.tilemap
                             .ui(ui, &map, &mut self.cursor_pos, &self.toggled_layers);
 
-                    let layers_max = map.data.len_of(Axis(0));
+                    let layers_max = map.data.zsize();
                     let map_x = self.cursor_pos.x as i32;
                     let map_y = self.cursor_pos.y as i32;
 
@@ -170,7 +169,7 @@ impl super::tab::Tab for Map {
                         && self.selected_layer < layers_max
                         && !ui.input().modifiers.command
                     {
-                        map.data[[self.selected_layer, map_y as usize, map_x as usize]] =
+                        map.data[(map_x as usize, map_y as usize, self.selected_layer)] =
                             self.selected_tile + 384;
                     } else if self.selected_layer >= layers_max {
                         if response.double_clicked() {
