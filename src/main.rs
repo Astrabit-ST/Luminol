@@ -23,10 +23,24 @@ use color_eyre::Result;
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 // Sadly we need tokio for the discord sdk :(
-#[tokio::main]
+#[cfg_attr(feature = "discord-rpc", tokio::main)]
+#[cfg(feature = "discord-rpc")]
 async fn main() -> Result<()> {
+    run_native()
+}
+
+#[cfg(not(feature = "discord-rpc"))]
+fn main() -> Result<()> {
+    run_native()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn run_native() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
+
+    #[cfg(debug_assertions)]
+    puffin_egui::puffin::set_scopes_on(true);
 
     color_eyre::install()?;
 

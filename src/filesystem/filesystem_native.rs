@@ -141,10 +141,13 @@ impl Filesystem {
 
     /// Try to open a project.
     pub async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
-        if let Some(mut path) = rfd::FileDialog::default()
+        if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "lum"])
             .pick_file()
+            .await
         {
+            let mut path = path.path().to_path_buf();
+
             path.pop(); // Pop off filename
             self.load_project(path, &info.data_cache).await.map(|_| {
                 let projects = &mut info.saved_state.borrow_mut().recent_projects;

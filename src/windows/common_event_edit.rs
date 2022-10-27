@@ -54,10 +54,10 @@ impl Window for CommonEventEdit {
             .id(egui::Id::new("common_events_edit"))
             .open(open)
             .show(ctx, |ui| {
-                let mut common_events = info.data_cache.common_events();
-                let common_events = common_events.as_mut().unwrap();
-
                 egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
+                    let mut common_events = info.data_cache.common_events();
+                    let common_events = common_events.as_mut().unwrap();
+
                     egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
                         ui,
                         ui.text_style_height(&egui::TextStyle::Body),

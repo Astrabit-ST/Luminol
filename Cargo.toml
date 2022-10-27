@@ -22,7 +22,7 @@ egui = "0.19.0"
 egui_extras = { version = "0.19.0", features = ["svg", "image"] }
 epaint = "0.19.0"
 image = { version = "0.24", features = ["jpeg", "png"] }
-eframe = { version = "0.19.0", features = ["persistence"] }
+eframe = { version = "0.19.0", features = ["persistence", "puffin"] }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
 rfd = "0.10.0"
@@ -41,11 +41,12 @@ syntect = { version = "5.0", features = [
     "default-fancy",
 ], default-features = false }
 color-eyre = "0.6.2"
+puffin_egui = "0.17.0"
 
 [features]
 default = ["generic-tilemap"]
 generic-tilemap = []
-discord-rpc = ["discord-sdk"]
+discord-rpc = ["discord-sdk", "tokio"]
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -53,8 +54,11 @@ tracing-subscriber = "0.3"
 rodio = { version = "0.16.0", features = [
     "symphonia-all",
 ], default-features = false }
-poll-promise = { version = "0.1.0", features = ["smol", "tick-poll"] }
-tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+poll-promise = { version = "0.2.0", features = ["smol"] }
+tokio = { version = "1.21.2", features = [
+    "macros",
+    "rt-multi-thread",
+], optional = true }
 async-fs = "1.6.0"
 discord-sdk = { version = "0.3.0", optional = true }
 
@@ -70,7 +74,7 @@ rodio = { version = "0.16.0", features = [
     "wasm-bindgen",
     "symphonia-all",
 ], default-features = false }
-poll-promise = { version = "0.1.0", features = ["web"] }
+poll-promise = { version = "0.2.0", features = ["web"] }
 wasm-timer = "0.2.5"
 
 [target.'cfg(windows)'.build-dependencies]
@@ -101,7 +105,7 @@ opt-level = 3
 members = []
 
 [patch.crates-io]
-poll-promise = { git = "https://github.com/Speak2Erase/poll-promise", rev = "47688e8" }
+poll-promise = { git = "https://github.com/Speak2Erase/poll-promise", rev = "f8e9099048b88852611f43068fe8fb6400b13a8d" }
 egui_dock = { git = "https://github.com/Adanos020/egui_dock", rev = "ae1907505c94a4923328ebf956bd0c054a1a4091" }
 
 # If you want to use the bleeding edge version of egui and eframe:

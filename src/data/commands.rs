@@ -76,17 +76,16 @@ pub enum CommandKind {
     /// Fields: (choices: [`Vec<String>`], choice_type: [`i32`])
     Choices {
         choices: Vec<String>,
-        choice_type: i32,
-        indent: usize,
+        cancel_type: i32,
     },
     /// When, id 402
     ///
     /// Fields (???: [`i32`])
-    When { unknown: i32 },
+    When { choice: i32 },
     /// When Cancel, id 403
-    ///
-    /// Fields (???: [`i32`])
-    WhenCancel { unknown: i32 },
+    WhenCancel,
+    /// Choice end, id 404
+    ChoiceEnd,
     /// Conditional Branch (If statement), id 111
     ///
     /// Fields (kind: [`i32`], params: [`Vec<ParameterType>`])
@@ -111,6 +110,12 @@ pub enum CommandKind {
 
     /// Break Loop, id 113
     BreakLoop,
+
+    /// Exit event processing, id 115
+    ExitEvent,
+
+    /// Call common event, id 117
+    CallCommonEvent { event: usize },
 
     /// Control switches, id 121
     ControlSwitches {
@@ -175,6 +180,15 @@ impl From<intermediate::EventCommand> for Command {
                 401 => TextExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
+                102 => Choices {
+                    choices: parameters[0].clone().into_array().unwrap(),
+                    cancel_type: parameters[1].clone().into_integer().unwrap(),
+                },
+                402 => When {
+                    choice: parameters[0].clone().into_integer().unwrap(),
+                },
+                403 => WhenCancel,
+                404 => ChoiceEnd,
                 106 => CommandKind::Wait {
                     time: parameters[0].clone().into_integer().unwrap(),
                 },
@@ -183,6 +197,10 @@ impl From<intermediate::EventCommand> for Command {
                 },
                 408 => CommentExt {
                     text: parameters[0].clone().into_string().unwrap(),
+                },
+                115 => ExitEvent,
+                117 => CallCommonEvent {
+                    event: parameters[0].clone().into_integer().unwrap() as usize,
                 },
                 121 => ControlSwitches {
                     range: (parameters[0].clone().into_integer().unwrap() as usize)

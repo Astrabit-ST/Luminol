@@ -100,6 +100,66 @@ impl<'co> CommandView<'co> {
                 //
                 ui.label(format!("          :  {}", text));
             }
+            Choices { choices, .. } => {
+                let text = format!("Show Choices [\n  {}\n]", choices.join(",\n  "));
+
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(text).color(CONTROL_FLOW),
+                );
+            }
+            When { choice } => {
+                // TODO: Display choice text
+                Self::collapsible(
+                    format!("When {choice}"),
+                    ui,
+                    node,
+                    index,
+                    selected_index,
+                    custom_id_source,
+                    info,
+                );
+            }
+            WhenCancel => {
+                Self::collapsible(
+                    "When Cancel".to_string(),
+                    ui,
+                    node,
+                    index,
+                    selected_index,
+                    custom_id_source,
+                    info,
+                );
+            }
+            ChoiceEnd => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Choice End").color(CONTROL_FLOW),
+                );
+            }
+            ExitEvent => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Exit Event Processing").color(CONTROL_FLOW),
+                );
+            }
+            CallCommonEvent { event } => {
+                let common_events = info.data_cache.common_events();
+                let common_events = common_events.as_ref().unwrap();
+
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Call Common Event [{}]",
+                        common_events[*event].name
+                    ))
+                    .color(CONTROL_FLOW),
+                );
+            }
             Conditional { .. } => {
                 Self::collapsible(
                     "Conditional Branch".to_string(),

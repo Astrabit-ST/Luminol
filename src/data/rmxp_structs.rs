@@ -48,7 +48,7 @@ pub mod rpg {
                 pub switch1_id: usize,
                 pub switch2_id: usize,
                 pub variable_id: usize,
-                pub variable_value: usize,
+                pub variable_value: i32,
                 pub self_switch_ch: String,
             }
 
