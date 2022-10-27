@@ -2,9 +2,7 @@
 	"licenser.license": "GPLv3",
 	"licenser.author": "Lily Lyons",
 	"licenser.disableAutoHeaderInsertion": false,
-	"rust-analyzer.cargo.features": [
-		"discord-rpc",
-	],
+	"rust-analyzer.cargo.features": [],
 	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
 	"editor.formatOnSave": true,
 	"rust-analyzer.checkOnSave.command": "clippy",

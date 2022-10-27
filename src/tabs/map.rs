@@ -143,6 +143,7 @@ impl super::tab::Tab for Map {
                     ui.separator();
 
                     ui.checkbox(&mut self.tilemap.visible_display, "Display Visible Area");
+                    ui.checkbox(&mut self.tilemap.move_preview, "Preview event move routes");
                 });
             });
 

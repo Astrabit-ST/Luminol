@@ -21,6 +21,7 @@ It's slow and should only be used as a reference for how the tilemap works.
 */
 
 use egui_extras::RetainedImage;
+use epaint::Color32;
 use std::collections::HashMap;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
@@ -30,6 +31,7 @@ use wasm_timer::Instant;
 
 use egui::{Pos2, Response, Vec2};
 
+use crate::data::commands::process_move_route;
 use crate::data::rmxp_structs::rpg;
 use crate::{load_image_software, UpdateInfo};
 
@@ -45,6 +47,8 @@ pub struct Tilemap {
     pub scale: f32,
     /// Toggle to display the visible region in-game.
     pub visible_display: bool,
+    /// Toggle move route preview
+    pub move_preview: bool,
     ani_idx: i32,
     ani_instant: Instant,
     load_promise: poll_promise::Promise<Result<Textures, String>>,
@@ -120,6 +124,7 @@ impl TilemapDef for Tilemap {
             pan: Vec2::ZERO,
             scale: 100.,
             visible_display: false,
+            move_preview: false,
             ani_idx: 0,
             ani_instant: Instant::now(),
             load_promise: poll_promise::Promise::spawn_local(async move {
@@ -451,6 +456,47 @@ impl TilemapDef for Tilemap {
 
                     egui::Image::new(fog_tex.texture_id(ui.ctx()), fog_tex.size_vec2() * zoom)
                         .paint_at(ui, fog_rect);
+                }
+            }
+        }
+
+        if self.move_preview {
+            for (_id, event) in map.events.iter() {
+                for (page_index, page) in
+                    event.pages.iter().filter(|p| p.move_type == 3).enumerate()
+                {
+                    let move_route = &page.move_route;
+
+                    let mut directions = vec![page.graphic.direction];
+                    let mut points = vec![egui::pos2(event.x as f32, event.y as f32)];
+                    process_move_route(move_route, &mut directions, &mut points);
+
+                    points = points
+                        .iter_mut()
+                        .map(|p| {
+                            map_rect.min
+                                + (p.to_vec2() * tile_size)
+                                + egui::Vec2::splat(tile_size / 2.)
+                        })
+                        .collect();
+
+                    let stroke = egui::Stroke::new(
+                        1.0,
+                        match page_index {
+                            0 => Color32::YELLOW,
+                            1 => Color32::BLUE,
+                            2 => Color32::WHITE,
+                            3 => Color32::GREEN,
+                            _ => Color32::RED,
+                        },
+                    );
+
+                    let mut iter = points.into_iter().peekable();
+                    while let Some(p) = iter.next() {
+                        if let Some(p2) = iter.peek() {
+                            ui.painter().arrow(p, *p2 - p, stroke)
+                        }
+                    }
                 }
             }
         }

@@ -129,6 +129,7 @@ impl eframe::App for Luminol {
         }
 
         // Tick futures.
+        #[cfg(not(target_arch = "wasm32"))]
         {
             #[cfg(debug_assertions)]
             puffin::profile_scope!("tick_local");

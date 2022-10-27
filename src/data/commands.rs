@@ -488,6 +488,142 @@ impl From<MoveCommand> for intermediate::MoveCommand {
     }
 }
 
+/// Process a move route by converting it into a series of points.
+pub fn process_move_route(
+    move_route: &rpg::MoveRoute,
+    directions: &mut Vec<i32>,
+    points: &mut Vec<egui::Pos2>,
+) {
+    for command in move_route.list.iter() {
+        let current_pos = points.last().unwrap();
+        let current_direction = directions.last().unwrap();
+        match command {
+            Down => {
+                directions.push(2);
+                points.push(egui::pos2(current_pos.x, current_pos.y + 1.));
+            }
+            Left => {
+                directions.push(4);
+                points.push(egui::pos2(current_pos.x - 1., current_pos.y));
+            }
+            Right => {
+                directions.push(6);
+                points.push(egui::pos2(current_pos.x + 1., current_pos.y));
+            }
+            Up => {
+                directions.push(8);
+                points.push(egui::pos2(current_pos.x, current_pos.y - 1.));
+            }
+            LowerLeft => {
+                if *current_direction == 4 {
+                    directions.push(6)
+                } else if *current_direction == 8 {
+                    directions.push(2)
+                }
+                points.push(egui::pos2(current_pos.x - 1., current_pos.y + 1.));
+            }
+            LowerRight => {
+                if *current_direction == 6 {
+                    directions.push(4)
+                } else if *current_direction == 8 {
+                    directions.push(2)
+                }
+                points.push(egui::pos2(current_pos.x + 1., current_pos.y + 1.));
+            }
+            UpperLeft => {
+                if *current_direction == 6 {
+                    directions.push(4)
+                } else if *current_direction == 2 {
+                    directions.push(8)
+                }
+                points.push(egui::pos2(current_pos.x - 1., current_pos.y - 1.));
+            }
+            UpperRight => {
+                if *current_direction == 4 {
+                    directions.push(6)
+                } else if *current_direction == 2 {
+                    directions.push(8)
+                }
+                points.push(egui::pos2(current_pos.x + 1., current_pos.y - 1.));
+            }
+            Forward => match current_direction {
+                2 => {
+                    points.push(egui::pos2(current_pos.x, current_pos.y + 1.));
+                }
+                4 => {
+                    points.push(egui::pos2(current_pos.x - 1., current_pos.y));
+                }
+                6 => {
+                    points.push(egui::pos2(current_pos.x + 1., current_pos.y));
+                }
+                8 => {
+                    points.push(egui::pos2(current_pos.x, current_pos.y - 1.));
+                }
+                _ => unreachable!(),
+            },
+            Backwards => match current_direction {
+                2 => {
+                    points.push(egui::pos2(current_pos.x, current_pos.y - 1.));
+                    directions.push(8);
+                }
+                4 => {
+                    points.push(egui::pos2(current_pos.x + 1., current_pos.y));
+                    directions.push(6);
+                }
+                6 => {
+                    points.push(egui::pos2(current_pos.x - 1., current_pos.y));
+                    directions.push(4);
+                }
+                8 => {
+                    points.push(egui::pos2(current_pos.x, current_pos.y + 1.));
+                    directions.push(2);
+                }
+                _ => unreachable!(),
+            },
+            TurnDown => {
+                directions.push(2);
+            }
+            TurnLeft => {
+                directions.push(4);
+            }
+            TurnRight => {
+                directions.push(6);
+            }
+            TurnUp => {
+                directions.push(8);
+            }
+            TurnRight90 => {
+                directions.push(match current_direction {
+                    2 => 4,
+                    4 => 8,
+                    6 => 2,
+                    8 => 6,
+                    _ => unreachable!(),
+                });
+            }
+            TurnLeft90 => {
+                directions.push(match current_direction {
+                    2 => 6,
+                    4 => 2,
+                    6 => 8,
+                    8 => 4,
+                    _ => unreachable!(),
+                });
+            }
+            Turn180 => {
+                directions.push(match current_direction {
+                    2 => 8,
+                    4 => 6,
+                    6 => 4,
+                    8 => 2,
+                    _ => unreachable!(),
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
 /// TODO: Make into enums
 
 /// Move types
