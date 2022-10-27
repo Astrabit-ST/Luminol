@@ -466,8 +466,11 @@ impl TilemapDef for Tilemap {
 
         if self.move_preview {
             for (_id, event) in map.events.iter() {
-                for (page_index, page) in
-                    event.pages.iter().filter(|p| p.move_type == 3).enumerate()
+                for (page_index, page) in event
+                    .pages
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, p)| p.move_type == 3)
                 {
                     let move_route = &page.move_route;
 
