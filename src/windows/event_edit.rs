@@ -63,7 +63,7 @@ impl EventEdit {
                         .into_iter()
                         .map(|e| e.ok())
                         .collect(),
-                    load_image_software(format!("Graphics/Tilesets/{}", tileset_name), info)
+                    load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
                         .await
                         .unwrap(),
                 )

@@ -55,7 +55,7 @@ impl Modal for VariableModal {
             let system = system.as_ref().unwrap();
 
             if ui
-                .button(format!("{}: {}", data, system.variables[*data]))
+                .button(format!("{data}: {}", system.variables[*data]))
                 .clicked()
             {
                 *state = true;
@@ -106,7 +106,7 @@ impl Modal for VariableModal {
                                 })
                             {
                                 let id = id + 1;
-                                let mut text = egui::RichText::new(format!("{}: {}", id, name));
+                                let mut text = egui::RichText::new(format!("{id}: {name}"));
 
                                 if memory.0 == id {
                                     text = text.color(egui::Color32::YELLOW);

@@ -44,7 +44,7 @@ impl Window for CommonEventEdit {
         self.tabs
             .focused_name()
             .map_or("Common Events".to_string(), |name| {
-                format!("Editing Common Event {}", name)
+                format!("Editing Common Event {name}")
             })
     }
 

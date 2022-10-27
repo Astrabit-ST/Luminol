@@ -45,7 +45,7 @@ impl SoundTab {
             selected_track: "".to_string(),
             folder_children: Promise::spawn_local(async move {
                 info.filesystem
-                    .dir_children(&format!("Audio/{}", source))
+                    .dir_children(&format!("Audio/{source}"))
                     .await
                     .unwrap()
             }),

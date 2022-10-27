@@ -1,4 +1,5 @@
 #![warn(clippy::all, rust_2018_idioms)]
+#![allow(clippy::uninlined_format_args)]
 // Copyright (C) 2022 Lily Lyons
 //
 // This file is part of Luminol.
@@ -29,7 +30,7 @@ async fn main() -> Result<()> {
     run_native()
 }
 
-#[cfg(not(feature = "discord-rpc"))]
+#[cfg(all(not(feature = "discord-rpc"), not(target_arch = "wasm32")))]
 fn main() -> Result<()> {
     run_native()
 }

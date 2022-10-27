@@ -44,7 +44,7 @@ impl Window for ScriptEdit {
         self.tabs
             .focused_name()
             .map_or("Scripts".to_string(), |name| {
-                format!("Editing Script {}", name)
+                format!("Editing Script {name}")
             })
     }
 
@@ -71,9 +71,9 @@ impl Window for ScriptEdit {
                                 {
                                     match ScriptTab::new(id, script.clone()) {
                                         Ok(tab) => self.tabs.add_tab(tab),
-                                        Err(e) => info
-                                            .toasts
-                                            .error(format!("Error Opening Script: {}", e)),
+                                        Err(e) => {
+                                            info.toasts.error(format!("Error Opening Script: {e}"))
+                                        }
                                     }
                                 }
                             }
@@ -152,7 +152,7 @@ impl Tab for ScriptTab {
                     .write_all(self.script.as_bytes())
                     .and_then(|_| encoder.finish());
                 match result {
-                    Err(e) => info.toasts.error(format!("Failed to encode script {}", e)),
+                    Err(e) => info.toasts.error(format!("Failed to encode script {e}")),
                     Ok(data) => {
                         let script = Script {
                             id: 0,

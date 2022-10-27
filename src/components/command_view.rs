@@ -158,11 +158,11 @@ impl<'co> CommandView<'co> {
                 ui.selectable_value(selected_index, *index, "@>");
             }
             Text { text } => {
-                ui.selectable_value(selected_index, *index, format!("Show Text: {}", text));
+                ui.selectable_value(selected_index, *index, format!("Show Text: {text}"));
             }
             TextExt { text } => {
                 //
-                ui.label(format!("          :  {}", text));
+                ui.label(format!("          :  {text}"));
             }
             Choices { choices, .. } => {
                 let text = format!("Show Choices [\n  {}\n]", choices.join(",\n  "));
@@ -284,7 +284,7 @@ impl<'co> CommandView<'co> {
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new(format!("Comment: {}", text)).color(COMMENT),
+                    RichText::new(format!("Comment: {text}")).color(COMMENT),
                 );
             }
             CommentExt { text } => {
@@ -292,7 +292,7 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     //                               "Comment: {}"
-                    RichText::new(format!("       : {}", text)).color(COMMENT),
+                    RichText::new(format!("       : {text}")).color(COMMENT),
                 );
             }
             CommandKind::Wait { time } => {
@@ -303,7 +303,7 @@ impl<'co> CommandView<'co> {
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new(format!("Script: {}", text)).color(SCRIPT),
+                    RichText::new(format!("Script: {text}")).color(SCRIPT),
                 );
             }
             ScriptExt { text } => {
@@ -311,7 +311,7 @@ impl<'co> CommandView<'co> {
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new(format!("      : {}", text)).color(SCRIPT),
+                    RichText::new(format!("      : {text}")).color(SCRIPT),
                 );
             }
             CommandKind::Invalid { code, parameters } => {
@@ -319,7 +319,7 @@ impl<'co> CommandView<'co> {
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new(format!("Invalid Command {} 🔥", code)).color(ERROR),
+                    RichText::new(format!("Invalid Command {code} 🔥")).color(ERROR),
                 )
                 .on_hover_text(
                     RichText::new("This happens when Luminol does not recognize a command ID.")
@@ -352,10 +352,7 @@ impl<'co> CommandView<'co> {
 
                 let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                     ui.ctx(),
-                    egui::Id::new(format!(
-                        "{}_{}_collapsible_command",
-                        custom_id_source, index
-                    )),
+                    egui::Id::new(format!("{custom_id_source}_{index}_collapsible_command",)),
                     true,
                 );
 
@@ -511,7 +508,7 @@ impl<'co> CommandView<'co> {
                 speed,
             } => {
                 let str = format!(
-                    "Scroll Map {} {} tiles, speed {}: {}",
+                    "Scroll Map {} {distance} tiles, speed {speed}: {}",
                     match *direction {
                         2 => "Down",
                         4 => "Left",
@@ -519,8 +516,6 @@ impl<'co> CommandView<'co> {
                         8 => "Up",
                         _ => unreachable!(),
                     },
-                    distance,
-                    speed,
                     MOVE_SPEEDS[*speed - 1]
                 );
 
@@ -559,10 +554,7 @@ impl<'co> CommandView<'co> {
         ui.vertical(|ui| {
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
-                egui::Id::new(format!(
-                    "{}_{}_collapsible_command",
-                    custom_id_source, index
-                )),
+                egui::Id::new(format!("{custom_id_source}_{index}_collapsible_command",)),
                 true,
             );
             let openness = header.openness(ui.ctx());

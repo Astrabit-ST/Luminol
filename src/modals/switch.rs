@@ -55,7 +55,7 @@ impl Modal for SwitchModal {
             let system = system.as_ref().unwrap();
 
             if ui
-                .button(format!("{}: {}", data, system.switches[*data - 1]))
+                .button(format!("{data}: {}", system.switches[*data - 1]))
                 .clicked()
             {
                 *state = true;
@@ -103,7 +103,7 @@ impl Modal for SwitchModal {
                                 })
                             {
                                 let id = id + 1;
-                                let mut text = egui::RichText::new(format!("{}: {}", id, name));
+                                let mut text = egui::RichText::new(format!("{id}: {name}"));
 
                                 if memory.0 == id {
                                     text = text.color(egui::Color32::YELLOW);
