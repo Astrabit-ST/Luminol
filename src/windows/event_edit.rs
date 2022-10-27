@@ -365,14 +365,17 @@ impl Window for EventEdit {
                                     .auto_shrink([false; 2])
                                     .show(ui, |ui| {
                                         CommandView::new(
-                                            &mut page.list,
                                             &format!(
                                                 "map_event_{}_{}_page_{}",
                                                 self.id, self.map_id, self.selected_page
                                             ),
                                             Some(self.map_id),
                                         )
-                                        .ui(ui, info);
+                                        .ui(
+                                            ui,
+                                            info,
+                                            &mut page.list,
+                                        );
                                     });
                             });
                         });

@@ -158,12 +158,11 @@ impl Tab for CommonEventTab {
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                CommandView::new(
+                CommandView::new(&format!("common_event_{}", self.event.id), None).ui(
+                    ui,
+                    info,
                     &mut self.event.list,
-                    &format!("common_event_{}", self.event.id),
-                    None,
-                )
-                .ui(ui, info);
+                );
             });
     }
 

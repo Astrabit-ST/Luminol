@@ -23,8 +23,7 @@ use crate::{
         commands::{
             Command,
             CommandKind::{self, *},
-            MoveCommand::{self, *},
-            MOVE_FREQS, MOVE_SPEEDS,
+            MOVE_SPEEDS,
         },
         rmxp_structs::rpg,
     },
@@ -36,119 +35,74 @@ const ERROR: Color32 = Color32::RED;
 const NORMAL: Color32 = Color32::WHITE;
 const COMMENT: Color32 = Color32::GREEN;
 const SCRIPT: Color32 = Color32::YELLOW;
-const MOVE_ROUTE: Color32 = Color32::from_rgb(252, 140, 3);
+#[allow(missing_docs)]
+pub const MOVE_ROUTE: Color32 = Color32::from_rgb(252, 140, 3);
 const DATA: Color32 = Color32::from_rgb(252, 93, 93);
 const AUDIO: Color32 = Color32::from_rgb(101, 252, 232);
 
 /// An event command viewer.
 
 pub struct CommandView<'co> {
-    commands: &'co mut Node,
-    custom_id_source: &'co str,
+    pub(crate) custom_id_source: &'co str,
     map_id: Option<i32>,
 }
 
 #[derive(Clone)]
-struct Memory {
-    selected_index: usize,
-    move_route_modal: (bool, i32, Option<rpg::MoveRoute>),
-    map_id: Option<i32>,
+pub(crate) struct Memory {
+    pub selected_index: usize,
+    pub move_route_modal: (i32, Option<rpg::MoveRoute>),
+    pub map_id: Option<i32>,
 }
 
 impl<'co> CommandView<'co> {
     /// Create a new command viewer.
-    pub fn new(commands: &'co mut Node, custom_id_source: &'co str, map_id: Option<i32>) -> Self {
+    pub fn new(custom_id_source: &'co str, map_id: Option<i32>) -> Self {
         Self {
-            commands,
             custom_id_source,
             map_id,
         }
     }
 
     /// Show the viewer.
-    pub fn ui(self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
+    pub fn ui(mut self, ui: &mut egui::Ui, info: &'static UpdateInfo, commands: &'co mut Node) {
+        let memory = ui.memory().data.get_temp(egui::Id::new(format!(
+            "command_view_memory_{}",
+            self.custom_id_source
+        )));
+        let mut memory = memory.unwrap_or(Memory {
+            selected_index: 0,
+            move_route_modal: (2, None),
+            map_id: self.map_id,
+        });
+
         ui.vertical(|ui| {
             ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
             ui.visuals_mut().override_text_color = Some(NORMAL);
             ui.visuals_mut().button_frame = false;
 
-            let memory = ui.memory().data.get_temp(egui::Id::new(format!(
-                "command_view_memory_{}",
-                self.custom_id_source
-            )));
-            let mut memory = memory.unwrap_or(Memory {
-                selected_index: 0,
-                move_route_modal: (false, 2, None),
-                map_id: self.map_id,
-            });
-
-            // TODO: Find a better way of doing this.
-            let mut win_open = memory.move_route_modal.0;
-            if memory.move_route_modal.0 {
-                egui::Window::new("Preview Move Route")
-                    .open(&mut win_open)
-                    .show(ui.ctx(), |ui| {
-                        let mut map = info.data_cache.get_map(self.map_id.unwrap());
-
-                        ui.label("Starting Direction");
-                        ui.radio_value(&mut memory.move_route_modal.1, 2, "Up");
-                        ui.radio_value(&mut memory.move_route_modal.1, 8, "Down");
-                        ui.radio_value(&mut memory.move_route_modal.1, 4, "Left");
-                        ui.radio_value(&mut memory.move_route_modal.1, 6, "Right");
-
-                        ui.horizontal(|ui| {
-                            if ui.button("Ok").clicked() {
-                                memory.move_route_modal.0 = false;
-                                map.preview_move_route = Some((
-                                    memory.move_route_modal.1,
-                                    memory.move_route_modal.2.take().unwrap(),
-                                ))
-                            }
-
-                            if ui.button("Apply").clicked() {
-                                map.preview_move_route = Some((
-                                    memory.move_route_modal.1,
-                                    memory.move_route_modal.2.clone().unwrap(),
-                                ))
-                            }
-
-                            if ui.button("Cancel").clicked() {
-                                memory.move_route_modal.0 = false;
-                            }
-                        });
-                    });
-            }
-            memory.move_route_modal.0 &= win_open;
-
-            Self::render_command(
-                ui,
-                self.commands,
-                &mut 0,
-                &mut memory,
-                self.custom_id_source,
-                info,
-            );
-
-            ui.memory().data.insert_temp(
-                egui::Id::new(format!("command_view_memory_{}", self.custom_id_source)),
-                memory,
-            );
+            self.render_command(ui, commands, &mut 0, &mut memory, info);
         });
+
+        self.modals(ui, &mut memory, info);
+
+        ui.memory().data.insert_temp(
+            egui::Id::new(format!("command_view_memory_{}", self.custom_id_source)),
+            memory,
+        );
     }
 
     fn render_command(
+        &mut self,
         ui: &mut egui::Ui,
         node: &mut Node,
         index: &mut usize,
         memory: &mut Memory,
-        custom_id_source: &'co str,
         info: &'static UpdateInfo,
     ) {
         let Memory {
             selected_index,
             move_route_modal,
             map_id,
-            ..
         } = memory;
         *index += 1;
 
@@ -175,26 +129,10 @@ impl<'co> CommandView<'co> {
             }
             When { choice } => {
                 // TODO: Display choice text
-                Self::collapsible(
-                    format!("When {choice}"),
-                    ui,
-                    node,
-                    index,
-                    memory,
-                    custom_id_source,
-                    info,
-                );
+                self.collapsible(format!("When {choice}"), ui, node, index, memory, info);
             }
             WhenCancel => {
-                Self::collapsible(
-                    "When Cancel".to_string(),
-                    ui,
-                    node,
-                    index,
-                    memory,
-                    custom_id_source,
-                    info,
-                );
+                self.collapsible("When Cancel".to_string(), ui, node, index, memory, info);
             }
             ChoiceEnd => {
                 ui.selectable_value(
@@ -225,26 +163,17 @@ impl<'co> CommandView<'co> {
                 );
             }
             Conditional { .. } => {
-                Self::collapsible(
+                self.collapsible(
                     "Conditional Branch".to_string(),
                     ui,
                     node,
                     index,
                     memory,
-                    custom_id_source,
                     info,
                 );
             }
             Else => {
-                Self::collapsible(
-                    "Else".to_string(),
-                    ui,
-                    node,
-                    index,
-                    memory,
-                    custom_id_source,
-                    info,
-                );
+                self.collapsible("Else".to_string(), ui, node, index, memory, info);
             }
             BranchEnd => {
                 ui.selectable_value(
@@ -254,16 +183,7 @@ impl<'co> CommandView<'co> {
                 );
             }
             Loop => {
-                //
-                Self::collapsible(
-                    "Loop".to_string(),
-                    ui,
-                    node,
-                    index,
-                    memory,
-                    custom_id_source,
-                    info,
-                );
+                self.collapsible("Loop".to_string(), ui, node, index, memory, info);
             }
             BreakLoop => {
                 ui.selectable_value(
@@ -352,7 +272,10 @@ impl<'co> CommandView<'co> {
 
                 let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                     ui.ctx(),
-                    egui::Id::new(format!("{custom_id_source}_{index}_collapsible_command",)),
+                    egui::Id::new(format!(
+                        "{}_{index}_collapsible_command",
+                        self.custom_id_source
+                    )),
                     true,
                 );
 
@@ -371,105 +294,21 @@ impl<'co> CommandView<'co> {
                                 .color(MOVE_ROUTE),
                         );
                         if map_id.is_some() {
-
-
-                        response.context_menu(|ui| {
-                            if ui.button("Preview Move Route").clicked() {
-                                move_route_modal.0 = true;
-                                move_route_modal.2 = Some(route.clone());
-                            };
-                        });
-                    }
+                            response.context_menu(|ui| {
+                                if ui.button("Preview Move Route").clicked() {
+                                    move_route_modal.1 = Some(route.clone());
+                                };
+                            });
+                        }
                         *index += 1;
                     })
                     .body(|ui| {
-                        let system = info.data_cache.system();
-                        let system = system.as_ref().unwrap();
-
-                        for command in route.list.iter() {
-                            let label = match command {
-                                Down => "Move Down".to_string(),
-                                Left => "Move Left".to_string(),
-                                Right => "Move Right".to_string(),
-                                Up => "Move Up".to_string(),
-                                LowerLeft => "Move Lower Left".to_string(),
-                                LowerRight => "Move Lower Right".to_string(),
-                                UpperLeft => "Move Upper Left".to_string(),
-                                UpperRight => "Move Upper Right".to_string(),
-                                Random => "Move Random".to_string(),
-                                MoveTowards => "Move Towards Player".to_string(),
-                                MoveAway => "Move Away from Player".to_string(),
-                                Forward => "Move Forwards".to_string(),
-                                Backwards => "Move Backwards".to_string(),
-                                Jump { x_plus, y_plus } => format!("Jump ({x_plus},{y_plus})px"),
-                                MoveCommand::Wait { time } => format!("Wait {time} frames"),
-                                TurnDown => "Turn Down".to_string(),
-                                TurnLeft => "Turn Left".to_string(),
-                                TurnRight => "Turn Right".to_string(),
-                                TurnUp => "Turn Up".to_string(),
-                                TurnRight90 => "Turn Right 90deg".to_string(),
-                                TurnLeft90 => "Turn Left 90deg".to_string(),
-                                Turn180 => "Turn 180deg".to_string(),
-                                TurnRightOrLeft => "Turn Right or Left".to_string(),
-                                TurnRandom => "Turn Randomly".to_string(),
-                                TurnTowardsPlayer => "Turn Towards Player".to_string(),
-                                TurnAwayFromPlayer => "Turn Away from Player".to_string(),
-                                SwitchON { switch_id } => {
-                                    format!("Switch [{switch_id}: {}] ON", system.switches[*switch_id])
-                                }
-                                SwitchOFF { switch_id } => {
-                                    format!("Switch [{switch_id}: {}] OFF", system.switches[*switch_id])
-                                }
-                                ChangeSpeed { speed } => {
-                                    format!("Set Speed to {speed}: {}", MOVE_SPEEDS[*speed - 1])
-                                }
-                                ChangeFreq { freq } => {
-                                    format!("Set Frequency to {freq}: {}", MOVE_FREQS[*freq - 1])
-                                }
-                                MoveON => "Set Move Animation ON".to_string(),
-                                MoveOFF => "Set Move Animation OFF".to_string(),
-                                StopON => "Set Stop Animation ON".to_string(),
-                                StopOFF => "Set Stop Animation OFF".to_string(),
-                                DirFixON => "Set Direction Fix ON".to_string(),
-                                DirFixOFF => "Set Direction Fix OFF".to_string(),
-                                ThroughON => "Set Through ON".to_string(),
-                                ThroughOFF => "Set Through OFF".to_string(),
-                                AlwaysTopON => "Set Always on Top ON".to_string(),
-                                AlwaysTopOFF => "Set Always on Top OFF".to_string(),
-                                ChangeGraphic {
-                                    character_name,
-                                    character_hue,
-                                    direction,
-                                    pattern
-                                } => format!("Set graphic to '{character_name}' with hue: {character_hue}, direction: {direction}, pattern: {pattern}"),
-                                ChangeOpacity { opacity } => format!("Set opacity to {opacity}"),
-                                ChangeBlend { blend } => format!(
-                                    "Set blend type to {}",
-                                    match blend {
-                                        0 => "Normal",
-                                        1 => "Additive",
-                                        2 => "Subtractive",
-                                        _ => unreachable!(),
-                                    }
-                                ),
-                                MoveCommand::PlaySE { file } => format!(
-                                    "Play SE \"{}\", vol: {}, pitch: {}",
-                                    file.name, file.volume, file.pitch
-                                ),
-                                MoveCommand::Script { text } => format!("Script: {text}"),
-
-                                Break => "".to_string(),
-                                MoveCommand::Invalid { code, parameters } => {
-                                    format!("Invalid command {code} {:#?}", parameters)
-                                }
-                            };
-                            ui.selectable_value(
-                                selected_index,
-                                *index,
-                                RichText::new(format!("$> {label}")).color(MOVE_ROUTE),
-                            );
-                            *index += 1;
-                        }
+                        crate::components::move_display::MoveDisplay::new(route).ui(
+                            ui,
+                            selected_index,
+                            index,
+                            info,
+                        );
                     });
             }
             ControlSwitches { range, state } => {
@@ -538,23 +377,27 @@ impl<'co> CommandView<'co> {
         };
 
         node.branch(Branch::Left, |node| {
-            Self::render_command(ui, node, index, memory, custom_id_source, info);
+            self.render_command(ui, node, index, memory, info);
         });
     }
 
     fn collapsible(
+        &mut self,
         text: String,
         ui: &mut egui::Ui,
         node: &mut Node,
         index: &mut usize,
         memory: &mut Memory,
-        custom_id_source: &'co str,
+
         info: &'static UpdateInfo,
     ) -> CollapsingResponse<()> {
         ui.vertical(|ui| {
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
-                egui::Id::new(format!("{custom_id_source}_{index}_collapsible_command",)),
+                egui::Id::new(format!(
+                    "{}_{index}_collapsible_command",
+                    self.custom_id_source
+                )),
                 true,
             );
             let openness = header.openness(ui.ctx());
@@ -569,7 +412,7 @@ impl<'co> CommandView<'co> {
                 })
                 .body(|ui| {
                     node.branch(Branch::Right, |node| {
-                        Self::render_command(ui, node, index, memory, custom_id_source, info)
+                        self.render_command(ui, node, index, memory, info)
                     })
                 });
 

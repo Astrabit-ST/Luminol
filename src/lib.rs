@@ -68,6 +68,10 @@ pub mod modals {
 pub mod components {
     /// Command editor for events
     pub mod command_view;
+    /// Command view modals
+    pub mod command_view_modals;
+    /// Move route display
+    pub mod move_display;
     /// Syntax highlighter
     pub mod syntax_highlighting;
     /// Toasts to be displayed for errors, information, etc.
