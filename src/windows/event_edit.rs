@@ -366,7 +366,10 @@ impl Window for EventEdit {
                                     .show(ui, |ui| {
                                         CommandView::new(
                                             &mut page.list,
-                                            &format!("map_event_{}_{}", self.id, self.map_id),
+                                            &format!(
+                                                "map_event_{}_{}_page_{}",
+                                                self.id, self.map_id, self.selected_page
+                                            ),
                                         )
                                         .ui(ui, info);
                                     });

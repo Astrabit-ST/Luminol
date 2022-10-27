@@ -20,7 +20,12 @@ use egui::{CollapsingResponse, Color32, RichText};
 use crate::{
     data::{
         command_tree::{Branch, Node},
-        commands::{Command, CommandKind::*, MOVE_SPEEDS},
+        commands::{
+            Command,
+            CommandKind::{self, *},
+            MoveCommand::{self, *},
+            MOVE_FREQS, MOVE_SPEEDS,
+        },
     },
     UpdateInfo,
 };
@@ -231,10 +236,10 @@ impl<'co> CommandView<'co> {
                     RichText::new(format!("       : {}", text)).color(COMMENT),
                 );
             }
-            Wait { time } => {
+            CommandKind::Wait { time } => {
                 ui.selectable_value(selected_index, *index, format!("Wait {} frames", *time * 2));
             }
-            Script { text } => {
+            CommandKind::Script { text } => {
                 //
                 ui.selectable_value(
                     selected_index,
@@ -250,7 +255,7 @@ impl<'co> CommandView<'co> {
                     RichText::new(format!("      : {}", text)).color(SCRIPT),
                 );
             }
-            Invalid { code, parameters } => {
+            CommandKind::Invalid { code, parameters } => {
                 //
                 ui.selectable_value(
                     selected_index,
@@ -271,6 +276,131 @@ impl<'co> CommandView<'co> {
                     RichText::new("Wait for Move's completion").color(MOVE_ROUTE),
                 );
             }
+            // RMXP provides in editor-commands to display the move route commands.
+            // IMHO they are wasteful and we don't need them.
+            // Instead, we render the move route directly.
+            MoveRoute { target, route } => {
+                let target_name = match *target {
+                    -1 => "Player".to_string(),
+                    0 => "This event".to_string(),
+                    _ => format!("Event {target}"),
+                };
+
+                let header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                    ui.ctx(),
+                    egui::Id::new(format!(
+                        "{}_{}_collapsible_command",
+                        custom_id_source, index
+                    )),
+                    true,
+                );
+
+                // If the header is closed
+                if header.openness(ui.ctx()) <= 0. {
+                    // Update the index to the length of the list
+                    *index += route.list.len();
+                }
+
+                header
+                    .show_header(ui, |ui| {
+                        ui.selectable_value(
+                            selected_index,
+                            *index,
+                            RichText::new(format!("Set Move Route: {target_name}"))
+                                .color(MOVE_ROUTE),
+                        );
+                        *index += 1;
+                    })
+                    .body(|ui| {
+                        let system = info.data_cache.system();
+                        let system = system.as_ref().unwrap();
+
+                        for command in route.list.iter() {
+                            let label = match command {
+                                Down => "Move Down".to_string(),
+                                Left => "Move Left".to_string(),
+                                Right => "Move Right".to_string(),
+                                Up => "Move Up".to_string(),
+                                LowerLeft => "Move Lower Left".to_string(),
+                                LowerRight => "Move Lower Right".to_string(),
+                                UpperLeft => "Move Upper Left".to_string(),
+                                UpperRight => "Move Upper Right".to_string(),
+                                Random => "Move Random".to_string(),
+                                MoveTowards => "Move Towards Player".to_string(),
+                                MoveAway => "Move Away from Player".to_string(),
+                                Forward => "Move Forwards".to_string(),
+                                Backwards => "Move Backwards".to_string(),
+                                Jump { x_plus, y_plus } => format!("Jump ({x_plus},{y_plus})px"),
+                                MoveCommand::Wait { time } => format!("Wait {time} frames"),
+                                TurnDown => "Turn Down".to_string(),
+                                TurnLeft => "Turn Left".to_string(),
+                                TurnRight => "Turn Right".to_string(),
+                                TurnUp => "Turn Up".to_string(),
+                                TurnRight90 => "Turn Right 90deg".to_string(),
+                                TurnLeft90 => "Turn Left 90deg".to_string(),
+                                Turn180 => "Turn 180deg".to_string(),
+                                TurnRightOrLeft => "Turn Right or Left".to_string(),
+                                TurnRandom => "Turn Randomly".to_string(),
+                                TurnTowardsPlayer => "Turn Towards Player".to_string(),
+                                TurnAwayFromPlayer => "Turn Away from Player".to_string(),
+                                SwitchON { switch_id } => {
+                                    format!("Switch [{switch_id}: {}] ON", system.switches[*switch_id])
+                                }
+                                SwitchOFF { switch_id } => {
+                                    format!("Switch [{switch_id}: {}] OFF", system.switches[*switch_id])
+                                }
+                                ChangeSpeed { speed } => {
+                                    format!("Set Speed to {speed}: {}", MOVE_SPEEDS[*speed - 1])
+                                }
+                                ChangeFreq { freq } => {
+                                    format!("Set Frequency to {freq}: {}", MOVE_FREQS[*freq - 1])
+                                }
+                                MoveON => "Set Move Animation ON".to_string(),
+                                MoveOFF => "Set Move Animation OFF".to_string(),
+                                StopON => "Set Stop Animation ON".to_string(),
+                                StopOFF => "Set Stop Animation OFF".to_string(),
+                                DirFixON => "Set Direction Fix ON".to_string(),
+                                DirFixOFF => "Set Direction Fix OFF".to_string(),
+                                ThroughON => "Set Through ON".to_string(),
+                                ThroughOFF => "Set Through OFF".to_string(),
+                                AlwaysTopON => "Set Always on Top ON".to_string(),
+                                AlwaysTopOFF => "Set Always on Top OFF".to_string(),
+                                ChangeGraphic {
+                                    character_name,
+                                    character_hue,
+                                    direction,
+                                    pattern
+                                } => format!("Set graphic to '{character_name}' with hue: {character_hue}, direction: {direction}, pattern: {pattern}"),
+                                ChangeOpacity { opacity } => format!("Set opacity to {opacity}"),
+                                ChangeBlend { blend } => format!(
+                                    "Set blend type to {}",
+                                    match blend {
+                                        0 => "Normal",
+                                        1 => "Additive",
+                                        2 => "Subtractive",
+                                        _ => unreachable!(),
+                                    }
+                                ),
+                                MoveCommand::PlaySE { file } => format!(
+                                    "Play SE \"{}\", vol: {}, pitch: {}",
+                                    file.name, file.volume, file.pitch
+                                ),
+                                MoveCommand::Script { text } => format!("Script: {text}"),
+
+                                Break => "".to_string(),
+                                MoveCommand::Invalid { code, parameters } => {
+                                    format!("Invalid command {code} {:#?}", parameters)
+                                }
+                            };
+                            ui.selectable_value(
+                                selected_index,
+                                *index,
+                                RichText::new(format!("$> {label}")).color(MOVE_ROUTE),
+                            );
+                            *index += 1;
+                        }
+                    });
+            }
             ControlSwitches { range, state } => {
                 let str = format!(
                     "Set Switch{} = {}",
@@ -290,7 +420,7 @@ impl<'co> CommandView<'co> {
 
                 ui.selectable_value(selected_index, *index, RichText::new(str).color(DATA));
             }
-            PlaySE { file } => {
+            CommandKind::PlaySE { file } => {
                 ui.selectable_value(
                     selected_index,
                     *index,

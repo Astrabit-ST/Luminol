@@ -324,19 +324,19 @@ pub enum MoveCommand {
     TurnAwayFromPlayer,
     /// Switch ON, 27
     SwitchON {
-        switch_id: i32,
+        switch_id: usize,
     },
     /// Switch OFF, 28
     SwitchOFF {
-        switch_id: i32,
+        switch_id: usize,
     },
     /// Change speed, 29
     ChangeSpeed {
-        speed: i32,
+        speed: usize,
     },
     /// Change freq, 30
     ChangeFreq {
-        freq: i32,
+        freq: usize,
     },
     /// Move anim ON, 31
     MoveON,
@@ -428,16 +428,16 @@ impl From<intermediate::MoveCommand> for MoveCommand {
             25 => TurnTowardsPlayer,
             26 => TurnAwayFromPlayer,
             27 => SwitchON {
-                switch_id: *parameters[0].as_integer().unwrap(),
+                switch_id: *parameters[0].as_integer().unwrap() as usize,
             },
             28 => SwitchOFF {
-                switch_id: *parameters[0].as_integer().unwrap(),
+                switch_id: *parameters[0].as_integer().unwrap() as usize,
             },
             29 => ChangeSpeed {
-                speed: *parameters[0].as_integer().unwrap(),
+                speed: *parameters[0].as_integer().unwrap() as usize,
             },
             30 => ChangeFreq {
-                freq: *parameters[0].as_integer().unwrap(),
+                freq: *parameters[0].as_integer().unwrap() as usize,
             },
             31 => MoveON,
             32 => MoveOFF,
