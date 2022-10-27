@@ -144,6 +144,11 @@ impl super::tab::Tab for Map {
 
                     ui.checkbox(&mut self.tilemap.visible_display, "Display Visible Area");
                     ui.checkbox(&mut self.tilemap.move_preview, "Preview event move routes");
+                    if map.preview_move_route.is_some()
+                        && ui.button("Clear move route preview").clicked()
+                    {
+                        map.preview_move_route = None;
+                    }
                 });
             });
 
@@ -158,9 +163,14 @@ impl super::tab::Tab for Map {
 
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    let response =
-                        self.tilemap
-                            .ui(ui, &map, &mut self.cursor_pos, &self.toggled_layers);
+                    let response = self.tilemap.ui(
+                        ui,
+                        &map,
+                        &mut self.cursor_pos,
+                        &self.toggled_layers,
+                        self.selected_layer,
+                        self.dragging_event,
+                    );
 
                     let layers_max = map.data.zsize();
                     let map_x = self.cursor_pos.x as i32;
@@ -200,7 +210,8 @@ impl super::tab::Tab for Map {
                                     info,
                                 ));
                             }
-                        } else if response.drag_started() {
+                            self.dragging_event = false;
+                        } else if response.drag_started() && response.clicked() {
                             if let Some((id, _)) = map
                                 .events
                                 .iter()
@@ -212,7 +223,7 @@ impl super::tab::Tab for Map {
                         } else if response.dragged() && self.dragging_event {
                             map.events[self.dragged_event].x = map_x;
                             map.events[self.dragged_event].y = map_y;
-                        } else if response.drag_released() {
+                        } else {
                             self.dragging_event = false;
                         }
                     }

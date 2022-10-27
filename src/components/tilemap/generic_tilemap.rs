@@ -139,6 +139,8 @@ impl TilemapDef for Tilemap {
         map: &rpg::Map,
         cursor_pos: &mut Pos2,
         toggled_layers: &[bool],
+        selected_layer: usize,
+        dragging_event: bool,
     ) -> Response {
         let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
 
@@ -179,7 +181,9 @@ impl TilemapDef for Tilemap {
             pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
             // Handle input
-            *cursor_pos = pos_tile.to_pos2();
+            if selected_layer < map.data.zsize() || dragging_event || response.clicked() {
+                *cursor_pos = pos_tile.to_pos2();
+            }
         }
 
         // Handle pan
@@ -497,6 +501,37 @@ impl TilemapDef for Tilemap {
                             ui.painter().arrow(p, *p2 - p, stroke)
                         }
                     }
+                }
+            }
+        }
+
+        if let Some((direction, route)) = &map.preview_move_route {
+            let mut directions = vec![*direction];
+            let mut points = vec![*cursor_pos];
+            process_move_route(route, &mut directions, &mut points);
+
+            points = points
+                .iter_mut()
+                .map(|p| {
+                    map_rect.min + (p.to_vec2() * tile_size) + egui::Vec2::splat(tile_size / 2.)
+                })
+                .collect();
+
+            let stroke = egui::Stroke::new(1.0, Color32::YELLOW);
+
+            let mut iter = points.into_iter().peekable();
+            while let Some(p) = iter.next() {
+                if let Some(p2) = iter.peek() {
+                    ui.painter().arrow(p, *p2 - p, stroke)
+                } else {
+                    ui.painter().rect_stroke(
+                        egui::Rect::from_min_size(
+                            p - egui::Vec2::splat(tile_size / 2.),
+                            egui::Vec2::splat(tile_size),
+                        ),
+                        5.0,
+                        stroke,
+                    )
                 }
             }
         }

@@ -370,6 +370,7 @@ impl Window for EventEdit {
                                                 "map_event_{}_{}_page_{}",
                                                 self.id, self.map_id, self.selected_page
                                             ),
+                                            Some(self.map_id),
                                         )
                                         .ui(ui, info);
                                     });

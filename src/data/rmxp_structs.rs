@@ -20,6 +20,10 @@ pub mod rpg {
         pub encounter_step: i32,
         pub data: Table3,
         pub events: Slab<event::Event>,
+
+        #[serde(skip)]
+        /// (direction: i32, start_pos: Pos2, route: MoveRoute)
+        pub preview_move_route: Option<(i32, MoveRoute)>,
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]

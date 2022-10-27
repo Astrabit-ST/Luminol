@@ -103,6 +103,8 @@ pub mod components {
                 map: &rpg::Map,
                 cursor_pos: &mut egui::Pos2,
                 toggled_layers: &[bool],
+                selected_layer: usize,
+                dragging_event: bool,
             ) -> egui::Response;
 
             /// Display the tile picker.

@@ -161,6 +161,7 @@ impl Tab for CommonEventTab {
                 CommandView::new(
                     &mut self.event.list,
                     &format!("common_event_{}", self.event.id),
+                    None,
                 )
                 .ui(ui, info);
             });

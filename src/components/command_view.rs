@@ -26,6 +26,7 @@ use crate::{
             MoveCommand::{self, *},
             MOVE_FREQS, MOVE_SPEEDS,
         },
+        rmxp_structs::rpg,
     },
     UpdateInfo,
 };
@@ -44,14 +45,23 @@ const AUDIO: Color32 = Color32::from_rgb(101, 252, 232);
 pub struct CommandView<'co> {
     commands: &'co mut Node,
     custom_id_source: &'co str,
+    map_id: Option<i32>,
+}
+
+#[derive(Clone)]
+struct Memory {
+    selected_index: usize,
+    move_route_modal: (bool, i32, Option<rpg::MoveRoute>),
+    map_id: Option<i32>,
 }
 
 impl<'co> CommandView<'co> {
     /// Create a new command viewer.
-    pub fn new(commands: &'co mut Node, custom_id_source: &'co str) -> Self {
+    pub fn new(commands: &'co mut Node, custom_id_source: &'co str, map_id: Option<i32>) -> Self {
         Self {
             commands,
             custom_id_source,
+            map_id,
         }
     }
 
@@ -62,24 +72,67 @@ impl<'co> CommandView<'co> {
             ui.visuals_mut().override_text_color = Some(NORMAL);
             ui.visuals_mut().button_frame = false;
 
-            let mut selected_index = ui
-                .memory()
-                .data
-                .get_temp(egui::Id::new("command_view_selected_index"));
-            let mut selected_index = *selected_index.get_or_insert(1000);
+            let memory = ui.memory().data.get_temp(egui::Id::new(format!(
+                "command_view_memory_{}",
+                self.custom_id_source
+            )));
+            let mut memory = memory.unwrap_or(Memory {
+                selected_index: 0,
+                move_route_modal: (false, 2, None),
+                map_id: self.map_id,
+            });
+
+            // TODO: Find a better way of doing this.
+            let mut win_open = memory.move_route_modal.0;
+            if memory.move_route_modal.0 {
+                egui::Window::new("Preview Move Route")
+                    .open(&mut win_open)
+                    .show(ui.ctx(), |ui| {
+                        let mut map = info.data_cache.get_map(self.map_id.unwrap());
+
+                        ui.label("Starting Direction");
+                        ui.radio_value(&mut memory.move_route_modal.1, 2, "Up");
+                        ui.radio_value(&mut memory.move_route_modal.1, 8, "Down");
+                        ui.radio_value(&mut memory.move_route_modal.1, 4, "Left");
+                        ui.radio_value(&mut memory.move_route_modal.1, 6, "Right");
+
+                        ui.horizontal(|ui| {
+                            if ui.button("Ok").clicked() {
+                                memory.move_route_modal.0 = false;
+                                map.preview_move_route = Some((
+                                    memory.move_route_modal.1,
+                                    memory.move_route_modal.2.take().unwrap(),
+                                ))
+                            }
+
+                            if ui.button("Apply").clicked() {
+                                map.preview_move_route = Some((
+                                    memory.move_route_modal.1,
+                                    memory.move_route_modal.2.clone().unwrap(),
+                                ))
+                            }
+
+                            if ui.button("Cancel").clicked() {
+                                memory.move_route_modal.0 = false;
+                            }
+                        });
+                    });
+            }
+            memory.move_route_modal.0 &= win_open;
 
             Self::render_command(
                 ui,
                 self.commands,
                 &mut 0,
-                &mut selected_index,
+                &mut memory,
                 self.custom_id_source,
                 info,
             );
 
-            ui.memory()
-                .data
-                .insert_temp(egui::Id::new("command_view_selected_index"), selected_index);
+            ui.memory().data.insert_temp(
+                egui::Id::new(format!("command_view_memory_{}", self.custom_id_source)),
+                memory,
+            );
         });
     }
 
@@ -87,10 +140,16 @@ impl<'co> CommandView<'co> {
         ui: &mut egui::Ui,
         node: &mut Node,
         index: &mut usize,
-        selected_index: &mut usize,
+        memory: &mut Memory,
         custom_id_source: &'co str,
         info: &'static UpdateInfo,
     ) {
+        let Memory {
+            selected_index,
+            move_route_modal,
+            map_id,
+            ..
+        } = memory;
         *index += 1;
 
         let Command { kind, .. } = &mut node.data;
@@ -121,7 +180,7 @@ impl<'co> CommandView<'co> {
                     ui,
                     node,
                     index,
-                    selected_index,
+                    memory,
                     custom_id_source,
                     info,
                 );
@@ -132,7 +191,7 @@ impl<'co> CommandView<'co> {
                     ui,
                     node,
                     index,
-                    selected_index,
+                    memory,
                     custom_id_source,
                     info,
                 );
@@ -171,7 +230,7 @@ impl<'co> CommandView<'co> {
                     ui,
                     node,
                     index,
-                    selected_index,
+                    memory,
                     custom_id_source,
                     info,
                 );
@@ -182,7 +241,7 @@ impl<'co> CommandView<'co> {
                     ui,
                     node,
                     index,
-                    selected_index,
+                    memory,
                     custom_id_source,
                     info,
                 );
@@ -201,7 +260,7 @@ impl<'co> CommandView<'co> {
                     ui,
                     node,
                     index,
-                    selected_index,
+                    memory,
                     custom_id_source,
                     info,
                 );
@@ -283,7 +342,12 @@ impl<'co> CommandView<'co> {
                 let target_name = match *target {
                     -1 => "Player".to_string(),
                     0 => "This event".to_string(),
-                    _ => format!("Event {target}"),
+                    _ => map_id
+                        .map(|id| {
+                            let map = info.data_cache.get_map(id);
+                            map.events[*target as usize].name.clone()
+                        })
+                        .unwrap_or(format!("Event {target}")),
                 };
 
                 let header = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -303,12 +367,22 @@ impl<'co> CommandView<'co> {
 
                 header
                     .show_header(ui, |ui| {
-                        ui.selectable_value(
+                        let response = ui.selectable_value(
                             selected_index,
                             *index,
                             RichText::new(format!("Set Move Route: {target_name}"))
                                 .color(MOVE_ROUTE),
                         );
+                        if map_id.is_some() {
+
+
+                        response.context_menu(|ui| {
+                            if ui.button("Preview Move Route").clicked() {
+                                move_route_modal.0 = true;
+                                move_route_modal.2 = Some(route.clone());
+                            };
+                        });
+                    }
                         *index += 1;
                     })
                     .body(|ui| {
@@ -469,7 +543,7 @@ impl<'co> CommandView<'co> {
         };
 
         node.branch(Branch::Left, |node| {
-            Self::render_command(ui, node, index, selected_index, custom_id_source, info);
+            Self::render_command(ui, node, index, memory, custom_id_source, info);
         });
     }
 
@@ -478,7 +552,7 @@ impl<'co> CommandView<'co> {
         ui: &mut egui::Ui,
         node: &mut Node,
         index: &mut usize,
-        selected_index: &mut usize,
+        memory: &mut Memory,
         custom_id_source: &'co str,
         info: &'static UpdateInfo,
     ) -> CollapsingResponse<()> {
@@ -496,21 +570,14 @@ impl<'co> CommandView<'co> {
             let ret_response = header
                 .show_header(ui, |ui| {
                     ui.selectable_value(
-                        selected_index,
+                        &mut memory.selected_index,
                         *index,
                         RichText::new(text).color(CONTROL_FLOW),
                     )
                 })
                 .body(|ui| {
                     node.branch(Branch::Right, |node| {
-                        Self::render_command(
-                            ui,
-                            node,
-                            index,
-                            selected_index,
-                            custom_id_source,
-                            info,
-                        )
+                        Self::render_command(ui, node, index, memory, custom_id_source, info)
                     })
                 });
 
