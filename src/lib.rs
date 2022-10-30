@@ -42,6 +42,8 @@ pub mod windows {
     pub mod common_event_edit;
     /// The event editor.
     pub mod event_edit;
+    /// The item editor.
+    pub mod items;
     /// The map picker.
     pub mod map_picker;
     /// Misc windows.

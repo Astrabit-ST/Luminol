@@ -97,6 +97,13 @@ impl TopBar {
                     .add_window(crate::windows::map_picker::MapPicker::default())
             }
 
+            if ui.button("Items").clicked() {
+                info.windows
+                    .add_window(crate::windows::items::ItemsWindow::new(
+                        info.data_cache.items().clone().unwrap(),
+                    ))
+            }
+
             if ui.button("Common Events").clicked() {
                 info.windows
                     .add_window(crate::windows::common_event_edit::CommonEventEdit::default())

@@ -162,15 +162,80 @@ impl<'co> CommandView<'co> {
                     .color(CONTROL_FLOW),
                 );
             }
-            Conditional { .. } => {
-                self.collapsible(
-                    "Conditional Branch".to_string(),
-                    ui,
-                    node,
-                    index,
-                    memory,
-                    info,
-                );
+            Conditional { kind } => {
+                use crate::data::commands::{ConditionalKind::*, ConditionalOperator::*};
+
+                let text = {
+                    let system = info.data_cache.system();
+                    let system = system.as_ref().unwrap();
+
+                    format!(
+                        "Conditional Branch: {}",
+                        match kind {
+                            Switch { id, state } => {
+                                format!(
+                                    "[{id}: {}] is {}",
+                                    system.switches[*id],
+                                    match *state {
+                                        true => "ON",
+                                        false => "OFF",
+                                    }
+                                )
+                            }
+                            Variable {
+                                id,
+                                const_value,
+                                variable_value,
+                                operator,
+                            } => {
+                                format!(
+                                    "[{id}: {}] is {} {}",
+                                    system.variables[*id],
+                                    match operator {
+                                        Equal => "==",
+                                        GreaterEqual => ">=",
+                                        LessEqual => "<=",
+                                        Greater => ">",
+                                        Less => "<",
+                                        NotEqual => "!=",
+                                    },
+                                    {
+                                        if let Some(val) = const_value {
+                                            val.to_string()
+                                        } else {
+                                            format!(
+                                                "[{}: {}]",
+                                                variable_value.unwrap(),
+                                                system.variables[variable_value.unwrap()]
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                            SelfSwitch { char, state } => {
+                                format!(
+                                    "Self Switch '{char}' is {}",
+                                    match *state {
+                                        true => "ON",
+                                        false => "OFF",
+                                    }
+                                )
+                            }
+                            Item { id } => {
+                                let items = info.data_cache.items();
+                                let items = items.as_ref().unwrap();
+
+                                format!("Has item {}", items[*id].name)
+                            }
+                            Script { text } => {
+                                text.clone()
+                            }
+                            _ => "".to_string(),
+                        }
+                    )
+                };
+
+                self.collapsible(text, ui, node, index, memory, info);
             }
             Else => {
                 self.collapsible("Else".to_string(), ui, node, index, memory, info);

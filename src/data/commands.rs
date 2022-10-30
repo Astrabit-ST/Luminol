@@ -88,11 +88,8 @@ pub enum CommandKind {
     ChoiceEnd,
     /// Conditional Branch (If statement), id 111
     ///
-    /// Fields (kind: [`i32`], params: [`Vec<ParameterType>`])
-    Conditional {
-        kind: i32,
-        params: Vec<ParameterType>,
-    },
+    /// Fields (kind: [`conditional_kind`])
+    Conditional { kind: ConditionalKind },
     /// Else, id 411
     Else,
     /// Branch end, id 412
@@ -159,11 +156,90 @@ pub enum CommandKind {
 }
 
 pub use CommandKind::*;
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionalKind {
+    Switch {
+        id: usize,
+        state: bool,
+    },
+    Variable {
+        id: usize,
+        const_value: Option<i32>,
+        variable_value: Option<usize>,
+        operator: ConditionalOperator,
+    },
+    SelfSwitch {
+        char: String,
+        state: bool,
+    },
+    Timer {
+        seconds: i32,
+        or_more: bool,
+    },
+    Actor {
+        id: usize,
+        kind: ActorCondition,
+    },
+    Enemy {
+        id: usize,
+        state: Option<usize>,
+    },
+    Character {
+        id: usize,
+        direction: Direction,
+    },
+    Gold {
+        amount: i32,
+        or_more: bool,
+    },
+    Item {
+        id: usize,
+    },
+    Weapon {
+        id: usize,
+    },
+    Armor {
+        id: usize,
+    },
+    Button {
+        id: usize,
+    },
+    Script {
+        text: String,
+    },
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionalOperator {
+    Equal,
+    GreaterEqual,
+    LessEqual,
+    Greater,
+    Less,
+    NotEqual,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ActorCondition {
+    InParty,
+    Name(String),
+    Skill(usize),
+    Weapon(usize),
+    Armor(usize),
+    State(usize),
+}
 
 // TODO: Make this a macro
 
 impl From<intermediate::EventCommand> for Command {
     fn from(cmd: intermediate::EventCommand) -> Self {
+        use ActorCondition::*;
+        use ConditionalKind::*;
+        use ConditionalOperator::*;
+
         let intermediate::EventCommand {
             code,
             indent,
@@ -214,8 +290,111 @@ impl From<intermediate::EventCommand> for Command {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
                 111 => Conditional {
-                    kind: parameters[0].clone().into_integer().unwrap(),
-                    params: parameters[1..].to_vec(),
+                    kind: match parameters[0].clone().into_integer().unwrap() {
+                        0 => ConditionalKind::Switch {
+                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                            state: parameters[2].clone().into_integer().unwrap() == 0,
+                        },
+                        1 => {
+                            let id = parameters[1].clone().into_integer().unwrap() as usize;
+                            let operator = match parameters[4].clone().into_integer().unwrap() {
+                                0 => Equal,
+                                1 => GreaterEqual,
+                                2 => LessEqual,
+                                3 => Greater,
+                                4 => Less,
+                                5 => NotEqual,
+                                _ => panic!("Invalid conditional operator"),
+                            };
+
+                            if parameters[2].clone().into_integer().unwrap() == 0 {
+                                Variable {
+                                    id,
+                                    const_value: Some(
+                                        parameters[4].clone().into_integer().unwrap(),
+                                    ),
+                                    variable_value: None,
+                                    operator,
+                                }
+                            } else {
+                                Variable {
+                                    id,
+                                    const_value: None,
+                                    variable_value: Some(
+                                        parameters[4].clone().into_integer().unwrap() as usize,
+                                    ),
+                                    operator,
+                                }
+                            }
+                        }
+                        2 => SelfSwitch {
+                            char: parameters[1].clone().into_string().unwrap(),
+                            state: parameters[2].clone().into_integer().unwrap() == 0,
+                        },
+                        3 => Timer {
+                            seconds: parameters[1].clone().into_integer().unwrap(),
+                            or_more: parameters[2].clone().into_integer().unwrap() == 0,
+                        },
+                        4 => {
+                            let id = parameters[1].clone().into_integer().unwrap() as usize;
+
+                            let kind = match parameters[2].clone().into_integer().unwrap() {
+                                0 => InParty,
+                                1 => Name(parameters[3].clone().into_string().unwrap()),
+                                2 => Skill(parameters[3].clone().into_integer().unwrap() as usize),
+                                3 => ActorCondition::Weapon(
+                                    parameters[3].clone().into_integer().unwrap() as usize,
+                                ),
+                                4 => ActorCondition::Armor(
+                                    parameters[3].clone().into_integer().unwrap() as usize,
+                                ),
+                                5 => State(parameters[3].clone().into_integer().unwrap() as usize),
+                                _ => panic!("Actor conditional invalid"),
+                            };
+
+                            Actor { id, kind }
+                        }
+                        5 => {
+                            let id = parameters[1].clone().into_integer().unwrap() as usize;
+                            let state = if parameters[2].clone().into_integer().unwrap() == 0 {
+                                None
+                            } else {
+                                Some(parameters[3].clone().into_integer().unwrap() as usize)
+                            };
+
+                            Enemy { id, state }
+                        }
+                        6 => Character {
+                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                            direction: match parameters[2].clone().into_integer().unwrap() {
+                                2 => Direction::Down,
+                                4 => Direction::Left,
+                                6 => Direction::Right,
+                                8 => Direction::Up,
+                                _ => panic!("Invalid direction"),
+                            },
+                        },
+                        7 => Gold {
+                            amount: parameters[1].clone().into_integer().unwrap(),
+                            or_more: parameters[2].clone().into_integer().unwrap() == 0,
+                        },
+                        8 => Item {
+                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                        },
+                        9 => ConditionalKind::Weapon {
+                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                        },
+                        10 => ConditionalKind::Armor {
+                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                        },
+                        11 => Button {
+                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                        },
+                        12 => ConditionalKind::Script {
+                            text: parameters[1].clone().into_string().unwrap(),
+                        },
+                        _ => panic!("Invalid conditional type"),
+                    },
                 },
                 411 => Else,
                 412 => BranchEnd,
@@ -632,3 +811,13 @@ pub const MOVE_TYPES: [&str; 4] = ["Fixed", "Random", "Approach", "Custom"];
 pub const MOVE_SPEEDS: [&str; 6] = ["Slowest", "Slower", "Slow", "Fast", "Faster", "Fastest"];
 /// Move frequencies
 pub const MOVE_FREQS: [&str; 6] = ["Lowest", "Lower", "Low", "High", "Higher", "Highest"];
+
+#[allow(missing_docs)]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Direction {
+    Down = 2,
+    Left = 4,
+    Right = 6,
+    Up = 8,
+}

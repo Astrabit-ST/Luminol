@@ -243,7 +243,7 @@ pub mod rpg {
     }
 
     // FIXME: There are a lot of repeated fields here. I should probably make a trait for them.
-    #[derive(Default, Debug, Deserialize, Serialize)]
+    #[derive(Default, Debug, Deserialize, Serialize, Clone)]
     pub struct Item {
         pub id: i32,
         pub name: String,
@@ -261,7 +261,11 @@ pub mod rpg {
         pub parameter_points: i32,
         pub recover_hp_rate: i32,
         pub recover_hp: i32,
+        // These fields are missing in rmxp data *sometimes*.
+        // Why? Who knows!
+        #[serde(default)]
         pub recover_sp_rate: i32,
+        #[serde(default)]
         pub recover_sp: i32,
         pub hit: i32,
         pub pdef_f: i32,

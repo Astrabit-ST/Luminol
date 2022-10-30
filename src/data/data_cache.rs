@@ -37,6 +37,7 @@ pub struct DataCache {
     maps: RefCell<HashMap<i32, rpg::Map>>,
     common_events: RefCell<Option<Vec<rpg::CommonEvent>>>,
     scripts: RefCell<Option<Vec<intermediate::Script>>>,
+    items: RefCell<Option<Vec<rpg::Item>>>,
 }
 
 impl DataCache {
@@ -68,6 +69,13 @@ impl DataCache {
                 .read_data("CommonEvents.ron")
                 .await
                 .map_err(|s| format!("Failed to read Common Events: {}", s))?,
+        );
+
+        *self.items.borrow_mut() = Some(
+            filesystem
+                .read_data("Items.ron")
+                .await
+                .map_err(|s| format!("Failed to read Items: {}", s))?,
         );
 
         let mut scripts = filesystem.read_data("xScripts.ron").await;
@@ -135,6 +143,11 @@ impl DataCache {
     /// Get Scripts.
     pub fn scripts(&self) -> RefMut<'_, Option<Vec<intermediate::Script>>> {
         self.scripts.borrow_mut()
+    }
+
+    /// Get items.
+    pub fn items(&self) -> RefMut<'_, Option<Vec<rpg::Item>>> {
+        self.items.borrow_mut()
     }
 
     /// Save all cached data to disk.
