@@ -114,7 +114,7 @@ pub mod components {
             ) -> egui::Response;
 
             /// Display the tile picker.
-            fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
+            fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i32);
 
             /// Check if the textures are loaded yet.
             fn textures_loaded(&self) -> bool;

@@ -75,10 +75,10 @@ impl<'route> MoveDisplay<'route> {
                                 TurnTowardsPlayer => "Turn Towards Player".to_string(),
                                 TurnAwayFromPlayer => "Turn Away from Player".to_string(),
                                 SwitchON { switch_id } => {
-                                    format!("Switch [{switch_id}: {}] ON", system.switches[*switch_id])
+                                    format!("Switch [{switch_id}: {}] ON", system.switches[*switch_id - 1])
                                 }
                                 SwitchOFF { switch_id } => {
-                                    format!("Switch [{switch_id}: {}] OFF", system.switches[*switch_id])
+                                    format!("Switch [{switch_id}: {}] OFF", system.switches[*switch_id - 1])
                                 }
                                 ChangeSpeed { speed } => {
                                     format!("Set Speed to {speed}: {}", MOVE_SPEEDS[*speed - 1])

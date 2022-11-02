@@ -59,7 +59,7 @@ pub struct Command {
     pub kind: CommandKind,
 }
 
-#[derive(Debug, Clone, EnumAsInner, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(missing_docs)]
 pub enum CommandKind {
     /// Show text, id 101
@@ -96,8 +96,6 @@ pub enum CommandKind {
     BranchEnd,
     /// Loop, id 112
     Loop,
-    /// Loop end, id 413
-    LoopEnd,
     /// Comment, id 108
     Comment { text: String },
     /// CommentExt, id 408
@@ -107,17 +105,34 @@ pub enum CommandKind {
 
     /// Break Loop, id 113
     BreakLoop,
+    /// Repeat above, id 413
+    RepeatAbove,
 
     /// Exit event processing, id 115
     ExitEvent,
-
+    /// Erase event, id 116
+    EraseEvent,
     /// Call common event, id 117
     CallCommonEvent { event: usize },
-
+    /// Label, id 118
+    Label { text: String },
+    /// Jump to label, id 119
+    JumpToLabel { label: String },
     /// Control switches, id 121
     ControlSwitches {
         range: RangeInclusive<usize>,
         state: bool,
+    },
+    /// Control variables, id 122
+    ControlVariables,
+    /// Control Self Switch, id 123
+    ControlSelfSwitch { switch: String, state: bool },
+
+    /// Change party member, id 129
+    ChangeParty {
+        id: usize,
+        add: bool,
+        initialize: bool,
     },
 
     /// Script, id 355
@@ -132,10 +147,43 @@ pub enum CommandKind {
         speed: usize,
     },
 
+    /// Play animation, id 207
+    PlayAnimation { target: i32, id: usize },
+
     /// Move route, id 209
     MoveRoute { target: i32, route: rpg::MoveRoute },
     /// Wait until move route finished, id 210
     WaitMoveRoute,
+
+    /// Show picture, id 231
+    ShowPicture {
+        id: usize,
+        name: String,
+        variable: bool,
+        x: i32,
+        y: i32,
+        zoom_x: usize,
+        zoom_y: usize,
+        opacity: u8,
+        center: bool,
+        blend_type: BlendType,
+    },
+    /// Move Picture, id 232
+    MovePicture {
+        id: usize,
+        duration: usize,
+        variable: bool,
+        x: i32,
+        y: i32,
+        zoom_x: usize,
+        zoom_y: usize,
+        opacity: u8,
+        center: bool,
+        blend_type: BlendType,
+    },
+
+    /// Erase picture, id 235
+    ErasePicture { id: usize },
 
     /// Play SE, id 250
     PlaySE { file: rpg::AudioFile },
@@ -274,21 +322,6 @@ impl From<intermediate::EventCommand> for Command {
                 408 => CommentExt {
                     text: parameters[0].clone().into_string().unwrap(),
                 },
-                115 => ExitEvent,
-                117 => CallCommonEvent {
-                    event: parameters[0].clone().into_integer().unwrap() as usize,
-                },
-                121 => ControlSwitches {
-                    range: (parameters[0].clone().into_integer().unwrap() as usize)
-                        ..=(parameters[1].clone().into_integer().unwrap() as usize),
-                    state: parameters[2].clone().into_integer().unwrap() == 0,
-                },
-                355 => CommandKind::Script {
-                    text: parameters[0].clone().into_string().unwrap(),
-                },
-                655 => ScriptExt {
-                    text: parameters[0].clone().into_string().unwrap(),
-                },
                 111 => Conditional {
                     kind: match parameters[0].clone().into_integer().unwrap() {
                         0 => ConditionalKind::Switch {
@@ -396,21 +429,95 @@ impl From<intermediate::EventCommand> for Command {
                         _ => panic!("Invalid conditional type"),
                     },
                 },
+                115 => ExitEvent,
+                116 => EraseEvent,
+                117 => CallCommonEvent {
+                    event: parameters[0].clone().into_integer().unwrap() as usize,
+                },
+                118 => Label {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+                119 => JumpToLabel {
+                    label: parameters[0].clone().into_string().unwrap(),
+                },
+                121 => ControlSwitches {
+                    range: (parameters[0].clone().into_integer().unwrap() as usize)
+                        ..=(parameters[1].clone().into_integer().unwrap() as usize),
+                    state: parameters[2].clone().into_integer().unwrap() == 0,
+                },
+                122 => ControlVariables,
+                123 => ControlSelfSwitch {
+                    switch: parameters[0].clone().into_string().unwrap(),
+                    state: parameters[1].clone().into_integer().unwrap() == 0,
+                },
+                129 => ChangeParty {
+                    id: parameters[0].clone().into_integer().unwrap() as usize,
+                    add: parameters[1].clone().into_integer().unwrap() == 0,
+                    initialize: parameters[2].clone().into_integer().unwrap() == 1,
+                },
+                355 => CommandKind::Script {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+                655 => ScriptExt {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+
                 411 => Else,
                 412 => BranchEnd,
                 112 => Loop,
                 113 => BreakLoop,
-                413 => LoopEnd,
+                413 => RepeatAbove,
                 203 => ScrollScreen {
                     direction: parameters[0].clone().into_integer().unwrap() as usize,
                     distance: parameters[1].clone().into_integer().unwrap() as usize,
                     speed: parameters[2].clone().into_integer().unwrap() as usize,
+                },
+                207 => PlayAnimation {
+                    target: parameters[0].clone().into_integer().unwrap(),
+                    id: parameters[1].clone().into_integer().unwrap() as usize,
                 },
                 209 => MoveRoute {
                     target: *parameters[0].as_integer().unwrap(),
                     route: parameters[1].as_move_route().unwrap().clone(),
                 },
                 210 => WaitMoveRoute,
+                231 => ShowPicture {
+                    id: *parameters[0].as_integer().unwrap() as usize,
+                    name: parameters[1].clone().into_string().unwrap(),
+                    center: parameters[2].clone().into_integer().unwrap() != 0,
+                    variable: parameters[3].clone().into_integer().unwrap() != 0,
+                    x: parameters[4].clone().into_integer().unwrap(),
+                    y: parameters[5].clone().into_integer().unwrap(),
+                    zoom_x: parameters[6].clone().into_integer().unwrap() as usize,
+                    zoom_y: parameters[7].clone().into_integer().unwrap() as usize,
+                    opacity: parameters[8].clone().into_integer().unwrap() as u8,
+                    blend_type: match parameters[9].clone().into_integer().unwrap() {
+                        0 => BlendType::Normal,
+                        1 => BlendType::Additive,
+                        2 => BlendType::Subtractive,
+                        _ => panic!("Invalid blend type"),
+                    },
+                },
+                232 => MovePicture {
+                    id: *parameters[0].as_integer().unwrap() as usize,
+                    duration: *parameters[1].as_integer().unwrap() as usize,
+                    center: parameters[2].clone().into_integer().unwrap() != 0,
+                    variable: parameters[3].clone().into_integer().unwrap() != 0,
+                    x: parameters[4].clone().into_integer().unwrap(),
+                    y: parameters[5].clone().into_integer().unwrap(),
+                    zoom_x: parameters[6].clone().into_integer().unwrap() as usize,
+                    zoom_y: parameters[7].clone().into_integer().unwrap() as usize,
+                    opacity: parameters[8].clone().into_integer().unwrap() as u8,
+                    blend_type: match parameters[9].clone().into_integer().unwrap() {
+                        0 => BlendType::Normal,
+                        1 => BlendType::Additive,
+                        2 => BlendType::Subtractive,
+                        _ => panic!("Invalid blend type"),
+                    },
+                },
+                235 => ErasePicture {
+                    id: *parameters[0].as_integer().unwrap() as usize,
+                },
                 250 => CommandKind::PlaySE {
                     file: parameters[0].as_audio_file().unwrap().clone(),
                 },
@@ -820,4 +927,13 @@ pub enum Direction {
     Left = 4,
     Right = 6,
     Up = 8,
+}
+
+#[allow(missing_docs)]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BlendType {
+    Normal = 0,
+    Additive = 1,
+    Subtractive = 2,
 }

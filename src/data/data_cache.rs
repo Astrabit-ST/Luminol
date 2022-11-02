@@ -31,6 +31,8 @@ use super::rmxp_structs::intermediate;
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
 pub struct DataCache {
+    actors: RefCell<Option<Vec<rpg::Actor>>>,
+    animations: RefCell<Option<Vec<rpg::animation::Animation>>>,
     system: RefCell<Option<rpg::system::System>>,
     tilesets: RefCell<Option<Vec<rpg::Tileset>>>,
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
@@ -43,6 +45,20 @@ pub struct DataCache {
 impl DataCache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
+        *self.actors.borrow_mut() = Some(
+            filesystem
+                .read_data("Actors.ron")
+                .await
+                .map_err(|s| format!("Failed to read Actors: {}", s))?,
+        );
+
+        *self.animations.borrow_mut() = Some(
+            filesystem
+                .read_data("Animations.ron")
+                .await
+                .map_err(|s| format!("Failed to read Animations: {}", s))?,
+        );
+
         *self.system.borrow_mut() = Some(
             filesystem
                 .read_data("System.ron")
@@ -133,6 +149,16 @@ impl DataCache {
     /// Get system.
     pub fn system(&self) -> RefMut<'_, Option<rpg::system::System>> {
         self.system.borrow_mut()
+    }
+
+    /// Get Animations.
+    pub fn animations(&self) -> RefMut<'_, Option<Vec<rpg::animation::Animation>>> {
+        self.animations.borrow_mut()
+    }
+
+    /// Get Actors.
+    pub fn actors(&self) -> RefMut<'_, Option<Vec<rpg::Actor>>> {
+        self.actors.borrow_mut()
     }
 
     /// Get Common Events.

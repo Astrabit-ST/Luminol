@@ -43,7 +43,7 @@ use std::ops::{Index, IndexMut};
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Table1 {
     xsize: usize,
-    data: Vec<i16>,
+    data: Vec<i32>,
 }
 
 impl Table1 {
@@ -71,13 +71,13 @@ impl Table1 {
     }
 
     /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn iter(&self) -> Iter<'_, i32> {
         self.data.iter()
     }
 }
 
 impl Index<usize> for Table1 {
-    type Output = i16;
+    type Output = i32;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.data[index]
@@ -96,7 +96,7 @@ pub struct Table2 {
     xsize: usize,
 
     ysize: usize,
-    data: Vec<i16>,
+    data: Vec<i32>,
 }
 
 impl Table2 {
@@ -130,13 +130,13 @@ impl Table2 {
     }
 
     /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn iter(&self) -> Iter<'_, i32> {
         self.data.iter()
     }
 }
 
 impl Index<(usize, usize)> for Table2 {
-    type Output = i16;
+    type Output = i32;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         &self.data[index.0 + index.1 * self.xsize]
@@ -155,7 +155,7 @@ pub struct Table3 {
     xsize: usize,
     ysize: usize,
     zsize: usize,
-    data: Vec<i16>,
+    data: Vec<i32>,
 }
 
 use std::slice::Iter;
@@ -197,13 +197,13 @@ impl Table3 {
     }
 
     /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn iter(&self) -> Iter<'_, i32> {
         self.data.iter()
     }
 }
 
 impl Index<(usize, usize, usize)> for Table3 {
-    type Output = i16;
+    type Output = i32;
 
     fn index(&self, index: (usize, usize, usize)) -> &Self::Output {
         &self.data[index.0 + (index.1 * self.xsize) + (index.2 * self.ysize)]

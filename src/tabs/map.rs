@@ -41,7 +41,7 @@ pub struct Map {
     /// The tilemap.
     pub tilemap: Tilemap,
     /// The selected tile in the tile picker.
-    pub selected_tile: i16,
+    pub selected_tile: i32,
     dragged_event: usize,
     dragging_event: bool,
     event_windows: Windows,

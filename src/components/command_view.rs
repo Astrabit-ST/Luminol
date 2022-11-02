@@ -39,6 +39,8 @@ const SCRIPT: Color32 = Color32::YELLOW;
 pub const MOVE_ROUTE: Color32 = Color32::from_rgb(252, 140, 3);
 const DATA: Color32 = Color32::from_rgb(252, 93, 93);
 const AUDIO: Color32 = Color32::from_rgb(101, 252, 232);
+const PICTURE: Color32 = Color32::from_rgb(174, 52, 235);
+const PARTY: Color32 = Color32::from_rgb(255, 141, 48);
 
 /// An event command viewer.
 
@@ -148,6 +150,27 @@ impl<'co> CommandView<'co> {
                     RichText::new("Exit Event Processing").color(CONTROL_FLOW),
                 );
             }
+            EraseEvent => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Erase Event").color(CONTROL_FLOW),
+                );
+            }
+            Label { text } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("Label {text}")).color(MOVE_ROUTE),
+                );
+            }
+            JumpToLabel { label } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("Jump to Label {label}")).color(MOVE_ROUTE),
+                );
+            }
             CallCommonEvent { event } => {
                 let common_events = info.data_cache.common_events();
                 let common_events = common_events.as_ref().unwrap();
@@ -175,7 +198,7 @@ impl<'co> CommandView<'co> {
                             Switch { id, state } => {
                                 format!(
                                     "[{id}: {}] is {}",
-                                    system.switches[*id],
+                                    system.switches[*id - 1],
                                     match *state {
                                         true => "ON",
                                         false => "OFF",
@@ -190,7 +213,7 @@ impl<'co> CommandView<'co> {
                             } => {
                                 format!(
                                     "[{id}: {}] is {} {}",
-                                    system.variables[*id],
+                                    system.variables[*id - 1],
                                     match operator {
                                         Equal => "==",
                                         GreaterEqual => ">=",
@@ -206,7 +229,7 @@ impl<'co> CommandView<'co> {
                                             format!(
                                                 "[{}: {}]",
                                                 variable_value.unwrap(),
-                                                system.variables[variable_value.unwrap()]
+                                                system.variables[variable_value.unwrap() - 1]
                                             )
                                         }
                                     }
@@ -225,7 +248,7 @@ impl<'co> CommandView<'co> {
                                 let items = info.data_cache.items();
                                 let items = items.as_ref().unwrap();
 
-                                format!("Has item {}", items[*id].name)
+                                format!("Has item {}", items[*id - 1].name)
                             }
                             Script { text } => {
                                 text.clone()
@@ -257,11 +280,11 @@ impl<'co> CommandView<'co> {
                     RichText::new("Break Loop").color(CONTROL_FLOW),
                 );
             }
-            LoopEnd => {
+            RepeatAbove => {
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new("Loop End").color(CONTROL_FLOW),
+                    RichText::new("Repeat Above").color(CONTROL_FLOW),
                 );
             }
             Comment { text } => {
@@ -318,6 +341,100 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new("Wait for Move's completion").color(MOVE_ROUTE),
+                );
+            }
+            ShowPicture {
+                id,
+                name,
+                variable,
+                x,
+                y,
+                ..
+            } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Show Picture [{id}] '{name}' at ({})",
+                        match variable {
+                            true => {
+                                let system = info.data_cache.system();
+                                let system = system.as_ref().unwrap();
+
+                                format!(
+                                    "[{}:{x}], [{}:{y}]",
+                                    system.variables[*x as usize - 1],
+                                    system.variables[*y as usize - 1]
+                                )
+                            }
+                            false => {
+                                format!("{x}, {y}")
+                            }
+                        }
+                    ))
+                    .color(PICTURE),
+                );
+            }
+            MovePicture {
+                id,
+                duration,
+                variable,
+                x,
+                y,
+                ..
+            } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Move Picture [{id}] at ({}) over {duration} frame(s)",
+                        match variable {
+                            true => {
+                                let system = info.data_cache.system();
+                                let system = system.as_ref().unwrap();
+
+                                format!(
+                                    "[{}:{x}], [{}:{y}]",
+                                    system.variables[*x as usize - 1],
+                                    system.variables[*y as usize - 1]
+                                )
+                            }
+                            false => {
+                                format!("{x}, {y}")
+                            }
+                        },
+                    ))
+                    .color(PICTURE),
+                );
+            }
+            ErasePicture { id } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("Erase Picture [{id}]")).color(PICTURE),
+                );
+            }
+            PlayAnimation { target, id } => {
+                let animations = info.data_cache.animations();
+                let animations = animations.as_ref().unwrap();
+
+                let anim_name = animations[*id].name.clone();
+                let target_name = match *target {
+                    -1 => "Player".to_string(),
+                    0 => "This event".to_string(),
+                    _ => map_id
+                        .map(|id| {
+                            let map = info.data_cache.get_map(id);
+                            map.events[*target as usize].name.clone()
+                        })
+                        .unwrap_or(format!("Event {target}")),
+                };
+
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("Play animation [{anim_name}] on {target_name}"))
+                        .color(MOVE_ROUTE),
                 );
             }
             // RMXP provides in editor-commands to display the move route commands.
@@ -383,9 +500,13 @@ impl<'co> CommandView<'co> {
                         let system = info.data_cache.system();
                         let system = system.as_ref().unwrap();
 
-                        format!(" [{}: {}]", range.start(), system.switches[*range.start()])
+                        format!(
+                            " [{}: {}]",
+                            range.start(),
+                            system.switches[*range.start() - 1]
+                        )
                     } else {
-                        format!("es [{}..{}]", range.start(), range.end())
+                        format!("es [{}..{}]", range.start() - 1, range.end() - 1)
                     },
                     match state {
                         true => "ON",
@@ -394,6 +515,48 @@ impl<'co> CommandView<'co> {
                 );
 
                 ui.selectable_value(selected_index, *index, RichText::new(str).color(DATA));
+            }
+            ControlVariables => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Control Variables").color(DATA),
+                );
+            }
+            ControlSelfSwitch { switch, state } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Set Self Switch {switch} = {}",
+                        match *state {
+                            true => "ON",
+                            false => "OFF",
+                        }
+                    ))
+                    .color(DATA),
+                );
+            }
+            ChangeParty {
+                id,
+                add,
+                initialize,
+            } => {
+                let actors = info.data_cache.actors();
+                let actors = actors.as_ref().unwrap();
+
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(match *add {
+                        true => format!(
+                            "Add actor {}, initialize: {initialize}",
+                            actors[*id - 1].name
+                        ),
+                        false => format!("Remove actor {}", actors[*id - 1].name),
+                    })
+                    .color(PARTY),
+                );
             }
             CommandKind::PlaySE { file } => {
                 ui.selectable_value(
