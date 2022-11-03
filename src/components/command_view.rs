@@ -23,7 +23,7 @@ use crate::{
         commands::{
             Command,
             CommandKind::{self, *},
-            MOVE_SPEEDS,
+            Operand, OperandKind, MOVE_SPEEDS,
         },
         rmxp_structs::rpg,
     },
@@ -40,7 +40,7 @@ pub const MOVE_ROUTE: Color32 = Color32::from_rgb(252, 140, 3);
 const DATA: Color32 = Color32::from_rgb(252, 93, 93);
 const AUDIO: Color32 = Color32::from_rgb(101, 252, 232);
 const PICTURE: Color32 = Color32::from_rgb(174, 52, 235);
-const PARTY: Color32 = Color32::from_rgb(255, 141, 48);
+const PARTY: Color32 = Color32::from_rgb(252, 3, 211);
 
 /// An event command viewer.
 
@@ -420,21 +420,23 @@ impl<'co> CommandView<'co> {
 
                 let anim_name = animations[*id].name.clone();
                 let target_name = match *target {
-                    -1 => "Player".to_string(),
-                    0 => "This event".to_string(),
+                    -1 => "the Player".to_string(),
+                    0 => "this event".to_string(),
                     _ => map_id
                         .map(|id| {
                             let map = info.data_cache.get_map(id);
                             map.events[*target as usize].name.clone()
                         })
-                        .unwrap_or(format!("Event {target}")),
+                        .unwrap_or(format!("event {target}")),
                 };
 
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new(format!("Play animation [{anim_name}] on {target_name}"))
-                        .color(MOVE_ROUTE),
+                    RichText::new(format!(
+                        "Play animation [{id}: {anim_name}] on {target_name}"
+                    ))
+                    .color(MOVE_ROUTE),
                 );
             }
             // RMXP provides in editor-commands to display the move route commands.
@@ -537,6 +539,32 @@ impl<'co> CommandView<'co> {
                     .color(DATA),
                 );
             }
+            ChangeItems { id, operation } => {
+                let items = info.data_cache.items();
+                let items = items.as_ref().unwrap();
+
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Change items: {} {} [{id}: {}](s)",
+                        match operation.kind {
+                            OperandKind::Add => "Add",
+                            OperandKind::Subtract => "Remove",
+                        },
+                        match operation.operand {
+                            Operand::Variable(id) => {
+                                let system = info.data_cache.system();
+                                let system = system.as_ref().unwrap();
+                                system.variables[id - 1].clone()
+                            }
+                            Operand::Constant(val) => val.to_string(),
+                        },
+                        items[*id - 1].name
+                    ))
+                    .color(PARTY),
+                );
+            }
             ChangeParty {
                 id,
                 add,
@@ -564,6 +592,17 @@ impl<'co> CommandView<'co> {
                     *index,
                     RichText::new(format!(
                         "Play SE \"{}\", vol: {}, pitch: {}",
+                        file.name, file.volume, file.pitch
+                    ))
+                    .color(AUDIO),
+                );
+            }
+            PlayBGM { file } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Play BGM \"{}\", vol: {}, pitch: {}",
                         file.name, file.volume, file.pitch
                     ))
                     .color(AUDIO),

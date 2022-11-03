@@ -128,6 +128,9 @@ pub enum CommandKind {
     /// Control Self Switch, id 123
     ControlSelfSwitch { switch: String, state: bool },
 
+    /// Change items. id 126
+    ChangeItems { id: usize, operation: Operation },
+
     /// Change party member, id 129
     ChangeParty {
         id: usize,
@@ -185,6 +188,8 @@ pub enum CommandKind {
     /// Erase picture, id 235
     ErasePicture { id: usize },
 
+    /// Play BGM, id 241
+    PlayBGM { file: rpg::AudioFile },
     /// Play SE, id 250
     PlaySE { file: rpg::AudioFile },
 
@@ -280,6 +285,27 @@ pub enum ActorCondition {
     State(usize),
 }
 
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct Operation {
+    pub operand: Operand,
+    pub kind: OperandKind,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum Operand {
+    Variable(usize),
+    Constant(i32),
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum OperandKind {
+    Add,
+    Subtract,
+}
+
 // TODO: Make this a macro
 
 impl From<intermediate::EventCommand> for Command {
@@ -344,7 +370,7 @@ impl From<intermediate::EventCommand> for Command {
                                 Variable {
                                     id,
                                     const_value: Some(
-                                        parameters[4].clone().into_integer().unwrap(),
+                                        parameters[3].clone().into_integer().unwrap(),
                                     ),
                                     variable_value: None,
                                     operator,
@@ -354,7 +380,7 @@ impl From<intermediate::EventCommand> for Command {
                                     id,
                                     const_value: None,
                                     variable_value: Some(
-                                        parameters[4].clone().into_integer().unwrap() as usize,
+                                        parameters[3].clone().into_integer().unwrap() as usize,
                                     ),
                                     operator,
                                 }
@@ -450,6 +476,23 @@ impl From<intermediate::EventCommand> for Command {
                     switch: parameters[0].clone().into_string().unwrap(),
                     state: parameters[1].clone().into_integer().unwrap() == 0,
                 },
+                126 => ChangeItems {
+                    id: parameters[0].clone().into_integer().unwrap() as usize,
+                    operation: Operation {
+                        operand: match parameters[2].clone().into_integer().unwrap() {
+                            0 => Operand::Constant(parameters[3].clone().into_integer().unwrap()),
+                            1 => Operand::Variable(
+                                parameters[3].clone().into_integer().unwrap() as usize
+                            ),
+                            _ => panic!("Invalid operand type"),
+                        },
+                        kind: match parameters[1].clone().into_integer().unwrap() {
+                            1 => OperandKind::Subtract,
+                            0 => OperandKind::Add,
+                            _ => panic!("Invalid operation kind"),
+                        },
+                    },
+                },
                 129 => ChangeParty {
                     id: parameters[0].clone().into_integer().unwrap() as usize,
                     add: parameters[1].clone().into_integer().unwrap() == 0,
@@ -518,6 +561,11 @@ impl From<intermediate::EventCommand> for Command {
                 235 => ErasePicture {
                     id: *parameters[0].as_integer().unwrap() as usize,
                 },
+
+                241 => PlayBGM {
+                    file: parameters[0].as_audio_file().unwrap().clone(),
+                },
+
                 250 => CommandKind::PlaySE {
                     file: parameters[0].as_audio_file().unwrap().clone(),
                 },
