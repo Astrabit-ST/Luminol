@@ -23,7 +23,7 @@ use crate::{
         commands::{
             Command,
             CommandKind::{self, *},
-            Direction, Operand, OperandKind, MOVE_SPEEDS,
+            Direction, Operand, OperandKind, VariableKind, VariableOperation, MOVE_SPEEDS,
         },
         rmxp_structs::rpg,
     },
@@ -406,10 +406,14 @@ impl<'co> CommandView<'co> {
                     RichText::new(format!("Invalid Command {code} 🔥")).color(ERROR),
                 )
                 .on_hover_text(
-                    RichText::new("This happens when Luminol does not recognize a command ID.")
-                        .color(ERROR),
+                    RichText::new(format!(
+                        "This happens when Luminol does not recognize a command ID.\n
+                         Parameters: \n
+                         {:#?}",
+                        parameters
+                    ))
+                    .color(ERROR),
                 );
-                ui.colored_label(ERROR, format!("Parameters: \n{:#?}", parameters));
             }
             MoveDisplay => {}
             WaitMoveRoute => {
@@ -417,6 +421,38 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new("Wait for Move's completion").color(MOVE_ROUTE),
+                );
+            }
+            ScreenTone { tone, duration } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Change screen tone to ({},{},{},{}) over {duration} frame(s)",
+                        tone.red, tone.blue, tone.green, tone.gray
+                    ))
+                    .color(PICTURE),
+                );
+            }
+            ScreenFlash { color, duration } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Flash screen ({},{},{},{}) over {duration} frame(s)",
+                        color.red, color.blue, color.green, color.alpha
+                    ))
+                    .color(PICTURE),
+                );
+            }
+            ScreenShake { power, speed, time } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Shake Screen over {time} frame(s) with speed: {speed}, power: {power}"
+                    ))
+                    .color(PICTURE),
                 );
             }
             ShowPicture {
@@ -463,7 +499,7 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new(format!(
-                        "Move Picture [{id}] at ({}) over {duration} frame(s)",
+                        "Move Picture [{id}] to ({}) over {duration} frame(s)",
                         match variable {
                             true => {
                                 let system = info.data_cache.system();
@@ -594,12 +630,54 @@ impl<'co> CommandView<'co> {
 
                 ui.selectable_value(selected_index, *index, RichText::new(str).color(DATA));
             }
-            ControlVariables => {
-                ui.selectable_value(
-                    selected_index,
-                    *index,
-                    RichText::new("Control Variables").color(DATA),
+            ControlVariables {
+                range,
+                kind,
+                operation,
+            } => {
+                let system = info.data_cache.system();
+                let system = system.as_ref().unwrap();
+
+                let str = format!(
+                    "Set Variable{} {} {}",
+                    if range.end() == range.start() {
+                        format!(
+                            " [{}: {}]",
+                            range.start(),
+                            system.variables[*range.start() - 1]
+                        )
+                    } else {
+                        format!("es [{}..{}]", range.start() - 1, range.end() - 1)
+                    },
+                    match *operation {
+                        VariableOperation::Set => "=",
+                        VariableOperation::Add => "+=",
+                        VariableOperation::Subtract => "-=",
+                        VariableOperation::Multiply => "*=",
+                        VariableOperation::Divide => "/=",
+                        VariableOperation::Modulo => "%=",
+                    },
+                    match kind {
+                        VariableKind::Constant(val) => val.to_string(),
+                        VariableKind::Variable(id) => system.variables[*id - 1].clone(),
+                        VariableKind::Random(range) => format!("random ({:?})", range),
+                        VariableKind::Item(id) => {
+                            let items = info.data_cache.items();
+                            let items = items.as_ref().unwrap();
+
+                            format!("Number of [{id}: {}](s) in inventory", items[*id - 1].name)
+                        }
+                        VariableKind::MapID => "Map ID".to_string(),
+                        VariableKind::PartySize => "Party Size".to_string(),
+                        VariableKind::Gold => "Party Gold".to_string(),
+                        VariableKind::Steps => "Party Steps".to_string(),
+                        VariableKind::Timer => "Timer".to_string(),
+                        VariableKind::SaveCount => "Save Count".to_string(),
+                        _ => "TODO".to_string(),
+                    }
                 );
+
+                ui.selectable_value(selected_index, *index, RichText::new(str).color(DATA));
             }
             ControlSelfSwitch { switch, state } => {
                 ui.selectable_value(

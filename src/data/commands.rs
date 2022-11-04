@@ -128,7 +128,11 @@ pub enum CommandKind {
         state: bool,
     },
     /// Control variables, id 122
-    ControlVariables,
+    ControlVariables {
+        range: RangeInclusive<usize>,
+        kind: VariableKind,
+        operation: VariableOperation,
+    },
     /// Control Self Switch, id 123
     ControlSelfSwitch { switch: String, state: bool },
 
@@ -166,6 +170,14 @@ pub enum CommandKind {
     MoveRoute { target: i32, route: rpg::MoveRoute },
     /// Wait until move route finished, id 210
     WaitMoveRoute,
+
+    /// Change screen tone, id 223
+    ScreenTone { tone: Tone, duration: i32 },
+    /// Screen flash, id 224
+    ScreenFlash { color: Color, duration: i32 },
+
+    /// Screen shake, id 225
+    ScreenShake { power: i32, speed: i32, time: i32 },
 
     /// Show picture, id 231
     ShowPicture {
@@ -345,6 +357,83 @@ pub enum TextPosition {
     Bottom,
 }
 
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariableKind {
+    Constant(i32),
+    Variable(usize),
+    Random(RangeInclusive<i32>),
+    Item(usize),
+    Actor(usize, ActorVar),
+    Enemy(usize, EnemyVar),
+    Character(i32, CharacterVar),
+    MapID,
+    PartySize,
+    Gold,
+    Steps,
+    PlayTime,
+    Timer,
+    SaveCount,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ActorVar {
+    Level,
+    Exp,
+    HP,
+    SP,
+    MaxHP,
+    MaxSP,
+    Strength,
+    Dexterity,
+    Agility,
+    Intelligence,
+    Attack,
+    PhysicalDefence,
+    MagicDefence,
+    Evasion,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum EnemyVar {
+    HP,
+    SP,
+    MaxHP,
+    MaxSP,
+    Strength,
+    Dexterity,
+    Agility,
+    Intelligence,
+    Attack,
+    PhysicalDefence,
+    MagicDefence,
+    Evasion,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum CharacterVar {
+    X,
+    Y,
+    Direction,
+    ScreenX,
+    ScreenY,
+    TerrainTag,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariableOperation {
+    Set,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+}
+
 // TODO: Make this a macro
 
 impl From<intermediate::EventCommand> for Command {
@@ -522,7 +611,93 @@ impl From<intermediate::EventCommand> for Command {
                         ..=(parameters[1].clone().into_integer().unwrap() as usize),
                     state: parameters[2].clone().into_integer().unwrap() == 0,
                 },
-                122 => ControlVariables,
+                122 => ControlVariables {
+                    range: (parameters[0].clone().into_integer().unwrap() as usize)
+                        ..=(parameters[1].clone().into_integer().unwrap() as usize),
+                    kind: match parameters[3].clone().into_integer().unwrap() {
+                        0 => VariableKind::Constant(parameters[4].clone().into_integer().unwrap()),
+                        1 => VariableKind::Variable(
+                            parameters[4].clone().into_integer().unwrap() as usize
+                        ),
+                        2 => VariableKind::Random(
+                            (parameters[0].clone().into_integer().unwrap())
+                                ..=(parameters[1].clone().into_integer().unwrap()),
+                        ),
+                        3 => VariableKind::Item(
+                            parameters[4].clone().into_integer().unwrap() as usize
+                        ),
+                        4 => VariableKind::Actor(
+                            parameters[4].clone().into_integer().unwrap() as usize,
+                            match parameters[5].clone().into_integer().unwrap() {
+                                0 => ActorVar::Level,
+                                1 => ActorVar::Exp,
+                                2 => ActorVar::HP,
+                                3 => ActorVar::SP,
+                                4 => ActorVar::MaxHP,
+                                5 => ActorVar::MaxSP,
+                                6 => ActorVar::Strength,
+                                7 => ActorVar::Dexterity,
+                                8 => ActorVar::Agility,
+                                9 => ActorVar::Intelligence,
+                                10 => ActorVar::Attack,
+                                11 => ActorVar::PhysicalDefence,
+                                12 => ActorVar::MagicDefence,
+                                13 => ActorVar::Evasion,
+                                _ => panic!("Invalid actor variable type"),
+                            },
+                        ),
+                        5 => VariableKind::Enemy(
+                            parameters[4].clone().into_integer().unwrap() as usize,
+                            match parameters[5].clone().into_integer().unwrap() {
+                                0 => EnemyVar::HP,
+                                1 => EnemyVar::SP,
+                                2 => EnemyVar::MaxHP,
+                                3 => EnemyVar::MaxSP,
+                                4 => EnemyVar::Strength,
+                                5 => EnemyVar::Dexterity,
+                                6 => EnemyVar::Agility,
+                                7 => EnemyVar::Intelligence,
+                                8 => EnemyVar::Attack,
+                                9 => EnemyVar::PhysicalDefence,
+                                10 => EnemyVar::MagicDefence,
+                                11 => EnemyVar::Evasion,
+                                _ => panic!("Invalid actor variable type"),
+                            },
+                        ),
+                        6 => VariableKind::Character(
+                            parameters[4].clone().into_integer().unwrap(),
+                            match parameters[5].clone().into_integer().unwrap() {
+                                0 => CharacterVar::X,
+                                1 => CharacterVar::Y,
+                                2 => CharacterVar::Direction,
+                                3 => CharacterVar::ScreenX,
+                                4 => CharacterVar::ScreenY,
+                                5 => CharacterVar::TerrainTag,
+                                _ => panic!("Invalid character variable type"),
+                            },
+                        ),
+                        7 => match parameters[4].clone().into_integer().unwrap() {
+                            0 => VariableKind::MapID,
+                            1 => VariableKind::PartySize,
+                            2 => VariableKind::Gold,
+                            3 => VariableKind::Steps,
+                            4 => VariableKind::PlayTime,
+                            5 => VariableKind::Timer,
+                            6 => VariableKind::SaveCount,
+                            _ => panic!("Invalid variable kind"),
+                        },
+                        _ => panic!("Invalid variable kind"),
+                    },
+                    operation: match parameters[2].clone().into_integer().unwrap() {
+                        0 => VariableOperation::Set,
+                        1 => VariableOperation::Add,
+                        2 => VariableOperation::Subtract,
+                        3 => VariableOperation::Multiply,
+                        4 => VariableOperation::Divide,
+                        5 => VariableOperation::Modulo,
+                        _ => panic!("Invalid variable operation"),
+                    },
+                },
                 123 => ControlSelfSwitch {
                     switch: parameters[0].clone().into_string().unwrap(),
                     state: parameters[1].clone().into_integer().unwrap() == 0,
@@ -585,6 +760,19 @@ impl From<intermediate::EventCommand> for Command {
                 },
                 509 => MoveDisplay,
                 210 => WaitMoveRoute,
+                223 => ScreenTone {
+                    tone: parameters[0].clone().into_tone().unwrap(),
+                    duration: parameters[1].clone().into_integer().unwrap(),
+                },
+                224 => ScreenFlash {
+                    color: parameters[0].clone().into_color().unwrap(),
+                    duration: parameters[1].clone().into_integer().unwrap(),
+                },
+                225 => ScreenShake {
+                    power: parameters[0].clone().into_integer().unwrap(),
+                    speed: parameters[1].clone().into_integer().unwrap(),
+                    time: parameters[2].clone().into_integer().unwrap(),
+                },
                 231 => ShowPicture {
                     id: *parameters[0].as_integer().unwrap() as usize,
                     name: parameters[1].clone().into_string().unwrap(),

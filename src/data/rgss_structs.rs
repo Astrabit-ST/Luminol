@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(missing_docs)]
 use serde::{Deserialize, Serialize};
 
 /// **A struct representing an RGBA color.**
@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 /// Used all over the place in RGSS.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Color {
-    red: f32,
-    green: f32,
-    blue: f32,
-    alpha: f32,
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
+    pub alpha: f32,
 }
 
 // Default values
@@ -29,10 +29,10 @@ impl Default for Color {
 /// Its members are f32 but must not exceed the range of 255..-255.
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Tone {
-    red: f32,
-    green: f32,
-    blue: f32,
-    gray: f32,
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
+    pub gray: f32,
 }
 
 use std::ops::{Index, IndexMut};
