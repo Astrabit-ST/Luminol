@@ -23,7 +23,7 @@ use crate::{
         commands::{
             Command,
             CommandKind::{self, *},
-            Operand, OperandKind, MOVE_SPEEDS,
+            Direction, Operand, OperandKind, MOVE_SPEEDS,
         },
         rmxp_structs::rpg,
     },
@@ -143,6 +143,35 @@ impl<'co> CommandView<'co> {
                     RichText::new("Choice End").color(CONTROL_FLOW),
                 );
             }
+            TextOptions { position, show } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Change Text Options: Position: {:#?}, show: {}",
+                        position,
+                        match *show {
+                            true => "show",
+                            false => "hide",
+                        }
+                    ))
+                    .color(DATA),
+                );
+            }
+            ButtonInput { id } => {
+                let system = info.data_cache.system();
+                let system = system.as_ref().unwrap();
+
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Button Input Processing: [{id}: {}]",
+                        system.variables[*id - 1]
+                    ))
+                    .color(NORMAL),
+                );
+            }
             ExitEvent => {
                 ui.selectable_value(
                     selected_index,
@@ -179,7 +208,7 @@ impl<'co> CommandView<'co> {
                     selected_index,
                     *index,
                     RichText::new(format!(
-                        "Call Common Event [{}]",
+                        "Call Common Event [{event}: {}]",
                         common_events[*event].name
                     ))
                     .color(CONTROL_FLOW),
@@ -286,6 +315,53 @@ impl<'co> CommandView<'co> {
                     *index,
                     RichText::new("Repeat Above").color(CONTROL_FLOW),
                 );
+            }
+            TransferPlayer {
+                variable,
+                transfer_id,
+                transfer_x,
+                transfer_y,
+                direction,
+                fade,
+            } => {
+                let text = format!(
+                    "Transfer player to {}, {} {}",
+                    match *variable {
+                        true => {
+                            let system = info.data_cache.system();
+                            let system = system.as_ref().unwrap();
+
+                            format!(
+                                "Map [{transfer_id}: {}] at ([{transfer_x}: {}], [{transfer_y}: {}])",
+                                system.variables[*transfer_id as usize],
+                                system.variables[*transfer_x as usize],
+                                system.variables[*transfer_y as usize]
+                            )
+                        }
+                        false => {
+                            let map_infos = info.data_cache.map_infos();
+                            let map_infos = map_infos.as_ref().unwrap();
+
+                            format!(
+                                "Map [{transfer_id}: {}] at ({transfer_x}, {transfer_y})",
+                                map_infos[transfer_id].name
+                            )
+                        }
+                    },
+                    match *direction {
+                        Direction::Up => "facing up",
+                        Direction::Down => "facing down",
+                        Direction::Left => "facing left",
+                        Direction::Right => "facing right",
+                        Direction::Retain => "retain direction",
+                    },
+                    match *fade {
+                        true => "and with fade",
+                        false => "",
+                    },
+                );
+
+                ui.selectable_value(selected_index, *index, RichText::new(text).color(PARTY));
             }
             Comment { text } => {
                 //
@@ -586,6 +662,49 @@ impl<'co> CommandView<'co> {
                     .color(PARTY),
                 );
             }
+            PlayBGM { file } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Play BGM \"{}\", vol: {}, pitch: {}",
+                        file.name, file.volume, file.pitch
+                    ))
+                    .color(AUDIO),
+                );
+            }
+            FadeBGM { time } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!("Fade out BGM over {time} second(s)")).color(AUDIO),
+                );
+            }
+            MemorizeBGM => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Memorize BGM and BGS").color(AUDIO),
+                );
+            }
+            RestoreBGM => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new("Restore BGM and BGS").color(AUDIO),
+                );
+            }
+            PlayME { file } => {
+                ui.selectable_value(
+                    selected_index,
+                    *index,
+                    RichText::new(format!(
+                        "Play ME \"{}\", vol: {}, pitch: {}",
+                        file.name, file.volume, file.pitch
+                    ))
+                    .color(AUDIO),
+                );
+            }
             CommandKind::PlaySE { file } => {
                 ui.selectable_value(
                     selected_index,
@@ -597,15 +716,23 @@ impl<'co> CommandView<'co> {
                     .color(AUDIO),
                 );
             }
-            PlayBGM { file } => {
+            ChangeActorGraphic {
+                id,
+                character_name,
+                battler_name,
+                ..
+            } => {
+                let actors = info.data_cache.actors();
+                let actors = actors.as_ref().unwrap();
+
                 ui.selectable_value(
                     selected_index,
                     *index,
                     RichText::new(format!(
-                        "Play BGM \"{}\", vol: {}, pitch: {}",
-                        file.name, file.volume, file.pitch
+                        "Change Actor Graphic: [{id}: {}] '{character_name}', '{battler_name}'",
+                        actors[*id - 1].name
                     ))
-                    .color(AUDIO),
+                    .color(PARTY),
                 );
             }
             ScrollScreen {

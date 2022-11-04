@@ -39,6 +39,9 @@ extern "C" {
     #[wasm_bindgen(catch)]
     async fn js_dir_children(path: JsValue) -> Result<JsValue, JsValue>;
 
+    #[wasm_bindgen(catch)]
+    async fn js_save_data(path: JsValue, data: JsValue) -> Result<JsValue, JsValue>;
+
     fn js_filesystem_supported() -> bool;
 }
 
@@ -120,8 +123,14 @@ impl Filesystem {
             .map_err(|s| format!("JS Error {:#?}", s))
     }
 
-    pub async fn save_data(&self, _path: &str, _data: &str) -> Result<(), String> {
-        Err("Not implemented".to_string())
+    pub async fn save_data(&self, path: &str, data: &str) -> Result<(), String> {
+        js_save_data(
+            JsValue::from_str(&format!("Data_RON/{}", path)),
+            JsValue::from_str(data),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|s| format!("JS Error {:#?}", s))
     }
 
     pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {
@@ -131,7 +140,7 @@ impl Filesystem {
     pub async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
         let handle = js_open_project()
             .await
-            .map_err(|_| "No project loaded".to_string())?;
+            .map_err(|_| "Cancelled loading project".to_string())?;
 
         self.load_project(handle, &info.data_cache).await
     }

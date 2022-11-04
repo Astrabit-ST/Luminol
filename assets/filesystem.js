@@ -16,8 +16,13 @@ async function get_file_handle(path) {
         local_handle = await local_handle.getDirectoryHandle(split_path[i]);
     }
 
-    let file_handle = await local_handle.getFileHandle(split_path[split_path.length - 1]);
-    return await file_handle.getFile();
+    let file_handle = await local_handle.getFileHandle(
+        split_path[split_path.length - 1],
+        {
+            "create": true
+        }
+    );
+    return await file_handle;
 }
 
 async function get_dir_handle(path) {
@@ -44,18 +49,30 @@ export async function js_dir_children(path) {
 export async function js_read_file(path) {
     let file = await get_file_handle(path);
 
+    file = await file.getFile()
+
     return await file.text();
 }
 
 export async function js_read_bytes(path) {
     let file = await get_file_handle(path);
 
+    file = await file.getFile();
     let arraybuffer = await file.arrayBuffer();
     return new Uint8Array(arraybuffer);
 }
 
+export async function js_save_data(path, data) {
+    let file = await get_file_handle(path);
+
+    let stream = await file.createWritable();
+    await stream.write(data);
+
+    await stream.close();
+}
+
 export function js_filesystem_supported() {
-    if (typeof window?.showOpenFilePicker === 'function') {
+    if (typeof window?.showOpenFilePicker === 'function' && typeof FileSystemWritableFileStream == 'function') {
         return true;
     }
 

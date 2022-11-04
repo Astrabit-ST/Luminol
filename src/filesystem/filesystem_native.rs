@@ -161,7 +161,7 @@ impl Filesystem {
                 projects.truncate(10);
             })
         } else {
-            Err("No project loaded".to_string())
+            Err("Cancelled loading project".to_string())
         }
     }
 }

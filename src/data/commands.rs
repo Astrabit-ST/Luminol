@@ -86,6 +86,10 @@ pub enum CommandKind {
     WhenCancel,
     /// Choice end, id 404
     ChoiceEnd,
+    /// Change text options, id 104
+    TextOptions { position: TextPosition, show: bool },
+    /// Button input, id 105
+    ButtonInput { id: usize },
     /// Conditional Branch (If statement), id 111
     ///
     /// Fields (kind: [`conditional_kind`])
@@ -138,10 +142,15 @@ pub enum CommandKind {
         initialize: bool,
     },
 
-    /// Script, id 355
-    Script { text: String },
-    /// Extended script, id 655
-    ScriptExt { text: String },
+    /// Transfer player, id 201
+    TransferPlayer {
+        variable: bool,
+        transfer_id: i32,
+        transfer_x: i32,
+        transfer_y: i32,
+        direction: Direction,
+        fade: bool,
+    },
 
     /// Scroll screen, id 203
     ScrollScreen {
@@ -190,8 +199,30 @@ pub enum CommandKind {
 
     /// Play BGM, id 241
     PlayBGM { file: rpg::AudioFile },
+    /// Fade BGM, id 242
+    FadeBGM { time: i32 },
+    /// Memorize BGM, id 247
+    MemorizeBGM,
+    /// Restore BGM, id 248
+    RestoreBGM,
+    /// PLay ME, id 249
+    PlayME { file: rpg::AudioFile },
     /// Play SE, id 250
     PlaySE { file: rpg::AudioFile },
+
+    /// Change actor graphic, id 322
+    ChangeActorGraphic {
+        id: usize,
+        character_name: String,
+        character_hue: i32,
+        battler_name: String,
+        battler_hue: i32,
+    },
+
+    /// Script, id 355
+    Script { text: String },
+    /// Extended script, id 655
+    ScriptExt { text: String },
 
     //? Special commands ?//
     /// Special editor move command display.
@@ -306,6 +337,14 @@ pub enum OperandKind {
     Subtract,
 }
 
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextPosition {
+    Top,
+    Middle,
+    Bottom,
+}
+
 // TODO: Make this a macro
 
 impl From<intermediate::EventCommand> for Command {
@@ -339,6 +378,18 @@ impl From<intermediate::EventCommand> for Command {
                 },
                 403 => WhenCancel,
                 404 => ChoiceEnd,
+                104 => TextOptions {
+                    position: match parameters[1].clone().into_integer().unwrap() {
+                        0 => TextPosition::Top,
+                        1 => TextPosition::Middle,
+                        2 => TextPosition::Bottom,
+                        _ => panic!("Invalid text position"),
+                    },
+                    show: parameters[1].clone().into_integer().unwrap() == 0,
+                },
+                105 => ButtonInput {
+                    id: parameters[0].clone().into_integer().unwrap() as usize,
+                },
                 106 => CommandKind::Wait {
                     time: parameters[0].clone().into_integer().unwrap(),
                 },
@@ -498,18 +549,27 @@ impl From<intermediate::EventCommand> for Command {
                     add: parameters[1].clone().into_integer().unwrap() == 0,
                     initialize: parameters[2].clone().into_integer().unwrap() == 1,
                 },
-                355 => CommandKind::Script {
-                    text: parameters[0].clone().into_string().unwrap(),
-                },
-                655 => ScriptExt {
-                    text: parameters[0].clone().into_string().unwrap(),
-                },
 
                 411 => Else,
                 412 => BranchEnd,
                 112 => Loop,
                 113 => BreakLoop,
                 413 => RepeatAbove,
+                201 => TransferPlayer {
+                    variable: parameters[0].clone().into_integer().unwrap() != 0,
+                    transfer_id: parameters[1].clone().into_integer().unwrap(),
+                    transfer_x: parameters[2].clone().into_integer().unwrap(),
+                    transfer_y: parameters[3].clone().into_integer().unwrap(),
+                    direction: match parameters[4].clone().into_integer().unwrap() {
+                        0 => Direction::Retain,
+                        2 => Direction::Down,
+                        4 => Direction::Left,
+                        6 => Direction::Right,
+                        8 => Direction::Up,
+                        _ => panic!("Invalid direction"),
+                    },
+                    fade: parameters[5].clone().into_integer().unwrap() == 0,
+                },
                 203 => ScrollScreen {
                     direction: parameters[0].clone().into_integer().unwrap() as usize,
                     distance: parameters[1].clone().into_integer().unwrap() as usize,
@@ -523,6 +583,7 @@ impl From<intermediate::EventCommand> for Command {
                     target: *parameters[0].as_integer().unwrap(),
                     route: parameters[1].as_move_route().unwrap().clone(),
                 },
+                509 => MoveDisplay,
                 210 => WaitMoveRoute,
                 231 => ShowPicture {
                     id: *parameters[0].as_integer().unwrap() as usize,
@@ -565,11 +626,33 @@ impl From<intermediate::EventCommand> for Command {
                 241 => PlayBGM {
                     file: parameters[0].as_audio_file().unwrap().clone(),
                 },
-
+                242 => FadeBGM {
+                    time: parameters[0].clone().into_integer().unwrap(),
+                },
+                247 => MemorizeBGM,
+                248 => RestoreBGM,
+                249 => PlayME {
+                    file: parameters[0].as_audio_file().unwrap().clone(),
+                },
                 250 => CommandKind::PlaySE {
                     file: parameters[0].as_audio_file().unwrap().clone(),
                 },
-                509 => MoveDisplay,
+
+                322 => ChangeActorGraphic {
+                    id: *parameters[0].as_integer().unwrap() as usize,
+                    character_name: parameters[1].clone().into_string().unwrap(),
+                    character_hue: *parameters[2].as_integer().unwrap(),
+                    battler_name: parameters[3].clone().into_string().unwrap(),
+                    battler_hue: *parameters[4].as_integer().unwrap(),
+                },
+
+                355 => CommandKind::Script {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+                655 => ScriptExt {
+                    text: parameters[0].clone().into_string().unwrap(),
+                },
+
                 _ => CommandKind::Invalid { code, parameters },
             },
         }
@@ -971,6 +1054,7 @@ pub const MOVE_FREQS: [&str; 6] = ["Lowest", "Lower", "Low", "High", "Higher", "
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
+    Retain = 0,
     Down = 2,
     Left = 4,
     Right = 6,

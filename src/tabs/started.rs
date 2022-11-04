@@ -43,19 +43,7 @@ impl super::tab::Tab for Started {
         ui.add_space(100.);
 
         ui.heading("Start");
-        if ui
-            .button(egui::RichText::new("New Project").size(20.))
-            .clicked()
-        {}
-        if ui
-            .button(egui::RichText::new("Open Project").size(20.))
-            .clicked()
-        {}
 
-        ui.add_space(100.);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        ui.heading("Recent");
         if self
             .load_project_promise
             .as_ref()
@@ -63,6 +51,26 @@ impl super::tab::Tab for Started {
         {
             ui.spinner();
         } else {
+            if ui
+                .button(egui::RichText::new("New Project").size(20.))
+                .clicked()
+            {}
+            if ui
+                .button(egui::RichText::new("Open Project").size(20.))
+                .clicked()
+            {
+                self.load_project_promise = Some(poll_promise::Promise::spawn_local(async move {
+                    if let Err(e) = info.filesystem.try_open_project(info).await {
+                        info.toasts.error(e);
+                    }
+                }));
+            }
+
+            ui.add_space(100.);
+
+            #[cfg(not(target_arch = "wasm32"))]
+            ui.heading("Recent");
+
             for path in info.saved_state.borrow().recent_projects.iter() {
                 if ui.button(path).clicked() {
                     let path = path.clone();
