@@ -50,7 +50,7 @@ impl From<String> for ParameterType {
 
 /// An enum representing event commands.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(from = "intermediate::EventCommand")]
+#[serde(try_from = "intermediate::EventCommand")]
 #[serde(into = "intermediate::EventCommand")]
 pub struct Command {
     /// Command indent
@@ -434,69 +434,66 @@ pub enum VariableOperation {
     Modulo,
 }
 
-// TODO: Make this a macro
-
-impl From<intermediate::EventCommand> for Command {
-    fn from(cmd: intermediate::EventCommand) -> Self {
+impl Command {
+    fn from_cmd(cmd: intermediate::EventCommand) -> Result<Self, ParameterType> {
         use ActorCondition::*;
         use ConditionalKind::*;
         use ConditionalOperator::*;
-
         let intermediate::EventCommand {
             code,
             indent,
             parameters,
         } = cmd;
 
-        Self {
+        Ok(Self {
             indent,
             kind: match code {
                 0 => CommandKind::Insert,
                 101 => Text {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
                 401 => TextExt {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
                 102 => Choices {
-                    choices: parameters[0].clone().into_array().unwrap(),
-                    cancel_type: parameters[1].clone().into_integer().unwrap(),
+                    choices: parameters[0].clone().into_array()?,
+                    cancel_type: parameters[1].clone().into_integer()?,
                 },
                 402 => When {
-                    choice: parameters[0].clone().into_integer().unwrap(),
+                    choice: parameters[0].clone().into_integer()?,
                 },
                 403 => WhenCancel,
                 404 => ChoiceEnd,
                 104 => TextOptions {
-                    position: match parameters[1].clone().into_integer().unwrap() {
+                    position: match parameters[1].clone().into_integer()? {
                         0 => TextPosition::Top,
                         1 => TextPosition::Middle,
                         2 => TextPosition::Bottom,
                         _ => panic!("Invalid text position"),
                     },
-                    show: parameters[1].clone().into_integer().unwrap() == 0,
+                    show: parameters[1].clone().into_integer()? == 0,
                 },
                 105 => ButtonInput {
-                    id: parameters[0].clone().into_integer().unwrap() as usize,
+                    id: parameters[0].clone().into_integer()? as usize,
                 },
                 106 => CommandKind::Wait {
-                    time: parameters[0].clone().into_integer().unwrap(),
+                    time: parameters[0].clone().into_integer()?,
                 },
                 108 => Comment {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
                 408 => CommentExt {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
                 111 => Conditional {
-                    kind: match parameters[0].clone().into_integer().unwrap() {
+                    kind: match parameters[0].clone().into_integer()? {
                         0 => ConditionalKind::Switch {
-                            id: parameters[1].clone().into_integer().unwrap() as usize,
-                            state: parameters[2].clone().into_integer().unwrap() == 0,
+                            id: parameters[1].clone().into_integer()? as usize,
+                            state: parameters[2].clone().into_integer()? == 0,
                         },
                         1 => {
-                            let id = parameters[1].clone().into_integer().unwrap() as usize;
-                            let operator = match parameters[4].clone().into_integer().unwrap() {
+                            let id = parameters[1].clone().into_integer()? as usize;
+                            let operator = match parameters[4].clone().into_integer()? {
                                 0 => Equal,
                                 1 => GreaterEqual,
                                 2 => LessEqual,
@@ -506,12 +503,10 @@ impl From<intermediate::EventCommand> for Command {
                                 _ => panic!("Invalid conditional operator"),
                             };
 
-                            if parameters[2].clone().into_integer().unwrap() == 0 {
+                            if parameters[2].clone().into_integer()? == 0 {
                                 Variable {
                                     id,
-                                    const_value: Some(
-                                        parameters[3].clone().into_integer().unwrap(),
-                                    ),
+                                    const_value: Some(parameters[3].clone().into_integer()?),
                                     variable_value: None,
                                     operator,
                                 }
@@ -520,52 +515,52 @@ impl From<intermediate::EventCommand> for Command {
                                     id,
                                     const_value: None,
                                     variable_value: Some(
-                                        parameters[3].clone().into_integer().unwrap() as usize,
+                                        parameters[3].clone().into_integer()? as usize
                                     ),
                                     operator,
                                 }
                             }
                         }
                         2 => SelfSwitch {
-                            char: parameters[1].clone().into_string().unwrap(),
-                            state: parameters[2].clone().into_integer().unwrap() == 0,
+                            char: parameters[1].clone().into_string()?,
+                            state: parameters[2].clone().into_integer()? == 0,
                         },
                         3 => Timer {
-                            seconds: parameters[1].clone().into_integer().unwrap(),
-                            or_more: parameters[2].clone().into_integer().unwrap() == 0,
+                            seconds: parameters[1].clone().into_integer()?,
+                            or_more: parameters[2].clone().into_integer()? == 0,
                         },
                         4 => {
-                            let id = parameters[1].clone().into_integer().unwrap() as usize;
+                            let id = parameters[1].clone().into_integer()? as usize;
 
-                            let kind = match parameters[2].clone().into_integer().unwrap() {
+                            let kind = match parameters[2].clone().into_integer()? {
                                 0 => InParty,
-                                1 => Name(parameters[3].clone().into_string().unwrap()),
-                                2 => Skill(parameters[3].clone().into_integer().unwrap() as usize),
+                                1 => Name(parameters[3].clone().into_string()?),
+                                2 => Skill(parameters[3].clone().into_integer()? as usize),
                                 3 => ActorCondition::Weapon(
-                                    parameters[3].clone().into_integer().unwrap() as usize,
+                                    parameters[3].clone().into_integer()? as usize
                                 ),
                                 4 => ActorCondition::Armor(
-                                    parameters[3].clone().into_integer().unwrap() as usize,
+                                    parameters[3].clone().into_integer()? as usize
                                 ),
-                                5 => State(parameters[3].clone().into_integer().unwrap() as usize),
+                                5 => State(parameters[3].clone().into_integer()? as usize),
                                 _ => panic!("Actor conditional invalid"),
                             };
 
                             Actor { id, kind }
                         }
                         5 => {
-                            let id = parameters[1].clone().into_integer().unwrap() as usize;
-                            let state = if parameters[2].clone().into_integer().unwrap() == 0 {
+                            let id = parameters[1].clone().into_integer()? as usize;
+                            let state = if parameters[2].clone().into_integer()? == 0 {
                                 None
                             } else {
-                                Some(parameters[3].clone().into_integer().unwrap() as usize)
+                                Some(parameters[3].clone().into_integer()? as usize)
                             };
 
                             Enemy { id, state }
                         }
                         6 => Character {
-                            id: parameters[1].clone().into_integer().unwrap() as usize,
-                            direction: match parameters[2].clone().into_integer().unwrap() {
+                            id: parameters[1].clone().into_integer()? as usize,
+                            direction: match parameters[2].clone().into_integer()? {
                                 2 => Direction::Down,
                                 4 => Direction::Left,
                                 6 => Direction::Right,
@@ -574,23 +569,23 @@ impl From<intermediate::EventCommand> for Command {
                             },
                         },
                         7 => Gold {
-                            amount: parameters[1].clone().into_integer().unwrap(),
-                            or_more: parameters[2].clone().into_integer().unwrap() == 0,
+                            amount: parameters[1].clone().into_integer()?,
+                            or_more: parameters[2].clone().into_integer()? == 0,
                         },
                         8 => Item {
-                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                            id: parameters[1].clone().into_integer()? as usize,
                         },
                         9 => ConditionalKind::Weapon {
-                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                            id: parameters[1].clone().into_integer()? as usize,
                         },
                         10 => ConditionalKind::Armor {
-                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                            id: parameters[1].clone().into_integer()? as usize,
                         },
                         11 => Button {
-                            id: parameters[1].clone().into_integer().unwrap() as usize,
+                            id: parameters[1].clone().into_integer()? as usize,
                         },
                         12 => ConditionalKind::Script {
-                            text: parameters[1].clone().into_string().unwrap(),
+                            text: parameters[1].clone().into_string()?,
                         },
                         _ => panic!("Invalid conditional type"),
                     },
@@ -598,37 +593,33 @@ impl From<intermediate::EventCommand> for Command {
                 115 => ExitEvent,
                 116 => EraseEvent,
                 117 => CallCommonEvent {
-                    event: parameters[0].clone().into_integer().unwrap() as usize,
+                    event: parameters[0].clone().into_integer()? as usize,
                 },
                 118 => Label {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
                 119 => JumpToLabel {
-                    label: parameters[0].clone().into_string().unwrap(),
+                    label: parameters[0].clone().into_string()?,
                 },
                 121 => ControlSwitches {
-                    range: (parameters[0].clone().into_integer().unwrap() as usize)
-                        ..=(parameters[1].clone().into_integer().unwrap() as usize),
-                    state: parameters[2].clone().into_integer().unwrap() == 0,
+                    range: (parameters[0].clone().into_integer()? as usize)
+                        ..=(parameters[1].clone().into_integer()? as usize),
+                    state: parameters[2].clone().into_integer()? == 0,
                 },
                 122 => ControlVariables {
-                    range: (parameters[0].clone().into_integer().unwrap() as usize)
-                        ..=(parameters[1].clone().into_integer().unwrap() as usize),
-                    kind: match parameters[3].clone().into_integer().unwrap() {
-                        0 => VariableKind::Constant(parameters[4].clone().into_integer().unwrap()),
-                        1 => VariableKind::Variable(
-                            parameters[4].clone().into_integer().unwrap() as usize
-                        ),
+                    range: (parameters[0].clone().into_integer()? as usize)
+                        ..=(parameters[1].clone().into_integer()? as usize),
+                    kind: match parameters[3].clone().into_integer()? {
+                        0 => VariableKind::Constant(parameters[4].clone().into_integer()?),
+                        1 => VariableKind::Variable(parameters[4].clone().into_integer()? as usize),
                         2 => VariableKind::Random(
-                            (parameters[0].clone().into_integer().unwrap())
-                                ..=(parameters[1].clone().into_integer().unwrap()),
+                            (parameters[0].clone().into_integer()?)
+                                ..=(parameters[1].clone().into_integer()?),
                         ),
-                        3 => VariableKind::Item(
-                            parameters[4].clone().into_integer().unwrap() as usize
-                        ),
+                        3 => VariableKind::Item(parameters[4].clone().into_integer()? as usize),
                         4 => VariableKind::Actor(
-                            parameters[4].clone().into_integer().unwrap() as usize,
-                            match parameters[5].clone().into_integer().unwrap() {
+                            parameters[4].clone().into_integer()? as usize,
+                            match parameters[5].clone().into_integer()? {
                                 0 => ActorVar::Level,
                                 1 => ActorVar::Exp,
                                 2 => ActorVar::HP,
@@ -647,8 +638,8 @@ impl From<intermediate::EventCommand> for Command {
                             },
                         ),
                         5 => VariableKind::Enemy(
-                            parameters[4].clone().into_integer().unwrap() as usize,
-                            match parameters[5].clone().into_integer().unwrap() {
+                            parameters[4].clone().into_integer()? as usize,
+                            match parameters[5].clone().into_integer()? {
                                 0 => EnemyVar::HP,
                                 1 => EnemyVar::SP,
                                 2 => EnemyVar::MaxHP,
@@ -665,8 +656,8 @@ impl From<intermediate::EventCommand> for Command {
                             },
                         ),
                         6 => VariableKind::Character(
-                            parameters[4].clone().into_integer().unwrap(),
-                            match parameters[5].clone().into_integer().unwrap() {
+                            parameters[4].clone().into_integer()?,
+                            match parameters[5].clone().into_integer()? {
                                 0 => CharacterVar::X,
                                 1 => CharacterVar::Y,
                                 2 => CharacterVar::Direction,
@@ -676,7 +667,7 @@ impl From<intermediate::EventCommand> for Command {
                                 _ => panic!("Invalid character variable type"),
                             },
                         ),
-                        7 => match parameters[4].clone().into_integer().unwrap() {
+                        7 => match parameters[4].clone().into_integer()? {
                             0 => VariableKind::MapID,
                             1 => VariableKind::PartySize,
                             2 => VariableKind::Gold,
@@ -688,7 +679,7 @@ impl From<intermediate::EventCommand> for Command {
                         },
                         _ => panic!("Invalid variable kind"),
                     },
-                    operation: match parameters[2].clone().into_integer().unwrap() {
+                    operation: match parameters[2].clone().into_integer()? {
                         0 => VariableOperation::Set,
                         1 => VariableOperation::Add,
                         2 => VariableOperation::Subtract,
@@ -699,20 +690,18 @@ impl From<intermediate::EventCommand> for Command {
                     },
                 },
                 123 => ControlSelfSwitch {
-                    switch: parameters[0].clone().into_string().unwrap(),
-                    state: parameters[1].clone().into_integer().unwrap() == 0,
+                    switch: parameters[0].clone().into_string()?,
+                    state: parameters[1].clone().into_integer()? == 0,
                 },
                 126 => ChangeItems {
-                    id: parameters[0].clone().into_integer().unwrap() as usize,
+                    id: parameters[0].clone().into_integer()? as usize,
                     operation: Operation {
-                        operand: match parameters[2].clone().into_integer().unwrap() {
-                            0 => Operand::Constant(parameters[3].clone().into_integer().unwrap()),
-                            1 => Operand::Variable(
-                                parameters[3].clone().into_integer().unwrap() as usize
-                            ),
+                        operand: match parameters[2].clone().into_integer()? {
+                            0 => Operand::Constant(parameters[3].clone().into_integer()?),
+                            1 => Operand::Variable(parameters[3].clone().into_integer()? as usize),
                             _ => panic!("Invalid operand type"),
                         },
-                        kind: match parameters[1].clone().into_integer().unwrap() {
+                        kind: match parameters[1].clone().into_integer()? {
                             1 => OperandKind::Subtract,
                             0 => OperandKind::Add,
                             _ => panic!("Invalid operation kind"),
@@ -720,9 +709,9 @@ impl From<intermediate::EventCommand> for Command {
                     },
                 },
                 129 => ChangeParty {
-                    id: parameters[0].clone().into_integer().unwrap() as usize,
-                    add: parameters[1].clone().into_integer().unwrap() == 0,
-                    initialize: parameters[2].clone().into_integer().unwrap() == 1,
+                    id: parameters[0].clone().into_integer()? as usize,
+                    add: parameters[1].clone().into_integer()? == 0,
+                    initialize: parameters[2].clone().into_integer()? == 1,
                 },
 
                 411 => Else,
@@ -731,11 +720,11 @@ impl From<intermediate::EventCommand> for Command {
                 113 => BreakLoop,
                 413 => RepeatAbove,
                 201 => TransferPlayer {
-                    variable: parameters[0].clone().into_integer().unwrap() != 0,
-                    transfer_id: parameters[1].clone().into_integer().unwrap(),
-                    transfer_x: parameters[2].clone().into_integer().unwrap(),
-                    transfer_y: parameters[3].clone().into_integer().unwrap(),
-                    direction: match parameters[4].clone().into_integer().unwrap() {
+                    variable: parameters[0].clone().into_integer()? != 0,
+                    transfer_id: parameters[1].clone().into_integer()?,
+                    transfer_x: parameters[2].clone().into_integer()?,
+                    transfer_y: parameters[3].clone().into_integer()?,
+                    direction: match parameters[4].clone().into_integer()? {
                         0 => Direction::Retain,
                         2 => Direction::Down,
                         4 => Direction::Left,
@@ -743,47 +732,47 @@ impl From<intermediate::EventCommand> for Command {
                         8 => Direction::Up,
                         _ => panic!("Invalid direction"),
                     },
-                    fade: parameters[5].clone().into_integer().unwrap() == 0,
+                    fade: parameters[5].clone().into_integer()? == 0,
                 },
                 203 => ScrollScreen {
-                    direction: parameters[0].clone().into_integer().unwrap() as usize,
-                    distance: parameters[1].clone().into_integer().unwrap() as usize,
-                    speed: parameters[2].clone().into_integer().unwrap() as usize,
+                    direction: parameters[0].clone().into_integer()? as usize,
+                    distance: parameters[1].clone().into_integer()? as usize,
+                    speed: parameters[2].clone().into_integer()? as usize,
                 },
                 207 => PlayAnimation {
-                    target: parameters[0].clone().into_integer().unwrap(),
-                    id: parameters[1].clone().into_integer().unwrap() as usize,
+                    target: parameters[0].clone().into_integer()?,
+                    id: parameters[1].clone().into_integer()? as usize,
                 },
                 209 => MoveRoute {
-                    target: *parameters[0].as_integer().unwrap(),
-                    route: parameters[1].as_move_route().unwrap().clone(),
+                    target: parameters[0].clone().into_integer()?,
+                    route: parameters[1].clone().into_move_route()?,
                 },
                 509 => MoveDisplay,
                 210 => WaitMoveRoute,
                 223 => ScreenTone {
-                    tone: parameters[0].clone().into_tone().unwrap(),
-                    duration: parameters[1].clone().into_integer().unwrap(),
+                    tone: parameters[0].clone().into_tone()?,
+                    duration: parameters[1].clone().into_integer()?,
                 },
                 224 => ScreenFlash {
-                    color: parameters[0].clone().into_color().unwrap(),
-                    duration: parameters[1].clone().into_integer().unwrap(),
+                    color: parameters[0].clone().into_color()?,
+                    duration: parameters[1].clone().into_integer()?,
                 },
                 225 => ScreenShake {
-                    power: parameters[0].clone().into_integer().unwrap(),
-                    speed: parameters[1].clone().into_integer().unwrap(),
-                    time: parameters[2].clone().into_integer().unwrap(),
+                    power: parameters[0].clone().into_integer()?,
+                    speed: parameters[1].clone().into_integer()?,
+                    time: parameters[2].clone().into_integer()?,
                 },
                 231 => ShowPicture {
-                    id: *parameters[0].as_integer().unwrap() as usize,
-                    name: parameters[1].clone().into_string().unwrap(),
-                    center: parameters[2].clone().into_integer().unwrap() != 0,
-                    variable: parameters[3].clone().into_integer().unwrap() != 0,
-                    x: parameters[4].clone().into_integer().unwrap(),
-                    y: parameters[5].clone().into_integer().unwrap(),
-                    zoom_x: parameters[6].clone().into_integer().unwrap() as usize,
-                    zoom_y: parameters[7].clone().into_integer().unwrap() as usize,
-                    opacity: parameters[8].clone().into_integer().unwrap() as u8,
-                    blend_type: match parameters[9].clone().into_integer().unwrap() {
+                    id: parameters[0].clone().into_integer()? as usize,
+                    name: parameters[1].clone().into_string()?,
+                    center: parameters[2].clone().into_integer()? != 0,
+                    variable: parameters[3].clone().into_integer()? != 0,
+                    x: parameters[4].clone().into_integer()?,
+                    y: parameters[5].clone().into_integer()?,
+                    zoom_x: parameters[6].clone().into_integer()? as usize,
+                    zoom_y: parameters[7].clone().into_integer()? as usize,
+                    opacity: parameters[8].clone().into_integer()? as u8,
+                    blend_type: match parameters[9].clone().into_integer()? {
                         0 => BlendType::Normal,
                         1 => BlendType::Additive,
                         2 => BlendType::Subtractive,
@@ -791,16 +780,16 @@ impl From<intermediate::EventCommand> for Command {
                     },
                 },
                 232 => MovePicture {
-                    id: *parameters[0].as_integer().unwrap() as usize,
-                    duration: *parameters[1].as_integer().unwrap() as usize,
-                    center: parameters[2].clone().into_integer().unwrap() != 0,
-                    variable: parameters[3].clone().into_integer().unwrap() != 0,
-                    x: parameters[4].clone().into_integer().unwrap(),
-                    y: parameters[5].clone().into_integer().unwrap(),
-                    zoom_x: parameters[6].clone().into_integer().unwrap() as usize,
-                    zoom_y: parameters[7].clone().into_integer().unwrap() as usize,
-                    opacity: parameters[8].clone().into_integer().unwrap() as u8,
-                    blend_type: match parameters[9].clone().into_integer().unwrap() {
+                    id: parameters[0].clone().into_integer()? as usize,
+                    duration: parameters[1].clone().into_integer()? as usize,
+                    center: parameters[2].clone().into_integer()? != 0,
+                    variable: parameters[3].clone().into_integer()? != 0,
+                    x: parameters[4].clone().into_integer()?,
+                    y: parameters[5].clone().into_integer()?,
+                    zoom_x: parameters[6].clone().into_integer()? as usize,
+                    zoom_y: parameters[7].clone().into_integer()? as usize,
+                    opacity: parameters[8].clone().into_integer()? as u8,
+                    blend_type: match parameters[9].clone().into_integer()? {
                         0 => BlendType::Normal,
                         1 => BlendType::Additive,
                         2 => BlendType::Subtractive,
@@ -808,42 +797,53 @@ impl From<intermediate::EventCommand> for Command {
                     },
                 },
                 235 => ErasePicture {
-                    id: *parameters[0].as_integer().unwrap() as usize,
+                    id: parameters[0].clone().into_integer()? as usize,
                 },
 
                 241 => PlayBGM {
-                    file: parameters[0].as_audio_file().unwrap().clone(),
+                    file: parameters[0].clone().into_audio_file()?,
                 },
                 242 => FadeBGM {
-                    time: parameters[0].clone().into_integer().unwrap(),
+                    time: parameters[0].clone().into_integer()?,
                 },
                 247 => MemorizeBGM,
                 248 => RestoreBGM,
                 249 => PlayME {
-                    file: parameters[0].as_audio_file().unwrap().clone(),
+                    file: parameters[0].clone().into_audio_file()?,
                 },
                 250 => CommandKind::PlaySE {
-                    file: parameters[0].as_audio_file().unwrap().clone(),
+                    file: parameters[0].clone().into_audio_file()?,
                 },
 
                 322 => ChangeActorGraphic {
-                    id: *parameters[0].as_integer().unwrap() as usize,
-                    character_name: parameters[1].clone().into_string().unwrap(),
-                    character_hue: *parameters[2].as_integer().unwrap(),
-                    battler_name: parameters[3].clone().into_string().unwrap(),
-                    battler_hue: *parameters[4].as_integer().unwrap(),
+                    id: parameters[0].clone().into_integer()? as usize,
+                    character_name: parameters[1].clone().into_string()?,
+                    character_hue: parameters[2].clone().into_integer()?,
+                    battler_name: parameters[3].clone().into_string()?,
+                    battler_hue: parameters[4].clone().into_integer()?,
                 },
 
                 355 => CommandKind::Script {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
                 655 => ScriptExt {
-                    text: parameters[0].clone().into_string().unwrap(),
+                    text: parameters[0].clone().into_string()?,
                 },
 
                 _ => CommandKind::Invalid { code, parameters },
             },
-        }
+        })
+    }
+}
+
+// TODO: Make this a macro
+
+impl TryFrom<intermediate::EventCommand> for Command {
+    type Error = String;
+
+    fn try_from(cmd: intermediate::EventCommand) -> Result<Self, Self::Error> {
+        Command::from_cmd(cmd)
+            .map_err(|e: ParameterType| format!("Unexpected parameter type {:?}", e))
     }
 }
 
@@ -1015,11 +1015,11 @@ impl From<intermediate::MoveCommand> for MoveCommand {
             12 => Forward,
             13 => Backwards,
             14 => Jump {
-                x_plus: *parameters[0].as_integer().unwrap(),
-                y_plus: *parameters[1].as_integer().unwrap(),
+                x_plus: parameters[0].clone().into_integer().unwrap(),
+                y_plus: parameters[1].clone().into_integer().unwrap(),
             },
             15 => MoveCommand::Wait {
-                time: *parameters[0].as_integer().unwrap(),
+                time: parameters[0].clone().into_integer().unwrap(),
             },
             16 => TurnDown,
             17 => TurnLeft,
@@ -1033,16 +1033,16 @@ impl From<intermediate::MoveCommand> for MoveCommand {
             25 => TurnTowardsPlayer,
             26 => TurnAwayFromPlayer,
             27 => SwitchON {
-                switch_id: *parameters[0].as_integer().unwrap() as usize,
+                switch_id: parameters[0].clone().into_integer().unwrap() as usize,
             },
             28 => SwitchOFF {
-                switch_id: *parameters[0].as_integer().unwrap() as usize,
+                switch_id: parameters[0].clone().into_integer().unwrap() as usize,
             },
             29 => ChangeSpeed {
-                speed: *parameters[0].as_integer().unwrap() as usize,
+                speed: parameters[0].clone().into_integer().unwrap() as usize,
             },
             30 => ChangeFreq {
-                freq: *parameters[0].as_integer().unwrap() as usize,
+                freq: parameters[0].clone().into_integer().unwrap() as usize,
             },
             31 => MoveON,
             32 => MoveOFF,
@@ -1055,22 +1055,22 @@ impl From<intermediate::MoveCommand> for MoveCommand {
             39 => AlwaysTopON,
             40 => AlwaysTopOFF,
             41 => ChangeGraphic {
-                character_name: parameters[0].as_string().unwrap().clone(),
-                character_hue: *parameters[1].as_integer().unwrap(),
-                direction: *parameters[2].as_integer().unwrap(),
-                pattern: *parameters[3].as_integer().unwrap(),
+                character_name: parameters[0].clone().into_string().unwrap(),
+                character_hue: parameters[1].clone().into_integer().unwrap(),
+                direction: parameters[2].clone().into_integer().unwrap(),
+                pattern: parameters[3].clone().into_integer().unwrap(),
             },
             42 => ChangeOpacity {
-                opacity: *parameters[0].as_integer().unwrap(),
+                opacity: parameters[0].clone().into_integer().unwrap(),
             },
             43 => ChangeBlend {
-                blend: *parameters[0].as_integer().unwrap(),
+                blend: parameters[0].clone().into_integer().unwrap(),
             },
             44 => Self::PlaySE {
-                file: parameters[0].as_audio_file().unwrap().clone(),
+                file: parameters[0].clone().into_audio_file().unwrap(),
             },
             45 => Self::Script {
-                text: parameters[0].as_string().unwrap().clone(),
+                text: parameters[0].clone().into_string().unwrap(),
             },
 
             0 => Self::Break,
