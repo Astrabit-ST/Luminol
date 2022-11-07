@@ -179,6 +179,8 @@ impl DataCache {
     /// Save all cached data to disk.
     /// Will flush the cache too.
     pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
+        self.system().as_mut().unwrap().magic_number = rand::random();
+
         // Write map data and clear map cache.
         // We serialize all of these first before writing them to the disk to avoid bringing a refcell across an await.
         // A RwLock may be used in the future to solve this, though.
@@ -224,6 +226,85 @@ impl DataCache {
                 .await
                 .map_err(|_| "Failed to write MapInfos data")?;
         }
+
+        let system_str = self
+            .system
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(system_str) = system_str {
+            filesystem
+                .save_data("System.ron", &system_str?)
+                .await
+                .map_err(|_| "Failed to write System data")?;
+        }
+
+        let actors_str = self
+            .actors
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(actors_str) = actors_str {
+            filesystem
+                .save_data("Actors.ron", &actors_str?)
+                .await
+                .map_err(|_| "Failed to write Actor data")?;
+        }
+
+        let animations_str = self
+            .animations
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(animations_str) = animations_str {
+            filesystem
+                .save_data("Animations.ron", &animations_str?)
+                .await
+                .map_err(|_| "Failed to write Animation data")?;
+        }
+
+        let common_events_str = self
+            .common_events
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(common_events_str) = common_events_str {
+            filesystem
+                .save_data("CommonEvents.ron", &common_events_str?)
+                .await
+                .map_err(|_| "Failed to write Common Event data")?;
+        }
+
+        let scripts_str = self
+            .scripts
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(scripts_str) = scripts_str {
+            filesystem
+                .save_data("Scripts.ron", &scripts_str?)
+                .await
+                .map_err(|_| "Failed to write Script data")?;
+        }
+
+        let items_str = self
+            .items
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(items_str) = items_str {
+            filesystem
+                .save_data("Items.ron", &items_str?)
+                .await
+                .map_err(|_| "Failed to write Item data")?;
+        }
+
         Ok(())
     }
 }

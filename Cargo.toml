@@ -42,6 +42,7 @@ syntect = { version = "5.0", features = [
 ], default-features = false }
 color-eyre = "0.6.2"
 puffin_egui = "0.17.0"
+rand = "0.8.5"
 
 [features]
 default = ["generic-tilemap"]

@@ -45,6 +45,7 @@ pub struct Map {
     dragged_event: usize,
     dragging_event: bool,
     event_windows: Windows,
+    force_close: bool,
 }
 
 impl Map {
@@ -61,6 +62,7 @@ impl Map {
             dragged_event: 0,
             dragging_event: false,
             event_windows: Default::default(),
+            force_close: false,
         })
     }
 }
@@ -70,12 +72,16 @@ impl super::tab::Tab for Map {
         format!("Map {}: {}", self.id, self.name)
     }
 
+    fn force_close(&mut self) -> bool {
+        self.force_close
+    }
+
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
         // Are we done loading data?
         if self.tilemap.textures_loaded() {
             if let Err(e) = self.tilemap.load_result() {
                 info.toasts.error(e);
-                // FIXME: This will not! close the map tab
+                self.force_close = true;
                 return;
             }
 

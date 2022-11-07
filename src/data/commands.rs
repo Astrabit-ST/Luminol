@@ -49,7 +49,7 @@ impl From<String> for ParameterType {
 // FIXME: NOT ALL OF THESE ARE KNOWN
 
 /// An enum representing event commands.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(try_from = "intermediate::EventCommand")]
 #[serde(into = "intermediate::EventCommand")]
 pub struct Command {
@@ -57,9 +57,10 @@ pub struct Command {
     pub indent: usize,
     /// Type of command
     pub kind: CommandKind,
+    code: i32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[allow(missing_docs)]
 pub enum CommandKind {
     /// Show text, id 101
@@ -248,6 +249,7 @@ pub enum CommandKind {
     /// Fields: (params: [`Vec<ParameterType>`])
     Custom { params: Vec<ParameterType> },
     /// Insert command
+    #[default]
     Insert,
 }
 
@@ -447,6 +449,7 @@ impl Command {
 
         Ok(Self {
             indent,
+            code,
             kind: match code {
                 0 => CommandKind::Insert,
                 101 => Text {

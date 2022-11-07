@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use super::commands::*;
 
 /// A simple binary tree.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "Vec<Command>")]
 #[serde(into = "Vec<Command>")]
 pub struct Node {
@@ -32,19 +32,6 @@ pub struct Node {
     right: Option<Box<Node>>,
     /// The data for this Node.
     pub data: Command,
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Self {
-            left: None,
-            right: None,
-            data: Command {
-                indent: 0,
-                kind: Insert,
-            },
-        }
-    }
 }
 
 /// Branch type
