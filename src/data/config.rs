@@ -15,41 +15,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::UpdateInfo;
-use strum::Display;
+use serde::{Deserialize, Serialize};
 use strum::EnumIter;
-use strum::IntoEnumIterator;
 
-/// A toolbar for map editing controls.
-#[derive(Default)]
-pub struct Toolbar {
-    state: ToolbarState,
-}
-
-/// The state of the toolbar.
-// TODO: Move to UpdateInfo
-#[derive(Default)]
-pub struct ToolbarState {
-    /// The currently selected pencil.
-    pub pencil: Pencil,
-}
-
-#[derive(Default, EnumIter, Display, PartialEq, Eq, Clone, Copy)]
+#[derive(Serialize, Deserialize)]
+#[serde(default)]
+/// Local luminol project config
 #[allow(missing_docs)]
-pub enum Pencil {
-    #[default]
-    Pen,
-    Circle,
-    Rectangle,
-    Fill,
+pub struct LocalConfig {
+    pub project_name: String,
+    pub scripts_path: String,
+    pub use_ron: bool,
+    pub rgss_ver: RGSSVer,
 }
 
-impl Toolbar {
-    /// Display this toolbar.
-    #[allow(unused_variables)]
-    pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
-        for e in Pencil::iter() {
-            ui.selectable_value(&mut self.state.pencil, e, e.to_string());
+impl Default for LocalConfig {
+    fn default() -> Self {
+        Self {
+            project_name: "".to_string(),
+            scripts_path: "Scripts".to_string(),
+            use_ron: true,
+            rgss_ver: RGSSVer::RGSS1,
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display)]
+#[allow(missing_docs)]
+pub enum RGSSVer {
+    ModShot,
+    MKXP,
+    MKXPZ,
+    RGSS1,
+    RGSS2,
+    RGSS3,
 }

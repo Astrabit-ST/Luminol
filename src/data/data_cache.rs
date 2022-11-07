@@ -25,7 +25,7 @@ use std::{
 
 use crate::filesystem::Filesystem;
 
-use super::rmxp_structs::intermediate;
+use super::{config::LocalConfig, rmxp_structs::intermediate};
 
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
@@ -40,11 +40,20 @@ pub struct DataCache {
     common_events: RefCell<Option<Vec<rpg::CommonEvent>>>,
     scripts: RefCell<Option<Vec<intermediate::Script>>>,
     items: RefCell<Option<Vec<rpg::Item>>>,
+    config: RefCell<Option<LocalConfig>>,
 }
 
 impl DataCache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
+        let config = filesystem
+            .read_data(".luminol")
+            .await
+            .ok()
+            .unwrap_or_default();
+
+        *self.config.borrow_mut() = Some(config);
+
         *self.actors.borrow_mut() = Some(
             filesystem
                 .read_data("Actors.ron")
@@ -100,6 +109,8 @@ impl DataCache {
             println!("Attempted loading xScripts failed with {}", e);
 
             scripts = filesystem.read_data("Scripts.ron").await;
+        } else {
+            self.config.borrow_mut().as_mut().unwrap().scripts_path = "xScripts".to_string();
         }
 
         *self.scripts.borrow_mut() = Some(
@@ -174,6 +185,29 @@ impl DataCache {
     /// Get items.
     pub fn items(&self) -> RefMut<'_, Option<Vec<rpg::Item>>> {
         self.items.borrow_mut()
+    }
+
+    /// Get Config.
+    pub fn config(&self) -> RefMut<'_, Option<LocalConfig>> {
+        self.config.borrow_mut()
+    }
+
+    /// Save the local config.
+    pub async fn save_config(&self, filesystem: &Filesystem) -> Result<(), String> {
+        let config_str = self
+            .config
+            .borrow()
+            .as_ref()
+            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+
+        if let Some(config_str) = config_str {
+            filesystem
+                .save_data(".luminol", &config_str?)
+                .await
+                .map_err(|_| "Failed to write Config data")?;
+        }
+
+        Ok(())
     }
 
     /// Save all cached data to disk.
@@ -305,6 +339,6 @@ impl DataCache {
                 .map_err(|_| "Failed to write Item data")?;
         }
 
-        Ok(())
+        self.save_config(filesystem).await
     }
 }

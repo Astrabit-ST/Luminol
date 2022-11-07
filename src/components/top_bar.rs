@@ -18,8 +18,9 @@
 use std::sync::Arc;
 
 use poll_promise::Promise;
+use strum::IntoEnumIterator;
 
-use crate::UpdateInfo;
+use crate::{Pencil, UpdateInfo};
 
 /// The top bar for managing the project.
 #[derive(Default)]
@@ -27,6 +28,7 @@ pub struct TopBar {
     open_project_promise: Option<Promise<Result<(), String>>>,
     save_project_promise: Option<Promise<Result<(), String>>>,
     egui_settings_open: bool,
+    fullscreen: bool,
 }
 
 impl TopBar {
@@ -37,8 +39,16 @@ impl TopBar {
         info: &'static UpdateInfo,
         ui: &mut egui::Ui,
         style: &mut Arc<egui::Style>,
+        frame: &mut eframe::Frame,
     ) {
         egui::widgets::global_dark_light_mode_switch(ui);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            ui.checkbox(&mut self.fullscreen, "Fullscreen");
+
+            frame.set_fullscreen(self.fullscreen);
+        }
 
         let mut open_project = ui.input().modifiers.command
             && ui.input().key_pressed(egui::Key::O)
@@ -69,6 +79,11 @@ impl TopBar {
             ui.separator();
 
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+                if ui.button("Project Config").clicked() {
+                    info.windows
+                        .add_window(crate::windows::config::ConfigWindow {});
+                }
+
                 if ui.button("Close Project").clicked() {
                     info.filesystem.unload_project();
                     info.windows.clean_windows();
@@ -87,37 +102,48 @@ impl TopBar {
             // Or these together so if one OR the other is true the window shows.
             self.egui_settings_open =
                 ui.button("Egui Settings").clicked() || self.egui_settings_open;
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                ui.separator();
+
+                if ui.button("Quit").clicked() {
+                    frame.close();
+                }
+            }
         });
 
         ui.separator();
 
-        ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
-            if ui.button("Maps").clicked() {
-                info.windows
-                    .add_window(crate::windows::map_picker::MapPicker::default())
-            }
+        ui.menu_button("Data", |ui| {
+            ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+                if ui.button("Maps").clicked() {
+                    info.windows
+                        .add_window(crate::windows::map_picker::MapPicker::default())
+                }
 
-            if ui.button("Items").clicked() {
-                info.windows
-                    .add_window(crate::windows::items::ItemsWindow::new(
-                        info.data_cache.items().clone().unwrap(),
-                    ))
-            }
+                if ui.button("Items").clicked() {
+                    info.windows
+                        .add_window(crate::windows::items::ItemsWindow::new(
+                            info.data_cache.items().clone().unwrap(),
+                        ))
+                }
 
-            if ui.button("Common Events").clicked() {
-                info.windows
-                    .add_window(crate::windows::common_event_edit::CommonEventEdit::default())
-            }
+                if ui.button("Common Events").clicked() {
+                    info.windows
+                        .add_window(crate::windows::common_event_edit::CommonEventEdit::default())
+                }
 
-            if ui.button("Scripts").clicked() {
-                info.windows
-                    .add_window(crate::windows::script_edit::ScriptEdit::default())
-            }
+                if ui.button("Scripts").clicked() {
+                    info.windows
+                        .add_window(crate::windows::script_edit::ScriptEdit::default())
+                }
 
-            if ui.button("Sound Test").clicked() {
-                info.windows
-                    .add_window(crate::windows::sound_test::SoundTest::new(info))
-            }
+                if ui.button("Sound Test").clicked() {
+                    info.windows
+                        .add_window(crate::windows::sound_test::SoundTest::new(info))
+                }
+            });
         });
 
         ui.separator();
@@ -149,6 +175,15 @@ impl TopBar {
             ui.toggle_value(&mut debug_on_hover, "Debug on hover");
             ui.ctx().set_debug_on_hover(debug_on_hover);
         });
+
+        ui.separator();
+
+        ui.label("Brush:");
+
+        let mut toolbar = info.toolbar.borrow_mut();
+        for brush in Pencil::iter() {
+            ui.selectable_value(&mut toolbar.pencil, brush, brush.to_string());
+        }
 
         let ctx = ui.ctx();
         // Because style_ui makes a new style, AND we can't pass the style to a dedicated window, we handle the logic here.

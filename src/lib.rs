@@ -40,6 +40,8 @@ pub mod windows {
     pub mod about;
     /// The common event editor.
     pub mod common_event_edit;
+    /// Config window
+    pub mod config;
     /// The event editor.
     pub mod event_edit;
     /// The item editor.
@@ -78,8 +80,6 @@ pub mod components {
     pub mod syntax_highlighting;
     /// Toasts to be displayed for errors, information, etc.
     pub mod toasts;
-    /// The toolbar for changing tools used when editing maps.
-    pub mod toolbar;
     /// The toolbar for managing the project.
     pub mod top_bar;
 
@@ -141,6 +141,8 @@ pub mod data {
     pub mod command_tree;
     /// Event command related enums
     pub mod commands;
+    /// Luminol configuration
+    pub mod config;
     /// The data cache, used to store things before writing them to the disk.
     pub mod data_cache;
     /// RGSS structs.
@@ -183,6 +185,23 @@ pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 use crate::data::data_cache::DataCache;
 use crate::filesystem::Filesystem;
 
+#[allow(missing_docs)]
+#[derive(Default)]
+pub struct ToolbarState {
+    /// The currently selected pencil.
+    pub pencil: Pencil,
+}
+
+#[derive(Default, strum::EnumIter, strum::Display, PartialEq, Eq, Clone, Copy)]
+#[allow(missing_docs)]
+pub enum Pencil {
+    #[default]
+    Pen,
+    Circle,
+    Rectangle,
+    Fill,
+}
+
 /// Passed to windows and widgets when updating.
 pub struct UpdateInfo {
     /// Filesystem to be passed around.
@@ -201,6 +220,8 @@ pub struct UpdateInfo {
     pub gl: Arc<glow::Context>,
     /// State to be saved.
     pub saved_state: RefCell<SavedState>,
+    /// Toolbar state
+    pub toolbar: RefCell<ToolbarState>,
 }
 
 impl UpdateInfo {
@@ -215,6 +236,7 @@ impl UpdateInfo {
             toasts: Default::default(),
             gl,
             saved_state: RefCell::new(state),
+            toolbar: Default::default(),
         }
     }
 }

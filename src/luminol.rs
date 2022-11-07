@@ -20,16 +20,11 @@ use std::sync::Arc;
 
 use puffin_egui::puffin;
 
-use crate::{
-    components::{toolbar::Toolbar, top_bar::TopBar},
-    saved_state::SavedState,
-    UpdateInfo,
-};
+use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
-    toolbar: Toolbar,
     info: &'static UpdateInfo,
     style: Arc<egui::Style>,
     #[cfg(feature = "discord-rpc")]
@@ -58,7 +53,6 @@ impl Luminol {
 
         Self {
             top_bar: TopBar::default(),
-            toolbar: Toolbar::default(),
             info: Box::leak(Box::new(UpdateInfo::new(
                 cc.gl.as_ref().unwrap().clone(),
                 state,
@@ -78,7 +72,7 @@ impl eframe::App for Luminol {
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
 
@@ -91,20 +85,9 @@ impl eframe::App for Luminol {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(self.info, ui, &mut self.style);
+                self.top_bar.ui(self.info, ui, &mut self.style, frame);
             });
         });
-
-        egui::SidePanel::left("toolbar")
-            .resizable(false)
-            .show(ctx, |ui| {
-                #[cfg(debug_assertions)]
-                puffin::profile_scope!("toolbar");
-
-                ui.vertical(|ui| {
-                    self.toolbar.ui(self.info, ui);
-                });
-            });
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
