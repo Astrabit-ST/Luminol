@@ -211,6 +211,7 @@ impl Filesystem {
 
     async fn create_project(
         &self,
+        name: String,
         path: PathBuf,
         cache: &'static DataCache,
         rgss_ver: RGSSVer,
@@ -225,7 +226,12 @@ impl Filesystem {
         self.create_directory("Data_RON").await?;
 
         cache.setup_defaults();
-        cache.config().as_mut().unwrap().rgss_ver = rgss_ver;
+        {
+            let mut config = cache.config();
+            let config = config.as_mut().unwrap();
+            config.rgss_ver = rgss_ver;
+            config.project_name = name;
+        }
 
         self.save_cached(cache).await?;
 
@@ -261,13 +267,24 @@ impl Filesystem {
         rgss_ver: RGSSVer,
     ) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
-            let path = path.path().to_path_buf().join(name);
+            let path = path.path().to_path_buf().join(name.clone());
 
-            self.create_project(path, &info.data_cache, rgss_ver)
+            self.create_project(name, path, &info.data_cache, rgss_ver)
                 .await
                 .map_err(|e| {
                     *self.project_path.borrow_mut() = None;
                     e
+                })
+                .map(|_| {
+                    let projects = &mut info.saved_state.borrow_mut().recent_projects;
+
+                    let path = self.project_path().unwrap().display().to_string();
+                    *projects = projects
+                        .iter()
+                        .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
+                        .collect();
+                    projects.push_front(path);
+                    projects.truncate(10);
                 })
         } else {
             Err("Cancelled opening a folder".to_owned())
