@@ -43,10 +43,18 @@ impl Default for LocalConfig {
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display)]
 #[allow(missing_docs)]
 pub enum RGSSVer {
+    #[strum(to_string = "ModShot")]
     ModShot,
+    #[strum(to_string = "mkxp-oneshot")]
+    MKXPOneShot,
+    #[strum(to_string = "rsgss")]
+    RSGSS,
+    #[strum(to_string = "mkxp")]
     MKXP,
+    #[strum(to_string = "mkxp-freebird")]
+    MKXPFreebird,
+    #[strum(to_string = "mkxp-z")]
     MKXPZ,
+    #[strum(to_string = "Stock RGSS1")]
     RGSS1,
-    RGSS2,
-    RGSS3,
 }

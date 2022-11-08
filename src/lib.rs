@@ -50,6 +50,8 @@ pub mod windows {
     pub mod map_picker;
     /// Misc windows.
     pub mod misc;
+    /// New project window
+    pub mod new_project;
     /// The script editor
     pub mod script_edit;
     /// The sound test.
@@ -154,6 +156,8 @@ pub mod data {
 /// Filesystem related structs.
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem {
+
+    // FIXME: MAKE TRAIT
     cfg_if::cfg_if! {
         if #[cfg(not(target_arch = "wasm32"))] {
             mod filesystem_native;

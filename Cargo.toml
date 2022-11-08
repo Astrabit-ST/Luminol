@@ -43,6 +43,8 @@ syntect = { version = "5.0", features = [
 color-eyre = "0.6.2"
 puffin_egui = "0.17.0"
 rand = "0.8.5"
+zip = { version = "0.6.3", default-features = false, features = ["deflate"] }
+surf = "2.3.2"
 
 [features]
 default = ["generic-tilemap"]

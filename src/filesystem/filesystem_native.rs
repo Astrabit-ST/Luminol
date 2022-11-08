@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::io::Cursor;
 use std::path::PathBuf;
 
+use crate::data::config::RGSSVer;
 use crate::data::data_cache::DataCache;
 use crate::UpdateInfo;
 
@@ -134,6 +135,37 @@ impl Filesystem {
         async_fs::write(path, data).await.map_err(|e| e.to_string())
     }
 
+    /// Save some bytes
+    pub async fn save_bytes_at(&self, path: &str, data: Vec<u8>) -> Result<(), String> {
+        let path = self
+            .project_path
+            .borrow()
+            .as_ref()
+            .ok_or_else(|| "Project not open".to_string())?
+            .join(path);
+
+        async_fs::write(path, data).await.map_err(|e| e.to_string())
+    }
+
+    /// Save data at a specific directory
+    pub async fn save_data_at(&self, path: &str, data: &str) -> Result<(), String> {
+        let path = self
+            .project_path
+            .borrow()
+            .as_ref()
+            .ok_or_else(|| "Project not open".to_string())?
+            .join(path);
+
+        async_fs::write(path, data).await.map_err(|e| e.to_string())
+    }
+
+    /// Check if file path exists
+    pub async fn file_exists(&self, path: &str) -> bool {
+        let path = self.project_path.borrow().as_ref().unwrap().join(path);
+
+        async_fs::metadata(path).await.is_ok()
+    }
+
     /// Save all cached files. An alias for [`DataCache::save`];
     pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {
         data_cache.save(self).await
@@ -162,6 +194,83 @@ impl Filesystem {
             })
         } else {
             Err("Cancelled loading project".to_string())
+        }
+    }
+
+    /// Create a directory at the specified path.
+    pub async fn create_directory(&self, path: &str) -> Result<(), String> {
+        let path = self
+            .project_path
+            .borrow()
+            .as_ref()
+            .ok_or_else(|| "Project not open".to_string())?
+            .join(path);
+
+        async_fs::create_dir(path).await.map_err(|e| e.to_string())
+    }
+
+    async fn create_project(
+        &self,
+        path: PathBuf,
+        cache: &'static DataCache,
+        rgss_ver: RGSSVer,
+    ) -> Result<(), String> {
+        *self.project_path.borrow_mut() = Some(path);
+        self.create_directory("").await?;
+
+        if !self.dir_children(".").await?.is_empty() {
+            return Err("Directory not empty".to_string());
+        }
+
+        self.create_directory("Data_RON").await?;
+
+        cache.setup_defaults();
+        cache.config().as_mut().unwrap().rgss_ver = rgss_ver;
+
+        self.save_cached(cache).await?;
+
+        self.create_directory("Audio").await?;
+        self.create_directory("Audio/BGM").await?;
+        self.create_directory("Audio/BGS").await?;
+        self.create_directory("Audio/SE").await?;
+        self.create_directory("Audio/ME").await?;
+
+        self.create_directory("Graphics").await?;
+        self.create_directory("Graphics/Animations").await?;
+        self.create_directory("Graphics/Autotiles").await?;
+        self.create_directory("Graphics/Battlebacks").await?;
+        self.create_directory("Graphics/Battlers").await?;
+        self.create_directory("Graphics/Characters").await?;
+        self.create_directory("Graphics/Fogs").await?;
+        self.create_directory("Graphics/Icons").await?;
+        self.create_directory("Graphics/Panoramas").await?;
+        self.create_directory("Graphics/Pictures").await?;
+        self.create_directory("Graphics/Tilesets").await?;
+        self.create_directory("Graphics/Titles").await?;
+        self.create_directory("Graphics/Transitions").await?;
+        self.create_directory("Graphics/Windowskins").await?;
+
+        Ok(())
+    }
+
+    /// Try to create a project.
+    pub async fn try_create_project(
+        &self,
+        name: String,
+        info: &'static UpdateInfo,
+        rgss_ver: RGSSVer,
+    ) -> Result<(), String> {
+        if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
+            let path = path.path().to_path_buf().join(name);
+
+            self.create_project(path, &info.data_cache, rgss_ver)
+                .await
+                .map_err(|e| {
+                    *self.project_path.borrow_mut() = None;
+                    e
+                })
+        } else {
+            Err("Cancelled opening a folder".to_owned())
         }
     }
 }

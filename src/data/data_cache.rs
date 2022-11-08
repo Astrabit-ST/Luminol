@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use once_cell::sync::Lazy;
 use ron::ser::{to_string_pretty, PrettyConfig};
 
 use crate::data::rmxp_structs::rpg;
@@ -25,7 +26,17 @@ use std::{
 
 use crate::filesystem::Filesystem;
 
-use super::{config::LocalConfig, rmxp_structs::intermediate};
+use super::{
+    config::LocalConfig,
+    rgss_structs::{Table1, Table3},
+    rmxp_structs::intermediate,
+};
+
+static CONFIG: Lazy<PrettyConfig> = Lazy::new(|| {
+    PrettyConfig::new()
+        .struct_names(true)
+        .separate_tuple_members(true)
+});
 
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
@@ -198,11 +209,11 @@ impl DataCache {
             .config
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
         if let Some(config_str) = config_str {
             filesystem
-                .save_data(".luminol", &config_str?)
+                .save_data_at(".luminol", &config_str?)
                 .await
                 .map_err(|_| "Failed to write Config data")?;
         }
@@ -224,7 +235,7 @@ impl DataCache {
                 .map(|(id, map)| {
                     (
                         *id,
-                        to_string_pretty(&map, PrettyConfig::default()).map_err(|e| e.to_string()),
+                        to_string_pretty(&map, CONFIG.clone()).map_err(|e| e.to_string()),
                     )
                 })
                 .collect()
@@ -234,14 +245,14 @@ impl DataCache {
             filesystem
                 .save_data(&format!("Map{:0>3}.ron", id), &map?)
                 .await
-                .map_err(|_| "Failed to write Map data")?
+                .map_err(|e| format!("Failed to write Map data {e}"))?
         }
 
         let tilesets_str = self
             .tilesets
             .borrow()
             .as_ref()
-            .map(|t| to_string_pretty(&t, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|t| to_string_pretty(&t, CONFIG.clone()).map_err(|e| e.to_string()));
         if let Some(tilesets_str) = tilesets_str {
             filesystem
                 .save_data("Tilesets.ron", &tilesets_str?)
@@ -253,7 +264,7 @@ impl DataCache {
             .mapinfos
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
         if let Some(mapinfos_str) = mapinfos_str {
             filesystem
                 .save_data("MapInfos.ron", &mapinfos_str?)
@@ -265,7 +276,7 @@ impl DataCache {
             .system
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
         if let Some(system_str) = system_str {
             filesystem
@@ -278,7 +289,7 @@ impl DataCache {
             .actors
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
         if let Some(actors_str) = actors_str {
             filesystem
@@ -291,7 +302,7 @@ impl DataCache {
             .animations
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
         if let Some(animations_str) = animations_str {
             filesystem
@@ -304,7 +315,7 @@ impl DataCache {
             .common_events
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
         if let Some(common_events_str) = common_events_str {
             filesystem
@@ -317,11 +328,16 @@ impl DataCache {
             .scripts
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
+        let script_path = self
+            .config()
+            .as_ref()
+            .map(|c| c.scripts_path.clone())
+            .unwrap_or_else(|| "Scripts".to_string());
         if let Some(scripts_str) = scripts_str {
             filesystem
-                .save_data("Scripts.ron", &scripts_str?)
+                .save_data(&format!("{script_path}.ron"), &scripts_str?)
                 .await
                 .map_err(|_| "Failed to write Script data")?;
         }
@@ -330,7 +346,7 @@ impl DataCache {
             .items
             .borrow()
             .as_ref()
-            .map(|m| to_string_pretty(&m, PrettyConfig::default()).map_err(|e| e.to_string()));
+            .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
 
         if let Some(items_str) = items_str {
             filesystem
@@ -340,5 +356,56 @@ impl DataCache {
         }
 
         self.save_config(filesystem).await
+    }
+
+    /// Setup default values
+    pub fn setup_defaults(&self) {
+        *self.actors() = Some(vec![rpg::Actor::default()]);
+        *self.animations() = Some(vec![rpg::animation::Animation::default()]);
+        *self.common_events() = Some(vec![rpg::CommonEvent::default()]);
+        *self.scripts() = Some(vec![]);
+        *self.items() = Some(vec![]);
+
+        let mut map_infos = HashMap::new();
+        map_infos.insert(
+            1,
+            rpg::MapInfo {
+                parent_id: 0,
+                name: "Map 001".to_string(),
+                order: 0,
+                expanded: false,
+                scroll_x: 0,
+                scroll_y: 0,
+            },
+        );
+
+        *self.map_infos() = Some(map_infos);
+        let mut maps = HashMap::new();
+        maps.insert(
+            1,
+            rpg::Map {
+                tileset_id: 1,
+                width: 20,
+                height: 15,
+                data: Table3::new(20, 15, 3),
+                ..Default::default()
+            },
+        );
+        *self.maps.borrow_mut() = maps;
+
+        *self.tilesets() = Some(vec![rpg::Tileset {
+            id: 1,
+            passages: Table1::new(8),
+            priorities: Table1::new(8),
+            terrain_tags: Table1::new(8),
+            ..Default::default()
+        }]);
+
+        *self.system() = Some(rpg::system::System {
+            magic_number: rand::random(),
+            ..Default::default()
+        });
+
+        *self.config() = Some(Default::default());
     }
 }

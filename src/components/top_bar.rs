@@ -56,6 +56,10 @@ impl TopBar {
         let mut save_project = ui.input().modifiers.command
             && ui.input().key_pressed(egui::Key::S)
             && info.filesystem.project_loaded();
+        if ui.input().modifiers.command && ui.input().key_pressed(egui::Key::N) {
+            info.windows
+                .add_window(crate::windows::new_project::NewProjectWindow::default());
+        }
 
         ui.separator();
 
@@ -67,7 +71,8 @@ impl TopBar {
             });
 
             if ui.button("New Project").clicked() {
-                info.toasts.error("Not implemented");
+                info.windows
+                    .add_window(crate::windows::new_project::NewProjectWindow::default());
             }
 
             if self.open_project_promise.is_none() {
