@@ -27,9 +27,17 @@ async function get_file_handle(path) {
 
 async function get_dir_handle(path) {
     let local_handle = handle;
-    let split_path = path.split("/");
-    for (let i = 0; i < split_path.length; i++) {
-        local_handle = await local_handle.getDirectoryHandle(split_path[i]);
+
+    if (path != "") {
+        let split_path = path.split("/");
+        for (let i = 0; i < split_path.length; i++) {
+            local_handle = await local_handle.getDirectoryHandle(
+                split_path[i],
+                {
+                    "create": true,
+                }
+            );
+        }
     }
 
     return local_handle;
@@ -69,6 +77,21 @@ export async function js_save_data(path, data) {
     await stream.write(data);
 
     await stream.close();
+}
+
+export async function js_create_directory(path) {
+    path = path.replace(/\/\s*$/, "");
+
+    await get_dir_handle(path);
+}
+
+export async function js_create_project_dir(path) {
+    handle = await handle.getDirectoryHandle(
+        path,
+        {
+            "create": true,
+        }
+    );
 }
 
 export function js_filesystem_supported() {

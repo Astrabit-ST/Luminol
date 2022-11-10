@@ -16,6 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![allow(missing_docs)]
 
+use crate::data::config::RGSSVer;
+use js_sys::Uint8Array;
 use std::cell::RefCell;
 use std::io::Cursor;
 use std::path::PathBuf;
@@ -42,6 +44,12 @@ extern "C" {
     #[wasm_bindgen(catch)]
     async fn js_save_data(path: JsValue, data: JsValue) -> Result<JsValue, JsValue>;
 
+    #[wasm_bindgen(catch)]
+    async fn js_create_directory(path: JsValue) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    async fn js_create_project_dir(path: JsValue) -> Result<JsValue, JsValue>;
+
     fn js_filesystem_supported() -> bool;
 }
 
@@ -52,9 +60,6 @@ pub struct Filesystem {
 impl Default for Filesystem {
     fn default() -> Self {
         if !js_filesystem_supported() {
-            rfd::MessageDialog::new()
-                .set_description("Filesystem not supported on this browser")
-                .show();
             panic!("Filesystem not supported on this browser");
         }
         Self {
@@ -133,6 +138,41 @@ impl Filesystem {
         .map_err(|s| format!("JS Error {:#?}", s))
     }
 
+    /// Save data at a specific directory
+    pub async fn save_data_at(&self, path: &str, data: &str) -> Result<(), String> {
+        js_save_data(JsValue::from_str(path), JsValue::from_str(data))
+            .await
+            .map(|_| ())
+            .map_err(|s| format!("JS Error {:#?}", s))
+    }
+
+    /// Save some bytes
+    pub async fn save_bytes_at(&self, path: &str, data: Vec<u8>) -> Result<(), String> {
+        js_save_data(
+            JsValue::from_str(path),
+            Uint8Array::from(data.as_slice()).into(),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|s| format!("JS Error {:#?}", s))
+    }
+
+    pub async fn create_directory(&self, path: &str) -> Result<(), String> {
+        js_create_directory(JsValue::from_str(path))
+            .await
+            .map(|_| ())
+            .map_err(|s| format!("JS Error {:#?}", s))
+    }
+
+    /// Check if file path exists
+    pub async fn file_exists(&self, path: &str) -> bool {
+        let split: Vec<_> = path.split('/').map(|s| s.to_string()).collect();
+
+        self.dir_children(&split[..(split.len() - 2)].join("/"))
+            .await
+            .is_ok_and(|v| v.contains(split.last().unwrap()))
+    }
+
     pub async fn save_cached(&self, data_cache: &'static DataCache) -> Result<(), String> {
         data_cache.save(self).await
     }
@@ -143,5 +183,93 @@ impl Filesystem {
             .map_err(|_| "Cancelled loading project".to_string())?;
 
         self.load_project(handle, &info.data_cache).await
+    }
+
+    async fn create_project(
+        &self,
+        name: String,
+        path: PathBuf,
+        cache: &'static DataCache,
+        rgss_ver: RGSSVer,
+    ) -> Result<(), String> {
+        js_create_project_dir(JsValue::from_str(&name))
+            .await
+            .map(|_| ())
+            .map_err(|s| format!("JS Error {:#?}", s))?;
+        *self.project_path.borrow_mut() = Some(path);
+
+        if !self.dir_children("").await?.is_empty() {
+            return Err("Directory not empty".to_string());
+        }
+
+        self.create_directory("Data_RON").await?;
+
+        cache.setup_defaults();
+        {
+            let mut config = cache.config();
+            let config = config.as_mut().unwrap();
+            config.rgss_ver = rgss_ver;
+            config.project_name = name;
+        }
+
+        self.save_cached(cache).await?;
+
+        self.create_directory("Audio").await?;
+        self.create_directory("Audio/BGM").await?;
+        self.create_directory("Audio/BGS").await?;
+        self.create_directory("Audio/SE").await?;
+        self.create_directory("Audio/ME").await?;
+
+        self.create_directory("Graphics").await?;
+        self.create_directory("Graphics/Animations").await?;
+        self.create_directory("Graphics/Autotiles").await?;
+        self.create_directory("Graphics/Battlebacks").await?;
+        self.create_directory("Graphics/Battlers").await?;
+        self.create_directory("Graphics/Characters").await?;
+        self.create_directory("Graphics/Fogs").await?;
+        self.create_directory("Graphics/Icons").await?;
+        self.create_directory("Graphics/Panoramas").await?;
+        self.create_directory("Graphics/Pictures").await?;
+        self.create_directory("Graphics/Tilesets").await?;
+        self.create_directory("Graphics/Titles").await?;
+        self.create_directory("Graphics/Transitions").await?;
+        self.create_directory("Graphics/Windowskins").await?;
+
+        Ok(())
+    }
+
+    /// Try to create a project.
+    pub async fn try_create_project(
+        &self,
+        name: String,
+        info: &'static UpdateInfo,
+        rgss_ver: RGSSVer,
+    ) -> Result<(), String> {
+        let handle = js_open_project()
+            .await
+            .map_err(|_| "Cancelled opening a folder".to_string())?;
+
+        let path = PathBuf::from(handle.as_string().unwrap());
+
+        self.create_project(name.clone(), path, &info.data_cache, rgss_ver)
+            .await
+            .map_err(|e| {
+                *self.project_path.borrow_mut() = None;
+                e
+            })?;
+
+        {
+            let projects = &mut info.saved_state.borrow_mut().recent_projects;
+
+            let path = self.project_path().unwrap().display().to_string();
+            *projects = projects
+                .iter()
+                .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
+                .collect();
+            projects.push_front(path);
+            projects.truncate(10);
+        }
+
+        self.save_data_at(&format!("{name}.lumproj"), "").await
     }
 }

@@ -55,7 +55,7 @@ pub struct Tilemap {
 }
 
 struct Textures {
-    tileset_tex: RetainedImage,
+    tileset_tex: Option<RetainedImage>,
     autotile_texs: Vec<Option<RetainedImage>>,
     event_texs: HashMap<(String, i32), Option<RetainedImage>>,
     fog_tex: Option<RetainedImage>,
@@ -209,8 +209,14 @@ impl TilemapDef for Tilemap {
         let xsize = map.data.xsize();
         let ysize = map.data.ysize();
 
-        let tile_width = 32. / textures.tileset_tex.width() as f32;
-        let tile_height = 32. / textures.tileset_tex.height() as f32;
+        let tile_width = textures
+            .tileset_tex
+            .as_ref()
+            .map(|t| 32. / t.width() as f32);
+        let tile_height = textures
+            .tileset_tex
+            .as_ref()
+            .map(|t| 32. / t.height() as f32);
 
         let width2 = map.width as f32 / 2.;
         let height2 = map.height as f32 / 2.;
@@ -277,27 +283,26 @@ impl TilemapDef for Tilemap {
 
             // Do we draw an autotile or regular tile?
             if *ele >= 384 {
-                // Normalize element
-                let ele = ele - 384;
+                if let Some(ref tileset_tex) = textures.tileset_tex {
+                    // Normalize element
+                    let ele = ele - 384;
 
-                // Calculate UV coordinates
-                let tile_x =
-                    (ele as usize % (textures.tileset_tex.width() / 32)) as f32 * tile_width;
-                let tile_y =
-                    (ele as usize / (textures.tileset_tex.width() / 32)) as f32 * tile_height;
+                    // Calculate UV coordinates
+                    let tile_x =
+                        (ele as usize % (tileset_tex.width() / 32)) as f32 * tile_width.unwrap();
+                    let tile_y =
+                        (ele as usize / (tileset_tex.width() / 32)) as f32 * tile_height.unwrap();
 
-                let uv = egui::Rect::from_min_size(
-                    Pos2::new(tile_x, tile_y),
-                    egui::vec2(tile_width, tile_height),
-                );
+                    let uv = egui::Rect::from_min_size(
+                        Pos2::new(tile_x, tile_y),
+                        egui::vec2(tile_width.unwrap(), tile_height.unwrap()),
+                    );
 
-                // Display tile
-                egui::Image::new(
-                    textures.tileset_tex.texture_id(ui.ctx()),
-                    textures.tileset_tex.size_vec2(),
-                )
-                .uv(uv)
-                .paint_at(ui, tile_rect);
+                    // Display tile
+                    egui::Image::new(tileset_tex.texture_id(ui.ctx()), tileset_tex.size_vec2())
+                        .uv(uv)
+                        .paint_at(ui, tile_rect);
+                }
             } else {
                 // holy shit
                 // Find what autotile we're displaying
@@ -392,36 +397,33 @@ impl TilemapDef for Tilemap {
                         .paint_at(ui, c_rect);
                 // Do we need to display a tile instead?
                 } else if graphic.tile_id.is_positive() {
-                    // Same logic for tiles. See above.
-                    let tile_rect = egui::Rect::from_min_size(
-                        map_rect.min
-                            + egui::Vec2::new(
-                                event.x as f32 * tile_size,
-                                event.y as f32 * tile_size,
-                            ),
-                        egui::Vec2::splat(tile_size),
-                    );
+                    if let Some(ref tileset_tex) = textures.tileset_tex {
+                        // Same logic for tiles. See above.
+                        let tile_rect = egui::Rect::from_min_size(
+                            map_rect.min
+                                + egui::Vec2::new(
+                                    event.x as f32 * tile_size,
+                                    event.y as f32 * tile_size,
+                                ),
+                            egui::Vec2::splat(tile_size),
+                        );
 
-                    let tile_x = ((graphic.tile_id - 384) as usize
-                        % (textures.tileset_tex.width() / 32))
-                        as f32
-                        * tile_width;
-                    let tile_y = ((graphic.tile_id - 384) as usize
-                        / (textures.tileset_tex.width() / 32))
-                        as f32
-                        * tile_height;
+                        let tile_x = ((graphic.tile_id - 384) as usize % (tileset_tex.width() / 32))
+                            as f32
+                            * tile_width.unwrap();
+                        let tile_y = ((graphic.tile_id - 384) as usize / (tileset_tex.width() / 32))
+                            as f32
+                            * tile_height.unwrap();
 
-                    let uv = egui::Rect::from_min_size(
-                        Pos2::new(tile_x, tile_y),
-                        egui::vec2(tile_width, tile_height),
-                    );
+                        let uv = egui::Rect::from_min_size(
+                            Pos2::new(tile_x, tile_y),
+                            egui::vec2(tile_width.unwrap(), tile_height.unwrap()),
+                        );
 
-                    egui::Image::new(
-                        textures.tileset_tex.texture_id(ui.ctx()),
-                        textures.tileset_tex.size_vec2(),
-                    )
-                    .uv(uv)
-                    .paint_at(ui, tile_rect);
+                        egui::Image::new(tileset_tex.texture_id(ui.ctx()), tileset_tex.size_vec2())
+                            .uv(uv)
+                            .paint_at(ui, tile_rect);
+                    }
                 }
 
                 // Display the event box.
@@ -588,29 +590,31 @@ impl TilemapDef for Tilemap {
     fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i32) {
         let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
 
-        let (rect, response) =
-            ui.allocate_exact_size(textures.tileset_tex.size_vec2(), egui::Sense::click());
+        if let Some(ref tileset_tex) = textures.tileset_tex {
+            let (rect, response) =
+                ui.allocate_exact_size(tileset_tex.size_vec2(), egui::Sense::click());
 
-        egui::Image::new(textures.tileset_tex.texture_id(ui.ctx()), rect.size()).paint_at(ui, rect);
+            egui::Image::new(tileset_tex.texture_id(ui.ctx()), rect.size()).paint_at(ui, rect);
 
-        if response.clicked() {
-            if let Some(pos) = response.interact_pointer_pos() {
-                let mut pos = (pos - rect.min) / 32.;
-                pos.x = pos.x.floor();
-                pos.y = pos.y.floor();
-                *selected_tile = (pos.x + pos.y * 8.) as i32;
+            if response.clicked() {
+                if let Some(pos) = response.interact_pointer_pos() {
+                    let mut pos = (pos - rect.min) / 32.;
+                    pos.x = pos.x.floor();
+                    pos.y = pos.y.floor();
+                    *selected_tile = (pos.x + pos.y * 8.) as i32;
+                }
             }
+            let cursor_x = *selected_tile % 8 * 32;
+            let cursor_y = *selected_tile / 8 * 32;
+            ui.painter().rect_stroke(
+                egui::Rect::from_min_size(
+                    rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
+                    egui::Vec2::splat(32.),
+                ),
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::WHITE),
+            );
         }
-        let cursor_x = *selected_tile % 8 * 32;
-        let cursor_y = *selected_tile / 8 * 32;
-        ui.painter().rect_stroke(
-            egui::Rect::from_min_size(
-                rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
-                egui::Vec2::splat(32.),
-            ),
-            5.0,
-            egui::Stroke::new(1.0, egui::Color32::WHITE),
-        );
     }
 
     fn textures_loaded(&self) -> bool {
@@ -679,8 +683,9 @@ impl Tilemap {
         }
 
         // Load tileset textures.
-        let tileset_tex =
-            load_image_software(format!("Graphics/Tilesets/{}", tileset_name), info).await?;
+        let tileset_tex = load_image_software(format!("Graphics/Tilesets/{}", tileset_name), info)
+            .await
+            .ok();
 
         // Create an async iter over the autotile textures.
         let autotile_texs_iter = autotile_names.iter().map(|str| async move {

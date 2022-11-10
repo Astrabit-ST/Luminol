@@ -80,7 +80,8 @@ impl super::tab::Tab for Map {
         // Are we done loading data?
         if self.tilemap.textures_loaded() {
             if let Err(e) = self.tilemap.load_result() {
-                info.toasts.error(e);
+                info.toasts
+                    .error(format!("Error loading map textures: {e}"));
                 self.force_close = true;
                 return;
             }

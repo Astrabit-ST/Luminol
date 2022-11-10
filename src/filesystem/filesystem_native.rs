@@ -112,14 +112,16 @@ impl Filesystem {
     }
 
     /// Read bytes from a file.
-    pub async fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+    pub async fn read_bytes(&self, provided_path: &str) -> Result<Vec<u8>, String> {
         let path = self
             .project_path
             .borrow()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
-            .join(path);
-        async_fs::read(path).await.map_err(|e| e.to_string())
+            .join(provided_path);
+        async_fs::read(path)
+            .await
+            .map_err(|e| format!("Loading {provided_path}: {e}"))
     }
 
     /// Save some file's data by serializing it with RON.
@@ -174,14 +176,16 @@ impl Filesystem {
     /// Try to open a project.
     pub async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
-            .add_filter("project file", &["rxproj", "lum"])
+            .add_filter("project file", &["rxproj", "lumproj"])
             .pick_file()
             .await
         {
             let mut path = path.path().to_path_buf();
 
             path.pop(); // Pop off filename
-            self.load_project(path, &info.data_cache).await.map(|_| {
+            self.load_project(path, &info.data_cache).await?;
+
+            {
                 let projects = &mut info.saved_state.borrow_mut().recent_projects;
 
                 let path = self.project_path().unwrap().display().to_string();
@@ -191,7 +195,9 @@ impl Filesystem {
                     .collect();
                 projects.push_front(path);
                 projects.truncate(10);
-            })
+            }
+
+            Ok(())
         } else {
             Err("Cancelled loading project".to_string())
         }
@@ -269,23 +275,26 @@ impl Filesystem {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
             let path = path.path().to_path_buf().join(name.clone());
 
-            self.create_project(name, path, &info.data_cache, rgss_ver)
+            self.create_project(name.clone(), path, &info.data_cache, rgss_ver)
                 .await
                 .map_err(|e| {
                     *self.project_path.borrow_mut() = None;
                     e
-                })
-                .map(|_| {
-                    let projects = &mut info.saved_state.borrow_mut().recent_projects;
+                })?;
 
-                    let path = self.project_path().unwrap().display().to_string();
-                    *projects = projects
-                        .iter()
-                        .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
-                        .collect();
-                    projects.push_front(path);
-                    projects.truncate(10);
-                })
+            {
+                let projects = &mut info.saved_state.borrow_mut().recent_projects;
+
+                let path = self.project_path().unwrap().display().to_string();
+                *projects = projects
+                    .iter()
+                    .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
+                    .collect();
+                projects.push_front(path);
+                projects.truncate(10);
+            }
+
+            self.save_data_at(&format!("{name}.lumproj"), "").await
         } else {
             Err("Cancelled opening a folder".to_owned())
         }

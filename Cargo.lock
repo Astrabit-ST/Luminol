@@ -1271,7 +1271,7 @@ dependencies = [
  "glutin",
  "js-sys",
  "percent-encoding",
- "puffin",
+ "puffin 0.13.3",
  "ron",
  "serde",
  "tracing",
@@ -1313,7 +1313,7 @@ dependencies = [
  "arboard",
  "egui",
  "instant",
- "puffin",
+ "puffin 0.13.3",
  "serde",
  "smithay-clipboard",
  "tracing",
@@ -1353,7 +1353,7 @@ dependencies = [
  "egui-winit",
  "glow",
  "memoffset",
- "puffin",
+ "puffin 0.13.3",
  "tracing",
  "wasm-bindgen",
  "web-sys",
@@ -2076,9 +2076,14 @@ dependencies = [
  "async-std",
  "async-trait",
  "cfg-if",
+ "futures",
  "http-types",
  "isahc",
+ "js-sys",
  "log",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -3146,6 +3151,16 @@ version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b40725b2702b9c660938b8d9c56978091252374cc50d73a83b59695b8d32ec03"
 dependencies = [
+ "byteorder",
+ "once_cell",
+]
+
+[[package]]
+name = "puffin"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "796a1b7d7d0ec984dde24615178cbd14dc697ea4cdcddfd1fee9a5f87135f9e8"
+dependencies = [
  "anyhow",
  "bincode",
  "byteorder",
@@ -3158,16 +3173,16 @@ dependencies = [
 
 [[package]]
 name = "puffin_egui"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e39069dce952a38613121233b06f40cdc5864b12f9c8c9fb2b12de07d1841de5"
+checksum = "32cb56b8549a8e7ad19452ebfb505156b5aca8ce41213d6f0bb6b2b78b7ce696"
 dependencies = [
  "chrono",
  "egui",
  "indexmap",
  "natord",
  "once_cell",
- "puffin",
+ "puffin 0.14.0",
  "vec1",
 ]
 
@@ -3471,11 +3486,12 @@ dependencies = [
 
 [[package]]
 name = "ruzstd"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cada0ef59efa6a5f4dc5e491f93d9f31e3fc7758df421ff1de8a706338e1100"
+checksum = "ffae8df4aa221781b715c27bbed0fac16b6f1e2643efb7af8a24dfc78d444493"
 dependencies = [
  "byteorder",
+ "thiserror",
  "twox-hash",
 ]
 

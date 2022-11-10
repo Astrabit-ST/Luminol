@@ -64,7 +64,7 @@ impl super::tab::Tab for Started {
             {
                 self.load_project_promise = Some(poll_promise::Promise::spawn_local(async move {
                     if let Err(e) = info.filesystem.try_open_project(info).await {
-                        info.toasts.error(e);
+                        info.toasts.error(format!("Error loading project: {e}"));
                     }
                 }));
             }
@@ -81,10 +81,11 @@ impl super::tab::Tab for Started {
                         Some(poll_promise::Promise::spawn_local(async move {
                             if let Err(e) = info
                                 .filesystem
-                                .load_project(path.into(), &info.data_cache)
+                                .load_project(path.clone().into(), &info.data_cache)
                                 .await
                             {
-                                info.toasts.error(e);
+                                info.toasts
+                                    .error(format!("Error loading project {path}: {e}"));
                             }
                         }));
                 }

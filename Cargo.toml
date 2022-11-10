@@ -25,7 +25,6 @@ image = { version = "0.24", features = ["jpeg", "png"] }
 eframe = { version = "0.19.0", features = ["persistence", "puffin"] }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
-rfd = "0.10.0"
 num-traits = "0.2"
 strum = { version = "0.24.1", features = ["derive"] }
 egui_dock = "0.2.1"
@@ -41,10 +40,9 @@ syntect = { version = "5.0", features = [
     "default-fancy",
 ], default-features = false }
 color-eyre = "0.6.2"
-puffin_egui = "0.17.0"
+puffin_egui = "0.18.0"
 rand = "0.8.5"
 zip = { version = "0.6.3", default-features = false, features = ["deflate"] }
-surf = "2.3.2"
 
 [features]
 default = ["generic-tilemap"]
@@ -64,6 +62,8 @@ tokio = { version = "1.21.2", features = [
 ], optional = true }
 async-fs = "1.6.0"
 discord-sdk = { version = "0.3.0", optional = true }
+surf = "2.3.2"
+rfd = "0.10.0"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -79,6 +79,7 @@ rodio = { version = "0.16.0", features = [
 ], default-features = false }
 poll-promise = { version = "0.2.0", features = ["web"] }
 wasm-timer = "0.2.5"
+surf = { version = "2.3.2", default-features = false, features = ["wasm-client"] }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

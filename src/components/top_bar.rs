@@ -28,6 +28,7 @@ pub struct TopBar {
     open_project_promise: Option<Promise<Result<(), String>>>,
     save_project_promise: Option<Promise<Result<(), String>>>,
     egui_settings_open: bool,
+    #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
 }
 

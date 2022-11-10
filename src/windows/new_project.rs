@@ -158,6 +158,7 @@ impl Window for NewProjectWindow {
                                         .try_create_project(name, info, rgss_ver)
                                         .await;
 
+                                    #[allow(clippy::collapsible_if)]
                                     if result.is_ok() {
                                         #[cfg(not(target_arch = "wasm32"))]
                                         if init_git {
@@ -189,9 +190,7 @@ impl Window for NewProjectWindow {
                                                 Self::download_executable(rgss_ver, info, progress)
                                                     .await
                                             {
-                                                info.toasts.error(format!(
-                                                    "Failed to download {rgss_ver}: {e}",
-                                                ));
+                                                info.toasts.error(e);
                                             }
                                         }
                                     }
@@ -241,7 +240,7 @@ impl NewProjectWindow {
         progress.zip_total.set(zip_url.len());
 
         let zips = futures::future::join_all(zip_url.iter().map(|url| async move {
-            surf::get(url)
+            surf::get(format!("https://api.allorigins.win/raw?url={url}"))
                 .middleware(surf::middleware::Redirect::new(10))
                 .await
         }))
@@ -251,12 +250,16 @@ impl NewProjectWindow {
             progress.zip_current.set(index);
 
             progress.total_progress.set(0);
-            let mut response = zip_response.map_err(|e| e.to_string())?;
+            let mut response =
+                zip_response.map_err(|e| format!("Error downloading {rgss_ver}: {e}"))?;
 
-            let bytes = response.body_bytes().await.map_err(|e| e.to_string())?;
+            let bytes = response
+                .body_bytes()
+                .await
+                .map_err(|e| format!("Error getting response body for {rgss_ver}: {e}"))?;
 
-            let mut archive =
-                zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|e| e.to_string())?;
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+                .map_err(|e| format!("Failed to read zip archive for {rgss_ver}: {e}"))?;
             progress.total_progress.set(archive.len());
 
             for index in 0..archive.len() {
@@ -271,18 +274,28 @@ impl NewProjectWindow {
                 let file_path = file_path
                     .strip_prefix("mkxp-z_2.4.0/")
                     .unwrap_or(&file_path);
-                let file_path = file_path.to_str().unwrap();
+                let file_path = file_path
+                    .to_str()
+                    .ok_or(format!("Invalid file path {:#?}", file_path))?;
 
                 if file_path.is_empty() || info.filesystem.file_exists(file_path).await {
                     continue;
                 }
 
                 if file.is_dir() {
-                    info.filesystem.create_directory(file_path).await?;
+                    info.filesystem
+                        .create_directory(file_path)
+                        .await
+                        .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
                 } else {
                     let mut bytes = Vec::new();
-                    file.read_to_end(&mut bytes).map_err(|e| e.to_string())?;
-                    info.filesystem.save_bytes_at(file_path, bytes).await?;
+                    file.read_to_end(&mut bytes)
+                        .map_err(|e| e.to_string())
+                        .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
+                    info.filesystem
+                        .save_bytes_at(file_path, bytes)
+                        .await
+                        .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
                 }
             }
         }
