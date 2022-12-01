@@ -19,6 +19,7 @@ use poll_promise::Promise;
 use strum::IntoEnumIterator;
 
 use crate::audio::Source;
+use crate::filesystem::Filesystem;
 use crate::UpdateInfo;
 
 /// A tab for a sound (be it BGM, ME, SE, etc)

@@ -22,6 +22,7 @@ use strum::IntoEnumIterator;
 use crate::{data::config::RGSSVer, UpdateInfo};
 
 use super::window::Window;
+use crate::filesystem::Filesystem;
 
 /// The new project window
 pub struct NewProjectWindow {
@@ -293,7 +294,7 @@ impl NewProjectWindow {
                         .map_err(|e| e.to_string())
                         .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
                     info.filesystem
-                        .save_bytes_at(file_path, bytes)
+                        .save_data(file_path, bytes)
                         .await
                         .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
                 }

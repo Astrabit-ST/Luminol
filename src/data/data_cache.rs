@@ -56,7 +56,7 @@ pub struct DataCache {
 
 impl DataCache {
     /// Load all data required when opening a project.
-    pub async fn load(&self, filesystem: &Filesystem) -> Result<(), String> {
+    pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
         let config = filesystem
             .read_data(".luminol")
             .await
@@ -67,59 +67,59 @@ impl DataCache {
 
         *self.actors.borrow_mut() = Some(
             filesystem
-                .read_data("Actors.ron")
+                .read_data("Data_RON/Actors.ron")
                 .await
                 .map_err(|s| format!("Failed to read Actors: {}", s))?,
         );
 
         *self.animations.borrow_mut() = Some(
             filesystem
-                .read_data("Animations.ron")
+                .read_data("Data_RON/Animations.ron")
                 .await
                 .map_err(|s| format!("Failed to read Animations: {}", s))?,
         );
 
         *self.system.borrow_mut() = Some(
             filesystem
-                .read_data("System.ron")
+                .read_data("Data_RON/System.ron")
                 .await
                 .map_err(|s| format!("Failed to read System: {}", s))?,
         );
 
         *self.mapinfos.borrow_mut() = Some(
             filesystem
-                .read_data("MapInfos.ron")
+                .read_data("Data_RON/MapInfos.ron")
                 .await
                 .map_err(|s| format!("Failed to read MapInfos: {}", s))?,
         );
 
         *self.tilesets.borrow_mut() = Some(
             filesystem
-                .read_data("Tilesets.ron")
+                .read_data("Data_RON/Tilesets.ron")
                 .await
                 .map_err(|s| format!("Failed to read Tilesets: {}", s))?,
         );
 
         *self.common_events.borrow_mut() = Some(
             filesystem
-                .read_data("CommonEvents.ron")
+                .read_data("Data_RON/CommonEvents.ron")
                 .await
                 .map_err(|s| format!("Failed to read Common Events: {}", s))?,
         );
 
         *self.items.borrow_mut() = Some(
             filesystem
-                .read_data("Items.ron")
+                .read_data("Data_RON/Items.ron")
                 .await
                 .map_err(|s| format!("Failed to read Items: {}", s))?,
         );
 
-        let mut scripts = filesystem.read_data("xScripts.ron").await;
+        let mut scripts = filesystem.read_data("Data_RON/xScripts.ron").await;
 
         if let Err(e) = scripts {
             println!("Attempted loading xScripts failed with {}", e);
 
-            scripts = filesystem.read_data("Scripts.ron").await;
+            scripts = filesystem.read_data("Data_RON/Scripts.ron").await;
         } else {
             self.config.borrow_mut().as_mut().unwrap().scripts_path = "xScripts".to_string();
         }
@@ -135,13 +135,13 @@ impl DataCache {
     /// Load a map.
     pub async fn load_map(
         &self,
-        filesystem: &'static Filesystem,
+        filesystem: &'static impl Filesystem,
         id: i32,
     ) -> Result<RefMut<'_, rpg::Map>, String> {
         let has_map = self.maps.borrow().contains_key(&id);
         if !has_map {
             let map = filesystem
-                .read_data(&format!("Map{:0>3}.ron", id))
+                .read_data(format!("Data_RON/Map{:0>3}.ron", id))
                 .await
                 .map_err(|e| format!("Failed to load map: {}", e))?;
             self.maps.borrow_mut().insert(id, map);
@@ -204,7 +204,7 @@ impl DataCache {
     }
 
     /// Save the local config.
-    pub async fn save_config(&self, filesystem: &Filesystem) -> Result<(), String> {
+    pub async fn save_config(&self, filesystem: &impl Filesystem) -> Result<(), String> {
         let config_str = self
             .config
             .borrow()
@@ -213,7 +213,7 @@ impl DataCache {
 
         if let Some(config_str) = config_str {
             filesystem
-                .save_data_at(".luminol", &config_str?)
+                .save_data(".luminol", &config_str?)
                 .await
                 .map_err(|_| "Failed to write Config data")?;
         }
@@ -223,7 +223,7 @@ impl DataCache {
 
     /// Save all cached data to disk.
     /// Will flush the cache too.
-    pub async fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
+    pub async fn save(&self, filesystem: &impl Filesystem) -> Result<(), String> {
         self.system().as_mut().unwrap().magic_number = rand::random();
 
         // Write map data and clear map cache.
@@ -243,7 +243,7 @@ impl DataCache {
 
         for (id, map) in maps_strs {
             filesystem
-                .save_data(&format!("Map{:0>3}.ron", id), &map?)
+                .save_data(format!("Data_RON/Map{:0>3}.ron", id), &map?)
                 .await
                 .map_err(|e| format!("Failed to write Map data {e}"))?
         }
@@ -255,7 +255,7 @@ impl DataCache {
             .map(|t| to_string_pretty(&t, CONFIG.clone()).map_err(|e| e.to_string()));
         if let Some(tilesets_str) = tilesets_str {
             filesystem
-                .save_data("Tilesets.ron", &tilesets_str?)
+                .save_data("Data_RON/Tilesets.ron", &tilesets_str?)
                 .await
                 .map_err(|_| "Failed to write Tileset data")?;
         }
@@ -267,7 +267,7 @@ impl DataCache {
             .map(|m| to_string_pretty(&m, CONFIG.clone()).map_err(|e| e.to_string()));
         if let Some(mapinfos_str) = mapinfos_str {
             filesystem
-                .save_data("MapInfos.ron", &mapinfos_str?)
+                .save_data("Data_RON/MapInfos.ron", &mapinfos_str?)
                 .await
                 .map_err(|_| "Failed to write MapInfos data")?;
         }
@@ -280,7 +280,7 @@ impl DataCache {
 
         if let Some(system_str) = system_str {
             filesystem
-                .save_data("System.ron", &system_str?)
+                .save_data("Data_RON/System.ron", &system_str?)
                 .await
                 .map_err(|_| "Failed to write System data")?;
         }
@@ -293,7 +293,7 @@ impl DataCache {
 
         if let Some(actors_str) = actors_str {
             filesystem
-                .save_data("Actors.ron", &actors_str?)
+                .save_data("Data_RON/Actors.ron", &actors_str?)
                 .await
                 .map_err(|_| "Failed to write Actor data")?;
         }
@@ -306,7 +306,7 @@ impl DataCache {
 
         if let Some(animations_str) = animations_str {
             filesystem
-                .save_data("Animations.ron", &animations_str?)
+                .save_data("Data_RON/Animations.ron", &animations_str?)
                 .await
                 .map_err(|_| "Failed to write Animation data")?;
         }
@@ -319,7 +319,7 @@ impl DataCache {
 
         if let Some(common_events_str) = common_events_str {
             filesystem
-                .save_data("CommonEvents.ron", &common_events_str?)
+                .save_data("Data_RON/CommonEvents.ron", &common_events_str?)
                 .await
                 .map_err(|_| "Failed to write Common Event data")?;
         }
@@ -337,7 +337,7 @@ impl DataCache {
             .unwrap_or_else(|| "Scripts".to_string());
         if let Some(scripts_str) = scripts_str {
             filesystem
-                .save_data(&format!("{script_path}.ron"), &scripts_str?)
+                .save_data(format!("Data_RON/{script_path}.ron"), &scripts_str?)
                 .await
                 .map_err(|_| "Failed to write Script data")?;
         }
@@ -350,7 +350,7 @@ impl DataCache {
 
         if let Some(items_str) = items_str {
             filesystem
-                .save_data("Items.ron", &items_str?)
+                .save_data("Data_RON/Items.ron", &items_str?)
                 .await
                 .map_err(|_| "Failed to write Item data")?;
         }

@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::filesystem::Filesystem;
+
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
 pub struct Started {
@@ -79,10 +81,8 @@ impl super::tab::Tab for Started {
                     let path = path.clone();
                     self.load_project_promise =
                         Some(poll_promise::Promise::spawn_local(async move {
-                            if let Err(e) = info
-                                .filesystem
-                                .load_project(path.clone().into(), &info.data_cache)
-                                .await
+                            if let Err(e) =
+                                info.filesystem.load_project(&path, &info.data_cache).await
                             {
                                 info.toasts
                                     .error(format!("Error loading project {path}: {e}"));

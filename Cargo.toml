@@ -43,6 +43,7 @@ color-eyre = "0.6.2"
 puffin_egui = "0.18.0"
 rand = "0.8.5"
 zip = { version = "0.6.3", default-features = false, features = ["deflate"] }
+async-trait = "0.1.58"
 
 [features]
 default = ["generic-tilemap"]
@@ -72,14 +73,17 @@ tracing-wasm = "0.2"
 wasm-bindgen = "0.2.82"
 wasm-bindgen-futures = "0.4.33"
 js-sys = "0.3.59"
-web-sys = "0.3.59"
+web-sys = { version = "0.3.59", features = ["FileSystemDirectoryEntry"] }
 rodio = { version = "0.16.0", features = [
     "wasm-bindgen",
     "symphonia-all",
 ], default-features = false }
 poll-promise = { version = "0.2.0", features = ["web"] }
 wasm-timer = "0.2.5"
-surf = { version = "2.3.2", default-features = false, features = ["wasm-client"] }
+surf = { version = "2.3.2", default-features = false, features = [
+    "wasm-client",
+] }
+
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

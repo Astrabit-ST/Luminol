@@ -156,15 +156,16 @@ pub mod data {
 /// Filesystem related structs.
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem {
+    /// Filesystem access API.
+    pub mod filesystem_trait;
+    pub use filesystem_trait::Filesystem;
 
     // FIXME: MAKE TRAIT
     cfg_if::cfg_if! {
         if #[cfg(not(target_arch = "wasm32"))] {
-            mod filesystem_native;
-            pub use filesystem_native::Filesystem;
+            pub(crate) mod filesystem_native;
         } else {
-            mod filesystem_wasm32;
-            pub use filesystem_wasm32::Filesystem;
+            pub(crate) mod filesystem_wasm32;
         }
     }
 }
@@ -206,10 +207,18 @@ pub enum Pencil {
     Fill,
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        type FSAlias =  filesystem::filesystem_native::Filesystem;
+    } else {
+        type FSAlias = filesystem::filesystem_wasm32::Filesystem;
+    }
+}
+
 /// Passed to windows and widgets when updating.
 pub struct UpdateInfo {
     /// Filesystem to be passed around.
-    pub filesystem: Filesystem,
+    pub filesystem: FSAlias,
     /// The data cache.
     pub data_cache: DataCache,
     /// Windows that are displayed.

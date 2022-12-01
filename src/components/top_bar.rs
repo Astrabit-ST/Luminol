@@ -20,6 +20,7 @@ use std::sync::Arc;
 use poll_promise::Promise;
 use strum::IntoEnumIterator;
 
+use crate::filesystem::Filesystem;
 use crate::{Pencil, UpdateInfo};
 
 /// The top bar for managing the project.
@@ -209,7 +210,7 @@ impl TopBar {
         if save_project {
             info.toasts.info("Saving project...");
             self.save_project_promise = Some(Promise::spawn_local(async move {
-                info.filesystem.save_cached(&info.data_cache).await
+                info.filesystem.save_cached(info).await
             }));
         }
 
