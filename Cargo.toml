@@ -113,7 +113,7 @@ opt-level = 3
 members = []
 
 [patch.crates-io]
-poll-promise = { git = "https://github.com/Speak2Erase/poll-promise", rev = "f8e9099048b88852611f43068fe8fb6400b13a8d" }
+poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }
 egui_dock = { git = "https://github.com/Adanos020/egui_dock", rev = "ae1907505c94a4923328ebf956bd0c054a1a4091" }
 
 # If you want to use the bleeding edge version of egui and eframe:

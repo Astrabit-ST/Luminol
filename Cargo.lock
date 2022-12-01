@@ -3081,7 +3081,7 @@ dependencies = [
 [[package]]
 name = "poll-promise"
 version = "0.2.0"
-source = "git+https://github.com/Speak2Erase/poll-promise?rev=f8e9099048b88852611f43068fe8fb6400b13a8d#f8e9099048b88852611f43068fe8fb6400b13a8d"
+source = "git+https://github.com/EmbarkStudios/poll-promise?rev=8c4d0d6e4d693cf54e9306950cb2f6d271c77080#8c4d0d6e4d693cf54e9306950cb2f6d271c77080"
 dependencies = [
  "smol",
  "static_assertions",
