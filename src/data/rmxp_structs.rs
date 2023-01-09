@@ -547,13 +547,16 @@ pub mod rpg {
             armor4_id: i32,
         }
 
+        use crate::data::nil_padded::NilPadded;
+        use std::collections::HashMap;
+
         #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct System {
             pub magic_number: i32,
             pub party_members: Vec<i32>,
             pub elements: Vec<String>,
-            pub switches: Vec<String>,
-            pub variables: Vec<String>,
+            pub switches: NilPadded<String>,
+            pub variables: NilPadded<String>,
             pub windowskin_name: String,
             pub title_name: String,
             pub gameover_name: String,
@@ -575,6 +578,7 @@ pub mod rpg {
             pub actor_collapse_se: AudioFile,
             pub enemy_collapse_se: AudioFile,
             pub words: Words,
+            #[serde(skip)]
             pub test_battlers: Vec<TestBattler>,
             pub test_troop_id: i32,
             pub start_map_id: i32,

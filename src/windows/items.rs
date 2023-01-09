@@ -18,16 +18,17 @@
 use crate::data::rmxp_structs::rpg;
 
 use super::window::Window;
+use crate::data::nil_padded::NilPadded;
 
 /// The item edit window.
 pub struct ItemsWindow {
-    items: Vec<rpg::Item>,
+    items: NilPadded<rpg::Item>,
     selected_item: usize,
 }
 
 impl ItemsWindow {
     /// Create a new window.
-    pub fn new(items: Vec<rpg::Item>) -> Self {
+    pub fn new(items: NilPadded<rpg::Item>) -> Self {
         Self {
             items,
             selected_item: 0,

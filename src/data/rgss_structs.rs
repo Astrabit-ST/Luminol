@@ -41,9 +41,29 @@ use std::ops::{Index, IndexMut};
 /// We don't particularly need dynamically sized arrays anyway.
 /// 1D Table.
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(from = "alox_48::value::Userdata")]
 pub struct Table1 {
     xsize: usize,
-    data: Vec<i32>,
+    data: Vec<i16>,
+}
+
+impl From<alox_48::value::Userdata> for Table1 {
+    fn from(value: alox_48::value::Userdata) -> Self {
+        let u32_slice: &[u32] =
+            bytemuck::cast_slice(&value.data[0..std::mem::size_of::<u32>() * 5]);
+
+        assert_eq!(u32_slice[0], 1);
+        let xsize = u32_slice[1] as usize;
+        let ysize = u32_slice[2] as usize;
+        let zsize = u32_slice[3] as usize;
+        let len = u32_slice[4] as usize;
+
+        assert_eq!(xsize * ysize * zsize, len);
+        let data = bytemuck::cast_slice(&value.data[(std::mem::size_of::<u32>() * 5)..]).to_vec();
+        assert_eq!(data.len(), len);
+
+        Self { xsize, data }
+    }
 }
 
 impl Table1 {
@@ -71,13 +91,13 @@ impl Table1 {
     }
 
     /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i32> {
+    pub fn iter(&self) -> Iter<'_, i16> {
         self.data.iter()
     }
 }
 
 impl Index<usize> for Table1 {
-    type Output = i32;
+    type Output = i16;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.data[index]
@@ -92,11 +112,30 @@ impl IndexMut<usize> for Table1 {
 
 /// 2D table. See [`Table1`].
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(from = "alox_48::value::Userdata")]
 pub struct Table2 {
     xsize: usize,
-
     ysize: usize,
-    data: Vec<i32>,
+    data: Vec<i16>,
+}
+
+impl From<alox_48::value::Userdata> for Table2 {
+    fn from(value: alox_48::value::Userdata) -> Self {
+        let u32_slice: &[u32] =
+            bytemuck::cast_slice(&value.data[0..std::mem::size_of::<u32>() * 5]);
+
+        assert_eq!(u32_slice[0], 2);
+        let xsize = u32_slice[1] as usize;
+        let ysize = u32_slice[2] as usize;
+        let zsize = u32_slice[3] as usize;
+        let len = u32_slice[4] as usize;
+
+        assert_eq!(xsize * ysize * zsize, len);
+        let data = bytemuck::cast_slice(&value.data[(std::mem::size_of::<u32>() * 5)..]).to_vec();
+        assert_eq!(data.len(), len);
+
+        Self { xsize, ysize, data }
+    }
 }
 
 impl Table2 {
@@ -130,13 +169,13 @@ impl Table2 {
     }
 
     /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i32> {
+    pub fn iter(&self) -> Iter<'_, i16> {
         self.data.iter()
     }
 }
 
 impl Index<(usize, usize)> for Table2 {
-    type Output = i32;
+    type Output = i16;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         &self.data[index.0 + index.1 * self.xsize]
@@ -150,12 +189,37 @@ impl IndexMut<(usize, usize)> for Table2 {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(from = "alox_48::value::Userdata")]
 /// 3D table. See [`Table2`].
 pub struct Table3 {
     xsize: usize,
     ysize: usize,
     zsize: usize,
-    data: Vec<i32>,
+    data: Vec<i16>,
+}
+
+impl From<alox_48::value::Userdata> for Table3 {
+    fn from(value: alox_48::value::Userdata) -> Self {
+        let u32_slice: &[u32] =
+            bytemuck::cast_slice(&value.data[0..std::mem::size_of::<u32>() * 5]);
+
+        assert_eq!(u32_slice[0], 3);
+        let xsize = u32_slice[1] as usize;
+        let ysize = u32_slice[2] as usize;
+        let zsize = u32_slice[3] as usize;
+        let len = u32_slice[4] as usize;
+
+        assert_eq!(xsize * ysize * zsize, len);
+        let data = bytemuck::cast_slice(&value.data[(std::mem::size_of::<u32>() * 5)..]).to_vec();
+        assert_eq!(data.len(), len);
+
+        Self {
+            xsize,
+            ysize,
+            zsize,
+            data,
+        }
+    }
 }
 
 use std::slice::Iter;
@@ -197,13 +261,13 @@ impl Table3 {
     }
 
     /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i32> {
+    pub fn iter(&self) -> Iter<'_, i16> {
         self.data.iter()
     }
 }
 
 impl Index<(usize, usize, usize)> for Table3 {
-    type Output = i32;
+    type Output = i16;
 
     fn index(&self, index: (usize, usize, usize)) -> &Self::Output {
         &self.data[index.0 + (index.1 * self.xsize) + (index.2 * self.ysize)]

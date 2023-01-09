@@ -54,7 +54,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         path: impl AsRef<Path>,
         cache: &'static DataCache,
     ) -> Result<(), String> {
-        *self.project_path.borrow_mut() = Some(path.as_ref().clone().to_path_buf());
+        *self.project_path.borrow_mut() = Some(path.as_ref().to_path_buf());
 
         *self.loading_project.borrow_mut() = true;
         let result = cache.load(self).await.map_err(|e| {
@@ -99,10 +99,9 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
 
-        let data = async_fs::read_to_string(&path)
-            .await
-            .map_err(|e| e.to_string())?;
-        ron::from_str(&data).map_err(|e| format!("Loading {:?}: {e}", path))
+        let data = async_fs::read(&path).await.map_err(|e| e.to_string())?;
+
+        alox_48::from_bytes(&data).map_err(|e| format!("Loading {path:?}: {e}"))
     }
 
     /// Read bytes from a file.
@@ -240,7 +239,7 @@ impl Filesystem {
             return Err("Directory not empty".to_string());
         }
 
-        self.create_directory("Data_RON").await?;
+        self.create_directory("Data").await?;
 
         info.data_cache.setup_defaults();
         {

@@ -116,7 +116,7 @@ pub mod components {
             ) -> egui::Response;
 
             /// Display the tile picker.
-            fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i32);
+            fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
 
             /// Check if the textures are loaded yet.
             fn textures_loaded(&self) -> bool;
@@ -151,6 +151,8 @@ pub mod data {
     pub mod rgss_structs;
     /// RMXP structs.
     pub mod rmxp_structs;
+
+    pub mod nil_padded;
 }
 
 /// Filesystem related structs.
@@ -179,7 +181,7 @@ use std::sync::Arc;
 
 use components::toasts::Toasts;
 pub use eframe::egui_glow::glow;
-use egui::TextureFilter;
+use egui::TextureOptions;
 use egui_extras::RetainedImage;
 pub use luminol::Luminol;
 use saved_state::SavedState;
@@ -263,7 +265,7 @@ pub async fn load_image_software(
         path.clone(),
         &info.filesystem.read_bytes(&format!("{}.png", path)).await?,
     )
-    .map(|i| i.with_texture_filter(TextureFilter::Nearest))
+    .map(|i| i.with_options(TextureOptions::NEAREST))
 }
 
 /// Load a gl texture from disk.

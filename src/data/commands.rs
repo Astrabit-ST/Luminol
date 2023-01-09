@@ -26,6 +26,7 @@ use enum_as_inner::EnumAsInner;
 
 #[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner, PartialEq)]
 #[allow(missing_docs)]
+#[serde(from = "alox_48::Value")]
 pub enum ParameterType {
     Integer(i32),
     String(String),
@@ -36,8 +37,109 @@ pub enum ParameterType {
     MoveRoute(rpg::MoveRoute),
     MoveCommand(MoveCommand),
     Array(Vec<String>),
-    TrueClass(bool),
-    FalseClass(bool),
+    Bool(bool),
+}
+
+macro_rules! symbol {
+    ($string:literal) => {
+        &alox_48::Value::Symbol($string.to_string())
+    };
+}
+
+impl From<alox_48::Value> for ParameterType {
+    fn from(value: alox_48::Value) -> Self {
+        use alox_48::Value;
+        println!("{value:#?}");
+
+        match value {
+            Value::Integer(i) => Self::Integer(i as _),
+            Value::String(str) => Self::String(str),
+            // Value::Symbol(sym) => Self::String(sym),
+            Value::Object(obj) if obj.class == "RPG::AudioFile" => {
+                Self::AudioFile(rpg::AudioFile {
+                    name: obj.fields[symbol!("name")].clone().into_string().unwrap(),
+                    volume: obj.fields[symbol!("volume")]
+                        .clone()
+                        .into_integer()
+                        .unwrap() as _,
+                    pitch: obj.fields[symbol!("pitch")].clone().into_integer().unwrap() as _,
+                })
+            }
+            Value::Object(obj) if obj.class == "RPG::MoveRoute" => {
+                Self::MoveRoute(rpg::MoveRoute {
+                    repeat: obj.fields[symbol!("repeat")].clone().into_bool().unwrap(),
+                    skippable: obj.fields[symbol!("skippable")]
+                        .clone()
+                        .into_bool()
+                        .unwrap(),
+                    list: obj.fields[symbol!("list")]
+                        .clone()
+                        .into_array()
+                        .unwrap()
+                        .into_iter()
+                        .map(|obj| {
+                            let obj = obj.into_object().unwrap();
+
+                            intermediate::MoveCommand {
+                                code: obj.fields[symbol!("code")].clone().into_integer().unwrap()
+                                    as _,
+                                parameters: obj.fields[symbol!("parameters")]
+                                    .clone()
+                                    .into_array()
+                                    .unwrap()
+                                    .into_iter()
+                                    .map(Into::into)
+                                    .collect(),
+                            }
+                            .into()
+                        })
+                        .collect(),
+                })
+            }
+            Value::Object(obj) if obj.class == "RPG::MoveCommand" => Self::MoveCommand(
+                intermediate::MoveCommand {
+                    code: obj.fields[symbol!("code")].clone().into_integer().unwrap() as _,
+                    parameters: obj.fields[symbol!("parameters")]
+                        .clone()
+                        .into_array()
+                        .unwrap()
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                }
+                .into(),
+            ),
+            Value::Float(f) => Self::Float(f as _),
+            Value::Array(ary) => Self::Array(
+                ary.clone()
+                    .into_iter()
+                    .map(|v| v.into_string().unwrap())
+                    .collect(),
+            ),
+            Value::Bool(b) => Self::Bool(b),
+            Value::Userdata(data) if data.class == "Color" => {
+                let floats = bytemuck::cast_slice(&data.data);
+
+                Self::Color(Color {
+                    red: floats[0],
+                    green: floats[1],
+                    blue: floats[2],
+                    alpha: floats[3],
+                })
+            }
+            Value::Userdata(data) if data.class == "Tone" => {
+                let floats = bytemuck::cast_slice(&data.data);
+
+                Self::Tone(Tone {
+                    red: floats[0],
+                    green: floats[1],
+                    blue: floats[2],
+                    gray: floats[3],
+                })
+            }
+            _ => panic!("Unexpected type {value:#?}"),
+        }
+    }
 }
 
 impl From<String> for ParameterType {

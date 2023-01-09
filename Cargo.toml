@@ -18,17 +18,16 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "0.19.0"
-egui_extras = { version = "0.19.0", features = ["svg", "image"] }
-epaint = "0.19.0"
+egui = "0.20"
+egui_extras = { version = "0.20", features = ["svg", "image"] }
+epaint = "0.20"
 image = { version = "0.24", features = ["jpeg", "png"] }
-eframe = { version = "0.19.0", features = ["persistence", "puffin"] }
+eframe = { version = "0.20", features = ["persistence", "puffin"] }
 serde = { version = "1", features = ["derive"] }
-ron = "0.8"
 num-traits = "0.2"
 strum = { version = "0.24.1", features = ["derive"] }
-egui_dock = "0.2.1"
-egui-notify = "0.4.0"
+egui_dock = "0.3"
+egui-notify = "0.5"
 cfg-if = "1.0.0"
 futures = "0.3.24"
 git-version = "0.3.5"
@@ -40,10 +39,12 @@ syntect = { version = "5.0", features = [
     "default-fancy",
 ], default-features = false }
 color-eyre = "0.6.2"
-puffin_egui = "0.18.0"
+puffin_egui = "0.19"
 rand = "0.8.5"
 zip = { version = "0.6.3", default-features = false, features = ["deflate"] }
 async-trait = "0.1.58"
+alox-48 = { version = "*", git = "https://github.com/Speak2Erase/alox-48" }
+bytemuck = "1"
 
 [features]
 default = ["generic-tilemap"]
@@ -114,7 +115,7 @@ members = []
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }
-egui_dock = { git = "https://github.com/Adanos020/egui_dock", rev = "ae1907505c94a4923328ebf956bd0c054a1a4091" }
+egui_dock = { git = "https://github.com/Adanos020/egui_dock" }
 
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }

@@ -587,7 +587,7 @@ impl TilemapDef for Tilemap {
         response
     }
 
-    fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i32) {
+    fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
         let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
 
         if let Some(ref tileset_tex) = textures.tileset_tex {
@@ -601,7 +601,7 @@ impl TilemapDef for Tilemap {
                     let mut pos = (pos - rect.min) / 32.;
                     pos.x = pos.x.floor();
                     pos.y = pos.y.floor();
-                    *selected_tile = (pos.x + pos.y * 8.) as i32;
+                    *selected_tile = (pos.x + pos.y * 8.) as i16;
                 }
             }
             let cursor_x = *selected_tile % 8 * 32;
