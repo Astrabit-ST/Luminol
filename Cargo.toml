@@ -58,7 +58,7 @@ rodio = { version = "0.16.0", features = [
     "symphonia-all",
 ], default-features = false }
 poll-promise = { version = "0.2.0", features = ["smol"] }
-tokio = { version = "1.21.2", features = [
+tokio = { version = "1.24.2", features = [
     "macros",
     "rt-multi-thread",
 ], optional = true }
