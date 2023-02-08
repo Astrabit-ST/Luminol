@@ -40,12 +40,6 @@ pub enum ParameterType {
     Bool(bool),
 }
 
-macro_rules! symbol {
-    ($string:literal) => {
-        &alox_48::Value::Symbol($string.to_string())
-    };
-}
-
 impl From<alox_48::Value> for ParameterType {
     fn from(value: alox_48::Value) -> Self {
         use alox_48::Value;
@@ -53,26 +47,25 @@ impl From<alox_48::Value> for ParameterType {
 
         match value {
             Value::Integer(i) => Self::Integer(i as _),
-            Value::String(str) => Self::String(str),
+            Value::String(str) => Self::String(str.to_string().unwrap()),
             // Value::Symbol(sym) => Self::String(sym),
             Value::Object(obj) if obj.class == "RPG::AudioFile" => {
                 Self::AudioFile(rpg::AudioFile {
-                    name: obj.fields[symbol!("name")].clone().into_string().unwrap(),
-                    volume: obj.fields[symbol!("volume")]
+                    name: obj.fields["name"]
                         .clone()
-                        .into_integer()
-                        .unwrap() as _,
-                    pitch: obj.fields[symbol!("pitch")].clone().into_integer().unwrap() as _,
+                        .into_string()
+                        .unwrap()
+                        .to_string()
+                        .unwrap(),
+                    volume: obj.fields["volume"].clone().into_integer().unwrap() as _,
+                    pitch: obj.fields["pitch"].clone().into_integer().unwrap() as _,
                 })
             }
             Value::Object(obj) if obj.class == "RPG::MoveRoute" => {
                 Self::MoveRoute(rpg::MoveRoute {
-                    repeat: obj.fields[symbol!("repeat")].clone().into_bool().unwrap(),
-                    skippable: obj.fields[symbol!("skippable")]
-                        .clone()
-                        .into_bool()
-                        .unwrap(),
-                    list: obj.fields[symbol!("list")]
+                    repeat: obj.fields["repeat"].clone().into_bool().unwrap(),
+                    skippable: obj.fields["skippable"].clone().into_bool().unwrap(),
+                    list: obj.fields["list"]
                         .clone()
                         .into_array()
                         .unwrap()
@@ -81,9 +74,8 @@ impl From<alox_48::Value> for ParameterType {
                             let obj = obj.into_object().unwrap();
 
                             intermediate::MoveCommand {
-                                code: obj.fields[symbol!("code")].clone().into_integer().unwrap()
-                                    as _,
-                                parameters: obj.fields[symbol!("parameters")]
+                                code: obj.fields["code"].clone().into_integer().unwrap() as _,
+                                parameters: obj.fields["parameters"]
                                     .clone()
                                     .into_array()
                                     .unwrap()
@@ -98,8 +90,8 @@ impl From<alox_48::Value> for ParameterType {
             }
             Value::Object(obj) if obj.class == "RPG::MoveCommand" => Self::MoveCommand(
                 intermediate::MoveCommand {
-                    code: obj.fields[symbol!("code")].clone().into_integer().unwrap() as _,
-                    parameters: obj.fields[symbol!("parameters")]
+                    code: obj.fields["code"].clone().into_integer().unwrap() as _,
+                    parameters: obj.fields["parameters"]
                         .clone()
                         .into_array()
                         .unwrap()
@@ -113,7 +105,7 @@ impl From<alox_48::Value> for ParameterType {
             Value::Array(ary) => Self::Array(
                 ary.clone()
                     .into_iter()
-                    .map(|v| v.into_string().unwrap())
+                    .map(|v| v.into_string().unwrap().to_string().unwrap())
                     .collect(),
             ),
             Value::Bool(b) => Self::Bool(b),

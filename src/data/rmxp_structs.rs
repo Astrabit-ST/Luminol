@@ -548,7 +548,6 @@ pub mod rpg {
         }
 
         use crate::data::nil_padded::NilPadded;
-        use std::collections::HashMap;
 
         #[derive(Default, Debug, Deserialize, Serialize)]
         pub struct System {

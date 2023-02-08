@@ -5,6 +5,6 @@
 	"rust-analyzer.cargo.features": [],
 	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
 	"editor.formatOnSave": true,
-	"rust-analyzer.checkOnSave.command": "clippy",
+	"rust-analyzer.check.command": "clippy",
 	"rust-analyzer.procMacro.enable": true,
 }

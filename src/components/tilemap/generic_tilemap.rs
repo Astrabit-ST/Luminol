@@ -20,8 +20,8 @@ This file serves as a baseline for how to handle the tilemap.
 It's slow and should only be used as a reference for how the tilemap works.
 */
 
+use egui::Color32;
 use egui_extras::RetainedImage;
-use epaint::Color32;
 use std::collections::HashMap;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
