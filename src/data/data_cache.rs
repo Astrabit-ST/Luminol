@@ -92,12 +92,12 @@ impl DataCache {
                 .map_err(|s| format!("Failed to read Tilesets: {}", s))?,
         );
 
-        // *self.common_events.borrow_mut() = Some(
-        //     filesystem
-        //         .read_data("Data/CommonEvents.rxdata")
-        //         .await
-        //         .map_err(|s| format!("Failed to read Common Events: {}", s))?,
-        // );
+        *self.common_events.borrow_mut() = Some(
+            filesystem
+                .read_data("Data/CommonEvents.rxdata")
+                .await
+                .map_err(|s| format!("Failed to read Common Events: {}", s))?,
+        );
 
         *self.items.borrow_mut() = Some(
             filesystem

@@ -185,7 +185,7 @@ impl super::tab::Tab for Map {
 
                     if response.dragged()
                         && self.selected_layer < layers_max
-                        && !ui.input().modifiers.command
+                        && !ui.input(|i| i.modifiers.command)
                     {
                         map.data[(map_x as usize, map_y as usize, self.selected_layer)] =
                             self.selected_tile + 384;
@@ -235,9 +235,9 @@ impl super::tab::Tab for Map {
                         }
                     }
 
-                    if ui.input().key_pressed(egui::Key::Delete)
-                        || ui.input().key_pressed(egui::Key::Backspace)
-                    {
+                    if ui.input(|i| {
+                        i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
+                    }) {
                         if let Some((id, _)) = map
                             .events
                             .iter()

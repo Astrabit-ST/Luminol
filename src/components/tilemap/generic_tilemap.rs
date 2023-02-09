@@ -161,7 +161,7 @@ impl TilemapDef for Tilemap {
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
             let old_scale = self.scale;
-            let delta = ui.input().scroll_delta.y * 5.0;
+            let delta = ui.input(|i| i.scroll_delta.y * 5.0);
 
             // Apply scroll and cap max zoom to 15%
             self.scale += delta / 30.;
@@ -188,7 +188,9 @@ impl TilemapDef for Tilemap {
 
         // Handle pan
         let panning_map_view = response.dragged_by(egui::PointerButton::Middle)
-            || (ui.input().modifiers.command && response.dragged_by(egui::PointerButton::Primary));
+            || (ui.input(|i| {
+                i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
+            }));
         if panning_map_view {
             self.pan += response.drag_delta();
         }

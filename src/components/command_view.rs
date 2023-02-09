@@ -67,10 +67,13 @@ impl<'co> CommandView<'co> {
 
     /// Show the viewer.
     pub fn ui(mut self, ui: &mut egui::Ui, info: &'static UpdateInfo, commands: &'co mut Node) {
-        let memory = ui.memory().data.get_temp(egui::Id::new(format!(
-            "command_view_memory_{}",
-            self.custom_id_source
-        )));
+        let memory = ui.memory_mut(|m| {
+            m.data.get_temp(egui::Id::new(format!(
+                "command_view_memory_{}",
+                self.custom_id_source
+            )))
+        });
+
         let mut memory = memory.unwrap_or(Memory {
             selected_index: 0,
             move_route_modal: (2, None),
@@ -87,10 +90,12 @@ impl<'co> CommandView<'co> {
 
         self.modals(ui, &mut memory, info);
 
-        ui.memory().data.insert_temp(
-            egui::Id::new(format!("command_view_memory_{}", self.custom_id_source)),
-            memory,
-        );
+        ui.memory_mut(|m| {
+            m.data.insert_temp(
+                egui::Id::new(format!("command_view_memory_{}", self.custom_id_source)),
+                memory,
+            );
+        })
     }
 
     fn render_command(

@@ -172,7 +172,9 @@ impl Tab for ScriptTab {
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
             let mut layout_job = syntax_highlighting::highlight(ui.ctx(), &theme, string, "rb");
             layout_job.wrap.max_width = wrap_width;
-            ui.fonts().layout_job(layout_job)
+            ui.fonts(|f| {
+                f.layout_job(layout_job)
+            })
         };
 
         egui::ScrollArea::vertical().show(ui, |ui| {

@@ -18,12 +18,12 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "0.20"
-egui_extras = { version = "0.20", features = ["svg", "image"] }
-eframe = { version = "0.20", features = ["persistence", "puffin"] }
-egui_dock = "0.3"
-egui-notify = "0.5"
-puffin_egui = "0.19"
+egui_dock = "0.4"
+egui = "0.21"
+eframe = { version = "0.21", features = ["persistence", "puffin"] }
+egui_extras = { version = "0.21", features = ["svg", "image"] }
+egui-notify = "0.6"
+puffin_egui = "0.20"
 image = { version = "0.24", features = ["jpeg", "png"] }
 strum = { version = "0.24.1", features = ["derive"] }
 enum-as-inner = "0.5.1"

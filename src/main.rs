@@ -61,7 +61,8 @@ fn run_native() -> Result<()> {
         "Luminol",
         native_options,
         Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-    );
+    )
+    .expect("failed to start luminol");
 
     Ok(())
 }

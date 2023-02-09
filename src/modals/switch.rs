@@ -59,10 +59,10 @@ impl Modal for SwitchModal {
                 .clicked()
             {
                 *state = true;
-                ui.ctx()
-                    .memory()
-                    .data
-                    .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
+                ui.ctx().memory_mut(|m| {
+                    m.data
+                        .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
+                })
             }
         }
 
@@ -89,7 +89,8 @@ impl Modal for SwitchModal {
                 let system = info.data_cache.system();
                 let system = system.as_ref().unwrap();
 
-                let mut memory: (usize, usize, String) = ctx.data().get_temp(self.id).unwrap();
+                let mut memory: (usize, usize, String) =
+                    ctx.data_mut(|m| m.get_temp(self.id).unwrap());
 
                 ui.group(|ui| {
                     egui::ScrollArea::vertical()
@@ -143,7 +144,9 @@ impl Modal for SwitchModal {
                         .show(ui);
                 });
 
-                ctx.data().insert_temp(self.id, memory);
+                ctx.data_mut(|m| {
+                    m.insert_temp(self.id, memory);
+                })
             });
         *open = *open && win_open;
     }

@@ -52,13 +52,11 @@ impl TopBar {
             frame.set_fullscreen(self.fullscreen);
         }
 
-        let mut open_project = ui.input().modifiers.command
-            && ui.input().key_pressed(egui::Key::O)
+        let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
             && info.filesystem.project_loaded();
-        let mut save_project = ui.input().modifiers.command
-            && ui.input().key_pressed(egui::Key::S)
+        let mut save_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S))
             && info.filesystem.project_loaded();
-        if ui.input().modifiers.command && ui.input().key_pressed(egui::Key::N) {
+        if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::N)) {
             info.windows
                 .add_window(crate::windows::new_project::NewProjectWindow::default());
         }

@@ -61,10 +61,10 @@ impl Modal for VariableModal {
                 *state = true;
 
                 // (selected value, value to scroll to, filter text)
-                ui.ctx()
-                    .memory()
-                    .data
-                    .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
+                ui.ctx().memory_mut(|m| {
+                    m.data
+                        .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
+                })
             }
         }
 
@@ -92,7 +92,8 @@ impl Modal for VariableModal {
                 let system = system.as_ref().unwrap();
 
                 // (selected value, value to scroll to, filter text)
-                let mut memory: (usize, usize, String) = ctx.data().get_temp(self.id).unwrap();
+                let mut memory: (usize, usize, String) =
+                    ctx.data_mut(|m| m.get_temp(self.id).unwrap());
 
                 ui.group(|ui| {
                     egui::ScrollArea::vertical()
@@ -146,7 +147,9 @@ impl Modal for VariableModal {
                         .show(ui);
                 });
 
-                ctx.data().insert_temp(self.id, memory);
+                ctx.data_mut(|m| {
+                    m.insert_temp(self.id, memory);
+                })
             });
         *open = *open && win_open;
     }
