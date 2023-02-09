@@ -44,7 +44,7 @@ color-eyre = "0.6"
 eyre = "0.6"
 
 serde = { version = "1.0", features = ["derive"] }
-alox-48 = { version = "*", git = "https://github.com/Speak2Erase/alox-48" }
+alox-48 = { version = "*", path = "alox-48" }
 
 [features]
 default = ["generic-tilemap"]
@@ -65,7 +65,7 @@ tokio = { version = "1.21.2", features = [
 async-fs = "1.6.0"
 discord-sdk = { version = "0.3.0", optional = true }
 surf = "2.3.2"
-rfd = "0.10.0"
+rfd = "0.11.0"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -111,7 +111,7 @@ opt-level = 3
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = []
+members = ["alox-48"]
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }

@@ -45,13 +45,14 @@ impl<T: Default> Default for NilPadded<T> {
 impl<T> From<Vec<Option<T>>> for NilPadded<T> {
     fn from(value: Vec<Option<T>>) -> Self {
         let mut iter = value.into_iter();
+
         assert!(
             iter.next()
                 .expect("there should be at least one element")
                 .is_none(),
             "the array should be padded with nil at the first index"
         );
-        Self(iter.map(Option::unwrap).collect())
+        Self(iter.flatten().collect())
     }
 }
 
