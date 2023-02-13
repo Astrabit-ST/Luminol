@@ -23,7 +23,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-#![feature(drain_filter, is_some_and)]
+#![feature(drain_filter, is_some_and, min_specialization)]
 
 /// The main Luminol application.
 pub mod luminol;

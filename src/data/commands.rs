@@ -43,7 +43,6 @@ pub enum ParameterType {
 impl From<alox_48::Value> for ParameterType {
     fn from(value: alox_48::Value) -> Self {
         use alox_48::Value;
-        println!("{value:#?}");
 
         match value {
             Value::Integer(i) => Self::Integer(i as _),

@@ -101,6 +101,10 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
         let data = async_fs::read(&path).await.map_err(|e| e.to_string())?;
 
+        // let de = &mut alox_48::Deserializer::new(&data).unwrap();
+        // let result = serde_path_to_error::deserialize(de);
+        //
+        // result.map_err(|e| format!("{}: {:?}", e.path(), e.inner()))
         alox_48::from_bytes(&data).map_err(|e| format!("Loading {path:?}: {e}"))
     }
 

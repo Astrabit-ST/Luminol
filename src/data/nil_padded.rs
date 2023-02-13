@@ -16,11 +16,60 @@ use std::ops::{Deref, DerefMut};
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(from = "Vec<Option<T>>")]
+#[derive(Debug, Serialize, Clone)]
 pub struct NilPadded<T>(Vec<T>);
+
+impl<'de, T> serde::Deserialize<'de> for NilPadded<T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor<T> {
+            _marker: core::marker::PhantomData<T>,
+        }
+
+        impl<'de, T> serde::de::Visitor<'de> for Visitor<T>
+        where
+            T: serde::Deserialize<'de>,
+        {
+            type Value = NilPadded<T>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a nil padded array")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                use serde::de::Error;
+
+                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+
+                if let Some(v) = seq.next_element::<Option<T>>()? {
+                    if let Some(_) = v {
+                        return Err(A::Error::custom("the first element was not nil"));
+                    }
+                }
+
+                while let Some(ele) = seq.next_element::<T>()? {
+                    values.push(ele);
+                }
+
+                Ok(values.into())
+            }
+        }
+
+        deserializer.deserialize_seq(Visitor {
+            _marker: core::marker::PhantomData,
+        })
+    }
+}
 
 impl<T> Deref for NilPadded<T> {
     type Target = Vec<T>;

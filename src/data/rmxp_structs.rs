@@ -618,10 +618,54 @@ pub mod intermediate {
     }
 
     #[allow(missing_docs)]
-    #[derive(Debug, Deserialize, Serialize, Clone)]
+    #[derive(Debug, Serialize, Clone)]
     pub struct Script {
         pub id: usize,
         pub name: String,
         pub data: Vec<u8>,
+    }
+
+    impl<'de> serde::Deserialize<'de> for Script {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = Script;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    formatter.write_str("an array")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+                {
+                    use serde::de::Error;
+
+                    let Some(id) = seq.next_element()? else {
+                        return Err(A::Error::missing_field("id"));
+                    };
+
+                    let Some(name) = seq.next_element()? else {
+                        return Err(A::Error::missing_field("name"));
+                    };
+
+                    let Some(data) = seq.next_element::<alox_48::RbString>()? else {
+                        return Err(A::Error::missing_field("data"));
+                    };
+
+                    Ok(Script {
+                        id,
+                        name,
+                        data: data.data,
+                    })
+                }
+            }
+
+            deserializer.deserialize_any(Visitor)
+        }
     }
 }
