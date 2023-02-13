@@ -18,6 +18,7 @@ use std::ops::{Deref, DerefMut};
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use serde::Serialize;
 
+/// An array that is serialized and deserialized as padded with a None element.
 #[derive(Debug, Serialize, Clone)]
 pub struct NilPadded<T>(Vec<T>);
 
@@ -52,7 +53,7 @@ where
                 let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
 
                 if let Some(v) = seq.next_element::<Option<T>>()? {
-                    if let Some(_) = v {
+                    if v.is_some() {
                         return Err(A::Error::custom("the first element was not nil"));
                     }
                 }

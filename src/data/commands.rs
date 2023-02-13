@@ -102,8 +102,7 @@ impl From<alox_48::Value> for ParameterType {
             ),
             Value::Float(f) => Self::Float(f as _),
             Value::Array(ary) => Self::Array(
-                ary.clone()
-                    .into_iter()
+                ary.into_iter()
                     .map(|v| v.into_string().unwrap().to_string().unwrap())
                     .collect(),
             ),

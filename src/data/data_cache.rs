@@ -196,7 +196,7 @@ impl DataCache {
     }
 
     /// Save the local config.
-    pub async fn save_config(&self, filesystem: &impl Filesystem) -> Result<(), String> {
+    pub async fn save_config(&self, _filesystem: &impl Filesystem) -> Result<(), String> {
         // let config_str = self
         //     .config
         //     .borrow()
@@ -215,7 +215,7 @@ impl DataCache {
 
     /// Save all cached data to disk.
     /// Will flush the cache too.
-    pub async fn save(&self, filesystem: &impl Filesystem) -> Result<(), String> {
+    pub async fn save(&self, _filesystem: &impl Filesystem) -> Result<(), String> {
         // self.system().as_mut().unwrap().magic_number = rand::random();
         //
         // Write map data and clear map cache.

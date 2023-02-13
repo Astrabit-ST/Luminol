@@ -147,12 +147,12 @@ pub mod data {
     pub mod config;
     /// The data cache, used to store things before writing them to the disk.
     pub mod data_cache;
+    /// Nil padded arrays.
+    pub mod nil_padded;
     /// RGSS structs.
     pub mod rgss_structs;
     /// RMXP structs.
     pub mod rmxp_structs;
-
-    pub mod nil_padded;
 }
 
 /// Filesystem related structs.
