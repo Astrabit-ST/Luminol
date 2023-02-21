@@ -22,12 +22,12 @@ It's slow and should only be used as a reference for how the tilemap works.
 
 use egui::Color32;
 use egui_extras::RetainedImage;
+#[cfg(target_arch = "wasm32")]
+use fluvio_wasm_timer::Instant; // FIXME: use time crate (why is this necessary)
 use std::collections::HashMap;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
-#[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
 
 use egui::{Pos2, Response, Vec2};
 

@@ -79,12 +79,17 @@ fn main() -> Result<()> {
     tracing_wasm::set_as_global_default();
 
     let web_options = eframe::WebOptions::default();
-    eframe::start_web(
-        "the_canvas_id", // hardcode it
-        web_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-    )
-    .expect("failed to start eframe");
+
+    wasm_bindgen_futures::spawn_local(async {
+        eframe::start_web(
+            "the_canvas_id", // hardcode it
+            web_options,
+            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+        )
+        .await
+        .expect("failed to start eframe");
+    });
+
 
     Ok(())
 }

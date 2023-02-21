@@ -19,10 +19,7 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
-use crate::{
-    data::{config::RGSSVer, data_cache::DataCache},
-    UpdateInfo,
-};
+use crate::{data::config::RGSSVer, UpdateInfo};
 
 #[async_trait(?Send)]
 /// Filesystem abstraction.
@@ -36,13 +33,6 @@ pub trait Filesystem {
 
     /// Get the project path.
     fn project_path(&self) -> Option<PathBuf>;
-
-    /// Load a project and setup the Data Cache.
-    async fn load_project(
-        &self,
-        path: impl AsRef<Path>,
-        cache: &'static DataCache,
-    ) -> Result<(), String>;
 
     /// Get the directory children of a path.
     async fn dir_children(&self, path: impl AsRef<Path>) -> Result<Vec<String>, String>;

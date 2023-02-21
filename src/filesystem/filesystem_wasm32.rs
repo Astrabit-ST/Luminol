@@ -23,13 +23,15 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 
 use crate::data::config::RGSSVer;
-use crate::data::data_cache::DataCache;
 use crate::UpdateInfo;
+
+use wasm_bindgen::prelude::*;
 
 #[derive(Default)]
 pub struct Filesystem {
     project_path: RefCell<Option<PathBuf>>,
     loading_project: RefCell<bool>,
+    directory: RefCell<Option<web_sys::FileSystemDirectoryEntry>>,
 }
 
 #[async_trait(?Send)]
@@ -85,9 +87,46 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     async fn save_cached(&self, info: &'static UpdateInfo) -> Result<(), String> {
         todo!()
     }
+
     /// Try to open a project.
     async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
-        todo!()
+        let window = web_sys::window().unwrap();
+
+        let dialogue_fn = js_sys::Reflect::get(&window, &JsValue::from_str("showDirectoryPicker"))
+            .map_err(|_| "showDirectoryPicker not found")?;
+        let dialogue_fn: &js_sys::Function =
+            dialogue_fn.dyn_ref().ok_or("could not cast function?")?;
+
+        let future = dialogue_fn
+            .call0(&JsValue::NULL)
+            .map_err(|_| "failed to call showDirectoryPicker")?;
+        let future: js_sys::Promise = future.dyn_into().map_err(|_| "failed to cast future")?;
+        let future: wasm_bindgen_futures::JsFuture = future.into();
+
+        let result = future.await.map_err(|_| "awaiting future failed")?;
+        let directory: web_sys::FileSystemDirectoryEntry = result
+            .dyn_into()
+            .map_err(|r| format!("result was not a directory entry {r:?}"))?;
+
+        let path = js_sys::Reflect::get(&window, &JsValue::from_str("name"))
+            .map_err(|_| "failed to get path")?;
+        let path = path.as_string().ok_or("path was not a string?")?;
+
+        *self.directory.borrow_mut() = Some(directory);
+        *self.project_path.borrow_mut() = Some(path.into());
+
+        *self.loading_project.borrow_mut() = true;
+
+        info.data_cache.load(self).await.map_err(|e| {
+            *self.project_path.borrow_mut() = None;
+            *self.directory.borrow_mut() = None;
+
+            e
+        })?;
+
+        *self.loading_project.borrow_mut() = false;
+
+        Ok(())
     }
 
     /// Create a directory at the specified path.
@@ -101,14 +140,6 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         name: String,
         info: &'static UpdateInfo,
         rgss_ver: RGSSVer,
-    ) -> Result<(), String> {
-        todo!()
-    }
-
-    async fn load_project(
-        &self,
-        path: impl AsRef<Path>,
-        cache: &'static DataCache,
     ) -> Result<(), String> {
         todo!()
     }

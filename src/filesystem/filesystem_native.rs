@@ -48,24 +48,6 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         self.project_path.borrow().clone()
     }
 
-    /// Load a project and setup the Data Cache.
-    async fn load_project(
-        &self,
-        path: impl AsRef<Path>,
-        cache: &'static DataCache,
-    ) -> Result<(), String> {
-        *self.project_path.borrow_mut() = Some(path.as_ref().to_path_buf());
-
-        *self.loading_project.borrow_mut() = true;
-        let result = cache.load(self).await.map_err(|e| {
-            *self.project_path.borrow_mut() = None;
-            e
-        });
-        *self.loading_project.borrow_mut() = false;
-
-        result
-    }
-
     /// Get the directory children of a path.
     async fn dir_children(&self, path: impl AsRef<Path>) -> Result<Vec<String>, String> {
         // I am too lazy to make this actually async.
@@ -158,7 +140,17 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             let mut path = path.path().to_path_buf();
 
             path.pop(); // Pop off filename
-            self.load_project(path, &info.data_cache).await?;
+
+            *self.project_path.borrow_mut() = Some(path);
+
+            *self.loading_project.borrow_mut() = true;
+
+            info.data_cache.load(self).await.map_err(|e| {
+                *self.project_path.borrow_mut() = None;
+                e
+            })?;
+
+            *self.loading_project.borrow_mut() = false;
 
             {
                 let projects = &mut info.saved_state.borrow_mut().recent_projects;

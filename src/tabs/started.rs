@@ -76,17 +76,19 @@ impl super::tab::Tab for Started {
             #[cfg(not(target_arch = "wasm32"))]
             ui.heading("Recent");
 
+            #[cfg(not(target_arch = "wasm32"))]
             for path in info.saved_state.borrow().recent_projects.iter() {
                 if ui.button(path).clicked() {
                     let path = path.clone();
                     self.load_project_promise =
                         Some(poll_promise::Promise::spawn_local(async move {
-                            if let Err(e) =
-                                info.filesystem.load_project(&path, &info.data_cache).await
-                            {
-                                info.toasts
-                                    .error(format!("Error loading project {path}: {e}"));
-                            }
+                            // FIXME: re-add feature
+                            // if let Err(e) =
+                            //     info.filesystem.load_project(&path, &info.data_cache).await
+                            // {
+                            //     info.toasts
+                            //         .error(format!("Error loading project {path}: {e}"));
+                            // }
                         }));
                 }
             }
