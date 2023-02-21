@@ -19,7 +19,6 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use crate::data::config::RGSSVer;
-use crate::data::data_cache::DataCache;
 use crate::UpdateInfo;
 use async_trait::async_trait;
 

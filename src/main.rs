@@ -90,6 +90,5 @@ fn main() -> Result<()> {
         .expect("failed to start eframe");
     });
 
-
     Ok(())
 }

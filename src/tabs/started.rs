@@ -79,7 +79,7 @@ impl super::tab::Tab for Started {
             #[cfg(not(target_arch = "wasm32"))]
             for path in info.saved_state.borrow().recent_projects.iter() {
                 if ui.button(path).clicked() {
-                    let path = path.clone();
+                    let _path = path.clone();
                     self.load_project_promise =
                         Some(poll_promise::Promise::spawn_local(async move {
                             // FIXME: re-add feature
