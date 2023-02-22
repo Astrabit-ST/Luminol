@@ -364,10 +364,12 @@ impl TilemapDef for Tilemap {
                 // aaaaaaaa
                 // Get graphic and texture
                 let graphic = &event.pages[0].graphic;
-                let tex = textures
+                let Some(tex) = textures
                     .event_texs
                     .get(&(graphic.character_name.clone(), graphic.character_hue))
-                    .unwrap();
+                    else {
+                        continue;
+                    };
                 if let Some(tex) = tex {
                     // FInd character width and height
                     let cw = (tex.width() / 4) as f32;

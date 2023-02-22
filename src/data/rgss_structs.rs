@@ -4,12 +4,27 @@ use serde::{Deserialize, Serialize};
 /// **A struct representing an RGBA color.**
 ///
 /// Used all over the place in RGSS.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[serde(from = "alox_48::Userdata")]
+
 pub struct Color {
     pub red: f32,
     pub green: f32,
     pub blue: f32,
     pub alpha: f32,
+}
+
+impl From<alox_48::Userdata> for Color {
+    fn from(value: alox_48::Userdata) -> Self {
+        let floats = bytemuck::cast_slice(&value.data);
+
+        Self {
+            red: floats[0],
+            green: floats[1],
+            blue: floats[2],
+            alpha: floats[3],
+        }
+    }
 }
 
 // Default values
@@ -27,12 +42,26 @@ impl Default for Color {
 /// **A struct representing an offset to an RGBA color.**
 ///
 /// Its members are f32 but must not exceed the range of 255..-255.
-#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[serde(from = "alox_48::Userdata")]
 pub struct Tone {
     pub red: f32,
     pub green: f32,
     pub blue: f32,
     pub gray: f32,
+}
+
+impl From<alox_48::Userdata> for Tone {
+    fn from(value: alox_48::Userdata) -> Self {
+        let floats = bytemuck::cast_slice(&value.data);
+
+        Self {
+            red: floats[0],
+            green: floats[1],
+            blue: floats[2],
+            gray: floats[3],
+        }
+    }
 }
 
 use std::ops::{Index, IndexMut};

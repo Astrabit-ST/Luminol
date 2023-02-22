@@ -475,7 +475,7 @@ pub mod rpg {
             pub position: i32,
             pub frame_max: i32,
             pub frames: Vec<Frame>,
-            pub timings: Vec<i32>,
+            pub timings: Vec<Timing>,
         }
     }
 
@@ -550,6 +550,7 @@ pub mod rpg {
         use crate::data::nil_padded::NilPadded;
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(default)] // ??? rmxp???
         pub struct System {
             pub magic_number: i32,
             pub party_members: Vec<i32>,

@@ -22,6 +22,9 @@ use puffin_egui::puffin;
 
 use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
 
+#[cfg(feature = "discord-rpc")]
+use crate::filesystem::filesystem_trait::Filesystem;
+
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
