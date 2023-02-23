@@ -54,7 +54,7 @@ macro_rules! save_data {
                     .[< $name:lower >]
                     .borrow()
                     .as_ref()
-                    .map(|t| alox_48::to_bytes(t).map_err(|e| e.to_string()));
+                    .map(|t| alox_48::to_bytes(t).map_err(|e| format!(concat!("Saving ", stringify!($name), ": {}"), e)));
 
                 if let Some(_bytes) = _bytes {
                     $filesystem
@@ -75,7 +75,7 @@ macro_rules! load_data {
                     $filesystem
                         .read_data(concat!("Data/", stringify!($name), ".rxdata"))
                         .await
-                        .map_err(|s| format!(concat!("Failed to read", stringify!($name) ,": {}"), s))?,
+                        .map_err(|s| format!(concat!("Failed to load", stringify!($name) ,": {}"), s))?,
                 );
             }
         )*
@@ -85,10 +85,16 @@ macro_rules! load_data {
 impl DataCache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
+        // FIXME: keep errors?
         let config = filesystem
-            .read_data(".luminol")
+            .read_bytes(".luminol")
             .await
             .ok()
+            .and_then(|v| {
+                String::from_utf8(v)
+                    .ok()
+                    .and_then(|s| ron::from_str::<LocalConfig>(&s).ok())
+            })
             .unwrap_or_default();
 
         *self.config.borrow_mut() = Some(config);
@@ -190,11 +196,9 @@ impl DataCache {
 
     /// Save the local config.
     pub async fn save_config(&self, filesystem: &impl Filesystem) -> Result<(), String> {
-        let config_bytes = self
-            .config
-            .borrow()
-            .as_ref()
-            .map(|c| alox_48::to_bytes(c).map_err(|e| e.to_string()));
+        let config_bytes = self.config.borrow().as_ref().map(|c| {
+            ron::to_string(c).map_err(|e| format!("Failed to serialize config data: {e}"))
+        });
 
         if let Some(config_bytes) = config_bytes {
             filesystem

@@ -16,10 +16,9 @@ use std::ops::{Deref, DerefMut};
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use serde::Serialize;
 
 /// An array that is serialized and deserialized as padded with a None element.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct NilPadded<T>(Vec<T>);
 
 impl<'de, T> serde::Deserialize<'de> for NilPadded<T>
@@ -69,6 +68,27 @@ where
         deserializer.deserialize_seq(Visitor {
             _marker: core::marker::PhantomData,
         })
+    }
+}
+
+impl<T> serde::Serialize for NilPadded<T>
+where
+    T: serde::Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeSeq;
+
+        let mut seq = serializer.serialize_seq(Some(self.len() + 1))?;
+        seq.serialize_element(&None::<T>)?;
+
+        for v in self.iter() {
+            seq.serialize_element(v)?;
+        }
+
+        seq.end()
     }
 }
 

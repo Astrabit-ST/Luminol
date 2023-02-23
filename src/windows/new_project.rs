@@ -241,7 +241,8 @@ impl NewProjectWindow {
         progress.zip_total.set(zip_url.len());
 
         let zips = futures::future::join_all(zip_url.iter().map(|url| async move {
-            surf::get(format!("https://api.allorigins.win/raw?url={url}"))
+            // surf::get(format!("https://api.allorigins.win/raw?url={url}"))  FIXME: phishing scam, apparently
+            surf::get(url)
                 .middleware(surf::middleware::Redirect::new(10))
                 .await
         }))

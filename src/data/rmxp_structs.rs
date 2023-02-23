@@ -8,6 +8,7 @@ pub mod rpg {
     use serde::{Deserialize, Serialize};
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::Map")]
     pub struct Map {
         pub tileset_id: i32,
         pub width: usize,
@@ -27,6 +28,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::MapInfo")]
     pub struct MapInfo {
         pub name: String,
         pub parent_id: i32,
@@ -44,6 +46,7 @@ pub mod rpg {
             use serde::{Deserialize, Serialize};
 
             #[derive(Debug, Deserialize, Serialize, Clone)]
+            #[serde(rename = "RPG::Event::Graphic")]
             pub struct Condition {
                 pub switch1_valid: bool,
                 pub switch2_valid: bool,
@@ -73,6 +76,7 @@ pub mod rpg {
             }
 
             #[derive(Debug, Deserialize, Serialize, Clone)]
+            #[serde(rename = "RPG::Event::Graphic")]
             pub struct Graphic {
                 pub tile_id: i32,
                 pub character_name: String,
@@ -98,6 +102,7 @@ pub mod rpg {
             }
 
             #[derive(Debug, Deserialize, Serialize, Clone)]
+            #[serde(rename = "RPG::Event::Page")]
             pub struct Page {
                 pub condition: Condition,
                 pub graphic: Graphic,
@@ -136,6 +141,7 @@ pub mod rpg {
         }
 
         #[derive(Debug, Deserialize, Serialize, Clone)]
+        #[serde(rename = "RPG::Event")]
         pub struct Event {
             pub id: usize,
             pub name: String,
@@ -158,6 +164,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
+    #[serde(rename = "RPG::MoveRoute")]
     pub struct MoveRoute {
         pub repeat: bool,
         pub skippable: bool,
@@ -165,6 +172,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::Actor")]
     pub struct Actor {
         pub id: i32,
         pub name: String,
@@ -194,11 +202,13 @@ pub mod rpg {
         use crate::data::rgss_structs::Table1;
         use serde::{Deserialize, Serialize};
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Class::Learning")]
         pub struct Learning {
             pub level: i32,
             pub skill_id: i32,
         }
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Class")]
         pub struct Class {
             pub id: i32,
             pub name: String,
@@ -214,6 +224,7 @@ pub mod rpg {
     // FIXME: I don't use the battle system, so I'm unsure what some of these types *should* be.
     // I plan to support the battle system but that comes after everything else.
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::Skill")]
     pub struct Skill {
         pub id: i32,
         pub name: String,
@@ -242,8 +253,8 @@ pub mod rpg {
         pub minus_state_set: Vec<i32>,
     }
 
-    // FIXME: There are a lot of repeated fields here. I should probably make a trait for them.
     #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+    #[serde(rename = "RPG::Item")]
     pub struct Item {
         pub id: i32,
         pub name: String,
@@ -277,6 +288,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::Weapon")]
     pub struct Weapon {
         pub id: i32,
         pub name: String,
@@ -298,6 +310,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::Armor")]
     pub struct Armor {
         pub id: i32,
         pub name: String,
@@ -322,6 +335,7 @@ pub mod rpg {
         use serde::{Deserialize, Serialize};
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Enemy::Action")]
         pub struct Action {
             pub kind: i32,
             pub basic: i32,
@@ -335,6 +349,7 @@ pub mod rpg {
         }
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Enemy")]
         pub struct Enemy {
             pub id: i32,
             pub name: String,
@@ -367,6 +382,7 @@ pub mod rpg {
     pub mod troop {
         use serde::{Deserialize, Serialize};
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Troop::Member")]
         pub struct Member {
             pub enemy_id: i32,
             pub x: i32,
@@ -381,6 +397,7 @@ pub mod rpg {
             use crate::data::command_tree::Node;
 
             #[derive(Default, Debug, Deserialize, Serialize)]
+            #[serde(rename = "RPG::Troop::Condition")]
             pub struct Condition {
                 pub turn_valid: bool,
                 pub enemy_valid: bool,
@@ -396,6 +413,7 @@ pub mod rpg {
             }
 
             #[derive(Default, Debug, Deserialize, Serialize)]
+            #[serde(rename = "RPG::Troop::Page")]
             pub struct Page {
                 pub condition: Condition,
                 pub span: i32,
@@ -404,6 +422,7 @@ pub mod rpg {
         }
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Troop")]
         pub struct Troop {
             pub id: i32,
             pub name: String,
@@ -413,6 +432,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::State")]
     pub struct State {
         pub id: i32,
         pub name: String,
@@ -451,12 +471,14 @@ pub mod rpg {
         use super::AudioFile;
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Animation::Frame")]
         pub struct Frame {
             pub cell_max: i32,
             pub cell_data: Table2,
         }
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Animation::Timing")]
         pub struct Timing {
             pub frame: i32,
             pub se: AudioFile,
@@ -467,6 +489,7 @@ pub mod rpg {
         }
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::Animation")]
         pub struct Animation {
             pub id: i32,
             pub name: String,
@@ -480,6 +503,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize)]
+    #[serde(rename = "RPG::Tileset")]
     pub struct Tileset {
         pub id: i32,
         pub name: String,
@@ -501,6 +525,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+    #[serde(rename = "RPG::CommonEvent")]
     pub struct CommonEvent {
         pub id: usize,
         pub name: String,
@@ -514,6 +539,7 @@ pub mod rpg {
         use serde::{Deserialize, Serialize};
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::System::Words")]
         pub struct Words {
             gold: String,
             hp: String,
@@ -537,6 +563,7 @@ pub mod rpg {
         }
 
         #[derive(Default, Debug, Deserialize, Serialize)]
+        #[serde(rename = "RPG::System::TestBattler")]
         pub struct TestBattler {
             actor_id: i32,
             level: i32,
@@ -551,6 +578,7 @@ pub mod rpg {
 
         #[derive(Default, Debug, Deserialize, Serialize)]
         #[serde(default)] // ??? rmxp???
+        #[serde(rename = "RPG::System")]
         pub struct System {
             pub magic_number: i32,
             pub party_members: Vec<i32>,
@@ -592,6 +620,7 @@ pub mod rpg {
     }
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
+    #[serde(rename = "RPG::AudioFile")]
     pub struct AudioFile {
         pub name: String,
         pub volume: u8,
@@ -605,6 +634,7 @@ pub mod intermediate {
 
     #[derive(Debug, Deserialize, Serialize, Clone)]
     #[allow(missing_docs)]
+    #[serde(rename = "RPG::EventCommand")]
     pub struct EventCommand {
         pub code: i32,
         pub indent: usize,
@@ -613,13 +643,15 @@ pub mod intermediate {
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
     #[allow(missing_docs)]
+    #[serde(rename = "RPG::MoveCommand")]
     pub struct MoveCommand {
         pub code: i32,
         pub parameters: Vec<ParameterType>,
     }
 
+    // FIXME: add custom serialize impl
     #[allow(missing_docs)]
-    #[derive(Debug, Serialize, Clone)]
+    #[derive(Debug, Clone)]
     pub struct Script {
         pub id: usize,
         pub name: String,
@@ -667,6 +699,26 @@ pub mod intermediate {
             }
 
             deserializer.deserialize_any(Visitor)
+        }
+    }
+
+    impl Serialize for Script {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            use serde::ser::SerializeSeq;
+
+            let mut seq = serializer.serialize_seq(Some(3))?;
+
+            seq.serialize_element(&self.id)?;
+            seq.serialize_element(&self.name)?;
+            seq.serialize_element(&alox_48::RbString {
+                data: self.data.clone(),
+                ..Default::default()
+            })?;
+
+            seq.end()
         }
     }
 }

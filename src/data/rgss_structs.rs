@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Used all over the place in RGSS.
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 #[serde(from = "alox_48::Userdata")]
+#[serde(into = "alox_48::Userdata")]
 
 pub struct Color {
     pub red: f32,
@@ -27,6 +28,17 @@ impl From<alox_48::Userdata> for Color {
     }
 }
 
+impl From<Color> for alox_48::Userdata {
+    fn from(value: Color) -> Self {
+        let floats = [value.red, value.green, value.blue, value.alpha];
+
+        alox_48::Userdata {
+            class: "Color".into(),
+            data: bytemuck::cast_slice(&floats).to_vec(),
+        }
+    }
+}
+
 // Default values
 impl Default for Color {
     fn default() -> Self {
@@ -44,6 +56,7 @@ impl Default for Color {
 /// Its members are f32 but must not exceed the range of 255..-255.
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 #[serde(from = "alox_48::Userdata")]
+#[serde(into = "alox_48::Userdata")]
 pub struct Tone {
     pub red: f32,
     pub green: f32,
@@ -64,20 +77,32 @@ impl From<alox_48::Userdata> for Tone {
     }
 }
 
+impl From<Tone> for alox_48::Userdata {
+    fn from(value: Tone) -> Self {
+        let floats = [value.red, value.green, value.blue, value.gray];
+
+        alox_48::Userdata {
+            class: "Tone".into(),
+            data: bytemuck::cast_slice(&floats).to_vec(),
+        }
+    }
+}
+
 use std::ops::{Index, IndexMut};
 
 /// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust.
 /// We don't particularly need dynamically sized arrays anyway.
 /// 1D Table.
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(from = "alox_48::value::Userdata")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(from = "alox_48::Userdata")]
+#[serde(into = "alox_48::Userdata")]
 pub struct Table1 {
     xsize: usize,
     data: Vec<i16>,
 }
 
-impl From<alox_48::value::Userdata> for Table1 {
-    fn from(value: alox_48::value::Userdata) -> Self {
+impl From<alox_48::Userdata> for Table1 {
+    fn from(value: alox_48::Userdata) -> Self {
         let u32_slice: &[u32] =
             bytemuck::cast_slice(&value.data[0..std::mem::size_of::<u32>() * 5]);
 
@@ -92,6 +117,19 @@ impl From<alox_48::value::Userdata> for Table1 {
         assert_eq!(data.len(), len);
 
         Self { xsize, data }
+    }
+}
+
+impl From<Table1> for alox_48::Userdata {
+    fn from(value: Table1) -> Self {
+        let header = &[1, value.xsize as u32, 1, 1, value.len() as u32];
+        let mut data = bytemuck::pod_collect_to_vec(header);
+        data.extend_from_slice(bytemuck::cast_slice(&value.data));
+
+        Self {
+            class: "Table".into(),
+            data,
+        }
     }
 }
 
@@ -140,16 +178,17 @@ impl IndexMut<usize> for Table1 {
 }
 
 /// 2D table. See [`Table1`].
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(from = "alox_48::value::Userdata")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(from = "alox_48::Userdata")]
+#[serde(into = "alox_48::Userdata")]
 pub struct Table2 {
     xsize: usize,
     ysize: usize,
     data: Vec<i16>,
 }
 
-impl From<alox_48::value::Userdata> for Table2 {
-    fn from(value: alox_48::value::Userdata) -> Self {
+impl From<alox_48::Userdata> for Table2 {
+    fn from(value: alox_48::Userdata) -> Self {
         let u32_slice: &[u32] =
             bytemuck::cast_slice(&value.data[0..std::mem::size_of::<u32>() * 5]);
 
@@ -164,6 +203,25 @@ impl From<alox_48::value::Userdata> for Table2 {
         assert_eq!(data.len(), len);
 
         Self { xsize, ysize, data }
+    }
+}
+
+impl From<Table2> for alox_48::Userdata {
+    fn from(value: Table2) -> Self {
+        let header = &[
+            2,
+            value.xsize as u32,
+            value.ysize as u32,
+            1,
+            value.len() as u32,
+        ];
+        let mut data = bytemuck::pod_collect_to_vec(header);
+        data.extend_from_slice(bytemuck::cast_slice(&value.data));
+
+        Self {
+            class: "Table".into(),
+            data,
+        }
     }
 }
 
@@ -217,8 +275,9 @@ impl IndexMut<(usize, usize)> for Table2 {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(from = "alox_48::value::Userdata")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(from = "alox_48::Userdata")]
+#[serde(into = "alox_48::Userdata")]
 /// 3D table. See [`Table2`].
 pub struct Table3 {
     xsize: usize,
@@ -227,8 +286,8 @@ pub struct Table3 {
     data: Vec<i16>,
 }
 
-impl From<alox_48::value::Userdata> for Table3 {
-    fn from(value: alox_48::value::Userdata) -> Self {
+impl From<alox_48::Userdata> for Table3 {
+    fn from(value: alox_48::Userdata) -> Self {
         let u32_slice: &[u32] =
             bytemuck::cast_slice(&value.data[0..std::mem::size_of::<u32>() * 5]);
 
@@ -246,6 +305,25 @@ impl From<alox_48::value::Userdata> for Table3 {
             xsize,
             ysize,
             zsize,
+            data,
+        }
+    }
+}
+
+impl From<Table3> for alox_48::Userdata {
+    fn from(value: Table3) -> Self {
+        let header = &[
+            3,
+            value.xsize as u32,
+            value.ysize as u32,
+            value.zsize as u32,
+            value.len() as u32,
+        ];
+        let mut data = bytemuck::pod_collect_to_vec(header);
+        data.extend_from_slice(bytemuck::cast_slice(&value.data));
+
+        Self {
+            class: "Table".into(),
             data,
         }
     }
