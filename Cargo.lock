@@ -199,12 +199,13 @@ dependencies = [
 
 [[package]]
 name = "alox-48"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "color-eyre",
  "enum-as-inner",
  "indexmap",
+ "paste",
  "pretty-hex",
  "serde",
  "thiserror",
@@ -2619,6 +2620,7 @@ dependencies = [
  "image",
  "js-sys",
  "once_cell",
+ "paste",
  "poll-promise",
  "puffin_egui",
  "rand 0.8.5",
@@ -2665,9 +2667,9 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "memmap2"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af2c65375e552a67fe3829ca63e8a7c27a378a62824594f43b2851d682b5ec2"
+checksum = "83faa42c0a078c393f6b29d5db232d8be22776a891f8f56e5284faee4a20b327"
 dependencies = [
  "libc",
 ]
