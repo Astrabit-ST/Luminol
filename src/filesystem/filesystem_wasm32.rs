@@ -17,57 +17,21 @@
 #![allow(missing_docs)]
 #![allow(unused_variables)]
 
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use js_sys::JsString;
+use wasm_bindgen_futures::JsFuture;
 
 use crate::data::config::RGSSVer;
 use crate::UpdateInfo;
 
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-extern "C" {
-    #[derive(Clone, Debug)]
-    type FileSystemHandle;
-
-    #[wasm_bindgen(method, getter)]
-    fn name(this: &FileSystemHandle) -> String;
-
-    #[wasm_bindgen(extends = FileSystemHandle)]
-    #[derive(Clone, Debug)]
-    type FileSystemFileHandle;
-
-    #[wasm_bindgen(method, js_name = getFile)]
-    async fn get_file(this: &FileSystemFileHandle) -> JsValue;
-
-    #[wasm_bindgen(extends = FileSystemHandle)]
-    #[derive(Clone, Debug)]
-    type FileSystemDirectoryHandle;
-
-    #[wasm_bindgen(method, js_name = getFileHandle, catch)]
-    async fn get_file_handle(
-        this: &FileSystemDirectoryHandle,
-        path: JsString,
-    ) -> Result<JsValue, JsValue>;
-
-    #[wasm_bindgen(method, js_name = getDirectoryHandle, catch)]
-    async fn get_directory_handle(
-        this: &FileSystemDirectoryHandle,
-        path: JsString,
-    ) -> Result<JsValue, JsValue>;
-
-    #[wasm_bindgen(method)]
-    fn entries(this: &FileSystemDirectoryHandle) -> FileSystemDirectoryIterator;
-
-    type FileSystemDirectoryIterator;
-
-    #[wasm_bindgen(method)]
-    async fn next(this: &FileSystemDirectoryIterator) -> JsValue;
-}
+use web_sys::{
+    File, FileSystemDirectoryHandle, FileSystemFileHandle, FileSystemGetDirectoryOptions,
+    FileSystemGetFileOptions, FileSystemHandle, FileSystemWritableFileStream,
+};
 
 #[wasm_bindgen]
 extern "C" {
@@ -84,17 +48,14 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
-    async fn get_file(&self, path: &Path) -> Result<web_sys::File, JsValue> {
+    async fn get_file(&self, path: &Path) -> Result<File, JsValue> {
         let file = self.get_parent_dir(path).await?;
 
-        let file: FileSystemFileHandle = file
-            .get_file_handle(JsString::from(
-                path.file_name().unwrap().to_string_lossy().borrow(),
-            ))
-            .await?
-            .dyn_into()?;
+        let promise = file.get_file_handle(path.file_name().unwrap().to_str().unwrap())?;
+        let file: FileSystemFileHandle = JsFuture::from(promise).await?.dyn_into()?;
 
-        file.get_file().await.dyn_into()
+        let promise = FileSystemFileHandle::get_file(&file)?;
+        JsFuture::from(promise).await?.dyn_into()
     }
 
     async fn get_parent_dir(&self, path: &Path) -> Result<FileSystemDirectoryHandle, JsValue> {
@@ -107,16 +68,64 @@ impl Filesystem {
         if let Some(parent) = path.parent() {
             for p in parent.components() {
                 let p = p.as_os_str();
-                let p = p.to_string_lossy();
+                let p = p.to_str().unwrap();
 
-                file = file
-                    .get_directory_handle(JsString::from(p.borrow()))
-                    .await?
-                    .dyn_into()?;
+                let promise = file.get_directory_handle(p)?;
+                file = JsFuture::from(promise).await?.dyn_into()?;
             }
         }
 
         Ok(file)
+    }
+
+    async fn create_project(
+        &self,
+        name: String,
+        info: &'static UpdateInfo,
+        rgss_ver: RGSSVer,
+    ) -> Result<(), String> {
+        use super::filesystem_trait::Filesystem;
+
+        self.create_directory("").await?;
+
+        if !self.dir_children(".").await?.is_empty() {
+            return Err("Directory not empty".to_string());
+        }
+
+        self.create_directory("Data").await?;
+
+        info.data_cache.setup_defaults();
+        {
+            let mut config = info.data_cache.config();
+            let config = config.as_mut().unwrap();
+            config.rgss_ver = rgss_ver;
+            config.project_name = name;
+        }
+
+        self.save_cached(info).await?;
+
+        self.create_directory("Audio").await?;
+        self.create_directory("Audio/BGM").await?;
+        self.create_directory("Audio/BGS").await?;
+        self.create_directory("Audio/SE").await?;
+        self.create_directory("Audio/ME").await?;
+
+        self.create_directory("Graphics").await?;
+        self.create_directory("Graphics/Animations").await?;
+        self.create_directory("Graphics/Autotiles").await?;
+        self.create_directory("Graphics/Battlebacks").await?;
+        self.create_directory("Graphics/Battlers").await?;
+        self.create_directory("Graphics/Characters").await?;
+        self.create_directory("Graphics/Fogs").await?;
+        self.create_directory("Graphics/Icons").await?;
+        self.create_directory("Graphics/Panoramas").await?;
+        self.create_directory("Graphics/Pictures").await?;
+        self.create_directory("Graphics/Tilesets").await?;
+        self.create_directory("Graphics/Titles").await?;
+        self.create_directory("Graphics/Transitions").await?;
+        self.create_directory("Graphics/Windowskins").await?;
+
+        Ok(())
     }
 }
 
@@ -146,32 +155,24 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             .map_err(|e| format!("error getting_directories {e:?}"))?;
 
         let prefix = path.as_ref().file_name().unwrap();
-        let prefix = prefix.to_string_lossy();
-        let folder = folder
-            .get_directory_handle(JsString::from(prefix.borrow()))
+        let prefix = prefix.to_str().unwrap();
+        let promise = folder
+            .get_directory_handle(prefix)
+            .map_err(|e| format!("{e:?}"))?;
+        let folder: FileSystemDirectoryHandle = JsFuture::from(promise)
             .await
+            .map_err(|e| format!("{e:?}"))?
+            .dyn_into()
             .unwrap();
-        let folder: FileSystemDirectoryHandle = folder.dyn_into().unwrap();
 
-        let iter = folder.entries();
+        let iter = js_sys::try_iter(&folder).unwrap().unwrap();
         let mut entries = vec![];
 
-        loop {
-            let next = iter.next().await;
+        for next in iter {
+            let next: js_sys::Promise = next.unwrap().dyn_into().unwrap();
+            let next: FileSystemHandle = JsFuture::from(next).await.unwrap().dyn_into().unwrap();
 
-            if js_sys::Reflect::get(&next, &"done".into())
-                .unwrap()
-                .is_truthy()
-            {
-                break;
-            }
-
-            let value: js_sys::Array = js_sys::Reflect::get(&next, &"value".into())
-                .unwrap()
-                .dyn_into()
-                .unwrap();
-
-            entries.push(value.get(0).as_string().unwrap());
+            entries.push(FileSystemHandle::name(&next));
         }
 
         Ok(entries)
@@ -184,38 +185,18 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     where
         T: serde::de::DeserializeOwned,
     {
-        let file = self
-            .get_file(path.as_ref())
-            .await
-            .map_err(|e| format!("js error {e:?}"))?;
-
-        let buf: wasm_bindgen_futures::JsFuture = file.array_buffer().into();
-        let buf = buf
-            .await
-            .map_err(|e| format!("i am rolling in my grave {e:?}"))?;
-        let buf: js_sys::ArrayBuffer = buf
-            .dyn_into()
-            .map_err(|e| format!("fuck javascript. {e:?}"))?;
-        let buf = js_sys::Uint8Array::new(&buf);
-        let buf = buf.to_vec();
+        let buf = self.read_bytes(path).await?;
 
         alox_48::from_bytes(&buf).map_err(|e| e.to_string())
     }
 
     /// Read bytes from a file.
     async fn read_bytes(&self, path: impl AsRef<Path>) -> Result<Vec<u8>, String> {
-        let file = self
-            .get_file(path.as_ref())
-            .await
-            .map_err(|e| format!("js error {e:?}"))?;
+        let file = self.get_file(path.as_ref()).await.unwrap();
 
-        let buf: wasm_bindgen_futures::JsFuture = file.array_buffer().into();
-        let buf = buf
-            .await
-            .map_err(|e| format!("i am rolling in my grave {e:?}"))?;
-        let buf: js_sys::ArrayBuffer = buf
-            .dyn_into()
-            .map_err(|e| format!("fuck javascript. {e:?}"))?;
+        let buf = JsFuture::from(file.array_buffer());
+        let buf = buf.await.unwrap();
+        let buf: js_sys::ArrayBuffer = buf.dyn_into().unwrap();
         let buf = js_sys::Uint8Array::new(&buf);
 
         Ok(buf.to_vec())
@@ -227,17 +208,49 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         path: impl AsRef<Path>,
         data: impl AsRef<[u8]>,
     ) -> Result<(), String> {
-        todo!()
+        let folder = self.get_parent_dir(path.as_ref()).await.unwrap();
+
+        let mut options = FileSystemGetFileOptions::new();
+        options.create(true);
+        let promise = folder
+            .get_file_handle_with_options(
+                path.as_ref().file_name().unwrap().to_str().unwrap(),
+                &options,
+            )
+            .unwrap();
+
+        let file: FileSystemFileHandle = JsFuture::from(promise).await.unwrap().dyn_into().unwrap();
+        let promise = file.create_writable().unwrap();
+
+        let stream: FileSystemWritableFileStream =
+            JsFuture::from(promise).await.unwrap().dyn_into().unwrap();
+
+        let promise = stream.write_with_buffer_source(&js_sys::Uint8Array::from(data.as_ref()));
+        JsFuture::from(promise).await.unwrap();
+
+        Ok(())
     }
 
     /// Check if file path exists
     async fn file_exists(&self, path: impl AsRef<Path>) -> bool {
-        todo!()
+        self.dir_children(path.as_ref().parent().unwrap())
+            .await
+            .is_ok_and(|v| {
+                v.contains(
+                    &path
+                        .as_ref()
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
+                ) // FIXME: pain
+            })
     }
 
     /// Save all cached files. An alias for [`DataCache::save`];
     async fn save_cached(&self, info: &'static UpdateInfo) -> Result<(), String> {
-        todo!()
+        info.data_cache.save(self).await
     }
 
     /// Try to open a project.
@@ -266,7 +279,21 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
     /// Create a directory at the specified path.
     async fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String> {
-        todo!()
+        let dir = self.get_parent_dir(path.as_ref()).await.unwrap();
+
+        let mut options = FileSystemGetDirectoryOptions::new();
+        options.create(true);
+
+        let promise = dir
+            .get_directory_handle_with_options(
+                path.as_ref().file_name().unwrap().to_str().unwrap(),
+                &options,
+            )
+            .unwrap();
+
+        JsFuture::from(promise).await.unwrap();
+
+        Ok(())
     }
 
     /// Try to create a project.
@@ -276,6 +303,20 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         info: &'static UpdateInfo,
         rgss_ver: RGSSVer,
     ) -> Result<(), String> {
-        todo!()
+        let window = web_sys::window().unwrap();
+
+        let directory = show_directory_picker(&window).await.expect("???");
+        let directory: FileSystemDirectoryHandle = directory.dyn_into().expect("????");
+
+        *self.project_path.borrow_mut() = Some(directory.name().into());
+        *self.directory.borrow_mut() = Some(directory);
+
+        *self.loading_project.borrow_mut() = true;
+
+        self.create_project(name, info, rgss_ver).await?;
+
+        *self.loading_project.borrow_mut() = false;
+
+        Ok(())
     }
 }

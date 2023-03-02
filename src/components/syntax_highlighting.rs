@@ -41,6 +41,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 }
 
 /// Memoized Code highlighting
+#[must_use]
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
     impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
@@ -82,7 +83,7 @@ impl SyntectTheme {
         .copied()
     }
 
-    fn name(&self) -> &'static str {
+    fn name(self) -> &'static str {
         match self {
             Self::Base16EightiesDark => "Base16 Eighties (dark)",
             Self::Base16MochaDark => "Base16 Mocha (dark)",
@@ -94,7 +95,7 @@ impl SyntectTheme {
         }
     }
 
-    fn syntect_key_name(&self) -> &'static str {
+    fn syntect_key_name(self) -> &'static str {
         match self {
             Self::Base16EightiesDark => "base16-eighties.dark",
             Self::Base16MochaDark => "base16-mocha.dark",
@@ -106,7 +107,7 @@ impl SyntectTheme {
         }
     }
 
-    pub fn is_dark(&self) -> bool {
+    pub fn is_dark(self) -> bool {
         match self {
             Self::Base16EightiesDark
             | Self::Base16MochaDark
@@ -132,6 +133,7 @@ impl Default for CodeTheme {
 }
 
 impl CodeTheme {
+    #[must_use]
     pub fn from_style(style: &egui::Style) -> Self {
         if style.visuals.dark_mode {
             Self::dark()
@@ -140,6 +142,7 @@ impl CodeTheme {
         }
     }
 
+    #[must_use]
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
             ctx.data_mut(|m| {
@@ -158,16 +161,17 @@ impl CodeTheme {
         if self.dark_mode {
             ctx.data_mut(|m| {
                 m.insert_persisted(egui::Id::new("dark"), self);
-            })
+            });
         } else {
             ctx.data_mut(|m| {
                 m.insert_persisted(egui::Id::new("light"), self);
-            })
+            });
         }
     }
 }
 
 impl CodeTheme {
+    #[must_use]
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
@@ -175,6 +179,7 @@ impl CodeTheme {
         }
     }
 
+    #[must_use]
     pub fn light() -> Self {
         Self {
             dark_mode: false,
@@ -224,6 +229,7 @@ impl Highlighter {
     }
 
     fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
+        use egui::text::{LayoutSection, TextFormat};
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;
         use syntect::util::LinesWithEndings;
@@ -235,8 +241,6 @@ impl Highlighter {
 
         let theme = theme.syntect_theme.syntect_key_name();
         let mut h = HighlightLines::new(syntax, &self.ts.themes[theme]);
-
-        use egui::text::{LayoutSection, TextFormat};
 
         let mut job = LayoutJob {
             text: text.into(),

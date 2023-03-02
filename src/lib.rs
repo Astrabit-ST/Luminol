@@ -5,8 +5,21 @@
 //!     Egor Poleshko <somedevfox@gmail.com>
 //!
 
-#![warn(clippy::all, rust_2018_idioms)]
-#![warn(missing_docs)]
+#![warn(rust_2018_idioms)]
+#![warn(
+    clippy::all,
+    clippy::pedantic,
+    clippy::panic,
+    clippy::panic_in_result_fn,
+    clippy::panicking_unwrap
+)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::doc_markdown,
+    clippy::missing_panics_doc
+)]
+// #![warn(missing_docs)]
+
 // Copyright (C) 2022 Lily Lyons
 //
 // This file is part of Luminol.
@@ -243,15 +256,15 @@ impl UpdateInfo {
     /// Create a new UpdateInfo.
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
-            filesystem: Default::default(),
-            data_cache: Default::default(),
-            windows: Default::default(),
-            tabs: Default::default(),
-            audio: Default::default(),
-            toasts: Default::default(),
+            filesystem: FSAlias::default(),
+            data_cache: DataCache::default(),
+            windows: windows::window::Windows::default(),
+            tabs: tabs::tab::Tabs::default(),
+            audio: audio::Audio::default(),
+            toasts: Toasts::default(),
             gl,
             saved_state: RefCell::new(state),
-            toolbar: Default::default(),
+            toolbar: RefCell::default(),
         }
     }
 }
@@ -263,12 +276,13 @@ pub async fn load_image_software(
 ) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),
-        &info.filesystem.read_bytes(&format!("{}.png", path)).await?,
+        &info.filesystem.read_bytes(&format!("{path}.png",)).await?,
     )
     .map(|i| i.with_options(TextureOptions::NEAREST))
 }
 
 /// Load a gl texture from disk.
+#[allow(clippy::cast_possible_wrap)]
 pub async fn load_image_hardware(
     path: String,
     info: &'static UpdateInfo,
@@ -276,7 +290,7 @@ pub async fn load_image_hardware(
     use glow::HasContext;
 
     let image =
-        image::load_from_memory(&info.filesystem.read_bytes(&format!("{}.png", path)).await?)
+        image::load_from_memory(&info.filesystem.read_bytes(&format!("{path}.png",)).await?)
             .map_err(|e| e.to_string())?;
 
     unsafe {

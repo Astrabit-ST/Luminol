@@ -1,10 +1,16 @@
 #![allow(dead_code, missing_docs)]
+#![allow(clippy::struct_excessive_bools)]
 // FIXME: i32 is too big for most values.
 // We should use u16 or u8 for most things.
+// FIXME: add defaults for all of these
 pub mod rpg {
     use slab::Slab;
 
-    use crate::data::{command_tree::Node, commands::*, rgss_structs::*};
+    use crate::data::{
+        command_tree::Node,
+        commands::MoveCommand,
+        rgss_structs::{Table1, Table2, Table3},
+    };
     use serde::{Deserialize, Serialize};
 
     #[derive(Default, Debug, Deserialize, Serialize)]
@@ -47,6 +53,7 @@ pub mod rpg {
 
             #[derive(Debug, Deserialize, Serialize, Clone)]
             #[serde(rename = "RPG::Event::Graphic")]
+
             pub struct Condition {
                 pub switch1_valid: bool,
                 pub switch2_valid: bool,
@@ -91,7 +98,7 @@ pub mod rpg {
                 fn default() -> Self {
                     Self {
                         tile_id: 0,
-                        character_name: "".to_string(),
+                        character_name: String::new(),
                         character_hue: 0,
                         direction: 2,
                         pattern: 0,
@@ -127,7 +134,7 @@ pub mod rpg {
                         move_type: 0,
                         move_speed: 3,
                         move_frequency: 3,
-                        move_route: Default::default(),
+                        move_route: MoveRoute::default(),
                         walk_anime: true,
                         step_anime: false,
                         direction_fix: false,
@@ -151,10 +158,11 @@ pub mod rpg {
         }
 
         impl Event {
+            #[must_use]
             pub fn new(x: i32, y: i32, id: usize) -> Self {
                 Self {
                     id,
-                    name: format!("EV{:0>3}", id),
+                    name: format!("EV{id:0>3}"),
                     x,
                     y,
                     pages: vec![page::Page::default()],
@@ -198,7 +206,7 @@ pub mod rpg {
         pub armor4_fix: bool,
     }
 
-    mod class {
+    pub mod class {
         use crate::data::rgss_structs::Table1;
         use serde::{Deserialize, Serialize};
         #[derive(Default, Debug, Deserialize, Serialize)]

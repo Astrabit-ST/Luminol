@@ -70,10 +70,12 @@ fn run_native() -> Result<()> {
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
 fn main() -> Result<()> {
-    // Make sure panics are logged using `console.error`.
-    console_error_panic_hook::set_once();
+    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
+    std::panic::set_hook(Box::new(move |info| {
+        let report = panic.panic_report(info);
 
-    color_eyre::install()?;
+        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+    }));
 
     // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();

@@ -36,13 +36,21 @@ use super::{
 pub struct DataCache {
     actors: RefCell<Option<NilPadded<rpg::Actor>>>,
     animations: RefCell<Option<NilPadded<rpg::animation::Animation>>>,
-    system: RefCell<Option<rpg::system::System>>,
-    tilesets: RefCell<Option<NilPadded<rpg::Tileset>>>,
+    armors: RefCell<Option<NilPadded<rpg::Armor>>>,
+    classes: RefCell<Option<NilPadded<rpg::class::Class>>>,
+    commonevents: RefCell<Option<NilPadded<rpg::CommonEvent>>>,
+    enemies: RefCell<Option<NilPadded<rpg::enemy::Enemy>>>,
+    items: RefCell<Option<NilPadded<rpg::Item>>>,
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
     maps: RefCell<HashMap<i32, rpg::Map>>,
-    commonevents: RefCell<Option<NilPadded<rpg::CommonEvent>>>,
     scripts: RefCell<Option<Vec<intermediate::Script>>>,
-    items: RefCell<Option<NilPadded<rpg::Item>>>,
+    skills: RefCell<Option<NilPadded<rpg::Skill>>>,
+    states: RefCell<Option<NilPadded<rpg::State>>>,
+    system: RefCell<Option<rpg::system::System>>,
+    tilesets: RefCell<Option<NilPadded<rpg::Tileset>>>,
+    troops: RefCell<Option<NilPadded<rpg::troop::Troop>>>,
+    weapons: RefCell<Option<NilPadded<rpg::Weapon>>>,
+
     config: RefCell<Option<LocalConfig>>,
 }
 
@@ -101,14 +109,17 @@ impl DataCache {
 
         load_data! {
             self, filesystem,
-            Actors, Animations, CommonEvents,
-            Items, MapInfos, System, Tilesets
+            Actors, Animations, Armors,
+            Classes, CommonEvents, Enemies,
+            Items, MapInfos,
+            Skills, States, System,
+            Tilesets, Troops, Weapons
         }
 
         let mut scripts = filesystem.read_data("Data/xScripts.rxdata").await;
 
         if let Err(e) = scripts {
-            println!("Attempted loading xScripts failed with {}", e);
+            println!("Attempted loading xScripts failed with {e}");
 
             scripts = filesystem.read_data("Data/Scripts.rxdata").await;
         } else {
@@ -116,7 +127,7 @@ impl DataCache {
         }
 
         *self.scripts.borrow_mut() = Some(
-            scripts.map_err(|s| format!("Failed to read Scripts (tried xScripts first): {}", s))?,
+            scripts.map_err(|s| format!("Failed to read Scripts (tried xScripts first): {s}"))?,
         );
 
         self.maps.borrow_mut().clear();
@@ -132,9 +143,9 @@ impl DataCache {
         let has_map = self.maps.borrow().contains_key(&id);
         if !has_map {
             let map = filesystem
-                .read_data(format!("Data/Map{:0>3}.rxdata", id))
+                .read_data(format!("Data/Map{id:0>3}.rxdata",))
                 .await
-                .map_err(|e| format!("Failed to load map: {}", e))?;
+                .map_err(|e| format!("Failed to load map: {e}"))?;
             self.maps.borrow_mut().insert(id, map);
         }
         Ok(RefMut::map(self.maps.borrow_mut(), |m| {
@@ -149,6 +160,7 @@ impl DataCache {
         RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
     }
 
+    // FIXME: make these into a macro
     /// Get MapInfos.
     pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
         self.mapinfos.borrow_mut()
@@ -227,15 +239,18 @@ impl DataCache {
 
         for (id, map) in maps_bytes {
             filesystem
-                .save_data(format!("Data/Map{:0>3}.rxdata", id), map?)
+                .save_data(format!("Data/Map{id:0>3}.rxdata",), map?)
                 .await
-                .map_err(|e| format!("Failed to write Map data {e}"))?
+                .map_err(|e| format!("Failed to write Map data {e}"))?;
         }
 
         save_data! {
             self, filesystem,
-            Actors, Animations, CommonEvents,
-            Items, MapInfos, System, Tilesets
+            Actors, Animations, Armors,
+            Classes, CommonEvents, Enemies,
+            Items, MapInfos, Scripts,
+            Skills, States, System, // FIXME: save to xScripts too!
+            Tilesets, Troops, Weapons
         };
 
         self.save_config(filesystem).await
@@ -243,10 +258,13 @@ impl DataCache {
 
     /// Setup default values
     pub fn setup_defaults(&self) {
+        // FIXME: make macro
         *self.actors() = Some(vec![rpg::Actor::default()].into());
         *self.animations() = Some(vec![rpg::animation::Animation::default()].into());
+        *self.armors.borrow_mut() = Some(vec![rpg::Armor::default()].into());
+        *self.classes.borrow_mut() = Some(vec![rpg::class::Class::default()].into());
         *self.common_events() = Some(vec![rpg::CommonEvent::default()].into());
-        *self.scripts() = Some(vec![]);
+        *self.enemies.borrow_mut() = Some(vec![rpg::enemy::Enemy::default()].into());
         *self.items() = Some(NilPadded::default());
 
         let mut map_infos = HashMap::new();
@@ -263,6 +281,30 @@ impl DataCache {
         );
 
         *self.map_infos() = Some(map_infos);
+
+        *self.scripts() = Some(alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap()); // FIXME: make this static somehow?
+        *self.skills.borrow_mut() = Some(vec![rpg::Skill::default()].into());
+        *self.states.borrow_mut() = Some(vec![rpg::State::default()].into());
+
+        *self.system() = Some(rpg::system::System {
+            magic_number: rand::random(),
+            ..Default::default()
+        });
+
+        *self.tilesets() = Some(
+            vec![rpg::Tileset {
+                id: 1,
+                passages: Table1::new(8),
+                priorities: Table1::new(8),
+                terrain_tags: Table1::new(8),
+                ..Default::default()
+            }]
+            .into(),
+        );
+
+        *self.troops.borrow_mut() = Some(vec![rpg::troop::Troop::default()].into());
+        *self.weapons.borrow_mut() = Some(vec![rpg::Weapon::default()].into());
+
         let mut maps = HashMap::new();
         maps.insert(
             1,
@@ -276,22 +318,6 @@ impl DataCache {
         );
         *self.maps.borrow_mut() = maps;
 
-        *self.tilesets() = Some(
-            vec![rpg::Tileset {
-                id: 1,
-                passages: Table1::new(8),
-                priorities: Table1::new(8),
-                terrain_tags: Table1::new(8),
-                ..Default::default()
-            }]
-            .into(),
-        );
-
-        *self.system() = Some(rpg::system::System {
-            magic_number: rand::random(),
-            ..Default::default()
-        });
-
-        *self.config() = Some(Default::default());
+        *self.config() = Some(LocalConfig::default());
     }
 }
