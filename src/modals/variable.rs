@@ -63,7 +63,7 @@ impl Modal for VariableModal {
                 // (selected value, value to scroll to, filter text)
                 ui.ctx().memory_mut(|m| {
                     m.data
-                        .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
+                        .get_temp_mut_or(self.id, (*data, *data, String::new()));
                 })
             }
         }

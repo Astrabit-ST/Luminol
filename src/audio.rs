@@ -90,8 +90,8 @@ impl Audio {
         }
 
         // Set pitch and volume
-        sink.set_speed(pitch as f32 / 100.);
-        sink.set_volume(volume as f32 / 100.);
+        sink.set_speed(f32::from(pitch) / 100.);
+        sink.set_volume(f32::from(volume) / 100.);
         // Play sound.
         sink.play();
         // Add sink to hash, stop the current one if it's there.
@@ -106,7 +106,7 @@ impl Audio {
     pub fn set_pitch(&self, pitch: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
         if let Some(s) = inner.sinks.get_mut(source) {
-            s.set_speed(pitch as f32 / 100.);
+            s.set_speed(f32::from(pitch) / 100.);
         }
     }
 
@@ -114,7 +114,7 @@ impl Audio {
     pub fn set_volume(&self, volume: u8, source: &Source) {
         let mut inner = self.inner.borrow_mut();
         if let Some(s) = inner.sinks.get_mut(source) {
-            s.set_volume(volume as f32 / 100.);
+            s.set_volume(f32::from(volume) / 100.);
         }
     }
 

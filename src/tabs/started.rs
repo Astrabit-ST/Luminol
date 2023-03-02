@@ -25,7 +25,7 @@ pub struct Started {
 
 impl Started {
     /// Create a new starting screen.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
 }
@@ -77,7 +77,7 @@ impl super::tab::Tab for Started {
             ui.heading("Recent");
 
             #[cfg(not(target_arch = "wasm32"))]
-            for path in info.saved_state.borrow().recent_projects.iter() {
+            for path in &info.saved_state.borrow().recent_projects {
                 if ui.button(path).clicked() {
                     let _path = path.clone();
                     self.load_project_promise =

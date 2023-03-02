@@ -28,7 +28,7 @@ pub struct ItemsWindow {
 
 impl ItemsWindow {
     /// Create a new window.
-    pub fn new(items: NilPadded<rpg::Item>) -> Self {
+    #[must_use] pub fn new(items: NilPadded<rpg::Item>) -> Self {
         Self {
             items,
             selected_item: 0,

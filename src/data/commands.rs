@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use super::rmxp_structs::intermediate;
 #[allow(unused_imports)]
-use super::{rgss_structs::*, rmxp_structs::rpg};
+use super::{rgss_structs::{Color, Tone}, rmxp_structs::rpg};
 use enum_as_inner::EnumAsInner;
 
 #[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner, PartialEq)]
@@ -530,9 +530,9 @@ pub enum VariableOperation {
 
 impl Command {
     fn from_cmd(cmd: intermediate::EventCommand) -> Result<Self, ParameterType> {
-        use ActorCondition::*;
-        use ConditionalKind::*;
-        use ConditionalOperator::*;
+        use ActorCondition::{InParty, Name, Skill, State};
+        use ConditionalKind::{Actor, Button, Character, Enemy, Gold, Item, SelfSwitch, Timer, Variable};
+        use ConditionalOperator::{Equal, Greater, GreaterEqual, Less, LessEqual, NotEqual};
         let intermediate::EventCommand {
             code,
             indent,
@@ -938,7 +938,7 @@ impl TryFrom<intermediate::EventCommand> for Command {
 
     fn try_from(cmd: intermediate::EventCommand) -> Result<Self, Self::Error> {
         Command::from_cmd(cmd)
-            .map_err(|e: ParameterType| format!("Unexpected parameter type {:?}", e))
+            .map_err(|e: ParameterType| format!("Unexpected parameter type {e:?}"))
     }
 }
 
@@ -1194,7 +1194,7 @@ pub fn process_move_route(
     directions: &mut Vec<i32>,
     points: &mut Vec<egui::Pos2>,
 ) {
-    for command in move_route.list.iter() {
+    for command in &move_route.list {
         let current_pos = points.last().unwrap();
         let current_direction = directions.last().unwrap();
         match command {

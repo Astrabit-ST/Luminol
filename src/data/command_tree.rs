@@ -19,7 +19,7 @@ use std::iter::Peekable;
 
 use serde::{Deserialize, Serialize};
 
-use super::commands::*;
+use super::commands::Command;
 
 /// A simple binary tree.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -53,12 +53,12 @@ impl Node {
     }
 
     /// If this node has a left branch.
-    pub fn has_left(&self) -> bool {
+    #[must_use] pub fn has_left(&self) -> bool {
         self.left.is_some()
     }
 
     /// If this node has a right branch.
-    pub fn has_right(&self) -> bool {
+    #[must_use] pub fn has_right(&self) -> bool {
         self.right.is_some()
     }
 

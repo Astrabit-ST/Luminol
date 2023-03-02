@@ -99,7 +99,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             .join(provided_path);
         async_fs::read(&path)
             .await
-            .map_err(|e| format!("Loading {:?}: {e}", path))
+            .map_err(|e| format!("Loading {path:?}: {e}"))
     }
 
     async fn save_data(

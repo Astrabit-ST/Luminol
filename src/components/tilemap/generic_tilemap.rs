@@ -612,7 +612,7 @@ impl TilemapDef for Tilemap {
             let cursor_y = *selected_tile / 8 * 32;
             ui.painter().rect_stroke(
                 egui::Rect::from_min_size(
-                    rect.min + egui::vec2(cursor_x as f32, cursor_y as f32),
+                    rect.min + egui::vec2(f32::from(cursor_x), f32::from(cursor_y)),
                     egui::Vec2::splat(32.),
                 ),
                 5.0,
@@ -631,7 +631,7 @@ impl TilemapDef for Tilemap {
             .unwrap()
             .as_ref()
             .map(|_| ())
-            .map_err(|e| e.clone())
+            .map_err(std::clone::Clone::clone)
     }
 }
 
@@ -687,13 +687,13 @@ impl Tilemap {
         }
 
         // Load tileset textures.
-        let tileset_tex = load_image_software(format!("Graphics/Tilesets/{}", tileset_name), info)
+        let tileset_tex = load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
             .await
             .ok();
 
         // Create an async iter over the autotile textures.
         let autotile_texs_iter = autotile_names.iter().map(|str| async move {
-            load_image_software(format!("Graphics/Autotiles/{}", str), info)
+            load_image_software(format!("Graphics/Autotiles/{str}"), info)
                 .await
                 .ok()
         });
@@ -705,7 +705,7 @@ impl Tilemap {
         let event_texs_iter = event_names.iter().map(|(char_name, hue)| async move {
             (
                 (char_name.clone(), *hue),
-                load_image_software(format!("Graphics/Characters/{}", char_name), info)
+                load_image_software(format!("Graphics/Characters/{char_name}"), info)
                     .await
                     .ok(),
             )
@@ -718,22 +718,15 @@ impl Tilemap {
             .collect();
 
         // These two are pretty simple.
-        let fog_tex = load_image_software(format!("Graphics/Fogs/{}", fog_name), info)
+        let fog_tex = load_image_software(format!("Graphics/Fogs/{fog_name}"), info)
             .await
             .ok();
 
-        let pano_tex = load_image_software(format!("Graphics/Panoramas/{}", pano_name), info)
+        let pano_tex = load_image_software(format!("Graphics/Panoramas/{pano_name}"), info)
             .await
             .ok();
 
         // Finally create and return the struct.
-        Ok(Textures {
-            autotile_texs,
-            tileset_tex,
-            event_texs,
-            fog_tex,
-            fog_zoom,
-            pano_tex,
-        })
+        Ok(Textures { tileset_tex, autotile_texs, event_texs, fog_tex, fog_zoom, pano_tex })
     }
 }

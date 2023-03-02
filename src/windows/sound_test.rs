@@ -43,7 +43,7 @@ impl SoundTab {
             source,
             volume: 100,
             pitch: 100,
-            selected_track: "".to_string(),
+            selected_track: String::new(),
             folder_children: Promise::spawn_local(async move {
                 info.filesystem
                     .dir_children(&format!("Audio/{source}"))
@@ -202,7 +202,7 @@ impl super::window::Window for SoundTest {
             egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
                 // Display the tab selector.
                 ui.horizontal_wrapped(|ui| {
-                    for source in self.sources.iter() {
+                    for source in &self.sources {
                         if ui
                             .selectable_label(
                                 source.source == self.selected_source,

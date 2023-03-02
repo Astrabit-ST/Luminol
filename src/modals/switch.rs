@@ -61,7 +61,7 @@ impl Modal for SwitchModal {
                 *state = true;
                 ui.ctx().memory_mut(|m| {
                     m.data
-                        .get_temp_mut_or(self.id, (*data, *data, "".to_string()));
+                        .get_temp_mut_or(self.id, (*data, *data, String::new()));
                 })
             }
         }

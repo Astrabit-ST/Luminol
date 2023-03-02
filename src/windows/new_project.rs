@@ -278,7 +278,7 @@ impl NewProjectWindow {
                     .unwrap_or(&file_path);
                 let file_path = file_path
                     .to_str()
-                    .ok_or(format!("Invalid file path {:#?}", file_path))?;
+                    .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
                 if file_path.is_empty() || info.filesystem.file_exists(file_path).await {
                     continue;

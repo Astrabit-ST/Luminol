@@ -32,7 +32,7 @@ pub struct LocalConfig {
 impl Default for LocalConfig {
     fn default() -> Self {
         Self {
-            project_name: "".to_string(),
+            project_name: String::new(),
             scripts_path: "Scripts".to_string(),
             use_ron: true,
             rgss_ver: RGSSVer::RGSS1,

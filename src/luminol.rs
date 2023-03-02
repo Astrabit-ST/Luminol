@@ -36,7 +36,7 @@ pub struct Luminol {
 
 impl Luminol {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    #[must_use] pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let storage = cc.storage.unwrap();
 
         let state = eframe::get_value(storage, "SavedState").map_or_else(

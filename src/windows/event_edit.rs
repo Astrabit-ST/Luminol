@@ -61,7 +61,7 @@ impl EventEdit {
                     futures::future::join_all(futures)
                         .await
                         .into_iter()
-                        .map(|e| e.ok())
+                        .map(std::result::Result::ok)
                         .collect(),
                     load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
                         .await
@@ -354,7 +354,7 @@ impl Window for EventEdit {
                                 // TODO: Use modals for an image picker
                             }
                         } else {
-                            ui.centered_and_justified(|ui| ui.spinner());
+                            ui.centered_and_justified(egui::Ui::spinner);
                         }
                     }
                     2 => {

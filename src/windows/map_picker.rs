@@ -43,7 +43,7 @@ impl MapPicker {
             // It's custom so we can add a button to open a map.
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
-                ui.make_persistent_id(format!("map_info_{}", id)),
+                ui.make_persistent_id(format!("map_info_{id}")),
                 map_info.expanded,
             );
 

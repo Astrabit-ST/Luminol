@@ -22,7 +22,7 @@ use crate::{
         command_tree::{Branch, Node},
         commands::{
             Command,
-            CommandKind::{self, *},
+            CommandKind::{self, BranchEnd, BreakLoop, ButtonInput, CallCommonEvent, ChangeActorGraphic, ChangeItems, ChangeParty, ChoiceEnd, Choices, Comment, CommentExt, Conditional, ControlSelfSwitch, ControlSwitches, ControlVariables, Else, EraseEvent, ErasePicture, ExitEvent, FadeBGM, Insert, JumpToLabel, Label, Loop, MemorizeBGM, MoveDisplay, MovePicture, MoveRoute, PlayAnimation, PlayBGM, PlayME, RepeatAbove, RestoreBGM, ScreenFlash, ScreenShake, ScreenTone, ScriptExt, ScrollScreen, ShowPicture, Text, TextExt, TextOptions, TransferPlayer, WaitMoveRoute, When, WhenCancel},
             Direction, Operand, OperandKind, VariableKind, VariableOperation, MOVE_SPEEDS,
         },
         rmxp_structs::rpg,
@@ -58,7 +58,7 @@ pub(crate) struct Memory {
 
 impl<'co> CommandView<'co> {
     /// Create a new command viewer.
-    pub fn new(custom_id_source: &'co str, map_id: Option<i32>) -> Self {
+    #[must_use] pub fn new(custom_id_source: &'co str, map_id: Option<i32>) -> Self {
         Self {
             custom_id_source,
             map_id,
@@ -220,7 +220,7 @@ impl<'co> CommandView<'co> {
                 );
             }
             Conditional { kind } => {
-                use crate::data::commands::{ConditionalKind::*, ConditionalOperator::*};
+                use crate::data::commands::{ConditionalKind::{Item, Script, SelfSwitch, Switch, Variable}, ConditionalOperator::{Equal, Greater, GreaterEqual, Less, LessEqual, NotEqual}};
 
                 let text = {
                     let system = info.data_cache.system();
@@ -287,7 +287,7 @@ impl<'co> CommandView<'co> {
                             Script { text } => {
                                 text.clone()
                             }
-                            _ => "".to_string(),
+                            _ => String::new(),
                         }
                     )
                 };
@@ -414,8 +414,7 @@ impl<'co> CommandView<'co> {
                     RichText::new(format!(
                         "This happens when Luminol does not recognize a command ID.\n
                          Parameters: \n
-                         {:#?}",
-                        parameters
+                         {parameters:#?}"
                     ))
                     .color(ERROR),
                 );
@@ -665,7 +664,7 @@ impl<'co> CommandView<'co> {
                     match kind {
                         VariableKind::Constant(val) => val.to_string(),
                         VariableKind::Variable(id) => system.variables[*id - 1].clone(),
-                        VariableKind::Random(range) => format!("random ({:?})", range),
+                        VariableKind::Random(range) => format!("random ({range:?})"),
                         VariableKind::Item(id) => {
                             let items = info.data_cache.items();
                             let items = items.as_ref().unwrap();
@@ -842,7 +841,7 @@ impl<'co> CommandView<'co> {
                 ui.selectable_value(
                     selected_index,
                     *index,
-                    RichText::new(format!("{:#?} ???", kind)).color(SCRIPT),
+                    RichText::new(format!("{kind:#?} ???")).color(SCRIPT),
                 )
                 .on_hover_text(
                     RichText::new(

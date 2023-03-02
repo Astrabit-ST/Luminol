@@ -18,7 +18,7 @@
 use crate::{
     components::command_view::MOVE_ROUTE,
     data::{
-        commands::{MoveCommand::*, MOVE_FREQS, MOVE_SPEEDS},
+        commands::{MoveCommand::{AlwaysTopOFF, AlwaysTopON, Backwards, Break, ChangeBlend, ChangeFreq, ChangeGraphic, ChangeOpacity, ChangeSpeed, DirFixOFF, DirFixON, Down, Forward, Invalid, Jump, Left, LowerLeft, LowerRight, MoveAway, MoveOFF, MoveON, MoveTowards, PlaySE, Random, Right, Script, StopOFF, StopON, SwitchOFF, SwitchON, ThroughOFF, ThroughON, Turn180, TurnAwayFromPlayer, TurnDown, TurnLeft, TurnLeft90, TurnRandom, TurnRight, TurnRight90, TurnRightOrLeft, TurnTowardsPlayer, TurnUp, Up, UpperLeft, UpperRight, Wait}, MOVE_FREQS, MOVE_SPEEDS},
         rmxp_structs::rpg,
     },
     UpdateInfo,
@@ -31,7 +31,7 @@ pub struct MoveDisplay<'route> {
 
 impl<'route> MoveDisplay<'route> {
     /// Create a new move display
-    pub fn new(route: &'route rpg::MoveRoute) -> Self {
+    #[must_use] pub fn new(route: &'route rpg::MoveRoute) -> Self {
         Self { route }
     }
 
@@ -46,7 +46,7 @@ impl<'route> MoveDisplay<'route> {
         let system = info.data_cache.system();
         let system = system.as_ref().unwrap();
 
-        for command in self.route.list.iter() {
+        for command in &self.route.list {
             let label = match command {
                                 Down => "Move Down".to_string(),
                                 Left => "Move Left".to_string(),
@@ -118,9 +118,9 @@ impl<'route> MoveDisplay<'route> {
                                 ),
                                 Script { text } => format!("Script: {text}"),
 
-                                Break => "".to_string(),
+                                Break => String::new(),
                                 Invalid { code, parameters } => {
-                                    format!("Invalid command {code} {:#?}", parameters)
+                                    format!("Invalid command {code} {parameters:#?}")
                                 }
                             };
             ui.selectable_value(
