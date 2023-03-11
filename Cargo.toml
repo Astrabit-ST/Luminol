@@ -40,6 +40,8 @@ bytemuck = "1"
 color-eyre = "0.6"
 eyre = "0.6"
 paste = "1.0"
+num-traits = "0.2"
+num-derive = "0.2"
 
 serde = { version = "1.0", features = ["derive"] }
 alox-48 = { version = "*", path = "alox-48" }
