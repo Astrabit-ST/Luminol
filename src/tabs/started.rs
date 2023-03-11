@@ -25,7 +25,8 @@ pub struct Started {
 
 impl Started {
     /// Create a new starting screen.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
 }

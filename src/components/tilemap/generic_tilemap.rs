@@ -727,6 +727,13 @@ impl Tilemap {
             .ok();
 
         // Finally create and return the struct.
-        Ok(Textures { tileset_tex, autotile_texs, event_texs, fog_tex, fog_zoom, pano_tex })
+        Ok(Textures {
+            tileset_tex,
+            autotile_texs,
+            event_texs,
+            fog_tex,
+            fog_zoom,
+            pano_tex,
+        })
     }
 }

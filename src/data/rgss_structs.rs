@@ -135,7 +135,8 @@ impl From<Table1> for alox_48::Userdata {
 
 impl Table1 {
     /// Create a new 1d array with a width of xsize.
-    #[must_use] pub fn new(xsize: usize) -> Self {
+    #[must_use]
+    pub fn new(xsize: usize) -> Self {
         Self {
             xsize,
             data: vec![0; xsize],
@@ -143,17 +144,20 @@ impl Table1 {
     }
 
     /// Width of the table.
-    #[must_use] pub fn xsize(&self) -> usize {
+    #[must_use]
+    pub fn xsize(&self) -> usize {
         self.xsize
     }
 
     /// Total number of elements in the table.
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.data.len()
     }
 
     /// Is the table empty?
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
@@ -227,7 +231,8 @@ impl From<Table2> for alox_48::Userdata {
 
 impl Table2 {
     /// Create a new 2D table with a width of xsize and a height of ysize.
-    #[must_use] pub fn new(xsize: usize, ysize: usize) -> Self {
+    #[must_use]
+    pub fn new(xsize: usize, ysize: usize) -> Self {
         Self {
             xsize,
             ysize,
@@ -236,22 +241,26 @@ impl Table2 {
     }
 
     /// Width of the table.
-    #[must_use] pub fn xsize(&self) -> usize {
+    #[must_use]
+    pub fn xsize(&self) -> usize {
         self.xsize
     }
 
     /// Height of the table.
-    #[must_use] pub fn ysize(&self) -> usize {
+    #[must_use]
+    pub fn ysize(&self) -> usize {
         self.ysize
     }
 
     /// Total number of elements in the table.
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.data.len()
     }
 
     /// Is the table empty?
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
@@ -333,7 +342,8 @@ use std::slice::Iter;
 
 impl Table3 {
     /// Create a new 3D table with a width of xsize, a height of ysize, and a depth of zsize.
-    #[must_use] pub fn new(xsize: usize, ysize: usize, zsize: usize) -> Self {
+    #[must_use]
+    pub fn new(xsize: usize, ysize: usize, zsize: usize) -> Self {
         Self {
             xsize,
             ysize,
@@ -343,27 +353,32 @@ impl Table3 {
     }
 
     /// Width of the table.
-    #[must_use] pub fn xsize(&self) -> usize {
+    #[must_use]
+    pub fn xsize(&self) -> usize {
         self.xsize
     }
 
     /// Height of the table.
-    #[must_use] pub fn ysize(&self) -> usize {
+    #[must_use]
+    pub fn ysize(&self) -> usize {
         self.ysize
     }
 
     /// Depth of the table.
-    #[must_use] pub fn zsize(&self) -> usize {
+    #[must_use]
+    pub fn zsize(&self) -> usize {
         self.zsize
     }
 
     /// Total number of elements in the table.
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.data.len()
     }
 
     /// Is the table empty?
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 

@@ -18,7 +18,18 @@
 use crate::{
     components::command_view::MOVE_ROUTE,
     data::{
-        commands::{MoveCommand::{AlwaysTopOFF, AlwaysTopON, Backwards, Break, ChangeBlend, ChangeFreq, ChangeGraphic, ChangeOpacity, ChangeSpeed, DirFixOFF, DirFixON, Down, Forward, Invalid, Jump, Left, LowerLeft, LowerRight, MoveAway, MoveOFF, MoveON, MoveTowards, PlaySE, Random, Right, Script, StopOFF, StopON, SwitchOFF, SwitchON, ThroughOFF, ThroughON, Turn180, TurnAwayFromPlayer, TurnDown, TurnLeft, TurnLeft90, TurnRandom, TurnRight, TurnRight90, TurnRightOrLeft, TurnTowardsPlayer, TurnUp, Up, UpperLeft, UpperRight, Wait}, MOVE_FREQS, MOVE_SPEEDS},
+        commands::{
+            MoveCommand::{
+                AlwaysTopOFF, AlwaysTopON, Backwards, Break, ChangeBlend, ChangeFreq,
+                ChangeGraphic, ChangeOpacity, ChangeSpeed, DirFixOFF, DirFixON, Down, Forward,
+                Invalid, Jump, Left, LowerLeft, LowerRight, MoveAway, MoveOFF, MoveON, MoveTowards,
+                PlaySE, Random, Right, Script, StopOFF, StopON, SwitchOFF, SwitchON, ThroughOFF,
+                ThroughON, Turn180, TurnAwayFromPlayer, TurnDown, TurnLeft, TurnLeft90, TurnRandom,
+                TurnRight, TurnRight90, TurnRightOrLeft, TurnTowardsPlayer, TurnUp, Up, UpperLeft,
+                UpperRight, Wait,
+            },
+            MOVE_FREQS, MOVE_SPEEDS,
+        },
         rmxp_structs::rpg,
     },
     UpdateInfo,
@@ -31,7 +42,8 @@ pub struct MoveDisplay<'route> {
 
 impl<'route> MoveDisplay<'route> {
     /// Create a new move display
-    #[must_use] pub fn new(route: &'route rpg::MoveRoute) -> Self {
+    #[must_use]
+    pub fn new(route: &'route rpg::MoveRoute) -> Self {
         Self { route }
     }
 

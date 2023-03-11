@@ -53,12 +53,14 @@ impl Node {
     }
 
     /// If this node has a left branch.
-    #[must_use] pub fn has_left(&self) -> bool {
+    #[must_use]
+    pub fn has_left(&self) -> bool {
         self.left.is_some()
     }
 
     /// If this node has a right branch.
-    #[must_use] pub fn has_right(&self) -> bool {
+    #[must_use]
+    pub fn has_right(&self) -> bool {
         self.right.is_some()
     }
 

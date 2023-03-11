@@ -22,7 +22,16 @@ use crate::{
         command_tree::{Branch, Node},
         commands::{
             Command,
-            CommandKind::{self, BranchEnd, BreakLoop, ButtonInput, CallCommonEvent, ChangeActorGraphic, ChangeItems, ChangeParty, ChoiceEnd, Choices, Comment, CommentExt, Conditional, ControlSelfSwitch, ControlSwitches, ControlVariables, Else, EraseEvent, ErasePicture, ExitEvent, FadeBGM, Insert, JumpToLabel, Label, Loop, MemorizeBGM, MoveDisplay, MovePicture, MoveRoute, PlayAnimation, PlayBGM, PlayME, RepeatAbove, RestoreBGM, ScreenFlash, ScreenShake, ScreenTone, ScriptExt, ScrollScreen, ShowPicture, Text, TextExt, TextOptions, TransferPlayer, WaitMoveRoute, When, WhenCancel},
+            CommandKind::{
+                self, BranchEnd, BreakLoop, ButtonInput, CallCommonEvent, ChangeActorGraphic,
+                ChangeItems, ChangeParty, ChoiceEnd, Choices, Comment, CommentExt, Conditional,
+                ControlSelfSwitch, ControlSwitches, ControlVariables, Else, EraseEvent,
+                ErasePicture, ExitEvent, FadeBGM, Insert, JumpToLabel, Label, Loop, MemorizeBGM,
+                MoveDisplay, MovePicture, MoveRoute, PlayAnimation, PlayBGM, PlayME, RepeatAbove,
+                RestoreBGM, ScreenFlash, ScreenShake, ScreenTone, ScriptExt, ScrollScreen,
+                ShowPicture, Text, TextExt, TextOptions, TransferPlayer, WaitMoveRoute, When,
+                WhenCancel,
+            },
             Direction, Operand, OperandKind, VariableKind, VariableOperation, MOVE_SPEEDS,
         },
         rmxp_structs::rpg,
@@ -58,7 +67,8 @@ pub(crate) struct Memory {
 
 impl<'co> CommandView<'co> {
     /// Create a new command viewer.
-    #[must_use] pub fn new(custom_id_source: &'co str, map_id: Option<i32>) -> Self {
+    #[must_use]
+    pub fn new(custom_id_source: &'co str, map_id: Option<i32>) -> Self {
         Self {
             custom_id_source,
             map_id,
@@ -220,7 +230,12 @@ impl<'co> CommandView<'co> {
                 );
             }
             Conditional { kind } => {
-                use crate::data::commands::{ConditionalKind::{Item, Script, SelfSwitch, Switch, Variable}, ConditionalOperator::{Equal, Greater, GreaterEqual, Less, LessEqual, NotEqual}};
+                use crate::data::commands::{
+                    ConditionalKind::{Item, Script, SelfSwitch, Switch, Variable},
+                    ConditionalOperator::{
+                        Equal, Greater, GreaterEqual, Less, LessEqual, NotEqual,
+                    },
+                };
 
                 let text = {
                     let system = info.data_cache.system();

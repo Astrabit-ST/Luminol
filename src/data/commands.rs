@@ -21,7 +21,10 @@ use serde::{Deserialize, Serialize};
 
 use super::rmxp_structs::intermediate;
 #[allow(unused_imports)]
-use super::{rgss_structs::{Color, Tone}, rmxp_structs::rpg};
+use super::{
+    rgss_structs::{Color, Tone},
+    rmxp_structs::rpg,
+};
 use enum_as_inner::EnumAsInner;
 
 #[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner, PartialEq)]
@@ -531,7 +534,9 @@ pub enum VariableOperation {
 impl Command {
     fn from_cmd(cmd: intermediate::EventCommand) -> Result<Self, ParameterType> {
         use ActorCondition::{InParty, Name, Skill, State};
-        use ConditionalKind::{Actor, Button, Character, Enemy, Gold, Item, SelfSwitch, Timer, Variable};
+        use ConditionalKind::{
+            Actor, Button, Character, Enemy, Gold, Item, SelfSwitch, Timer, Variable,
+        };
         use ConditionalOperator::{Equal, Greater, GreaterEqual, Less, LessEqual, NotEqual};
         let intermediate::EventCommand {
             code,
