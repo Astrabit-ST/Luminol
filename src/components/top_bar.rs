@@ -131,6 +131,7 @@ impl TopBar {
                     info.windows
                         .add_window(crate::windows::items::ItemsWindow::new(
                             info.data_cache.items().clone().unwrap(),
+                            info,
                         ))
                 }
 
