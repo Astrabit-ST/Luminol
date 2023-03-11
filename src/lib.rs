@@ -4,20 +4,6 @@
 //!     Lily Madeline Lyons <lily@nowaffles.com>
 //!     Egor Poleshko <somedevfox@gmail.com>
 //!
-
-#![warn(rust_2018_idioms)]
-#![warn(
-    clippy::all,
-    clippy::pedantic,
-    clippy::panic,
-    clippy::panic_in_result_fn,
-    clippy::panicking_unwrap
-)]
-#![allow(
-    clippy::missing_errors_doc,
-    clippy::doc_markdown,
-    clippy::missing_panics_doc
-)]
 // #![warn(missing_docs)]
 
 // Copyright (C) 2022 Lily Lyons
@@ -36,6 +22,22 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+
+#![warn(rust_2018_idioms)]
+#![warn(
+    clippy::all,
+    clippy::pedantic,
+    clippy::panic,
+    clippy::panic_in_result_fn,
+    clippy::panicking_unwrap
+)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::doc_markdown,
+    clippy::missing_panics_doc,
+    clippy::too_many_lines
+)]
+#![deny(unsafe_code)]
 #![feature(drain_filter, is_some_and, min_specialization)]
 
 /// The main Luminol application.
@@ -47,32 +49,10 @@ pub mod saved_state;
 /// Audio related structs and funtions.
 pub mod audio;
 
-/// Floating windows to be displayed anywhere.
-pub mod windows {
-    /// The about window.
-    pub mod about;
-    /// The common event editor.
-    pub mod common_event_edit;
-    /// Config window
-    pub mod config;
-    /// The event editor.
-    pub mod event_edit;
-    /// The item editor.
-    pub mod items;
-    /// The map picker.
-    pub mod map_picker;
-    /// Misc windows.
-    pub mod misc;
-    /// New project window
-    pub mod new_project;
-    /// The script editor
-    pub mod script_edit;
-    /// The sound test.
-    pub mod sound_test;
-    /// Traits and structs related to windows.
-    pub mod window;
-}
+pub mod components;
 
+/// Floating windows to be displayed anywhere.
+pub mod windows;
 /// Stack defined windows that edit values.
 pub mod modals {
     /// Traits related to modals.
@@ -81,63 +61,6 @@ pub mod modals {
     pub mod switch;
     /// The variable picker.
     pub mod variable;
-}
-
-/// Various UI components used throughout Luminol.
-pub mod components {
-    /// Command editor for events
-    pub mod command_view;
-    /// Command view modals
-    pub mod command_view_modals;
-    /// Move route display
-    pub mod move_display;
-    /// Syntax highlighter
-    pub mod syntax_highlighting;
-    /// Toasts to be displayed for errors, information, etc.
-    pub mod toasts;
-    /// The toolbar for managing the project.
-    pub mod top_bar;
-
-    /// The tilemap.
-    pub mod tilemap {
-        use crate::{data::rmxp_structs::rpg, UpdateInfo};
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "generic-tilemap")] {
-                mod generic_tilemap;
-                pub use generic_tilemap::Tilemap;
-            } else {
-                mod hardware_tilemap;
-                pub use hardware_tilemap::Tilemap;
-            }
-        }
-
-        /// A trait defining how a tilemap should function.
-        pub trait TilemapDef {
-            /// Create a new tilemap.
-            fn new(info: &'static UpdateInfo, id: i32) -> Self;
-
-            /// Display the tilemap.
-            fn ui(
-                &mut self,
-                ui: &mut egui::Ui,
-                map: &rpg::Map,
-                cursor_pos: &mut egui::Pos2,
-                toggled_layers: &[bool],
-                selected_layer: usize,
-                dragging_event: bool,
-            ) -> egui::Response;
-
-            /// Display the tile picker.
-            fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
-
-            /// Check if the textures are loaded yet.
-            fn textures_loaded(&self) -> bool;
-
-            /// Return the result of loading the tilemap.
-            fn load_result(&self) -> Result<(), String>;
-        }
-    }
 }
 
 /// Tabs to be displayed in the center of Luminol.
@@ -282,7 +205,7 @@ pub async fn load_image_software(
 }
 
 /// Load a gl texture from disk.
-#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_wrap, unsafe_code)]
 pub async fn load_image_hardware(
     path: String,
     info: &'static UpdateInfo,
