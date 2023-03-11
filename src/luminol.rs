@@ -36,7 +36,8 @@ pub struct Luminol {
 
 impl Luminol {
     /// Called once before the first frame.
-    #[must_use] pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    #[must_use]
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let storage = cc.storage.unwrap();
 
         let state = eframe::get_value(storage, "SavedState").map_or_else(
@@ -59,7 +60,7 @@ impl Luminol {
             info: Box::leak(Box::new(UpdateInfo::new(
                 cc.gl.as_ref().unwrap().clone(),
                 state,
-            ))), // This is bad but I don't care
+            ))),
             style,
             #[cfg(feature = "discord-rpc")]
             discord: crate::discord::DiscordClient::default(),
