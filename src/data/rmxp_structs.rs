@@ -4,7 +4,11 @@
 // We should use u16 or u8 for most things.
 // FIXME: add defaults for all of these
 pub mod rpg {
+    use std::fmt::Display;
+
+    use num_derive::FromPrimitive;
     use slab::Slab;
+    use strum::EnumIter;
 
     use crate::data::{
         command_tree::Node,
@@ -259,6 +263,64 @@ pub mod rpg {
         pub element_set: Vec<i32>,
         pub plus_state_set: Vec<i32>,
         pub minus_state_set: Vec<i32>,
+    }
+
+    #[derive(Debug, EnumIter, FromPrimitive)]
+    pub enum ItemScope {
+        None,
+        OneEnemy,
+        AllEnemies,
+        OneAlly,
+        AllAllies,
+        OneAllyHP0,
+        AllAlliesHP0,
+        TheUser,
+    }
+    impl Display for ItemScope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            use ItemScope::{
+                AllAllies, AllAlliesHP0, AllEnemies, None, OneAlly, OneAllyHP0, OneEnemy, TheUser,
+            };
+
+            write!(
+                f,
+                "{}",
+                match self {
+                    None => "None",
+                    OneEnemy => "One Enemy",
+                    AllEnemies => "All Enemies",
+                    OneAlly => "One Ally",
+                    AllAllies => "All Allies",
+                    OneAllyHP0 => "One Ally (HP 0)",
+                    AllAlliesHP0 => "All Allies (HP 0)",
+                    TheUser => "The User",
+                }
+            )
+        }
+    }
+
+    #[derive(Debug, FromPrimitive, EnumIter)]
+    pub enum ItemOccasion {
+        Always,
+        OnlyInBattle,
+        OnlyFromTheMenu,
+        Never,
+    }
+    impl Display for ItemOccasion {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            use ItemOccasion::*;
+
+            write!(
+                f,
+                "{}",
+                match self {
+                    Always => "Always",
+                    OnlyInBattle => "Only in Battle",
+                    OnlyFromTheMenu => "Only from the Menu",
+                    Never => "Never",
+                },
+            )
+        }
     }
 
     #[derive(Default, Debug, Deserialize, Serialize, Clone)]
