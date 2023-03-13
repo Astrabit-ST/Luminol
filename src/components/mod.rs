@@ -75,6 +75,7 @@ pub mod tilemap {
 // btw there's a buncha places this could be used
 // uhh in event edit there's an array of strings that gets itered over to do what this does lol
 // TODO: Replace dropbox mechanism in event edit with this method
+
 pub struct EnumMenuButton<T, F>
 where
     T: Display + FromPrimitive + IntoEnumIterator,
@@ -104,6 +105,31 @@ impl<T: Display + FromPrimitive + IntoEnumIterator, F: FnMut(T)> egui::Widget
                     ui.close_menu();
                 }
             }
+        })
+        .response
+    }
+}
+
+pub struct Field<F>
+where
+    F: FnOnce(&mut egui::Ui),
+{
+    name: String,
+    callback: F,
+}
+impl<F: FnOnce(&mut egui::Ui)> Field<F> {
+    pub fn new(name: impl Into<String>, callback: F) -> Self {
+        Self {
+            name: name.into(),
+            callback,
+        }
+    }
+}
+impl<F: FnOnce(&mut egui::Ui)> egui::Widget for Field<F> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        ui.vertical(|ui| {
+            ui.label(format!("{}:", self.name));
+            (self.callback)(ui);
         })
         .response
     }
