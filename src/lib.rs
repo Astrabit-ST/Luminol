@@ -75,14 +75,14 @@ pub mod tabs {
 
 /// Structs related to Luminol's internal data.
 pub mod data {
+    /// The data cache, used to store things before writing them to the disk.
+    pub mod cache;
     /// The tree data structure for commands
     pub mod command_tree;
     /// Event command related enums
     pub mod commands;
     /// Luminol configuration
     pub mod config;
-    /// The data cache, used to store things before writing them to the disk.
-    pub mod data_cache;
     /// Nil padded arrays.
     pub mod nil_padded;
     /// RGSS structs.
@@ -125,7 +125,7 @@ use saved_state::SavedState;
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 
-use crate::data::data_cache::DataCache;
+use crate::data::cache::Cache;
 use crate::filesystem::Filesystem;
 
 #[allow(missing_docs)]
@@ -158,7 +158,7 @@ pub struct UpdateInfo {
     /// Filesystem to be passed around.
     pub filesystem: FSAlias,
     /// The data cache.
-    pub data_cache: DataCache,
+    pub data_cache: Cache,
     /// Windows that are displayed.
     pub windows: windows::window::Windows,
     /// Tabs that are displayed.
@@ -180,7 +180,7 @@ impl UpdateInfo {
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
             filesystem: FSAlias::default(),
-            data_cache: DataCache::default(),
+            data_cache: Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tabs::tab::Tabs::default(),
             audio: audio::Audio::default(),

@@ -33,7 +33,7 @@ use super::{
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
-pub struct DataCache {
+pub struct Cache {
     actors: RefCell<Option<NilPadded<rpg::Actor>>>,
     animations: RefCell<Option<NilPadded<rpg::animation::Animation>>>,
     armors: RefCell<Option<NilPadded<rpg::Armor>>>,
@@ -90,7 +90,7 @@ macro_rules! load_data {
     };
 }
 
-impl DataCache {
+impl Cache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
         // FIXME: keep errors?
