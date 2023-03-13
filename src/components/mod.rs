@@ -74,21 +74,37 @@ pub mod tilemap {
 
 // btw there's a buncha places this could be used
 // uhh in event edit there's an array of strings that gets itered over to do what this does lol
-// TODO: Replace dropbox mecanishm in event edit with this method
-pub fn enum_menu_button<T>(
-    ui: &mut egui::Ui,
+// TODO: Replace dropbox mechanism in event edit with this method
+pub struct EnumMenuButton<T, F>
+where
+    T: Display + FromPrimitive + IntoEnumIterator,
+    F: FnMut(T),
+{
     current_value: i32,
     _enumeration: T,
-    mut on_select: impl FnMut(T),
-) where
-    T: Display + FromPrimitive + IntoEnumIterator,
-{
-    ui.menu_button(T::from_i32(current_value).unwrap().to_string(), |ui| {
-        for enumeration_item in T::iter() {
-            if ui.button(enumeration_item.to_string()).clicked() {
-                on_select(enumeration_item);
-                ui.close_menu();
-            }
+    on_select: F,
+}
+impl<T: Display + FromPrimitive + IntoEnumIterator, F: FnMut(T)> EnumMenuButton<T, F> {
+    pub fn new(current_value: i32, enumeration: T, on_select: F) -> Self {
+        Self {
+            current_value,
+            _enumeration: enumeration,
+            on_select,
         }
-    });
+    }
+}
+impl<T: Display + FromPrimitive + IntoEnumIterator, F: FnMut(T)> egui::Widget
+    for EnumMenuButton<T, F>
+{
+    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+        ui.menu_button(T::from_i32(self.current_value).unwrap().to_string(), |ui| {
+            for enumeration_item in T::iter() {
+                if ui.button(enumeration_item.to_string()).clicked() {
+                    (self.on_select)(enumeration_item);
+                    ui.close_menu();
+                }
+            }
+        })
+        .response
+    }
 }
