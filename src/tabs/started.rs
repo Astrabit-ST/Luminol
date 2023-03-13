@@ -17,11 +17,6 @@
 
 use crate::filesystem::Filesystem;
 use poll_promise::Promise;
-use std::{
-    ffi::{OsStr, OsString},
-    fs,
-    path::Path,
-};
 
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
@@ -33,7 +28,7 @@ impl Started {
     /// Create a new starting screen.
     #[must_use]
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 }
 
