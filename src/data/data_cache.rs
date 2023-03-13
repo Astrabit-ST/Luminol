@@ -83,7 +83,7 @@ macro_rules! load_data {
                     $filesystem
                         .read_data(concat!("Data/", stringify!($name), ".rxdata"))
                         .await
-                        .map_err(|s| format!(concat!("Failed to load", stringify!($name) ,": {}"), s))?,
+                        .map_err(|s| format!(concat!("Failed to load ", stringify!($name) ,": {}"), s))?,
                 );
             }
         )*

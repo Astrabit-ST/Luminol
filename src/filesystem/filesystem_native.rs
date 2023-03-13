@@ -129,41 +129,56 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         info.data_cache.save(self).await
     }
 
+    async fn try_open_project(
+        &self,
+        info: &'static UpdateInfo,
+        path: impl ToString,
+    ) -> Result<(), String> {
+        let mut path = PathBuf::from(path.to_string());
+        let mut original_path = path.clone().to_string_lossy().to_string();
+
+        path.pop(); // Pop off filename
+
+        *self.project_path.borrow_mut() = Some(path);
+
+        *self.loading_project.borrow_mut() = true;
+
+        info.data_cache.load(self).await.map_err(|e| {
+            *self.project_path.borrow_mut() = None;
+            e
+        })?;
+
+        *self.loading_project.borrow_mut() = false;
+
+        {
+            let projects = &mut info.saved_state.borrow_mut().recent_projects;
+
+            *projects = projects
+                .iter()
+                .filter_map(|p| {
+                    if *p == original_path {
+                        None
+                    } else {
+                        Some(p.clone())
+                    }
+                })
+                .collect();
+            projects.push_front(original_path);
+            projects.truncate(10);
+        }
+
+        Ok(())
+    }
+
     /// Try to open a project.
-    async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
+    async fn spawn_project_file_picker(&self, info: &'static UpdateInfo) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "lumproj"])
             .pick_file()
             .await
         {
-            let mut path = path.path().to_path_buf();
-
-            path.pop(); // Pop off filename
-
-            *self.project_path.borrow_mut() = Some(path);
-
-            *self.loading_project.borrow_mut() = true;
-
-            info.data_cache.load(self).await.map_err(|e| {
-                *self.project_path.borrow_mut() = None;
-                e
-            })?;
-
-            *self.loading_project.borrow_mut() = false;
-
-            {
-                let projects = &mut info.saved_state.borrow_mut().recent_projects;
-
-                let path = self.project_path().unwrap().display().to_string();
-                *projects = projects
-                    .iter()
-                    .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
-                    .collect();
-                projects.push_front(path);
-                projects.truncate(10);
-            }
-
-            Ok(())
+            self.try_open_project(info, path.path().to_str().unwrap())
+                .await
         } else {
             Err("Cancelled loading project".to_string())
         }

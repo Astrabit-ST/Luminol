@@ -202,7 +202,7 @@ impl TopBar {
 
         if open_project {
             self.open_project_promise = Some(Promise::spawn_local(async move {
-                info.filesystem.try_open_project(info).await
+                info.filesystem.spawn_project_file_picker(info).await
             }));
         }
 

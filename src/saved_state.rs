@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
 use std::collections::VecDeque;
 
 /// The state saved by Luminol between sessions.

@@ -16,6 +16,12 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::filesystem::Filesystem;
+use poll_promise::Promise;
+use std::{
+    ffi::{OsStr, OsString},
+    fs,
+    path::Path,
+};
 
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
@@ -65,9 +71,9 @@ impl super::tab::Tab for Started {
                 .button(egui::RichText::new("Open Project").size(20.))
                 .clicked()
             {
-                self.load_project_promise = Some(poll_promise::Promise::spawn_local(async move {
-                    if let Err(e) = info.filesystem.try_open_project(info).await {
-                        info.toasts.error(format!("Error loading project: {e}"));
+                self.load_project_promise = Some(Promise::spawn_local(async move {
+                    if let Err(e) = info.filesystem.spawn_project_file_picker(info).await {
+                        info.toasts.error(format!("Error loading the project: {e}"));
                     }
                 }));
             }
@@ -80,17 +86,14 @@ impl super::tab::Tab for Started {
             #[cfg(not(target_arch = "wasm32"))]
             for path in &info.saved_state.borrow().recent_projects {
                 if ui.button(path).clicked() {
-                    let _path = path.clone();
-                    self.load_project_promise =
-                        Some(poll_promise::Promise::spawn_local(async move {
-                            // FIXME: re-add feature
-                            // if let Err(e) =
-                            //     info.filesystem.load_project(&path, &info.data_cache).await
-                            // {
-                            //     info.toasts
-                            //         .error(format!("Error loading project {path}: {e}"));
-                            // }
-                        }));
+                    let path = path.clone();
+
+                    self.load_project_promise = Some(Promise::spawn_local(async move {
+                        if let Err(why) = info.filesystem.try_open_project(info, path).await {
+                            info.toasts
+                                .error(format!("Error loading the project: {why}"));
+                        }
+                    }));
                 }
             }
         }

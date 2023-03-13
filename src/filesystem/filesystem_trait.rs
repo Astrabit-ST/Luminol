@@ -58,10 +58,17 @@ pub trait Filesystem {
     /// Save all cached files. An alias for [`DataCache::save`];
     async fn save_cached(&self, info: &'static UpdateInfo) -> Result<(), String>;
     /// Try to open a project.
-    async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String>;
+    async fn try_open_project(
+        &self,
+        info: &'static UpdateInfo,
+        path: impl ToString,
+    ) -> Result<(), String>;
 
     /// Create a directory at the specified path.
     async fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String>;
+
+    /// Spawn a picker window and retriev
+    async fn spawn_project_file_picker(&self, info: &'static UpdateInfo) -> Result<(), String>;
 
     /// Try to create a project.
     async fn try_create_project(
