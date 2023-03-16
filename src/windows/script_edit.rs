@@ -72,7 +72,7 @@ impl Window for ScriptEdit {
                                     match ScriptTab::new(id, script.clone()) {
                                         Ok(tab) => self.tabs.add_tab(tab),
                                         Err(e) => {
-                                            info.toasts.error(format!("Error Opening Script: {e}"))
+                                            info.toasts.error(format!("Error Opening Script: {e}"));
                                         }
                                     }
                                 }

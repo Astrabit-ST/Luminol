@@ -21,11 +21,11 @@ use strum::IntoEnumIterator;
 
 use crate::{data::config::RGSSVer, UpdateInfo};
 
-use super::window::Window;
+use super::window::Window as WindowTrait;
 use crate::filesystem::Filesystem;
 
 /// The new project window
-pub struct NewProjectWindow {
+pub struct Window {
     name: String,
     rgss_ver: RGSSVer,
     project_promise: Option<poll_promise::Promise<Result<(), String>>>,
@@ -45,14 +45,14 @@ struct Progress {
     zip_current: Rc<Cell<usize>>,
 }
 
-impl Default for NewProjectWindow {
+impl Default for Window {
     fn default() -> Self {
         Self {
             name: "My Project".to_string(),
             rgss_ver: RGSSVer::RGSS1,
             project_promise: None,
             download_executable: false,
-            progress: Default::default(),
+            progress: Progress::default(),
             #[cfg(not(target_arch = "wasm32"))]
             init_git: false,
             #[cfg(not(target_arch = "wasm32"))]
@@ -61,7 +61,7 @@ impl Default for NewProjectWindow {
     }
 }
 
-impl Window for NewProjectWindow {
+impl WindowTrait for Window {
     fn name(&self) -> String {
         "New Project".to_string()
     }
@@ -127,14 +127,16 @@ impl Window for NewProjectWindow {
 
                         let total = self.progress.total_progress.get();
                         let current = self.progress.current_progress.get() + 1;
-                        if total != 0 {
+                        if total == 0 {
+                            ui.spinner();
+                        } else {
+                            // FIXME: find a way to avoid cast precision loss
+                            #[allow(clippy::cast_precision_loss)]
                             ui.add({
                                 egui::ProgressBar::new(current as f32 / total as f32)
                                     .animate(true)
                                     .show_percentage()
                             });
-                        } else {
-                            ui.spinner();
                         }
                     } else {
                         if ui.button("Ok").clicked() {
@@ -177,7 +179,7 @@ impl Window for NewProjectWindow {
                                                     if let Err(e) = c.wait() {
                                                         info.toasts.error(format!(
                                                         "Failed to initialize git repository {e}"
-                                                    ))
+                                                    ));
                                                     }
                                                 }
                                                 Err(e) => info.toasts.error(format!(
@@ -197,7 +199,7 @@ impl Window for NewProjectWindow {
                                     }
 
                                     result
-                                }))
+                                }));
                         }
                         if ui.button("Cancel").clicked() {
                             *open = false;
@@ -214,7 +216,7 @@ impl Window for NewProjectWindow {
     }
 }
 
-impl NewProjectWindow {
+impl Window {
     async fn download_executable(
         rgss_ver: RGSSVer,
         info: &'static UpdateInfo,

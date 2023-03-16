@@ -58,7 +58,7 @@ impl TopBar {
             && info.filesystem.project_loaded();
         if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::N)) {
             info.windows
-                .add_window(crate::windows::new_project::NewProjectWindow::default());
+                .add_window(crate::windows::new_project::Window::default());
         }
 
         ui.separator();
@@ -72,7 +72,7 @@ impl TopBar {
 
             if ui.button("New Project").clicked() {
                 info.windows
-                    .add_window(crate::windows::new_project::NewProjectWindow::default());
+                    .add_window(crate::windows::new_project::Window::default());
             }
 
             if self.open_project_promise.is_none() {
@@ -124,30 +124,28 @@ impl TopBar {
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
                     info.windows
-                        .add_window(crate::windows::map_picker::MapPicker::default())
+                        .add_window(crate::windows::map_picker::MapPicker::default());
                 }
 
                 if ui.button("Items").clicked() {
-                    info.windows
-                        .add_window(crate::windows::items::ItemsWindow::new(
-                            info.data_cache.items().clone().unwrap(),
-                            info,
-                        ))
+                    if let Some(window) = crate::windows::items::Window::new(info) {
+                        info.windows.add_window(window);
+                    }
                 }
 
                 if ui.button("Common Events").clicked() {
                     info.windows
-                        .add_window(crate::windows::common_event_edit::CommonEventEdit::default())
+                        .add_window(crate::windows::common_event_edit::CommonEventEdit::default());
                 }
 
                 if ui.button("Scripts").clicked() {
                     info.windows
-                        .add_window(crate::windows::script_edit::ScriptEdit::default())
+                        .add_window(crate::windows::script_edit::ScriptEdit::default());
                 }
 
                 if ui.button("Sound Test").clicked() {
                     info.windows
-                        .add_window(crate::windows::sound_test::SoundTest::new(info))
+                        .add_window(crate::windows::sound_test::SoundTest::new(info));
                 }
             });
         });
@@ -164,17 +162,17 @@ impl TopBar {
 
             if ui.button("Egui Inspection").clicked() {
                 info.windows
-                    .add_window(crate::windows::misc::EguiInspection::default())
+                    .add_window(crate::windows::misc::EguiInspection::default());
             }
 
             if ui.button("Egui Memory").clicked() {
                 info.windows
-                    .add_window(crate::windows::misc::EguiMemory::default())
+                    .add_window(crate::windows::misc::EguiMemory::default());
             }
 
             if ui.button("Profiler").clicked() {
                 info.windows
-                    .add_window(crate::windows::misc::Puffin::default())
+                    .add_window(crate::windows::misc::Puffin::default());
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();

@@ -19,7 +19,7 @@ use std::ops::{Deref, DerefMut};
 
 /// An array that is serialized and deserialized as padded with a None element.
 #[derive(Debug, Clone)]
-pub struct NilPadded<T>(Vec<T>);
+pub struct NilPadded<T>(pub Vec<T>);
 
 impl<'de, T> serde::Deserialize<'de> for NilPadded<T>
 where

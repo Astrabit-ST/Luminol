@@ -60,7 +60,7 @@ impl super::tab::Tab for Started {
                 .clicked()
             {
                 info.windows
-                    .add_window(crate::windows::new_project::NewProjectWindow::default());
+                    .add_window(crate::windows::new_project::Window::default());
             }
             if ui
                 .button(egui::RichText::new("Open Project").size(20.))

@@ -14,27 +14,17 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{
-    graphic_picker::GraphicPicker,
-    sound_test::{SoundTab, SoundTest},
-    window::Window,
-};
+use super::{graphic_picker::GraphicPicker, sound_test::SoundTab, window::Window as WindowTrait};
 use crate::{
-    components::enum_menu_button,
-    data::{
-        nil_padded::NilPadded,
-        rmxp_structs::rpg::{self, animation::Animation},
-    },
+    components::{CallbackButton, EnumMenuButton, Field, NilPaddedMenu},
+    data::{nil_padded::NilPadded, rmxp_structs::rpg},
     filesystem::Filesystem,
     UpdateInfo,
 };
-use num_traits::ToPrimitive;
 use poll_promise::Promise;
-use strum::IntoEnumIterator;
 
-#[allow(clippy::module_name_repetitions)]
 /// Database - Items management window.
-pub struct ItemsWindow {
+pub struct Window {
     // ? Items ?
     items: NilPadded<rpg::Item>,
     selected_item: usize,
@@ -48,10 +38,11 @@ pub struct ItemsWindow {
     menu_se_picker_open: bool,
 }
 
-impl ItemsWindow {
+impl Window {
     /// Create a new window.
     #[must_use]
-    pub fn new(items: NilPadded<rpg::Item>, info: &'static UpdateInfo) -> Self {
+    pub fn new(info: &'static UpdateInfo) -> Option<Self> {
+        let items = info.data_cache.items().clone().unwrap();
         let icon_paths = match Promise::spawn_local(info.filesystem.dir_children("Graphics/Icons"))
             .block_and_take()
         {
@@ -63,7 +54,7 @@ impl ItemsWindow {
             }
         };
         let icon_picker = GraphicPicker::new(icon_paths, info);
-        Self {
+        Some(Self {
             items,
             selected_item: 0,
 
@@ -72,11 +63,11 @@ impl ItemsWindow {
 
             menu_se_picker: SoundTab::new(crate::audio::Source::SE, info, true),
             menu_se_picker_open: false,
-        }
+        })
     }
 }
 
-impl Window for ItemsWindow {
+impl WindowTrait for Window {
     fn name(&self) -> String {
         format!("Editing item {}", self.items[self.selected_item].name)
     }
@@ -93,20 +84,21 @@ impl Window for ItemsWindow {
         let common_events = info.data_cache.common_events();
         let common_events = common_events.as_ref().unwrap();
 
-        if let None = animations.get(selected_item.animation1_id as usize) {
+        /*#[allow(clippy::cast_sign_loss)]
+        if animations
+            .get(selected_item.animation1_id as usize)
+            .is_none()
+        {
             info.toasts.error(format!(
                 "Tried to get an animation with an ID of `{}`, but it doesn't exist.",
                 selected_item.animation1_id
             ));
             return;
-        }
+        }*/
 
         egui::Window::new(self.name())
-            .id(egui::Id::new("item_edit_window"))
-            .min_width(480.)
+            .id(egui::Id::new("item_editor"))
             .default_width(480.)
-            .resizable(false)
-            .collapsible(false)
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
@@ -132,87 +124,66 @@ impl Window for ItemsWindow {
                 });
                 let selected_item = &mut self.items[self.selected_item];
                 egui::Grid::new("item_edit_central_grid").show(ui, |ui| {
-                    ui.vertical(|ui| {
-                        ui.label("Name:");
-                        ui.text_edit_singleline(&mut selected_item.name);
-                    });
+                    ui.add(Field::new(
+                        "Name",
+                        egui::TextEdit::singleline(&mut selected_item.name),
+                    ));
 
-                    ui.vertical(|ui| {
-                        ui.label("Icon:");
-                        if ui.button(selected_item.icon_name.clone()).clicked() {
-                            self.icon_picker_open = !self.icon_picker_open;
-                        }
-                    });
+                    ui.add(Field::new(
+                        "Icon",
+                        CallbackButton::new(selected_item.icon_name.clone())
+                            .on_click(|| self.icon_picker_open = !self.icon_picker_open),
+                    ));
                     ui.end_row();
 
-                    ui.vertical(|ui| {
-                        ui.label("Description");
-                        ui.text_edit_singleline(&mut selected_item.description);
-                    });
+                    ui.add(Field::new(
+                        "Description",
+                        egui::TextEdit::singleline(&mut selected_item.description),
+                    ));
                     ui.end_row();
 
-                    ui.vertical(|ui| {
-                        ui.label("Scope:");
-                        enum_menu_button(ui, selected_item.scope, rpg::ItemScope::None, |scope| {
+                    ui.add(Field::new(
+                        "Scope",
+                        EnumMenuButton::new(selected_item.scope, rpg::ItemScope::None, |scope| {
                             selected_item.scope = scope as i32;
-                        });
-                    });
+                        }),
+                    ));
 
-                    ui.vertical(|ui| {
-                        ui.label("Occasion:");
-                        enum_menu_button(
-                            ui,
+                    ui.add(Field::new(
+                        "Occasion",
+                        EnumMenuButton::new(
                             selected_item.occasion,
                             rpg::ItemOccasion::Always,
                             |occasion| {
                                 selected_item.occasion = occasion as i32;
                             },
-                        );
-                    });
+                        ),
+                    ));
                     ui.end_row();
 
-                    macro_rules! nilpadded_menu {
-                        ($ui:expr, $id:expr, $np:expr) => {
-                            $ui.menu_button(
-                                if $id == 0 {
-                                    String::from("(None)")
-                                } else {
-                                    $np.get($id as usize).unwrap().name.clone()
-                                },
-                                |ui| {
-                                    for item in $np.iter() {
-                                        if ui
-                                            .button(format!("{}: {}", item.id, item.name.clone()))
-                                            .clicked()
-                                        {
-                                            $id = item.id as i32;
-                                        }
-                                    }
-                                },
-                            );
-                        };
-                    }
-
-                    ui.vertical(|ui| {
-                        ui.label("User Animation:");
-                        nilpadded_menu!(ui, selected_item.animation1_id, animations);
-                    });
-                    ui.vertical(|ui| {
-                        ui.label("Target Animation:");
-                        nilpadded_menu!(ui, selected_item.animation2_id, animations);
-                    });
+                    ui.add(Field::new(
+                        "User Animation",
+                        NilPaddedMenu::new(&mut selected_item.animation1_id, animations),
+                    ));
+                    ui.add(Field::new(
+                        "Target Animation",
+                        NilPaddedMenu::new(&mut selected_item.animation2_id, animations),
+                    ));
                     ui.end_row();
 
-                    ui.vertical(|ui| {
-                        ui.label("Menu Use SE:");
-                        if ui.button(selected_item.menu_se.name.clone()).clicked() {
+                    ui.add(Field::new(
+                        "Menu Use SE",
+                        CallbackButton::new(selected_item.menu_se.name.clone()).on_click(|| {
                             self.menu_se_picker_open = true;
-                        }
-                    });
-                    ui.vertical(|ui| {
-                        ui.label("Common Event:");
-                        nilpadded_menu!(ui, selected_item.common_event_id, common_events);
-                    });
+                        }),
+                    ));
+                    ui.add(Field::new(
+                        "Common Event",
+                        NilPaddedMenu::new(&mut selected_item.common_event_id, common_events),
+                    ));
+                    ui.end_row();
+
+                    egui::Grid::new("item_edit_central_left_grid").show(ui, |ui| {});
                 });
 
                 if self.icon_picker_open {

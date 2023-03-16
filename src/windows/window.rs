@@ -45,7 +45,7 @@ impl Windows {
     /// This is usually when a project is closed.
     pub fn clean_windows(&self) {
         let mut windows = self.windows.borrow_mut();
-        windows.retain(|window| !window.requires_filesystem())
+        windows.retain(|window| !window.requires_filesystem());
     }
 
     /// Update and draw all windows.
