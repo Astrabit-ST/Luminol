@@ -48,19 +48,3 @@ impl Window for EguiMemory {
             .show(ctx, |ui| ctx.memory_ui(ui));
     }
 }
-
-/// Puffin profiler stats.
-#[derive(Default)]
-pub struct Puffin;
-
-impl Window for Puffin {
-    fn name(&self) -> String {
-        "Puffin Profiler".to_string()
-    }
-
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {
-        egui::Window::new(self.name())
-            .open(open)
-            .show(ctx, puffin_egui::profiler_ui);
-    }
-}

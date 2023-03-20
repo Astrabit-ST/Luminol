@@ -18,8 +18,6 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use puffin_egui::puffin;
-
 use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
 
 #[cfg(feature = "discord-rpc")]
@@ -78,13 +76,10 @@ impl eframe::App for Luminol {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
         #[cfg(debug_assertions)]
-        puffin::profile_function!();
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
-                #[cfg(debug_assertions)]
-                puffin::profile_scope!("top bar");
 
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
@@ -95,31 +90,24 @@ impl eframe::App for Luminol {
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("tabs");
 
             self.info.tabs.ui(ui, self.info);
         });
 
         {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("windows");
             // Update all windows.
             self.info.windows.update(ctx, self.info);
         }
 
         // Show toasts.
         {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("toasts");
+
             self.info.toasts.show(ctx);
         }
 
         // Tick futures.
         #[cfg(not(target_arch = "wasm32"))]
         {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("tick_local");
             poll_promise::tick_local();
         }
 

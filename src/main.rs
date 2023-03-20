@@ -40,9 +40,6 @@ fn run_native() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    #[cfg(debug_assertions)]
-    puffin_egui::puffin::set_scopes_on(true);
-
     color_eyre::install()?;
 
     let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");

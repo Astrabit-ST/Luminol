@@ -17,10 +17,9 @@ build = "build.rs"
 [dependencies]
 egui_dock = "0.4"
 egui = "0.21"
-eframe = { version = "0.21", features = ["persistence", "puffin"] }
+eframe = { version = "0.21", features = ["persistence"] }
 egui_extras = { version = "0.21", features = ["svg", "image"] }
 egui-notify = "0.6"
-puffin_egui = "0.20"
 image = { version = "0.24", features = ["jpeg", "png"] }
 strum = { version = "0.24.1", features = ["derive"] }
 enum-as-inner = "0.5.1"
@@ -41,7 +40,7 @@ color-eyre = "0.6"
 eyre = "0.6"
 paste = "1.0"
 num-traits = "0.2"
-num-derive = "0.2"
+num-derive = "0.3"
 
 serde = { version = "1.0", features = ["derive"] }
 alox-48 = { version = "*", path = "alox-48" }
@@ -137,7 +136,7 @@ opt-level = 3
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = ["alox-48"]
+members = ["alox-48", "command-gen", "command-lib", "rmxp-types"]
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }

@@ -170,11 +170,6 @@ impl TopBar {
                     .add_window(crate::windows::misc::EguiMemory::default());
             }
 
-            if ui.button("Profiler").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::Puffin::default());
-            }
-
             let mut debug_on_hover = ui.ctx().debug_on_hover();
             ui.toggle_value(&mut debug_on_hover, "Debug on hover");
             ui.ctx().set_debug_on_hover(debug_on_hover);
