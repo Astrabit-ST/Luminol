@@ -66,7 +66,6 @@ rmxp-types = { version = "*", path = "rmxp-types" }
 [features]
 default = ["generic-tilemap"]
 generic-tilemap = []
-discord-rpc = ["discord-sdk", "tokio"]
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -75,12 +74,7 @@ rodio = { version = "0.17.0", features = [
     "symphonia-all",
 ], default-features = false }
 poll-promise = { version = "0.2.0", features = ["smol"] }
-tokio = { version = "1.25", features = [
-    "macros",
-    "rt-multi-thread",
-], optional = true }
 async-fs = "1.6.0"
-discord-sdk = { version = "0.3", optional = true }
 surf = "2.3.2"
 rfd = "0.11"
 
@@ -132,12 +126,12 @@ winres = "0.1"
 [package.metadata.winres]
 OriginalFilename = "Luminol.exe"
 ProductName = "Luminol"
-ProductVersion = "0.3.2"
+ProductVersion = "0.4.0"
 
 # Fast and performant.
 [profile.release]
 opt-level = 3
-lto = "thin"
+lto = "fat"
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]

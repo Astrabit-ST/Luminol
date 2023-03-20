@@ -1,14 +1,27 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+use rmxp_types::rpg;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+type Code = u16;
+type Parameters = HashMap<Code, ParameterKind>;
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct CommandDescription {
+    pub code: Code,
+    pub name: String,
+    pub description: String,
+    pub kind: CommandKind,
+    pub parameters: Parameters,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandKind {
+    Branch,
+    Multi { code: Code },
+    String,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub enum ParameterKind {
+    Group {},
 }

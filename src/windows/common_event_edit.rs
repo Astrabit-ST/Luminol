@@ -169,11 +169,6 @@ impl Tab for CommonEventTab {
         true
     }
 
-    #[cfg(feature = "discord-rpc")]
-    fn discord_display(&self) -> String {
-        "".to_string()
-    }
-
     fn force_close(&mut self) -> bool {
         self.force_close
     }

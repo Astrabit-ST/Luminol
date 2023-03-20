@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 rmxp-types = { version = "*", path = "../rmxp-types" }
 serde = { version = "1.0", features = ["derive"] }
+ron = "0.8.0"
+
+egui = "0.21"

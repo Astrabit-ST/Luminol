@@ -9,3 +9,4 @@ edition = "2021"
 eframe = "0.21.3"
 
 command-lib = { version = "*", path = "../command-lib" }
+ron = "0.8.0"

@@ -258,11 +258,6 @@ impl super::tab::Tab for Map {
         self.event_windows.update(ui.ctx(), info);
     }
 
-    #[cfg(feature = "discord-rpc")]
-    fn discord_display(&self) -> String {
-        format!("Editing Map<{}>: {}", self.id, self.name)
-    }
-
     fn requires_filesystem(&self) -> bool {
         true
     }

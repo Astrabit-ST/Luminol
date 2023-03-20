@@ -20,16 +20,11 @@ use std::sync::Arc;
 
 use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
 
-#[cfg(feature = "discord-rpc")]
-use crate::filesystem::filesystem_trait::Filesystem;
-
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
     info: &'static UpdateInfo,
     style: Arc<egui::Style>,
-    #[cfg(feature = "discord-rpc")]
-    discord: crate::discord::DiscordClient,
 }
 
 impl Luminol {
@@ -60,8 +55,6 @@ impl Luminol {
                 state,
             ))),
             style,
-            #[cfg(feature = "discord-rpc")]
-            discord: crate::discord::DiscordClient::default(),
         }
     }
 }
@@ -76,11 +69,9 @@ impl eframe::App for Luminol {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
         #[cfg(debug_assertions)]
-
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
-
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
@@ -90,7 +81,6 @@ impl eframe::App for Luminol {
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-
             self.info.tabs.ui(ui, self.info);
         });
 
@@ -101,7 +91,6 @@ impl eframe::App for Luminol {
 
         // Show toasts.
         {
-
             self.info.toasts.show(ctx);
         }
 
@@ -110,16 +99,6 @@ impl eframe::App for Luminol {
         {
             poll_promise::tick_local();
         }
-
-        // Update discord
-        #[cfg(feature = "discord-rpc")]
-        self.discord.update(
-            self.info.tabs.discord_display(),
-            self.info
-                .filesystem
-                .project_path()
-                .map(|p| p.display().to_string()),
-        );
     }
 
     fn persist_egui_memory(&self) -> bool {
