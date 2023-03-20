@@ -104,7 +104,7 @@ impl Window for EventEdit {
                             .selectable_value(&mut self.selected_page, page, page.to_string())
                             .clicked()
                         {
-                            self.modals = (false, false, false)
+                            self.modals = (false, false, false);
                         }
                     }
                 });
@@ -363,7 +363,7 @@ impl Window for EventEdit {
                                 egui::ScrollArea::both()
                                     .max_height(500.)
                                     .auto_shrink([false; 2])
-                                    .show(ui, |ui| {
+                                    .show(ui, |_ui| {
                                         // CommandView::new(
                                         //     &format!(
                                         //         "map_event_{}_{}_page_{}",

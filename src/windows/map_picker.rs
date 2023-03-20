@@ -28,17 +28,17 @@ pub struct MapPicker {}
 
 impl MapPicker {
     fn render_submap(
-        id: &i32,
+        id: i32,
         children_data: &HashMap<i32, Vec<i32>>,
         mapinfos: &mut HashMap<i32, MapInfo>,
         info: &'static UpdateInfo,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
-        let map_info = mapinfos.get_mut(id).unwrap();
+        let map_info = mapinfos.get_mut(&id).unwrap();
         let map_name = &map_info.name;
         // Does this map have children?
-        if children_data.contains_key(id) {
+        if children_data.contains_key(&id) {
             // Render a custom collapsing header.
             // It's custom so we can add a button to open a map.
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -53,13 +53,13 @@ impl MapPicker {
                 .show_header(ui, |ui| {
                     // Has the user
                     if ui.button(map_name).double_clicked() {
-                        Self::create_map_tab(*id, map_name.clone(), info);
+                        Self::create_map_tab(id, map_name.clone(), info);
                     }
                 })
                 .body(|ui| {
-                    for id in children_data.get(id).unwrap() {
+                    for id in children_data.get(&id).unwrap() {
                         // Render children.
-                        Self::render_submap(id, children_data, mapinfos, info, ui)
+                        Self::render_submap(*id, children_data, mapinfos, info, ui);
                     }
                 });
         } else {
@@ -67,7 +67,7 @@ impl MapPicker {
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
                 if ui.button(map_name).double_clicked() {
-                    Self::create_map_tab(*id, map_name.clone(), info);
+                    Self::create_map_tab(id, map_name.clone(), info);
                 }
             });
         }
@@ -91,17 +91,10 @@ impl super::window::Window for MapPicker {
                     .show(ui, |ui| {
                         // Aquire the data cache.
                         let mut mapinfos = info.data_cache.map_infos();
-                        let mapinfos = match mapinfos.as_mut() {
-                            Some(m) => m,
-                            None => {
-                                *open = false;
-                                info.toasts.error("MapInfos not loaded.");
-                                return;
-                            }
-                        };
+                        let mapinfos = mapinfos.as_mut().unwrap();
 
                         // We sort maps by their order.
-                        let mut sorted_maps = Vec::from_iter(mapinfos.iter());
+                        let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();
                         sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
 
                         // We preprocess maps to figure out what has nodes and what doesn't.
@@ -122,7 +115,7 @@ impl super::window::Window for MapPicker {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
                                 for id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(id, &children_data, mapinfos, info, ui);
+                                    Self::render_submap(*id, &children_data, mapinfos, info, ui);
                                 }
                             });
                     })

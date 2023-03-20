@@ -135,7 +135,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         path: impl ToString,
     ) -> Result<(), String> {
         let mut path = PathBuf::from(path.to_string());
-        let mut original_path = path.clone().to_string_lossy().to_string();
+        let original_path = path.clone().to_string_lossy().to_string();
 
         path.pop(); // Pop off filename
 

@@ -62,7 +62,7 @@ impl Modal for SwitchModal {
                 ui.ctx().memory_mut(|m| {
                     m.data
                         .get_temp_mut_or(self.id, (*data, *data, String::new()));
-                })
+                });
             }
         }
 
@@ -146,7 +146,7 @@ impl Modal for SwitchModal {
 
                 ctx.data_mut(|m| {
                     m.insert_temp(self.id, memory);
-                })
+                });
             });
         *open = *open && win_open;
     }

@@ -79,7 +79,7 @@ impl Window for CommonEventEdit {
                                         event: event.clone(),
                                         force_close: false,
                                         switch_open: false,
-                                    })
+                                    });
                                 }
                             }
                         },
@@ -156,7 +156,7 @@ impl Tab for CommonEventTab {
 
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
-            .show(ui, |ui| {
+            .show(ui, |_ui| {
                 //  CommandView::new(&format!("common_event_{}", self.event.id), None).ui(
                 //      ui,
                 //      info,

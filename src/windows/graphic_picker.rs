@@ -14,11 +14,10 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::window::Window;
+
 use crate::{load_image_software, UpdateInfo};
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
-use std::path::Path;
 
 pub struct Graphic {
     pub name: String,

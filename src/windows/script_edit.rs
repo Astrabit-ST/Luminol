@@ -145,7 +145,8 @@ impl Tab for ScriptTab {
                 let mut scripts = info.data_cache.scripts();
                 let scripts = scripts.as_mut().unwrap();
 
-                let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Default::default());
+                let mut encoder =
+                    flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
                 let result = encoder
                     .write_all(self.script.as_bytes())
                     .and_then(|_| encoder.finish());

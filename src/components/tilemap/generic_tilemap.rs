@@ -477,9 +477,9 @@ impl TilemapDef for Tilemap {
                     .enumerate()
                     .filter(|(_, p)| p.move_type == 3)
                 {
-                    let move_route = &page.move_route;
+                    let _move_route = &page.move_route;
 
-                    let mut directions = vec![page.graphic.direction];
+                    let _directions = vec![page.graphic.direction];
                     let mut points = vec![egui::pos2(event.x as f32, event.y as f32)];
                     // process_move_route(move_route, &mut directions, &mut points);
 
@@ -513,8 +513,8 @@ impl TilemapDef for Tilemap {
             }
         }
 
-        if let Some((direction, route)) = &map.preview_move_route {
-            let mut directions = vec![*direction];
+        if let Some((direction, _route)) = &map.preview_move_route {
+            let _directions = vec![*direction];
             let mut points = vec![*cursor_pos];
             // process_move_route(route, &mut directions, &mut points);
 

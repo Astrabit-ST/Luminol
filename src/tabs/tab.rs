@@ -44,7 +44,7 @@ impl Tabs {
     pub fn new(id: impl Hash) -> Self {
         Self {
             id: egui::Id::new(id),
-            tree: Default::default(),
+            tree: RefCell::default(),
         }
     }
 

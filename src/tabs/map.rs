@@ -61,7 +61,7 @@ impl Map {
             selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,
-            event_windows: Default::default(),
+            event_windows: Windows::default(),
             force_close: false,
         })
     }

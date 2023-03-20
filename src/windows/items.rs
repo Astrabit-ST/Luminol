@@ -77,7 +77,7 @@ impl WindowTrait for Window {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
-        let selected_item = &self.items[self.selected_item];
+        let _selected_item = &self.items[self.selected_item];
         let animations = info.data_cache.animations();
         let animations = animations.as_ref().unwrap();
 
@@ -183,7 +183,7 @@ impl WindowTrait for Window {
                     ));
                     ui.end_row();
 
-                    egui::Grid::new("item_edit_central_left_grid").show(ui, |ui| {});
+                    egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
 
                 if self.icon_picker_open {

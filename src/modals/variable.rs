@@ -64,7 +64,7 @@ impl Modal for VariableModal {
                 ui.ctx().memory_mut(|m| {
                     m.data
                         .get_temp_mut_or(self.id, (*data, *data, String::new()));
-                })
+                });
             }
         }
 
@@ -149,7 +149,7 @@ impl Modal for VariableModal {
 
                 ctx.data_mut(|m| {
                     m.insert_temp(self.id, memory);
-                })
+                });
             });
         *open = *open && win_open;
     }
