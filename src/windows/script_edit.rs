@@ -19,10 +19,8 @@ use std::io::{Read, Write};
 
 use super::window::Window;
 use crate::components::syntax_highlighting;
-use crate::{
-    data::rmxp_structs::intermediate::Script,
-    tabs::tab::{Tab, Tabs},
-};
+use crate::tabs::tab::{Tab, Tabs};
+use rmxp_types::rpg::Script;
 
 /// The script editor.
 pub struct ScriptEdit {

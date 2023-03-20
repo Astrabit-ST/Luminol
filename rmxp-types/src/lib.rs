@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod nil_padded;
+mod rgss_structs;
+pub mod rmxp_structs;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use nil_padded::NilPadded;
+pub use rgss_structs::{Color, Table1, Table2, Table3, Tone};
+pub use rmxp_structs as rpg;

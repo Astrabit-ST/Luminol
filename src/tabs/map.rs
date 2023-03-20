@@ -21,10 +21,10 @@ use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
     components::tilemap::{Tilemap, TilemapDef},
-    data::rmxp_structs::rpg,
     windows::{event_edit::EventEdit, window::Windows},
     UpdateInfo,
 };
+use rmxp_types::rpg;
 
 /// The map editor.
 pub struct Map {
@@ -205,7 +205,7 @@ impl super::tab::Tab for Map {
                                 ));
                             } else {
                                 let id = map.events.vacant_key();
-                                let event = rpg::event::Event::new(map_x, map_y, id);
+                                let event = rpg::Event::new(map_x, map_y, id);
 
                                 map.events.insert(event.clone());
 

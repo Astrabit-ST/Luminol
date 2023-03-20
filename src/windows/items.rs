@@ -17,11 +17,11 @@
 use super::{graphic_picker::GraphicPicker, sound_test::SoundTab, window::Window as WindowTrait};
 use crate::{
     components::{CallbackButton, EnumMenuButton, Field, NilPaddedMenu},
-    data::{nil_padded::NilPadded, rmxp_structs::rpg},
     filesystem::Filesystem,
     UpdateInfo,
 };
 use poll_promise::Promise;
+use rmxp_types::{rpg, NilPadded};
 
 /// Database - Items management window.
 pub struct Window {

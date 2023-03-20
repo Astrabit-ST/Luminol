@@ -77,18 +77,8 @@ pub mod tabs {
 pub mod data {
     /// The data cache, used to store things before writing them to the disk.
     pub mod cache;
-    /// The tree data structure for commands
-    pub mod command_tree;
-    /// Event command related enums
-    pub mod commands;
     /// Luminol configuration
     pub mod config;
-    /// Nil padded arrays.
-    pub mod nil_padded;
-    /// RGSS structs.
-    pub mod rgss_structs;
-    /// RMXP structs.
-    pub mod rmxp_structs;
 }
 
 /// Filesystem related structs.

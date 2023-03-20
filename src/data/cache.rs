@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::data::nil_padded::NilPadded;
-use crate::data::rmxp_structs::rpg;
+use rmxp_types::rpg;
+use rmxp_types::NilPadded;
 use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
@@ -24,31 +24,27 @@ use std::{
 
 use crate::filesystem::Filesystem;
 
-use super::{
-    config::LocalConfig,
-    rgss_structs::{Table1, Table3},
-    rmxp_structs::intermediate,
-};
+use super::config::LocalConfig;
 
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
 pub struct Cache {
     actors: RefCell<Option<NilPadded<rpg::Actor>>>,
-    animations: RefCell<Option<NilPadded<rpg::animation::Animation>>>,
+    animations: RefCell<Option<NilPadded<rpg::Animation>>>,
     armors: RefCell<Option<NilPadded<rpg::Armor>>>,
-    classes: RefCell<Option<NilPadded<rpg::class::Class>>>,
+    classes: RefCell<Option<NilPadded<rpg::Class>>>,
     commonevents: RefCell<Option<NilPadded<rpg::CommonEvent>>>,
     enemies: RefCell<Option<NilPadded<rpg::enemy::Enemy>>>,
     items: RefCell<Option<NilPadded<rpg::Item>>>,
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
     maps: RefCell<HashMap<i32, rpg::Map>>,
-    scripts: RefCell<Option<Vec<intermediate::Script>>>,
+    scripts: RefCell<Option<Vec<rpg::Script>>>,
     skills: RefCell<Option<NilPadded<rpg::Skill>>>,
     states: RefCell<Option<NilPadded<rpg::State>>>,
-    system: RefCell<Option<rpg::system::System>>,
+    system: RefCell<Option<rpg::System>>,
     tilesets: RefCell<Option<NilPadded<rpg::Tileset>>>,
-    troops: RefCell<Option<NilPadded<rpg::troop::Troop>>>,
+    troops: RefCell<Option<NilPadded<rpg::Troop>>>,
     weapons: RefCell<Option<NilPadded<rpg::Weapon>>>,
 
     config: RefCell<Option<LocalConfig>>,
@@ -172,12 +168,12 @@ impl Cache {
     }
 
     /// Get system.
-    pub fn system(&self) -> RefMut<'_, Option<rpg::system::System>> {
+    pub fn system(&self) -> RefMut<'_, Option<rpg::System>> {
         self.system.borrow_mut()
     }
 
     /// Get Animations.
-    pub fn animations(&self) -> RefMut<'_, Option<NilPadded<rpg::animation::Animation>>> {
+    pub fn animations(&self) -> RefMut<'_, Option<NilPadded<rpg::Animation>>> {
         self.animations.borrow_mut()
     }
 
@@ -192,7 +188,7 @@ impl Cache {
     }
 
     /// Get Scripts.
-    pub fn scripts(&self) -> RefMut<'_, Option<Vec<intermediate::Script>>> {
+    pub fn scripts(&self) -> RefMut<'_, Option<Vec<rpg::Script>>> {
         self.scripts.borrow_mut()
     }
 
@@ -260,9 +256,9 @@ impl Cache {
     pub fn setup_defaults(&self) {
         // FIXME: make macro
         *self.actors() = Some(vec![rpg::Actor::default()].into());
-        *self.animations() = Some(vec![rpg::animation::Animation::default()].into());
+        *self.animations() = Some(vec![rpg::Animation::default()].into());
         *self.armors.borrow_mut() = Some(vec![rpg::Armor::default()].into());
-        *self.classes.borrow_mut() = Some(vec![rpg::class::Class::default()].into());
+        *self.classes.borrow_mut() = Some(vec![rpg::Class::default()].into());
         *self.common_events() = Some(vec![rpg::CommonEvent::default()].into());
         *self.enemies.borrow_mut() = Some(vec![rpg::enemy::Enemy::default()].into());
         *self.items() = Some(NilPadded::default());
@@ -286,7 +282,7 @@ impl Cache {
         *self.skills.borrow_mut() = Some(vec![rpg::Skill::default()].into());
         *self.states.borrow_mut() = Some(vec![rpg::State::default()].into());
 
-        *self.system() = Some(rpg::system::System {
+        *self.system() = Some(rpg::System {
             magic_number: rand::random(),
             ..Default::default()
         });
@@ -294,15 +290,15 @@ impl Cache {
         *self.tilesets() = Some(
             vec![rpg::Tileset {
                 id: 1,
-                passages: Table1::new(8),
-                priorities: Table1::new(8),
-                terrain_tags: Table1::new(8),
+                passages: rmxp_types::Table1::new(8),
+                priorities: rmxp_types::Table1::new(8),
+                terrain_tags: rmxp_types::Table1::new(8),
                 ..Default::default()
             }]
             .into(),
         );
 
-        *self.troops.borrow_mut() = Some(vec![rpg::troop::Troop::default()].into());
+        *self.troops.borrow_mut() = Some(vec![rpg::Troop::default()].into());
         *self.weapons.borrow_mut() = Some(vec![rpg::Weapon::default()].into());
 
         let mut maps = HashMap::new();
@@ -312,7 +308,7 @@ impl Cache {
                 tileset_id: 1,
                 width: 20,
                 height: 15,
-                data: Table3::new(20, 15, 3),
+                data: rmxp_types::Table3::new(20, 15, 3),
                 ..Default::default()
             },
         );

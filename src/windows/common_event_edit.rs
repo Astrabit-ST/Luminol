@@ -16,11 +16,10 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    components::command_view::CommandView,
-    data::rmxp_structs::rpg,
     modals::{modal::Modal, switch::SwitchModal},
     tabs::tab::{Tab, Tabs},
 };
+use rmxp_types::rpg;
 
 use super::window::Window;
 
@@ -158,11 +157,11 @@ impl Tab for CommonEventTab {
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                CommandView::new(&format!("common_event_{}", self.event.id), None).ui(
-                    ui,
-                    info,
-                    &mut self.event.list,
-                );
+                //  CommandView::new(&format!("common_event_{}", self.event.id), None).ui(
+                //      ui,
+                //      info,
+                //      &mut self.event.list,
+                //  );
             });
     }
 
