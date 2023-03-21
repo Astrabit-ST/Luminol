@@ -1,3 +1,5 @@
+#![feature(min_specialization)]
+
 mod nil_padded;
 mod rgss_structs;
 pub mod rmxp_structs;

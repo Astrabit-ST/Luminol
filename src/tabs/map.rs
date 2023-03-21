@@ -94,7 +94,7 @@ impl super::tab::Tab for Map {
             // If there are no toggled layers (i.e we just loaded the map)
             // then fill up the vector with `true`;
             if self.toggled_layers.is_empty() {
-                self.toggled_layers = vec![true; map.data.zsize() + 1];
+                self.toggled_layers = vec![true; map.data.zsize() + 3];
                 self.selected_layer = map.data.zsize() + 1;
             }
 
@@ -127,6 +127,8 @@ impl super::tab::Tab for Map {
                             // Display all layers.
                             ui.columns(2, |columns| {
                                 columns[1].visuals_mut().button_frame = true;
+                                columns[0].label("Panorama");
+                                columns[1].checkbox(&mut self.toggled_layers[layers + 1], "👁");
 
                                 for layer in 0..layers {
                                     columns[0].selectable_value(
@@ -143,6 +145,9 @@ impl super::tab::Tab for Map {
                                     "Events",
                                 );
                                 columns[1].checkbox(&mut self.toggled_layers[layers], "👁");
+
+                                columns[0].label("Fog");
+                                columns[1].checkbox(&mut self.toggled_layers[layers + 2], "👁");
                             });
                         },
                     );
