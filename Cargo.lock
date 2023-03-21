@@ -880,16 +880,15 @@ dependencies = [
  "command-lib",
  "eframe",
  "ron",
+ "strum",
 ]
 
 [[package]]
 name = "command-lib"
 version = "0.1.0"
 dependencies = [
- "egui",
- "rmxp-types",
- "ron",
  "serde",
+ "strum",
 ]
 
 [[package]]

@@ -10,3 +10,5 @@ eframe = "0.21.3"
 
 command-lib = { version = "*", path = "../command-lib" }
 ron = "0.8.0"
+
+strum = { version = "0.24" }
