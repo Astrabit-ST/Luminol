@@ -229,32 +229,36 @@ impl TilemapDef for Tilemap {
         };
 
         // Do we need to render a panorama?
-        if let Some(pano_tex) = &textures.pano_tex {
-            // Find the minimum number of panoramas we can fit in the map size (should fit the screen)
-            let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
-            // We want to display more not less than we possibly can
-            pano_repeat.x = pano_repeat.x.ceil();
-            pano_repeat.y = pano_repeat.y.ceil();
+        if toggled_layers[map.data.zsize() + 1] {
+            if let Some(pano_tex) = &textures.pano_tex {
+                // Find the minimum number of panoramas we can fit in the map size (should fit the screen)
+                let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
+                // We want to display more not less than we possibly can
+                pano_repeat.x = pano_repeat.x.ceil();
+                pano_repeat.y = pano_repeat.y.ceil();
 
-            // Iterate through ranges
-            for y in 0..(pano_repeat.y as usize) {
-                for x in 0..(pano_repeat.x as usize) {
-                    // Display the panorama
-                    let pano_rect = egui::Rect::from_min_size(
-                        map_rect.min
-                            + egui::vec2(
-                                (pano_tex.width() * x) as f32 * scale,
-                                (pano_tex.height() * y) as f32 * scale,
-                            ),
-                        pano_tex.size_vec2() * scale,
-                    );
+                // Iterate through ranges
+                for y in 0..(pano_repeat.y as usize) {
+                    for x in 0..(pano_repeat.x as usize) {
+                        // Display the panorama
+                        let pano_rect = egui::Rect::from_min_size(
+                            map_rect.min
+                                + egui::vec2(
+                                    (pano_tex.width() * x) as f32 * scale,
+                                    (pano_tex.height() * y) as f32 * scale,
+                                ),
+                            pano_tex.size_vec2() * scale,
+                        );
 
-                    egui::Image::new(pano_tex.texture_id(ui.ctx()), pano_tex.size_vec2() * scale)
+                        egui::Image::new(
+                            pano_tex.texture_id(ui.ctx()),
+                            pano_tex.size_vec2() * scale,
+                        )
                         .paint_at(ui, pano_rect);
+                    }
                 }
             }
         }
-
         // Iterate through all tiles.
         for (idx, ele) in map.data.iter().enumerate() {
             if *ele < 48 {
@@ -446,25 +450,27 @@ impl TilemapDef for Tilemap {
 
         // Display the fog if we should.
         // Uses an almost identical method to panoramas with an added scale.
-        if let Some(fog_tex) = &textures.fog_tex {
-            let zoom = (textures.fog_zoom as f32 / 100.) * scale;
-            let mut fox_repeat = map_rect.size() / (fog_tex.size_vec2() * zoom);
-            fox_repeat.x = fox_repeat.x.ceil();
-            fox_repeat.y = fox_repeat.y.ceil();
+        if toggled_layers[map.data.zsize() + 2] {
+            if let Some(fog_tex) = &textures.fog_tex {
+                let zoom = (textures.fog_zoom as f32 / 100.) * scale;
+                let mut fox_repeat = map_rect.size() / (fog_tex.size_vec2() * zoom);
+                fox_repeat.x = fox_repeat.x.ceil();
+                fox_repeat.y = fox_repeat.y.ceil();
 
-            for y in 0..(fox_repeat.y as usize) {
-                for x in 0..(fox_repeat.x as usize) {
-                    let fog_rect = egui::Rect::from_min_size(
-                        map_rect.min
-                            + egui::vec2(
-                                (fog_tex.width() * x) as f32 * zoom,
-                                (fog_tex.height() * y) as f32 * zoom,
-                            ),
-                        fog_tex.size_vec2() * zoom,
-                    );
+                for y in 0..(fox_repeat.y as usize) {
+                    for x in 0..(fox_repeat.x as usize) {
+                        let fog_rect = egui::Rect::from_min_size(
+                            map_rect.min
+                                + egui::vec2(
+                                    (fog_tex.width() * x) as f32 * zoom,
+                                    (fog_tex.height() * y) as f32 * zoom,
+                                ),
+                            fog_tex.size_vec2() * zoom,
+                        );
 
-                    egui::Image::new(fog_tex.texture_id(ui.ctx()), fog_tex.size_vec2() * zoom)
-                        .paint_at(ui, fog_rect);
+                        egui::Image::new(fog_tex.texture_id(ui.ctx()), fog_tex.size_vec2() * zoom)
+                            .paint_at(ui, fog_rect);
+                    }
                 }
             }
         }

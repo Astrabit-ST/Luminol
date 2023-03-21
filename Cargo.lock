@@ -201,19 +201,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alox-48"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c6159576e0c75b34b319090eb80eb63318bd16f9b8083305c1bde09b19d06a9"
-dependencies = [
- "enum-as-inner",
- "indexmap",
- "paste",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "alsa"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2455,7 +2442,7 @@ dependencies = [
 name = "luminol"
 version = "0.4.0"
 dependencies = [
- "alox-48 0.2.0",
+ "alox-48",
  "async-fs",
  "async-trait",
  "bytemuck",
@@ -3388,7 +3375,7 @@ dependencies = [
 name = "rmxp-types"
 version = "0.1.0"
 dependencies = [
- "alox-48 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "alox-48",
  "bytemuck",
  "enum-as-inner",
  "num-derive",
