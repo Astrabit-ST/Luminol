@@ -194,16 +194,15 @@ impl TopBar {
             });
 
         if open_project {
-            self.open_project_promise = Some(Promise::spawn_local(async move {
-                info.filesystem.spawn_project_file_picker(info).await
-            }));
+            self.open_project_promise = Some(Promise::spawn_local(
+                info.filesystem.spawn_project_file_picker(info),
+            ));
         }
 
         if save_project {
             info.toasts.info("Saving project...");
-            self.save_project_promise = Some(Promise::spawn_local(async move {
-                info.filesystem.save_cached(info).await
-            }));
+            self.save_project_promise =
+                Some(Promise::spawn_local(info.filesystem.save_cached(info)));
         }
 
         if self.open_project_promise.is_some() {

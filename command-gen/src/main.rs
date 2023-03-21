@@ -50,7 +50,7 @@ impl eframe::App for App {
                         })
                         .body(|ui| {
                             ui.label("Description");
-                            ui.text_edit_multiline(&mut command.description);
+                            ui.text_edit_multiline(&mut command.description).on_hover_text("Description for this command");
 
                             ui.separator();
 
@@ -69,7 +69,7 @@ impl eframe::App for App {
                                     },
                                 );
                                 if let CommandKind::Multi(ref mut code) = command.kind {
-                                    ui.label("Code");
+                                    ui.label("Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one. This is reserved for text specifically");
                                     ui.add(egui::DragValue::new(code));
                                 }
                             });
@@ -81,7 +81,8 @@ impl eframe::App for App {
                             });
                         });
 
-                    if ui.button("Preview UI").clicked() {
+                    
+                    if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {
                         self.ui_examples.push(UiExample::new(command));
                     }
 
@@ -125,8 +126,9 @@ impl App {
     fn parameter_ui(ui: &mut egui::Ui, parameters: &mut Vec<Parameter>) {
         let mut del_index = None;
         for (idx, parameter) in parameters.iter_mut().enumerate() {
+            ui.text_edit_singleline(&mut parameter.name);
             ui.horizontal(|ui| {
-                ui.label("Index: ");
+                ui.label("Position: ").on_hover_text_at_pointer("Position of this parameter, when not set it is assumed to be the index of the parameter");
                 if let Some(ref mut idx) = parameter.index {
                     ui.add(egui::DragValue::new(idx));
                 } else {
@@ -158,12 +160,18 @@ impl App {
                 });
             });
 
+            ui.label("Description");
+            ui.text_edit_multiline(&mut parameter.description)
+                .on_hover_text("Description for this parameter");
+
             if let ParameterKind::Group { ref mut parameters }
             | ParameterKind::Selection { ref mut parameters } = parameter.kind
             {
                 ui.collapsing("Subparameters", |ui| {
                     Self::parameter_ui(ui, parameters);
-                });
+                })
+                .header_response
+                .on_hover_text("This parameter has subparameters");
             }
             ui.separator();
         }
@@ -203,8 +211,62 @@ impl UiExample {
             self.command.code, self.command.name
         ))
         .open(&mut open)
-        .show(ctx, |ui| {});
+        .show(ctx, |ui| {
+            ui.label(egui::RichText::new(&self.command.name).monospace())
+                .on_hover_text(&self.command.description);
+
+            ui.separator();
+
+            let mut index = 0;
+            for parameter in &mut self.command.parameters {
+                Self::parameter_ui(ui, parameter, &mut index);
+            }
+        });
         open
+    }
+
+    fn parameter_ui(ui: &mut egui::Ui, parameter: &mut Parameter, index: &mut u8) {
+        if let ParameterKind::Dummy = parameter.kind {
+            *index += 1;
+
+            return;
+        }
+
+        ui.label(format!(
+            "{} {}",
+            parameter.name,
+            parameter.index.unwrap_or(*index)
+        ))
+        .on_hover_text(&parameter.description);
+
+        *index += 1;
+
+        match parameter.kind {
+            ParameterKind::Selection { ref mut parameters } => {
+                for parameter in parameters {
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut false, "");
+                        ui.vertical(|ui| {
+                            ui.add_enabled_ui(false, |ui| Self::parameter_ui(ui, parameter, index));
+                        });
+                    });
+                }
+            }
+            ParameterKind::Group { ref mut parameters } => {
+                ui.group(|ui| {
+                    for parameter in parameters {
+                        Self::parameter_ui(ui, parameter, index);
+                    }
+                });
+            }
+            ParameterKind::Switch => {
+                ui.button("Switch: [000: EXAMPLE]").clicked();
+            }
+            ParameterKind::Variable => {
+                ui.button("Variable [000: EXAMPLE]").clicked();
+            }
+            ParameterKind::Dummy => unreachable!(),
+        }
     }
 }
 

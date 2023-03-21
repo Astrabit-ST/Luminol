@@ -15,6 +15,17 @@ pub struct CommandDescription {
     pub parameters: Parameters,
 }
 
+impl CommandDescription {
+    pub fn parameter_count(&self) -> u8 {
+        self.parameters.len() as u8
+            + self
+                .parameters
+                .iter()
+                .map(Parameter::parameter_count)
+                .sum::<u8>()
+    }
+}
+
 impl Default for CommandDescription {
     fn default() -> Self {
         CommandDescription {
@@ -45,7 +56,25 @@ impl PartialEq for CommandKind {
 pub struct Parameter {
     #[serde(default)]
     pub index: Option<u8>,
+    pub description: String,
+    pub name: String,
     pub kind: ParameterKind,
+}
+
+impl Parameter {
+    pub fn parameter_count(&self) -> u8 {
+        if let ParameterKind::Group { ref parameters }
+        | ParameterKind::Selection { ref parameters } = self.kind
+        {
+            parameters.len() as u8
+                + parameters
+                    .iter()
+                    .map(Parameter::parameter_count)
+                    .sum::<u8>()
+        } else {
+            0
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, EnumIter, IntoStaticStr, Default)]
@@ -60,7 +89,7 @@ pub enum ParameterKind {
     Variable,
 
     #[default]
-    Undefined,
+    Dummy,
 }
 
 impl PartialEq for ParameterKind {

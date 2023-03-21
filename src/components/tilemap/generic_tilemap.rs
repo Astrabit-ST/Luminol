@@ -126,9 +126,7 @@ impl TilemapDef for Tilemap {
             move_preview: false,
             ani_idx: 0,
             ani_instant: Instant::now(),
-            load_promise: poll_promise::Promise::spawn_local(async move {
-                Self::load_data(info, id).await
-            }),
+            load_promise: poll_promise::Promise::spawn_local(Self::load_data(info, id)),
         }
     }
 
