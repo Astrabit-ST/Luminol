@@ -13,6 +13,8 @@ pub struct CommandDescription {
     #[serde(default)]
     pub kind: CommandKind,
     pub parameters: Parameters,
+    #[serde(default)]
+    pub hidden: bool,
 }
 
 impl CommandDescription {
@@ -34,13 +36,14 @@ impl Default for CommandDescription {
             description: "".to_string(),
             kind: CommandKind::Single,
             parameters: vec![],
+            hidden: false,
         }
     }
 }
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, Default, EnumIter, IntoStaticStr)]
 pub enum CommandKind {
-    Branch,
+    Branch(Code),
     Multi(Code),
     #[default]
     Single,
@@ -63,16 +66,23 @@ pub struct Parameter {
 
 impl Parameter {
     pub fn parameter_count(&self) -> u8 {
-        if let ParameterKind::Group { ref parameters }
-        | ParameterKind::Selection { ref parameters } = self.kind
-        {
-            parameters.len() as u8
-                + parameters
-                    .iter()
-                    .map(Parameter::parameter_count)
-                    .sum::<u8>()
-        } else {
-            0
+        match self.kind {
+            ParameterKind::Group { ref parameters } => {
+                parameters.len() as u8
+                    + parameters
+                        .iter()
+                        .map(Parameter::parameter_count)
+                        .sum::<u8>()
+            }
+            ParameterKind::Selection { ref parameters } => {
+                parameters.len() as u8
+                    + parameters
+                        .iter()
+                        .map(|(_, p)| p)
+                        .map(Parameter::parameter_count)
+                        .sum::<u8>()
+            }
+            _ => 0,
         }
     }
 }
@@ -80,13 +90,26 @@ impl Parameter {
 #[derive(Deserialize, Serialize, Clone, Debug, EnumIter, IntoStaticStr, Default)]
 pub enum ParameterKind {
     Selection {
-        parameters: Parameters,
+        parameters: Vec<(i8, Parameter)>,
     },
     Group {
         parameters: Parameters,
     },
     Switch,
     Variable,
+    SelfSwitch,
+
+    String,
+    StringMulti {
+        highlight: bool,
+    },
+
+    Int,
+    IntBool,
+
+    Enum {
+        variants: Vec<(String, i8)>,
+    },
 
     #[default]
     Dummy,
