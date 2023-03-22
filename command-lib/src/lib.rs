@@ -55,26 +55,45 @@ impl PartialEq for CommandKind {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default)]
-pub struct Parameter {
-    #[serde(default)]
-    pub index: Option<u8>,
-    pub description: String,
-    pub name: String,
-    pub kind: ParameterKind,
+#[derive(Deserialize, Serialize, Clone, Debug, Default, EnumIter, IntoStaticStr)]
+pub enum Parameter {
+    Selection {
+        #[serde(default)]
+        index: Option<u8>,
+        parameters: Vec<(i8, Parameter)>,
+    },
+    Group {
+        parameters: Parameters,
+    },
+    Single {
+        #[serde(default)]
+        index: Option<u8>,
+        description: String,
+        name: String,
+        kind: ParameterKind,
+    },
+
+    #[default]
+    Dummy,
+}
+
+impl PartialEq for Parameter {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
 }
 
 impl Parameter {
     pub fn parameter_count(&self) -> u8 {
-        match self.kind {
-            ParameterKind::Group { ref parameters } => {
+        match self {
+            Self::Group { ref parameters } => {
                 parameters.len() as u8
                     + parameters
                         .iter()
                         .map(Parameter::parameter_count)
                         .sum::<u8>()
             }
-            ParameterKind::Selection { ref parameters } => {
+            Self::Selection { ref parameters, .. } => {
                 parameters.len() as u8
                     + parameters
                         .iter()
@@ -89,12 +108,6 @@ impl Parameter {
 
 #[derive(Deserialize, Serialize, Clone, Debug, EnumIter, IntoStaticStr, Default)]
 pub enum ParameterKind {
-    Selection {
-        parameters: Vec<(i8, Parameter)>,
-    },
-    Group {
-        parameters: Parameters,
-    },
     Switch,
     Variable,
     SelfSwitch,
@@ -104,15 +117,13 @@ pub enum ParameterKind {
         highlight: bool,
     },
 
+    #[default]
     Int,
     IntBool,
 
     Enum {
         variants: Vec<(String, i8)>,
     },
-
-    #[default]
-    Dummy,
 }
 
 impl PartialEq for ParameterKind {
