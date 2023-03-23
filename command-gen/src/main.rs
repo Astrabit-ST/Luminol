@@ -18,6 +18,43 @@ impl App {
             ui_examples: vec![],
         }
     }
+
+    fn recalculate_parameter_index(parameter: &mut Parameter, passed_index: &mut u8) {
+        match parameter {
+            Parameter::Group { parameters, .. } => {
+                for parameter in parameters.iter_mut() {
+                    Self::recalculate_parameter_index(parameter, passed_index);
+                }
+            }
+            Parameter::Selection {
+                index, parameters, ..
+            } => {
+                if let Index::Assumed(ref mut assumed_index) = index {
+                    *assumed_index = *passed_index;
+                }
+
+                *passed_index += 1;
+
+                *passed_index = parameters
+                    .iter_mut()
+                    .map(|(_, parameter)| {
+                        let mut passed_index = *passed_index;
+                        Self::recalculate_parameter_index(parameter, &mut passed_index);
+                        passed_index
+                    })
+                    .max()
+                    .unwrap_or(0)
+            }
+            Parameter::Single { index, .. } => {
+                if let Index::Assumed(ref mut assumed_index) = index {
+                    *assumed_index = *passed_index;
+                }
+
+                *passed_index += 1;
+            }
+            _ => {}
+        }
+    }
 }
 
 impl eframe::App for App {
@@ -140,6 +177,13 @@ impl eframe::App for App {
         });
 
         self.ui_examples.retain_mut(|e| e.update(ctx));
+
+        for command in self.commands.iter_mut() {
+            let mut passed_index = 0;
+            for parameter in command.parameters.iter_mut() {
+                Self::recalculate_parameter_index(parameter, &mut passed_index);
+            }
+        }
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
@@ -176,12 +220,14 @@ impl App {
             if let Parameter::Single { ref mut index, ..}
             | Parameter::Selection { ref mut index, .. } = parameter {
                 ui.label("Position: ").on_hover_text_at_pointer("Position of this parameter, when not set it is assumed to be the index of the parameter");
-                if let Index::Overridden(ref mut idx) = index {
-                    ui.add(egui::DragValue::new(idx));
-                } else {
-                    let mut override_idx = 0;
-                    if ui.add(egui::DragValue::new(&mut override_idx)).changed() {
-                        *index = Index::Overridden(override_idx as u8);
+                match index {
+                    Index::Overridden(ref mut idx) => {
+                        ui.add(egui::DragValue::new(idx));
+                    }
+                    Index::Assumed(ref mut assumed_idx) => {
+                        if ui.add(egui::DragValue::new(assumed_idx)).changed() {
+                            *index = Index::Overridden(*assumed_idx);
+                        }
                     }
                 }
             }
