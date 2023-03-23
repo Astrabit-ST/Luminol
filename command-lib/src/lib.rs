@@ -15,6 +15,10 @@ pub struct CommandDescription {
     pub parameters: Parameters,
     #[serde(default)]
     pub hidden: bool,
+
+    #[serde(skip)]
+    #[serde(default = "rand::random")]
+    pub guid: u64,
 }
 
 impl CommandDescription {
@@ -37,6 +41,7 @@ impl Default for CommandDescription {
             kind: CommandKind::Single,
             parameters: vec![],
             hidden: false,
+            guid: rand::random(),
         }
     }
 }
@@ -59,15 +64,23 @@ impl PartialEq for CommandKind {
 pub enum Parameter {
     Selection {
         #[serde(default)]
-        index: Option<u8>,
+        index: Index,
         parameters: Vec<(i8, Parameter)>,
+
+        #[serde(skip)]
+        #[serde(default = "rand::random")]
+        guid: u64,
     },
     Group {
         parameters: Parameters,
+
+        #[serde(skip)]
+        #[serde(default = "rand::random")]
+        guid: u64,
     },
     Single {
         #[serde(default)]
-        index: Option<u8>,
+        index: Index,
         description: String,
         name: String,
         kind: ParameterKind,
@@ -75,6 +88,26 @@ pub enum Parameter {
 
     #[default]
     Dummy,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Index {
+    Assumed(u8),
+    Overridden(u8),
+}
+
+impl Index {
+    pub fn as_u8(self) -> u8 {
+        match self {
+            Self::Assumed(i) | Self::Overridden(i) => i,
+        }
+    }
+}
+
+impl Default for Index {
+    fn default() -> Self {
+        Self::Assumed(0)
+    }
 }
 
 impl PartialEq for Parameter {
@@ -86,7 +119,7 @@ impl PartialEq for Parameter {
 impl Parameter {
     pub fn parameter_count(&self) -> u8 {
         match self {
-            Self::Group { ref parameters } => {
+            Self::Group { ref parameters, .. } => {
                 parameters.len() as u8
                     + parameters
                         .iter()

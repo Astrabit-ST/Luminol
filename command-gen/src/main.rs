@@ -1,4 +1,4 @@
-use command_lib::{CommandDescription, CommandKind, Parameter, ParameterKind};
+use command_lib::{CommandDescription, CommandKind, Index, Parameter, ParameterKind};
 use eframe::egui;
 
 use strum::IntoEnumIterator;
@@ -26,98 +26,100 @@ impl eframe::App for App {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mut del_index = None;
                 for (idx, command) in self.commands.iter_mut().enumerate() {
-                    let header = egui::collapsing_header::CollapsingState::load_with_default_open(
-                        ui.ctx(),
-                        format!("command_{idx}").into(),
-                        false,
-                    );
-                    header
-                        .show_header(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label("Name:");
-                                ui.text_edit_singleline(&mut command.name);
+                        ui.push_id(command.guid, |ui| {
+                        let header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                            ui.ctx(),
+                            format!("command_{idx}").into(),
+                            false,
+                        );
+                        header
+                            .show_header(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("Name:");
+                                    ui.text_edit_singleline(&mut command.name);
 
-                                ui.label("Code:");
-                                ui.add(egui::DragValue::new(&mut command.code));
-                            });
-
-                            if ui
-                                .button(
-                                    egui::RichText::new("-")
-                                        .monospace()
-                                        .color(egui::Color32::RED),
-                                )
-                                .clicked()
-                            {
-                                del_index = Some(idx)
-                            }
-                        })
-                        .body(|ui| {
-                            ui.label("Description:");
-                            ui.text_edit_multiline(&mut command.description)
-                                .on_hover_text("Description for this command");
-
-                            ui.separator();
-
-                            ui.label("Type");
-                            ui.horizontal(|ui| {
-                                ui.menu_button(
-                                    format!("{} ⏷", <&str>::from(command.kind)),
-                                    |ui| {
-                                        for kind in CommandKind::iter() {
-                                            ui.selectable_value(
-                                                &mut command.kind,
-                                                kind,
-                                                <&str>::from(kind),
-                                            );
-                                        }
-                                    },
-                                );
-                                match command.kind {
-                                    CommandKind::Multi(ref mut code) =>{
-                                        ui.label("Cont. Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one");
-                                        ui.add(egui::DragValue::new(code));
-                                    }
-                                    CommandKind::Branch(ref mut code ) => {
-                                        ui.label("End Code").on_hover_text("Luminol will add this command to denote the end of the branch");
-                                        ui.add(egui::DragValue::new(code));
-                                    }
-                                    _ => {}
-                                }
-                            });
-
-                            ui.checkbox(&mut command.hidden, "Hide in menu");
-
-                            ui.separator();
-
-                            ui.collapsing("Parameters", |ui| {
-                                let mut del_idx = None;
-                                for (idx, parameter) in command.parameters.iter_mut().enumerate() {
-                                    Self::parameter_ui(ui, parameter, idx, &mut del_idx)
-                                }
-
-                                if let Some(idx) = del_idx {
-                                    command.parameters.remove(idx);
-                                }
+                                    ui.label("Code:");
+                                    ui.add(egui::DragValue::new(&mut command.code));
+                                });
 
                                 if ui
                                     .button(
-                                        egui::RichText::new("+")
+                                        egui::RichText::new("-")
                                             .monospace()
-                                            .color(egui::Color32::GREEN),
+                                            .color(egui::Color32::RED),
                                     )
                                     .clicked()
                                 {
-                                    command.parameters.push(Parameter::default());
+                                    del_index = Some(idx)
                                 }
+                            })
+                            .body(|ui| {
+                                ui.label("Description:");
+                                ui.text_edit_multiline(&mut command.description)
+                                    .on_hover_text("Description for this command");
+
+                                ui.separator();
+
+                                ui.label("Type");
+                                ui.horizontal(|ui| {
+                                    ui.menu_button(
+                                        format!("{} ⏷", <&str>::from(command.kind)),
+                                        |ui| {
+                                            for kind in CommandKind::iter() {
+                                                ui.selectable_value(
+                                                    &mut command.kind,
+                                                    kind,
+                                                    <&str>::from(kind),
+                                                );
+                                            }
+                                        },
+                                    );
+                                    match command.kind {
+                                        CommandKind::Multi(ref mut code) =>{
+                                            ui.label("Cont. Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one");
+                                            ui.add(egui::DragValue::new(code));
+                                        }
+                                        CommandKind::Branch(ref mut code ) => {
+                                            ui.label("End Code").on_hover_text("Luminol will add this command to denote the end of the branch");
+                                            ui.add(egui::DragValue::new(code));
+                                        }
+                                        _ => {}
+                                    }
+                                });
+
+                                ui.checkbox(&mut command.hidden, "Hide in menu");
+
+                                ui.separator();
+
+                                ui.collapsing("Parameters", |ui| {
+                                    let mut del_idx = None;
+                                    for (ele, parameter) in command.parameters.iter_mut().enumerate() {
+                                        Self::parameter_ui(ui, parameter,  (ele, &mut del_idx));
+                                    }
+
+                                    if let Some(idx) = del_idx {
+                                        command.parameters.remove(idx);
+                                    }
+
+                                    if ui
+                                        .button(
+                                            egui::RichText::new("+")
+                                                .monospace()
+                                                .color(egui::Color32::GREEN),
+                                        )
+                                        .clicked()
+                                    {
+                                        command.parameters.push(Parameter::default());
+                                    }
+                                });
                             });
-                        });
 
-                    if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {
-                        self.ui_examples.push(UiExample::new(command));
-                    }
+                        if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {
+                            self.ui_examples.push(UiExample::new(command));
+                        }
 
-                    ui.separator();
+                        ui.separator();
+                    });
                 }
 
                 if let Some(idx) = del_index {
@@ -157,12 +159,15 @@ impl App {
     fn parameter_ui(
         ui: &mut egui::Ui,
         parameter: &mut Parameter,
-        idx: usize,
-        del_idx: &mut Option<usize>,
+        del_idx: (usize, &mut Option<usize>),
     ) {
         ui.horizontal(|ui| {
             ui.menu_button(format!("{} ⏷", <&str>::from(&*parameter)), |ui| {
                 for iter_kind in Parameter::iter() {
+                    if let Parameter::Group {ref mut guid , ..}
+                    | Parameter::Selection { ref mut  guid, .. } = parameter {
+                        *guid = rand::random();
+                    }
                     let text: &str = (&iter_kind).into();
                     ui.selectable_value(parameter, iter_kind, text);
                 }
@@ -171,12 +176,12 @@ impl App {
             if let Parameter::Single { ref mut index, ..}
             | Parameter::Selection { ref mut index, .. } = parameter {
                 ui.label("Position: ").on_hover_text_at_pointer("Position of this parameter, when not set it is assumed to be the index of the parameter");
-                if let Some(ref mut idx) = index {
+                if let Index::Overridden(ref mut idx) = index {
                     ui.add(egui::DragValue::new(idx));
                 } else {
-                    let mut override_idx = idx;
+                    let mut override_idx = 0;
                     if ui.add(egui::DragValue::new(&mut override_idx)).changed() {
-                        *index = Some(override_idx as u8);
+                        *index = Index::Overridden(override_idx as u8);
                     }
                 }
             }
@@ -189,66 +194,77 @@ impl App {
                 )
                 .clicked()
             {
-                *del_idx = Some(idx);
+                *del_idx.1 = Some(del_idx.0);
             }
         });
 
         match parameter {
-            Parameter::Group { ref mut parameters } => {
-                ui.collapsing("Grouped parameters", |ui| {
-                    let mut del_idx = None;
-                    for parameter in parameters.iter_mut() {
-                        Self::parameter_ui(ui, parameter, idx, &mut del_idx)
-                    }
+            Parameter::Group {
+                ref mut parameters,
+                guid,
+            } => {
+                ui.push_id(guid, |ui| {
+                    ui.collapsing("Grouped parameters", |ui| {
+                        let mut del_idx = None;
+                        for (ele, parameter) in parameters.iter_mut().enumerate() {
+                            Self::parameter_ui(ui, parameter, (ele, &mut del_idx))
+                        }
 
-                    if let Some(idx) = del_idx {
-                        parameters.remove(idx);
-                    }
+                        if let Some(idx) = del_idx {
+                            parameters.remove(idx);
+                        }
 
-                    if ui
-                        .button(
-                            egui::RichText::new("+")
-                                .monospace()
-                                .color(egui::Color32::GREEN),
-                        )
-                        .clicked()
-                    {
-                        parameters.push(Parameter::default());
-                    }
-                })
-                .header_response
-                .on_hover_text("This parameter groups together other parameters");
+                        if ui
+                            .button(
+                                egui::RichText::new("+")
+                                    .monospace()
+                                    .color(egui::Color32::GREEN),
+                            )
+                            .clicked()
+                        {
+                            parameters.push(Parameter::default());
+                        }
+                    })
+                    .header_response
+                    .on_hover_text("This parameter groups together other parameters");
+                });
             }
             Parameter::Selection {
-                ref mut parameters, ..
+                ref mut parameters,
+                guid,
+                ..
             } => {
-                ui.collapsing("Subparameters", |ui| {
-                    let mut del_idx = None;
-                    for (id, parameter) in parameters.iter_mut() {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::DragValue::new(id));
+                ui.push_id(guid, |ui| {
+                    ui.collapsing("Subparameters", |ui| {
+                        let mut del_idx = None;
+                        for (ele, (id, parameter)) in parameters.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.add(egui::DragValue::new(id));
 
-                            ui.vertical(|ui| Self::parameter_ui(ui, parameter, idx, &mut del_idx));
-                        });
-                    }
+                                ui.vertical(|ui| {
+                                    Self::parameter_ui(ui, parameter, (ele, &mut del_idx))
+                                });
+                            });
+                        }
 
-                    if let Some(idx) = del_idx {
-                        parameters.remove(idx);
-                    }
+                        if let Some(idx) = del_idx {
+                            parameters.remove(idx);
+                        }
 
-                    if ui
-                        .button(
-                            egui::RichText::new("+")
-                                .monospace()
-                                .color(egui::Color32::GREEN),
-                        )
-                        .clicked()
-                    {
-                        parameters.push((0, Parameter::default()));
-                    }
-                })
-                .header_response
-                .on_hover_text("This parameter selects one of the following parameters");
+                        if ui
+                            .button(
+                                egui::RichText::new("+")
+                                    .monospace()
+                                    .color(egui::Color32::GREEN),
+                            )
+                            .clicked()
+                        {
+                            parameters.push((0, Parameter::default()));
+                        }
+                    })
+                    .header_response
+                    .on_hover_text("This parameter selects one of the following parameters");
+                });
             }
             Parameter::Single {
                 description,
@@ -284,7 +300,7 @@ impl App {
                     ParameterKind::Enum { ref mut variants } => {
                         ui.collapsing("Variants", |ui| {
                             let mut del_idx = None;
-                            for (name, id) in variants.iter_mut() {
+                            for (ele, (name, id)) in variants.iter_mut().enumerate() {
                                 ui.horizontal(|ui| {
                                     ui.text_edit_singleline(name);
                                     ui.add(egui::DragValue::new(id));
@@ -297,7 +313,7 @@ impl App {
                                         )
                                         .clicked()
                                     {
-                                        del_idx = Some(idx);
+                                        del_idx = Some(ele);
                                     }
                                 });
                             }
@@ -376,7 +392,9 @@ impl UiExample {
                     });
                 }
             }
-            Parameter::Group { ref mut parameters } => {
+            Parameter::Group {
+                ref mut parameters, ..
+            } => {
                 ui.group(|ui| {
                     for parameter in parameters {
                         Self::parameter_ui(ui, parameter, index);
@@ -390,7 +408,7 @@ impl UiExample {
                 kind,
             } => {
                 if !name.is_empty() {
-                    ui.label(format!("[{}]: {}", parameter_index.unwrap_or(*index), name,))
+                    ui.label(format!("[{}]: {}", parameter_index.as_u8(), name,))
                         .on_hover_text(&*description);
                 }
 

@@ -867,6 +867,7 @@ version = "0.1.0"
 dependencies = [
  "command-lib",
  "eframe",
+ "rand 0.8.5",
  "ron",
  "strum",
 ]
@@ -875,6 +876,7 @@ dependencies = [
 name = "command-lib"
 version = "0.1.0"
 dependencies = [
+ "rand 0.8.5",
  "serde",
  "strum",
 ]
