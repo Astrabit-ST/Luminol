@@ -2,7 +2,6 @@
 //!
 //! Authors:
 //!     Lily Madeline Lyons <lily@nowaffles.com>
-//!     Egor Poleshko <somedevfox@gmail.com>
 //!
 // #![warn(missing_docs)]
 
@@ -50,6 +49,8 @@ pub mod saved_state;
 pub mod audio;
 
 pub mod components;
+
+pub mod command_gen;
 
 /// Floating windows to be displayed anywhere.
 pub mod windows;

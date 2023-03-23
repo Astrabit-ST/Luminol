@@ -108,6 +108,32 @@ impl TopBar {
             self.egui_settings_open =
                 ui.button("Egui Settings").clicked() || self.egui_settings_open;
 
+            ui.separator();
+            if ui.button("Command Maker").clicked() {
+                // TODO: Replace this path 'calculation' with directory from config
+                let path = format!(
+                    "{}/commands",
+                    info.filesystem
+                        .project_path()
+                        .unwrap_or({
+                            let mut temp_dir = std::env::temp_dir();
+                            temp_dir.push("luminol");
+                            temp_dir
+                        })
+                        .to_string_lossy()
+                );
+                if let Err(why) = std::fs::DirBuilder::new()
+                    .recursive(true)
+                    .create(path.clone())
+                {
+                    info.toasts
+                        .error(format!("Couldn't create `{path}` directory: {why}"));
+                    return;
+                }
+                info.windows
+                    .add_window(crate::command_gen::CommandGeneratorWindow::new(None, path));
+            }
+
             #[cfg(not(target_arch = "wasm32"))]
             {
                 ui.separator();
