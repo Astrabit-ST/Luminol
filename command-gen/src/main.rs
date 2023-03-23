@@ -24,6 +24,7 @@ impl App {
         }
     }
 
+    // Updates all of the parameter indexes, if they are assumed
     fn recalculate_parameter_index(parameter: &mut Parameter, passed_index: &mut u8) {
         match parameter {
             Parameter::Group { parameters, .. } => {
@@ -38,8 +39,11 @@ impl App {
                     *assumed_index = *passed_index;
                 }
 
+                // Add one for ourselves
                 *passed_index += 1;
 
+                // The intent here is to make each selection have the same starting index
+                // The max index is taken here
                 *passed_index = parameters
                     .iter_mut()
                     .map(|(_, parameter)| {
@@ -135,8 +139,12 @@ impl eframe::App for App {
 
                                 ui.collapsing("Parameters", |ui| {
                                     let mut del_idx = None;
+
+                                    let mut passed_index = 0;
                                     for (ele, parameter) in command.parameters.iter_mut().enumerate() {
                                         parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
+
+                                        Self::recalculate_parameter_index(parameter, &mut passed_index);
                                     }
 
                                     if let Some(idx) = del_idx {
@@ -182,13 +190,6 @@ impl eframe::App for App {
         });
 
         self.ui_examples.retain_mut(|e| e.update(ctx));
-
-        for command in self.commands.iter_mut() {
-            let mut passed_index = 0;
-            for parameter in command.parameters.iter_mut() {
-                Self::recalculate_parameter_index(parameter, &mut passed_index);
-            }
-        }
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
