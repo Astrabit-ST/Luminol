@@ -72,6 +72,7 @@ Basic functionality:
 - [x] Common event editor
 - [ ] System editor
 - [x] Script editor
+
 Extra functionality:
 - [x] Edit multiple maps at the same time
 - [x] Edit multiple events at the same time
