@@ -1,6 +1,7 @@
 {
 	"licenser.license": "GPLv3",
 	"licenser.author": "Lily Lyons",
+	"licenser.projectName": "Luminol",
 	"licenser.disableAutoHeaderInsertion": false,
 	"rust-analyzer.cargo.features": [],
 	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
