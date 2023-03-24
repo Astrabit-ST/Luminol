@@ -52,7 +52,6 @@ impl Modal for VariableModal {
     ) -> Self {
         {
             let system = info.data_cache.system();
-            let system = system.as_ref().unwrap();
 
             if ui
                 .button(format!("{data}: {}", system.variables[*data]))
@@ -89,7 +88,6 @@ impl Modal for VariableModal {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 let system = info.data_cache.system();
-                let system = system.as_ref().unwrap();
 
                 // (selected value, value to scroll to, filter text)
                 let mut memory: (usize, usize, String) =

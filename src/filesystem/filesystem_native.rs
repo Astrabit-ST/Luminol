@@ -254,7 +254,6 @@ impl Filesystem {
         info.data_cache.setup_defaults();
         {
             let mut config = info.data_cache.config();
-            let config = config.as_mut().unwrap();
             config.rgss_ver = rgss_ver;
             config.project_name = name;
         }

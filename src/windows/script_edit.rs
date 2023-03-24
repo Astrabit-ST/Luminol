@@ -55,8 +55,7 @@ impl Window for ScriptEdit {
                     egui::ScrollArea::both()
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
-                            let mut scripts = info.data_cache.scripts();
-                            let scripts = scripts.as_mut().unwrap();
+                            let scripts = info.data_cache.scripts();
 
                             for (id, script) in scripts.iter().enumerate() {
                                 if ui
@@ -143,7 +142,6 @@ impl Tab for ScriptTab {
 
             if save_script {
                 let mut scripts = info.data_cache.scripts();
-                let scripts = scripts.as_mut().unwrap();
 
                 let mut encoder =
                     flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());

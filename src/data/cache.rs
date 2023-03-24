@@ -91,8 +91,8 @@ macro_rules! getter {
         $(
             paste::paste! {
                 #[doc = "Get `" $name "` from the data cache. It may not be loaded, and will panic if it is not in the future."]
-                pub fn [< $name:lower >](&self) -> RefMut<'_, Option<$type>> {
-                    self.[< $name:lower >].borrow_mut()
+                pub fn [< $name:lower >](&self) -> RefMut<'_, $type> {
+                    RefMut::map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o).expect("Project not loaded"))
                 }
             }
         )*
@@ -211,7 +211,7 @@ impl Cache {
     /// Save all cached data to disk.
     /// Will flush the cache too.
     pub async fn save(&self, filesystem: &impl Filesystem) -> Result<(), String> {
-        self.system().as_mut().unwrap().magic_number = rand::random();
+        self.system().magic_number = rand::random();
 
         // Write map data and clear map cache.
         // We serialize all of these first before writing them to the disk to avoid bringing a refcell across an await.
@@ -245,13 +245,13 @@ impl Cache {
     /// Setup default values
     pub fn setup_defaults(&self) {
         // FIXME: make macro
-        *self.actors() = Some(vec![rpg::Actor::default()].into());
-        *self.animations() = Some(vec![rpg::Animation::default()].into());
-        *self.armors.borrow_mut() = Some(vec![rpg::Armor::default()].into());
-        *self.classes.borrow_mut() = Some(vec![rpg::Class::default()].into());
-        *self.commonevents() = Some(vec![rpg::CommonEvent::default()].into());
-        *self.enemies.borrow_mut() = Some(vec![rpg::Enemy::default()].into());
-        *self.items() = Some(NilPadded::default());
+        *self.actors() = vec![rpg::Actor::default()].into();
+        *self.animations() = vec![rpg::Animation::default()].into();
+        *self.armors() = vec![rpg::Armor::default()].into();
+        *self.classes() = vec![rpg::Class::default()].into();
+        *self.commonevents() = vec![rpg::CommonEvent::default()].into();
+        *self.enemies() = vec![rpg::Enemy::default()].into();
+        *self.items() = NilPadded::default();
 
         let mut map_infos = HashMap::new();
         map_infos.insert(
@@ -266,30 +266,28 @@ impl Cache {
             },
         );
 
-        *self.mapinfos() = Some(map_infos);
+        *self.mapinfos() = map_infos;
 
-        *self.scripts() = Some(alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap()); // FIXME: make this static somehow?
-        *self.skills.borrow_mut() = Some(vec![rpg::Skill::default()].into());
-        *self.states.borrow_mut() = Some(vec![rpg::State::default()].into());
+        *self.scripts() = alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(); // FIXME: make this static somehow?
+        *self.skills() = vec![rpg::Skill::default()].into();
+        *self.states() = vec![rpg::State::default()].into();
 
-        *self.system() = Some(rpg::System {
+        *self.system() = rpg::System {
             magic_number: rand::random(),
             ..Default::default()
-        });
+        };
 
-        *self.tilesets() = Some(
-            vec![rpg::Tileset {
-                id: 1,
-                passages: rmxp_types::Table1::new(8),
-                priorities: rmxp_types::Table1::new(8),
-                terrain_tags: rmxp_types::Table1::new(8),
-                ..Default::default()
-            }]
-            .into(),
-        );
+        *self.tilesets() = vec![rpg::Tileset {
+            id: 1,
+            passages: rmxp_types::Table1::new(8),
+            priorities: rmxp_types::Table1::new(8),
+            terrain_tags: rmxp_types::Table1::new(8),
+            ..Default::default()
+        }]
+        .into();
 
-        *self.troops.borrow_mut() = Some(vec![rpg::Troop::default()].into());
-        *self.weapons.borrow_mut() = Some(vec![rpg::Weapon::default()].into());
+        *self.troops() = vec![rpg::Troop::default()].into();
+        *self.weapons() = vec![rpg::Weapon::default()].into();
 
         let mut maps = HashMap::new();
         maps.insert(
@@ -304,6 +302,6 @@ impl Cache {
         );
         *self.maps.borrow_mut() = maps;
 
-        *self.config() = Some(LocalConfig::default());
+        *self.config() = LocalConfig::default();
     }
 }

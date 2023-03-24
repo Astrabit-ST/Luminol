@@ -91,7 +91,6 @@ impl super::window::Window for MapPicker {
                     .show(ui, |ui| {
                         // Aquire the data cache.
                         let mut mapinfos = info.data_cache.mapinfos();
-                        let mapinfos = mapinfos.as_mut().unwrap();
 
                         // We sort maps by their order.
                         let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();
@@ -115,7 +114,13 @@ impl super::window::Window for MapPicker {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
                                 for id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(*id, &children_data, mapinfos, info, ui);
+                                    Self::render_submap(
+                                        *id,
+                                        &children_data,
+                                        &mut mapinfos,
+                                        info,
+                                        ui,
+                                    );
                                 }
                             });
                     })

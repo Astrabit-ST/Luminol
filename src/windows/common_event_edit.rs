@@ -54,8 +54,7 @@ impl Window for CommonEventEdit {
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let mut common_events = info.data_cache.commonevents();
-                    let common_events = common_events.as_mut().unwrap();
+                    let common_events = info.data_cache.commonevents();
 
                     egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
                         ui,
@@ -143,7 +142,6 @@ impl Tab for CommonEventTab {
 
             if save_event {
                 let mut common_events = info.data_cache.commonevents();
-                let common_events = common_events.as_mut().unwrap();
 
                 common_events[self.event.id] = self.event.clone();
             }

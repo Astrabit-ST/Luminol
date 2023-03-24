@@ -663,9 +663,7 @@ impl Tilemap {
             let tilesets = info.data_cache.tilesets();
 
             // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-            let tileset = &tilesets
-                .as_ref()
-                .ok_or_else(|| "Tilesets not loaded".to_string())?[map.tileset_id as usize - 1];
+            let tileset = &tilesets[map.tileset_id as usize - 1];
 
             tileset_name = tileset.tileset_name.clone();
             autotile_names = tileset.autotile_names.clone();

@@ -42,7 +42,7 @@ impl Window {
     /// Create a new window.
     #[must_use]
     pub fn new(info: &'static UpdateInfo) -> Option<Self> {
-        let items = info.data_cache.items().clone().unwrap();
+        let items = info.data_cache.items().clone();
         let icon_paths = match Promise::spawn_local(info.filesystem.dir_children("Graphics/Icons"))
             .block_and_take()
         {
@@ -79,10 +79,8 @@ impl WindowTrait for Window {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         let _selected_item = &self.items[self.selected_item];
         let animations = info.data_cache.animations();
-        let animations = animations.as_ref().unwrap();
 
         let common_events = info.data_cache.commonevents();
-        let common_events = common_events.as_ref().unwrap();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations
@@ -163,11 +161,11 @@ impl WindowTrait for Window {
 
                     ui.add(Field::new(
                         "User Animation",
-                        NilPaddedMenu::new(&mut selected_item.animation1_id, animations),
+                        NilPaddedMenu::new(&mut selected_item.animation1_id, &*animations),
                     ));
                     ui.add(Field::new(
                         "Target Animation",
-                        NilPaddedMenu::new(&mut selected_item.animation2_id, animations),
+                        NilPaddedMenu::new(&mut selected_item.animation2_id, &*animations),
                     ));
                     ui.end_row();
 
@@ -179,7 +177,7 @@ impl WindowTrait for Window {
                     ));
                     ui.add(Field::new(
                         "Common Event",
-                        NilPaddedMenu::new(&mut selected_item.common_event_id, common_events),
+                        NilPaddedMenu::new(&mut selected_item.common_event_id, &*common_events),
                     ));
                     ui.end_row();
 

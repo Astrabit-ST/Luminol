@@ -52,7 +52,6 @@ impl Modal for SwitchModal {
     ) -> Self {
         {
             let system = info.data_cache.system();
-            let system = system.as_ref().unwrap();
 
             if ui
                 .button(format!("{data}: {}", system.switches[*data - 1]))
@@ -87,7 +86,6 @@ impl Modal for SwitchModal {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 let system = info.data_cache.system();
-                let system = system.as_ref().unwrap();
 
                 let mut memory: (usize, usize, String) =
                     ctx.data_mut(|m| m.get_temp(self.id).unwrap());

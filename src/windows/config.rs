@@ -34,7 +34,6 @@ impl Window for ConfigWindow {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             let mut config = info.data_cache.config();
-            let config = config.as_mut().unwrap();
 
             ui.label("Project name");
             ui.text_edit_singleline(&mut config.project_name);

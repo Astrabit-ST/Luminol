@@ -89,7 +89,7 @@ impl super::tab::Tab for Map {
             // Get the map.
             let mut map = info.data_cache.get_map(self.id);
             let tileset = info.data_cache.tilesets();
-            let tileset = &tileset.as_ref().unwrap()[map.tileset_id as usize - 1];
+            let tileset = &tileset[map.tileset_id as usize - 1];
 
             // If there are no toggled layers (i.e we just loaded the map)
             // then fill up the vector with `true`;
