@@ -65,8 +65,8 @@ pub enum RMVer {
     #[default]
     #[strum(to_string = "RPG Maker XP")]
     XP,
-    #[strum(to_string = "RPG Maker VX")]
-    VX,
-    #[strum(to_string = "RPG Maker VX Ace")]
-    Ace,
+    // #[strum(to_string = "RPG Maker VX")]
+    // VX,
+    // #[strum(to_string = "RPG Maker VX Ace")]
+    // Ace,
 }

@@ -99,6 +99,19 @@ macro_rules! getter {
     };
 }
 
+macro_rules! setup_default {
+    ($this:ident, $($name:ident),*) => {
+        $(
+            paste::paste! {
+                *$this.[< $name:lower >].borrow_mut() = Some(
+                    // This is a pretty dirty hack to make rustc assume that it's a vec of the type we're storing
+                    NilPadded::from(vec![None, Some(Default::default())])
+                );
+            }
+        )*
+    };
+}
+
 impl Cache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
@@ -200,7 +213,7 @@ impl Cache {
 
         if let Some(config_bytes) = config_bytes {
             filesystem
-                .save_data(".luminol", &config_bytes?)
+                .save_data(".luminol/config", &config_bytes?)
                 .await
                 .map_err(|_| "Failed to write Config data")?;
         }
@@ -244,15 +257,6 @@ impl Cache {
 
     /// Setup default values
     pub fn setup_defaults(&self) {
-        // FIXME: make macro
-        *self.actors() = vec![rpg::Actor::default()].into();
-        *self.animations() = vec![rpg::Animation::default()].into();
-        *self.armors() = vec![rpg::Armor::default()].into();
-        *self.classes() = vec![rpg::Class::default()].into();
-        *self.commonevents() = vec![rpg::CommonEvent::default()].into();
-        *self.enemies() = vec![rpg::Enemy::default()].into();
-        *self.items() = NilPadded::default();
-
         let mut map_infos = HashMap::new();
         map_infos.insert(
             1,
@@ -265,29 +269,15 @@ impl Cache {
                 scroll_y: 0,
             },
         );
-
         *self.mapinfos() = map_infos;
 
-        *self.scripts() = alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(); // FIXME: make this static somehow?
-        *self.skills() = vec![rpg::Skill::default()].into();
-        *self.states() = vec![rpg::State::default()].into();
+        // FIXME: make this static somehow?
+        *self.scripts() = alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap();
 
         *self.system() = rpg::System {
             magic_number: rand::random(),
             ..Default::default()
         };
-
-        *self.tilesets() = vec![rpg::Tileset {
-            id: 1,
-            passages: rmxp_types::Table1::new(8),
-            priorities: rmxp_types::Table1::new(8),
-            terrain_tags: rmxp_types::Table1::new(8),
-            ..Default::default()
-        }]
-        .into();
-
-        *self.troops() = vec![rpg::Troop::default()].into();
-        *self.weapons() = vec![rpg::Weapon::default()].into();
 
         let mut maps = HashMap::new();
         maps.insert(
@@ -303,5 +293,13 @@ impl Cache {
         *self.maps.borrow_mut() = maps;
 
         *self.config() = LocalConfig::default();
+
+        setup_default! {
+            self,
+            Actors, Animations, Armors,
+            Classes, CommonEvents, Enemies,
+            Items, Skills, States,
+            Tilesets, Troops, Weapons
+        }
     }
 }
