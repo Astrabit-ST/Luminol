@@ -17,8 +17,7 @@
 
 use command_lib::CommandDescription;
 use once_cell::sync::Lazy;
-
-use crate::filesystem::Filesystem;
+use serde::{Deserialize, Serialize};
 
 use super::config::RMVer;
 
@@ -28,7 +27,7 @@ static XP_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
     )
 });
 
-#[derive(Default)]
+#[derive(Deserialize, Serialize)]
 pub struct CommandDB {
     /// Default commands
     default: Vec<CommandDescription>,
@@ -37,8 +36,14 @@ pub struct CommandDB {
 }
 
 impl CommandDB {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(ver: RMVer) -> Self {
+        Self {
+            default: match ver {
+                RMVer::XP => &*XP_DEFAULT,
+            }
+            .clone(),
+            user: vec![],
+        }
     }
 
     pub fn get(&self, code: u16) -> Option<&CommandDescription> {
@@ -47,6 +52,4 @@ impl CommandDB {
             .find(|c| c.code == code)
             .or_else(|| self.default.iter().find(|c| c.code == code))
     }
-
-    pub(super) async fn load(&mut self, filesystem: &impl Filesystem, version: RMVer) {}
 }

@@ -24,6 +24,7 @@ use std::{
 
 use crate::filesystem::Filesystem;
 
+use super::command_db::CommandDB;
 use super::config::LocalConfig;
 
 /// A struct representing a cache of the current data.
@@ -48,6 +49,7 @@ pub struct Cache {
     weapons: RefCell<Option<NilPadded<rpg::Weapon>>>,
 
     config: RefCell<Option<LocalConfig>>,
+    commanddb: RefCell<Option<CommandDB>>,
 }
 
 macro_rules! save_data {
@@ -115,23 +117,50 @@ macro_rules! setup_default {
 impl Cache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
-        // FIXME: keep errors?
         if !filesystem.path_exists(".luminol").await {
             filesystem.create_directory(".luminol").await?;
         }
 
-        let config = filesystem
-            .read_bytes(".luminol/config")
-            .await
-            .ok()
-            .and_then(|v| {
-                String::from_utf8(v)
-                    .ok()
-                    .and_then(|s| ron::from_str::<LocalConfig>(&s).ok())
-            })
-            .unwrap_or_default();
+        let config = match filesystem.read_data(".luminol/config").await {
+            Ok(c) => c,
+            Err(_) => {
+                let config = LocalConfig::default();
+                filesystem
+                    .save_data(
+                        ".luminol/config",
+                        ron::ser::to_string_pretty(
+                            &config,
+                            ron::ser::PrettyConfig::default().struct_names(true),
+                        )
+                        .expect("Failed to serialize config"),
+                    )
+                    .await
+                    .expect("Failed to write config data after failing to load config data");
+                config
+            }
+        };
+
+        let commanddb = match filesystem.read_data(".luminol/commands").await {
+            Ok(c) => c,
+            Err(_) => {
+                let config = CommandDB::new(config.editor_ver);
+                filesystem
+                    .save_data(
+                        ".luminol/commands",
+                        ron::ser::to_string_pretty(
+                            &config,
+                            ron::ser::PrettyConfig::default().struct_names(true),
+                        )
+                        .expect("Failed to serialize commands"),
+                    )
+                    .await
+                    .expect("Failed to write config data after failing to load command data");
+                config
+            }
+        };
 
         *self.config.borrow_mut() = Some(config);
+        *self.commanddb.borrow_mut() = Some(commanddb);
 
         load_data! {
             self, filesystem,
@@ -145,7 +174,7 @@ impl Cache {
         let mut scripts = filesystem.read_data("Data/xScripts.rxdata").await;
 
         if let Err(e) = scripts {
-            println!("Attempted loading xScripts failed with {e}");
+            eprintln!("Attempted loading xScripts failed with {e}");
 
             scripts = filesystem.read_data("Data/Scripts.rxdata").await;
         } else {
@@ -202,21 +231,38 @@ impl Cache {
         Tilesets, NilPadded<rpg::Tileset>,
         Troops, NilPadded<rpg::Troop>,
         Weapons, NilPadded<rpg::Weapon>,
-        Config, LocalConfig
+
+        Config, LocalConfig,
+        CommandDB, CommandDB
     }
 
     /// Save the local config.
     pub async fn save_config(&self, filesystem: &impl Filesystem) -> Result<(), String> {
-        let config_bytes = self.config.borrow().as_ref().map(|c| {
-            ron::to_string(c).map_err(|e| format!("Failed to serialize config data: {e}"))
-        });
-
-        if let Some(config_bytes) = config_bytes {
-            filesystem
-                .save_data(".luminol/config", &config_bytes?)
-                .await
-                .map_err(|_| "Failed to write Config data")?;
+        if !filesystem.path_exists(".luminol").await {
+            filesystem.create_directory(".luminol").await?;
         }
+
+        let config_str = ron::ser::to_string_pretty(
+            &*self.config(),
+            ron::ser::PrettyConfig::default().struct_names(true),
+        )
+        .map_err(|e| format!("Failed to serialize config data: {e}"))?;
+
+        filesystem
+            .save_data(".luminol/config", config_str)
+            .await
+            .map_err(|_| "Failed to write Config data")?;
+
+        let commands_str = ron::ser::to_string_pretty(
+            &*self.commanddb(),
+            ron::ser::PrettyConfig::default().struct_names(true),
+        )
+        .map_err(|e| format!("Failed to serialize command data: {e}"))?;
+
+        filesystem
+            .save_data(".luminol/commands", commands_str)
+            .await
+            .map_err(|_| "Failed to write Config data")?;
 
         Ok(())
     }
@@ -243,11 +289,21 @@ impl Cache {
                 .map_err(|e| format!("Failed to write Map data {e}"))?;
         }
 
+        let scripts_bytes =
+            alox_48::to_bytes(&*self.scripts()).map_err(|e| format!("Saving Scripts: {e}"))?;
+        filesystem
+            .save_data(
+                format!("Data/{}.rxdata", self.config().scripts_path),
+                scripts_bytes,
+            )
+            .await
+            .map_err(|e| format!("Failed to write Script data {e}"))?;
+
         save_data! {
             self, filesystem,
             Actors, Animations, Armors,
             Classes, CommonEvents, Enemies,
-            Items, MapInfos, Scripts,
+            Items, MapInfos,
             Skills, States, System, // FIXME: save to xScripts too!
             Tilesets, Troops, Weapons
         };

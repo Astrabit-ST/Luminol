@@ -44,7 +44,7 @@ pub struct MapInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename = "RPG::Event::Condition")]
+#[serde(rename = "RPG::Event::Page::Condition")]
 pub struct EventCondition {
     pub switch1_valid: bool,
     pub switch2_valid: bool,
@@ -74,7 +74,7 @@ impl Default for EventCondition {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename = "RPG::Event::Graphic")]
+#[serde(rename = "RPG::Event::Page::Graphic")]
 pub struct Graphic {
     pub tile_id: i32,
     pub character_name: String,
@@ -166,6 +166,49 @@ pub struct MoveRoute {
     pub repeat: bool,
     pub skippable: bool,
     pub list: Vec<MoveCommand>,
+}
+
+impl From<alox_48::Object> for MoveRoute {
+    fn from(obj: alox_48::Object) -> Self {
+        MoveRoute {
+            repeat: obj.fields["repeat"].clone().into_bool().unwrap(),
+            skippable: obj.fields["skippable"].clone().into_bool().unwrap(),
+            list: obj.fields["list"]
+                .clone()
+                .into_array()
+                .unwrap()
+                .into_iter()
+                .map(|obj| {
+                    let obj = obj.into_object().unwrap();
+                    obj.into()
+                })
+                .collect(),
+        }
+    }
+}
+
+impl From<MoveRoute> for alox_48::Object {
+    fn from(value: MoveRoute) -> Self {
+        let mut fields = alox_48::value::RbFields::with_capacity(3);
+        fields.insert("repeat".into(), alox_48::Value::Bool(value.repeat));
+        fields.insert("skippable".into(), alox_48::Value::Bool(value.skippable));
+        fields.insert(
+            "list".into(),
+            alox_48::Value::Array(
+                value
+                    .list
+                    .into_iter()
+                    .map(Into::into)
+                    .map(alox_48::Value::Object)
+                    .collect(),
+            ),
+        );
+
+        alox_48::Object {
+            class: "RPG::MoveRoute".into(),
+            fields,
+        }
+    }
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -436,7 +479,7 @@ pub struct Member {
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
-#[serde(rename = "RPG::Troop::Condition")]
+#[serde(rename = "RPG::Troop::Page::Condition")]
 pub struct TroopCondition {
     pub turn_valid: bool,
     pub enemy_valid: bool,
@@ -566,9 +609,11 @@ pub struct CommonEvent {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename = "RPG::System::Words")]
+#[serde(default)]
 pub struct Words {
     gold: String,
     hp: String,
+    sp: String,
     str: String,
     dex: String,
     agi: String,
@@ -630,7 +675,7 @@ pub struct System {
     pub actor_collapse_se: AudioFile,
     pub enemy_collapse_se: AudioFile,
     pub words: Words,
-    #[serde(skip)]
+    #[serde(skip_deserializing)]
     pub test_battlers: Vec<TestBattler>,
     pub test_troop_id: i32,
     pub start_map_id: i32,
@@ -650,6 +695,35 @@ pub struct AudioFile {
     pub pitch: u8,
 }
 
+impl From<alox_48::Object> for AudioFile {
+    fn from(obj: alox_48::Object) -> Self {
+        AudioFile {
+            name: obj.fields["name"]
+                .clone()
+                .into_string()
+                .unwrap()
+                .to_string()
+                .unwrap(),
+            volume: obj.fields["volume"].clone().into_integer().unwrap() as _,
+            pitch: obj.fields["pitch"].clone().into_integer().unwrap() as _,
+        }
+    }
+}
+
+impl From<AudioFile> for alox_48::Object {
+    fn from(a: AudioFile) -> Self {
+        let mut fields = alox_48::value::RbFields::with_capacity(3);
+        fields.insert("name".into(), a.name.into());
+        fields.insert("volume".into(), alox_48::Value::Integer(a.volume as _));
+        fields.insert("pitch".into(), alox_48::Value::Integer(a.pitch as _));
+
+        alox_48::Object {
+            class: "RPG::AudioFile".into(),
+            fields,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[allow(missing_docs)]
 #[serde(rename = "RPG::EventCommand")]
@@ -665,6 +739,37 @@ pub struct EventCommand {
 pub struct MoveCommand {
     pub code: i32,
     pub parameters: Vec<ParameterType>,
+}
+
+impl From<alox_48::Object> for MoveCommand {
+    fn from(obj: alox_48::Object) -> Self {
+        MoveCommand {
+            code: obj.fields["code"].clone().into_integer().unwrap() as _,
+            parameters: obj.fields["parameters"]
+                .clone()
+                .into_array()
+                .unwrap()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<MoveCommand> for alox_48::Object {
+    fn from(c: MoveCommand) -> Self {
+        let mut fields = alox_48::value::RbFields::with_capacity(2);
+        fields.insert("code".into(), alox_48::Value::Integer(c.code as _));
+        fields.insert(
+            "parameters".into(),
+            alox_48::Value::Array(c.parameters.into_iter().map(Into::into).collect()),
+        );
+
+        alox_48::Object {
+            class: "RPG::MoveCommand".into(),
+            fields,
+        }
+    }
 }
 
 // FIXME: add custom serialize impl
@@ -743,6 +848,7 @@ impl Serialize for Script {
 #[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner, PartialEq)]
 #[allow(missing_docs)]
 #[serde(from = "alox_48::Value")]
+#[serde(into = "alox_48::Value")]
 pub enum ParameterType {
     Integer(i32),
     String(String),
@@ -763,54 +869,13 @@ impl From<alox_48::Value> for ParameterType {
             alox_48::Value::String(str) => Self::String(str.to_string().unwrap()),
             // Value::Symbol(sym) => Self::String(sym),
             alox_48::Value::Object(obj) if obj.class == "RPG::AudioFile" => {
-                Self::AudioFile(AudioFile {
-                    name: obj.fields["name"]
-                        .clone()
-                        .into_string()
-                        .unwrap()
-                        .to_string()
-                        .unwrap(),
-                    volume: obj.fields["volume"].clone().into_integer().unwrap() as _,
-                    pitch: obj.fields["pitch"].clone().into_integer().unwrap() as _,
-                })
+                Self::AudioFile(obj.into())
             }
             alox_48::Value::Object(obj) if obj.class == "RPG::MoveRoute" => {
-                Self::MoveRoute(MoveRoute {
-                    repeat: obj.fields["repeat"].clone().into_bool().unwrap(),
-                    skippable: obj.fields["skippable"].clone().into_bool().unwrap(),
-                    list: obj.fields["list"]
-                        .clone()
-                        .into_array()
-                        .unwrap()
-                        .into_iter()
-                        .map(|obj| {
-                            let obj = obj.into_object().unwrap();
-
-                            MoveCommand {
-                                code: obj.fields["code"].clone().into_integer().unwrap() as _,
-                                parameters: obj.fields["parameters"]
-                                    .clone()
-                                    .into_array()
-                                    .unwrap()
-                                    .into_iter()
-                                    .map(Into::into)
-                                    .collect(),
-                            }
-                        })
-                        .collect(),
-                })
+                Self::MoveRoute(obj.into())
             }
             alox_48::Value::Object(obj) if obj.class == "RPG::MoveCommand" => {
-                Self::MoveCommand(MoveCommand {
-                    code: obj.fields["code"].clone().into_integer().unwrap() as _,
-                    parameters: obj.fields["parameters"]
-                        .clone()
-                        .into_array()
-                        .unwrap()
-                        .into_iter()
-                        .map(Into::into)
-                        .collect(),
-                })
+                Self::MoveCommand(obj.into())
             }
             alox_48::Value::Float(f) => Self::Float(f as _),
             alox_48::Value::Array(ary) => Self::Array(
@@ -820,26 +885,30 @@ impl From<alox_48::Value> for ParameterType {
             ),
             alox_48::Value::Bool(b) => Self::Bool(b),
             alox_48::Value::Userdata(data) if data.class == "Color" => {
-                let floats = bytemuck::cast_slice(&data.data);
-
-                Self::Color(Color {
-                    red: floats[0],
-                    green: floats[1],
-                    blue: floats[2],
-                    alpha: floats[3],
-                })
+                Self::Color(Color::from(data))
             }
-            alox_48::Value::Userdata(data) if data.class == "Tone" => {
-                let floats = bytemuck::cast_slice(&data.data);
-
-                Self::Tone(Tone {
-                    red: floats[0],
-                    green: floats[1],
-                    blue: floats[2],
-                    gray: floats[3],
-                })
-            }
+            alox_48::Value::Userdata(data) if data.class == "Tone" => Self::Tone(Tone::from(data)),
             _ => panic!("Unexpected type {value:#?}"),
+        }
+    }
+}
+
+impl From<ParameterType> for alox_48::Value {
+    fn from(value: ParameterType) -> Self {
+        match value {
+            ParameterType::Integer(i) => alox_48::Value::Integer(i as _),
+            ParameterType::String(s) => alox_48::Value::String(s.into()),
+            ParameterType::Color(c) => c.into(),
+            ParameterType::Tone(t) => t.into(),
+            ParameterType::Float(f) => alox_48::Value::Float(f as _),
+            ParameterType::Array(a) => {
+                alox_48::Value::Array(a.into_iter().map(Into::into).collect())
+            }
+            ParameterType::Bool(b) => alox_48::Value::Bool(b),
+
+            ParameterType::MoveRoute(r) => alox_48::Value::Object(r.into()),
+            ParameterType::MoveCommand(c) => alox_48::Value::Object(c.into()),
+            ParameterType::AudioFile(a) => alox_48::Value::Object(a.into()),
         }
     }
 }

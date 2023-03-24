@@ -27,6 +27,7 @@ pub struct LocalConfig {
     pub scripts_path: String,
     pub use_ron: bool,
     pub rgss_ver: RGSSVer,
+    pub editor_ver: RMVer,
 }
 
 impl Default for LocalConfig {
@@ -34,8 +35,9 @@ impl Default for LocalConfig {
         Self {
             project_name: String::new(),
             scripts_path: "Scripts".to_string(),
-            use_ron: true,
+            use_ron: false,
             rgss_ver: RGSSVer::RGSS1,
+            editor_ver: RMVer::XP,
         }
     }
 }

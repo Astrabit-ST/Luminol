@@ -117,7 +117,7 @@ impl WindowTrait for Window {
                     );
 
                     if ui.button("Change maximum...").clicked() {
-                        println!("`Change maximum...` button trigger");
+                        eprintln!("`Change maximum...` button trigger");
                     }
                 });
                 let selected_item = &mut self.items[self.selected_item];

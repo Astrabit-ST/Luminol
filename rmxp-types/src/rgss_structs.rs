@@ -7,35 +7,33 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 #[serde(from = "alox_48::Userdata")]
 #[serde(into = "alox_48::Userdata")]
-
+#[derive(bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
 pub struct Color {
-    pub red: f32,
-    pub green: f32,
-    pub blue: f32,
-    pub alpha: f32,
+    pub red: f64,
+    pub green: f64,
+    pub blue: f64,
+    pub alpha: f64,
 }
 
 impl From<alox_48::Userdata> for Color {
     fn from(value: alox_48::Userdata) -> Self {
-        let floats = bytemuck::cast_slice(&value.data);
-
-        Self {
-            red: floats[0],
-            green: floats[1],
-            blue: floats[2],
-            alpha: floats[3],
-        }
+        bytemuck::cast_slice(&value.data)[0]
     }
 }
 
 impl From<Color> for alox_48::Userdata {
     fn from(value: Color) -> Self {
-        let floats = [value.red, value.green, value.blue, value.alpha];
-
         alox_48::Userdata {
             class: "Color".into(),
-            data: bytemuck::cast_slice(&floats).to_vec(),
+            data: bytemuck::cast_slice(&[value]).to_vec(),
         }
+    }
+}
+
+impl From<Color> for alox_48::Value {
+    fn from(value: Color) -> Self {
+        Self::Userdata(value.into())
     }
 }
 
@@ -53,38 +51,37 @@ impl Default for Color {
 
 /// **A struct representing an offset to an RGBA color.**
 ///
-/// Its members are f32 but must not exceed the range of 255..-255.
+/// Its members are f64 but must not exceed the range of 255..-255.
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 #[serde(from = "alox_48::Userdata")]
 #[serde(into = "alox_48::Userdata")]
+#[derive(bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
 pub struct Tone {
-    pub red: f32,
-    pub green: f32,
-    pub blue: f32,
-    pub gray: f32,
+    pub red: f64,
+    pub green: f64,
+    pub blue: f64,
+    pub gray: f64,
 }
 
 impl From<alox_48::Userdata> for Tone {
     fn from(value: alox_48::Userdata) -> Self {
-        let floats = bytemuck::cast_slice(&value.data);
-
-        Self {
-            red: floats[0],
-            green: floats[1],
-            blue: floats[2],
-            gray: floats[3],
-        }
+        bytemuck::cast_slice(&value.data)[0]
     }
 }
 
 impl From<Tone> for alox_48::Userdata {
     fn from(value: Tone) -> Self {
-        let floats = [value.red, value.green, value.blue, value.gray];
-
         alox_48::Userdata {
             class: "Tone".into(),
-            data: bytemuck::cast_slice(&floats).to_vec(),
+            data: bytemuck::cast_slice(&[value]).to_vec(),
         }
+    }
+}
+
+impl From<Tone> for alox_48::Value {
+    fn from(value: Tone) -> Self {
+        Self::Userdata(value.into())
     }
 }
 
