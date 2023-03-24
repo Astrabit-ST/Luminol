@@ -1,3 +1,5 @@
+### LUMINOL IS LOOKING FOR CONTRIBUTORS! PLEASE CONTACT Leelee#7575 ON DISCORD OR EMAIL lily@nowaffles.com IF YOU WANT TO HELP!
+
 # Luminol
 
 ![Crates.io](https://img.shields.io/crates/v/luminol)![Crates.io](https://img.shields.io/crates/l/luminol)![Crates.io](https://img.shields.io/crates/d/luminol)[![wakatime](https://wakatime.com/badge/user/5cff5352-cb55-44dc-819e-b47f231dcfa2/project/edee199a-95c3-4206-b23e-eb6f0a7e06ba.svg)](https://wakatime.com/badge/user/5cff5352-cb55-44dc-819e-b47f231dcfa2/project/edee199a-95c3-4206-b23e-eb6f0a7e06ba)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Astrabit-ST/Luminol)[![CI](https://github.com/Astrabit-ST/Luminol/actions/workflows/rust.yml/badge.svg)](https://github.com/Astrabit-ST/Luminol/actions/workflows/rust.yml)![GitHub issues](https://img.shields.io/github/issues/Astrabit-ST/Luminol)
@@ -69,6 +71,7 @@ Basic functionality:
 - [x] Common event editor
 - [ ] System editor
 - [x] Script editor
+
 Extra functionality:
 - [x] Edit multiple maps at the same time
 - [x] Edit multiple events at the same time

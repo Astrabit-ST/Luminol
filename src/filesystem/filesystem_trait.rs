@@ -61,7 +61,7 @@ pub trait Filesystem {
     async fn try_open_project(
         &self,
         info: &'static UpdateInfo,
-        path: impl ToString,
+        #[cfg(not(target_arch = "wasm32"))] path: impl ToString,
     ) -> Result<(), String>;
 
     /// Create a directory at the specified path.

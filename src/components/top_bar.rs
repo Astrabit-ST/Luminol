@@ -104,10 +104,6 @@ impl TopBar {
 
             ui.separator();
 
-            // Or these together so if one OR the other is true the window shows.
-            self.egui_settings_open =
-                ui.button("Egui Settings").clicked() || self.egui_settings_open;
-
             ui.separator();
             if ui.button("Command Maker").clicked() {
                 // TODO: Replace this path 'calculation' with directory from config
@@ -142,6 +138,31 @@ impl TopBar {
                     frame.close();
                 }
             }
+        });
+
+        ui.separator();
+
+        ui.menu_button("Appearance", |ui| {
+            // Or these together so if one OR the other is true the window shows.
+            self.egui_settings_open =
+                ui.button("Egui Settings").clicked() || self.egui_settings_open;
+
+            ui.menu_button("Catppuccin theme", |ui| {
+                if ui.button("Frappe").clicked() {
+                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::FRAPPE);
+                }
+                if ui.button("Latte").clicked() {
+                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::LATTE);
+                }
+                if ui.button("Macchiato").clicked() {
+                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::MACCHIATO);
+                }
+                if ui.button("Mocha").clicked() {
+                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::MOCHA);
+                }
+
+                *style = ui.ctx().style();
+            });
         });
 
         ui.separator();
