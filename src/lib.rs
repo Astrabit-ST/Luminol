@@ -51,62 +51,19 @@ pub mod audio;
 
 pub mod components;
 
+/// Stack defined windows that edit values.
+pub mod modals;
 /// Floating windows to be displayed anywhere.
 pub mod windows;
-/// Stack defined windows that edit values.
-pub mod modals {
-    /// Traits related to modals.
-    pub mod modal;
-    /// The switch picker.
-    pub mod switch;
-    /// The variable picker.
-    pub mod variable;
-}
-
-/// Tabs to be displayed in the center of Luminol.
-pub mod tabs {
-    /// The map editor.
-    pub mod map;
-    /// The getting started screen.
-    pub mod started;
-    /// Traits and structs related to tabs.
-    pub mod tab;
-}
 
 /// Structs related to Luminol's internal data.
-pub mod data {
-    /// The data cache, used to store things before writing them to the disk.
-    pub mod cache;
-    /// The tree data structure for commands
-    pub mod command_tree;
-    /// Event command related enums
-    pub mod commands;
-    /// Luminol configuration
-    pub mod config;
-    /// Nil padded arrays.
-    pub mod nil_padded;
-    /// RGSS structs.
-    pub mod rgss_structs;
-    /// RMXP structs.
-    pub mod rmxp_structs;
-}
+pub mod data;
+/// Tabs to be displayed in the center of Luminol.
+pub mod tabs;
 
 /// Filesystem related structs.
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
-pub mod filesystem {
-    /// Filesystem access API.
-    pub mod filesystem_trait;
-    pub use filesystem_trait::Filesystem;
-
-    // FIXME: MAKE TRAIT
-    cfg_if::cfg_if! {
-        if #[cfg(not(target_arch = "wasm32"))] {
-            pub(crate) mod filesystem_native;
-        } else {
-            pub(crate) mod filesystem_wasm32;
-        }
-    }
-}
+pub mod filesystem;
 
 #[cfg(feature = "discord-rpc")]
 /// Discord RPC related structs.
