@@ -12,6 +12,7 @@
 		"RUSTFLAGS": "--cfg=web_sys_unstable_apis"
 	},
 	"conventionalCommits.scopes": [
-		"data cache"
+		"data cache",
+		"ui"
 	]
 }
