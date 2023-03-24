@@ -775,6 +775,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "catppuccin-egui"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e508ad60790f1336e5ab24da9b809826e7ea9171281cc70e894f514f37791317"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2601,6 +2610,7 @@ dependencies = [
  "async-fs",
  "async-trait",
  "bytemuck",
+ "catppuccin-egui",
  "cfg-if",
  "color-eyre",
  "console_error_panic_hook",

@@ -48,6 +48,7 @@ alox-48 = { version = "*", path = "alox-48" }
 ron = "0.8.0"
 
 tracing = "0.1.37"
+catppuccin-egui = "2.0.0"
 
 [features]
 default = ["generic-tilemap"]
