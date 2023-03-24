@@ -118,7 +118,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Check if file path exists
-    async fn file_exists(&self, path: impl AsRef<Path>) -> bool {
+    async fn path_exists(&self, path: impl AsRef<Path>) -> bool {
         let path = self.project_path.borrow().as_ref().unwrap().join(path);
 
         async_fs::metadata(path).await.is_ok()

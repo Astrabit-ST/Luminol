@@ -74,10 +74,12 @@ pub mod tabs {
     pub mod tab;
 }
 
-/// Structs related to Luminol's internal data.
+/// Structs related to Luminol's project specific data.
 pub mod data {
     /// The data cache, used to store things before writing them to the disk.
     pub mod cache;
+    /// The database of commands for this project.
+    pub mod command_db;
     /// Luminol configuration
     pub mod config;
 }

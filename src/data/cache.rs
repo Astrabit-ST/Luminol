@@ -35,7 +35,7 @@ pub struct Cache {
     armors: RefCell<Option<NilPadded<rpg::Armor>>>,
     classes: RefCell<Option<NilPadded<rpg::Class>>>,
     commonevents: RefCell<Option<NilPadded<rpg::CommonEvent>>>,
-    enemies: RefCell<Option<NilPadded<rpg::enemy::Enemy>>>,
+    enemies: RefCell<Option<NilPadded<rpg::Enemy>>>,
     items: RefCell<Option<NilPadded<rpg::Item>>>,
     mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
     maps: RefCell<HashMap<i32, rpg::Map>>,
@@ -86,12 +86,29 @@ macro_rules! load_data {
     };
 }
 
+macro_rules! getter {
+    ($($name:ident, $type:ty),*) => {
+        $(
+            paste::paste! {
+                #[doc = "Get `" $name "` from the data cache. It may not be loaded, and will panic if it is not in the future."]
+                pub fn [< $name:lower >](&self) -> RefMut<'_, Option<$type>> {
+                    self.[< $name:lower >].borrow_mut()
+                }
+            }
+        )*
+    };
+}
+
 impl Cache {
     /// Load all data required when opening a project.
     pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
         // FIXME: keep errors?
+        if !filesystem.path_exists(".luminol").await {
+            filesystem.create_directory(".luminol").await?;
+        }
+
         let config = filesystem
-            .read_bytes(".luminol")
+            .read_bytes(".luminol/config")
             .await
             .ok()
             .and_then(|v| {
@@ -156,50 +173,23 @@ impl Cache {
         RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
     }
 
-    // FIXME: make these into a macro
-    /// Get MapInfos.
-    pub fn map_infos(&self) -> RefMut<'_, Option<HashMap<i32, rpg::MapInfo>>> {
-        self.mapinfos.borrow_mut()
-    }
-
-    /// Get Tilesets.
-    pub fn tilesets(&self) -> RefMut<'_, Option<NilPadded<rpg::Tileset>>> {
-        self.tilesets.borrow_mut()
-    }
-
-    /// Get system.
-    pub fn system(&self) -> RefMut<'_, Option<rpg::System>> {
-        self.system.borrow_mut()
-    }
-
-    /// Get Animations.
-    pub fn animations(&self) -> RefMut<'_, Option<NilPadded<rpg::Animation>>> {
-        self.animations.borrow_mut()
-    }
-
-    /// Get Actors.
-    pub fn actors(&self) -> RefMut<'_, Option<NilPadded<rpg::Actor>>> {
-        self.actors.borrow_mut()
-    }
-
-    /// Get Common Events.
-    pub fn common_events(&self) -> RefMut<'_, Option<NilPadded<rpg::CommonEvent>>> {
-        self.commonevents.borrow_mut()
-    }
-
-    /// Get Scripts.
-    pub fn scripts(&self) -> RefMut<'_, Option<Vec<rpg::Script>>> {
-        self.scripts.borrow_mut()
-    }
-
-    /// Get items.
-    pub fn items(&self) -> RefMut<'_, Option<NilPadded<rpg::Item>>> {
-        self.items.borrow_mut()
-    }
-
-    /// Get Config.
-    pub fn config(&self) -> RefMut<'_, Option<LocalConfig>> {
-        self.config.borrow_mut()
+    getter! {
+        Actors, NilPadded<rpg::Actor>,
+        Animations, NilPadded<rpg::Animation>,
+        Armors, NilPadded<rpg::Armor>,
+        Classes, NilPadded<rpg::Class>,
+        CommonEvents, NilPadded<rpg::CommonEvent>,
+        Enemies, NilPadded<rpg::Enemy>,
+        Items, NilPadded<rpg::Item>,
+        MapInfos, HashMap<i32, rpg::MapInfo>,
+        Scripts, Vec<rpg::Script>,
+        Skills, NilPadded<rpg::Skill>,
+        States, NilPadded<rpg::State>,
+        System, rpg::System,
+        Tilesets, NilPadded<rpg::Tileset>,
+        Troops, NilPadded<rpg::Troop>,
+        Weapons, NilPadded<rpg::Weapon>,
+        Config, LocalConfig
     }
 
     /// Save the local config.
@@ -259,8 +249,8 @@ impl Cache {
         *self.animations() = Some(vec![rpg::Animation::default()].into());
         *self.armors.borrow_mut() = Some(vec![rpg::Armor::default()].into());
         *self.classes.borrow_mut() = Some(vec![rpg::Class::default()].into());
-        *self.common_events() = Some(vec![rpg::CommonEvent::default()].into());
-        *self.enemies.borrow_mut() = Some(vec![rpg::enemy::Enemy::default()].into());
+        *self.commonevents() = Some(vec![rpg::CommonEvent::default()].into());
+        *self.enemies.borrow_mut() = Some(vec![rpg::Enemy::default()].into());
         *self.items() = Some(NilPadded::default());
 
         let mut map_infos = HashMap::new();
@@ -276,7 +266,7 @@ impl Cache {
             },
         );
 
-        *self.map_infos() = Some(map_infos);
+        *self.mapinfos() = Some(map_infos);
 
         *self.scripts() = Some(alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap()); // FIXME: make this static somehow?
         *self.skills.borrow_mut() = Some(vec![rpg::Skill::default()].into());

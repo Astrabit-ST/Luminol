@@ -52,8 +52,8 @@ pub trait Filesystem {
     async fn save_data(&self, path: impl AsRef<Path>, data: impl AsRef<[u8]>)
         -> Result<(), String>;
 
-    /// Check if file path exists
-    async fn file_exists(&self, path: impl AsRef<Path>) -> bool;
+    /// Check if a path exists
+    async fn path_exists(&self, path: impl AsRef<Path>) -> bool;
 
     /// Save all cached files. An alias for [`DataCache::save`];
     async fn save_cached(&self, info: &'static UpdateInfo) -> Result<(), String>;

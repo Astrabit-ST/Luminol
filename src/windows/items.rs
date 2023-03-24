@@ -81,7 +81,7 @@ impl WindowTrait for Window {
         let animations = info.data_cache.animations();
         let animations = animations.as_ref().unwrap();
 
-        let common_events = info.data_cache.common_events();
+        let common_events = info.data_cache.commonevents();
         let common_events = common_events.as_ref().unwrap();
 
         /*#[allow(clippy::cast_sign_loss)]

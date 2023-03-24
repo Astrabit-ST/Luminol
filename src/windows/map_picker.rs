@@ -90,7 +90,7 @@ impl super::window::Window for MapPicker {
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
-                        let mut mapinfos = info.data_cache.map_infos();
+                        let mut mapinfos = info.data_cache.mapinfos();
                         let mapinfos = mapinfos.as_mut().unwrap();
 
                         // We sort maps by their order.

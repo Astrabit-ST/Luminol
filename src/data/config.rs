@@ -58,3 +58,15 @@ pub enum RGSSVer {
     #[strum(to_string = "Stock RGSS1")]
     RGSS1,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display, Default)]
+#[allow(missing_docs)]
+pub enum RMVer {
+    #[default]
+    #[strum(to_string = "RPG Maker XP")]
+    XP,
+    #[strum(to_string = "RPG Maker VX")]
+    VX,
+    #[strum(to_string = "RPG Maker VX Ace")]
+    Ace,
+}

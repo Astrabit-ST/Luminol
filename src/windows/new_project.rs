@@ -280,7 +280,7 @@ impl Window {
                     .to_str()
                     .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty() || info.filesystem.file_exists(file_path).await {
+                if file_path.is_empty() || info.filesystem.path_exists(file_path).await {
                     continue;
                 }
 
