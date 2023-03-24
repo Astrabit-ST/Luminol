@@ -104,31 +104,12 @@ impl TopBar {
 
             ui.separator();
 
-            ui.separator();
-            if ui.button("Command Maker").clicked() {
-                // TODO: Replace this path 'calculation' with directory from config
-                let path = format!(
-                    "{}/commands",
-                    info.filesystem
-                        .project_path()
-                        .unwrap_or({
-                            let mut temp_dir = std::env::temp_dir();
-                            temp_dir.push("luminol");
-                            temp_dir
-                        })
-                        .to_string_lossy()
-                );
-                if let Err(why) = std::fs::DirBuilder::new()
-                    .recursive(true)
-                    .create(path.clone())
-                {
-                    info.toasts
-                        .error(format!("Couldn't create `{path}` directory: {why}"));
-                    return;
+            ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+                if ui.button("Command Maker").clicked() {
+                    info.windows
+                        .add_window(crate::command_gen::CommandGeneratorWindow::new(info));
                 }
-                info.windows
-                    .add_window(crate::command_gen::CommandGeneratorWindow::new(None, path));
-            }
+            });
 
             #[cfg(not(target_arch = "wasm32"))]
             {

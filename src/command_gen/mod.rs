@@ -18,28 +18,23 @@ use command_lib::{CommandDescription, CommandKind, Index, Parameter};
 use strum::IntoEnumIterator;
 use ui_example::UiExample;
 
-use crate::windows::window::Window;
+use crate::{windows::window::Window, UpdateInfo};
 
 pub mod parameter_ui;
 pub mod ui_example;
 
 pub struct CommandGeneratorWindow {
     commands: Vec<CommandDescription>,
-    path: std::path::PathBuf,
-
     ui_examples: Vec<UiExample>,
-	open: bool
 }
+
 impl CommandGeneratorWindow {
     pub fn new(
-        commands: Option<Vec<CommandDescription>>,
-        path: impl Into<std::path::PathBuf>,
+        info: &'static UpdateInfo
     ) -> Self {
         Self {
-            commands: commands.unwrap_or_default(),
-            path: path.into(),
+            commands: info.data_cache.commanddb().user.clone(),
             ui_examples: vec![],
-			open: false
         }
     }
 
@@ -90,142 +85,134 @@ impl Window for CommandGeneratorWindow {
         String::from("Luminol Command Maker")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-			egui::ScrollArea::both().show(ui, |ui| {
-				let mut del_index = None;
-				for (idx, command) in self.commands.iter_mut().enumerate() {
-						ui.push_id(command.guid, |ui| {
-						let header = egui::collapsing_header::CollapsingState::load_with_default_open(
-							ui.ctx(),
-							format!("command_{idx}").into(),
-							false,
-						);
-						header
-							.show_header(ui, |ui| {
-								ui.horizontal(|ui| {
-									ui.label("Name:");
-									ui.text_edit_singleline(&mut command.name);
+            egui::ScrollArea::both().show(ui, |ui| {
+                let mut del_index = None;
+                for (idx, command) in self.commands.iter_mut().enumerate() {
+                        ui.push_id(command.guid, |ui| {
+                        let header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                            ui.ctx(),
+                            format!("command_{idx}").into(),
+                            false,
+                        );
+                        header
+                            .show_header(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("Name:");
+                                    ui.text_edit_singleline(&mut command.name);
 
-									ui.label("Code:");
-									ui.add(egui::DragValue::new(&mut command.code));
-								});
+                                    ui.label("Code:");
+                                    ui.add(egui::DragValue::new(&mut command.code));
+                                });
 
-								if ui
-									.button(
-										egui::RichText::new("-")
-											.monospace()
-											.color(egui::Color32::RED),
-									)
-									.clicked()
-								{
-									del_index = Some(idx)
-								}
-							})
-							.body(|ui| {
-								ui.label("Description:");
-								ui.text_edit_multiline(&mut command.description)
-									.on_hover_text("Description for this command");
+                                if ui
+                                    .button(
+                                        egui::RichText::new("-")
+                                            .monospace()
+                                            .color(egui::Color32::RED),
+                                    )
+                                    .clicked()
+                                {
+                                    del_index = Some(idx)
+                                }
+                            })
+                            .body(|ui| {
+                                ui.label("Description:");
+                                ui.text_edit_multiline(&mut command.description)
+                                    .on_hover_text("Description for this command");
 
-								ui.separator();
+                                ui.separator();
 
-								ui.label("Type");
-								ui.horizontal(|ui| {
-									ui.menu_button(
-										format!("{} ⏷", <&str>::from(command.kind)),
-										|ui| {
-											for kind in CommandKind::iter() {
-												ui.selectable_value(
-													&mut command.kind,
-													kind,
-													<&str>::from(kind),
-												);
-											}
-										},
-									);
-									match command.kind {
-										CommandKind::Multi(ref mut code) =>{
-											ui.label("Cont. Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one");
-											ui.add(egui::DragValue::new(code));
-										}
-										CommandKind::Branch(ref mut code ) => {
-											ui.label("End Code").on_hover_text("Luminol will add this command to denote the end of the branch");
-											ui.add(egui::DragValue::new(code));
-										}
-										_ => {}
-									}
-								});
+                                ui.label("Type");
+                                ui.horizontal(|ui| {
+                                    ui.menu_button(
+                                        format!("{} ⏷", <&str>::from(command.kind)),
+                                        |ui| {
+                                            for kind in CommandKind::iter() {
+                                                ui.selectable_value(
+                                                    &mut command.kind,
+                                                    kind,
+                                                    <&str>::from(kind),
+                                                );
+                                            }
+                                        },
+                                    );
+                                    match command.kind {
+                                        CommandKind::Multi(ref mut code) =>{
+                                            ui.label("Cont. Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one");
+                                            ui.add(egui::DragValue::new(code));
+                                        }
+                                        CommandKind::Branch(ref mut code ) => {
+                                            ui.label("End Code").on_hover_text("Luminol will add this command to denote the end of the branch");
+                                            ui.add(egui::DragValue::new(code));
+                                        }
+                                        _ => {}
+                                    }
+                                });
 
-								ui.checkbox(&mut command.hidden, "Hide in menu");
+                                ui.checkbox(&mut command.hidden, "Hide in menu");
 
-								ui.separator();
+                                ui.separator();
 
-								ui.collapsing("Parameters", |ui| {
-									let mut del_idx = None;
+                                ui.collapsing("Parameters", |ui| {
+                                    let mut del_idx = None;
 
-									let mut passed_index = 0;
-									for (ele, parameter) in command.parameters.iter_mut().enumerate() {
-										parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
+                                    let mut passed_index = 0;
+                                    for (ele, parameter) in command.parameters.iter_mut().enumerate() {
+                                        parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
 
-										Self::recalculate_parameter_index(parameter, &mut passed_index);
-									}
+                                        Self::recalculate_parameter_index(parameter, &mut passed_index);
+                                    }
 
-									if let Some(idx) = del_idx {
-										command.parameters.remove(idx);
-									}
+                                    if let Some(idx) = del_idx {
+                                        command.parameters.remove(idx);
+                                    }
 
-									if ui
-										.button(
-											egui::RichText::new("+")
-												.monospace()
-												.color(egui::Color32::GREEN),
-										)
-										.clicked()
-									{
-										command.parameters.push(Parameter::default());
-									}
-								});
-							});
+                                    if ui
+                                        .button(
+                                            egui::RichText::new("+")
+                                                .monospace()
+                                                .color(egui::Color32::GREEN),
+                                        )
+                                        .clicked()
+                                    {
+                                        command.parameters.push(Parameter::default());
+                                    }
+                                });
+                            });
 
-						if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {
-							self.ui_examples.push(UiExample::new(command));
-						}
+                        if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {
+                            self.ui_examples.push(UiExample::new(command));
+                        }
 
-						ui.separator();
-					});
-				}
+                        ui.separator();
+                    });
+                }
 
-				if let Some(idx) = del_index {
-					self.commands.remove(idx);
-				}
+                if let Some(idx) = del_index {
+                    self.commands.remove(idx);
+                }
 
-				ui.horizontal(|ui| {
-					if ui
-					.button(
-						egui::RichText::new("+")
-							.monospace()
-							.color(egui::Color32::GREEN),
-					)
-					.clicked()
-					{
-						self.commands.push(CommandDescription::default());
-					}
+                ui.horizontal(|ui| {
+                    if ui
+                    .button(
+                        egui::RichText::new("+")
+                            .monospace()
+                            .color(egui::Color32::GREEN),
+                    )
+                    .clicked()
+                    {
+                        self.commands.push(CommandDescription::default());
+                    }
 
-					if ui.button("Save").clicked() {
-						std::fs::write(
-							&self.path,
-							ron::ser::to_string_pretty(
-								&self.commands,
-								ron::ser::PrettyConfig::new().struct_names(true),
-							)
-							.unwrap(),
-						)
-						.unwrap();
-					}
-				});	
-			});
-	
-			self.ui_examples.retain_mut(|e| e.update(ctx));
-		});
+                    if ui.button("Save").clicked() {
+                        info.data_cache.commanddb().user = self.commands.clone();
+                    }
+                });    
+            });
+    
+            self.ui_examples.retain_mut(|e| e.update(ctx));
+        });
     }
 }

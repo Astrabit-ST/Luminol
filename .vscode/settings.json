@@ -13,6 +13,7 @@
 	},
 	"conventionalCommits.scopes": [
 		"data cache",
-		"ui"
+		"ui",
+		"commands"
 	]
 }

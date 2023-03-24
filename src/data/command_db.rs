@@ -32,7 +32,7 @@ pub struct CommandDB {
     /// Default commands
     default: Vec<CommandDescription>,
     /// User defined commands
-    user: Vec<CommandDescription>,
+    pub user: Vec<CommandDescription>,
 }
 
 impl CommandDB {
