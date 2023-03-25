@@ -28,6 +28,8 @@ pub mod toasts;
 /// The toolbar for managing the project.
 pub mod top_bar;
 
+pub mod command_view;
+
 /// The tilemap.
 pub mod tilemap {
     use crate::UpdateInfo;

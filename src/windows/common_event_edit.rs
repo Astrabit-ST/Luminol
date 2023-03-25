@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
+    components::command_view::CommandView,
     modals::{modal::Modal, switch::SwitchModal},
     tabs::tab::{Tab, Tabs},
 };
@@ -154,12 +155,8 @@ impl Tab for CommonEventTab {
 
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
-            .show(ui, |_ui| {
-                //  CommandView::new(&format!("common_event_{}", self.event.id), None).ui(
-                //      ui,
-                //      info,
-                //      &mut self.event.list,
-                //  );
+            .show(ui, |ui| {
+                CommandView::new(&mut self.event.list).ui(ui, &info.data_cache.commanddb())
             });
     }
 
