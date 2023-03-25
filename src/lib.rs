@@ -78,6 +78,7 @@ use egui::TextureOptions;
 use egui_extras::RetainedImage;
 pub use luminol::Luminol;
 use saved_state::SavedState;
+use tabs::tab::Tab;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
@@ -119,7 +120,7 @@ pub struct UpdateInfo {
     /// Windows that are displayed.
     pub windows: windows::window::Windows,
     /// Tabs that are displayed.
-    pub tabs: tabs::tab::Tabs,
+    pub tabs: tabs::tab::Tabs<Box<dyn Tab>>,
     /// Audio that's played.
     pub audio: audio::Audio,
     /// Toasts to be displayed.
@@ -139,7 +140,10 @@ impl UpdateInfo {
             filesystem: FSAlias::default(),
             data_cache: Cache::default(),
             windows: windows::window::Windows::default(),
-            tabs: tabs::tab::Tabs::default(),
+            tabs: tabs::tab::Tabs::new(
+                "global_tabs",
+                vec![Box::new(tabs::started::Started::new())],
+            ),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             gl,

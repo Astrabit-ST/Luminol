@@ -92,7 +92,7 @@ impl TopBar {
                 if ui.button("Close Project").clicked() {
                     info.filesystem.unload_project();
                     info.windows.clean_windows();
-                    info.tabs.clean_tabs();
+                    info.tabs.clean_tabs(|t| t.requires_filesystem());
                 }
 
                 if self.save_project_promise.is_none() {

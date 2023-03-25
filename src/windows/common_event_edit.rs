@@ -26,14 +26,14 @@ use super::window::Window;
 
 /// The common event editor.
 pub struct CommonEventEdit {
-    tabs: Tabs,
+    tabs: Tabs<CommonEventTab>,
     selected_id: usize,
 }
 
 impl Default for CommonEventEdit {
     fn default() -> Self {
         Self {
-            tabs: Tabs::new("common_event_tabs"),
+            tabs: Tabs::new("common_event_tabs", vec![]),
             selected_id: 0,
         }
     }

@@ -75,7 +75,7 @@ impl MapPicker {
 
     fn create_map_tab(id: i32, name: String, info: &'static UpdateInfo) {
         if let Some(m) = Map::new(id, name, info) {
-            info.tabs.add_tab(m);
+            info.tabs.add_tab(Box::new(m));
         }
     }
 }

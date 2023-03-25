@@ -26,13 +26,13 @@ use crate::{
 
 /// The script editor.
 pub struct ScriptEdit {
-    tabs: Tabs,
+    tabs: Tabs<ScriptTab>,
 }
 
 impl Default for ScriptEdit {
     fn default() -> Self {
         Self {
-            tabs: Tabs::new("script_editor"),
+            tabs: Tabs::new("script_editor", vec![]),
         }
     }
 }
