@@ -27,14 +27,12 @@ use crate::{
 /// The script editor.
 pub struct ScriptEdit {
     tabs: Tabs,
-    selected_script: usize,
 }
 
 impl Default for ScriptEdit {
     fn default() -> Self {
         Self {
             tabs: Tabs::new("script_editor"),
-            selected_script: 0,
         }
     }
 }
@@ -60,22 +58,48 @@ impl Window for ScriptEdit {
                             let mut scripts = info.data_cache.scripts();
                             let scripts = scripts.as_mut().unwrap();
 
-                            for (id, script) in scripts.iter().enumerate() {
-                                if ui
-                                    .selectable_value(
-                                        &mut self.selected_script,
-                                        id,
-                                        script.name.clone(),
-                                    )
-                                    .double_clicked()
-                                {
-                                    match ScriptTab::new(id, script.clone()) {
+                            let mut insert_index = None;
+                            let mut del_index = None;
+
+                            let scripts_len = scripts.len();
+                            for (index, script) in scripts.iter_mut().enumerate() {
+                                let response = ui
+                                    .text_edit_singleline(&mut script.name)
+                                    .context_menu(|ui| {
+                                        if ui.button("Insert").clicked() {
+                                            insert_index = Some(index);
+                                        }
+
+                                        ui.add_enabled_ui(scripts_len > 1, |ui| {
+                                            if ui.button("Delete").clicked() {
+                                                del_index = Some(index);
+                                            }
+                                        });
+                                    });
+
+                                if response.double_clicked() {
+                                    match ScriptTab::new(index, script.clone()) {
                                         Ok(tab) => self.tabs.add_tab(tab),
                                         Err(e) => {
                                             info.toasts.error(format!("Error Opening Script: {e}"));
                                         }
                                     }
                                 }
+                            }
+
+                            if let Some(index) = insert_index {
+                                scripts.insert(
+                                    index,
+                                    Script {
+                                        id: index,
+                                        name: "New Script".to_string(),
+                                        data: vec![0x78, 0x9C, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01],
+                                    },
+                                );
+                            }
+
+                            if let Some(index) = del_index {
+                                scripts.remove(index);
                             }
                         });
                 });
@@ -89,6 +113,7 @@ impl Window for ScriptEdit {
     }
 }
 
+/// FIXME: Change behavior of script tab to aboid panics and stay synchronized
 struct ScriptTab {
     name: String,
     id: usize,
@@ -143,6 +168,7 @@ impl Tab for ScriptTab {
                 save_script = true;
             }
 
+            // FIXME: perform this on deserialization/serialization, not here
             if save_script {
                 let mut scripts = info.data_cache.scripts();
                 let scripts = scripts.as_mut().unwrap();

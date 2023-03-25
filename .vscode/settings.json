@@ -9,5 +9,8 @@
 	"rust-analyzer.procMacro.enable": true,
 	"rust-analyzer.server.extraEnv": {
 		"RUSTFLAGS": "--cfg=web_sys_unstable_apis"
-	}
+	},
+	"conventionalCommits.scopes": [
+		"scripts"
+	]
 }
