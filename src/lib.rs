@@ -42,6 +42,7 @@
 /// The main Luminol application.
 pub mod luminol;
 
+pub mod prelude;
 /// The state Luminol saves on shutdown.
 pub mod saved_state;
 

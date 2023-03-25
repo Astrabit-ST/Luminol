@@ -8,8 +8,8 @@ use slab::Slab;
 use strum::EnumIter;
 
 use crate::nil_padded::NilPadded;
-use crate::rgss_structs::{Color, Table1, Table2, Table3, Tone};
-use enum_as_inner::EnumAsInner;
+use crate::rgss_structs::{Color, Table1, Table2, Table3};
+use crate::ParameterType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -842,79 +842,5 @@ impl Serialize for Script {
         })?;
 
         seq.end()
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, EnumAsInner, PartialEq)]
-#[allow(missing_docs)]
-#[serde(from = "alox_48::Value")]
-#[serde(into = "alox_48::Value")]
-pub enum ParameterType {
-    Integer(i32),
-    String(String),
-    Color(Color),
-    Tone(Tone),
-    AudioFile(AudioFile),
-    Float(f32),
-    MoveRoute(MoveRoute),
-    MoveCommand(MoveCommand),
-    Array(Vec<String>),
-    Bool(bool),
-}
-
-impl From<alox_48::Value> for ParameterType {
-    fn from(value: alox_48::Value) -> Self {
-        match value {
-            alox_48::Value::Integer(i) => Self::Integer(i as _),
-            alox_48::Value::String(str) => Self::String(str.to_string().unwrap()),
-            // Value::Symbol(sym) => Self::String(sym),
-            alox_48::Value::Object(obj) if obj.class == "RPG::AudioFile" => {
-                Self::AudioFile(obj.into())
-            }
-            alox_48::Value::Object(obj) if obj.class == "RPG::MoveRoute" => {
-                Self::MoveRoute(obj.into())
-            }
-            alox_48::Value::Object(obj) if obj.class == "RPG::MoveCommand" => {
-                Self::MoveCommand(obj.into())
-            }
-            alox_48::Value::Float(f) => Self::Float(f as _),
-            alox_48::Value::Array(ary) => Self::Array(
-                ary.into_iter()
-                    .map(|v| v.into_string().unwrap().to_string().unwrap())
-                    .collect(),
-            ),
-            alox_48::Value::Bool(b) => Self::Bool(b),
-            alox_48::Value::Userdata(data) if data.class == "Color" => {
-                Self::Color(Color::from(data))
-            }
-            alox_48::Value::Userdata(data) if data.class == "Tone" => Self::Tone(Tone::from(data)),
-            _ => panic!("Unexpected type {value:#?}"),
-        }
-    }
-}
-
-impl From<ParameterType> for alox_48::Value {
-    fn from(value: ParameterType) -> Self {
-        match value {
-            ParameterType::Integer(i) => alox_48::Value::Integer(i as _),
-            ParameterType::String(s) => alox_48::Value::String(s.into()),
-            ParameterType::Color(c) => c.into(),
-            ParameterType::Tone(t) => t.into(),
-            ParameterType::Float(f) => alox_48::Value::Float(f as _),
-            ParameterType::Array(a) => {
-                alox_48::Value::Array(a.into_iter().map(Into::into).collect())
-            }
-            ParameterType::Bool(b) => alox_48::Value::Bool(b),
-
-            ParameterType::MoveRoute(r) => alox_48::Value::Object(r.into()),
-            ParameterType::MoveCommand(c) => alox_48::Value::Object(c.into()),
-            ParameterType::AudioFile(a) => alox_48::Value::Object(a.into()),
-        }
-    }
-}
-
-impl From<String> for ParameterType {
-    fn from(s: String) -> Self {
-        Self::String(s)
     }
 }

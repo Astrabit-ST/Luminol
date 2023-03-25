@@ -20,14 +20,21 @@ use rmxp_types::rpg;
 
 use crate::data::command_db::CommandDB;
 
-pub struct CommandView<'a> {
-    commands: &'a mut Vec<rpg::EventCommand>,
-    insert_index: Option<usize>,
+pub struct CommandView {
+    insert_window: Option<InsertCommandWindow>,
+}
+
+impl Default for CommandView {
+    fn default() -> Self {
+        Self {
+            insert_window: None,
+        }
+    }
 }
 
 macro_rules! color_text {
     ($text:expr, $color:expr) => {
-        egui::RichText::new($text).color($color)
+        egui::RichText::new($text).monospace().color($color)
     };
 }
 
@@ -37,21 +44,18 @@ macro_rules! error {
     };
 }
 
-impl<'a> CommandView<'a> {
-    pub fn new(commands: &'a mut Vec<rpg::EventCommand>) -> Self {
-        Self {
-            commands,
-            insert_index: None,
-        }
+impl CommandView {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn ui(mut self, ui: &mut egui::Ui, db: &CommandDB) {
-        for (index, command) in self.commands.iter_mut().enumerate() {
+    pub fn ui(&mut self, ui: &mut egui::Ui, db: &CommandDB, commands: &mut Vec<rpg::EventCommand>) {
+        for (index, command) in commands.iter_mut().enumerate() {
             let desc = match db.get(command.code as _) {
                 Some(desc) => desc,
                 None if command.code == 0 => {
-                    if ui.button("> Insert").double_clicked() {
-                        self.insert_index = Some(index);
+                    if ui.button("#> Insert").double_clicked() {
+                        self.insert_window = Some(InsertCommandWindow::new(index));
                     }
 
                     continue;
@@ -81,25 +85,29 @@ impl<'a> CommandView<'a> {
             ui.label(color_text!(&desc.name, color));
         }
 
-        if let Some(index) = self.insert_index {
-            if !InsertCommandWindow::new(index, self.commands).show(ui.ctx(), db) {
-                self.insert_index = None;
+        if let Some(ref mut window) = self.insert_window {
+            if !window.show(ui.ctx(), db, commands) {
+                self.insert_window = None;
             }
         }
     }
 }
 
-struct InsertCommandWindow<'a> {
+struct InsertCommandWindow {
     index: usize,
-    commands: &'a mut Vec<rpg::EventCommand>,
 }
 
-impl<'a> InsertCommandWindow<'a> {
-    fn new(index: usize, commands: &'a mut Vec<rpg::EventCommand>) -> Self {
-        Self { index, commands }
+impl InsertCommandWindow {
+    fn new(index: usize) -> Self {
+        Self { index }
     }
 
-    fn show(mut self, ctx: &egui::Context, db: &CommandDB) -> bool {
+    fn show(
+        &mut self,
+        ctx: &egui::Context,
+        db: &CommandDB,
+        commands: &mut Vec<rpg::EventCommand>,
+    ) -> bool {
         let mut open = true;
         let mut save_changes = false;
         let mut window_open = true;
@@ -107,18 +115,7 @@ impl<'a> InsertCommandWindow<'a> {
         egui::Window::new("Event Commands")
             .open(&mut window_open)
             .show(ctx, |ui| {
-                if ui.button("Ok").clicked() {
-                    open = false;
-                    save_changes = true;
-                }
-
-                if ui.button("Cancel").clicked() {
-                    open = false;
-                }
-
-                if ui.button("Apply").clicked() {
-                    save_changes = true;
-                }
+                super::close_options_ui(ui, &mut open, &mut save_changes);
             });
 
         if save_changes {}

@@ -19,7 +19,6 @@ use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
 use super::window::Window;
-use crate::components::command_view::CommandView;
 use crate::modals::modal::Modal;
 use crate::modals::switch::SwitchModal;
 use crate::modals::variable::VariableModal;
@@ -364,9 +363,9 @@ impl Window for EventEdit {
                                 egui::ScrollArea::both()
                                     .max_height(500.)
                                     .auto_shrink([false; 2])
-                                    .show(ui, |ui| {
-                                        CommandView::new(&mut page.list)
-                                            .ui(ui, &info.data_cache.commanddb());
+                                    .show(ui, |_ui| {
+                                        // CommandView::new(&mut page.list)
+                                        //     .ui(ui, &info.data_cache.commanddb());
                                     });
                             });
                         });

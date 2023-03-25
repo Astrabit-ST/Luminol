@@ -79,6 +79,7 @@ impl Window for CommonEventEdit {
                                         event: event.clone(),
                                         force_close: false,
                                         switch_open: false,
+                                        command_view: CommandView::new(),
                                     });
                                 }
                             }
@@ -99,6 +100,7 @@ struct CommonEventTab {
     event: rpg::CommonEvent,
     force_close: bool,
     switch_open: bool,
+    command_view: CommandView,
 }
 
 impl Tab for CommonEventTab {
@@ -156,7 +158,8 @@ impl Tab for CommonEventTab {
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                CommandView::new(&mut self.event.list).ui(ui, &info.data_cache.commanddb())
+                self.command_view
+                    .ui(ui, &info.data_cache.commanddb(), &mut self.event.list);
             });
     }
 

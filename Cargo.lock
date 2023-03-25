@@ -3378,9 +3378,9 @@ version = "0.1.0"
 dependencies = [
  "alox-48",
  "bytemuck",
- "enum-as-inner",
  "num-derive",
  "num-traits",
+ "paste",
  "serde",
  "slab",
  "strum",

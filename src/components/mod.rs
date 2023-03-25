@@ -284,3 +284,20 @@ where
         .response
     }
 }
+
+pub fn close_options_ui(ui: &mut egui::Ui, open: &mut bool, save: &mut bool) {
+    ui.horizontal(|ui| {
+        if ui.button("Ok").clicked() {
+            *open = false;
+            *save = true;
+        }
+
+        if ui.button("Cancel").clicked() {
+            *open = false;
+        }
+
+        if ui.button("Apply").clicked() {
+            *save = true;
+        }
+    });
+}
