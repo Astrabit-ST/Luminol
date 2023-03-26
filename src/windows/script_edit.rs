@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::{Read, Write};
-
 use super::window::Window;
 use crate::components::syntax_highlighting;
 use crate::{
@@ -93,7 +91,7 @@ impl Window for ScriptEdit {
                                     Script {
                                         id: index,
                                         name: "New Script".to_string(),
-                                        data: vec![0x78, 0x9C, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01],
+                                        script: "".to_string(),
                                     },
                                 );
                             }
@@ -123,16 +121,10 @@ struct ScriptTab {
 
 impl ScriptTab {
     fn new(id: usize, script: Script) -> Result<Self, String> {
-        let mut decoder = flate2::bufread::ZlibDecoder::new(&script.data[..]);
-        let mut script_data = String::new();
-        decoder
-            .read_to_string(&mut script_data)
-            .map_err(|e| e.to_string())?;
-
         Ok(Self {
             name: script.name,
             id,
-            script: script_data,
+            script: script.script,
             force_close: false,
         })
     }
@@ -168,27 +160,15 @@ impl Tab for ScriptTab {
                 save_script = true;
             }
 
-            // FIXME: perform this on deserialization/serialization, not here
             if save_script {
                 let mut scripts = info.data_cache.scripts();
                 let scripts = scripts.as_mut().unwrap();
 
-                let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Default::default());
-                let result = encoder
-                    .write_all(self.script.as_bytes())
-                    .and_then(|_| encoder.finish());
-                match result {
-                    Err(e) => info.toasts.error(format!("Failed to encode script {e}")),
-                    Ok(data) => {
-                        let script = Script {
-                            id: 0,
-                            name: self.name.clone(),
-                            data,
-                        };
-
-                        scripts[self.id] = script;
-                    }
-                }
+                scripts[self.id] = Script {
+                    id: 0,
+                    name: self.name.clone(),
+                    script: self.script.clone(),
+                };
             }
 
             ui.label("Name");
