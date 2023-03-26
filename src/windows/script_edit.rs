@@ -76,12 +76,8 @@ impl Window for ScriptEdit {
                                     });
 
                                 if response.double_clicked() {
-                                    match ScriptTab::new(index, script.clone()) {
-                                        Ok(tab) => self.tabs.add_tab(tab),
-                                        Err(e) => {
-                                            info.toasts.error(format!("Error Opening Script: {e}"));
-                                        }
-                                    }
+                                    self.tabs
+                                        .add_tab(ScriptTab::new(index, script.script_text.clone()));
                                 }
                             }
 
@@ -89,9 +85,8 @@ impl Window for ScriptEdit {
                                 scripts.insert(
                                     index,
                                     Script {
-                                        id: index,
                                         name: "New Script".to_string(),
-                                        script: "".to_string(),
+                                        script_text: String::new(),
                                     },
                                 );
                             }
@@ -113,26 +108,24 @@ impl Window for ScriptEdit {
 
 /// FIXME: Change behavior of script tab to aboid panics and stay synchronized
 struct ScriptTab {
-    name: String,
-    id: usize,
-    script: String,
+    index: usize,
+    script_text: String,
     force_close: bool,
 }
 
 impl ScriptTab {
-    fn new(id: usize, script: Script) -> Result<Self, String> {
-        Ok(Self {
-            name: script.name,
-            id,
-            script: script.script,
+    fn new(index: usize, script_text: String) -> Self {
+        Self {
+            index,
+            script_text,
             force_close: false,
-        })
+        }
     }
 }
 
 impl Tab for ScriptTab {
     fn name(&self) -> String {
-        format!("{}: {}", self.name, self.id)
+        self.index.to_string()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
@@ -164,15 +157,8 @@ impl Tab for ScriptTab {
                 let mut scripts = info.data_cache.scripts();
                 let scripts = scripts.as_mut().unwrap();
 
-                scripts[self.id] = Script {
-                    id: 0,
-                    name: self.name.clone(),
-                    script: self.script.clone(),
-                };
+                scripts[self.index].script_text = self.script_text.clone();
             }
-
-            ui.label("Name");
-            ui.text_edit_singleline(&mut self.name);
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
@@ -183,7 +169,7 @@ impl Tab for ScriptTab {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add(
-                egui::TextEdit::multiline(&mut self.script)
+                egui::TextEdit::multiline(&mut self.script_text)
                     .code_editor()
                     .desired_rows(10)
                     .lock_focus(true)

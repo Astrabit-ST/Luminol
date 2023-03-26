@@ -723,9 +723,8 @@ pub mod intermediate {
     #[allow(missing_docs)]
     #[derive(Debug, Clone)]
     pub struct Script {
-        pub id: usize,
         pub name: String,
-        pub script: String,
+        pub script_text: String,
     }
 
     impl<'de> serde::Deserialize<'de> for Script {
@@ -749,7 +748,7 @@ pub mod intermediate {
                     use serde::de::Error;
                     use std::io::Read;
 
-                    let Some(id) = seq.next_element()? else {
+                    let Some(_) = seq.next_element::<serde::de::IgnoredAny>()? else {
                         return Err(A::Error::missing_field("id"));
                     };
 
@@ -767,7 +766,10 @@ pub mod intermediate {
                         .read_to_string(&mut script)
                         .map_err(|e| A::Error::custom(e.to_string()))?;
 
-                    Ok(Script { id, name, script })
+                    Ok(Script {
+                        name,
+                        script_text: script,
+                    })
                 }
             }
 
@@ -788,11 +790,11 @@ pub mod intermediate {
 
             let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Default::default());
             let data = encoder
-                .write_all(self.script.as_bytes())
+                .write_all(self.script_text.as_bytes())
                 .and_then(|_| encoder.finish())
                 .map_err(|e| S::Error::custom(e.to_string()))?;
 
-            seq.serialize_element(&self.id)?;
+            seq.serialize_element(&0usize)?;
             seq.serialize_element(&self.name)?;
             seq.serialize_element(&alox_48::RbString {
                 data,
