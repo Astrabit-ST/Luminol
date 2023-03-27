@@ -203,6 +203,33 @@ impl TopBar {
 
         ui.separator();
 
+        #[cfg(not(target_arch = "wasm32"))]
+        ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+            if ui.button("Playtest").clicked() {
+                match std::process::Command::new(
+                    info.filesystem.project_path().unwrap().join("steamshim"),
+                )
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .spawn()
+                .or_else(|_| {
+                    std::process::Command::new(info.filesystem.project_path().unwrap().join("game"))
+                        .stdin(std::process::Stdio::piped())
+                        .stdout(std::process::Stdio::piped())
+                        .spawn()
+                }) {
+                    Ok(c) => info
+                        .windows
+                        .add_window(crate::windows::playtest_console::PlaytestConsole::new(c)),
+                    Err(e) => info.toasts.error(format!(
+                        "Error launching executable, tried steamshim and then game: {e:#?}"
+                    )),
+                }
+            }
+        });
+
+        ui.separator();
+
         ui.label("Brush:");
 
         let mut toolbar = info.toolbar.borrow_mut();
