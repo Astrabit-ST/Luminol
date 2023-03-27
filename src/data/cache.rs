@@ -121,9 +121,15 @@ impl Cache {
             filesystem.create_directory(".luminol").await?;
         }
 
-        let config = match filesystem.read_data(".luminol/config").await {
-            Ok(c) => c,
-            Err(_) => {
+        let config = match filesystem
+            .read_bytes(".luminol/config")
+            .await
+            .ok()
+            .and_then(|v| String::from_utf8(v).ok())
+            .and_then(|s| ron::from_str(&s).ok())
+        {
+            Some(c) => c,
+            None => {
                 let config = LocalConfig::default();
                 filesystem
                     .save_data(
@@ -140,9 +146,15 @@ impl Cache {
             }
         };
 
-        let commanddb = match filesystem.read_data(".luminol/commands").await {
-            Ok(c) => c,
-            Err(_) => {
+        let commanddb = match filesystem
+            .read_bytes(".luminol/commands")
+            .await
+            .ok()
+            .and_then(|v| String::from_utf8(v).ok())
+            .and_then(|s| ron::from_str(&s).ok())
+        {
+            Some(c) => c,
+            None => {
                 let config = CommandDB::new(config.editor_ver);
                 filesystem
                     .save_data(

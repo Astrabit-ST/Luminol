@@ -98,6 +98,9 @@ macro_rules! variant_impl {
                     match self {
                         ParameterType::$name(ref mut v) => v,
                         _ => {
+                            #[cfg(debug_assertions)]
+                            eprintln!(concat!("Parameter was of wrong type, expected ", stringify!($name), "got {:#?} instead"), self);
+
                             *self = ParameterType::$name(Default::default());
 
                             match self {

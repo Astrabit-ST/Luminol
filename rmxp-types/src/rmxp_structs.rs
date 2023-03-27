@@ -728,17 +728,25 @@ impl From<AudioFile> for alox_48::Object {
 #[allow(missing_docs)]
 #[serde(rename = "RPG::EventCommand")]
 pub struct EventCommand {
-    pub code: i32,
+    pub code: u16,
     pub indent: usize,
     pub parameters: Vec<ParameterType>,
+
+    #[serde(default = "rand::random")]
+    #[serde(skip)]
+    pub guid: u16,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[allow(missing_docs)]
 #[serde(rename = "RPG::MoveCommand")]
 pub struct MoveCommand {
-    pub code: i32,
+    pub code: u16,
     pub parameters: Vec<ParameterType>,
+
+    #[serde(default = "rand::random")]
+    #[serde(skip)]
+    pub guid: u16,
 }
 
 impl From<alox_48::Object> for MoveCommand {
@@ -752,6 +760,8 @@ impl From<alox_48::Object> for MoveCommand {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
+
+            guid: rand::random(),
         }
     }
 }

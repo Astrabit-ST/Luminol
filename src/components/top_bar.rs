@@ -144,6 +144,15 @@ impl TopBar {
 
                 *style = ui.ctx().style();
             });
+
+            let mut theme =
+                crate::components::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+            ui.collapsing("Code Theme", |ui| {
+                ui.group(|ui| {
+                    theme.ui(ui);
+                    theme.clone().store_in_memory(ui.ctx());
+                });
+            });
         });
 
         ui.separator();

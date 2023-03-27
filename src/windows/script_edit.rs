@@ -116,15 +116,8 @@ impl Tab for ScriptTab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
-        let mut theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         ui.horizontal(|ui| {
-            ui.collapsing("Theme", |ui| {
-                ui.group(|ui| {
-                    theme.ui(ui);
-                    theme.clone().store_in_memory(ui.ctx());
-                });
-            });
-
             let mut save_script = false;
 
             if ui.button("Ok").clicked() {

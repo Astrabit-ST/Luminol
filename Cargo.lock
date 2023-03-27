@@ -3381,6 +3381,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "paste",
+ "rand 0.8.5",
  "serde",
  "slab",
  "strum",
