@@ -147,11 +147,24 @@ impl TopBar {
 
             let mut theme =
                 crate::components::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
-            ui.collapsing("Code Theme", |ui| {
-                ui.group(|ui| {
-                    theme.ui(ui);
-                    theme.clone().store_in_memory(ui.ctx());
-                });
+            ui.menu_button("Code Theme", |ui| {
+                theme.ui(ui);
+                theme.clone().store_in_memory(ui.ctx());
+
+                ui.label("Code sample");
+                ui.label(crate::components::syntax_highlighting::highlight(
+                    ui.ctx(),
+                    &theme,
+                    r#"
+                    class Foo < Array 
+                    end
+                    def bar(baz) 
+                    end
+                    print 1, 2.0
+                    puts [0x3, :4, '5']
+                    "#,
+                    "rb",
+                ));
             });
         });
 

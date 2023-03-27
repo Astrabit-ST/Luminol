@@ -29,9 +29,7 @@ pub struct CommandGeneratorWindow {
 }
 
 impl CommandGeneratorWindow {
-    pub fn new(
-        info: &'static UpdateInfo
-    ) -> Self {
+    pub fn new(info: &'static UpdateInfo) -> Self {
         Self {
             commands: info.data_cache.commanddb().user.clone(),
             ui_examples: vec![],
@@ -209,9 +207,9 @@ impl Window for CommandGeneratorWindow {
                     if ui.button("Save").clicked() {
                         info.data_cache.commanddb().user = self.commands.clone();
                     }
-                });    
+                });
             });
-    
+
             self.ui_examples.retain_mut(|e| e.update(ctx));
         });
     }

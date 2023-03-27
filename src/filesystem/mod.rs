@@ -20,9 +20,9 @@ pub use filesystem_trait::Filesystem;
 
 // FIXME: MAKE TRAIT
 cfg_if::cfg_if! {
-	if #[cfg(not(target_arch = "wasm32"))] {
-		pub(crate) mod filesystem_native;
-	} else {
-		pub(crate) mod filesystem_wasm32;
-	}
+    if #[cfg(not(target_arch = "wasm32"))] {
+        pub(crate) mod filesystem_native;
+    } else {
+        pub(crate) mod filesystem_wasm32;
+    }
 }

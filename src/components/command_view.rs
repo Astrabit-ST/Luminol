@@ -17,7 +17,7 @@
 
 use command_lib::{CommandKind, Parameter, ParameterKind};
 use egui::Color32;
-use rmxp_types::rpg;
+use rmxp_types::{rpg, ParameterType};
 
 use crate::data::command_db::CommandDB;
 
@@ -71,9 +71,18 @@ impl CommandView {
 
     #[allow(clippy::ptr_arg)]
     pub fn ui(&mut self, ui: &mut egui::Ui, db: &CommandDB, commands: &mut Vec<rpg::EventCommand>) {
+        ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
         let mut iter = commands.iter_mut().enumerate().peekable();
         while let Some(i) = iter.next() {
             self.command_ui(ui, db, i, &mut iter);
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+            self.selected_index = self.selected_index.saturating_sub(1);
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+            self.selected_index = (self.selected_index + 1).min(commands.len() - 1);
         }
     }
 
@@ -89,7 +98,10 @@ impl CommandView {
         let desc = match db.get(command.code as _) {
             Some(desc) => desc,
             None if command.code == 0 => {
-                if ui.button("#> Insert").double_clicked() {
+                if ui
+                    .selectable_value(&mut self.selected_index, index, "#> Insert")
+                    .double_clicked()
+                {
                     // TODO INSERT
                 }
 
@@ -123,21 +135,39 @@ impl CommandView {
 
         match desc.kind {
             CommandKind::Branch(end_code) => {
-                egui::CollapsingHeader::new(color_text!(
-                    format!("{}: {}", desc.code, desc.name),
-                    Color32::BLUE
-                ))
-                .id_source(command.guid)
-                .default_open(true)
-                .show(ui, |ui| {
-                    while let Some((index, command)) = iter.next() {
+                let header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                    ui.ctx(),
+                    egui::Id::new(command.guid),
+                    true,
+                );
+                let open = header.is_open();
+
+                header
+                    .show_header(ui, |ui| {
+                        ui.selectable_value(
+                            &mut self.selected_index,
+                            index,
+                            color_text!(format!("[{}]: {}", desc.code, desc.name), Color32::BLUE),
+                        );
+                    })
+                    .body(|ui| {
+                        while let Some((index, command)) = iter.next() {
+                            if command.code == end_code {
+                                break;
+                            }
+
+                            self.command_ui(ui, db, (index, command), iter);
+                        }
+                    });
+
+                if !open {
+                    for (_, command) in iter.by_ref() {
                         if command.code == end_code {
                             break;
                         }
-
-                        self.command_ui(ui, db, (index, command), iter);
                     }
-                });
+                }
+
                 ui.label(color_text!("End Branch", Color32::BLUE));
             }
             CommandKind::Multi(rep_code) => {
@@ -152,20 +182,20 @@ impl CommandView {
                     }
                 };
 
-                let mut str = format!(
-                    "{}: {}\n",
-                    desc.name,
-                    get_or_resize!(command.parameters, 0).into_string()
-                );
+                let mut str = get_or_resize!(command.parameters, 0).into_string().clone();
 
                 loop {
                     match iter.peek_mut() {
                         Some((_, command)) if command.code == rep_code => {
-                            str += &format!(
-                                "{}: {}\n",
-                                " ".repeat(desc.name.len()),
-                                get_or_resize!(command.parameters, 0).into_string()
-                            );
+                            match command.parameters.get_mut(0) {
+                                Some(ParameterType::String(param_str)) => {
+                                    str += &format!("\n: {param_str}");
+                                }
+                                Some(p) => {
+                                    p.into_string();
+                                }
+                                None => break,
+                            }
 
                             iter.next();
                         }
@@ -173,25 +203,38 @@ impl CommandView {
                     }
                 }
 
-                if highlight {
-                    let theme =
-                        crate::components::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
-
-                    ui.selectable_value(
-                        &mut self.selected_index,
-                        index,
-                        crate::components::syntax_highlighting::highlight(
+                ui.horizontal(|ui| {
+                    ui.label(color_text!(
+                        format!("[{}] {}:", desc.code, desc.name),
+                        Color32::YELLOW
+                    ));
+                    if highlight {
+                        let theme = crate::components::syntax_highlighting::CodeTheme::from_memory(
                             ui.ctx(),
-                            &theme,
-                            &str,
-                            "rb",
-                        ),
-                    );
-                } else {
-                    ui.selectable_value(&mut self.selected_index, index, str);
-                }
+                        );
+
+                        ui.selectable_value(
+                            &mut self.selected_index,
+                            index,
+                            crate::components::syntax_highlighting::highlight(
+                                ui.ctx(),
+                                &theme,
+                                &str,
+                                "rb",
+                            ),
+                        );
+                    } else {
+                        ui.selectable_value(&mut self.selected_index, index, str);
+                    }
+                });
             }
-            CommandKind::Single => {}
+            CommandKind::Single => {
+                ui.selectable_value(
+                    &mut self.selected_index,
+                    index,
+                    format!("[{}]: {}", desc.code, desc.name),
+                );
+            }
         }
     }
 }

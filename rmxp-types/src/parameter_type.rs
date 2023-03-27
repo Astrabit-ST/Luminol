@@ -99,7 +99,7 @@ macro_rules! variant_impl {
                         ParameterType::$name(ref mut v) => v,
                         _ => {
                             #[cfg(debug_assertions)]
-                            eprintln!(concat!("Parameter was of wrong type, expected ", stringify!($name), "got {:#?} instead"), self);
+                            eprintln!(concat!("Parameter was of wrong type, expected ", stringify!($name), " got {:#?} instead"), self);
 
                             *self = ParameterType::$name(Default::default());
 
@@ -167,4 +167,14 @@ variant_impl! {
     MoveCommand, MoveCommand,
     Array, Vec<ParameterType>,
     Bool, bool
+}
+
+impl ParameterType {
+    pub fn truthy(&self) -> bool {
+        !self.falsey()
+    }
+
+    pub fn falsey(&self) -> bool {
+        matches!(self, Self::None | Self::Bool(false) | Self::Integer(0))
+    }
 }
