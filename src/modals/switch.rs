@@ -17,16 +17,14 @@
 
 use std::hash::Hash;
 
-use crate::UpdateInfo;
-
-use super::modal::Modal;
+pub use crate::prelude::*;
 
 /// The switch picker modal.
-pub struct SwitchModal {
+pub struct Modal {
     id: egui::Id,
 }
 
-impl SwitchModal {
+impl Modal {
     /// Create a new modal.
     pub fn new(id: impl Hash) -> Self {
         Self {
@@ -35,7 +33,7 @@ impl SwitchModal {
     }
 }
 
-impl Modal for SwitchModal {
+impl modal::Modal for Modal {
     type Data = usize;
 
     fn id(mut self, id: egui::Id) -> Self {

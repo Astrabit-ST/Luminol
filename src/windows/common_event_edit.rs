@@ -113,8 +113,12 @@ impl tab::Tab for CommonEventTab {
                 });
 
             ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                switch::SwitchModal::new(format!("common_event_{}_trigger_switch", self.event.id))
-                    .button(ui, &mut self.switch_open, &mut self.event.switch_id, info)
+                switch::Modal::new(format!("common_event_{}_trigger_switch", self.event.id)).button(
+                    ui,
+                    &mut self.switch_open,
+                    &mut self.event.switch_id,
+                    info,
+                )
             });
 
             let mut save_event = false;

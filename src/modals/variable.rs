@@ -15,18 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::prelude::*;
 use std::hash::Hash;
 
-use crate::UpdateInfo;
-
-use super::modal::Modal;
-
 /// The variable picker modal.
-pub struct VariableModal {
+pub struct Modal {
     id: egui::Id,
 }
 
-impl VariableModal {
+impl Modal {
     /// Create a new modal.
     pub fn new(id: impl Hash) -> Self {
         Self {
@@ -35,7 +32,7 @@ impl VariableModal {
     }
 }
 
-impl Modal for VariableModal {
+impl modal::Modal for Modal {
     type Data = usize;
 
     fn id(mut self, id: egui::Id) -> Self {

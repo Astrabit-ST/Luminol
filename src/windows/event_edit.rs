@@ -129,7 +129,7 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.switch1_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch1_valid, |ui| {
-                                            switch::SwitchModal::new(format!(
+                                            switch::Modal::new(format!(
                                                 "event_{}_{}_switch1",
                                                 self.id, self.map_id
                                             ))
@@ -146,7 +146,7 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.switch2_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch2_valid, |ui| {
-                                            switch::SwitchModal::new(format!(
+                                            switch::Modal::new(format!(
                                                 "event_{}_{}_switch2",
                                                 self.id, self.map_id
                                             ))
@@ -163,7 +163,7 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.variable_valid, "Variable");
 
                                         ui.add_enabled_ui(page.condition.variable_valid, |ui| {
-                                            variable::VariableModal::new(format!(
+                                            variable::Modal::new(format!(
                                                 "event_{}_{}_variable",
                                                 self.id, self.map_id
                                             ))
