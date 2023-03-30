@@ -15,22 +15,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::tabs::Map;
-use crate::UpdateInfo;
-use rmxp_types::rpg::MapInfo;
+use crate::prelude::*;
 use std::collections::HashMap;
 
 /// The map picker window.
 /// Displays a list of maps in a tree.
 /// Maps can be double clicked to open them in a map editor.
 #[derive(Default)]
-pub struct MapPicker {}
+pub struct Window {}
 
-impl MapPicker {
+impl Window {
     fn render_submap(
         id: i32,
         children_data: &HashMap<i32, Vec<i32>>,
-        mapinfos: &mut HashMap<i32, MapInfo>,
+        mapinfos: &mut HashMap<i32, rpg::MapInfo>,
         info: &'static UpdateInfo,
         ui: &mut egui::Ui,
     ) {
@@ -74,13 +72,13 @@ impl MapPicker {
     }
 
     fn create_map_tab(id: i32, name: String, info: &'static UpdateInfo) {
-        if let Some(m) = Map::new(id, name, info) {
+        if let Some(m) = map::Tab::new(id, name, info) {
             info.tabs.add_tab(m);
         }
     }
 }
 
-impl super::window::Window for MapPicker {
+impl window::Window for Window {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
         let mut window_open = true;
         egui::Window::new("Map Picker")

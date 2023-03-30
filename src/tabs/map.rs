@@ -16,18 +16,12 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![allow(unused_imports)]
 use egui::Pos2;
-use poll_promise::Promise;
 use std::{cell::RefMut, collections::HashMap};
 
-use crate::{
-    components::{Tilemap, TilemapDef},
-    windows::{event_edit::EventEdit, window::Windows},
-    UpdateInfo,
-};
-use rmxp_types::rpg;
+use crate::prelude::*;
 
 /// The map editor.
-pub struct Map {
+pub struct Tab {
     /// ID of the map that is being edited.
     pub id: i32,
     /// Name of the map.
@@ -44,11 +38,11 @@ pub struct Map {
     pub selected_tile: i16,
     dragged_event: usize,
     dragging_event: bool,
-    event_windows: Windows,
+    event_windows: window::Windows,
     force_close: bool,
 }
 
-impl Map {
+impl Tab {
     /// Create a new map editor.
     pub fn new(id: i32, name: String, info: &'static UpdateInfo) -> Option<Self> {
         Some(Self {
@@ -61,13 +55,13 @@ impl Map {
             selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,
-            event_windows: Windows::default(),
+            event_windows: window::Windows::default(),
             force_close: false,
         })
     }
 }
 
-impl super::tab::Tab for Map {
+impl tab::Tab for Tab {
     fn name(&self) -> String {
         format!("Map {}: {}", self.id, self.name)
     }
@@ -201,7 +195,7 @@ impl super::tab::Tab for Map {
                                 .iter()
                                 .find(|(_, event)| event.x == map_x && event.y == map_y)
                             {
-                                self.event_windows.add_window(EventEdit::new(
+                                self.event_windows.add_window(event_edit::Window::new(
                                     id,
                                     self.id,
                                     event.clone(),
@@ -214,7 +208,7 @@ impl super::tab::Tab for Map {
 
                                 map.events.insert(event.clone());
 
-                                self.event_windows.add_window(EventEdit::new(
+                                self.event_windows.add_window(event_edit::Window::new(
                                     id,
                                     self.id,
                                     event,

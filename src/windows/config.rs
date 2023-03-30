@@ -18,11 +18,11 @@
 use crate::prelude::*;
 
 /// The confg window
-pub struct ConfigWindow {}
+pub struct Window {}
 
-impl ConfigWindow {}
+impl Window {}
 
-impl window::Window for ConfigWindow {
+impl window::Window for Window {
     fn name(&self) -> String {
         "Local Luminol Config".to_string()
     }

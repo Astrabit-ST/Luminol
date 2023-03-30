@@ -20,21 +20,21 @@ use std::io::{Read, Write};
 pub use crate::prelude::*;
 
 /// The script editor.
-pub struct ScriptEdit {
-    tabs: Tabs,
+pub struct Window {
+    tabs: tab::Tabs,
     selected_script: usize,
 }
 
-impl Default for ScriptEdit {
+impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: Tabs::new("script_editor"),
+            tabs: tab::Tabs::new("script_editor"),
             selected_script: 0,
         }
     }
 }
 
-impl window::Window for ScriptEdit {
+impl window::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -107,7 +107,7 @@ impl ScriptTab {
     }
 }
 
-impl Tab for ScriptTab {
+impl tab::Tab for ScriptTab {
     fn name(&self) -> String {
         format!("{}: {}", self.name, self.id)
     }

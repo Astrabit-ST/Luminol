@@ -14,14 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{graphic_picker::GraphicPicker, sound_test::SoundTab, window::Window as WindowTrait};
-use crate::{
-    components::{CallbackButton, EnumMenuButton, Field, NilPaddedMenu},
-    filesystem::Filesystem,
-    UpdateInfo,
-};
-use poll_promise::Promise;
-use rmxp_types::{rpg, NilPadded};
+use crate::prelude::*;
 
 /// Database - Items management window.
 pub struct Window {
@@ -30,11 +23,11 @@ pub struct Window {
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker: GraphicPicker,
+    icon_picker: graphic_picker::Window,
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
-    menu_se_picker: SoundTab,
+    menu_se_picker: sound_test::SoundTab,
     menu_se_picker_open: bool,
 }
 
@@ -53,7 +46,7 @@ impl Window {
                 Vec::new()
             }
         };
-        let icon_picker = GraphicPicker::new(icon_paths, info);
+        let icon_picker = graphic_picker::Window::new(icon_paths, info);
         Some(Self {
             items,
             selected_item: 0,
@@ -61,13 +54,13 @@ impl Window {
             icon_picker,
             icon_picker_open: false,
 
-            menu_se_picker: SoundTab::new(crate::audio::Source::SE, info, true),
+            menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, info, true),
             menu_se_picker_open: false,
         })
     }
 }
 
-impl WindowTrait for Window {
+impl window::Window for Window {
     fn name(&self) -> String {
         format!("Editing item {}", self.items[self.selected_item].name)
     }

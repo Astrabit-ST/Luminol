@@ -21,7 +21,7 @@ use poll_promise::Promise;
 use crate::prelude::*;
 
 /// The event editor window.
-pub struct EventEdit {
+pub struct Window {
     id: usize,
     map_id: i32,
     selected_page: usize,
@@ -31,7 +31,7 @@ pub struct EventEdit {
     modals: (bool, bool, bool),
 }
 
-impl EventEdit {
+impl Window {
     /// Create a new event editor.
     pub fn new(
         id: usize,
@@ -70,7 +70,7 @@ impl EventEdit {
     }
 }
 
-impl window::Window for EventEdit {
+impl window::Window for Window {
     fn name(&self) -> String {
         format!(
             "Event: {}, {} in Map {}",

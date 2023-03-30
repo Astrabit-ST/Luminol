@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+pub use crate::audio;
 pub use crate::components::*;
 pub use crate::filesystem::Filesystem;
 pub use crate::modals::*;

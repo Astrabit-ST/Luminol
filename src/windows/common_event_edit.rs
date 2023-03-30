@@ -18,21 +18,21 @@
 use crate::prelude::*;
 
 /// The common event editor.
-pub struct CommonEventEdit {
-    tabs: Tabs,
+pub struct Window {
+    tabs: tab::Tabs,
     selected_id: usize,
 }
 
-impl Default for CommonEventEdit {
+impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: Tabs::new("common_event_tabs"),
+            tabs: tab::Tabs::new("common_event_tabs"),
             selected_id: 0,
         }
     }
 }
 
-impl window::Window for CommonEventEdit {
+impl window::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -96,7 +96,7 @@ struct CommonEventTab {
     command_view: CommandView,
 }
 
-impl Tab for CommonEventTab {
+impl tab::Tab for CommonEventTab {
     fn name(&self) -> String {
         format!("{}: {}", self.event.name, self.event.id)
     }

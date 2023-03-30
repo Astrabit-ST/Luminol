@@ -17,7 +17,6 @@
 
 use std::{cell::RefCell, hash::Hash};
 
-use super::started::Started;
 use crate::UpdateInfo;
 
 /// The tree type;
@@ -33,7 +32,7 @@ impl Default for Tabs {
     fn default() -> Self {
         // Add the basic "get started" tab
         Self {
-            tree: RefCell::new(Tree::new(vec![Box::new(Started::new())])),
+            tree: RefCell::new(Tree::new(vec![Box::new(super::started::Tab::new())])),
             id: egui::Id::new("tab_area"),
         }
     }

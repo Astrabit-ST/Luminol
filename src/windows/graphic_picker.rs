@@ -24,12 +24,12 @@ pub struct Graphic {
     pub image: RetainedImage,
 }
 
-pub struct GraphicPicker {
+pub struct Window {
     icons: Vec<Graphic>,
     selected_icon: usize,
 }
 
-impl GraphicPicker {
+impl Window {
     #[must_use]
     pub fn new(icons: Vec<String>, info: &'static UpdateInfo) -> Self {
         let mut retained_images = Vec::new();

@@ -80,7 +80,7 @@ impl TopBar {
 
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    info.windows.add_window(config::ConfigWindow {});
+                    info.windows.add_window(config::Window {});
                 }
 
                 if ui.button("Close Project").clicked() {
@@ -166,7 +166,7 @@ impl TopBar {
         ui.menu_button("Data", |ui| {
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
-                    info.windows.add_window(map_picker::MapPicker::default());
+                    info.windows.add_window(map_picker::Window::default());
                 }
 
                 if ui.button("Items").clicked() {
@@ -177,15 +177,15 @@ impl TopBar {
 
                 if ui.button("Common Events").clicked() {
                     info.windows
-                        .add_window(common_event_edit::CommonEventEdit::default());
+                        .add_window(common_event_edit::Window::default());
                 }
 
                 if ui.button("Scripts").clicked() {
-                    info.windows.add_window(script_edit::ScriptEdit::default());
+                    info.windows.add_window(script_edit::Window::default());
                 }
 
                 if ui.button("Sound Test").clicked() {
-                    info.windows.add_window(sound_test::SoundTest::new(info));
+                    info.windows.add_window(sound_test::Window::new(info));
                 }
             });
         });
@@ -194,7 +194,7 @@ impl TopBar {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                info.windows.add_window(about::About::default());
+                info.windows.add_window(about::Window::default());
             };
 
             ui.separator();

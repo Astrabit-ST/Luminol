@@ -110,7 +110,7 @@ pub struct UpdateInfo {
     /// Windows that are displayed.
     pub windows: window::Windows,
     /// Tabs that are displayed.
-    pub tabs: tabs::Tabs,
+    pub tabs: tab::Tabs,
     /// Audio that's played.
     pub audio: audio::Audio,
     /// Toasts to be displayed.
@@ -130,7 +130,7 @@ impl UpdateInfo {
             filesystem: FSAlias::default(),
             data_cache: Cache::default(),
             windows: window::Windows::default(),
-            tabs: tabs::Tabs::default(),
+            tabs: tab::Tabs::default(),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             gl,
