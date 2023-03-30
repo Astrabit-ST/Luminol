@@ -19,10 +19,7 @@ use std::{cell::Cell, io::Read, rc::Rc};
 
 use strum::IntoEnumIterator;
 
-use crate::{data::config::RGSSVer, UpdateInfo};
-
-use super::window::Window as WindowTrait;
-use crate::filesystem::Filesystem;
+use crate::prelude::*;
 
 /// The new project window
 pub struct Window {
@@ -61,7 +58,7 @@ impl Default for Window {
     }
 }
 
-impl WindowTrait for Window {
+impl window::Window for Window {
     fn name(&self) -> String {
         "New Project".to_string()
     }

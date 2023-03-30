@@ -16,18 +16,26 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use command_lib::{CommandKind, Parameter, ParameterKind};
-use egui::Color32;
-use rmxp_types::{rpg, ParameterType};
 
-use crate::data::command_db::CommandDB;
+pub use crate::prelude::*;
 
 pub struct CommandView {
     selected_index: usize,
+    window_state: WindowState,
+}
+
+enum WindowState {
+    Insert { index: usize },
+    Edit { index: usize },
+    None,
 }
 
 impl Default for CommandView {
     fn default() -> Self {
-        Self { selected_index: 0 }
+        Self {
+            selected_index: 0,
+            window_state: WindowState::None,
+        }
     }
 }
 
@@ -84,6 +92,24 @@ impl CommandView {
         if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
             self.selected_index = (self.selected_index + 1).min(commands.len() - 1);
         }
+
+        let mut open = true;
+        match self.window_state {
+            WindowState::Edit { index } => {
+                egui::Window::new(format!("Editing Command {index}"))
+                    .open(&mut open)
+                    .show(ui.ctx(), |ui| {});
+            }
+            WindowState::Insert { index } => {
+                egui::Window::new(format!("Inserting Command At {index}"))
+                    .open(&mut open)
+                    .show(ui.ctx(), |ui| {});
+            }
+            WindowState::None => {}
+        }
+        if !open {
+            self.window_state = WindowState::None;
+        }
     }
 
     fn command_ui<'i, I>(
@@ -102,7 +128,7 @@ impl CommandView {
                     .selectable_value(&mut self.selected_index, index, "#> Insert")
                     .double_clicked()
                 {
-                    // TODO INSERT
+                    self.window_state = WindowState::Insert { index };
                 }
 
                 return;
@@ -133,7 +159,7 @@ impl CommandView {
             }
         };
 
-        match desc.kind {
+        let response = match desc.kind {
             CommandKind::Branch(end_code) => {
                 let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                     ui.ctx(),
@@ -142,13 +168,13 @@ impl CommandView {
                 );
                 let open = header.is_open();
 
-                header
+                let response = header
                     .show_header(ui, |ui| {
                         ui.selectable_value(
                             &mut self.selected_index,
                             index,
                             color_text!(format!("[{}]: {}", desc.code, desc.name), Color32::BLUE),
-                        );
+                        )
                     })
                     .body(|ui| {
                         while let Some((index, command)) = iter.next() {
@@ -169,6 +195,8 @@ impl CommandView {
                 }
 
                 ui.label(color_text!("End Branch", Color32::BLUE));
+
+                response.1.inner
             }
             CommandKind::Multi(rep_code) => {
                 let highlight = match desc.parameters.get(0) {
@@ -189,7 +217,8 @@ impl CommandView {
                         Some((_, command)) if command.code == rep_code => {
                             match command.parameters.get_mut(0) {
                                 Some(ParameterType::String(param_str)) => {
-                                    str += &format!("\n: {param_str}");
+                                    str += param_str;
+                                    str += "\n";
                                 }
                                 Some(p) => {
                                     p.into_string();
@@ -209,32 +238,37 @@ impl CommandView {
                         Color32::YELLOW
                     ));
                     if highlight {
-                        let theme = crate::components::syntax_highlighting::CodeTheme::from_memory(
-                            ui.ctx(),
-                        );
+                        let theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
 
                         ui.selectable_value(
                             &mut self.selected_index,
                             index,
-                            crate::components::syntax_highlighting::highlight(
-                                ui.ctx(),
-                                &theme,
-                                &str,
-                                "rb",
-                            ),
-                        );
+                            syntax_highlighting::highlight(ui.ctx(), &theme, &str, "rb"),
+                        )
                     } else {
-                        ui.selectable_value(&mut self.selected_index, index, str);
+                        ui.selectable_value(&mut self.selected_index, index, str)
                     }
-                });
+                })
+                .inner
             }
             CommandKind::Single => {
+                //
                 ui.selectable_value(
                     &mut self.selected_index,
                     index,
                     format!("[{}]: {}", desc.code, desc.name),
-                );
+                )
             }
+        };
+
+        let response = response.context_menu(|ui| {
+            if ui.button("Insert above").clicked() {}
+            if ui.button("Delete").clicked() {}
+            if ui.button("Insert below").clicked() {}
+        });
+
+        if response.double_clicked() && !desc.parameters.is_empty() {
+            self.window_state = WindowState::Edit { index };
         }
     }
 }

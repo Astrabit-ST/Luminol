@@ -16,9 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::VecDeque;
-use std::sync::Arc;
 
-use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
+use crate::prelude::*;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
@@ -35,7 +34,7 @@ impl Luminol {
 
         let state = eframe::get_value(storage, "SavedState").map_or_else(
             || {
-                let mut state = SavedState {
+                let mut state = crate::SavedState {
                     recent_projects: VecDeque::new(),
                 };
                 state.recent_projects.reserve(10);
@@ -62,7 +61,11 @@ impl Luminol {
 impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value::<SavedState>(storage, "SavedState", &self.info.saved_state.borrow());
+        eframe::set_value::<crate::SavedState>(
+            storage,
+            "SavedState",
+            &self.info.saved_state.borrow(),
+        );
         eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
 

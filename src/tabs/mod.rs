@@ -15,8 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 /// The map editor.
-pub mod map;
+mod map;
 /// The getting started screen.
-pub mod started;
+mod started;
 /// Traits and structs related to tabs.
-pub mod tab;
+mod tab;
+
+pub use map::Map;
+pub use started::Started;
+pub use tab::{Tab, Tabs};

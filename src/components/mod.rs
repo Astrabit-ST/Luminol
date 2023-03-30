@@ -24,14 +24,20 @@ use rmxp_types::NilPadded;
 /// Syntax highlighter
 pub mod syntax_highlighting;
 /// Toasts to be displayed for errors, information, etc.
-pub mod toasts;
+mod toasts;
 /// The toolbar for managing the project.
-pub mod top_bar;
+mod top_bar;
 
-pub mod command_view;
+mod command_view;
+
+pub use command_view::CommandView;
+
+pub use tilemap::{Tilemap, TilemapDef};
+pub use toasts::Toasts;
+pub use top_bar::TopBar;
 
 /// The tilemap.
-pub mod tilemap {
+mod tilemap {
     use crate::UpdateInfo;
     use rmxp_types::rpg;
 

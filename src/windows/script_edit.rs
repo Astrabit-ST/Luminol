@@ -17,10 +17,7 @@
 
 use std::io::{Read, Write};
 
-use super::window::Window;
-use crate::components::syntax_highlighting;
-use crate::tabs::tab::{Tab, Tabs};
-use rmxp_types::rpg::Script;
+pub use crate::prelude::*;
 
 /// The script editor.
 pub struct ScriptEdit {
@@ -37,7 +34,7 @@ impl Default for ScriptEdit {
     }
 }
 
-impl Window for ScriptEdit {
+impl window::Window for ScriptEdit {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -94,7 +91,7 @@ struct ScriptTab {
 }
 
 impl ScriptTab {
-    fn new(id: usize, script: Script) -> Result<Self, String> {
+    fn new(id: usize, script: rpg::Script) -> Result<Self, String> {
         let mut decoder = flate2::bufread::ZlibDecoder::new(&script.data[..]);
         let mut script_data = String::new();
         decoder
@@ -144,7 +141,7 @@ impl Tab for ScriptTab {
                 match result {
                     Err(e) => info.toasts.error(format!("Failed to encode script {e}")),
                     Ok(data) => {
-                        let script = Script {
+                        let script = rpg::Script {
                             id: 0,
                             name: self.name.clone(),
                             data,

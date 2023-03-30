@@ -15,18 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use strum::IntoEnumIterator;
-
-use crate::data::config::RGSSVer;
-
-use super::window::Window;
+use crate::prelude::*;
 
 /// The confg window
 pub struct ConfigWindow {}
 
 impl ConfigWindow {}
 
-impl Window for ConfigWindow {
+impl window::Window for ConfigWindow {
     fn name(&self) -> String {
         "Local Luminol Config".to_string()
     }

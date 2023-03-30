@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
-use crate::{data::config::RGSSVer, UpdateInfo};
+use crate::{project::RGSSVer, UpdateInfo};
 
 #[async_trait(?Send)]
 /// Filesystem abstraction.

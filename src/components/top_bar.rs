@@ -15,12 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use crate::prelude::*;
 
-use poll_promise::Promise;
-use strum::IntoEnumIterator;
-
-use crate::filesystem::Filesystem;
 use crate::{Pencil, UpdateInfo};
 
 /// The top bar for managing the project.
@@ -71,8 +67,7 @@ impl TopBar {
             });
 
             if ui.button("New Project").clicked() {
-                info.windows
-                    .add_window(crate::windows::new_project::Window::default());
+                info.windows.add_window(new_project::Window::default());
             }
 
             if self.open_project_promise.is_none() {
@@ -85,8 +80,7 @@ impl TopBar {
 
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    info.windows
-                        .add_window(crate::windows::config::ConfigWindow {});
+                    info.windows.add_window(config::ConfigWindow {});
                 }
 
                 if ui.button("Close Project").clicked() {
@@ -145,14 +139,13 @@ impl TopBar {
                 *style = ui.ctx().style();
             });
 
-            let mut theme =
-                crate::components::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+            let mut theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
                 theme.clone().store_in_memory(ui.ctx());
 
                 ui.label("Code sample");
-                ui.label(crate::components::syntax_highlighting::highlight(
+                ui.label(syntax_highlighting::highlight(
                     ui.ctx(),
                     &theme,
                     r#"
@@ -173,29 +166,26 @@ impl TopBar {
         ui.menu_button("Data", |ui| {
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
-                    info.windows
-                        .add_window(crate::windows::map_picker::MapPicker::default());
+                    info.windows.add_window(map_picker::MapPicker::default());
                 }
 
                 if ui.button("Items").clicked() {
-                    if let Some(window) = crate::windows::items::Window::new(info) {
+                    if let Some(window) = items::Window::new(info) {
                         info.windows.add_window(window);
                     }
                 }
 
                 if ui.button("Common Events").clicked() {
                     info.windows
-                        .add_window(crate::windows::common_event_edit::CommonEventEdit::default());
+                        .add_window(common_event_edit::CommonEventEdit::default());
                 }
 
                 if ui.button("Scripts").clicked() {
-                    info.windows
-                        .add_window(crate::windows::script_edit::ScriptEdit::default());
+                    info.windows.add_window(script_edit::ScriptEdit::default());
                 }
 
                 if ui.button("Sound Test").clicked() {
-                    info.windows
-                        .add_window(crate::windows::sound_test::SoundTest::new(info));
+                    info.windows.add_window(sound_test::SoundTest::new(info));
                 }
             });
         });
@@ -204,20 +194,17 @@ impl TopBar {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                info.windows
-                    .add_window(crate::windows::about::About::default());
+                info.windows.add_window(about::About::default());
             };
 
             ui.separator();
 
             if ui.button("Egui Inspection").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::EguiInspection::default());
+                info.windows.add_window(misc::EguiInspection::default());
             }
 
             if ui.button("Egui Memory").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::EguiMemory::default());
+                info.windows.add_window(misc::EguiMemory::default());
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();

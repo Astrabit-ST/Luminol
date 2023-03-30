@@ -15,8 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 /// Traits related to modals.
-pub mod modal;
+mod modal;
 /// The switch picker.
 pub mod switch;
 /// The variable picker.
 pub mod variable;
+
+pub use modal::Modal;

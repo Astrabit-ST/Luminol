@@ -15,14 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{
-    components::command_view::CommandView,
-    modals::{modal::Modal, switch::SwitchModal},
-    tabs::tab::{Tab, Tabs},
-};
-use rmxp_types::rpg;
-
-use super::window::Window;
+use crate::prelude::*;
 
 /// The common event editor.
 pub struct CommonEventEdit {
@@ -39,7 +32,7 @@ impl Default for CommonEventEdit {
     }
 }
 
-impl Window for CommonEventEdit {
+impl window::Window for CommonEventEdit {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -120,12 +113,8 @@ impl Tab for CommonEventTab {
                 });
 
             ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                SwitchModal::new(format!("common_event_{}_trigger_switch", self.event.id)).button(
-                    ui,
-                    &mut self.switch_open,
-                    &mut self.event.switch_id,
-                    info,
-                )
+                switch::SwitchModal::new(format!("common_event_{}_trigger_switch", self.event.id))
+                    .button(ui, &mut self.switch_open, &mut self.event.switch_id, info)
             });
 
             let mut save_event = false;

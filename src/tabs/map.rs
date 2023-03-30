@@ -20,7 +20,7 @@ use poll_promise::Promise;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::{
-    components::tilemap::{Tilemap, TilemapDef},
+    components::{Tilemap, TilemapDef},
     windows::{event_edit::EventEdit, window::Windows},
     UpdateInfo,
 };

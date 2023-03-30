@@ -15,10 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use command_lib::{CommandDescription, CommandKind, Index, Parameter};
-use strum::IntoEnumIterator;
+
 use ui_example::UiExample;
 
-use crate::{windows::window::Window, UpdateInfo};
+use crate::prelude::*;
 
 pub mod parameter_ui;
 pub mod ui_example;
@@ -78,12 +78,12 @@ impl CommandGeneratorWindow {
     }
 }
 
-impl Window for CommandGeneratorWindow {
+impl window::Window for CommandGeneratorWindow {
     fn name(&self) -> String {
         String::from("Luminol Command Maker")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mut del_index = None;

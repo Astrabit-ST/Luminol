@@ -17,6 +17,24 @@
 
 pub use crate::components::*;
 pub use crate::filesystem::Filesystem;
+pub use crate::modals::*;
+pub use crate::project::*;
+pub use crate::tabs::*;
 pub use crate::windows::*;
+
+pub use std::cell::RefCell;
+pub use std::path::{Path, PathBuf};
+pub use std::sync::Arc;
+
+pub use eframe::egui_glow::glow;
+pub use egui::Color32;
+pub use egui::TextureOptions;
+pub use egui_extras::RetainedImage;
+
+pub use crate::UpdateInfo;
+
+pub use poll_promise::Promise;
+
+pub use strum::IntoEnumIterator;
 
 pub use rmxp_types::*;

@@ -39,6 +39,8 @@
 #![deny(unsafe_code)]
 #![feature(drain_filter, is_some_and, min_specialization)]
 
+pub use prelude::*;
+
 /// The main Luminol application.
 pub mod luminol;
 
@@ -60,7 +62,7 @@ pub mod windows;
 pub mod modals;
 
 /// Structs related to Luminol's internal data.
-pub mod data;
+pub mod project;
 /// Tabs to be displayed in the center of Luminol.
 pub mod tabs;
 
@@ -68,21 +70,11 @@ pub mod tabs;
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem;
 
-use std::cell::RefCell;
-use std::sync::Arc;
-
-use components::toasts::Toasts;
-pub use eframe::egui_glow::glow;
-use egui::TextureOptions;
-use egui_extras::RetainedImage;
 pub use luminol::Luminol;
 use saved_state::SavedState;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
-
-use crate::data::cache::Cache;
-use crate::filesystem::Filesystem;
 
 #[allow(missing_docs)]
 #[derive(Default)]
@@ -116,9 +108,9 @@ pub struct UpdateInfo {
     /// The data cache.
     pub data_cache: Cache,
     /// Windows that are displayed.
-    pub windows: windows::window::Windows,
+    pub windows: window::Windows,
     /// Tabs that are displayed.
-    pub tabs: tabs::tab::Tabs,
+    pub tabs: tabs::Tabs,
     /// Audio that's played.
     pub audio: audio::Audio,
     /// Toasts to be displayed.
@@ -137,8 +129,8 @@ impl UpdateInfo {
         Self {
             filesystem: FSAlias::default(),
             data_cache: Cache::default(),
-            windows: windows::window::Windows::default(),
-            tabs: tabs::tab::Tabs::default(),
+            windows: window::Windows::default(),
+            tabs: tabs::Tabs::default(),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             gl,

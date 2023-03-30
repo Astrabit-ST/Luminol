@@ -18,12 +18,7 @@
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
-use super::window::Window;
-use crate::modals::modal::Modal;
-use crate::modals::switch::SwitchModal;
-use crate::modals::variable::VariableModal;
-use crate::{load_image_software, UpdateInfo};
-use rmxp_types::rpg;
+use crate::prelude::*;
 
 /// The event editor window.
 pub struct EventEdit {
@@ -53,7 +48,10 @@ impl EventEdit {
             event,
             page_graphics_promise: Promise::spawn_local(async move {
                 let futures = pages_graphics.iter().map(|p| {
-                    load_image_software(format!("Graphics/Characters/{}", p.character_name), info)
+                    crate::load_image_software(
+                        format!("Graphics/Characters/{}", p.character_name),
+                        info,
+                    )
                 });
                 (
                     futures::future::join_all(futures)
@@ -61,7 +59,7 @@ impl EventEdit {
                         .into_iter()
                         .map(std::result::Result::ok)
                         .collect(),
-                    load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
+                    crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
                         .await
                         .unwrap(),
                 )
@@ -72,7 +70,7 @@ impl EventEdit {
     }
 }
 
-impl Window for EventEdit {
+impl window::Window for EventEdit {
     fn name(&self) -> String {
         format!(
             "Event: {}, {} in Map {}",
@@ -131,7 +129,7 @@ impl Window for EventEdit {
                                         ui.checkbox(&mut page.condition.switch1_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch1_valid, |ui| {
-                                            SwitchModal::new(format!(
+                                            switch::SwitchModal::new(format!(
                                                 "event_{}_{}_switch1",
                                                 self.id, self.map_id
                                             ))
@@ -148,7 +146,7 @@ impl Window for EventEdit {
                                         ui.checkbox(&mut page.condition.switch2_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch2_valid, |ui| {
-                                            SwitchModal::new(format!(
+                                            switch::SwitchModal::new(format!(
                                                 "event_{}_{}_switch2",
                                                 self.id, self.map_id
                                             ))
@@ -165,7 +163,7 @@ impl Window for EventEdit {
                                         ui.checkbox(&mut page.condition.variable_valid, "Variable");
 
                                         ui.add_enabled_ui(page.condition.variable_valid, |ui| {
-                                            VariableModal::new(format!(
+                                            variable::VariableModal::new(format!(
                                                 "event_{}_{}_variable",
                                                 self.id, self.map_id
                                             ))
