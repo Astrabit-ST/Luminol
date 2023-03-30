@@ -48,6 +48,7 @@ impl eframe::App for App {
         self.terminals.retain_mut(|t| {
             let mut open = true;
             egui::Window::new(t.title())
+                .id(t.id())
                 .open(&mut open)
                 .show(ctx, |ui| {
                     if let Err(e) = t.ui(ui) {
