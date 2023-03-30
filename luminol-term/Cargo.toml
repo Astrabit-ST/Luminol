@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 egui = "0.21.0"
+termwiz = "0.20.0"
+
+[dev-dependencies]
+eframe = "0.21.0"
