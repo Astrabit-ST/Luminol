@@ -38,23 +38,24 @@ impl eframe::App for App {
             ui.text_edit_singleline(&mut self.command_name);
 
             if ui.button("Run").clicked() {
-                match std::process::Command::new(&self.command_name)
-                    .stdout(std::process::Stdio::piped())
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                {
-                    Ok(child) => match Terminal::new(child) {
-                        Ok(t) => self.terminals.push(t),
-                        Err(e) => eprintln!("error creating terminal: {e:?}"),
-                    },
-                    Err(e) => eprintln!("error starting process: {e:?}"),
+                match Terminal::new(portable_pty::CommandBuilder::new(&self.command_name)) {
+                    Ok(t) => self.terminals.push(t),
+                    Err(e) => eprintln!("error creating terminal: {e:?}"),
                 }
             }
         });
 
-        for terminal in self.terminals.iter_mut() {
-            egui::Window::new(terminal.title()).show(ctx, |ui| {});
-        }
+        self.terminals.retain_mut(|t| {
+            let mut open = true;
+            egui::Window::new(t.title())
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    if let Err(e) = t.ui(ui) {
+                        eprintln!("terminal ui error: {e:?}")
+                    }
+                });
+            open
+        });
     }
 }
 

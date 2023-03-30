@@ -7,7 +7,10 @@ edition = "2021"
 
 [dependencies]
 egui = "0.21.0"
-termwiz = "0.20.0"
+# termwiz = "0.20.0"
+
+wezterm-term = { version = "0.1.0", git = "https://github.com/wez/wezterm", rev = "3666303c7b26c6c966b3f136dbb954686d334cc3" }
+portable-pty = "0.8.1"
 
 [dev-dependencies]
 eframe = "0.21.0"
