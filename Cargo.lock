@@ -2774,6 +2774,7 @@ dependencies = [
  "git-version",
  "image 0.24.6",
  "js-sys",
+ "luminol-term",
  "num-derive 0.2.5",
  "num-traits",
  "once_cell",

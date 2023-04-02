@@ -22,18 +22,20 @@ use std::sync::Arc;
 mod into;
 use into::{IntoEgui, IntoWez, TryIntoWez};
 
+pub use portable_pty::CommandBuilder;
+pub use termwiz::Error;
+
 pub struct Terminal {
     terminal: wezterm_term::Terminal,
     reader: Receiver<Vec<termwiz::escape::Action>>,
 
     child: Box<dyn portable_pty::Child + Send + Sync>,
+    pair: portable_pty::PtyPair,
 }
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        if let Err(e) = self.child.kill() {
-            eprintln!("error killing child: {e}");
-        }
+        self.kill()
     }
 }
 
@@ -51,7 +53,7 @@ impl Terminal {
             Arc::new(Config),
             "luminol-term",
             "1.0",
-            Box::new(writer),
+            writer,
         );
 
         let (sender, reciever) = channel();
@@ -75,6 +77,7 @@ impl Terminal {
             terminal,
             reader: reciever,
             child,
+            pair,
         })
     }
 
@@ -200,112 +203,109 @@ impl Terminal {
                     );
 
                     // if ui.memory(|mem| mem.has_focus(response.id)) {
-                    if response.hovered() {
-                        ui.output_mut(|o| o.mutable_text_under_cursor = true);
-                        ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
-                        // ui.memory_mut(|mem| mem.lock_focus(response.id, true));
 
-                        ui.input(|i| {
-                            for e in i.events.iter() {
-                                let result = match e {
-                                    egui::Event::PointerMoved(pos) => {
-                                        let relative_pos = *pos - response.rect.min;
-                                        let char_x = (relative_pos.x / 12.0) as usize;
-                                        let char_y = (relative_pos.y / 12.0) as i64;
-                                        self.terminal.mouse_event(wezterm_term::MouseEvent {
-                                            kind: wezterm_term::MouseEventKind::Move,
-                                            x: char_x,
-                                            y: char_y,
-                                            x_pixel_offset: 0,
-                                            y_pixel_offset: 0,
-                                            button: wezterm_term::MouseButton::None,
-                                            modifiers: i.modifiers.into_wez(),
-                                        })
-                                    }
-                                    egui::Event::PointerButton {
-                                        pos,
-                                        button,
-                                        pressed,
-                                        modifiers,
-                                    } => {
-                                        let relative_pos = *pos - response.rect.min;
-                                        let char_x = (relative_pos.x / text_width) as usize;
-                                        let char_y = (relative_pos.y / text_height) as i64;
-                                        self.terminal.mouse_event(wezterm_term::MouseEvent {
-                                            kind: if *pressed {
-                                                wezterm_term::MouseEventKind::Press
-                                            } else {
-                                                wezterm_term::MouseEventKind::Release
-                                            },
-                                            x: char_x,
-                                            y: char_y,
-                                            x_pixel_offset: 0,
-                                            y_pixel_offset: 0,
-                                            button: button.into_wez(),
-                                            modifiers: modifiers.into_wez(),
-                                        })
-                                    }
-                                    egui::Event::Scroll(pos) => {
-                                        let relative_pos =
-                                            i.pointer.interact_pos().unwrap() - response.rect.min;
-                                        let char_x = (relative_pos.x / text_width) as usize;
-                                        let char_y = (relative_pos.y / text_height) as i64;
-                                        self.terminal.mouse_event(wezterm_term::MouseEvent {
-                                            kind: wezterm_term::MouseEventKind::Press,
-                                            x: char_x,
-                                            y: char_y,
-                                            x_pixel_offset: 0,
-                                            y_pixel_offset: 0,
-                                            button: if pos.y.is_sign_positive() {
-                                                wezterm_term::MouseButton::WheelUp(pos.y as usize)
-                                            } else {
-                                                wezterm_term::MouseButton::WheelDown(
-                                                    -pos.y as usize,
-                                                )
-                                            },
-                                            modifiers: i.modifiers.into_wez(),
-                                        })
-                                    }
-                                    egui::Event::Key {
-                                        key,
-                                        modifiers,
-                                        pressed,
-                                        ..
-                                    } => {
-                                        if let Ok(key) = key.try_into_wez() {
-                                            if *pressed {
-                                                self.terminal.key_down(key, modifiers.into_wez())
-                                            } else {
-                                                self.terminal.key_up(key, modifiers.into_wez())
-                                            }
+                    ui.output_mut(|o| o.mutable_text_under_cursor = true);
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
+                    // ui.memory_mut(|mem| mem.lock_focus(response.id, true));
+
+                    ui.input(|i| {
+                        for e in i.events.iter() {
+                            let result = match e {
+                                egui::Event::PointerMoved(pos) => {
+                                    let relative_pos = *pos - response.rect.min;
+                                    let char_x = (relative_pos.x / 12.0) as usize;
+                                    let char_y = (relative_pos.y / 12.0) as i64;
+                                    self.terminal.mouse_event(wezterm_term::MouseEvent {
+                                        kind: wezterm_term::MouseEventKind::Move,
+                                        x: char_x,
+                                        y: char_y,
+                                        x_pixel_offset: 0,
+                                        y_pixel_offset: 0,
+                                        button: wezterm_term::MouseButton::None,
+                                        modifiers: i.modifiers.into_wez(),
+                                    })
+                                }
+                                egui::Event::PointerButton {
+                                    pos,
+                                    button,
+                                    pressed,
+                                    modifiers,
+                                } => {
+                                    let relative_pos = *pos - response.rect.min;
+                                    let char_x = (relative_pos.x / text_width) as usize;
+                                    let char_y = (relative_pos.y / text_height) as i64;
+                                    self.terminal.mouse_event(wezterm_term::MouseEvent {
+                                        kind: if *pressed {
+                                            wezterm_term::MouseEventKind::Press
                                         } else {
-                                            Ok(())
+                                            wezterm_term::MouseEventKind::Release
+                                        },
+                                        x: char_x,
+                                        y: char_y,
+                                        x_pixel_offset: 0,
+                                        y_pixel_offset: 0,
+                                        button: button.into_wez(),
+                                        modifiers: modifiers.into_wez(),
+                                    })
+                                }
+                                egui::Event::Scroll(pos) => {
+                                    let relative_pos =
+                                        i.pointer.interact_pos().unwrap() - response.rect.min;
+                                    let char_x = (relative_pos.x / text_width) as usize;
+                                    let char_y = (relative_pos.y / text_height) as i64;
+                                    self.terminal.mouse_event(wezterm_term::MouseEvent {
+                                        kind: wezterm_term::MouseEventKind::Press,
+                                        x: char_x,
+                                        y: char_y,
+                                        x_pixel_offset: 0,
+                                        y_pixel_offset: 0,
+                                        button: if pos.y.is_sign_positive() {
+                                            wezterm_term::MouseButton::WheelUp(pos.y as usize)
+                                        } else {
+                                            wezterm_term::MouseButton::WheelDown(-pos.y as usize)
+                                        },
+                                        modifiers: i.modifiers.into_wez(),
+                                    })
+                                }
+                                egui::Event::Key {
+                                    key,
+                                    modifiers,
+                                    pressed,
+                                    ..
+                                } => {
+                                    if let Ok(key) = key.try_into_wez() {
+                                        if *pressed {
+                                            self.terminal.key_down(key, modifiers.into_wez())
+                                        } else {
+                                            self.terminal.key_up(key, modifiers.into_wez())
                                         }
+                                    } else {
+                                        Ok(())
                                     }
-                                    egui::Event::Text(t) => t
-                                        .chars()
-                                        .try_for_each(|c| {
-                                            self.terminal.key_down(
+                                }
+                                egui::Event::Text(t) => t
+                                    .chars()
+                                    .try_for_each(|c| {
+                                        self.terminal.key_down(
+                                            wezterm_term::KeyCode::Char(c),
+                                            i.modifiers.into_wez(),
+                                        )
+                                    })
+                                    .and_then(|_| {
+                                        t.chars().try_for_each(|c| {
+                                            self.terminal.key_up(
                                                 wezterm_term::KeyCode::Char(c),
                                                 i.modifiers.into_wez(),
                                             )
                                         })
-                                        .and_then(|_| {
-                                            t.chars().try_for_each(|c| {
-                                                self.terminal.key_up(
-                                                    wezterm_term::KeyCode::Char(c),
-                                                    i.modifiers.into_wez(),
-                                                )
-                                            })
-                                        }),
-                                    _ => Ok(()),
-                                };
-                                if let Err(e) = result {
-                                    eprintln!("terminal input error {e:?}");
-                                }
+                                    }),
+                                _ => Ok(()),
+                            };
+                            if let Err(e) = result {
+                                eprintln!("terminal input error {e:?}");
                             }
-                        });
-                    }
+                        }
+                    });
                 },
             );
 
@@ -316,17 +316,25 @@ impl Terminal {
                 .button(egui::RichText::new("KILL").color(egui::Color32::RED))
                 .clicked()
             {
-                if let Err(e) = self.child.kill() {
-                    eprintln!("error killing child: {e}");
-                }
+                self.kill()
             }
 
             if ui.add(egui::DragValue::new(&mut size.rows)).changed() {
                 self.terminal.resize(size);
+                self.pair.master.resize(portable_pty::PtySize {
+                    rows: size.rows as u16,
+                    cols: size.cols as u16,
+                    ..Default::default()
+                });
             }
             ui.label("x");
             if ui.add(egui::DragValue::new(&mut size.cols)).changed() {
                 self.terminal.resize(size);
+                self.pair.master.resize(portable_pty::PtySize {
+                    rows: size.rows as u16,
+                    cols: size.cols as u16,
+                    ..Default::default()
+                });
             }
         });
 
@@ -334,6 +342,13 @@ impl Terminal {
             .request_repaint_after(std::time::Duration::from_millis(16));
 
         Ok(())
+    }
+
+    #[inline(never)]
+    pub fn kill(&mut self) {
+        if let Err(e) = self.child.kill() {
+            eprintln!("error killing child: {e}");
+        }
     }
 }
 

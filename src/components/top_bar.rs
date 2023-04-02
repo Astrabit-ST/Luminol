@@ -206,24 +206,35 @@ impl TopBar {
         #[cfg(not(target_arch = "wasm32"))]
         ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
             if ui.button("Playtest").clicked() {
-                match std::process::Command::new(
-                    info.filesystem.project_path().unwrap().join("steamshim"),
-                )
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .spawn()
-                .or_else(|_| {
-                    std::process::Command::new(info.filesystem.project_path().unwrap().join("game"))
-                        .stdin(std::process::Stdio::piped())
-                        .stdout(std::process::Stdio::piped())
-                        .spawn()
-                }) {
-                    Ok(c) => info
-                        .windows
-                        .add_window(crate::windows::playtest_console::PlaytestConsole::new(c)),
+                let mut cmd = luminol_term::CommandBuilder::new("steamshim");
+                cmd.cwd(info.filesystem.project_path().expect("project not loaded"));
+
+                let result = crate::windows::console::Console::new(cmd).or_else(|_| {
+                    let mut cmd = luminol_term::CommandBuilder::new("game");
+                    cmd.cwd(info.filesystem.project_path().expect("project not loaded"));
+
+                    crate::windows::console::Console::new(cmd)
+                });
+
+                match result {
+                    Ok(w) => info.windows.add_window(w),
                     Err(e) => info.toasts.error(format!(
-                        "Error launching executable, tried steamshim and then game: {e:#?}"
+                        "error starting game (tried steamshim.exe and then game.exe): {e}"
                     )),
+                }
+            }
+
+            if ui.button("Terminal").clicked() {
+                #[cfg(windows)]
+                let shell = "powershell";
+                #[cfg(unix)]
+                let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
+                let mut cmd = luminol_term::CommandBuilder::new(shell);
+                cmd.cwd(info.filesystem.project_path().expect("project not loaded"));
+
+                match crate::windows::console::Console::new(cmd) {
+                    Ok(w) => info.windows.add_window(w),
+                    Err(e) => info.toasts.error(format!("error starting shell: {e}")),
                 }
             }
         });

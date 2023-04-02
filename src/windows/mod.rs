@@ -20,6 +20,8 @@ pub mod about;
 pub mod common_event_edit;
 /// Config window
 pub mod config;
+/// Playtest console
+pub mod console;
 /// The event editor.
 pub mod event_edit;
 /// The Graphic picker.
@@ -32,8 +34,6 @@ pub mod map_picker;
 pub mod misc;
 /// New project window
 pub mod new_project;
-/// Playtest console
-pub mod playtest_console;
 /// The script editor
 pub mod script_edit;
 /// The sound test.
