@@ -50,6 +50,7 @@ impl eframe::App for App {
             egui::Window::new(t.title())
                 .id(t.id())
                 .open(&mut open)
+                .resizable(false)
                 .show(ctx, |ui| {
                     if let Err(e) = t.ui(ui) {
                         eprintln!("terminal ui error: {e:?}")

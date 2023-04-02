@@ -95,6 +95,8 @@ impl IntoWez<wezterm_term::KeyModifiers> for egui::Modifiers {
         keymod.set(wezterm_term::KeyModifiers::ALT, self.alt);
         keymod.set(wezterm_term::KeyModifiers::CTRL, self.ctrl);
         keymod.set(wezterm_term::KeyModifiers::SHIFT, self.shift);
+        // keymod.set(wezterm_term::KeyModifiers::SUPER, self.command);
+
         keymod
     }
 }
