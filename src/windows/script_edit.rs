@@ -21,15 +21,13 @@ pub use crate::prelude::*;
 
 /// The script editor.
 pub struct Window {
-    tabs: tab::Tabs,
-    selected_script: usize,
+    tabs: tab::Tabs<ScriptTab>,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: tab::Tabs::new("script_editor"),
-            selected_script: 0,
+            tabs: tab::Tabs::new("script_editor", vec![]),
         }
     }
 }
@@ -52,24 +50,45 @@ impl window::Window for Window {
                     egui::ScrollArea::both()
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
-                            let scripts = info.data_cache.scripts();
+                            let mut scripts = info.data_cache.scripts();
 
-                            for (id, script) in scripts.iter().enumerate() {
-                                if ui
-                                    .selectable_value(
-                                        &mut self.selected_script,
-                                        id,
-                                        script.name.clone(),
-                                    )
-                                    .double_clicked()
-                                {
-                                    match ScriptTab::new(id, script.clone()) {
-                                        Ok(tab) => self.tabs.add_tab(tab),
-                                        Err(e) => {
-                                            info.toasts.error(format!("Error Opening Script: {e}"));
+                            let mut insert_index = None;
+                            let mut del_index = None;
+
+                            let scripts_len = scripts.len();
+                            for (index, script) in scripts.iter_mut().enumerate() {
+                                let response = ui
+                                    .text_edit_singleline(&mut script.name)
+                                    .context_menu(|ui| {
+                                        if ui.button("Insert").clicked() {
+                                            insert_index = Some(index);
                                         }
-                                    }
+
+                                        ui.add_enabled_ui(scripts_len > 1, |ui| {
+                                            if ui.button("Delete").clicked() {
+                                                del_index = Some(index);
+                                            }
+                                        });
+                                    });
+
+                                if response.double_clicked() {
+                                    self.tabs
+                                        .add_tab(ScriptTab::new(index, script.script_text.clone()));
                                 }
+                            }
+
+                            if let Some(index) = insert_index {
+                                scripts.insert(
+                                    index,
+                                    rpg::Script {
+                                        name: "New Script".to_string(),
+                                        script_text: String::new(),
+                                    },
+                                );
+                            }
+
+                            if let Some(index) = del_index {
+                                scripts.remove(index);
                             }
                         });
                 });
@@ -83,33 +102,26 @@ impl window::Window for Window {
     }
 }
 
+/// FIXME: Change behavior of script tab to aboid panics and stay synchronized
 struct ScriptTab {
-    name: String,
-    id: usize,
-    script: String,
+    index: usize,
+    script_text: String,
     force_close: bool,
 }
 
 impl ScriptTab {
-    fn new(id: usize, script: rpg::Script) -> Result<Self, String> {
-        let mut decoder = flate2::bufread::ZlibDecoder::new(&script.data[..]);
-        let mut script_data = String::new();
-        decoder
-            .read_to_string(&mut script_data)
-            .map_err(|e| e.to_string())?;
-
-        Ok(Self {
-            name: script.name,
-            id,
-            script: script_data,
+    fn new(index: usize, script_text: String) -> Self {
+        Self {
+            index,
+            script_text,
             force_close: false,
-        })
+        }
     }
 }
 
 impl tab::Tab for ScriptTab {
     fn name(&self) -> String {
-        format!("{}: {}", self.name, self.id)
+        self.index.to_string()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
@@ -133,27 +145,8 @@ impl tab::Tab for ScriptTab {
             if save_script {
                 let mut scripts = info.data_cache.scripts();
 
-                let mut encoder =
-                    flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
-                let result = encoder
-                    .write_all(self.script.as_bytes())
-                    .and_then(|_| encoder.finish());
-                match result {
-                    Err(e) => info.toasts.error(format!("Failed to encode script {e}")),
-                    Ok(data) => {
-                        let script = rpg::Script {
-                            id: 0,
-                            name: self.name.clone(),
-                            data,
-                        };
-
-                        scripts[self.id] = script;
-                    }
-                }
+                scripts[self.index].script_text = self.script_text.clone();
             }
-
-            ui.label("Name");
-            ui.text_edit_singleline(&mut self.name);
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
@@ -164,7 +157,7 @@ impl tab::Tab for ScriptTab {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add(
-                egui::TextEdit::multiline(&mut self.script)
+                egui::TextEdit::multiline(&mut self.script_text)
                     .code_editor()
                     .desired_rows(10)
                     .lock_focus(true)

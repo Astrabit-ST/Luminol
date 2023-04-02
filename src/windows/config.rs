@@ -43,6 +43,9 @@ impl window::Window for Window {
                         ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
                     }
                 });
+
+            ui.label("Playtest Executable");
+            ui.text_edit_singleline(&mut config.playtest_exe);
         });
     }
 

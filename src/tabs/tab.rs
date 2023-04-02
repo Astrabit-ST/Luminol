@@ -20,30 +20,23 @@ use std::{cell::RefCell, hash::Hash};
 use crate::UpdateInfo;
 
 /// The tree type;
-type Tree = egui_dock::Tree<Box<dyn Tab>>;
+type Tree<T> = egui_dock::Tree<T>;
 
 /// Helper struct for tabs.
-pub struct Tabs {
-    tree: RefCell<Tree>,
+pub struct Tabs<T> {
+    tree: RefCell<Tree<T>>,
     id: egui::Id,
 }
 
-impl Default for Tabs {
-    fn default() -> Self {
-        // Add the basic "get started" tab
-        Self {
-            tree: RefCell::new(Tree::new(vec![Box::new(super::started::Tab::new())])),
-            id: egui::Id::new("tab_area"),
-        }
-    }
-}
-
-impl Tabs {
+impl<T> Tabs<T>
+where
+    T: Tab,
+{
     /// Create a new Tab viewer without any tabs.
-    pub fn new(id: impl Hash) -> Self {
+    pub fn new(id: impl Hash, tabs: Vec<T>) -> Self {
         Self {
             id: egui::Id::new(id),
-            tree: RefCell::default(),
+            tree: Tree::new(tabs).into(),
         }
     }
 
@@ -52,15 +45,18 @@ impl Tabs {
         ui.group(|ui| {
             egui_dock::DockArea::new(&mut self.tree.borrow_mut())
                 .id(self.id)
-                .show_inside(ui, &mut TabViewer { info });
+                .show_inside(
+                    ui,
+                    &mut TabViewer {
+                        info,
+                        marker: std::marker::PhantomData,
+                    },
+                );
         });
     }
 
     /// Add a tab.
-    pub fn add_tab<T>(&self, tab: T)
-    where
-        T: Tab + 'static,
-    {
+    pub fn add_tab(&self, tab: T) {
         let mut tree = self.tree.borrow_mut();
         for n in tree.iter() {
             if let egui_dock::Node::Leaf { tabs, .. } = n {
@@ -69,15 +65,15 @@ impl Tabs {
                 }
             }
         }
-        tree.push_to_focused_leaf(Box::new(tab));
+        tree.push_to_focused_leaf(tab);
     }
 
     /// Clean tabs by if they need the filesystem.
-    pub fn clean_tabs(&self) {
+    pub fn clean_tabs<F: FnMut(&mut T) -> bool>(&self, mut f: F) {
         let mut tree = self.tree.borrow_mut();
         for node in tree.iter_mut() {
             if let egui_dock::Node::Leaf { tabs, .. } = node {
-                tabs.drain_filter(|t| t.requires_filesystem());
+                tabs.drain_filter(&mut f);
             }
         }
     }
@@ -89,12 +85,19 @@ impl Tabs {
     }
 }
 
-struct TabViewer {
-    pub info: &'static UpdateInfo,
+struct TabViewer<T: Tab> {
+    info: &'static UpdateInfo,
+
+    // we don't actually own any types of T, but we use them in TabViewer
+    // *const is used here to avoid needing lifetimes and to indicate to the drop checker that we don't own any types of T
+    marker: std::marker::PhantomData<*const T>,
 }
 
-impl egui_dock::TabViewer for TabViewer {
-    type Tab = Box<dyn Tab>;
+impl<T> egui_dock::TabViewer for TabViewer<T>
+where
+    T: Tab,
+{
+    type Tab = T;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         tab.name().into()
@@ -125,5 +128,23 @@ pub trait Tab {
     /// Does this tab need to be closed?
     fn force_close(&mut self) -> bool {
         false
+    }
+}
+
+impl Tab for Box<dyn Tab> {
+    fn force_close(&mut self) -> bool {
+        self.as_mut().force_close()
+    }
+
+    fn name(&self) -> String {
+        self.as_ref().name()
+    }
+
+    fn requires_filesystem(&self) -> bool {
+        self.as_ref().requires_filesystem()
+    }
+
+    fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
+        self.as_mut().show(ui, info)
     }
 }

@@ -786,9 +786,8 @@ impl From<MoveCommand> for alox_48::Object {
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct Script {
-    pub id: usize,
     pub name: String,
-    pub data: Vec<u8>,
+    pub script_text: String,
 }
 
 impl<'de> serde::Deserialize<'de> for Script {
@@ -810,23 +809,29 @@ impl<'de> serde::Deserialize<'de> for Script {
                 A: serde::de::SeqAccess<'de>,
             {
                 use serde::de::Error;
+                use std::io::Read;
 
-                let Some(id) = seq.next_element()? else {
-                        return Err(A::Error::missing_field("id"));
-                    };
+                let Some(_) = seq.next_element::<serde::de::IgnoredAny>()? else {
+                    return Err(A::Error::missing_field("id"));
+                };
 
                 let Some(name) = seq.next_element()? else {
-                        return Err(A::Error::missing_field("name"));
-                    };
+                    return Err(A::Error::missing_field("name"));
+                };
 
                 let Some(data) = seq.next_element::<alox_48::RbString>()? else {
-                        return Err(A::Error::missing_field("data"));
-                    };
+                    return Err(A::Error::missing_field("data"));
+                };
+
+                let mut decoder = flate2::bufread::ZlibDecoder::new(data.data.as_slice());
+                let mut script = String::new();
+                decoder
+                    .read_to_string(&mut script)
+                    .map_err(|e| A::Error::custom(e.to_string()))?;
 
                 Ok(Script {
-                    id,
                     name,
-                    data: data.data,
+                    script_text: script,
                 })
             }
         }
@@ -840,14 +845,22 @@ impl Serialize for Script {
     where
         S: serde::Serializer,
     {
+        use serde::ser::Error;
         use serde::ser::SerializeSeq;
+        use std::io::Write;
 
         let mut seq = serializer.serialize_seq(Some(3))?;
 
-        seq.serialize_element(&self.id)?;
+        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Default::default());
+        let data = encoder
+            .write_all(self.script_text.as_bytes())
+            .and_then(|_| encoder.finish())
+            .map_err(|e| S::Error::custom(e.to_string()))?;
+
+        seq.serialize_element(&0usize)?;
         seq.serialize_element(&self.name)?;
         seq.serialize_element(&alox_48::RbString {
-            data: self.data.clone(),
+            data,
             ..Default::default()
         })?;
 

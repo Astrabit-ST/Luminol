@@ -26,80 +26,6 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'serialize'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=serialize",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "serialize",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'serialize'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=serialize",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "serialize",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'rxdata'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=rxdata",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "rxdata",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'rxdata'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=rxdata",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "rxdata",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
             "name": "Debug example 'basic'",
             "cargo": {
                 "args": [
@@ -128,154 +54,6 @@
                 ],
                 "filter": {
                     "name": "basic",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'extra_fields'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=extra_fields",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "extra_fields",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'extra_fields'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=extra_fields",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "extra_fields",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'userdata'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=userdata",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "userdata",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'userdata'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=userdata",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "userdata",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'example'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=example",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "example",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'example'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=example",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "example",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'value'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=value",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "value",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'value'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=value",
-                    "--package=alox-48"
-                ],
-                "filter": {
-                    "name": "value",
                     "kind": "example"
                 }
             },
@@ -322,15 +100,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'rmxp_structs'",
+            "name": "Debug example 'example'",
             "cargo": {
                 "args": [
                     "build",
-                    "--example=rmxp_structs",
+                    "--example=example",
                     "--package=alox-48"
                 ],
                 "filter": {
-                    "name": "rmxp_structs",
+                    "name": "example",
                     "kind": "example"
                 }
             },
@@ -340,16 +118,53 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in example 'rmxp_structs'",
+            "name": "Debug unit tests in example 'example'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--example=rmxp_structs",
+                    "--example=example",
                     "--package=alox-48"
                 ],
                 "filter": {
-                    "name": "rmxp_structs",
+                    "name": "example",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'extra_fields'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=extra_fields",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "extra_fields",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'extra_fields'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=extra_fields",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "extra_fields",
                     "kind": "example"
                 }
             },
@@ -396,37 +211,183 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'command-gen'",
+            "name": "Debug example 'rmxp_structs'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=command-gen",
-                    "--package=command-gen"
+                    "--example=rmxp_structs",
+                    "--package=alox-48"
                 ],
                 "filter": {
-                    "name": "command-gen",
-                    "kind": "bin"
+                    "name": "rmxp_structs",
+                    "kind": "example"
                 }
             },
-            "args": [
-                "commands.ron"
-            ],
+            "args": [],
             "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'command-gen'",
+            "name": "Debug unit tests in example 'rmxp_structs'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=command-gen",
-                    "--package=command-gen"
+                    "--example=rmxp_structs",
+                    "--package=alox-48"
                 ],
                 "filter": {
-                    "name": "command-gen",
-                    "kind": "bin"
+                    "name": "rmxp_structs",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'rxdata'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=rxdata",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "rxdata",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'rxdata'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=rxdata",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "rxdata",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'serialize'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=serialize",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "serialize",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'serialize'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=serialize",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "serialize",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'userdata'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=userdata",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "userdata",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'userdata'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=userdata",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "userdata",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'value'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=value",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "value",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'value'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=value",
+                    "--package=alox-48"
+                ],
+                "filter": {
+                    "name": "value",
+                    "kind": "example"
                 }
             },
             "args": [],
@@ -465,6 +426,62 @@
                 "filter": {
                     "name": "rmxp-types",
                     "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'luminol-term'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=luminol-term"
+                ],
+                "filter": {
+                    "name": "luminol-term",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'eframe'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=eframe",
+                    "--package=luminol-term"
+                ],
+                "filter": {
+                    "name": "eframe",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'eframe'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=eframe",
+                    "--package=luminol-term"
+                ],
+                "filter": {
+                    "name": "eframe",
+                    "kind": "example"
                 }
             },
             "args": [],

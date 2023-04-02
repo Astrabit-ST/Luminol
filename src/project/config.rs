@@ -28,6 +28,7 @@ pub struct LocalConfig {
     pub use_ron: bool,
     pub rgss_ver: RGSSVer,
     pub editor_ver: RMVer,
+    pub playtest_exe: String,
 }
 
 impl Default for LocalConfig {
@@ -38,6 +39,7 @@ impl Default for LocalConfig {
             use_ron: false,
             rgss_ver: RGSSVer::RGSS1,
             editor_ver: RMVer::XP,
+            playtest_exe: "game".to_string(),
         }
     }
 }

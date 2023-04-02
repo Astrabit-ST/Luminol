@@ -20,6 +20,8 @@ pub mod about;
 pub mod common_event_edit;
 /// Config window
 pub mod config;
+/// Playtest console
+pub mod console;
 /// The event editor.
 pub mod event_edit;
 /// The Graphic picker.

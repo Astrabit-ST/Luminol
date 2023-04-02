@@ -72,6 +72,7 @@ pub mod filesystem;
 
 pub use luminol::Luminol;
 use saved_state::SavedState;
+use tabs::tab::Tab;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
@@ -110,7 +111,7 @@ pub struct UpdateInfo {
     /// Windows that are displayed.
     pub windows: window::Windows,
     /// Tabs that are displayed.
-    pub tabs: tab::Tabs,
+    pub tabs: tabs::tab::Tabs<Box<dyn Tab>>,
     /// Audio that's played.
     pub audio: audio::Audio,
     /// Toasts to be displayed.
@@ -129,8 +130,8 @@ impl UpdateInfo {
         Self {
             filesystem: FSAlias::default(),
             data_cache: Cache::default(),
-            windows: window::Windows::default(),
-            tabs: tab::Tabs::default(),
+            windows: windows::window::Windows::default(),
+            tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             gl,

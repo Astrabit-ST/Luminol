@@ -41,7 +41,7 @@ syntect = { version = "5.0", features = [
 rand = "0.8.5"
 
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
-flate2 = "1.0"
+
 
 async-trait = "0.1"
 futures = "0.3"
@@ -78,6 +78,7 @@ poll-promise = { version = "0.2.0", features = ["smol"] }
 async-fs = "1.6.0"
 surf = "2.3.2"
 rfd = "0.11"
+luminol-term = { version = "*", path = "luminol-term" }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -146,7 +147,7 @@ opt-level = 3
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = ["alox-48", "command-lib", "rmxp-types"]
+members = ["alox-48", "command-lib", "rmxp-types", "luminol-term"]
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }

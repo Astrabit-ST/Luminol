@@ -19,14 +19,14 @@ use crate::prelude::*;
 
 /// The common event editor.
 pub struct Window {
-    tabs: tab::Tabs,
+    tabs: tab::Tabs<CommonEventTab>,
     selected_id: usize,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: tab::Tabs::new("common_event_tabs"),
+            tabs: tab::Tabs::new("common_event_tabs", vec![]),
             selected_id: 0,
         }
     }

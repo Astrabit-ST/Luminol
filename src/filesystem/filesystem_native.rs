@@ -163,6 +163,8 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             projects.truncate(10);
         }
 
+        std::env::set_current_dir(self.project_path().unwrap()).map_err(|e| e.to_string())?;
+
         Ok(())
     }
 
