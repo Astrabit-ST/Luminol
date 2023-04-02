@@ -18,6 +18,9 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+#[cfg(has_std)]
+fn test() {}
+
 // TODO: Use eyre!
 use color_eyre::Result;
 

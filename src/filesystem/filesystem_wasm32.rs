@@ -48,14 +48,20 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
-    async fn get_file(&self, path: &Path) -> Result<File, JsValue> {
-        let file = self.get_parent_dir(path).await?;
+    async fn get_file(&self, path: &Path) -> Result<File, js_sys::Error> {
+        let file = self
+            .get_parent_dir(path)
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)?;
 
         let promise = file.get_file_handle(path.file_name().unwrap().to_str().unwrap())?;
         let file: FileSystemFileHandle = JsFuture::from(promise).await?.dyn_into()?;
 
         let promise = FileSystemFileHandle::get_file(&file)?;
-        JsFuture::from(promise).await?.dyn_into()
+        JsFuture::from(promise)
+            .await?
+            .dyn_into()
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
     }
 
     async fn get_parent_dir(&self, path: &Path) -> Result<FileSystemDirectoryHandle, JsValue> {
@@ -152,25 +158,34 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         let folder = self
             .get_parent_dir(path.as_ref())
             .await
-            .map_err(|e| format!("error getting_directories {e:?}"))?;
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         let prefix = path.as_ref().file_name().unwrap();
         let prefix = prefix.to_str().unwrap();
         let promise = folder
             .get_directory_handle(prefix)
-            .map_err(|e| format!("{e:?}"))?;
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
         let folder: FileSystemDirectoryHandle = JsFuture::from(promise)
             .await
-            .map_err(|e| format!("{e:?}"))?
-            .dyn_into()
-            .unwrap();
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?
+            .unchecked_into();
 
         let iter = js_sys::try_iter(&folder).unwrap().unwrap();
         let mut entries = vec![];
 
         for next in iter {
-            let next: js_sys::Promise = next.unwrap().dyn_into().unwrap();
-            let next: FileSystemHandle = JsFuture::from(next).await.unwrap().dyn_into().unwrap();
+            let next: js_sys::Promise = next
+                .map_err(JsValue::unchecked_into::<js_sys::Error>)
+                .map_err(|e| e.to_string().as_string().unwrap())?
+                .unchecked_into();
+            let next: FileSystemHandle = JsFuture::from(next)
+                .await
+                .map_err(JsValue::unchecked_into::<js_sys::Error>)
+                .map_err(|e| e.to_string().as_string().unwrap())?
+                .unchecked_into();
 
             entries.push(FileSystemHandle::name(&next));
         }
@@ -192,11 +207,17 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
     /// Read bytes from a file.
     async fn read_bytes(&self, path: impl AsRef<Path>) -> Result<Vec<u8>, String> {
-        let file = self.get_file(path.as_ref()).await.unwrap();
+        let file = self
+            .get_file(path.as_ref())
+            .await
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         let buf = JsFuture::from(file.array_buffer());
-        let buf = buf.await.unwrap();
-        let buf: js_sys::ArrayBuffer = buf.dyn_into().unwrap();
+        let buf = buf
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
+        let buf: js_sys::ArrayBuffer = buf.unchecked_into();
         let buf = js_sys::Uint8Array::new(&buf);
 
         Ok(buf.to_vec())
@@ -217,16 +238,26 @@ impl super::filesystem_trait::Filesystem for Filesystem {
                 path.as_ref().file_name().unwrap().to_str().unwrap(),
                 &options,
             )
-            .unwrap();
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
-        let file: FileSystemFileHandle = JsFuture::from(promise).await.unwrap().dyn_into().unwrap();
-        let promise = file.create_writable().unwrap();
+        let file: FileSystemFileHandle = JsFuture::from(promise).await.unwrap().unchecked_into();
+        let promise = file
+            .create_writable()
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
-        let stream: FileSystemWritableFileStream =
-            JsFuture::from(promise).await.unwrap().dyn_into().unwrap();
+        let stream: FileSystemWritableFileStream = JsFuture::from(promise)
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?
+            .unchecked_into();
 
         let promise = stream.write_with_buffer_source(&js_sys::Uint8Array::from(data.as_ref()));
-        JsFuture::from(promise).await.unwrap();
+        JsFuture::from(promise)
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         Ok(())
     }
@@ -257,8 +288,14 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     async fn try_open_project(&self, info: &'static UpdateInfo) -> Result<(), String> {
         let window = web_sys::window().unwrap();
 
-        let directory = show_directory_picker(&window).await.expect("???");
-        let directory: FileSystemDirectoryHandle = directory.dyn_into().expect("????");
+        let directory = show_directory_picker(&window)
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
+        let directory: FileSystemDirectoryHandle = directory
+            .dyn_into()
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         *self.project_path.borrow_mut() = Some(directory.name().into());
         *self.directory.borrow_mut() = Some(directory);
@@ -279,7 +316,11 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
     /// Create a directory at the specified path.
     async fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String> {
-        let dir = self.get_parent_dir(path.as_ref()).await.unwrap();
+        let dir = self
+            .get_parent_dir(path.as_ref())
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         let mut options = FileSystemGetDirectoryOptions::new();
         options.create(true);
@@ -289,9 +330,13 @@ impl super::filesystem_trait::Filesystem for Filesystem {
                 path.as_ref().file_name().unwrap().to_str().unwrap(),
                 &options,
             )
-            .unwrap();
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
-        JsFuture::from(promise).await.unwrap();
+        JsFuture::from(promise)
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         Ok(())
     }
@@ -305,8 +350,14 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     ) -> Result<(), String> {
         let window = web_sys::window().unwrap();
 
-        let directory = show_directory_picker(&window).await.expect("???");
-        let directory: FileSystemDirectoryHandle = directory.dyn_into().expect("????");
+        let directory = show_directory_picker(&window)
+            .await
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
+        let directory: FileSystemDirectoryHandle = directory
+            .dyn_into()
+            .map_err(JsValue::unchecked_into::<js_sys::Error>)
+            .map_err(|e| e.to_string().as_string().unwrap())?;
 
         *self.project_path.borrow_mut() = Some(directory.name().into());
         *self.directory.borrow_mut() = Some(directory);
@@ -318,5 +369,10 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         *self.loading_project.borrow_mut() = false;
 
         Ok(())
+    }
+
+    /// Try to open a project.
+    async fn spawn_project_file_picker(&self, info: &'static UpdateInfo) -> Result<(), String> {
+        self.try_open_project(info).await
     }
 }

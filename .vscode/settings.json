@@ -12,6 +12,7 @@
 	},
 	"conventionalCommits.scopes": [
 		"scripts",
-		"tabs"
+		"tabs",
+		"wasm"
 	]
 }
