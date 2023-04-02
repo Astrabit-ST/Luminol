@@ -40,6 +40,7 @@ impl super::window::Window for Console {
         egui::Window::new(self.name())
             .id(self.term.id())
             .open(open)
+            .resizable(false)
             .show(ctx, |ui| {
                 if let Err(e) = self.term.ui(ui) {
                     info.toasts

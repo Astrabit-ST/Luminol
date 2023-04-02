@@ -102,11 +102,14 @@ impl Terminal {
         let cursor_pos = self.terminal.cursor_pos();
         let palette = self.terminal.get_config().color_palette();
 
+        let prev_spacing = ui.spacing_mut().item_spacing;
+        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+
         let text_width = ui.fonts(|f| f.glyph_width(&egui::FontId::monospace(12.0), '?'));
         let text_height = ui.text_style_height(&egui::TextStyle::Monospace);
 
         egui::ScrollArea::vertical()
-            .max_height(size.rows as f32 * text_height)
+            .max_height((size.rows + 1) as f32 * text_height)
             .stick_to_bottom(true)
             .show_rows(
                 ui,
@@ -119,7 +122,13 @@ impl Terminal {
                         },
                         ..Default::default()
                     };
-                    for line in self.terminal.screen().lines_in_phys_range(rows) {
+                    let mut iter = self
+                        .terminal
+                        .screen()
+                        .lines_in_phys_range(rows)
+                        .into_iter()
+                        .peekable();
+                    while let Some(line) = iter.next() {
                         for cluster in line.cluster(None) {
                             let fg_color =
                                 palette.resolve_fg(cluster.attrs.foreground()).into_egui();
@@ -160,14 +169,16 @@ impl Terminal {
                                 },
                             );
                         }
-                        job.append(
-                            "\n",
-                            0.0,
-                            egui::TextFormat {
-                                font_id: egui::FontId::monospace(12.0),
-                                ..Default::default()
-                            },
-                        );
+                        if iter.peek().is_some() {
+                            job.append(
+                                "\n",
+                                0.0,
+                                egui::TextFormat {
+                                    font_id: egui::FontId::monospace(12.0),
+                                    ..Default::default()
+                                },
+                            );
+                        }
                     }
 
                     let galley = ui.fonts(|f| f.layout_job(job));
@@ -309,6 +320,8 @@ impl Terminal {
                 },
             );
 
+        ui.spacing_mut().item_spacing = prev_spacing;
+
         ui.separator();
 
         ui.horizontal(|ui| {
@@ -319,22 +332,21 @@ impl Terminal {
                 self.kill()
             }
 
-            if ui.add(egui::DragValue::new(&mut size.rows)).changed() {
-                self.terminal.resize(size);
-                self.pair.master.resize(portable_pty::PtySize {
-                    rows: size.rows as u16,
-                    cols: size.cols as u16,
-                    ..Default::default()
-                });
-            }
+            let mut resize = false;
+            resize |= ui.add(egui::DragValue::new(&mut size.rows)).changed();
+
             ui.label("x");
-            if ui.add(egui::DragValue::new(&mut size.cols)).changed() {
+            resize |= ui.add(egui::DragValue::new(&mut size.cols)).changed();
+
+            if resize {
                 self.terminal.resize(size);
-                self.pair.master.resize(portable_pty::PtySize {
+                if let Err(e) = self.pair.master.resize(portable_pty::PtySize {
                     rows: size.rows as u16,
                     cols: size.cols as u16,
                     ..Default::default()
-                });
+                }) {
+                    eprintln!("error resizing terminal: {e}");
+                }
             }
         });
 
