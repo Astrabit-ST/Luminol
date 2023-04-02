@@ -102,189 +102,212 @@ impl Terminal {
         let text_width = ui.fonts(|f| f.glyph_width(&egui::FontId::monospace(12.0), '?'));
         let text_height = ui.text_style_height(&egui::TextStyle::Monospace);
 
-        let mut job = egui::text::LayoutJob {
-            wrap: egui::epaint::text::TextWrapping {
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        self.terminal.screen().for_each_phys_line(|_, l| {
-            for cluster in l.cluster(None) {
-                let fg_color = palette.resolve_fg(cluster.attrs.foreground()).into_egui();
-                let bg_color = palette.resolve_bg(cluster.attrs.background()).into_egui();
-                let underline =
-                    if !matches!(cluster.attrs.underline(), wezterm_term::Underline::None) {
-                        egui::Stroke::new(
-                            1.0,
-                            palette
-                                .resolve_fg(cluster.attrs.underline_color())
-                                .into_egui(),
-                        )
-                    } else {
-                        egui::Stroke::NONE
-                    };
-                let strikethrough = if cluster.attrs.strikethrough() {
-                    egui::Stroke::new(
-                        1.0,
-                        palette.resolve_fg(cluster.attrs.foreground()).into_egui(),
-                    )
-                } else {
-                    egui::Stroke::NONE
-                };
-                job.append(
-                    &cluster.text,
-                    0.0,
-                    egui::TextFormat {
-                        font_id: egui::FontId::monospace(12.0),
-                        color: fg_color,
-                        background: bg_color,
-                        italics: cluster.attrs.italic(),
-                        underline,
-                        strikethrough,
+        egui::ScrollArea::vertical()
+            .max_height(size.rows as f32 * text_height)
+            .stick_to_bottom(true)
+            .show_rows(
+                ui,
+                text_height,
+                self.terminal.screen().scrollback_rows(),
+                |ui, rows| {
+                    let mut job = egui::text::LayoutJob {
+                        wrap: egui::epaint::text::TextWrapping {
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                );
-            }
-            job.append(
-                "\n",
-                0.0,
-                egui::TextFormat {
-                    font_id: egui::FontId::monospace(12.0),
-                    ..Default::default()
+                    };
+                    for line in self.terminal.screen().lines_in_phys_range(rows) {
+                        for cluster in line.cluster(None) {
+                            let fg_color =
+                                palette.resolve_fg(cluster.attrs.foreground()).into_egui();
+                            let bg_color =
+                                palette.resolve_bg(cluster.attrs.background()).into_egui();
+                            let underline = if !matches!(
+                                cluster.attrs.underline(),
+                                wezterm_term::Underline::None
+                            ) {
+                                egui::Stroke::new(
+                                    1.0,
+                                    palette
+                                        .resolve_fg(cluster.attrs.underline_color())
+                                        .into_egui(),
+                                )
+                            } else {
+                                egui::Stroke::NONE
+                            };
+                            let strikethrough = if cluster.attrs.strikethrough() {
+                                egui::Stroke::new(
+                                    1.0,
+                                    palette.resolve_fg(cluster.attrs.foreground()).into_egui(),
+                                )
+                            } else {
+                                egui::Stroke::NONE
+                            };
+                            job.append(
+                                &cluster.text,
+                                0.0,
+                                egui::TextFormat {
+                                    font_id: egui::FontId::monospace(12.0),
+                                    color: fg_color,
+                                    background: bg_color,
+                                    italics: cluster.attrs.italic(),
+                                    underline,
+                                    strikethrough,
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                        job.append(
+                            "\n",
+                            0.0,
+                            egui::TextFormat {
+                                font_id: egui::FontId::monospace(12.0),
+                                ..Default::default()
+                            },
+                        );
+                    }
+
+                    let galley = ui.fonts(|f| f.layout_job(job));
+                    let mut galley_rect = galley.rect;
+                    galley_rect.set_width(text_width * size.cols as f32);
+
+                    let cursor = galley
+                        .cursor_from_pos(egui::vec2(cursor_pos.x as f32, cursor_pos.y as f32));
+                    let cursor_pos = galley.pos_from_cursor(&cursor);
+
+                    let (response, painter) =
+                        ui.allocate_painter(galley_rect.size(), egui::Sense::click_and_drag());
+
+                    // if response.clicked() && !response.has_focus() {
+                    //     ui.memory_mut(|mem| mem.request_focus(response.id));
+                    // }
+
+                    painter.rect_filled(
+                        galley_rect.translate(response.rect.min.to_vec2()),
+                        0.0,
+                        palette.background.into_egui(),
+                    );
+
+                    painter.galley(response.rect.min, galley);
+
+                    painter.rect_stroke(
+                        egui::Rect::from_min_size(
+                            cursor_pos.min,
+                            egui::vec2(text_width, text_height),
+                        ),
+                        egui::Rounding::none(),
+                        egui::Stroke::new(1.0, egui::Color32::WHITE),
+                    );
+
+                    // if ui.memory(|mem| mem.has_focus(response.id)) {
+                    if response.hovered() {
+                        ui.output_mut(|o| o.mutable_text_under_cursor = true);
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
+                        // ui.memory_mut(|mem| mem.lock_focus(response.id, true));
+
+                        ui.input(|i| {
+                            for e in i.events.iter() {
+                                let result = match e {
+                                    egui::Event::PointerMoved(pos) => {
+                                        let relative_pos = *pos - response.rect.min;
+                                        let char_x = (relative_pos.x / 12.0) as usize;
+                                        let char_y = (relative_pos.y / 12.0) as i64;
+                                        self.terminal.mouse_event(wezterm_term::MouseEvent {
+                                            kind: wezterm_term::MouseEventKind::Move,
+                                            x: char_x,
+                                            y: char_y,
+                                            x_pixel_offset: 0,
+                                            y_pixel_offset: 0,
+                                            button: wezterm_term::MouseButton::None,
+                                            modifiers: i.modifiers.into_wez(),
+                                        })
+                                    }
+                                    egui::Event::PointerButton {
+                                        pos,
+                                        button,
+                                        pressed,
+                                        modifiers,
+                                    } => {
+                                        let relative_pos = *pos - response.rect.min;
+                                        let char_x = (relative_pos.x / text_width) as usize;
+                                        let char_y = (relative_pos.y / text_height) as i64;
+                                        self.terminal.mouse_event(wezterm_term::MouseEvent {
+                                            kind: if *pressed {
+                                                wezterm_term::MouseEventKind::Press
+                                            } else {
+                                                wezterm_term::MouseEventKind::Release
+                                            },
+                                            x: char_x,
+                                            y: char_y,
+                                            x_pixel_offset: 0,
+                                            y_pixel_offset: 0,
+                                            button: button.into_wez(),
+                                            modifiers: modifiers.into_wez(),
+                                        })
+                                    }
+                                    egui::Event::Scroll(pos) => {
+                                        let relative_pos =
+                                            i.pointer.interact_pos().unwrap() - response.rect.min;
+                                        let char_x = (relative_pos.x / text_width) as usize;
+                                        let char_y = (relative_pos.y / text_height) as i64;
+                                        self.terminal.mouse_event(wezterm_term::MouseEvent {
+                                            kind: wezterm_term::MouseEventKind::Press,
+                                            x: char_x,
+                                            y: char_y,
+                                            x_pixel_offset: 0,
+                                            y_pixel_offset: 0,
+                                            button: if pos.y.is_sign_positive() {
+                                                wezterm_term::MouseButton::WheelUp(pos.y as usize)
+                                            } else {
+                                                wezterm_term::MouseButton::WheelDown(
+                                                    -pos.y as usize,
+                                                )
+                                            },
+                                            modifiers: i.modifiers.into_wez(),
+                                        })
+                                    }
+                                    egui::Event::Key {
+                                        key,
+                                        modifiers,
+                                        pressed,
+                                        ..
+                                    } => {
+                                        if let Ok(key) = key.try_into_wez() {
+                                            if *pressed {
+                                                self.terminal.key_down(key, modifiers.into_wez())
+                                            } else {
+                                                self.terminal.key_up(key, modifiers.into_wez())
+                                            }
+                                        } else {
+                                            Ok(())
+                                        }
+                                    }
+                                    egui::Event::Text(t) => t
+                                        .chars()
+                                        .try_for_each(|c| {
+                                            self.terminal.key_down(
+                                                wezterm_term::KeyCode::Char(c),
+                                                i.modifiers.into_wez(),
+                                            )
+                                        })
+                                        .and_then(|_| {
+                                            t.chars().try_for_each(|c| {
+                                                self.terminal.key_up(
+                                                    wezterm_term::KeyCode::Char(c),
+                                                    i.modifiers.into_wez(),
+                                                )
+                                            })
+                                        }),
+                                    _ => Ok(()),
+                                };
+                                if let Err(e) = result {
+                                    eprintln!("terminal input error {e:?}");
+                                }
+                            }
+                        });
+                    }
                 },
             );
-        });
-
-        let galley = ui.fonts(|f| f.layout_job(job));
-        let cursor = galley.cursor_from_pos(egui::vec2(cursor_pos.x as f32, cursor_pos.y as f32));
-        let cursor_pos = galley.pos_from_cursor(&cursor);
-
-        let (response, painter) =
-            ui.allocate_painter(galley.rect.size(), egui::Sense::click_and_drag());
-
-        // if response.clicked() && !response.has_focus() {
-        //     ui.memory_mut(|mem| mem.request_focus(response.id));
-        // }
-
-        painter.rect_filled(
-            galley.rect.translate(response.rect.min.to_vec2()),
-            0.0,
-            palette.background.into_egui(),
-        );
-
-        painter.galley(response.rect.min, galley);
-
-        painter.rect_stroke(
-            egui::Rect::from_min_size(cursor_pos.min, egui::vec2(text_width, text_height)),
-            egui::Rounding::none(),
-            egui::Stroke::new(1.0, egui::Color32::WHITE),
-        );
-
-        // if ui.memory(|mem| mem.has_focus(response.id)) {
-        if response.hovered() {
-            ui.output_mut(|o| o.mutable_text_under_cursor = true);
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
-            // ui.memory_mut(|mem| mem.lock_focus(response.id, true));
-
-            ui.input(|i| {
-                for e in i.events.iter() {
-                    let result = match e {
-                        egui::Event::PointerMoved(pos) => {
-                            let relative_pos = *pos - response.rect.min;
-                            let char_x = (relative_pos.x / 12.0) as usize;
-                            let char_y = (relative_pos.y / 12.0) as i64;
-                            self.terminal.mouse_event(wezterm_term::MouseEvent {
-                                kind: wezterm_term::MouseEventKind::Move,
-                                x: char_x,
-                                y: char_y,
-                                x_pixel_offset: 0,
-                                y_pixel_offset: 0,
-                                button: wezterm_term::MouseButton::None,
-                                modifiers: i.modifiers.into_wez(),
-                            })
-                        }
-                        egui::Event::PointerButton {
-                            pos,
-                            button,
-                            pressed,
-                            modifiers,
-                        } => {
-                            let relative_pos = *pos - response.rect.min;
-                            let char_x = (relative_pos.x / text_width) as usize;
-                            let char_y = (relative_pos.y / text_height) as i64;
-                            self.terminal.mouse_event(wezterm_term::MouseEvent {
-                                kind: if *pressed {
-                                    wezterm_term::MouseEventKind::Press
-                                } else {
-                                    wezterm_term::MouseEventKind::Release
-                                },
-                                x: char_x,
-                                y: char_y,
-                                x_pixel_offset: 0,
-                                y_pixel_offset: 0,
-                                button: button.into_wez(),
-                                modifiers: modifiers.into_wez(),
-                            })
-                        }
-                        egui::Event::Scroll(pos) => {
-                            let relative_pos =
-                                i.pointer.interact_pos().unwrap() - response.rect.min;
-                            let char_x = (relative_pos.x / text_width) as usize;
-                            let char_y = (relative_pos.y / text_height) as i64;
-                            self.terminal.mouse_event(wezterm_term::MouseEvent {
-                                kind: wezterm_term::MouseEventKind::Press,
-                                x: char_x,
-                                y: char_y,
-                                x_pixel_offset: 0,
-                                y_pixel_offset: 0,
-                                button: if pos.y.is_sign_positive() {
-                                    wezterm_term::MouseButton::WheelUp(pos.y as usize)
-                                } else {
-                                    wezterm_term::MouseButton::WheelDown(-pos.y as usize)
-                                },
-                                modifiers: i.modifiers.into_wez(),
-                            })
-                        }
-                        egui::Event::Key {
-                            key,
-                            modifiers,
-                            pressed,
-                            ..
-                        } => {
-                            if let Ok(key) = key.try_into_wez() {
-                                if *pressed {
-                                    self.terminal.key_down(key, modifiers.into_wez())
-                                } else {
-                                    self.terminal.key_up(key, modifiers.into_wez())
-                                }
-                            } else {
-                                Ok(())
-                            }
-                        }
-                        egui::Event::Text(t) => t
-                            .chars()
-                            .try_for_each(|c| {
-                                self.terminal.key_down(
-                                    wezterm_term::KeyCode::Char(c),
-                                    i.modifiers.into_wez(),
-                                )
-                            })
-                            .and_then(|_| {
-                                t.chars().try_for_each(|c| {
-                                    self.terminal.key_up(
-                                        wezterm_term::KeyCode::Char(c),
-                                        i.modifiers.into_wez(),
-                                    )
-                                })
-                            }),
-                        _ => Ok(()),
-                    };
-                    if let Err(e) = result {
-                        eprintln!("terminal input error {e:?}");
-                    }
-                }
-            });
-        }
 
         ui.separator();
 
