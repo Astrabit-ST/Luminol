@@ -35,8 +35,10 @@ wasm builds are deployed to [luminol.dev](https://luminol.dev/#dev)! They're the
 wasm builds work great and are deployed using the awesome tool [trunk](https://trunkrs.dev)!
 
 Native builds are the main focus at the moment, but no official releases will be made until Luminol is stable.
-Instead, you will have to compile luminol yourself, by grabbing your favorite rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.
+Instead, you will have to compile luminol yourself, by grabbing your favorite nightly rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.
 Luminol has like a bajillion dependencies right now so it may take upwards of 15 minutes to compile.
+
+**You can not use one of the stable release channels.**
 
 ## Functionality
 
