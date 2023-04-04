@@ -12,6 +12,12 @@ In the future a custom .lumina format is planned, as well as ron, rvdata 1 & 2, 
 
 Luminol _may_ use `Lua` for plugins in the future. It is something I am actively looking into.
 
+### Credits
+
+- [@Speak2Erase](https://github.com/Speak2Erase): Luminol's main contributor
+- [@somedevfox](https://github.com/somedevfox): Occasional contributor and creator of rsgss (a sister project of Luminol)
+- [@Lionmeow](https://github.com/Lionmeow) designer of Luminol's icon
+
 ## RGSS version support
 
 Luminol is compatible only with **RGSS1** for now. RGSS2 & 3 use different tileset formats which Luminol does not support.
