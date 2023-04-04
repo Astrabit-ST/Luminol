@@ -17,6 +17,7 @@
 		"commands",
 		"scripts",
 		"tabs",
-		"playtest"
+		"playtest",
+		"wasm"
 	]
 }
