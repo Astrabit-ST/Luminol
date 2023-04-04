@@ -776,9 +776,9 @@ dependencies = [
 
 [[package]]
 name = "catppuccin-egui"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e508ad60790f1336e5ab24da9b809826e7ea9171281cc70e894f514f37791317"
+checksum = "c840bcad5f36bba893de10ad208359b4b6bab36c60262af8e7883f2843350475"
 dependencies = [
  "egui",
 ]
@@ -5144,7 +5144,8 @@ dependencies = [
 [[package]]
 name = "web-sys"
 version = "0.3.61"
-source = "git+https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api#ce9ffa42876a2eeba060d20715b279e21fa68e43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e33b99f4b23ba3eec1a53ac264e35a755f00e966e0065077d6027c0f575b0b97"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
