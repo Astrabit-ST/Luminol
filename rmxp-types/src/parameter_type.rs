@@ -177,4 +177,24 @@ impl ParameterType {
     pub fn falsey(&self) -> bool {
         matches!(self, Self::None | Self::Bool(false) | Self::Integer(0))
     }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn new_none() -> Self {
+        Self::None
+    }
+}
+
+impl From<()> for ParameterType {
+    fn from(_: ()) -> Self {
+        Self::None
+    }
+}
+
+impl From<&str> for ParameterType {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
+    }
 }

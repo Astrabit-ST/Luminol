@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use command_lib::{CommandDescription, Parameter, ParameterKind};
+use command_lib::{CommandDescription, CommandKind, Parameter, ParameterKind};
 use eframe::egui;
 
 pub struct UiExample {
@@ -42,8 +42,18 @@ impl UiExample {
             ui.separator();
 
             let mut index = 0;
-            for parameter in &mut self.command.parameters {
-                Self::parameter_ui(ui, parameter, &mut index);
+            match self.command.kind {
+                CommandKind::Branch {
+                    ref mut parameters, ..
+                }
+                | CommandKind::Single(ref mut parameters) => {
+                    for parameter in parameters {
+                        Self::parameter_ui(ui, parameter, &mut index);
+                    }
+                }
+                CommandKind::Multi { .. } => {
+                    ui.text_edit_multiline(&mut "".to_string());
+                }
             }
         });
         open
@@ -92,9 +102,6 @@ impl UiExample {
                     }
                     ParameterKind::String => {
                         ui.text_edit_singleline(&mut "".to_string());
-                    }
-                    ParameterKind::StringMulti { .. } => {
-                        ui.text_edit_multiline(&mut "".to_string());
                     }
                     ParameterKind::Int => {
                         ui.add(egui::DragValue::new(&mut 0i16));

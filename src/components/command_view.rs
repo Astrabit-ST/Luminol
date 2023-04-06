@@ -15,9 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use command_lib::{CommandKind, Parameter, ParameterKind};
-
 pub use crate::prelude::*;
+use command_lib::{CommandKind, Parameter, ParameterKind};
+use itertools::Itertools;
 
 pub struct CommandView {
     selected_index: usize,
@@ -25,7 +25,7 @@ pub struct CommandView {
 }
 
 enum WindowState {
-    Insert { index: usize },
+    Insert { index: usize, tab: usize },
     Edit { index: usize },
     None,
 }
@@ -96,19 +96,236 @@ impl CommandView {
         let mut open = true;
         match self.window_state {
             WindowState::Edit { index } => {
-                egui::Window::new(format!("Editing Command {index}"))
+                egui::Window::new(format!("Editing a command at {index}"))
                     .open(&mut open)
-                    .show(ui.ctx(), |ui| {});
+                    .show(ui.ctx(), |ui| {
+                        let Some(command) = commands.get_mut(index) else {
+                            self.window_state = WindowState::None;
+                            eprintln!("editing command does not exist");
+                            return;
+                        };
+                        let desc = db.get(command.code).expect(
+                            "the user is editing a command that is invalid. this should not happen",
+                        );
+
+                        ui.monospace(&desc.name);
+                        if !desc.description.is_empty() {
+                            ui.monospace(&desc.description);
+                        }
+                        ui.separator();
+
+                        match desc.kind {
+                            CommandKind::Branch { ref parameters, .. }
+                            | CommandKind::Single(ref parameters) => {
+                                for parameter in parameters {
+                                    self.parameter_ui(ui, parameter, command)
+                                }
+                            }
+                            CommandKind::Multi { code, highlight } => {
+                                let mut str = String::new();
+                                let indent = command.indent;
+
+                                for command in &mut commands[index..] {
+                                    if command.code != code && command.code != desc.code {
+                                        break;
+                                    }
+
+                                    str += command.parameters[0].into_string();
+                                    str += "\n";
+                                }
+
+                                let mut text_edit = egui::TextEdit::multiline(&mut str)
+                                    .code_editor()
+                                    .desired_width(f32::INFINITY);
+                                let mut layouter =
+                                    |ui: &egui::Ui, string: &str, wrap_width: f32| {
+                                        let theme =
+                                            syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+                                        let mut layout_job = syntax_highlighting::highlight(
+                                            ui.ctx(),
+                                            &theme,
+                                            string,
+                                            "rb",
+                                        );
+                                        layout_job.wrap.max_width = wrap_width;
+                                        ui.fonts(|f| f.layout_job(layout_job))
+                                    };
+
+                                if highlight {
+                                    text_edit = text_edit.layouter(&mut layouter);
+                                }
+
+                                if ui.add(text_edit).changed() {
+                                    println!("{str:#?}");
+                                    let mut index = index;
+                                    let mut command_code = commands[index].code;
+
+                                    for s in str.lines() {
+                                        if command_code == code || command_code == desc.code {
+                                            *get_or_resize!(commands[index].parameters, 0)
+                                                .into_string() = s.to_string();
+                                        } else {
+                                            commands.insert(
+                                                index,
+                                                rpg::EventCommand {
+                                                    code,
+                                                    indent,
+                                                    parameters: vec![s.into()],
+                                                    guid: rand::random(),
+                                                },
+                                            )
+                                        }
+                                        index += 1;
+                                        command_code = commands[index].code;
+                                    }
+
+                                    if command_code == code {
+                                        let mut range = index..index;
+                                        while commands
+                                            .get(range.end)
+                                            .is_some_and(|c| c.code == code)
+                                        {
+                                            range.end += 1;
+                                        }
+                                        println!("removing at {range:?}");
+                                        commands.drain(range);
+                                    }
+                                }
+                            }
+                        }
+                    });
             }
-            WindowState::Insert { index } => {
-                egui::Window::new(format!("Inserting Command At {index}"))
+            WindowState::Insert { index, mut tab } => {
+                egui::Window::new(format!("Inserting a command at index {index}"))
                     .open(&mut open)
-                    .show(ui.ctx(), |ui| {});
+                    .show(ui.ctx(), |ui| {
+                        ui.horizontal(|ui| {
+                            for i in 0..=(db.len() / 32) {
+                                ui.selectable_value(&mut tab, i, i.to_string());
+                                ui.separator();
+                            }
+                            self.window_state = WindowState::Insert { index, tab };
+                        });
+                        ui.separator();
+
+                        let iter = db
+                            .iter()
+                            .enumerate()
+                            .filter(|(i, _)| ((tab * 32)..((tab + 1) * 32)).contains(i))
+                            .chunks(16);
+
+                        for chunk in iter.into_iter() {
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    for (_, desc) in chunk {
+                                        let mut response = ui.button(&desc.name);
+                                        if !desc.description.is_empty() {
+                                            response =
+                                                response.on_disabled_hover_text(&desc.description);
+                                        }
+                                        if response.clicked() {
+                                            let indent = commands[index].indent;
+                                            commands.insert(
+                                                index,
+                                                rpg::EventCommand {
+                                                    code: desc.code,
+                                                    indent,
+                                                    parameters: vec![],
+                                                    guid: rand::random(),
+                                                },
+                                            );
+
+                                            self.window_state = WindowState::Edit { index };
+                                        }
+                                    }
+                                });
+
+                                ui.separator()
+                            });
+                        }
+                    });
             }
             WindowState::None => {}
         }
         if !open {
             self.window_state = WindowState::None;
+        }
+    }
+
+    #[allow(clippy::only_used_in_recursion)]
+    fn parameter_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        parameter: &Parameter,
+        command: &mut rpg::EventCommand,
+    ) {
+        match parameter {
+            Parameter::Selection {
+                index, parameters, ..
+            } => {
+                for (value, parameter) in parameters.iter() {
+                    ui.horizontal(|ui| {
+                        let selection =
+                            get_or_resize!(command.parameters, index.as_usize()).into_integer();
+                        ui.radio_value(selection, *value as _, "");
+                        ui.add_enabled_ui(*value as i32 == *selection, |ui| {
+                            self.parameter_ui(ui, parameter, command);
+                        });
+                    });
+                }
+            }
+            Parameter::Group { parameters, .. } => {
+                ui.group(|ui| {
+                    for parameter in parameters.iter() {
+                        self.parameter_ui(ui, parameter, command);
+                    }
+                });
+            }
+            Parameter::Single {
+                index,
+                description,
+                name,
+                kind,
+            } => {
+                let value = get_or_resize!(command.parameters, index.as_usize());
+                match kind {
+                    ParameterKind::Int => {
+                        ui.add(egui::DragValue::new(value.into_integer()));
+                    }
+                    ParameterKind::IntBool => {
+                        let mut bool = value.truthy();
+                        ui.checkbox(&mut bool, "");
+                        *value.into_integer() = bool as _;
+                    }
+                    ParameterKind::Enum { variants } => {
+                        let value = value.into_integer();
+                        ui.menu_button(
+                            format!(
+                                "{} ⏷",
+                                variants
+                                    .iter()
+                                    .find(|(_, i)| *i == *value as i8)
+                                    .map(|(s, _)| s.as_str())
+                                    .unwrap_or("Invalid value")
+                            ),
+                            |ui| {
+                                for (name, variant) in variants.iter() {
+                                    ui.selectable_value(value, *variant as _, name);
+                                }
+                            },
+                        );
+                    }
+
+                    ParameterKind::SelfSwitch => {}
+                    ParameterKind::Switch => {}
+                    ParameterKind::Variable => {}
+
+                    ParameterKind::String => {
+                        ui.text_edit_singleline(value.into_string());
+                    }
+                }
+            }
+            Parameter::Dummy => {}
         }
     }
 
@@ -128,7 +345,7 @@ impl CommandView {
                     .selectable_value(&mut self.selected_index, index, "#> Insert")
                     .double_clicked()
                 {
-                    self.window_state = WindowState::Insert { index };
+                    self.window_state = WindowState::Insert { index, tab: 0 };
                 }
 
                 return;
@@ -160,7 +377,7 @@ impl CommandView {
         };
 
         let response = match desc.kind {
-            CommandKind::Branch(end_code) => {
+            CommandKind::Branch { end_code, .. } => {
                 let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                     ui.ctx(),
                     egui::Id::new(command.guid),
@@ -198,30 +415,16 @@ impl CommandView {
 
                 response.1.inner
             }
-            CommandKind::Multi(rep_code) => {
-                let highlight = match desc.parameters.get(0) {
-                    Some(Parameter::Single {
-                        kind: ParameterKind::StringMulti { highlight },
-                        ..
-                    }) => *highlight,
-                    _ => {
-                        ui.label(error!("Multi command was declared incorrectly 🔥"));
-                        return;
-                    }
-                };
-
+            CommandKind::Multi { code, highlight } => {
                 let mut str = get_or_resize!(command.parameters, 0).into_string().clone();
 
                 loop {
                     match iter.peek_mut() {
-                        Some((_, command)) if command.code == rep_code => {
+                        Some((_, command)) if command.code == code => {
                             match command.parameters.get_mut(0) {
-                                Some(ParameterType::String(param_str)) => {
-                                    str += param_str;
-                                    str += "\n";
-                                }
                                 Some(p) => {
-                                    p.into_string();
+                                    str += p.into_string();
+                                    str += "\n";
                                 }
                                 None => break,
                             }
@@ -251,7 +454,7 @@ impl CommandView {
                 })
                 .inner
             }
-            CommandKind::Single => {
+            CommandKind::Single(_) => {
                 //
                 ui.selectable_value(
                     &mut self.selected_index,
@@ -267,7 +470,13 @@ impl CommandView {
             if ui.button("Insert below").clicked() {}
         });
 
-        if response.double_clicked() && !desc.parameters.is_empty() {
+        if response.double_clicked()
+            && match desc.kind {
+                CommandKind::Multi { .. } => true,
+                CommandKind::Branch { ref parameters, .. }
+                | CommandKind::Single(ref parameters) => !parameters.is_empty(),
+            }
+        {
             self.window_state = WindowState::Edit { index };
         }
     }

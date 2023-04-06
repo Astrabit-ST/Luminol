@@ -125,25 +125,27 @@ impl window::Window for CommandGeneratorWindow {
                                 ui.label("Type");
                                 ui.horizontal(|ui| {
                                     ui.menu_button(
-                                        format!("{} ⏷", <&str>::from(command.kind)),
+                                        format!("{} ⏷", <&str>::from(&command.kind)),
                                         |ui| {
                                             for kind in CommandKind::iter() {
+                                                let text =<&str>::from(&kind); 
                                                 ui.selectable_value(
                                                     &mut command.kind,
                                                     kind,
-                                                    <&str>::from(kind),
+                                                    text,
                                                 );
                                             }
                                         },
                                     );
                                     match command.kind {
-                                        CommandKind::Multi(ref mut code) =>{
+                                        CommandKind::Multi { ref mut code, ref mut highlight} =>{
                                             ui.label("Cont. Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one");
                                             ui.add(egui::DragValue::new(code));
+                                            ui.checkbox(highlight, "Enable ruby syntax highlighting");
                                         }
-                                        CommandKind::Branch(ref mut code ) => {
+                                        CommandKind::Branch { ref mut end_code, .. } => {
                                             ui.label("End Code").on_hover_text("Luminol will add this command to denote the end of the branch");
-                                            ui.add(egui::DragValue::new(code));
+                                            ui.add(egui::DragValue::new(end_code));
                                         }
                                         _ => {}
                                     }
@@ -153,31 +155,33 @@ impl window::Window for CommandGeneratorWindow {
 
                                 ui.separator();
 
-                                ui.collapsing("Parameters", |ui| {
-                                    let mut del_idx = None;
-
-                                    let mut passed_index = 0;
-                                    for (ele, parameter) in command.parameters.iter_mut().enumerate() {
-                                        parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
-
-                                        Self::recalculate_parameter_index(parameter, &mut passed_index);
-                                    }
-
-                                    if let Some(idx) = del_idx {
-                                        command.parameters.remove(idx);
-                                    }
-
-                                    if ui
-                                        .button(
-                                            egui::RichText::new("+")
-                                                .monospace()
-                                                .color(egui::Color32::GREEN),
-                                        )
-                                        .clicked()
-                                    {
-                                        command.parameters.push(Parameter::default());
-                                    }
-                                });
+                                if let CommandKind::Single(ref mut parameters) | CommandKind::Branch { ref mut parameters, .. } = command.kind {
+                                    ui.collapsing("Parameters", |ui| {
+                                        let mut del_idx = None;
+    
+                                        let mut passed_index = 0;
+                                        for (ele, parameter) in parameters.iter_mut().enumerate() {
+                                            parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
+    
+                                            Self::recalculate_parameter_index(parameter, &mut passed_index);
+                                        }
+    
+                                        if let Some(idx) = del_idx {
+                                            parameters.remove(idx);
+                                        }
+    
+                                        if ui
+                                            .button(
+                                                egui::RichText::new("+")
+                                                    .monospace()
+                                                    .color(egui::Color32::GREEN),
+                                            )
+                                            .clicked()
+                                        {
+                                            parameters.push(Parameter::default());
+                                        }
+                                    });
+                                }
                             });
 
                         if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {

@@ -17,8 +17,6 @@ pub struct CommandDescription {
     /// The type of command this is
     #[serde(default)]
     pub kind: CommandKind,
-    /// A list of parameters
-    pub parameters: Parameters,
     /// Hide this in the command ui
     #[serde(default)]
     pub hidden: bool,
@@ -34,12 +32,16 @@ pub struct CommandDescription {
 impl CommandDescription {
     /// How many total parameters does the command have?
     pub fn parameter_count(&self) -> u8 {
-        self.parameters.len() as u8
-            + self
-                .parameters
-                .iter()
-                .map(Parameter::parameter_count)
-                .sum::<u8>()
+        match self.kind {
+            CommandKind::Branch { ref parameters, .. } | CommandKind::Single(ref parameters) => {
+                parameters.len() as u8
+                    + parameters
+                        .iter()
+                        .map(Parameter::parameter_count)
+                        .sum::<u8>()
+            }
+            CommandKind::Multi { .. } => 1,
+        }
     }
 }
 
@@ -49,27 +51,34 @@ impl Default for CommandDescription {
             code: 0,
             name: "New Command".to_string(),
             description: "".to_string(),
-            kind: CommandKind::Single,
-            parameters: vec![],
+            kind: CommandKind::default(),
             hidden: false,
             guid: rand::random(),
         }
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Copy, Debug, Default, EnumIter, IntoStaticStr)]
+#[derive(Deserialize, Serialize, Clone, Debug, EnumIter, IntoStaticStr)]
 pub enum CommandKind {
     /// This command is a branch
     ///
     /// The Code is used to place an empty EventCommand at the end of the branch
-    Branch(Code),
+    Branch {
+        end_code: Code,
+        parameters: Parameters,
+    },
     /// This command spans multiple event commands
     ///
     /// This type is reserved for multiline text commands
-    Multi(Code),
+    Multi { code: Code, highlight: bool },
     /// This is a basic command
-    #[default]
-    Single,
+    Single(Parameters),
+}
+
+impl Default for CommandKind {
+    fn default() -> Self {
+        CommandKind::Single(vec![])
+    }
 }
 
 // This is for the sake of command-gen
@@ -144,6 +153,10 @@ impl Index {
             Self::Assumed(i) | Self::Overridden(i) => i,
         }
     }
+
+    pub fn as_usize(self) -> usize {
+        self.as_u8() as usize
+    }
 }
 
 impl Default for Index {
@@ -192,11 +205,6 @@ pub enum ParameterKind {
 
     /// Parameter is a string
     String,
-    /// Parameter is a multi-line/command string
-    StringMulti {
-        /// Wether to syntax highlight this command
-        highlight: bool,
-    },
 
     /// Parameter is a signed integer
     #[default]

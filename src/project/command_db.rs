@@ -52,4 +52,20 @@ impl CommandDB {
             .find(|c| c.code == code)
             .or_else(|| self.default.iter().find(|c| c.code == code))
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &CommandDescription> {
+        self.default.iter().chain(self.user.iter())
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut CommandDescription> {
+        self.default.iter_mut().chain(self.user.iter_mut())
+    }
+
+    pub fn len(&self) -> usize {
+        self.default.len() + self.user.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }

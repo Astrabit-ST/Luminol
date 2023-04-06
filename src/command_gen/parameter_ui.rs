@@ -156,52 +156,45 @@ pub fn parameter_ui(
                 });
             });
 
-            match kind {
-                ParameterKind::StringMulti { ref mut highlight } => {
-                    ui.checkbox(highlight, "Enable ruby syntax highlighting");
-                }
-                ParameterKind::Enum { ref mut variants } => {
-                    ui.collapsing("Variants", |ui| {
-                        let mut del_idx = None;
-                        for (ele, (name, id)) in variants.iter_mut().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.text_edit_singleline(name);
-                                ui.add(egui::DragValue::new(id));
+            if let ParameterKind::Enum { ref mut variants } = kind {
+                ui.collapsing("Variants", |ui| {
+                    let mut del_idx = None;
+                    for (ele, (name, id)) in variants.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.text_edit_singleline(name);
+                            ui.add(egui::DragValue::new(id));
 
-                                if ui
-                                    .button(
-                                        egui::RichText::new("-")
-                                            .monospace()
-                                            .color(egui::Color32::RED),
-                                    )
-                                    .clicked()
-                                {
-                                    del_idx = Some(ele);
-                                }
-                            });
-                        }
+                            if ui
+                                .button(
+                                    egui::RichText::new("-")
+                                        .monospace()
+                                        .color(egui::Color32::RED),
+                                )
+                                .clicked()
+                            {
+                                del_idx = Some(ele);
+                            }
+                        });
+                    }
 
-                        if let Some(idx) = del_idx {
-                            variants.remove(idx);
-                        }
+                    if let Some(idx) = del_idx {
+                        variants.remove(idx);
+                    }
 
-                        if ui
-                            .button(
-                                egui::RichText::new("+")
-                                    .monospace()
-                                    .color(egui::Color32::GREEN),
-                            )
-                            .clicked()
-                        {
-                            variants.push(("".to_string(), 0));
-                        }
-                    })
-                    .header_response
-                    .on_disabled_hover_text("Variants for the enum");
-                }
-
-                _ => {}
-            };
+                    if ui
+                        .button(
+                            egui::RichText::new("+")
+                                .monospace()
+                                .color(egui::Color32::GREEN),
+                        )
+                        .clicked()
+                    {
+                        variants.push(("".to_string(), 0));
+                    }
+                })
+                .header_response
+                .on_disabled_hover_text("Variants for the enum");
+            }
         }
         Parameter::Dummy => {}
     }

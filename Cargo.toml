@@ -67,6 +67,8 @@ catppuccin-egui = "2.0.1"
 command-lib = { version = "*", path = "command-lib" }
 rmxp-types = { version = "*", path = "rmxp-types" }
 
+itertools = "0.10"
+
 [features]
 default = ["generic-tilemap"]
 generic-tilemap = []

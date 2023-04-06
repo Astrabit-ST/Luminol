@@ -827,7 +827,7 @@ impl<'de> serde::Deserialize<'de> for Script {
                 let mut script = String::new();
                 decoder
                     .read_to_string(&mut script)
-                    .map_err(|e| A::Error::custom(e.to_string()))?;
+                    .map_err(A::Error::custom)?;
 
                 Ok(Script {
                     name,
@@ -855,7 +855,7 @@ impl Serialize for Script {
         let data = encoder
             .write_all(self.script_text.as_bytes())
             .and_then(|_| encoder.finish())
-            .map_err(|e| S::Error::custom(e.to_string()))?;
+            .map_err(S::Error::custom)?;
 
         seq.serialize_element(&0usize)?;
         seq.serialize_element(&self.name)?;
