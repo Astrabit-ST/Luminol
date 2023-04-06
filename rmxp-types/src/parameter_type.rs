@@ -111,6 +111,24 @@ macro_rules! variant_impl {
                     }
                 }
 
+                #[doc = "Converts this parameter into a `" $name "` if it is not already, replacing it with the provided default."]
+                pub fn [<into_ $name:lower _with>](&mut self, default: $type) -> &mut $type {
+                    match self {
+                        ParameterType::$name(ref mut v) => v,
+                        _ => {
+                            #[cfg(debug_assertions)]
+                            eprintln!(concat!("Parameter was of wrong type, expected ", stringify!($name), " got {:#?} instead"), self);
+
+                            *self = ParameterType::$name(default);
+
+                            match self {
+                                ParameterType::$name(ref mut v) => v,
+                                _ => unreachable!(),
+                            }
+                        }
+                    }
+                }
+
                 #[doc = "Gets this parameter as a reference to `" $name "` and returns None if the parameter was not a `" $name "`."]
                 pub fn [<as_ $name:lower>](&self) -> Option<&$type> {
                     match self {

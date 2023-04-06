@@ -129,10 +129,13 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.switch1_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch1_valid, |ui| {
-                                            switch::Modal::new(format!(
-                                                "event_{}_{}_switch1",
-                                                self.id, self.map_id
-                                            ))
+                                            switch::Modal::new(
+                                                format!(
+                                                    "event_{}_{}_switch1",
+                                                    self.id, self.map_id
+                                                )
+                                                .into(),
+                                            )
                                             .button(
                                                 ui,
                                                 &mut self.modals.0,
@@ -146,10 +149,13 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.switch2_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch2_valid, |ui| {
-                                            switch::Modal::new(format!(
-                                                "event_{}_{}_switch2",
-                                                self.id, self.map_id
-                                            ))
+                                            switch::Modal::new(
+                                                format!(
+                                                    "event_{}_{}_switch2",
+                                                    self.id, self.map_id
+                                                )
+                                                .into(),
+                                            )
                                             .button(
                                                 ui,
                                                 &mut self.modals.1,
@@ -163,10 +169,13 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.variable_valid, "Variable");
 
                                         ui.add_enabled_ui(page.condition.variable_valid, |ui| {
-                                            variable::Modal::new(format!(
-                                                "event_{}_{}_variable",
-                                                self.id, self.map_id
-                                            ))
+                                            variable::Modal::new(
+                                                format!(
+                                                    "event_{}_{}_variable",
+                                                    self.id, self.map_id
+                                                )
+                                                .into(),
+                                            )
                                             .button(
                                                 ui,
                                                 &mut self.modals.2,

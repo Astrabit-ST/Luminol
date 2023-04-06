@@ -123,6 +123,11 @@ pub enum Parameter {
         name: String,
         /// Type of parameter
         kind: ParameterKind,
+
+        /// Ignore, used for command-gen
+        #[serde(skip)]
+        #[serde(default = "rand::random")]
+        guid: u64,
     },
 
     /// A dummy parameter used for padding

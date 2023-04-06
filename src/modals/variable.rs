@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::prelude::*;
-use std::hash::Hash;
 
 /// The variable picker modal.
 pub struct Modal {
@@ -25,10 +24,8 @@ pub struct Modal {
 
 impl Modal {
     /// Create a new modal.
-    pub fn new(id: impl Hash) -> Self {
-        Self {
-            id: egui::Id::new(id),
-        }
+    pub fn new(id: egui::Id) -> Self {
+        Self { id }
     }
 }
 

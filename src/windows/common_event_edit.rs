@@ -115,12 +115,8 @@ impl tab::Tab for CommonEventTab {
                 });
 
             ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                switch::Modal::new(format!("common_event_{}_trigger_switch", self.event.id)).button(
-                    ui,
-                    &mut self.switch_open,
-                    &mut self.event.switch_id,
-                    info,
-                )
+                switch::Modal::new(format!("common_event_{}_trigger_switch", self.event.id).into())
+                    .button(ui, &mut self.switch_open, &mut self.event.switch_id, info)
             });
 
             let mut save_event = false;
@@ -141,7 +137,7 @@ impl tab::Tab for CommonEventTab {
             if save_event {
                 let mut common_events = info.data_cache.commonevents();
 
-                common_events[self.event.id] = self.event.clone();
+                common_events[self.event.id - 1] = self.event.clone();
             }
 
             ui.label("Name");
@@ -154,7 +150,7 @@ impl tab::Tab for CommonEventTab {
             .auto_shrink([false; 2])
             .show(ui, |ui| {
                 self.command_view
-                    .ui(ui, &info.data_cache.commanddb(), &mut self.event.list);
+                    .ui(ui, &info.data_cache.commanddb(), &mut self.event.list, info);
             });
     }
 

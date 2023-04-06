@@ -20,11 +20,13 @@ use std::hash::Hash;
 pub use crate::prelude::*;
 use command_lib::{CommandKind, Parameter, ParameterKind};
 use itertools::Itertools;
+use std::collections::HashMap;
 
 pub struct CommandView {
     selected_index: usize,
     window_state: WindowState,
     id: egui::Id,
+    modals: HashMap<u64, bool>, // todo find a better way to handle modals
 }
 
 enum WindowState {
@@ -39,6 +41,7 @@ impl Default for CommandView {
             selected_index: 0,
             window_state: WindowState::None,
             id: egui::Id::new("command_view"),
+            modals: HashMap::new(),
         }
     }
 }
@@ -85,7 +88,13 @@ impl CommandView {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn ui(&mut self, ui: &mut egui::Ui, db: &CommandDB, commands: &mut Vec<rpg::EventCommand>) {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        db: &CommandDB,
+        commands: &mut Vec<rpg::EventCommand>,
+        info: &'static UpdateInfo,
+    ) {
         ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
         let mut iter = commands.iter_mut().enumerate().peekable();
         while let Some(i) = iter.next() {
@@ -126,7 +135,7 @@ impl CommandView {
                             CommandKind::Branch { ref parameters, .. }
                             | CommandKind::Single(ref parameters) => {
                                 for parameter in parameters {
-                                    self.parameter_ui(ui, parameter, command)
+                                    self.parameter_ui(ui, parameter, command, info)
                                 }
                             }
                             CommandKind::Multi { code, highlight } => {
@@ -265,18 +274,25 @@ impl CommandView {
         ui: &mut egui::Ui,
         parameter: &Parameter,
         command: &mut rpg::EventCommand,
+        info: &'static UpdateInfo,
     ) {
         match parameter {
             Parameter::Selection {
                 index, parameters, ..
             } => {
+                if !parameters.iter().map(|(i, _)| *i).any(|v| {
+                    v as i32 == *get_or_resize!(command.parameters, index.as_usize()).into_integer()
+                }) {
+                    ui.label(error!("Your definition of this command is likely incomplete. This selection has an out of bounds value 🔥"));
+                    return;
+                }
                 for (value, parameter) in parameters.iter() {
                     ui.horizontal(|ui| {
                         let selection =
                             get_or_resize!(command.parameters, index.as_usize()).into_integer();
                         ui.radio_value(selection, *value as _, "");
                         ui.add_enabled_ui(*value as i32 == *selection, |ui| {
-                            self.parameter_ui(ui, parameter, command);
+                            self.parameter_ui(ui, parameter, command, info);
                         });
                     });
                 }
@@ -284,7 +300,7 @@ impl CommandView {
             Parameter::Group { parameters, .. } => {
                 ui.group(|ui| {
                     for parameter in parameters.iter() {
-                        self.parameter_ui(ui, parameter, command);
+                        self.parameter_ui(ui, parameter, command, info);
                     }
                 });
             }
@@ -293,6 +309,7 @@ impl CommandView {
                 description,
                 name,
                 kind,
+                guid,
             } => {
                 let value = get_or_resize!(command.parameters, index.as_usize());
                 match kind {
@@ -323,9 +340,26 @@ impl CommandView {
                         );
                     }
 
-                    ParameterKind::SelfSwitch => {}
-                    ParameterKind::Switch => {}
-                    ParameterKind::Variable => {}
+                    ParameterKind::SelfSwitch => {
+                        let value = value.into_string_with("A".to_string()); // we convert the value into
+                        ui.menu_button(format!("Self Switch {value} ⏷"), |ui| {
+                            ui.selectable_value(value, "A".to_string(), "A");
+                            ui.selectable_value(value, "B".to_string(), "B");
+                            ui.selectable_value(value, "C".to_string(), "C");
+                            ui.selectable_value(value, "D".to_string(), "D");
+                        });
+                    }
+                    ParameterKind::Switch => {
+                        let mut data = *value.into_integer_with(1) as usize;
+                        let state = self.modals.entry(*guid).or_insert(false);
+                        switch::Modal::new(self.id.with(guid)).button(ui, state, &mut data, info);
+                        *value.into_integer() = data as i32;
+                    }
+                    ParameterKind::Variable => {
+                        let mut data = *value.into_integer_with(1) as usize;
+                        let state = self.modals.entry(*guid).or_insert(false);
+                        variable::Modal::new(self.id.with(guid)).button(ui, state, &mut data, info);
+                    }
 
                     ParameterKind::String => {
                         ui.text_edit_singleline(value.into_string());

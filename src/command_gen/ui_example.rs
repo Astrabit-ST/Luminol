@@ -87,6 +87,7 @@ impl UiExample {
                 description,
                 name,
                 kind,
+                ..
             } => {
                 if !name.is_empty() {
                     ui.label(format!("[{}]: {}", parameter_index.as_u8(), name,))

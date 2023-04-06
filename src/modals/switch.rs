@@ -15,9 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::hash::Hash;
-
-pub use crate::prelude::*;
+use crate::prelude::*;
 
 /// The switch picker modal.
 pub struct Modal {
@@ -26,10 +24,8 @@ pub struct Modal {
 
 impl Modal {
     /// Create a new modal.
-    pub fn new(id: impl Hash) -> Self {
-        Self {
-            id: egui::Id::new(id),
-        }
+    pub fn new(id: egui::Id) -> Self {
+        Self { id }
     }
 }
 
