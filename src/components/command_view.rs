@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::hash::Hash;
+
 pub use crate::prelude::*;
 use command_lib::{CommandKind, Parameter, ParameterKind};
 use itertools::Itertools;
@@ -22,6 +24,7 @@ use itertools::Itertools;
 pub struct CommandView {
     selected_index: usize,
     window_state: WindowState,
+    id: egui::Id,
 }
 
 enum WindowState {
@@ -35,6 +38,7 @@ impl Default for CommandView {
         Self {
             selected_index: 0,
             window_state: WindowState::None,
+            id: egui::Id::new("command_view"),
         }
     }
 }
@@ -73,8 +77,11 @@ macro_rules! get_or_return {
 }
 
 impl CommandView {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(id: impl Hash) -> Self {
+        Self {
+            id: egui::Id::new(id),
+            ..Default::default()
+        }
     }
 
     #[allow(clippy::ptr_arg)]
@@ -98,6 +105,7 @@ impl CommandView {
             WindowState::Edit { index } => {
                 egui::Window::new(format!("Editing a command at {index}"))
                     .open(&mut open)
+                    .id(self.id.with("window"))
                     .show(ui.ctx(), |ui| {
                         let Some(command) = commands.get_mut(index) else {
                             self.window_state = WindowState::None;
@@ -156,7 +164,6 @@ impl CommandView {
                                 }
 
                                 if ui.add(text_edit).changed() {
-                                    println!("{str:#?}");
                                     let mut index = index;
                                     let mut command_code = commands[index].code;
 
@@ -187,7 +194,6 @@ impl CommandView {
                                         {
                                             range.end += 1;
                                         }
-                                        println!("removing at {range:?}");
                                         commands.drain(range);
                                     }
                                 }
@@ -198,6 +204,7 @@ impl CommandView {
             WindowState::Insert { index, mut tab } => {
                 egui::Window::new(format!("Inserting a command at index {index}"))
                     .open(&mut open)
+                    .id(self.id.with("window"))
                     .show(ui.ctx(), |ui| {
                         ui.horizontal(|ui| {
                             for i in 0..=(db.len() / 32) {
@@ -423,8 +430,8 @@ impl CommandView {
                         Some((_, command)) if command.code == code => {
                             match command.parameters.get_mut(0) {
                                 Some(p) => {
-                                    str += p.into_string();
                                     str += "\n";
+                                    str += p.into_string();
                                 }
                                 None => break,
                             }

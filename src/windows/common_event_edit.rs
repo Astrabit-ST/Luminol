@@ -72,7 +72,9 @@ impl window::Window for Window {
                                         event: event.clone(),
                                         force_close: false,
                                         switch_open: false,
-                                        command_view: CommandView::new(),
+                                        command_view: CommandView::new(format!(
+                                            "common_event_{ele}"
+                                        )),
                                     });
                                 }
                             }
