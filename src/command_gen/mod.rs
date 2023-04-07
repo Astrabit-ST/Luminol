@@ -119,6 +119,8 @@ impl window::Window for CommandGeneratorWindow {
                                 ui.label("Description:");
                                 ui.text_edit_multiline(&mut command.description)
                                     .on_hover_text("Description for this command");
+                                ui.label("Lumi help text");
+                                ui.text_edit_multiline(&mut command.lumi_text).on_hover_text("This text will be shown by lumi if she's enabled");
 
                                 ui.separator();
 
@@ -128,7 +130,7 @@ impl window::Window for CommandGeneratorWindow {
                                         format!("{} ⏷", <&str>::from(&command.kind)),
                                         |ui| {
                                             for kind in CommandKind::iter() {
-                                                let text =<&str>::from(&kind); 
+                                                let text =<&str>::from(&kind);
                                                 ui.selectable_value(
                                                     &mut command.kind,
                                                     kind,
@@ -158,18 +160,18 @@ impl window::Window for CommandGeneratorWindow {
                                 if let CommandKind::Single(ref mut parameters) | CommandKind::Branch { ref mut parameters, .. } = command.kind {
                                     ui.collapsing("Parameters", |ui| {
                                         let mut del_idx = None;
-    
+
                                         let mut passed_index = 0;
                                         for (ele, parameter) in parameters.iter_mut().enumerate() {
                                             parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
-    
+
                                             Self::recalculate_parameter_index(parameter, &mut passed_index);
                                         }
-    
+
                                         if let Some(idx) = del_idx {
                                             parameters.remove(idx);
                                         }
-    
+
                                         if ui
                                             .button(
                                                 egui::RichText::new("+")

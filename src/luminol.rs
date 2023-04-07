@@ -17,6 +17,7 @@
 
 use std::collections::VecDeque;
 
+use crate::lumi::Lumi;
 use crate::prelude::*;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
@@ -24,6 +25,7 @@ pub struct Luminol {
     top_bar: TopBar,
     info: &'static UpdateInfo,
     style: Arc<egui::Style>,
+    lumi: Lumi,
 }
 
 impl Luminol {
@@ -47,6 +49,8 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
+        let lumi = Lumi::new().expect("failed to load lumi images");
+
         Self {
             top_bar: TopBar::default(),
             info: Box::leak(Box::new(UpdateInfo::new(
@@ -54,6 +58,7 @@ impl Luminol {
                 state,
             ))),
             style,
+            lumi,
         }
     }
 }
@@ -87,21 +92,19 @@ impl eframe::App for Luminol {
             self.info.tabs.ui(ui, self.info);
         });
 
-        {
-            // Update all windows.
-            self.info.windows.update(ctx, self.info);
-        }
+        // Update all windows.
+        self.info.windows.update(ctx, self.info);
 
         // Show toasts.
-        {
-            self.info.toasts.show(ctx);
-        }
+        self.info.toasts.show(ctx);
 
         // Tick futures.
         #[cfg(not(target_arch = "wasm32"))]
         {
             poll_promise::tick_local();
         }
+
+        self.lumi.ui(ctx, self.info);
     }
 
     fn persist_egui_memory(&self) -> bool {

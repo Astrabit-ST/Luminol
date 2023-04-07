@@ -101,13 +101,23 @@ impl CommandView {
             self.command_ui(ui, db, i, &mut iter);
         }
 
-        if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-            self.selected_index = self.selected_index.saturating_sub(1);
-        }
+        ui.input(|i| {
+            if i.key_pressed(egui::Key::ArrowUp) {
+                self.selected_index = self.selected_index.saturating_sub(1);
+            }
 
-        if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-            self.selected_index = (self.selected_index + 1).min(commands.len() - 1);
-        }
+            if i.key_pressed(egui::Key::ArrowDown) {
+                self.selected_index = (self.selected_index + 1).min(commands.len() - 1);
+            }
+
+            if i.key_pressed(egui::Key::Enter) {
+                let index = self.selected_index;
+                match commands[index].code {
+                    0 => self.window_state = WindowState::Insert { index, tab: 0 },
+                    _ => self.window_state = WindowState::Edit { index },
+                }
+            }
+        });
 
         let mut open = true;
         match self.window_state {
@@ -250,6 +260,27 @@ impl CommandView {
                                                     guid: rand::random(),
                                                 },
                                             );
+                                            if let CommandKind::Branch { end_code, .. } = desc.kind
+                                            {
+                                                commands.insert(
+                                                    index + 1,
+                                                    rpg::EventCommand {
+                                                        code: 0,
+                                                        indent: indent + 1,
+                                                        parameters: vec![],
+                                                        guid: rand::random(),
+                                                    },
+                                                );
+                                                commands.insert(
+                                                    index + 2,
+                                                    rpg::EventCommand {
+                                                        code: end_code,
+                                                        indent,
+                                                        parameters: vec![],
+                                                        guid: rand::random(),
+                                                    },
+                                                );
+                                            }
 
                                             self.window_state = WindowState::Edit { index };
                                         }
@@ -367,6 +398,9 @@ impl CommandView {
                 }
             }
             Parameter::Dummy => {}
+            Parameter::Label(l) => {
+                ui.label(l);
+            }
         }
     }
 
@@ -506,9 +540,19 @@ impl CommandView {
         };
 
         let response = response.context_menu(|ui| {
-            if ui.button("Insert above").clicked() {}
+            if ui.button("Insert above").clicked() {
+                self.window_state = WindowState::Insert {
+                    index: index.saturating_sub(1),
+                    tab: 0,
+                };
+            }
             if ui.button("Delete").clicked() {}
-            if ui.button("Insert below").clicked() {}
+            if ui.button("Insert below").clicked() {
+                self.window_state = WindowState::Insert {
+                    index: index + 1,
+                    tab: 0,
+                };
+            }
         });
 
         if response.double_clicked()

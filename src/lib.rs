@@ -70,6 +70,9 @@ pub mod tabs;
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem;
 
+/// The code for handling lumi, the friendly world machine!
+pub mod lumi;
+
 pub use luminol::Luminol;
 use saved_state::SavedState;
 use tabs::tab::Tab;

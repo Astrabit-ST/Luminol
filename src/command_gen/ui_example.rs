@@ -128,6 +128,9 @@ impl UiExample {
                 }
             }
             Parameter::Dummy => {}
+            Parameter::Label(ref l) => {
+                ui.label(l);
+            }
         }
 
         *index += 1;

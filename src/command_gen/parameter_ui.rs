@@ -69,29 +69,31 @@ pub fn parameter_ui(
             guid,
         } => {
             ui.push_id(guid, |ui| {
-                ui.collapsing("Grouped parameters", |ui| {
-                    let mut del_idx = None;
-                    for (ele, parameter) in parameters.iter_mut().enumerate() {
-                        parameter_ui(ui, parameter, (ele, &mut del_idx))
-                    }
+                egui::CollapsingHeader::new("Grouped parameters")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        let mut del_idx = None;
+                        for (ele, parameter) in parameters.iter_mut().enumerate() {
+                            parameter_ui(ui, parameter, (ele, &mut del_idx))
+                        }
 
-                    if let Some(idx) = del_idx {
-                        parameters.remove(idx);
-                    }
+                        if let Some(idx) = del_idx {
+                            parameters.remove(idx);
+                        }
 
-                    if ui
-                        .button(
-                            egui::RichText::new("+")
-                                .monospace()
-                                .color(egui::Color32::GREEN),
-                        )
-                        .clicked()
-                    {
-                        parameters.push(Parameter::default());
-                    }
-                })
-                .header_response
-                .on_hover_text("This parameter groups together other parameters");
+                        if ui
+                            .button(
+                                egui::RichText::new("+")
+                                    .monospace()
+                                    .color(egui::Color32::GREEN),
+                            )
+                            .clicked()
+                        {
+                            parameters.push(Parameter::default());
+                        }
+                    })
+                    .header_response
+                    .on_hover_text("This parameter groups together other parameters");
             });
         }
         Parameter::Selection {
@@ -100,33 +102,39 @@ pub fn parameter_ui(
             ..
         } => {
             ui.push_id(guid, |ui| {
-                ui.collapsing("Subparameters", |ui| {
-                    let mut del_idx = None;
-                    for (ele, (id, parameter)) in parameters.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::DragValue::new(id));
+                egui::CollapsingHeader::new("Subparameters")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        let mut del_idx = None;
+                        for (ele, (id, parameter)) in parameters.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.add(egui::DragValue::new(id));
 
-                            ui.vertical(|ui| parameter_ui(ui, parameter, (ele, &mut del_idx)));
-                        });
-                    }
+                                ui.group(|ui| {
+                                    ui.vertical(|ui| {
+                                        parameter_ui(ui, parameter, (ele, &mut del_idx))
+                                    });
+                                });
+                            });
+                        }
 
-                    if let Some(idx) = del_idx {
-                        parameters.remove(idx);
-                    }
+                        if let Some(idx) = del_idx {
+                            parameters.remove(idx);
+                        }
 
-                    if ui
-                        .button(
-                            egui::RichText::new("+")
-                                .monospace()
-                                .color(egui::Color32::GREEN),
-                        )
-                        .clicked()
-                    {
-                        parameters.push((0, Parameter::default()));
-                    }
-                })
-                .header_response
-                .on_hover_text("This parameter selects one of the following parameters");
+                        if ui
+                            .button(
+                                egui::RichText::new("+")
+                                    .monospace()
+                                    .color(egui::Color32::GREEN),
+                            )
+                            .clicked()
+                        {
+                            parameters.push((0, Parameter::default()));
+                        }
+                    })
+                    .header_response
+                    .on_hover_text("This parameter selects one of the following parameters");
             });
         }
         Parameter::Single {
@@ -157,46 +165,51 @@ pub fn parameter_ui(
             });
 
             if let ParameterKind::Enum { ref mut variants } = kind {
-                ui.collapsing("Variants", |ui| {
-                    let mut del_idx = None;
-                    for (ele, (name, id)) in variants.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.text_edit_singleline(name);
-                            ui.add(egui::DragValue::new(id));
+                egui::CollapsingHeader::new("Variants")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        let mut del_idx = None;
+                        for (ele, (name, id)) in variants.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.text_edit_singleline(name);
+                                ui.add(egui::DragValue::new(id));
 
-                            if ui
-                                .button(
-                                    egui::RichText::new("-")
-                                        .monospace()
-                                        .color(egui::Color32::RED),
-                                )
-                                .clicked()
-                            {
-                                del_idx = Some(ele);
-                            }
-                        });
-                    }
+                                if ui
+                                    .button(
+                                        egui::RichText::new("-")
+                                            .monospace()
+                                            .color(egui::Color32::RED),
+                                    )
+                                    .clicked()
+                                {
+                                    del_idx = Some(ele);
+                                }
+                            });
+                        }
 
-                    if let Some(idx) = del_idx {
-                        variants.remove(idx);
-                    }
+                        if let Some(idx) = del_idx {
+                            variants.remove(idx);
+                        }
 
-                    if ui
-                        .button(
-                            egui::RichText::new("+")
-                                .monospace()
-                                .color(egui::Color32::GREEN),
-                        )
-                        .clicked()
-                    {
-                        variants.push(("".to_string(), 0));
-                    }
-                })
-                .header_response
-                .on_disabled_hover_text("Variants for the enum");
+                        if ui
+                            .button(
+                                egui::RichText::new("+")
+                                    .monospace()
+                                    .color(egui::Color32::GREEN),
+                            )
+                            .clicked()
+                        {
+                            variants.push(("".to_string(), 0));
+                        }
+                    })
+                    .header_response
+                    .on_disabled_hover_text("Variants for the enum");
             }
         }
         Parameter::Dummy => {}
+        Parameter::Label(label) => {
+            ui.text_edit_singleline(label);
+        }
     }
     ui.separator();
 }

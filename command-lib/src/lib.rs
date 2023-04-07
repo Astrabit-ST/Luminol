@@ -21,6 +21,10 @@ pub struct CommandDescription {
     #[serde(default)]
     pub hidden: bool,
 
+    /// The text used by lumi!
+    #[serde(default)]
+    pub lumi_text: String,
+
     /// A unique guid
     ///
     /// Used mainly in command-gen to prevent conflicts with egui::Id
@@ -53,6 +57,7 @@ impl Default for CommandDescription {
             description: "".to_string(),
             kind: CommandKind::default(),
             hidden: false,
+            lumi_text: "".to_string(),
             guid: rand::random(),
         }
     }
@@ -133,6 +138,9 @@ pub enum Parameter {
     /// A dummy parameter used for padding
     #[default]
     Dummy,
+
+    /// A parameter used as a label
+    Label(String),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq)]
