@@ -98,7 +98,7 @@ impl CommandView {
         ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
         let mut iter = commands.iter_mut().enumerate().peekable();
         while let Some(i) = iter.next() {
-            self.command_ui(ui, db, i, &mut iter);
+            self.command_ui(ui, db, i, &mut iter, info);
         }
 
         ui.input(|i| {
@@ -335,6 +335,11 @@ impl CommandView {
                     }
                 });
             }
+            Parameter::Dummy => {}
+            Parameter::Label(l) => {
+                ui.label(l);
+            }
+
             Parameter::Single {
                 index,
                 description,
@@ -342,6 +347,21 @@ impl CommandView {
                 kind,
                 guid,
             } => {
+                if !ui.is_enabled() {
+                    match kind {
+                        ParameterKind::Int => {
+                            ui.add(egui::DragValue::new(&mut 0));
+                        }
+                        ParameterKind::String => {
+                            ui.text_edit_singleline(&mut "");
+                        }
+                        _ => {
+                            let _ = ui.button("Disabled");
+                        }
+                    }
+                    return;
+                }
+
                 let value = get_or_resize!(command.parameters, index.as_usize());
                 match kind {
                     ParameterKind::Int => {
@@ -390,16 +410,13 @@ impl CommandView {
                         let mut data = *value.into_integer_with(1) as usize;
                         let state = self.modals.entry(*guid).or_insert(false);
                         variable::Modal::new(self.id.with(guid)).button(ui, state, &mut data, info);
+                        *value.into_integer() = data as i32;
                     }
 
                     ParameterKind::String => {
                         ui.text_edit_singleline(value.into_string());
                     }
                 }
-            }
-            Parameter::Dummy => {}
-            Parameter::Label(l) => {
-                ui.label(l);
             }
         }
     }
@@ -410,6 +427,7 @@ impl CommandView {
         db: &CommandDB,
         (index, command): (usize, &'i mut rpg::EventCommand),
         iter: &mut std::iter::Peekable<I>,
+        info: &'static UpdateInfo,
     ) where
         I: Iterator<Item = (usize, &'i mut rpg::EventCommand)>,
     {
@@ -451,6 +469,20 @@ impl CommandView {
             }
         };
 
+        let label = match desc.kind {
+            CommandKind::Branch { ref parameters, .. } | CommandKind::Single(ref parameters) => {
+                let mut str = format!("[{}] {}:", desc.code, desc.name);
+
+                for parameter in parameters.iter() {
+                    Self::parameter_label(&mut str, parameter, command, info)
+                        .expect("failed to format");
+                }
+
+                Some(str)
+            }
+            CommandKind::Multi { .. } => None,
+        };
+
         let response = match desc.kind {
             CommandKind::Branch { end_code, .. } => {
                 let header = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -465,7 +497,7 @@ impl CommandView {
                         ui.selectable_value(
                             &mut self.selected_index,
                             index,
-                            color_text!(format!("[{}]: {}", desc.code, desc.name), Color32::BLUE),
+                            color_text!(label.unwrap(), Color32::BLUE),
                         )
                     })
                     .body(|ui| {
@@ -474,7 +506,7 @@ impl CommandView {
                                 break;
                             }
 
-                            self.command_ui(ui, db, (index, command), iter);
+                            self.command_ui(ui, db, (index, command), iter, info);
                         }
                     });
 
@@ -531,11 +563,7 @@ impl CommandView {
             }
             CommandKind::Single(_) => {
                 //
-                ui.selectable_value(
-                    &mut self.selected_index,
-                    index,
-                    format!("[{}]: {}", desc.code, desc.name),
-                )
+                ui.selectable_value(&mut self.selected_index, index, label.unwrap())
             }
         };
 
@@ -563,6 +591,84 @@ impl CommandView {
             }
         {
             self.window_state = WindowState::Edit { index };
+        }
+    }
+
+    fn parameter_label(
+        string: &mut String,
+        parameter: &Parameter,
+        command: &mut rpg::EventCommand,
+        info: &'static UpdateInfo,
+    ) -> std::fmt::Result {
+        use std::fmt::Write;
+
+        match parameter {
+            Parameter::Group { parameters, .. } => parameters
+                .iter()
+                .try_for_each(|p| Self::parameter_label(string, p, command, info)),
+            Parameter::Selection {
+                parameters, index, ..
+            } => {
+                let Some((_, parameter)) = parameters.iter().find(|(i, _)| {
+                    *i as i32
+                        == match command.parameters.get_mut(index.as_usize()) {
+                            Some(i) => *i.into_integer(),
+                            None => return false
+                        }
+                }) else {
+                    return write!(string, " invalid selection");
+                };
+                Self::parameter_label(string, parameter, command, info)
+            }
+            Parameter::Single { kind, index, .. } => {
+                let Some(value) = command.parameters.get_mut(index.as_usize()) else {
+                    return write!(string, " missing value");
+                };
+                match kind {
+                    ParameterKind::Int => {
+                        write!(string, " {}", value.into_integer())
+                    }
+                    ParameterKind::Switch => {
+                        let id = *value.into_integer() as usize;
+                        let system = info.data_cache.system();
+                        let switch = system
+                            .variables
+                            .get(id)
+                            .map(String::as_str)
+                            .unwrap_or(" invalid switch");
+                        write!(string, " [{id}: {switch}]")
+                    }
+                    ParameterKind::Variable => {
+                        let id = *value.into_integer() as usize;
+                        let system = info.data_cache.system();
+                        let variable = system
+                            .variables
+                            .get(id)
+                            .map(String::as_str)
+                            .unwrap_or(" invalid variable");
+                        write!(string, " [{id}: {variable}]")
+                    }
+                    ParameterKind::Enum { variants } => {
+                        let value = variants
+                            .iter()
+                            .find(|(_, i)| *i as i32 == *value.into_integer())
+                            .map(|(s, _)| s.as_str())
+                            .unwrap_or("Invalid value");
+                        write!(string, " {}", value)
+                    }
+                    ParameterKind::SelfSwitch => {
+                        write!(string, " {}", value.into_string())
+                    }
+                    ParameterKind::IntBool => {
+                        write!(string, " {}", value.truthy())
+                    }
+                    ParameterKind::String => {
+                        write!(string, " {}", value.into_string())
+                    }
+                }
+            }
+            Parameter::Label(s) => write!(string, " {s}"),
+            Parameter::Dummy => Ok(()),
         }
     }
 }
