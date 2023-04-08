@@ -116,12 +116,7 @@ impl Terminal {
                 text_height,
                 self.terminal.screen().scrollback_rows(),
                 |ui, rows| {
-                    let mut job = egui::text::LayoutJob {
-                        wrap: egui::epaint::text::TextWrapping {
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    };
+                    let mut job = egui::text::LayoutJob::default();
                     let mut iter = self
                         .terminal
                         .screen()
