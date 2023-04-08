@@ -1,6 +1,7 @@
 {
 	"licenser.license": "GPLv3",
 	"licenser.author": "Lily Lyons",
+	"licenser.projectName": "Luminol",
 	"licenser.disableAutoHeaderInsertion": false,
 	"rust-analyzer.cargo.features": [],
 	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
@@ -11,10 +12,14 @@
 		"RUSTFLAGS": "--cfg=web_sys_unstable_apis"
 	},
 	"conventionalCommits.scopes": [
+		"data cache",
+		"ui",
+		"commands",
 		"scripts",
 		"tabs",
 		"playtest",
 		"wasm",
 		"filesystem"
-	]
+	],
+  "rust-analyzer.showUnlinkedFileNotification": false
 }

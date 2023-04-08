@@ -15,16 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::filesystem::Filesystem;
-use poll_promise::Promise;
+use crate::prelude::*;
 
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
-pub struct Started {
+pub struct Tab {
     load_project_promise: Option<poll_promise::Promise<()>>,
 }
 
-impl Started {
+impl Tab {
     /// Create a new starting screen.
     #[must_use]
     pub fn new() -> Self {
@@ -32,7 +31,7 @@ impl Started {
     }
 }
 
-impl super::tab::Tab for Started {
+impl tab::Tab for Tab {
     fn name(&self) -> String {
         "Get Started".to_string()
     }

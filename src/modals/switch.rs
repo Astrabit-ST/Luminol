@@ -15,27 +15,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::hash::Hash;
-
-use crate::UpdateInfo;
-
-use super::modal::Modal;
+use crate::prelude::*;
 
 /// The switch picker modal.
-pub struct SwitchModal {
+pub struct Modal {
     id: egui::Id,
 }
 
-impl SwitchModal {
+impl Modal {
     /// Create a new modal.
-    pub fn new(id: impl Hash) -> Self {
-        Self {
-            id: egui::Id::new(id),
-        }
+    pub fn new(id: egui::Id) -> Self {
+        Self { id }
     }
 }
 
-impl Modal for SwitchModal {
+impl modal::Modal for Modal {
     type Data = usize;
 
     fn id(mut self, id: egui::Id) -> Self {
@@ -52,7 +46,6 @@ impl Modal for SwitchModal {
     ) -> Self {
         {
             let system = info.data_cache.system();
-            let system = system.as_ref().unwrap();
 
             if ui
                 .button(format!("{data}: {}", system.switches[*data - 1]))
@@ -62,7 +55,7 @@ impl Modal for SwitchModal {
                 ui.ctx().memory_mut(|m| {
                     m.data
                         .get_temp_mut_or(self.id, (*data, *data, String::new()));
-                })
+                });
             }
         }
 
@@ -87,7 +80,6 @@ impl Modal for SwitchModal {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 let system = info.data_cache.system();
-                let system = system.as_ref().unwrap();
 
                 let mut memory: (usize, usize, String) =
                     ctx.data_mut(|m| m.get_temp(self.id).unwrap());
@@ -146,7 +138,7 @@ impl Modal for SwitchModal {
 
                 ctx.data_mut(|m| {
                     m.insert_temp(self.id, memory);
-                })
+                });
             });
         *open = *open && win_open;
     }

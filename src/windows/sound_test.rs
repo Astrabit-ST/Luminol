@@ -15,19 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use poll_promise::Promise;
-use strum::IntoEnumIterator;
-
-use crate::audio::Source;
-use crate::filesystem::Filesystem;
-use crate::UpdateInfo;
+use crate::prelude::*;
 
 /// A tab for a sound (be it BGM, ME, SE, etc)
 /// Optionally can be in 'picker' mode to pick a sound effect.
 pub struct SoundTab {
     picker: bool,
     /// The source for this tab.
-    pub source: Source,
+    pub source: audio::Source,
     volume: u8,
     pitch: u8,
     selected_track: String,
@@ -37,7 +32,7 @@ pub struct SoundTab {
 
 impl SoundTab {
     /// Create a new SoundTab
-    pub fn new(source: Source, info: &'static UpdateInfo, picker: bool) -> Self {
+    pub fn new(source: audio::Source, info: &'static UpdateInfo, picker: bool) -> Self {
         Self {
             picker,
             source,
@@ -173,26 +168,26 @@ impl SoundTab {
 }
 
 /// A simple sound test window.
-pub struct SoundTest {
+pub struct Window {
     sources: Vec<SoundTab>,
-    selected_source: Source,
+    selected_source: audio::Source,
 }
 
-impl SoundTest {
+impl Window {
     /// Create a new sound test window.
     pub fn new(info: &'static UpdateInfo) -> Self {
         Self {
             // Create all sources.
-            sources: Source::iter()
+            sources: audio::Source::iter()
                 .map(|s| SoundTab::new(s, info, false))
                 .collect(),
             // By default, bgm is selected.
-            selected_source: Source::BGM,
+            selected_source: audio::Source::BGM,
         }
     }
 }
 
-impl super::window::Window for SoundTest {
+impl super::window::Window for Window {
     fn name(&self) -> String {
         "Sound Test".to_string()
     }

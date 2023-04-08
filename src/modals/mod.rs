@@ -21,3 +21,5 @@ pub mod modal;
 pub mod switch;
 /// The variable picker.
 pub mod variable;
+
+pub use modal::Modal;

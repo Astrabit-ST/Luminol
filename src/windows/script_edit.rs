@@ -15,27 +15,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::window::Window;
-use crate::components::syntax_highlighting;
-use crate::{
-    data::rmxp_structs::intermediate::Script,
-    tabs::tab::{Tab, Tabs},
-};
+pub use crate::prelude::*;
 
 /// The script editor.
-pub struct ScriptEdit {
-    tabs: Tabs<ScriptTab>,
+pub struct Window {
+    tabs: tab::Tabs<ScriptTab>,
 }
 
-impl Default for ScriptEdit {
+impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: Tabs::new("script_editor", vec![]),
+            tabs: tab::Tabs::new("script_editor", vec![]),
         }
     }
 }
 
-impl Window for ScriptEdit {
+impl window::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -54,7 +49,6 @@ impl Window for ScriptEdit {
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
                             let mut scripts = info.data_cache.scripts();
-                            let scripts = scripts.as_mut().unwrap();
 
                             let mut insert_index = None;
                             let mut del_index = None;
@@ -84,7 +78,7 @@ impl Window for ScriptEdit {
                             if let Some(index) = insert_index {
                                 scripts.insert(
                                     index,
-                                    Script {
+                                    rpg::Script {
                                         name: "New Script".to_string(),
                                         script_text: String::new(),
                                     },
@@ -123,21 +117,14 @@ impl ScriptTab {
     }
 }
 
-impl Tab for ScriptTab {
+impl tab::Tab for ScriptTab {
     fn name(&self) -> String {
         self.index.to_string()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
-        let mut theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         ui.horizontal(|ui| {
-            ui.collapsing("Theme", |ui| {
-                ui.group(|ui| {
-                    theme.ui(ui);
-                    theme.clone().store_in_memory(ui.ctx());
-                });
-            });
-
             let mut save_script = false;
 
             if ui.button("Ok").clicked() {
@@ -155,7 +142,6 @@ impl Tab for ScriptTab {
 
             if save_script {
                 let mut scripts = info.data_cache.scripts();
-                let scripts = scripts.as_mut().unwrap();
 
                 scripts[self.index].script_text = self.script_text.clone();
             }

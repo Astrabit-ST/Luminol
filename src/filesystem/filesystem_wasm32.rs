@@ -15,13 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+pub use crate::prelude::*;
 use async_trait::async_trait;
-use std::cell::RefCell;
-use std::path::{Path, PathBuf};
-
-use crate::data::config::RGSSVer;
-use crate::UpdateInfo;
-
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(module = "/assets/filesystem.js")]
@@ -123,7 +118,6 @@ impl Filesystem {
         info.data_cache.setup_defaults();
         {
             let mut config = info.data_cache.config();
-            let config = config.as_mut().unwrap();
             config.rgss_ver = rgss_ver;
             config.project_name = name;
         }
@@ -218,7 +212,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Check if file path exists
-    async fn file_exists(&self, path: impl AsRef<Path>) -> bool {
+    async fn path_exists(&self, path: impl AsRef<Path>) -> bool {
         self.dir_children(path.as_ref().parent().unwrap())
             .await
             .is_ok_and(|v| {

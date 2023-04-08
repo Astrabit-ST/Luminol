@@ -18,32 +18,25 @@
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
-use super::window::Window;
-use crate::components::command_view::CommandView;
-use crate::data::commands::{MOVE_FREQS, MOVE_SPEEDS, MOVE_TYPES};
-use crate::data::rmxp_structs::rpg;
-use crate::modals::modal::Modal;
-use crate::modals::switch::SwitchModal;
-use crate::modals::variable::VariableModal;
-use crate::{load_image_software, UpdateInfo};
+use crate::prelude::*;
 
 /// The event editor window.
-pub struct EventEdit {
+pub struct Window {
     id: usize,
     map_id: i32,
     selected_page: usize,
-    event: rpg::event::Event,
+    event: rpg::Event,
     page_graphics_promise: Promise<(Vec<Option<RetainedImage>>, RetainedImage)>,
     viewed_tab: u8,
     modals: (bool, bool, bool),
 }
 
-impl EventEdit {
+impl Window {
     /// Create a new event editor.
     pub fn new(
         id: usize,
         map_id: i32,
-        event: rpg::event::Event,
+        event: rpg::Event,
         tileset_name: String,
         info: &'static UpdateInfo,
     ) -> Self {
@@ -55,7 +48,10 @@ impl EventEdit {
             event,
             page_graphics_promise: Promise::spawn_local(async move {
                 let futures = pages_graphics.iter().map(|p| {
-                    load_image_software(format!("Graphics/Characters/{}", p.character_name), info)
+                    crate::load_image_software(
+                        format!("Graphics/Characters/{}", p.character_name),
+                        info,
+                    )
                 });
                 (
                     futures::future::join_all(futures)
@@ -63,7 +59,7 @@ impl EventEdit {
                         .into_iter()
                         .map(std::result::Result::ok)
                         .collect(),
-                    load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
+                    crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
                         .await
                         .unwrap(),
                 )
@@ -74,7 +70,7 @@ impl EventEdit {
     }
 }
 
-impl Window for EventEdit {
+impl window::Window for Window {
     fn name(&self) -> String {
         format!(
             "Event: {}, {} in Map {}",
@@ -106,7 +102,7 @@ impl Window for EventEdit {
                             .selectable_value(&mut self.selected_page, page, page.to_string())
                             .clicked()
                         {
-                            self.modals = (false, false, false)
+                            self.modals = (false, false, false);
                         }
                     }
                 });
@@ -133,10 +129,13 @@ impl Window for EventEdit {
                                         ui.checkbox(&mut page.condition.switch1_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch1_valid, |ui| {
-                                            SwitchModal::new(format!(
-                                                "event_{}_{}_switch1",
-                                                self.id, self.map_id
-                                            ))
+                                            switch::Modal::new(
+                                                format!(
+                                                    "event_{}_{}_switch1",
+                                                    self.id, self.map_id
+                                                )
+                                                .into(),
+                                            )
                                             .button(
                                                 ui,
                                                 &mut self.modals.0,
@@ -150,10 +149,13 @@ impl Window for EventEdit {
                                         ui.checkbox(&mut page.condition.switch2_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch2_valid, |ui| {
-                                            SwitchModal::new(format!(
-                                                "event_{}_{}_switch2",
-                                                self.id, self.map_id
-                                            ))
+                                            switch::Modal::new(
+                                                format!(
+                                                    "event_{}_{}_switch2",
+                                                    self.id, self.map_id
+                                                )
+                                                .into(),
+                                            )
                                             .button(
                                                 ui,
                                                 &mut self.modals.1,
@@ -167,10 +169,13 @@ impl Window for EventEdit {
                                         ui.checkbox(&mut page.condition.variable_valid, "Variable");
 
                                         ui.add_enabled_ui(page.condition.variable_valid, |ui| {
-                                            VariableModal::new(format!(
-                                                "event_{}_{}_variable",
-                                                self.id, self.map_id
-                                            ))
+                                            variable::Modal::new(
+                                                format!(
+                                                    "event_{}_{}_variable",
+                                                    self.id, self.map_id
+                                                )
+                                                .into(),
+                                            )
                                             .button(
                                                 ui,
                                                 &mut self.modals.2,
@@ -218,6 +223,7 @@ impl Window for EventEdit {
                                     });
                                 });
 
+                                /*
                                 ui.label("Autonomous Movement");
                                 ui.group(|ui| {
                                     egui::ComboBox::new(
@@ -265,6 +271,7 @@ impl Window for EventEdit {
                                         }
                                     });
                                 });
+                                */
 
                                 ui.horizontal(|ui| {
                                     ui.vertical(|ui| {
@@ -363,19 +370,9 @@ impl Window for EventEdit {
                                 egui::ScrollArea::both()
                                     .max_height(500.)
                                     .auto_shrink([false; 2])
-                                    .show(ui, |ui| {
-                                        CommandView::new(
-                                            &format!(
-                                                "map_event_{}_{}_page_{}",
-                                                self.id, self.map_id, self.selected_page
-                                            ),
-                                            Some(self.map_id),
-                                        )
-                                        .ui(
-                                            ui,
-                                            info,
-                                            &mut page.list,
-                                        );
+                                    .show(ui, |_ui| {
+                                        // CommandView::new(&mut page.list)
+                                        //     .ui(ui, &info.data_cache.commanddb());
                                     });
                             });
                         });

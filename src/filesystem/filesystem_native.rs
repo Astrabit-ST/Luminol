@@ -15,11 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cell::RefCell;
-use std::path::{Path, PathBuf};
-
-use crate::data::config::RGSSVer;
-use crate::UpdateInfo;
+pub use crate::prelude::*;
 use async_trait::async_trait;
 
 /// Native filesystem implementation.
@@ -118,7 +114,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Check if file path exists
-    async fn file_exists(&self, path: impl AsRef<Path>) -> bool {
+    async fn path_exists(&self, path: impl AsRef<Path>) -> bool {
         let path = self.project_path.borrow().as_ref().unwrap().join(path);
 
         async_fs::metadata(path).await.is_ok()
@@ -257,7 +253,6 @@ impl Filesystem {
         info.data_cache.setup_defaults();
         {
             let mut config = info.data_cache.config();
-            let config = config.as_mut().unwrap();
             config.rgss_ver = rgss_ver;
             config.project_name = name;
         }

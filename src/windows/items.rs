@@ -14,14 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{graphic_picker::GraphicPicker, sound_test::SoundTab, window::Window as WindowTrait};
-use crate::{
-    components::{CallbackButton, EnumMenuButton, Field, NilPaddedMenu},
-    data::{nil_padded::NilPadded, rmxp_structs::rpg},
-    filesystem::Filesystem,
-    UpdateInfo,
-};
-use poll_promise::Promise;
+use crate::prelude::*;
 
 /// Database - Items management window.
 pub struct Window {
@@ -30,11 +23,11 @@ pub struct Window {
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker: GraphicPicker,
+    icon_picker: graphic_picker::Window,
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
-    menu_se_picker: SoundTab,
+    menu_se_picker: sound_test::SoundTab,
     menu_se_picker_open: bool,
 }
 
@@ -42,7 +35,7 @@ impl Window {
     /// Create a new window.
     #[must_use]
     pub fn new(info: &'static UpdateInfo) -> Option<Self> {
-        let items = info.data_cache.items().clone().unwrap();
+        let items = info.data_cache.items().clone();
         let icon_paths = match Promise::spawn_local(info.filesystem.dir_children("Graphics/Icons"))
             .block_and_take()
         {
@@ -53,7 +46,7 @@ impl Window {
                 Vec::new()
             }
         };
-        let icon_picker = GraphicPicker::new(icon_paths, info);
+        let icon_picker = graphic_picker::Window::new(icon_paths, info);
         Some(Self {
             items,
             selected_item: 0,
@@ -61,13 +54,13 @@ impl Window {
             icon_picker,
             icon_picker_open: false,
 
-            menu_se_picker: SoundTab::new(crate::audio::Source::SE, info, true),
+            menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, info, true),
             menu_se_picker_open: false,
         })
     }
 }
 
-impl WindowTrait for Window {
+impl window::Window for Window {
     fn name(&self) -> String {
         format!("Editing item {}", self.items[self.selected_item].name)
     }
@@ -77,12 +70,10 @@ impl WindowTrait for Window {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
-        let selected_item = &self.items[self.selected_item];
+        let _selected_item = &self.items[self.selected_item];
         let animations = info.data_cache.animations();
-        let animations = animations.as_ref().unwrap();
 
-        let common_events = info.data_cache.common_events();
-        let common_events = common_events.as_ref().unwrap();
+        let common_events = info.data_cache.commonevents();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations
@@ -119,7 +110,7 @@ impl WindowTrait for Window {
                     );
 
                     if ui.button("Change maximum...").clicked() {
-                        println!("`Change maximum...` button trigger");
+                        eprintln!("`Change maximum...` button trigger");
                     }
                 });
                 let selected_item = &mut self.items[self.selected_item];
@@ -163,11 +154,11 @@ impl WindowTrait for Window {
 
                     ui.add(Field::new(
                         "User Animation",
-                        NilPaddedMenu::new(&mut selected_item.animation1_id, animations),
+                        NilPaddedMenu::new(&mut selected_item.animation1_id, &*animations),
                     ));
                     ui.add(Field::new(
                         "Target Animation",
-                        NilPaddedMenu::new(&mut selected_item.animation2_id, animations),
+                        NilPaddedMenu::new(&mut selected_item.animation2_id, &*animations),
                     ));
                     ui.end_row();
 
@@ -179,11 +170,11 @@ impl WindowTrait for Window {
                     ));
                     ui.add(Field::new(
                         "Common Event",
-                        NilPaddedMenu::new(&mut selected_item.common_event_id, common_events),
+                        NilPaddedMenu::new(&mut selected_item.common_event_id, &*common_events),
                     ));
                     ui.end_row();
 
-                    egui::Grid::new("item_edit_central_left_grid").show(ui, |ui| {});
+                    egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
 
                 if self.icon_picker_open {

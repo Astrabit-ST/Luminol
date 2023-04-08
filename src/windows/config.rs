@@ -15,18 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use strum::IntoEnumIterator;
-
-use crate::data::config::RGSSVer;
-
-use super::window::Window;
+use crate::prelude::*;
 
 /// The confg window
-pub struct ConfigWindow {}
+pub struct Window {}
 
-impl ConfigWindow {}
+impl Window {}
 
-impl Window for ConfigWindow {
+impl window::Window for Window {
     fn name(&self) -> String {
         "Local Luminol Config".to_string()
     }
@@ -34,7 +30,6 @@ impl Window for ConfigWindow {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             let mut config = info.data_cache.config();
-            let config = config.as_mut().unwrap();
 
             ui.label("Project name");
             ui.text_edit_singleline(&mut config.project_name);

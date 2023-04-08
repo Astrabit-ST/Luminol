@@ -81,11 +81,11 @@ impl Audio {
         match source {
             Source::SE | Source::ME => {
                 // Non looping
-                sink.append(Decoder::new(cursor).map_err(|e| e.to_string())?)
+                sink.append(Decoder::new(cursor).map_err(|e| e.to_string())?);
             }
             _ => {
                 // Looping
-                sink.append(Decoder::new_looped(cursor).map_err(|e| e.to_string())?)
+                sink.append(Decoder::new_looped(cursor).map_err(|e| e.to_string())?);
             }
         }
 

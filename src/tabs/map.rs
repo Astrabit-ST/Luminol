@@ -16,18 +16,12 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![allow(unused_imports)]
 use egui::Pos2;
-use poll_promise::Promise;
 use std::{cell::RefMut, collections::HashMap};
 
-use crate::{
-    components::tilemap::{Tilemap, TilemapDef},
-    data::rmxp_structs::rpg,
-    windows::{event_edit::EventEdit, window::Windows},
-    UpdateInfo,
-};
+use crate::prelude::*;
 
 /// The map editor.
-pub struct Map {
+pub struct Tab {
     /// ID of the map that is being edited.
     pub id: i32,
     /// Name of the map.
@@ -44,11 +38,11 @@ pub struct Map {
     pub selected_tile: i16,
     dragged_event: usize,
     dragging_event: bool,
-    event_windows: Windows,
+    event_windows: window::Windows,
     force_close: bool,
 }
 
-impl Map {
+impl Tab {
     /// Create a new map editor.
     pub fn new(id: i32, name: String, info: &'static UpdateInfo) -> Option<Self> {
         Some(Self {
@@ -61,13 +55,13 @@ impl Map {
             selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,
-            event_windows: Default::default(),
+            event_windows: window::Windows::default(),
             force_close: false,
         })
     }
 }
 
-impl super::tab::Tab for Map {
+impl tab::Tab for Tab {
     fn name(&self) -> String {
         format!("Map {}: {}", self.id, self.name)
     }
@@ -89,12 +83,12 @@ impl super::tab::Tab for Map {
             // Get the map.
             let mut map = info.data_cache.get_map(self.id);
             let tileset = info.data_cache.tilesets();
-            let tileset = &tileset.as_ref().unwrap()[map.tileset_id as usize - 1];
+            let tileset = &tileset[map.tileset_id as usize - 1];
 
             // If there are no toggled layers (i.e we just loaded the map)
             // then fill up the vector with `true`;
             if self.toggled_layers.is_empty() {
-                self.toggled_layers = vec![true; map.data.zsize() + 1];
+                self.toggled_layers = vec![true; map.data.zsize() + 3];
                 self.selected_layer = map.data.zsize() + 1;
             }
 
@@ -127,6 +121,8 @@ impl super::tab::Tab for Map {
                             // Display all layers.
                             ui.columns(2, |columns| {
                                 columns[1].visuals_mut().button_frame = true;
+                                columns[0].label("Panorama");
+                                columns[1].checkbox(&mut self.toggled_layers[layers + 1], "👁");
 
                                 for layer in 0..layers {
                                     columns[0].selectable_value(
@@ -143,6 +139,9 @@ impl super::tab::Tab for Map {
                                     "Events",
                                 );
                                 columns[1].checkbox(&mut self.toggled_layers[layers], "👁");
+
+                                columns[0].label("Fog");
+                                columns[1].checkbox(&mut self.toggled_layers[layers + 2], "👁");
                             });
                         },
                     );
@@ -196,7 +195,7 @@ impl super::tab::Tab for Map {
                                 .iter()
                                 .find(|(_, event)| event.x == map_x && event.y == map_y)
                             {
-                                self.event_windows.add_window(EventEdit::new(
+                                self.event_windows.add_window(event_edit::Window::new(
                                     id,
                                     self.id,
                                     event.clone(),
@@ -205,11 +204,11 @@ impl super::tab::Tab for Map {
                                 ));
                             } else {
                                 let id = map.events.vacant_key();
-                                let event = rpg::event::Event::new(map_x, map_y, id);
+                                let event = rpg::Event::new(map_x, map_y, id);
 
                                 map.events.insert(event.clone());
 
-                                self.event_windows.add_window(EventEdit::new(
+                                self.event_windows.add_window(event_edit::Window::new(
                                     id,
                                     self.id,
                                     event,
@@ -256,11 +255,6 @@ impl super::tab::Tab for Map {
         }
 
         self.event_windows.update(ui.ctx(), info);
-    }
-
-    #[cfg(feature = "discord-rpc")]
-    fn discord_display(&self) -> String {
-        format!("Editing Map<{}>: {}", self.id, self.name)
     }
 
     fn requires_filesystem(&self) -> bool {

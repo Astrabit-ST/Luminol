@@ -14,23 +14,22 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::window::Window;
+
 use crate::{load_image_software, UpdateInfo};
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
-use std::path::Path;
 
 pub struct Graphic {
     pub name: String,
     pub image: RetainedImage,
 }
 
-pub struct GraphicPicker {
+pub struct Window {
     icons: Vec<Graphic>,
     selected_icon: usize,
 }
 
-impl GraphicPicker {
+impl Window {
     #[must_use]
     pub fn new(icons: Vec<String>, info: &'static UpdateInfo) -> Self {
         let mut retained_images = Vec::new();

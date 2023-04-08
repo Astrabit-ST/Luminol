@@ -15,12 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use crate::prelude::*;
 
-use poll_promise::Promise;
-use strum::IntoEnumIterator;
-
-use crate::filesystem::Filesystem;
 use crate::{Pencil, UpdateInfo};
 
 /// The top bar for managing the project.
@@ -71,8 +67,7 @@ impl TopBar {
             });
 
             if ui.button("New Project").clicked() {
-                info.windows
-                    .add_window(crate::windows::new_project::Window::default());
+                info.windows.add_window(new_project::Window::default());
             }
 
             if self.open_project_promise.is_none() {
@@ -85,8 +80,7 @@ impl TopBar {
 
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    info.windows
-                        .add_window(crate::windows::config::ConfigWindow {});
+                    info.windows.add_window(config::Window {});
                 }
 
                 if ui.button("Close Project").clicked() {
@@ -103,6 +97,13 @@ impl TopBar {
             });
 
             ui.separator();
+
+            ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+                if ui.button("Command Maker").clicked() {
+                    info.windows
+                        .add_window(crate::command_gen::CommandGeneratorWindow::new(info));
+                }
+            });
 
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -137,6 +138,27 @@ impl TopBar {
 
                 *style = ui.ctx().style();
             });
+
+            let mut theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+            ui.menu_button("Code Theme", |ui| {
+                theme.ui(ui);
+                theme.clone().store_in_memory(ui.ctx());
+
+                ui.label("Code sample");
+                ui.label(syntax_highlighting::highlight(
+                    ui.ctx(),
+                    &theme,
+                    r#"
+                    class Foo < Array 
+                    end
+                    def bar(baz) 
+                    end
+                    print 1, 2.0
+                    puts [0x3, :4, '5']
+                    "#,
+                    "rb",
+                ));
+            });
         });
 
         ui.separator();
@@ -144,29 +166,26 @@ impl TopBar {
         ui.menu_button("Data", |ui| {
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
-                    info.windows
-                        .add_window(crate::windows::map_picker::MapPicker::default());
+                    info.windows.add_window(map_picker::Window::default());
                 }
 
                 if ui.button("Items").clicked() {
-                    if let Some(window) = crate::windows::items::Window::new(info) {
+                    if let Some(window) = items::Window::new(info) {
                         info.windows.add_window(window);
                     }
                 }
 
                 if ui.button("Common Events").clicked() {
                     info.windows
-                        .add_window(crate::windows::common_event_edit::CommonEventEdit::default());
+                        .add_window(common_event_edit::Window::default());
                 }
 
                 if ui.button("Scripts").clicked() {
-                    info.windows
-                        .add_window(crate::windows::script_edit::ScriptEdit::default());
+                    info.windows.add_window(script_edit::Window::default());
                 }
 
                 if ui.button("Sound Test").clicked() {
-                    info.windows
-                        .add_window(crate::windows::sound_test::SoundTest::new(info));
+                    info.windows.add_window(sound_test::Window::new(info));
                 }
             });
         });
@@ -175,25 +194,17 @@ impl TopBar {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                info.windows
-                    .add_window(crate::windows::about::About::default());
+                info.windows.add_window(about::Window::default());
             };
 
             ui.separator();
 
             if ui.button("Egui Inspection").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::EguiInspection::default());
+                info.windows.add_window(misc::EguiInspection::default());
             }
 
             if ui.button("Egui Memory").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::EguiMemory::default());
-            }
-
-            if ui.button("Profiler").clicked() {
-                info.windows
-                    .add_window(crate::windows::misc::Puffin::default());
+                info.windows.add_window(misc::EguiMemory::default());
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();
@@ -258,16 +269,15 @@ impl TopBar {
             });
 
         if open_project {
-            self.open_project_promise = Some(Promise::spawn_local(async move {
-                info.filesystem.spawn_project_file_picker(info).await
-            }));
+            self.open_project_promise = Some(Promise::spawn_local(
+                info.filesystem.spawn_project_file_picker(info),
+            ));
         }
 
         if save_project {
             info.toasts.info("Saving project...");
-            self.save_project_promise = Some(Promise::spawn_local(async move {
-                info.filesystem.save_cached(info).await
-            }));
+            self.save_project_promise =
+                Some(Promise::spawn_local(info.filesystem.save_cached(info)));
         }
 
         if self.open_project_promise.is_some() {

@@ -19,10 +19,7 @@ use std::{cell::Cell, io::Read, rc::Rc};
 
 use strum::IntoEnumIterator;
 
-use crate::{data::config::RGSSVer, UpdateInfo};
-
-use super::window::Window as WindowTrait;
-use crate::filesystem::Filesystem;
+use crate::prelude::*;
 
 /// The new project window
 pub struct Window {
@@ -61,7 +58,7 @@ impl Default for Window {
     }
 }
 
-impl WindowTrait for Window {
+impl window::Window for Window {
     fn name(&self) -> String {
         "New Project".to_string()
     }
@@ -242,12 +239,10 @@ impl Window {
 
         progress.zip_total.set(zip_url.len());
 
-        let zips = futures::future::join_all(zip_url.iter().map(|url| async move {
+        let zips = futures::future::join_all(zip_url.iter().map(|url|
             // surf::get(format!("https://api.allorigins.win/raw?url={url}"))  FIXME: phishing scam, apparently
             surf::get(url)
-                .middleware(surf::middleware::Redirect::new(10))
-                .await
-        }))
+                .middleware(surf::middleware::Redirect::new(10))))
         .await;
 
         for (index, zip_response) in zips.into_iter().enumerate() {
@@ -282,7 +277,7 @@ impl Window {
                     .to_str()
                     .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty() || info.filesystem.file_exists(file_path).await {
+                if file_path.is_empty() || info.filesystem.path_exists(file_path).await {
                     continue;
                 }
 

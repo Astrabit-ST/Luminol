@@ -15,27 +15,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::hash::Hash;
-
-use crate::UpdateInfo;
-
-use super::modal::Modal;
+use crate::prelude::*;
 
 /// The variable picker modal.
-pub struct VariableModal {
+pub struct Modal {
     id: egui::Id,
 }
 
-impl VariableModal {
+impl Modal {
     /// Create a new modal.
-    pub fn new(id: impl Hash) -> Self {
-        Self {
-            id: egui::Id::new(id),
-        }
+    pub fn new(id: egui::Id) -> Self {
+        Self { id }
     }
 }
 
-impl Modal for VariableModal {
+impl modal::Modal for Modal {
     type Data = usize;
 
     fn id(mut self, id: egui::Id) -> Self {
@@ -52,7 +46,6 @@ impl Modal for VariableModal {
     ) -> Self {
         {
             let system = info.data_cache.system();
-            let system = system.as_ref().unwrap();
 
             if ui
                 .button(format!("{data}: {}", system.variables[*data]))
@@ -64,7 +57,7 @@ impl Modal for VariableModal {
                 ui.ctx().memory_mut(|m| {
                     m.data
                         .get_temp_mut_or(self.id, (*data, *data, String::new()));
-                })
+                });
             }
         }
 
@@ -89,7 +82,6 @@ impl Modal for VariableModal {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 let system = info.data_cache.system();
-                let system = system.as_ref().unwrap();
 
                 // (selected value, value to scroll to, filter text)
                 let mut memory: (usize, usize, String) =
@@ -149,7 +141,7 @@ impl Modal for VariableModal {
 
                 ctx.data_mut(|m| {
                     m.insert_temp(self.id, memory);
-                })
+                });
             });
         *open = *open && win_open;
     }

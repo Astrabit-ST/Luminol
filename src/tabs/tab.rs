@@ -83,17 +83,6 @@ where
         let mut tree = self.tree.borrow_mut();
         tree.find_active().map(|(_, t)| t.name())
     }
-
-    /// The discord rpc text to display.
-    #[cfg(feature = "discord-rpc")]
-    pub fn discord_display(&self) -> String {
-        let mut tree = self.tree.borrow_mut();
-        if let Some((_, tab)) = tree.find_active() {
-            tab.discord_display()
-        } else {
-            "No tab open".to_string()
-        }
-    }
 }
 
 struct TabViewer<T: Tab> {
@@ -139,12 +128,6 @@ pub trait Tab {
     /// Does this tab need to be closed?
     fn force_close(&mut self) -> bool {
         false
-    }
-
-    /// The discord rpc text to display for this tab.
-    #[cfg(feature = "discord-rpc")]
-    fn discord_display(&self) -> String {
-        "Idling".to_string()
     }
 }
 

@@ -14,28 +14,32 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::FromPrimitive;
 use std::fmt::Display;
 use strum::IntoEnumIterator;
 
-use crate::data::{nil_padded::NilPadded, rmxp_structs::rpg};
+use rmxp_types::rpg;
+use rmxp_types::NilPadded;
 
-/// Command editor for events
-pub mod command_view;
-/// Command view modals
-pub mod command_view_modals;
-/// Move route display
-pub mod move_display;
 /// Syntax highlighter
 pub mod syntax_highlighting;
 /// Toasts to be displayed for errors, information, etc.
-pub mod toasts;
+mod toasts;
 /// The toolbar for managing the project.
-pub mod top_bar;
+mod top_bar;
+
+mod command_view;
+
+pub use command_view::CommandView;
+
+pub use tilemap::{Tilemap, TilemapDef};
+pub use toasts::Toasts;
+pub use top_bar::TopBar;
 
 /// The tilemap.
-pub mod tilemap {
-    use crate::{data::rmxp_structs::rpg, UpdateInfo};
+mod tilemap {
+    use crate::UpdateInfo;
+    use rmxp_types::rpg;
 
     cfg_if::cfg_if! {
            if #[cfg(feature = "generic-tilemap")] {
@@ -117,7 +121,7 @@ pub trait NilPaddedStructure: Default {
 
     fn set_name(&mut self, new_name: impl Into<String>);
 }
-impl NilPaddedStructure for rpg::animation::Animation {
+impl NilPaddedStructure for rpg::Animation {
     fn id(&self) -> i32 {
         self.id
     }
@@ -285,4 +289,21 @@ where
         })
         .response
     }
+}
+
+pub fn close_options_ui(ui: &mut egui::Ui, open: &mut bool, save: &mut bool) {
+    ui.horizontal(|ui| {
+        if ui.button("Ok").clicked() {
+            *open = false;
+            *save = true;
+        }
+
+        if ui.button("Cancel").clicked() {
+            *open = false;
+        }
+
+        if ui.button("Apply").clicked() {
+            *save = true;
+        }
+    });
 }

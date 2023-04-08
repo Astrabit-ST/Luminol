@@ -396,6 +396,44 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug unit tests in library 'command-lib'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=command-lib"
+                ],
+                "filter": {
+                    "name": "command-lib",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'rmxp-types'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=rmxp-types"
+                ],
+                "filter": {
+                    "name": "rmxp-types",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in library 'luminol-term'",
             "cargo": {
                 "args": [

@@ -2,7 +2,6 @@
 //!
 //! Authors:
 //!     Lily Madeline Lyons <lily@nowaffles.com>
-//!     Egor Poleshko <somedevfox@gmail.com>
 //!
 // #![warn(missing_docs)]
 
@@ -29,7 +28,9 @@
     // clippy::pedantic,
     clippy::panic,
     clippy::panic_in_result_fn,
-    clippy::panicking_unwrap
+    clippy::panicking_unwrap,
+    // clippy::unwrap_used,
+    clippy::unnecessary_wraps
 )]
 #![allow(
     clippy::missing_errors_doc,
@@ -38,11 +39,14 @@
     clippy::too_many_lines
 )]
 #![deny(unsafe_code)]
-#![feature(drain_filter, is_some_and, min_specialization)]
+#![feature(drain_filter, min_specialization)]
+
+pub use prelude::*;
 
 /// The main Luminol application.
 pub mod luminol;
 
+pub mod prelude;
 /// The state Luminol saves on shutdown.
 pub mod saved_state;
 
@@ -51,13 +55,16 @@ pub mod audio;
 
 pub mod components;
 
-/// Stack defined windows that edit values.
-pub mod modals;
+pub mod command_gen;
+
 /// Floating windows to be displayed anywhere.
 pub mod windows;
 
+/// Stack defined windows that edit values.
+pub mod modals;
+
 /// Structs related to Luminol's internal data.
-pub mod data;
+pub mod project;
 /// Tabs to be displayed in the center of Luminol.
 pub mod tabs;
 
@@ -65,26 +72,15 @@ pub mod tabs;
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem;
 
-#[cfg(feature = "discord-rpc")]
-/// Discord RPC related structs.
-pub mod discord;
+/// The code for handling lumi, the friendly world machine!
+pub mod lumi;
 
-use std::cell::RefCell;
-use std::sync::Arc;
-
-use components::toasts::Toasts;
-pub use eframe::egui_glow::glow;
-use egui::TextureOptions;
-use egui_extras::RetainedImage;
 pub use luminol::Luminol;
 use saved_state::SavedState;
 use tabs::tab::Tab;
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
-
-use crate::data::cache::Cache;
-use crate::filesystem::Filesystem;
 
 #[allow(missing_docs)]
 #[derive(Default)]
@@ -118,7 +114,7 @@ pub struct UpdateInfo {
     /// The data cache.
     pub data_cache: Cache,
     /// Windows that are displayed.
-    pub windows: windows::window::Windows,
+    pub windows: window::Windows,
     /// Tabs that are displayed.
     pub tabs: tabs::tab::Tabs<Box<dyn Tab>>,
     /// Audio that's played.
@@ -140,10 +136,7 @@ impl UpdateInfo {
             filesystem: FSAlias::default(),
             data_cache: Cache::default(),
             windows: windows::window::Windows::default(),
-            tabs: tabs::tab::Tabs::new(
-                "global_tabs",
-                vec![Box::new(tabs::started::Started::new())],
-            ),
+            tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             gl,

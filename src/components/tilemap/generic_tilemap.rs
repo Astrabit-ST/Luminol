@@ -31,9 +31,8 @@ use std::time::Instant;
 
 use egui::{Pos2, Response, Vec2};
 
-use crate::data::commands::process_move_route;
-use crate::data::rmxp_structs::rpg;
 use crate::{load_image_software, UpdateInfo};
+use rmxp_types::rpg;
 
 use super::TilemapDef;
 
@@ -127,9 +126,7 @@ impl TilemapDef for Tilemap {
             move_preview: false,
             ani_idx: 0,
             ani_instant: Instant::now(),
-            load_promise: poll_promise::Promise::spawn_local(async move {
-                Self::load_data(info, id).await
-            }),
+            load_promise: poll_promise::Promise::spawn_local(Self::load_data(info, id)),
         }
     }
 
@@ -230,32 +227,36 @@ impl TilemapDef for Tilemap {
         };
 
         // Do we need to render a panorama?
-        if let Some(pano_tex) = &textures.pano_tex {
-            // Find the minimum number of panoramas we can fit in the map size (should fit the screen)
-            let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
-            // We want to display more not less than we possibly can
-            pano_repeat.x = pano_repeat.x.ceil();
-            pano_repeat.y = pano_repeat.y.ceil();
+        if toggled_layers[map.data.zsize() + 1] {
+            if let Some(pano_tex) = &textures.pano_tex {
+                // Find the minimum number of panoramas we can fit in the map size (should fit the screen)
+                let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
+                // We want to display more not less than we possibly can
+                pano_repeat.x = pano_repeat.x.ceil();
+                pano_repeat.y = pano_repeat.y.ceil();
 
-            // Iterate through ranges
-            for y in 0..(pano_repeat.y as usize) {
-                for x in 0..(pano_repeat.x as usize) {
-                    // Display the panorama
-                    let pano_rect = egui::Rect::from_min_size(
-                        map_rect.min
-                            + egui::vec2(
-                                (pano_tex.width() * x) as f32 * scale,
-                                (pano_tex.height() * y) as f32 * scale,
-                            ),
-                        pano_tex.size_vec2() * scale,
-                    );
+                // Iterate through ranges
+                for y in 0..(pano_repeat.y as usize) {
+                    for x in 0..(pano_repeat.x as usize) {
+                        // Display the panorama
+                        let pano_rect = egui::Rect::from_min_size(
+                            map_rect.min
+                                + egui::vec2(
+                                    (pano_tex.width() * x) as f32 * scale,
+                                    (pano_tex.height() * y) as f32 * scale,
+                                ),
+                            pano_tex.size_vec2() * scale,
+                        );
 
-                    egui::Image::new(pano_tex.texture_id(ui.ctx()), pano_tex.size_vec2() * scale)
+                        egui::Image::new(
+                            pano_tex.texture_id(ui.ctx()),
+                            pano_tex.size_vec2() * scale,
+                        )
                         .paint_at(ui, pano_rect);
+                    }
                 }
             }
         }
-
         // Iterate through all tiles.
         for (idx, ele) in map.data.iter().enumerate() {
             if *ele < 48 {
@@ -447,25 +448,27 @@ impl TilemapDef for Tilemap {
 
         // Display the fog if we should.
         // Uses an almost identical method to panoramas with an added scale.
-        if let Some(fog_tex) = &textures.fog_tex {
-            let zoom = (textures.fog_zoom as f32 / 100.) * scale;
-            let mut fox_repeat = map_rect.size() / (fog_tex.size_vec2() * zoom);
-            fox_repeat.x = fox_repeat.x.ceil();
-            fox_repeat.y = fox_repeat.y.ceil();
+        if toggled_layers[map.data.zsize() + 2] {
+            if let Some(fog_tex) = &textures.fog_tex {
+                let zoom = (textures.fog_zoom as f32 / 100.) * scale;
+                let mut fox_repeat = map_rect.size() / (fog_tex.size_vec2() * zoom);
+                fox_repeat.x = fox_repeat.x.ceil();
+                fox_repeat.y = fox_repeat.y.ceil();
 
-            for y in 0..(fox_repeat.y as usize) {
-                for x in 0..(fox_repeat.x as usize) {
-                    let fog_rect = egui::Rect::from_min_size(
-                        map_rect.min
-                            + egui::vec2(
-                                (fog_tex.width() * x) as f32 * zoom,
-                                (fog_tex.height() * y) as f32 * zoom,
-                            ),
-                        fog_tex.size_vec2() * zoom,
-                    );
+                for y in 0..(fox_repeat.y as usize) {
+                    for x in 0..(fox_repeat.x as usize) {
+                        let fog_rect = egui::Rect::from_min_size(
+                            map_rect.min
+                                + egui::vec2(
+                                    (fog_tex.width() * x) as f32 * zoom,
+                                    (fog_tex.height() * y) as f32 * zoom,
+                                ),
+                            fog_tex.size_vec2() * zoom,
+                        );
 
-                    egui::Image::new(fog_tex.texture_id(ui.ctx()), fog_tex.size_vec2() * zoom)
-                        .paint_at(ui, fog_rect);
+                        egui::Image::new(fog_tex.texture_id(ui.ctx()), fog_tex.size_vec2() * zoom)
+                            .paint_at(ui, fog_rect);
+                    }
                 }
             }
         }
@@ -478,11 +481,11 @@ impl TilemapDef for Tilemap {
                     .enumerate()
                     .filter(|(_, p)| p.move_type == 3)
                 {
-                    let move_route = &page.move_route;
+                    let _move_route = &page.move_route;
 
-                    let mut directions = vec![page.graphic.direction];
+                    let _directions = vec![page.graphic.direction];
                     let mut points = vec![egui::pos2(event.x as f32, event.y as f32)];
-                    process_move_route(move_route, &mut directions, &mut points);
+                    // process_move_route(move_route, &mut directions, &mut points);
 
                     points = points
                         .iter_mut()
@@ -514,10 +517,10 @@ impl TilemapDef for Tilemap {
             }
         }
 
-        if let Some((direction, route)) = &map.preview_move_route {
-            let mut directions = vec![*direction];
+        if let Some((direction, _route)) = &map.preview_move_route {
+            let _directions = vec![*direction];
             let mut points = vec![*cursor_pos];
-            process_move_route(route, &mut directions, &mut points);
+            // process_move_route(route, &mut directions, &mut points);
 
             points = points
                 .iter_mut()
@@ -660,9 +663,7 @@ impl Tilemap {
             let tilesets = info.data_cache.tilesets();
 
             // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-            let tileset = &tilesets
-                .as_ref()
-                .ok_or_else(|| "Tilesets not loaded".to_string())?[map.tileset_id as usize - 1];
+            let tileset = &tilesets[map.tileset_id as usize - 1];
 
             tileset_name = tileset.tileset_name.clone();
             autotile_names = tileset.autotile_names.clone();

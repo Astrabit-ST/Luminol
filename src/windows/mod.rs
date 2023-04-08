@@ -41,3 +41,5 @@ pub mod script_edit;
 pub mod sound_test;
 /// Traits and structs related to windows.
 pub mod window;
+
+pub use window::Window;

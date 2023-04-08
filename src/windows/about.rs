@@ -19,11 +19,11 @@ use crate::UpdateInfo;
 
 /// A basic about window.
 /// Shows some info on Luminol, along with an icon.
-pub struct About {
+pub struct Window {
     icon: egui_extras::RetainedImage,
 }
 
-impl Default for About {
+impl Default for Window {
     fn default() -> Self {
         Self {
             // We load the icon here so it isn't loaded every frame. That would be bad if we did.
@@ -35,7 +35,7 @@ impl Default for About {
     }
 }
 
-impl super::window::Window for About {
+impl super::window::Window for Window {
     fn name(&self) -> String {
         "About".to_string()
     }

@@ -16,21 +16,16 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::VecDeque;
-use std::sync::Arc;
 
-use puffin_egui::puffin;
-
-use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
-
-use crate::filesystem::filesystem_trait::Filesystem;
+use crate::lumi::Lumi;
+use crate::prelude::*;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
     info: &'static UpdateInfo,
     style: Arc<egui::Style>,
-    #[cfg(feature = "discord-rpc")]
-    discord: crate::discord::DiscordClient,
+    lumi: Lumi,
 }
 
 impl Luminol {
@@ -44,7 +39,7 @@ impl Luminol {
 
         let state = eframe::get_value(storage, "SavedState").map_or_else(
             || {
-                let mut state = SavedState {
+                let mut state = crate::SavedState {
                     recent_projects: VecDeque::new(),
                 };
                 state.recent_projects.reserve(10);
@@ -69,12 +64,13 @@ impl Luminol {
                 .expect("failed to load project");
         }
 
+        let lumi = Lumi::new().expect("failed to load lumi images");
+
         Self {
             top_bar: TopBar::default(),
             info,
             style,
-            #[cfg(feature = "discord-rpc")]
-            discord: crate::discord::DiscordClient::default(),
+            lumi,
         }
     }
 }
@@ -82,15 +78,16 @@ impl Luminol {
 impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value::<SavedState>(storage, "SavedState", &self.info.saved_state.borrow());
+        eframe::set_value::<crate::SavedState>(
+            storage,
+            "SavedState",
+            &self.info.saved_state.borrow(),
+        );
         eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
-        #[cfg(debug_assertions)]
-        puffin::profile_function!();
-
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
@@ -111,9 +108,6 @@ impl eframe::App for Luminol {
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
-                #[cfg(debug_assertions)]
-                puffin::profile_scope!("top bar");
-
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
@@ -123,43 +117,22 @@ impl eframe::App for Luminol {
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("tabs");
-
             self.info.tabs.ui(ui, self.info);
         });
 
-        {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("windows");
-            // Update all windows.
-            self.info.windows.update(ctx, self.info);
-        }
+        // Update all windows.
+        self.info.windows.update(ctx, self.info);
 
         // Show toasts.
-        {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("toasts");
-            self.info.toasts.show(ctx);
-        }
+        self.info.toasts.show(ctx);
 
         // Tick futures.
         #[cfg(not(target_arch = "wasm32"))]
         {
-            #[cfg(debug_assertions)]
-            puffin::profile_scope!("tick_local");
             poll_promise::tick_local();
         }
 
-        // Update discord
-        #[cfg(feature = "discord-rpc")]
-        self.discord.update(
-            self.info.tabs.discord_display(),
-            self.info
-                .filesystem
-                .project_path()
-                .map(|p| p.display().to_string()),
-        );
+        self.lumi.ui(ctx, self.info);
     }
 
     fn persist_egui_memory(&self) -> bool {

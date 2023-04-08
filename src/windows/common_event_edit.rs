@@ -15,31 +15,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{
-    components::command_view::CommandView,
-    data::rmxp_structs::rpg,
-    modals::{modal::Modal, switch::SwitchModal},
-    tabs::tab::{Tab, Tabs},
-};
-
-use super::window::Window;
+use crate::prelude::*;
 
 /// The common event editor.
-pub struct CommonEventEdit {
-    tabs: Tabs<CommonEventTab>,
+pub struct Window {
+    tabs: tab::Tabs<CommonEventTab>,
     selected_id: usize,
 }
 
-impl Default for CommonEventEdit {
+impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: Tabs::new("common_event_tabs", vec![]),
+            tabs: tab::Tabs::new("common_event_tabs", vec![]),
             selected_id: 0,
         }
     }
 }
 
-impl Window for CommonEventEdit {
+impl window::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -55,8 +48,7 @@ impl Window for CommonEventEdit {
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let mut common_events = info.data_cache.common_events();
-                    let common_events = common_events.as_mut().unwrap();
+                    let common_events = info.data_cache.commonevents();
 
                     egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
                         ui,
@@ -80,7 +72,10 @@ impl Window for CommonEventEdit {
                                         event: event.clone(),
                                         force_close: false,
                                         switch_open: false,
-                                    })
+                                        command_view: CommandView::new(format!(
+                                            "common_event_{ele}"
+                                        )),
+                                    });
                                 }
                             }
                         },
@@ -100,9 +95,10 @@ struct CommonEventTab {
     event: rpg::CommonEvent,
     force_close: bool,
     switch_open: bool,
+    command_view: CommandView,
 }
 
-impl Tab for CommonEventTab {
+impl tab::Tab for CommonEventTab {
     fn name(&self) -> String {
         format!("{}: {}", self.event.name, self.event.id)
     }
@@ -119,12 +115,8 @@ impl Tab for CommonEventTab {
                 });
 
             ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                SwitchModal::new(format!("common_event_{}_trigger_switch", self.event.id)).button(
-                    ui,
-                    &mut self.switch_open,
-                    &mut self.event.switch_id,
-                    info,
-                )
+                switch::Modal::new(format!("common_event_{}_trigger_switch", self.event.id).into())
+                    .button(ui, &mut self.switch_open, &mut self.event.switch_id, info)
             });
 
             let mut save_event = false;
@@ -143,10 +135,9 @@ impl Tab for CommonEventTab {
             }
 
             if save_event {
-                let mut common_events = info.data_cache.common_events();
-                let common_events = common_events.as_mut().unwrap();
+                let mut common_events = info.data_cache.commonevents();
 
-                common_events[self.event.id] = self.event.clone();
+                common_events[self.event.id - 1] = self.event.clone();
             }
 
             ui.label("Name");
@@ -158,21 +149,13 @@ impl Tab for CommonEventTab {
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                CommandView::new(&format!("common_event_{}", self.event.id), None).ui(
-                    ui,
-                    info,
-                    &mut self.event.list,
-                );
+                self.command_view
+                    .ui(ui, &info.data_cache.commanddb(), &mut self.event.list, info);
             });
     }
 
     fn requires_filesystem(&self) -> bool {
         true
-    }
-
-    #[cfg(feature = "discord-rpc")]
-    fn discord_display(&self) -> String {
-        "".to_string()
     }
 
     fn force_close(&mut self) -> bool {
