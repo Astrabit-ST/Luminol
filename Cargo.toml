@@ -79,7 +79,7 @@ luminol-term = { version = "*", path = "luminol-term" }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
 tracing-wasm = "0.2"
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3" }
@@ -125,7 +125,7 @@ members = ["alox-48", "luminol-term"]
 [patch.crates-io]
 poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }
 egui_dock = { git = "https://github.com/Adanos020/egui_dock" }
-js-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
+# js-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
 # web-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
 # wasm-bindgen = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
 
