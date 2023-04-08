@@ -12,6 +12,12 @@ In the future a custom .lumina format is planned, as well as ron, rvdata 1 & 2, 
 
 Luminol _may_ use `Lua` for plugins in the future. It is something I am actively looking into.
 
+### Credits
+
+- [@Speak2Erase](https://github.com/Speak2Erase): Luminol's main contributor
+- [@somedevfox](https://github.com/somedevfox): Occasional contributor and creator of rsgss (a sister project of Luminol)
+- [@Lionmeow](https://github.com/Lionmeow) designer of Luminol's icon
+
 ## RGSS version support
 
 Luminol is compatible only with **RGSS1** for now. RGSS2 & 3 use different tileset formats which Luminol does not support.
@@ -35,8 +41,10 @@ wasm builds are deployed to [luminol.dev](https://luminol.dev/#dev)! They're the
 wasm builds work great and are deployed using the awesome tool [trunk](https://trunkrs.dev)!
 
 Native builds are the main focus at the moment, but no official releases will be made until Luminol is stable.
-Instead, you will have to compile luminol yourself, by grabbing your favorite rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.
+Instead, you will have to compile luminol yourself, by grabbing your favorite nightly rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.
 Luminol has like a bajillion dependencies right now so it may take upwards of 15 minutes to compile.
+
+**You can not use one of the stable release channels.**
 
 ## Functionality
 

@@ -145,6 +145,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
         info.data_cache.load(self).await.map_err(|e| {
             *self.project_path.borrow_mut() = None;
+            *self.loading_project.borrow_mut() = false;
             e
         })?;
 

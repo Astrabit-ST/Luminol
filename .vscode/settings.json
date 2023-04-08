@@ -13,6 +13,7 @@
 	"conventionalCommits.scopes": [
 		"scripts",
 		"tabs",
-		"playtest"
+		"playtest",
+		"wasm"
 	]
 }
