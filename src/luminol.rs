@@ -31,7 +31,10 @@ pub struct Luminol {
 impl Luminol {
     /// Called once before the first frame.
     #[must_use]
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
+    ) -> Self {
         let storage = cc.storage.unwrap();
 
         let state = eframe::get_value(storage, "SavedState").map_or_else(
@@ -49,14 +52,23 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
+        let info = Box::leak(Box::new(UpdateInfo::new(
+            cc.gl.as_ref().unwrap().clone(),
+            state,
+        )));
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(path) = try_load_path {
+            poll_promise::Promise::spawn_local(info.filesystem.try_open_project(info, path))
+                .block_and_take()
+                .expect("failed to load project");
+        }
+        
         let lumi = Lumi::new().expect("failed to load lumi images");
 
         Self {
             top_bar: TopBar::default(),
-            info: Box::leak(Box::new(UpdateInfo::new(
-                cc.gl.as_ref().unwrap().clone(),
-                state,
-            ))),
+            info,
             style,
             lumi,
         }
@@ -76,7 +88,24 @@ impl eframe::App for Luminol {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
-        #[cfg(debug_assertions)]
+        #[cfg(not(target_arch = "wasm32"))]
+        ctx.input(|i| {
+            if let Some(f) = i.raw.dropped_files.first() {
+                let path = f.path.clone().expect("dropped file has no path");
+
+                if let Err(e) = poll_promise::Promise::spawn_local(
+                    self.info.filesystem.try_open_project(self.info, path),
+                )
+                .block_and_take()
+                {
+                    self.info
+                        .toasts
+                        .error(format!("Error opening dropped project: {e}"))
+                }
+            }
+        });
+
+
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {

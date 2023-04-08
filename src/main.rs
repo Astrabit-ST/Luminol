@@ -18,9 +18,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-#[cfg(has_std)]
-fn test() {}
-
 // TODO: Use eyre!
 use color_eyre::Result;
 
@@ -35,6 +32,7 @@ fn main() -> Result<()> {
 
     let native_options = eframe::NativeOptions {
         drag_and_drop_support: true,
+        transparent: true,
         icon_data: Some(eframe::IconData {
             width: image.width(),
             height: image.height(),
@@ -46,7 +44,7 @@ fn main() -> Result<()> {
     eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
 
