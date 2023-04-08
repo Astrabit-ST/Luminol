@@ -63,7 +63,7 @@ impl Luminol {
                 .block_and_take()
                 .expect("failed to load project");
         }
-        
+
         let lumi = Lumi::new().expect("failed to load lumi images");
 
         Self {
@@ -104,7 +104,6 @@ impl eframe::App for Luminol {
                 }
             }
         });
-
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
