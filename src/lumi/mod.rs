@@ -18,6 +18,7 @@ use crate::prelude::*;
 
 mod state;
 
+#[allow(dead_code)]
 pub struct Lumi {
     speak: egui_extras::RetainedImage,
     idle: egui_extras::RetainedImage,
@@ -44,7 +45,7 @@ impl Lumi {
         })
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context, info: &'static UpdateInfo) {
+    pub fn ui(&mut self, ctx: &egui::Context, _info: &'static UpdateInfo) {
         if !self.enabled {
             return;
         }

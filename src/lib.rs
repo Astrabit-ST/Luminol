@@ -28,7 +28,9 @@
     // clippy::pedantic,
     clippy::panic,
     clippy::panic_in_result_fn,
-    clippy::panicking_unwrap
+    clippy::panicking_unwrap,
+    // clippy::unwrap_used,
+    clippy::unnecessary_wraps
 )]
 #![allow(
     clippy::missing_errors_doc,

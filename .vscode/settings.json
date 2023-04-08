@@ -19,5 +19,6 @@
 		"tabs",
 		"playtest",
 		"wasm"
-	]
+	],
+	"rust-analyzer.showUnlinkedFileNotification": false
 }
