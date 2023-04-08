@@ -127,7 +127,7 @@ poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8
 egui_dock = { git = "https://github.com/Adanos020/egui_dock" }
 js-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
 # web-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-wasm-bindgen = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
+# wasm-bindgen = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
 
 
 # If you want to use the bleeding edge version of egui and eframe:
