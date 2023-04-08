@@ -101,7 +101,7 @@ winres = "0.1"
 [package.metadata.winres]
 OriginalFilename = "Luminol.exe"
 ProductName = "Luminol"
-ProductVersion = "0.3.2"
+ProductVersion = "0.4.0"
 
 # Fast and performant.
 [profile.release]

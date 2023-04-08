@@ -61,7 +61,7 @@ fn run_native() -> Result<()> {
     eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
 

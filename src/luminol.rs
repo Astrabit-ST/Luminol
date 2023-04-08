@@ -31,14 +31,15 @@ pub struct Luminol {
     style: Arc<egui::Style>,
     #[cfg(feature = "discord-rpc")]
     discord: crate::discord::DiscordClient,
-    #[cfg(not(target_arch = "wasm32"))]
-    dropped_promise: Option<poll_promise::Promise<Result<(), String>>>,
 }
 
 impl Luminol {
     /// Called once before the first frame.
     #[must_use]
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
+    ) -> Self {
         let storage = cc.storage.unwrap();
 
         let state = eframe::get_value(storage, "SavedState").map_or_else(
@@ -56,17 +57,24 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
+        let info = Box::leak(Box::new(UpdateInfo::new(
+            cc.gl.as_ref().unwrap().clone(),
+            state,
+        )));
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(path) = try_load_path {
+            poll_promise::Promise::spawn_local(info.filesystem.try_open_project(info, path))
+                .block_and_take()
+                .expect("failed to load project");
+        }
+
         Self {
             top_bar: TopBar::default(),
-            info: Box::leak(Box::new(UpdateInfo::new(
-                cc.gl.as_ref().unwrap().clone(),
-                state,
-            ))),
+            info,
             style,
             #[cfg(feature = "discord-rpc")]
             discord: crate::discord::DiscordClient::default(),
-            #[cfg(not(target_arch = "wasm32"))]
-            dropped_promise: None,
         }
     }
 }
@@ -87,26 +95,18 @@ impl eframe::App for Luminol {
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
-                self.dropped_promise = Some(poll_promise::Promise::spawn_local(
+
+                if let Err(e) = poll_promise::Promise::spawn_local(
                     self.info.filesystem.try_open_project(self.info, path),
-                ))
+                )
+                .block_and_take()
+                {
+                    self.info
+                        .toasts
+                        .error(format!("Error opening dropped project: {e}"))
+                }
             }
         });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Some(p) = self
-            .dropped_promise
-            .as_ref()
-            .and_then(poll_promise::Promise::ready)
-        {
-            if let Err(e) = p {
-                self.info
-                    .toasts
-                    .error(format!("Error opening dropped project: {e}"))
-            }
-
-            self.dropped_promise = None;
-        }
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
