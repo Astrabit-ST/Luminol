@@ -73,6 +73,7 @@ async-fs = "1.6.0"
 discord-sdk = { version = "0.3", optional = true }
 surf = "2.3.2"
 rfd = "0.11"
+luminol-term = { version = "*", path = "luminol-term" }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -119,7 +120,7 @@ opt-level = 3
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = ["alox-48"]
+members = ["alox-48", "luminol-term"]
 
 [patch.crates-io]
 poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }

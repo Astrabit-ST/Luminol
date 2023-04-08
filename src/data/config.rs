@@ -27,6 +27,7 @@ pub struct LocalConfig {
     pub scripts_path: String,
     pub use_ron: bool,
     pub rgss_ver: RGSSVer,
+    pub playtest_exe: String,
 }
 
 impl Default for LocalConfig {
@@ -36,6 +37,7 @@ impl Default for LocalConfig {
             scripts_path: "Scripts".to_string(),
             use_ron: true,
             rgss_ver: RGSSVer::RGSS1,
+            playtest_exe: "game".to_string(),
         }
     }
 }
