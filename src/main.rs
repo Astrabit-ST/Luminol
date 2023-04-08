@@ -18,9 +18,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-#[cfg(has_std)]
-fn test() {}
-
 // TODO: Use eyre!
 use color_eyre::Result;
 
@@ -52,6 +49,7 @@ fn run_native() -> Result<()> {
 
     let native_options = eframe::NativeOptions {
         drag_and_drop_support: true,
+        transparent: true,
         icon_data: Some(eframe::IconData {
             width: image.width(),
             height: image.height(),

@@ -132,10 +132,10 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     async fn try_open_project(
         &self,
         info: &'static UpdateInfo,
-        path: impl ToString,
+        path: impl AsRef<Path>,
     ) -> Result<(), String> {
-        let mut path = PathBuf::from(path.to_string());
-        let original_path = path.clone().to_string_lossy().to_string();
+        let mut path = path.as_ref().to_path_buf();
+        let original_path = path.to_string_lossy().to_string();
 
         path.pop(); // Pop off filename
 

@@ -22,7 +22,6 @@ use puffin_egui::puffin;
 
 use crate::{components::top_bar::TopBar, saved_state::SavedState, UpdateInfo};
 
-#[cfg(feature = "discord-rpc")]
 use crate::filesystem::filesystem_trait::Filesystem;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
@@ -32,6 +31,8 @@ pub struct Luminol {
     style: Arc<egui::Style>,
     #[cfg(feature = "discord-rpc")]
     discord: crate::discord::DiscordClient,
+    #[cfg(not(target_arch = "wasm32"))]
+    dropped_promise: Option<poll_promise::Promise<Result<(), String>>>,
 }
 
 impl Luminol {
@@ -64,6 +65,8 @@ impl Luminol {
             style,
             #[cfg(feature = "discord-rpc")]
             discord: crate::discord::DiscordClient::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            dropped_promise: None,
         }
     }
 }
@@ -79,6 +82,31 @@ impl eframe::App for Luminol {
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        ctx.input(|i| {
+            if let Some(f) = i.raw.dropped_files.first() {
+                let path = f.path.clone().expect("dropped file has no path");
+                self.dropped_promise = Some(poll_promise::Promise::spawn_local(
+                    self.info.filesystem.try_open_project(self.info, path),
+                ))
+            }
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(p) = self
+            .dropped_promise
+            .as_ref()
+            .and_then(poll_promise::Promise::ready)
+        {
+            if let Err(e) = p {
+                self.info
+                    .toasts
+                    .error(format!("Error opening dropped project: {e}"))
+            }
+
+            self.dropped_promise = None;
+        }
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.

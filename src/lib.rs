@@ -26,7 +26,7 @@
 #![warn(rust_2018_idioms)]
 #![warn(
     clippy::all,
-    clippy::pedantic,
+    // clippy::pedantic,
     clippy::panic,
     clippy::panic_in_result_fn,
     clippy::panicking_unwrap
