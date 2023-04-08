@@ -39,7 +39,7 @@
     clippy::too_many_lines
 )]
 #![deny(unsafe_code)]
-#![feature(drain_filter, is_some_and, min_specialization)]
+#![feature(drain_filter, min_specialization)]
 
 pub use prelude::*;
 
