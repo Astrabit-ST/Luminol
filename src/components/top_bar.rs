@@ -139,15 +139,14 @@ impl TopBar {
                 *style = ui.ctx().style();
             });
 
-            let mut theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+            let theme = &mut info.saved_state.borrow_mut().theme;
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
-                theme.clone().store_in_memory(ui.ctx());
 
                 ui.label("Code sample");
                 ui.label(syntax_highlighting::highlight(
                     ui.ctx(),
-                    &theme,
+                    *theme,
                     r#"
                     class Foo < Array 
                     end

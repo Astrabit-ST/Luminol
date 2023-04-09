@@ -101,11 +101,10 @@ impl CommandView {
                                     .desired_width(f32::INFINITY);
                                 let mut layouter =
                                     |ui: &egui::Ui, string: &str, wrap_width: f32| {
-                                        let theme =
-                                            syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+                                        let theme = info.saved_state.borrow().theme;
                                         let mut layout_job = syntax_highlighting::highlight(
                                             ui.ctx(),
-                                            &theme,
+                                            theme,
                                             string,
                                             "rb",
                                         );

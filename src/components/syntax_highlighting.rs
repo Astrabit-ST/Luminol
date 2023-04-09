@@ -20,12 +20,11 @@
 use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.
-pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
-    let language = "rs";
-    let theme = CodeTheme::from_memory(ui.ctx());
+pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str, theme: CodeTheme) {
+    let language = "rb";
 
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), &theme, string, language);
+        let layout_job = highlight(ui.ctx(), theme, string, language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts(|f| f.layout_job(layout_job))
     };
@@ -42,9 +41,9 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 
 /// Memoized Code highlighting
 #[must_use]
-pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
-        fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
+pub fn highlight(ctx: &egui::Context, theme: CodeTheme, code: &str, language: &str) -> LayoutJob {
+    impl egui::util::cache::ComputerMut<(CodeTheme, &str, &str), LayoutJob> for Highlighter {
+        fn compute(&mut self, (theme, code, lang): (CodeTheme, &str, &str)) -> LayoutJob {
             self.highlight(theme, code, lang)
         }
     }
@@ -119,7 +118,7 @@ impl SyntectTheme {
     }
 }
 
-#[derive(Clone, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CodeTheme {
     dark_mode: bool,
 
@@ -143,6 +142,7 @@ impl CodeTheme {
     }
 
     #[must_use]
+    #[deprecated = "saved state stores code theme now"]
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
             ctx.data_mut(|m| {
@@ -157,6 +157,7 @@ impl CodeTheme {
         }
     }
 
+    #[deprecated = "saved state stores code theme now"]
     pub fn store_in_memory(self, ctx: &egui::Context) {
         if self.dark_mode {
             ctx.data_mut(|m| {
@@ -212,7 +213,7 @@ impl Default for Highlighter {
 
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn highlight(&self, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
+    fn highlight(&self, theme: CodeTheme, code: &str, lang: &str) -> LayoutJob {
         self.highlight_impl(theme, code, lang).unwrap_or_else(|| {
             // Fallback:
             LayoutJob::simple(
@@ -228,7 +229,7 @@ impl Highlighter {
         })
     }
 
-    fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
+    fn highlight_impl(&self, theme: CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
         use egui::text::{LayoutSection, TextFormat};
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;

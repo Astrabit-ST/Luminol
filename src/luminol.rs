@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::VecDeque;
-
 use crate::lumi::Lumi;
 use crate::prelude::*;
 
@@ -37,17 +35,7 @@ impl Luminol {
     ) -> Self {
         let storage = cc.storage.unwrap();
 
-        let state = eframe::get_value(storage, "SavedState").map_or_else(
-            || {
-                let mut state = crate::SavedState {
-                    recent_projects: VecDeque::new(),
-                };
-                state.recent_projects.reserve(10);
-                state
-            },
-            |s| s,
-        );
-
+        let state = eframe::get_value(storage, "SavedState").unwrap_or_default();
         let style =
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());

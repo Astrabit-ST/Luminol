@@ -16,13 +16,13 @@ Luminol _may_ use `Lua` for plugins in the future. It is something I am actively
 
 - [@Speak2Erase](https://github.com/Speak2Erase): Luminol's main contributor
 - [@somedevfox](https://github.com/somedevfox): Occasional contributor and creator of rsgss (a sister project of Luminol)
-- [@Lionmeow](https://github.com/Lionmeow) designer of Luminol's icon
+- [@Lionmeow](https://github.com/Lionmeow) designer of Luminol's icon and Lumi
 
 ## RGSS version support
 
 Luminol is compatible only with **RGSS1** for now. RGSS2 & 3 use different tileset formats which Luminol does not support.
 There are plans to support them in the future, though. 
-Lily (Luminol's main contributor) does not have a copy of VX or VX Ace yet, so until then Luminol is focused on RGSS1. If you want, [you can buy her a copy](https://steamcommunity.com/id/lily-panpan/) [or send her a crack idc](discord://-/users/351871502460649485).
+Lily (Luminol's main contributor) does not have a copy of VX or VX Ace yet, so until then Luminol is focused on RGSS1. If you want, [you can buy her a copy](https://steamcommunity.com/id/lily-panpan/) [or send her a crack](discord://-/users/351871502460649485).
 
 Luminol, however will have compatibility modes for various RGSS1 compatible runtimes, usually enabling extra features.
 Compatibility:
@@ -68,7 +68,7 @@ Basic functionality:
 - [ ] Actor editor
 - [ ] Class editor
 - [ ] Skill editor
-- [ ] Item editor
+- [x] Item editor
 - [ ] Weapon editor
 - [ ] Armor editor
 - [ ] Enemy editor
@@ -85,8 +85,8 @@ Extra functionality:
 - [x] Edit multiple events at the same time
 - [x] Edit multiple scripts
 - [ ] Language server support for script editor?
-- [ ] Custom event commands
-- [ ] Procedural event commands
+- [x] Custom event commands
+- [x] Procedural event commands
 - [ ] Debugger support?
 - [ ] Custom data formats
 - [ ] Extra layers

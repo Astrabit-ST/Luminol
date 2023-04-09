@@ -146,12 +146,12 @@ impl CommandView {
                         Color32::YELLOW
                     ));
                     if highlight {
-                        let theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+                        let theme = info.saved_state.borrow().theme;
 
                         ui.selectable_value(
                             &mut self.selected_index,
                             index,
-                            syntax_highlighting::highlight(ui.ctx(), &theme, &str, "rb"),
+                            syntax_highlighting::highlight(ui.ctx(), theme, &str, "rb"),
                         )
                     } else {
                         ui.selectable_value(&mut self.selected_index, index, str)

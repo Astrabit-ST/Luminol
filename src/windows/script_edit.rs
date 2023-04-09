@@ -123,7 +123,7 @@ impl tab::Tab for ScriptTab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
-        let theme = syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let theme = info.saved_state.borrow().theme;
         ui.horizontal(|ui| {
             let mut save_script = false;
 
@@ -148,7 +148,7 @@ impl tab::Tab for ScriptTab {
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job = syntax_highlighting::highlight(ui.ctx(), &theme, string, "rb");
+            let mut layout_job = syntax_highlighting::highlight(ui.ctx(), theme, string, "rb");
             layout_job.wrap.max_width = wrap_width;
             ui.fonts(|f| f.layout_job(layout_job))
         };
