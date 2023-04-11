@@ -35,6 +35,15 @@ pub struct CommandDB {
     pub user: Vec<CommandDescription>,
 }
 
+impl Default for CommandDB {
+    fn default() -> Self {
+        Self {
+            default: XP_DEFAULT.clone(),
+            user: vec![],
+        }
+    }
+}
+
 impl CommandDB {
     pub fn new(ver: RMVer) -> Self {
         Self {

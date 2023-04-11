@@ -92,9 +92,19 @@ macro_rules! getter {
     ($($name:ident, $type:ty),*) => {
         $(
             paste::paste! {
-                #[doc = "Get `" $name "` from the data cache. It may not be loaded, and will panic if it is not in the future."]
-                pub fn [< $name:lower >](&self) -> RefMut<'_, $type> {
-                    RefMut::map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o).expect("Project not loaded"))
+                #[doc = "Get `" $name "` from the data cache. Panics if the project was not loaded."]
+                pub fn [< $name:lower>](&self) -> RefMut<'_, $type> {
+                    RefMut::map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o).expect(concat!("Grabbing ", stringify!($name), " from the data cache failed because the project was not loaded. Please file this as an issue")))
+                }
+
+                #[doc = "Try getting `" $name "` from the data cache."]
+                pub fn [<try_ $name:lower>](&self) -> Option<RefMut<'_, $type>> {
+                    RefMut::filter_map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o)).ok()
+                }
+
+                #[doc = "Get the raw optional `" $name "` from the data cache."]
+                pub fn [<raw_ $name:lower>](&self) -> RefMut<'_, Option<$type>> {
+                    self.[< $name:lower >].borrow_mut()
                 }
             }
         )*
@@ -105,10 +115,10 @@ macro_rules! setup_default {
     ($this:ident, $($name:ident),*) => {
         $(
             paste::paste! {
-                *$this.[< $name:lower >].borrow_mut() = Some(
+                $this.[< $name:lower >].replace(Some(
                     // This is a pretty dirty hack to make rustc assume that it's a vec of the type we're storing
                     NilPadded::from(vec![None, Some(Default::default())])
-                );
+                ));
             }
         )*
     };
@@ -337,15 +347,17 @@ impl Cache {
                 scroll_y: 0,
             },
         );
-        *self.mapinfos() = map_infos;
+        self.mapinfos.replace(Some(map_infos));
 
         // FIXME: make this static somehow?
-        *self.scripts() = alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap();
+        self.scripts.replace(Some(
+            alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
+        ));
 
-        *self.system() = rpg::System {
+        self.system.replace(Some(rpg::System {
             magic_number: rand::random(),
             ..Default::default()
-        };
+        }));
 
         let mut maps = HashMap::new();
         maps.insert(
@@ -358,9 +370,10 @@ impl Cache {
                 ..Default::default()
             },
         );
-        *self.maps.borrow_mut() = maps;
+        self.maps.replace(maps);
 
-        *self.config() = LocalConfig::default();
+        self.config.replace(Some(LocalConfig::default()));
+        self.commanddb.replace(Some(CommandDB::default()));
 
         setup_default! {
             self,
