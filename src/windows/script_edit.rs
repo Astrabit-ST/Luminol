@@ -39,6 +39,10 @@ impl window::Window for Window {
             })
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Script Edit")
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name())
             .open(open)

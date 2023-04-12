@@ -63,6 +63,10 @@ impl window::Window for Window {
         "New Project".to_string()
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("New Project")
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
         let mut win_open = true;
         egui::Window::new(self.name())

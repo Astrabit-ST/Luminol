@@ -79,6 +79,10 @@ impl Window {
 }
 
 impl window::Window for Window {
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Map Picker")
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
         let mut window_open = true;
         egui::Window::new("Map Picker")
@@ -124,10 +128,6 @@ impl window::Window for Window {
                     })
             });
         *open = window_open;
-    }
-
-    fn name(&self) -> String {
-        "Map Picker".to_string()
     }
 
     fn requires_filesystem(&self) -> bool {

@@ -188,8 +188,8 @@ impl Window {
 }
 
 impl super::window::Window for Window {
-    fn name(&self) -> String {
-        "Sound Test".to_string()
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Sound Test")
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
