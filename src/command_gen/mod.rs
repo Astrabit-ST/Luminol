@@ -83,6 +83,10 @@ impl window::Window for CommandGeneratorWindow {
         String::from("Luminol Command Maker")
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Luminol Command Maker")
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {

@@ -26,6 +26,10 @@ impl Window for EguiInspection {
         "Egui Inspection".to_string()
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Egui Inspection")
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {
         egui::Window::new(self.name())
             .open(open)
@@ -40,6 +44,10 @@ pub struct EguiMemory {}
 impl Window for EguiMemory {
     fn name(&self) -> String {
         "Egui Memory".to_string()
+    }
+
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Egui Memory")
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {

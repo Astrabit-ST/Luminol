@@ -35,7 +35,7 @@ impl Windows {
         T: Window + 'static,
     {
         let mut windows = self.windows.borrow_mut();
-        if windows.iter().any(|w| w.name() == window.name()) {
+        if windows.iter().any(|w| w.id() == window.id()) {
             return;
         }
         windows.push(Box::new(window));
@@ -70,8 +70,13 @@ pub trait Window {
     /// Show this window.
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo);
 
+    /// Optionally used as the title of the window.
+    fn name(&self) -> String {
+        "Untitled Window".to_string()
+    }
+
     /// Required to prevent duplication.
-    fn name(&self) -> String;
+    fn id(&self) -> egui::Id;
 
     ///  A function to determine if this window needs the data cache.
     fn requires_filesystem(&self) -> bool {

@@ -40,6 +40,10 @@ impl super::window::Window for Window {
         "About".to_string()
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("About Luminol")
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, _: &'static UpdateInfo) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")

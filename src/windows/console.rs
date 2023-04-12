@@ -32,6 +32,10 @@ impl super::window::Window for Console {
         self.term.title()
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Console")
+    }
+
     fn requires_filesystem(&self) -> bool {
         true
     }

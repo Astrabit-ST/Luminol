@@ -65,6 +65,10 @@ impl window::Window for Window {
         format!("Editing item {}", self.items[self.selected_item].name)
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Item Editor")
+    }
+
     fn requires_filesystem(&self) -> bool {
         true
     }
