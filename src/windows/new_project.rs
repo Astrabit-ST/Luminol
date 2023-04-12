@@ -63,7 +63,7 @@ impl window::Window for Window {
         "New Project".to_string()
     }
 
-    fn id (&self) -> egui::Id {
+    fn id(&self) -> egui::Id {
         egui::Id::new("New Project")
     }
 
