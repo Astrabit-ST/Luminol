@@ -45,7 +45,7 @@ impl Lumi {
         })
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context, _info: &'static UpdateInfo) {
+    pub fn ui(&mut self, ctx: &egui::Context) {
         if !self.enabled {
             return;
         }

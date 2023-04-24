@@ -67,7 +67,7 @@ impl window::Window for Window {
         egui::Id::new("New Project")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let mut win_open = true;
         egui::Window::new(self.name())
             .open(&mut win_open)
@@ -112,7 +112,9 @@ impl window::Window for Window {
                             match res {
                                 Ok(_) => *open = false,
                                 Err(e) => {
-                                    info.toasts.error(format!("Failed to create project: {e}"));
+                                    info!()
+                                        .toasts
+                                        .error(format!("Failed to create project: {e}"));
                                     self.project_promise = None;
                                 }
                             }
@@ -157,10 +159,9 @@ impl window::Window for Window {
 
                             self.project_promise =
                                 Some(poll_promise::Promise::spawn_local(async move {
-                                    let result = info
-                                        .filesystem
-                                        .try_create_project(name, info, rgss_ver)
-                                        .await;
+                                    let info = info!();
+                                    let result =
+                                        info.filesystem.try_create_project(name, rgss_ver).await;
 
                                     #[allow(clippy::collapsible_if)]
                                     if result.is_ok() {
@@ -191,8 +192,7 @@ impl window::Window for Window {
 
                                         if download_executable {
                                             if let Err(e) =
-                                                Self::download_executable(rgss_ver, info, progress)
-                                                    .await
+                                                Self::download_executable(rgss_ver, progress).await
                                             {
                                                 info.toasts.error(e);
                                             }
@@ -218,11 +218,7 @@ impl window::Window for Window {
 }
 
 impl Window {
-    async fn download_executable(
-        rgss_ver: RGSSVer,
-        info: &'static UpdateInfo,
-        progress: Progress,
-    ) -> Result<(), String> {
+    async fn download_executable(rgss_ver: RGSSVer, progress: Progress) -> Result<(), String> {
         let zip_url: &[_] = match rgss_ver {
             RGSSVer::ModShot => &[
                 "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Windows_bb6bcbc_Ruby-3.1-ucrt64_Steam-false.zip", 
@@ -237,8 +233,8 @@ impl Window {
                 // "https://mapleshrine.eu/releases/mkxp-freebird/win64/mkxp-win64-211207-5d38b1f.zip",
                 // Use an unofficial host for now
                 "https://nowaffles.com/wp-content/uploads/2022/11/mkxp-win64-211207-5d38b1f.zip",
-            ],
-            _ => unreachable!()
+                ],
+                _ => unreachable!()
         };
 
         progress.zip_total.set(zip_url.len());
@@ -246,7 +242,7 @@ impl Window {
         let zips = futures::future::join_all(zip_url.iter().map(|url|
             // surf::get(format!("https://api.allorigins.win/raw?url={url}"))  FIXME: phishing scam, apparently
             surf::get(url)
-                .middleware(surf::middleware::Redirect::new(10))))
+            .middleware(surf::middleware::Redirect::new(10))))
         .await;
 
         for (index, zip_response) in zips.into_iter().enumerate() {
@@ -265,6 +261,7 @@ impl Window {
                 .map_err(|e| format!("Failed to read zip archive for {rgss_ver}: {e}"))?;
             progress.total_progress.set(archive.len());
 
+            let info = info!();
             for index in 0..archive.len() {
                 let mut file = archive.by_index(index).unwrap();
                 progress.current_progress.set(index);

@@ -68,6 +68,7 @@ command-lib = { version = "*", path = "command-lib" }
 rmxp-types = { version = "*", path = "rmxp-types" }
 
 itertools = "0.10"
+static_assertions = "1.1.0"
 
 [features]
 default = ["generic-tilemap"]

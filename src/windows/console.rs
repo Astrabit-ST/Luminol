@@ -40,14 +40,15 @@ impl super::window::Window for Console {
         true
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .id(self.term.id())
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
                 if let Err(e) = self.term.ui(ui) {
-                    info.toasts
+                    crate::info!()
+                        .toasts
                         .error(format!("error displaying terminal: {e:?}"));
                 }
             });

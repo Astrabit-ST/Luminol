@@ -45,14 +45,14 @@ impl window::Window for Window {
         egui::Id::new("Common Events")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let common_events = info.data_cache.commonevents();
+                    let common_events = info!().data_cache.commonevents();
 
                     egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
                         ui,
@@ -86,7 +86,7 @@ impl window::Window for Window {
                     );
                 });
 
-                self.tabs.ui(ui, info);
+                self.tabs.ui(ui);
             });
     }
 
@@ -107,7 +107,7 @@ impl tab::Tab for CommonEventTab {
         format!("{}: {}", self.event.name, self.event.id)
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let trigger_types = ["None", "Autorun", "Parallel"];
             egui::ComboBox::new(format!("common_event_{}_trigger", self.event.id), "Trigger")
@@ -120,7 +120,7 @@ impl tab::Tab for CommonEventTab {
 
             ui.add_enabled_ui(self.event.trigger > 0, |ui| {
                 switch::Modal::new(format!("common_event_{}_trigger_switch", self.event.id).into())
-                    .button(ui, &mut self.switch_open, &mut self.event.switch_id, info)
+                    .button(ui, &mut self.switch_open, &mut self.event.switch_id)
             });
 
             let mut save_event = false;
@@ -139,7 +139,7 @@ impl tab::Tab for CommonEventTab {
             }
 
             if save_event {
-                let mut common_events = info.data_cache.commonevents();
+                let mut common_events = info!().data_cache.commonevents();
 
                 common_events[self.event.id - 1] = self.event.clone();
             }
@@ -154,7 +154,7 @@ impl tab::Tab for CommonEventTab {
             .auto_shrink([false; 2])
             .show(ui, |ui| {
                 self.command_view
-                    .ui(ui, &info.data_cache.commanddb(), &mut self.event.list, info);
+                    .ui(ui, &info!().data_cache.commanddb(), &mut self.event.list);
             });
     }
 

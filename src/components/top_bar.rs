@@ -17,7 +17,7 @@
 
 use crate::prelude::*;
 
-use crate::{Pencil, UpdateInfo};
+use crate::Pencil;
 
 /// The top bar for managing the project.
 #[derive(Default)]
@@ -34,11 +34,11 @@ impl TopBar {
     #[allow(unused_variables)]
     pub fn ui(
         &mut self,
-        info: &'static UpdateInfo,
         ui: &mut egui::Ui,
         style: &mut Arc<egui::Style>,
         frame: &mut eframe::Frame,
     ) {
+        let info = info!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -101,7 +101,7 @@ impl TopBar {
             ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
                 if ui.button("Command Maker").clicked() {
                     info.windows
-                        .add_window(crate::command_gen::CommandGeneratorWindow::new(info));
+                        .add_window(crate::command_gen::CommandGeneratorWindow::default());
                 }
             });
 
@@ -169,9 +169,7 @@ impl TopBar {
                 }
 
                 if ui.button("Items").clicked() {
-                    if let Some(window) = items::Window::new(info) {
-                        info.windows.add_window(window);
-                    }
+                    info.windows.add_window(items::Window::default());
                 }
 
                 if ui.button("Common Events").clicked() {
@@ -184,7 +182,7 @@ impl TopBar {
                 }
 
                 if ui.button("Sound Test").clicked() {
-                    info.windows.add_window(sound_test::Window::new(info));
+                    info.windows.add_window(sound_test::Window::default());
                 }
             });
         });
@@ -269,14 +267,13 @@ impl TopBar {
 
         if open_project {
             self.open_project_promise = Some(Promise::spawn_local(
-                info.filesystem.spawn_project_file_picker(info),
+                info.filesystem.spawn_project_file_picker(),
             ));
         }
 
         if save_project {
             info.toasts.info("Saving project...");
-            self.save_project_promise =
-                Some(Promise::spawn_local(info.filesystem.save_cached(info)));
+            self.save_project_promise = Some(Promise::spawn_local(info.filesystem.save_cached()));
         }
 
         if self.open_project_promise.is_some() {

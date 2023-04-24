@@ -44,14 +44,14 @@ pub struct Tab {
 
 impl Tab {
     /// Create a new map editor.
-    pub fn new(id: i32, name: String, info: &'static UpdateInfo) -> Option<Self> {
+    pub fn new(id: i32, name: String) -> Option<Self> {
         Some(Self {
             id,
             name,
             selected_layer: 0,
             toggled_layers: Vec::new(),
             cursor_pos: Pos2::ZERO,
-            tilemap: Tilemap::new(info, id),
+            tilemap: Tilemap::new(id),
             selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,
@@ -70,7 +70,8 @@ impl tab::Tab for Tab {
         self.force_close
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ui: &mut egui::Ui) {
+        let info = info!();
         // Are we done loading data?
         if self.tilemap.textures_loaded() {
             if let Err(e) = self.tilemap.load_result() {
@@ -200,7 +201,6 @@ impl tab::Tab for Tab {
                                     self.id,
                                     event.clone(),
                                     tileset.tileset_name.clone(),
-                                    info,
                                 ));
                             } else {
                                 let id = map.events.vacant_key();
@@ -213,7 +213,6 @@ impl tab::Tab for Tab {
                                     self.id,
                                     event,
                                     tileset.tileset_name.clone(),
-                                    info,
                                 ));
                             }
                             self.dragging_event = false;
@@ -254,7 +253,7 @@ impl tab::Tab for Tab {
             });
         }
 
-        self.event_windows.update(ui.ctx(), info);
+        self.event_windows.update(ui.ctx());
     }
 
     fn requires_filesystem(&self) -> bool {

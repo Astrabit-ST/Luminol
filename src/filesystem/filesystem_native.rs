@@ -121,15 +121,11 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Save all cached files. An alias for [`DataCache::save`];
-    async fn save_cached(&self, info: &'static UpdateInfo) -> Result<(), String> {
-        info.data_cache.save(self).await
+    async fn save_cached(&self) -> Result<(), String> {
+        info!().data_cache.save(self).await
     }
 
-    async fn try_open_project(
-        &self,
-        info: &'static UpdateInfo,
-        path: impl AsRef<Path>,
-    ) -> Result<(), String> {
+    async fn try_open_project(&self, path: impl AsRef<Path>) -> Result<(), String> {
         let mut path = path.as_ref().to_path_buf();
         let original_path = path.to_string_lossy().to_string();
 
@@ -139,7 +135,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
         *self.loading_project.borrow_mut() = true;
 
-        info.data_cache.load(self).await.map_err(|e| {
+        info!().data_cache.load(self).await.map_err(|e| {
             *self.project_path.borrow_mut() = None;
             *self.loading_project.borrow_mut() = false;
             e
@@ -148,7 +144,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
         *self.loading_project.borrow_mut() = false;
 
         {
-            let projects = &mut info.saved_state.borrow_mut().recent_projects;
+            let projects = &mut info!().saved_state.borrow_mut().recent_projects;
 
             *projects = projects
                 .iter()
@@ -170,14 +166,13 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Try to open a project.
-    async fn spawn_project_file_picker(&self, info: &'static UpdateInfo) -> Result<(), String> {
+    async fn spawn_project_file_picker(&self) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "lumproj"])
             .pick_file()
             .await
         {
-            self.try_open_project(info, path.path().to_str().unwrap())
-                .await
+            self.try_open_project(path.path().to_str().unwrap()).await
         } else {
             Err("Cancelled loading project".to_string())
         }
@@ -196,16 +191,11 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Try to create a project.
-    async fn try_create_project(
-        &self,
-        name: String,
-        info: &'static UpdateInfo,
-        rgss_ver: RGSSVer,
-    ) -> Result<(), String> {
+    async fn try_create_project(&self, name: String, rgss_ver: RGSSVer) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
             let path = path.path().to_path_buf().join(name.clone());
 
-            self.create_project(name.clone(), path, info, rgss_ver)
+            self.create_project(name.clone(), path, rgss_ver)
                 .await
                 .map_err(|e| {
                     *self.project_path.borrow_mut() = None;
@@ -213,7 +203,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
                 })?;
 
             {
-                let projects = &mut info.saved_state.borrow_mut().recent_projects;
+                let projects = &mut info!().saved_state.borrow_mut().recent_projects;
 
                 let path = self.project_path().unwrap().display().to_string();
                 *projects = projects
@@ -236,7 +226,6 @@ impl Filesystem {
         &self,
         name: String,
         path: PathBuf,
-        info: &'static UpdateInfo,
         rgss_ver: RGSSVer,
     ) -> Result<(), String> {
         use super::filesystem_trait::Filesystem;
@@ -250,14 +239,14 @@ impl Filesystem {
 
         self.create_directory("Data").await?;
 
-        info.data_cache.setup_defaults();
+        info!().data_cache.setup_defaults();
         {
-            let mut config = info.data_cache.config();
+            let mut config = info!().data_cache.config();
             config.rgss_ver = rgss_ver;
             config.project_name = name;
         }
 
-        self.save_cached(info).await?;
+        self.save_cached().await?;
 
         self.create_directory("Audio").await?;
         self.create_directory("Audio/BGM").await?;

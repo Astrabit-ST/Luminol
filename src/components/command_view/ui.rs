@@ -23,17 +23,11 @@ use itertools::Itertools;
 
 impl CommandView {
     #[allow(clippy::ptr_arg)]
-    pub fn ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        db: &CommandDB,
-        commands: &mut Vec<rpg::EventCommand>,
-        info: &'static UpdateInfo,
-    ) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, db: &CommandDB, commands: &mut Vec<rpg::EventCommand>) {
         ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
         let mut iter = commands.iter_mut().enumerate().peekable();
         while let Some(i) = iter.next() {
-            self.command_ui(ui, db, i, &mut iter, info);
+            self.command_ui(ui, db, i, &mut iter);
         }
 
         ui.input(|i| {
@@ -80,7 +74,7 @@ impl CommandView {
                             CommandKind::Branch { ref parameters, .. }
                             | CommandKind::Single(ref parameters) => {
                                 for parameter in parameters {
-                                    self.parameter_ui(ui, parameter, command, info)
+                                    self.parameter_ui(ui, parameter, command)
                                 }
                             }
                             CommandKind::Multi { code, highlight } => {
@@ -101,7 +95,7 @@ impl CommandView {
                                     .desired_width(f32::INFINITY);
                                 let mut layouter =
                                     |ui: &egui::Ui, string: &str, wrap_width: f32| {
-                                        let theme = info.saved_state.borrow().theme;
+                                        let theme = info!().saved_state.borrow().theme;
                                         let mut layout_job = syntax_highlighting::highlight(
                                             ui.ctx(),
                                             theme,

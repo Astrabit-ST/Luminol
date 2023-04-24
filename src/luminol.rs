@@ -21,7 +21,6 @@ use crate::prelude::*;
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
-    info: &'static UpdateInfo,
     style: Arc<egui::Style>,
     lumi: Lumi,
 }
@@ -40,14 +39,12 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = Box::leak(Box::new(UpdateInfo::new(
-            cc.gl.as_ref().unwrap().clone(),
-            state,
-        )));
+        let info = UpdateInfo::new(cc.gl.as_ref().unwrap().clone(), state);
+        crate::set_info(info);
 
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
-            poll_promise::Promise::spawn_local(info.filesystem.try_open_project(info, path))
+            poll_promise::Promise::spawn_local(info!().filesystem.try_open_project(path))
                 .block_and_take()
                 .expect("failed to load project");
         }
@@ -56,7 +53,6 @@ impl Luminol {
 
         Self {
             top_bar: TopBar::default(),
-            info,
             style,
             lumi,
         }
@@ -69,7 +65,7 @@ impl eframe::App for Luminol {
         eframe::set_value::<crate::SavedState>(
             storage,
             "SavedState",
-            &self.info.saved_state.borrow(),
+            &info!().saved_state.borrow(),
         );
         eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
@@ -81,12 +77,11 @@ impl eframe::App for Luminol {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
-                if let Err(e) = poll_promise::Promise::spawn_local(
-                    self.info.filesystem.try_open_project(self.info, path),
-                )
-                .block_and_take()
+                if let Err(e) =
+                    poll_promise::Promise::spawn_local(info!().filesystem.try_open_project(path))
+                        .block_and_take()
                 {
-                    self.info
+                    info!()
                         .toasts
                         .error(format!("Error opening dropped project: {e}"))
                 }
@@ -99,20 +94,20 @@ impl eframe::App for Luminol {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(self.info, ui, &mut self.style, frame);
+                self.top_bar.ui(ui, &mut self.style, frame);
             });
         });
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.info.tabs.ui(ui, self.info);
+            info!().tabs.ui(ui);
         });
 
         // Update all windows.
-        self.info.windows.update(ctx, self.info);
+        info!().windows.update(ctx);
 
         // Show toasts.
-        self.info.toasts.show(ctx);
+        info!().toasts.show(ctx);
 
         // Tick futures.
         #[cfg(not(target_arch = "wasm32"))]
@@ -120,7 +115,7 @@ impl eframe::App for Luminol {
             poll_promise::tick_local();
         }
 
-        self.lumi.ui(ctx, self.info);
+        self.lumi.ui(ctx);
     }
 
     fn persist_egui_memory(&self) -> bool {

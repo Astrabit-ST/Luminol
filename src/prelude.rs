@@ -27,6 +27,8 @@ pub use std::cell::RefCell;
 pub use std::path::{Path, PathBuf};
 pub use std::sync::Arc;
 
+pub use crate::info;
+
 pub use eframe::egui;
 pub use eframe::egui_glow::glow;
 pub use egui::epaint;

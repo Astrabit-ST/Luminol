@@ -37,15 +37,9 @@ impl modal::Modal for Modal {
         self
     }
 
-    fn button(
-        mut self,
-        ui: &mut egui::Ui,
-        state: &mut bool,
-        data: &mut Self::Data,
-        info: &'static UpdateInfo,
-    ) -> Self {
+    fn button(mut self, ui: &mut egui::Ui, state: &mut bool, data: &mut Self::Data) -> Self {
         {
-            let system = info.data_cache.system();
+            let system = info!().data_cache.system();
 
             if ui
                 .button(format!("{data}: {}", system.variables[*data]))
@@ -62,26 +56,20 @@ impl modal::Modal for Modal {
         }
 
         if *state {
-            self.show(ui.ctx(), state, data, info);
+            self.show(ui.ctx(), state, data);
         }
 
         self
     }
 
-    fn show(
-        &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
-        data: &mut Self::Data,
-        info: &'static UpdateInfo,
-    ) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, data: &mut Self::Data) {
         let mut win_open = true;
         egui::Window::new("Variable Picker")
             .id(self.id)
             .resizable(false)
             .open(&mut win_open)
             .show(ctx, |ui| {
-                let system = info.data_cache.system();
+                let system = info!().data_cache.system();
 
                 // (selected value, value to scroll to, filter text)
                 let mut memory: (usize, usize, String) =

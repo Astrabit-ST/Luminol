@@ -17,8 +17,6 @@
 
 pub use std::cell::RefCell;
 
-use crate::UpdateInfo;
-
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
@@ -49,13 +47,13 @@ impl Windows {
     }
 
     /// Update and draw all windows.
-    pub fn update(&self, ctx: &egui::Context, info: &'static UpdateInfo) {
+    pub fn update(&self, ctx: &egui::Context) {
         // Iterate through all the windows and clean them up if necessary.
         let mut windows = self.windows.borrow_mut();
         windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
-            window.show(ctx, &mut open, info);
+            window.show(ctx, &mut open);
             open
         });
     }
@@ -68,7 +66,7 @@ impl Windows {
 /// This makes up for most of their losses. Modals are still useful in certain cases, though.
 pub trait Window {
     /// Show this window.
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
 
     /// Optionally used as the title of the window.
     fn name(&self) -> String {

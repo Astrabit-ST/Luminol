@@ -146,35 +146,55 @@ impl UpdateInfo {
     }
 }
 
+thread_local! {
+    static INFO: once_cell::unsync::OnceCell<&'static UpdateInfo> = once_cell::unsync::OnceCell::new()
+}
+
+#[allow(clippy::panic)]
+fn set_info(info: UpdateInfo) {
+    let info = Box::leak(Box::new(info));
+    if INFO.with(|i| i.set(info)).is_err() {
+        panic!("failed to set updateinfo")
+    }
+}
+
+#[macro_export]
+macro_rules! info {
+    () => {
+        $crate::INFO.with(|i| *i.get().expect("failed to get updateinfo"))
+    };
+}
+
 /// Load a RetainedImage from disk.
-pub async fn load_image_software(
-    path: String,
-    info: &'static UpdateInfo,
-) -> Result<RetainedImage, String> {
+pub async fn load_image_software(path: String) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),
-        &info.filesystem.read_bytes(&format!("{path}.png",)).await?,
+        &info!()
+            .filesystem
+            .read_bytes(&format!("{path}.png",))
+            .await?,
     )
     .map(|i| i.with_options(TextureOptions::NEAREST))
 }
 
 /// Load a gl texture from disk.
 #[allow(clippy::cast_possible_wrap, unsafe_code)]
-pub async fn load_image_hardware(
-    path: String,
-    info: &'static UpdateInfo,
-) -> Result<glow::Texture, String> {
+pub async fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
     use glow::HasContext;
 
-    let image =
-        image::load_from_memory(&info.filesystem.read_bytes(&format!("{path}.png",)).await?)
-            .map_err(|e| e.to_string())?;
+    let image = image::load_from_memory(
+        &info!()
+            .filesystem
+            .read_bytes(&format!("{path}.png",))
+            .await?,
+    )
+    .map_err(|e| e.to_string())?;
 
     unsafe {
-        let texture = info.gl.create_texture()?;
-        info.gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+        let texture = info!().gl.create_texture()?;
+        info!().gl.bind_texture(glow::TEXTURE_2D, Some(texture));
 
-        info.gl.tex_image_2d(
+        info!().gl.tex_image_2d(
             glow::TEXTURE_2D,
             0,
             glow::RGBA as _,
@@ -185,7 +205,7 @@ pub async fn load_image_hardware(
             glow::UNSIGNED_BYTE,
             Some(image.as_bytes()),
         );
-        info.gl.generate_mipmap(glow::TEXTURE_2D);
+        info!().gl.generate_mipmap(glow::TEXTURE_2D);
 
         Ok(texture)
     }

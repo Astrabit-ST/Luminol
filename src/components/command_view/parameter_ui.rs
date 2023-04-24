@@ -26,7 +26,6 @@ impl CommandView {
         ui: &mut egui::Ui,
         parameter: &Parameter,
         command: &mut rpg::EventCommand,
-        info: &'static UpdateInfo,
     ) {
         match parameter {
             Parameter::Selection {
@@ -44,7 +43,7 @@ impl CommandView {
                             get_or_resize!(command.parameters, index.as_usize()).into_integer();
                         ui.radio_value(selection, *value as _, "");
                         ui.add_enabled_ui(*value as i32 == *selection, |ui| {
-                            self.parameter_ui(ui, parameter, command, info);
+                            self.parameter_ui(ui, parameter, command);
                         });
                     });
                 }
@@ -52,7 +51,7 @@ impl CommandView {
             Parameter::Group { parameters, .. } => {
                 ui.group(|ui| {
                     for parameter in parameters.iter() {
-                        self.parameter_ui(ui, parameter, command, info);
+                        self.parameter_ui(ui, parameter, command);
                     }
                 });
             }
@@ -120,13 +119,13 @@ impl CommandView {
                     ParameterKind::Switch => {
                         let mut data = *value.into_integer_with(1) as usize;
                         let state = self.modals.entry(*guid).or_insert(false);
-                        switch::Modal::new(self.id.with(guid)).button(ui, state, &mut data, info);
+                        switch::Modal::new(self.id.with(guid)).button(ui, state, &mut data);
                         *value.into_integer() = data as i32;
                     }
                     ParameterKind::Variable => {
                         let mut data = *value.into_integer_with(1) as usize;
                         let state = self.modals.entry(*guid).or_insert(false);
-                        variable::Modal::new(self.id.with(guid)).button(ui, state, &mut data, info);
+                        variable::Modal::new(self.id.with(guid)).button(ui, state, &mut data);
                         *value.into_integer() = data as i32;
                     }
 

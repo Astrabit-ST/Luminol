@@ -17,8 +17,6 @@
 
 use std::{cell::RefCell, hash::Hash};
 
-use crate::UpdateInfo;
-
 /// The tree type;
 type Tree<T> = egui_dock::Tree<T>;
 
@@ -41,14 +39,13 @@ where
     }
 
     /// Display all tabs.
-    pub fn ui(&self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
+    pub fn ui(&self, ui: &mut egui::Ui) {
         ui.group(|ui| {
             egui_dock::DockArea::new(&mut self.tree.borrow_mut())
                 .id(self.id)
                 .show_inside(
                     ui,
                     &mut TabViewer {
-                        info,
                         marker: std::marker::PhantomData,
                     },
                 );
@@ -86,8 +83,6 @@ where
 }
 
 struct TabViewer<T: Tab> {
-    info: &'static UpdateInfo,
-
     // we don't actually own any types of T, but we use them in TabViewer
     // *const is used here to avoid needing lifetimes and to indicate to the drop checker that we don't own any types of T
     marker: std::marker::PhantomData<*const T>,
@@ -104,7 +99,7 @@ where
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        tab.show(ui, self.info);
+        tab.show(ui);
     }
 
     fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
@@ -118,7 +113,7 @@ pub trait Tab {
     fn name(&self) -> String;
 
     /// Show this tab.
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo);
+    fn show(&mut self, ui: &mut egui::Ui);
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {
@@ -144,7 +139,7 @@ impl Tab for Box<dyn Tab> {
         self.as_ref().requires_filesystem()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
-        self.as_mut().show(ui, info)
+    fn show(&mut self, ui: &mut egui::Ui) {
+        self.as_mut().show(ui)
     }
 }

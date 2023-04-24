@@ -33,13 +33,7 @@ pub struct Window {
 
 impl Window {
     /// Create a new event editor.
-    pub fn new(
-        id: usize,
-        map_id: i32,
-        event: rpg::Event,
-        tileset_name: String,
-        info: &'static UpdateInfo,
-    ) -> Self {
+    pub fn new(id: usize, map_id: i32, event: rpg::Event, tileset_name: String) -> Self {
         let pages_graphics: Vec<_> = event.pages.iter().map(|p| p.graphic.clone()).collect();
         Self {
             id,
@@ -48,10 +42,7 @@ impl Window {
             event,
             page_graphics_promise: Promise::spawn_local(async move {
                 let futures = pages_graphics.iter().map(|p| {
-                    crate::load_image_software(
-                        format!("Graphics/Characters/{}", p.character_name),
-                        info,
-                    )
+                    crate::load_image_software(format!("Graphics/Characters/{}", p.character_name))
                 });
                 (
                     futures::future::join_all(futures)
@@ -59,7 +50,7 @@ impl Window {
                         .into_iter()
                         .map(std::result::Result::ok)
                         .collect(),
-                    crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
+                    crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}"))
                         .await
                         .unwrap(),
                 )
@@ -82,7 +73,7 @@ impl window::Window for Window {
         egui::Id::new("Event Editor")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let mut win_open = true;
 
         egui::Window::new(self.name())
@@ -144,7 +135,6 @@ impl window::Window for Window {
                                                 ui,
                                                 &mut self.modals.0,
                                                 &mut page.condition.switch1_id,
-                                                info,
                                             );
                                         });
                                     });
@@ -164,7 +154,6 @@ impl window::Window for Window {
                                                 ui,
                                                 &mut self.modals.1,
                                                 &mut page.condition.switch2_id,
-                                                info,
                                             );
                                         });
                                     });
@@ -184,7 +173,6 @@ impl window::Window for Window {
                                                 ui,
                                                 &mut self.modals.2,
                                                 &mut page.condition.variable_id,
-                                                info,
                                             );
                                         });
 
@@ -392,7 +380,7 @@ impl window::Window for Window {
                     let cancel_clicked = ui.button("Cancel").clicked();
 
                     if apply_clicked || ok_clicked {
-                        let mut map = info.data_cache.get_map(self.map_id);
+                        let mut map = info!().data_cache.get_map(self.map_id);
                         map.events[self.id] = self.event.clone();
                     }
 

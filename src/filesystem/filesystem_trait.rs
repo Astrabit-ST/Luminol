@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
-use crate::{project::RGSSVer, UpdateInfo};
+use crate::project::RGSSVer;
 
 #[async_trait(?Send)]
 /// Filesystem abstraction.
@@ -56,11 +56,10 @@ pub trait Filesystem {
     async fn path_exists(&self, path: impl AsRef<Path>) -> bool;
 
     /// Save all cached files. An alias for [`DataCache::save`];
-    async fn save_cached(&self, info: &'static UpdateInfo) -> Result<(), String>;
+    async fn save_cached(&self) -> Result<(), String>;
     /// Try to open a project.
     async fn try_open_project(
         &self,
-        info: &'static UpdateInfo,
         #[cfg(not(target_arch = "wasm32"))] path: impl AsRef<Path>,
     ) -> Result<(), String>;
 
@@ -68,13 +67,8 @@ pub trait Filesystem {
     async fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String>;
 
     /// Spawn a picker window and retriev
-    async fn spawn_project_file_picker(&self, info: &'static UpdateInfo) -> Result<(), String>;
+    async fn spawn_project_file_picker(&self) -> Result<(), String>;
 
     /// Try to create a project.
-    async fn try_create_project(
-        &self,
-        name: String,
-        info: &'static UpdateInfo,
-        rgss_ver: RGSSVer,
-    ) -> Result<(), String>;
+    async fn try_create_project(&self, name: String, rgss_ver: RGSSVer) -> Result<(), String>;
 }

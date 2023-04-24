@@ -32,7 +32,7 @@ pub struct SoundTab {
 
 impl SoundTab {
     /// Create a new SoundTab
-    pub fn new(source: audio::Source, info: &'static UpdateInfo, picker: bool) -> Self {
+    pub fn new(source: audio::Source, picker: bool) -> Self {
         Self {
             picker,
             source,
@@ -40,7 +40,8 @@ impl SoundTab {
             pitch: 100,
             selected_track: String::new(),
             folder_children: Promise::spawn_local(async move {
-                info.filesystem
+                info!()
+                    .filesystem
                     .dir_children(&format!("Audio/{source}"))
                     .await
                     .unwrap()
@@ -50,7 +51,7 @@ impl SoundTab {
     }
 
     /// Display this SoundTab.
-    pub fn ui(&mut self, info: &'static UpdateInfo, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::SidePanel::right("sound_tab_controls")
             .resizable(false)
             .show_inside(ui, |ui| {
@@ -63,19 +64,19 @@ impl SoundTab {
                             let source = self.source;
                             // Play it.
                             self.play_promise = Some(Promise::spawn_local(async move {
-                                if let Err(e) = info
+                                if let Err(e) = info!()
                                     .audio
-                                    .play(&info.filesystem, path, volume, pitch, source)
+                                    .play(&info!().filesystem, path, volume, pitch, source)
                                     .await
                                 {
-                                    info.toasts.error(e);
+                                    info!().toasts.error(e);
                                 }
                             }));
                         }
 
                         if ui.button("Stop").clicked() {
                             // Stop sound.
-                            info.audio.stop(&self.source);
+                            info!().audio.stop(&self.source);
                         }
                     });
 
@@ -90,7 +91,7 @@ impl SoundTab {
                             )
                             .changed()
                         {
-                            info.audio.set_volume(self.volume, &self.source);
+                            info!().audio.set_volume(self.volume, &self.source);
                         };
                         // Add a pitch slider.
                         // If it's changed, update the pitch.
@@ -102,7 +103,7 @@ impl SoundTab {
                             )
                             .changed()
                         {
-                            info.audio.set_pitch(self.pitch, &self.source);
+                            info!().audio.set_pitch(self.pitch, &self.source);
                         };
                     });
 
@@ -146,12 +147,12 @@ impl SoundTab {
                                     let source = self.source;
                                     // Play it.
                                     self.play_promise = Some(Promise::spawn_local(async move {
-                                        if let Err(e) = info
+                                        if let Err(e) = info!()
                                             .audio
-                                            .play(&info.filesystem, path, volume, pitch, source)
+                                            .play(&info!().filesystem, path, volume, pitch, source)
                                             .await
                                         {
-                                            info.toasts.error(e);
+                                            info!().toasts.error(e);
                                         }
                                     }));
                                 };
@@ -173,13 +174,12 @@ pub struct Window {
     selected_source: audio::Source,
 }
 
-impl Window {
-    /// Create a new sound test window.
-    pub fn new(info: &'static UpdateInfo) -> Self {
+impl Default for Window {
+    fn default() -> Self {
         Self {
             // Create all sources.
             sources: audio::Source::iter()
-                .map(|s| SoundTab::new(s, info, false))
+                .map(|s| SoundTab::new(s, false))
                 .collect(),
             // By default, bgm is selected.
             selected_source: audio::Source::BGM,
@@ -192,7 +192,7 @@ impl super::window::Window for Window {
         egui::Id::new("Sound Test")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new("Sound Test").open(open).show(ctx, |ui| {
             egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
                 // Display the tab selector.
@@ -216,7 +216,7 @@ impl super::window::Window for Window {
                 .iter_mut()
                 .find(|t| t.source == self.selected_source)
                 .unwrap()
-                .ui(info, ui);
+                .ui(ui);
         });
     }
 

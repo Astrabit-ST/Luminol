@@ -2606,6 +2606,7 @@ dependencies = [
  "ron",
  "serde",
  "slab",
+ "static_assertions",
  "strum",
  "surf",
  "syntect",

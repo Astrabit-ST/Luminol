@@ -31,32 +31,32 @@ pub struct Window {
     menu_se_picker_open: bool,
 }
 
-impl Window {
-    /// Create a new window.
-    #[must_use]
-    pub fn new(info: &'static UpdateInfo) -> Option<Self> {
-        let items = info.data_cache.items().clone();
-        let icon_paths = match Promise::spawn_local(info.filesystem.dir_children("Graphics/Icons"))
-            .block_and_take()
-        {
-            Ok(icons) => icons,
-            Err(why) => {
-                info.toasts
-                    .error(format!("Error while reading `Graphics/Icons`: {why}"));
-                Vec::new()
-            }
-        };
-        let icon_picker = graphic_picker::Window::new(icon_paths, info);
-        Some(Self {
+impl Default for Window {
+    fn default() -> Self {
+        let items = info!().data_cache.items().clone();
+        let icon_paths =
+            match Promise::spawn_local(info!().filesystem.dir_children("Graphics/Icons"))
+                .block_and_take()
+            {
+                Ok(icons) => icons,
+                Err(why) => {
+                    info!()
+                        .toasts
+                        .error(format!("Error while reading `Graphics/Icons`: {why}"));
+                    Vec::new()
+                }
+            };
+        let icon_picker = graphic_picker::Window::new(icon_paths);
+        Self {
             items,
             selected_item: 0,
 
             icon_picker,
             icon_picker_open: false,
 
-            menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, info, true),
+            menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, true),
             menu_se_picker_open: false,
-        })
+        }
     }
 }
 
@@ -73,11 +73,11 @@ impl window::Window for Window {
         true
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let _selected_item = &self.items[self.selected_item];
-        let animations = info.data_cache.animations();
+        let animations = info!().data_cache.animations();
 
-        let common_events = info.data_cache.commonevents();
+        let common_events = info!().data_cache.commonevents();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations
@@ -185,7 +185,6 @@ impl window::Window for Window {
                     self.icon_picker.show(
                         ctx,
                         &mut self.icon_picker_open,
-                        info,
                         &mut selected_item.icon_name,
                     );
                 }
@@ -193,7 +192,7 @@ impl window::Window for Window {
                     egui::Window::new("Menu Sound Effect Picker")
                         .id(egui::Id::new("menu_se_picker"))
                         .show(ctx, |ui| {
-                            self.menu_se_picker.ui(info, ui);
+                            self.menu_se_picker.ui(ui);
                         });
                 }
             });

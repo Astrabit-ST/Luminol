@@ -31,7 +31,7 @@ use std::time::Instant;
 
 use egui::{Pos2, Response, Vec2};
 
-use crate::{load_image_software, UpdateInfo};
+use crate::{info, load_image_software};
 use rmxp_types::rpg;
 
 use super::TilemapDef;
@@ -118,7 +118,7 @@ const AUTOTILES: [[i32; 4]; 48] = [
 
 #[allow(dead_code)]
 impl TilemapDef for Tilemap {
-    fn new(info: &'static UpdateInfo, id: i32) -> Self {
+    fn new(id: i32) -> Self {
         Self {
             pan: Vec2::ZERO,
             scale: 100.,
@@ -126,7 +126,7 @@ impl TilemapDef for Tilemap {
             move_preview: false,
             ani_idx: 0,
             ani_instant: Instant::now(),
-            load_promise: poll_promise::Promise::spawn_local(Self::load_data(info, id)),
+            load_promise: poll_promise::Promise::spawn_local(Self::load_data(id)),
         }
     }
 
@@ -640,7 +640,8 @@ impl TilemapDef for Tilemap {
 
 impl Tilemap {
     #[allow(unused_variables, unused_assignments)]
-    async fn load_data(info: &'static UpdateInfo, id: i32) -> Result<Textures, String> {
+    async fn load_data(id: i32) -> Result<Textures, String> {
+        let info = info!();
         // Load the map.
         let tileset_name;
         let autotile_names;
@@ -688,13 +689,13 @@ impl Tilemap {
         }
 
         // Load tileset textures.
-        let tileset_tex = load_image_software(format!("Graphics/Tilesets/{tileset_name}"), info)
+        let tileset_tex = load_image_software(format!("Graphics/Tilesets/{tileset_name}"))
             .await
             .ok();
 
         // Create an async iter over the autotile textures.
         let autotile_texs_iter = autotile_names.iter().map(|str| async move {
-            load_image_software(format!("Graphics/Autotiles/{str}"), info)
+            load_image_software(format!("Graphics/Autotiles/{str}"))
                 .await
                 .ok()
         });
@@ -706,7 +707,7 @@ impl Tilemap {
         let event_texs_iter = event_names.iter().map(|(char_name, hue)| async move {
             (
                 (char_name.clone(), *hue),
-                load_image_software(format!("Graphics/Characters/{char_name}"), info)
+                load_image_software(format!("Graphics/Characters/{char_name}"))
                     .await
                     .ok(),
             )
@@ -719,11 +720,11 @@ impl Tilemap {
             .collect();
 
         // These two are pretty simple.
-        let fog_tex = load_image_software(format!("Graphics/Fogs/{fog_name}"), info)
+        let fog_tex = load_image_software(format!("Graphics/Fogs/{fog_name}"))
             .await
             .ok();
 
-        let pano_tex = load_image_software(format!("Graphics/Panoramas/{pano_name}"), info)
+        let pano_tex = load_image_software(format!("Graphics/Panoramas/{pano_name}"))
             .await
             .ok();
 

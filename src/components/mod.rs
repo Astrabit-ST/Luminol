@@ -38,23 +38,22 @@ pub use top_bar::TopBar;
 
 /// The tilemap.
 mod tilemap {
-    use crate::UpdateInfo;
     use rmxp_types::rpg;
 
     cfg_if::cfg_if! {
-           if #[cfg(feature = "generic-tilemap")] {
-                  mod generic_tilemap;
-                  pub use generic_tilemap::Tilemap;
-           } else {
-                  mod hardware_tilemap;
-                  pub use hardware_tilemap::Tilemap;
-           }
+        if #[cfg(feature = "generic-tilemap")] {
+            mod generic_tilemap;
+            pub use generic_tilemap::Tilemap;
+        } else {
+            mod hardware_tilemap;
+            pub use hardware_tilemap::Tilemap;
+        }
     }
 
     /// A trait defining how a tilemap should function.
     pub trait TilemapDef {
         /// Create a new tilemap.
-        fn new(info: &'static UpdateInfo, id: i32) -> Self;
+        fn new(id: i32) -> Self;
 
         /// Display the tilemap.
         fn ui(

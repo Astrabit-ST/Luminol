@@ -29,7 +29,6 @@ impl Window {
         id: i32,
         children_data: &HashMap<i32, Vec<i32>>,
         mapinfos: &mut HashMap<i32, rpg::MapInfo>,
-        info: &'static UpdateInfo,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
@@ -51,13 +50,13 @@ impl Window {
                 .show_header(ui, |ui| {
                     // Has the user
                     if ui.button(map_name).double_clicked() {
-                        Self::create_map_tab(id, map_name.clone(), info);
+                        Self::create_map_tab(id, map_name.clone());
                     }
                 })
                 .body(|ui| {
                     for id in children_data.get(&id).unwrap() {
                         // Render children.
-                        Self::render_submap(*id, children_data, mapinfos, info, ui);
+                        Self::render_submap(*id, children_data, mapinfos, ui);
                     }
                 });
         } else {
@@ -65,15 +64,15 @@ impl Window {
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
                 if ui.button(map_name).double_clicked() {
-                    Self::create_map_tab(id, map_name.clone(), info);
+                    Self::create_map_tab(id, map_name.clone());
                 }
             });
         }
     }
 
-    fn create_map_tab(id: i32, name: String, info: &'static UpdateInfo) {
-        if let Some(m) = map::Tab::new(id, name, info) {
-            info.tabs.add_tab(Box::new(m));
+    fn create_map_tab(id: i32, name: String) {
+        if let Some(m) = map::Tab::new(id, name) {
+            info!().tabs.add_tab(Box::new(m));
         }
     }
 }
@@ -83,7 +82,7 @@ impl window::Window for Window {
         egui::Id::new("Map Picker")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let mut window_open = true;
         egui::Window::new("Map Picker")
             .open(&mut window_open)
@@ -92,7 +91,7 @@ impl window::Window for Window {
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
-                        let mut mapinfos = info.data_cache.mapinfos();
+                        let mut mapinfos = info!().data_cache.mapinfos();
 
                         // We sort maps by their order.
                         let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();
@@ -116,13 +115,7 @@ impl window::Window for Window {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
                                 for id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(
-                                        *id,
-                                        &children_data,
-                                        &mut mapinfos,
-                                        info,
-                                        ui,
-                                    );
+                                    Self::render_submap(*id, &children_data, &mut mapinfos, ui);
                                 }
                             });
                     })
