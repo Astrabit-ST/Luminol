@@ -43,16 +43,19 @@ pub struct Audio {
 struct Inner {
     // OutputStream is lazily evaluated specifically for wasm. web prevents autoplay without user interaction, this is a way of dealing with that.
     // To actually play tracks the user will have needed to interact with the ui.
-    outputstream: once_cell::unsync::Lazy<(OutputStream, OutputStreamHandle)>,
+    output_stream: OutputStream,
+    output_stream_handle: OutputStreamHandle,
     sinks: HashMap<Source, Sink>,
 }
 
 impl Default for Audio {
     fn default() -> Self {
+        let (output_stream, output_stream_handle) = OutputStream::try_default().unwrap();
         Self {
             inner: RefCell::new(Inner {
-                outputstream: once_cell::unsync::Lazy::new(|| OutputStream::try_default().unwrap()),
-                sinks: HashMap::new(),
+                output_stream,
+                output_stream_handle,
+                sinks: HashMap::default(),
             }),
         }
     }
@@ -61,12 +64,10 @@ impl Default for Audio {
 impl Audio {
     /// Play a sound on a source.
     pub fn play(&self, path: String, volume: u8, pitch: u8, source: Source) -> Result<(), String> {
+        let mut inner = self.inner.borrow_mut();
         // Create a sink
-        let sink = {
-            let inner = self.inner.borrow();
+        let sink = Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
 
-            Sink::try_new(&inner.outputstream.1).map_err(|e| e.to_string())?
-        };
         // Append the sound
         let cursor = Cursor::new(info!().filesystem.read_bytes(path)?);
         // Select decoder type based on sound source
@@ -87,7 +88,7 @@ impl Audio {
         // Play sound.
         sink.play();
         // Add sink to hash, stop the current one if it's there.
-        if let Some(s) = self.inner.borrow_mut().sinks.insert(source, sink) {
+        if let Some(s) = inner.sinks.insert(source, sink) {
             s.stop();
         };
 
