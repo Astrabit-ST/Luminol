@@ -43,7 +43,7 @@ pub struct Audio {
 struct Inner {
     // OutputStream is lazily evaluated specifically for wasm. web prevents autoplay without user interaction, this is a way of dealing with that.
     // To actually play tracks the user will have needed to interact with the ui.
-    output_stream: OutputStream,
+    _output_stream: OutputStream,
     output_stream_handle: OutputStreamHandle,
     sinks: HashMap<Source, Sink>,
 }
@@ -53,7 +53,7 @@ impl Default for Audio {
         let (output_stream, output_stream_handle) = OutputStream::try_default().unwrap();
         Self {
             inner: RefCell::new(Inner {
-                output_stream,
+                _output_stream: output_stream,
                 output_stream_handle,
                 sinks: HashMap::default(),
             }),
