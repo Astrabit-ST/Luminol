@@ -34,18 +34,15 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         let items = info!().data_cache.items().clone();
-        let icon_paths =
-            match Promise::spawn_local(info!().filesystem.dir_children("Graphics/Icons"))
-                .block_and_take()
-            {
-                Ok(icons) => icons,
-                Err(why) => {
-                    info!()
-                        .toasts
-                        .error(format!("Error while reading `Graphics/Icons`: {why}"));
-                    Vec::new()
-                }
-            };
+        let icon_paths = match info!().filesystem.dir_children("Graphics/Icons") {
+            Ok(icons) => icons,
+            Err(why) => {
+                info!()
+                    .toasts
+                    .error(format!("Error while reading `Graphics/Icons`: {why}"));
+                Vec::new()
+            }
+        };
         let icon_picker = graphic_picker::Window::new(icon_paths);
         Self {
             items,

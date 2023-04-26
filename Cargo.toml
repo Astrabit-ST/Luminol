@@ -45,8 +45,6 @@ rand = "0.8.5"
 
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 
-
-async-trait = "0.1"
 futures = "0.3"
 
 bytemuck = "1"
@@ -81,7 +79,6 @@ rodio = { version = "0.17.0", features = [
     "symphonia-all",
 ], default-features = false }
 poll-promise = { version = "0.2.0", features = ["smol"] }
-async-fs = "1.6.0"
 surf = "2.3.2"
 rfd = "0.11"
 luminol-term = { version = "*", path = "luminol-term" }
@@ -89,26 +86,6 @@ luminol-term = { version = "*", path = "luminol-term" }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.46.0", features = ["Win32_System_Registry"] }
 winreg = "0.11.0"
-
-# web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1"
-tracing-wasm = "0.2"
-wasm-bindgen = "0.2.84"
-wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
-web-sys = { version = "0.3" }
-rodio = { version = "0.17.0", features = [
-    "wasm-bindgen",
-    "symphonia-all",
-], default-features = false }
-poll-promise = { version = "0.2.0", features = ["web"] }
-# FIXME: Use time
-fluvio-wasm-timer = "0.2.5"
-surf = { version = "2.3.2", default-features = false, features = [
-    "wasm-client",
-] }
-
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

@@ -35,7 +35,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cee8cf1202a4f94d31837f1902ab0a75c77b65bf59719e093703abe83efd74ec"
 dependencies = [
  "accesskit",
- "parking_lot 0.12.1",
+ "parking_lot",
 ]
 
 [[package]]
@@ -48,7 +48,7 @@ dependencies = [
  "accesskit_consumer",
  "objc2",
  "once_cell",
- "parking_lot 0.12.1",
+ "parking_lot",
 ]
 
 [[package]]
@@ -62,7 +62,7 @@ dependencies = [
  "async-channel",
  "atspi",
  "futures-lite",
- "parking_lot 0.12.1",
+ "parking_lot",
  "serde",
  "zbus",
 ]
@@ -77,7 +77,7 @@ dependencies = [
  "accesskit_consumer",
  "arrayvec",
  "once_cell",
- "parking_lot 0.12.1",
+ "parking_lot",
  "paste",
  "windows 0.42.0",
 ]
@@ -92,7 +92,7 @@ dependencies = [
  "accesskit_macos",
  "accesskit_unix",
  "accesskit_windows",
- "parking_lot 0.12.1",
+ "parking_lot",
  "winit",
 ]
 
@@ -275,7 +275,7 @@ dependencies = [
  "objc-foundation",
  "objc_id",
  "once_cell",
- "parking_lot 0.12.1",
+ "parking_lot",
  "thiserror",
  "winapi",
  "x11rb",
@@ -909,16 +909,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "console_error_panic_hook"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
-dependencies = [
- "cfg-if",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "const_fn"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1026,7 +1016,7 @@ dependencies = [
  "ndk-context",
  "oboe",
  "once_cell",
- "parking_lot 0.12.1",
+ "parking_lot",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1500,7 +1490,7 @@ dependencies = [
  "ecolor",
  "emath",
  "nohash-hasher",
- "parking_lot 0.12.1",
+ "parking_lot",
  "serde",
 ]
 
@@ -1646,21 +1636,6 @@ dependencies = [
  "nanorand",
  "pin-project",
  "spin",
-]
-
-[[package]]
-name = "fluvio-wasm-timer"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b768c170dc045fa587a8f948c91f9bcfb87f774930477c6215addf54317f137f"
-dependencies = [
- "futures",
- "js-sys",
- "parking_lot 0.11.2",
- "pin-utils",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -2161,14 +2136,9 @@ dependencies = [
  "async-std",
  "async-trait",
  "cfg-if",
- "futures",
  "http-types",
  "isahc",
- "js-sys",
  "log",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -2572,14 +2542,11 @@ name = "luminol"
 version = "0.4.0"
 dependencies = [
  "alox-48",
- "async-fs",
- "async-trait",
  "bytemuck",
  "catppuccin-egui",
  "cfg-if",
  "color-eyre",
  "command-lib",
- "console_error_panic_hook",
  "eframe",
  "egui",
  "egui-notify",
@@ -2587,12 +2554,10 @@ dependencies = [
  "egui_extras",
  "enum-as-inner",
  "eyre",
- "fluvio-wasm-timer",
  "futures",
  "git-version",
  "image 0.24.6",
  "itertools",
- "js-sys",
  "luminol-term",
  "num-derive",
  "num-traits",
@@ -2612,10 +2577,6 @@ dependencies = [
  "syntect",
  "tracing",
  "tracing-subscriber",
- "tracing-wasm",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
  "windows 0.46.0",
  "winreg 0.11.0",
  "winres",
@@ -3140,37 +3101,12 @@ checksum = "14f2252c834a40ed9bb5422029649578e63aa341ac401f74e719dd1afda8394e"
 
 [[package]]
 name = "parking_lot"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
-dependencies = [
- "instant",
- "lock_api",
- "parking_lot_core 0.8.6",
-]
-
-[[package]]
-name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
- "parking_lot_core 0.9.7",
-]
-
-[[package]]
-name = "parking_lot_core"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60a2cfe6f0ad2bfc16aefa463b497d5c7a5ecd44a23efa72aa342d90177356dc"
-dependencies = [
- "cfg-if",
- "instant",
- "libc",
- "redox_syscall 0.2.16",
- "smallvec",
- "winapi",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -3395,8 +3331,6 @@ source = "git+https://github.com/EmbarkStudios/poll-promise?rev=8c4d0d6e4d693cf5
 dependencies = [
  "smol",
  "static_assertions",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -4954,17 +4888,6 @@ dependencies = [
  "thread_local",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "tracing-wasm"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
-dependencies = [
- "tracing",
- "tracing-subscriber",
- "wasm-bindgen",
 ]
 
 [[package]]

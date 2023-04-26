@@ -18,12 +18,11 @@
 use rodio::Decoder;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 
+use crate::prelude::*;
 use std::io::Cursor;
-use std::{cell::RefCell, collections::HashMap};
+
 use strum::Display;
 use strum::EnumIter;
-
-use crate::filesystem::Filesystem;
 
 /// Different sound sources.
 #[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy, Hash)]
@@ -61,14 +60,7 @@ impl Default for Audio {
 
 impl Audio {
     /// Play a sound on a source.
-    pub async fn play(
-        &self,
-        filesystem: &'static impl Filesystem,
-        path: String,
-        volume: u8,
-        pitch: u8,
-        source: Source,
-    ) -> Result<(), String> {
+    pub fn play(&self, path: String, volume: u8, pitch: u8, source: Source) -> Result<(), String> {
         // Create a sink
         let sink = {
             let inner = self.inner.borrow();
@@ -76,7 +68,7 @@ impl Audio {
             Sink::try_new(&inner.outputstream.1).map_err(|e| e.to_string())?
         };
         // Append the sound
-        let cursor = Cursor::new(filesystem.read_bytes(&path).await?);
+        let cursor = Cursor::new(info!().filesystem.read_bytes(path)?);
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {

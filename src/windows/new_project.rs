@@ -278,14 +278,13 @@ impl Window {
                     .to_str()
                     .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty() || info.filesystem.path_exists(file_path).await {
+                if file_path.is_empty() || info.filesystem.path_exists(file_path) {
                     continue;
                 }
 
                 if file.is_dir() {
                     info.filesystem
                         .create_directory(file_path)
-                        .await
                         .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
                 } else {
                     let mut bytes = Vec::new();
@@ -294,7 +293,6 @@ impl Window {
                         .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
                     info.filesystem
                         .save_data(file_path, bytes)
-                        .await
                         .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
                 }
             }

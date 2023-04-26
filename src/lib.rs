@@ -99,18 +99,10 @@ pub enum Pencil {
     Fill,
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
-        type FSAlias =  filesystem::filesystem_native::Filesystem;
-    } else {
-        type FSAlias = filesystem::filesystem_wasm32::Filesystem;
-    }
-}
-
 /// Passed to windows and widgets when updating.
 pub struct UpdateInfo {
     /// Filesystem to be passed around.
-    pub filesystem: FSAlias,
+    pub filesystem: filesystem::Filesystem,
     /// The data cache.
     pub data_cache: Cache,
     /// Windows that are displayed.
@@ -133,7 +125,7 @@ impl UpdateInfo {
     /// Create a new UpdateInfo.
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
-            filesystem: FSAlias::default(),
+            filesystem: filesystem::Filesystem::default(),
             data_cache: Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
@@ -166,29 +158,21 @@ macro_rules! info {
 }
 
 /// Load a RetainedImage from disk.
-pub async fn load_image_software(path: String) -> Result<RetainedImage, String> {
+pub fn load_image_software(path: String) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),
-        &info!()
-            .filesystem
-            .read_bytes(&format!("{path}.png",))
-            .await?,
+        &info!().filesystem.read_bytes(format!("{path}.png",))?,
     )
     .map(|i| i.with_options(TextureOptions::NEAREST))
 }
 
 /// Load a gl texture from disk.
 #[allow(clippy::cast_possible_wrap, unsafe_code)]
-pub async fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
+pub fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
     use glow::HasContext;
 
-    let image = image::load_from_memory(
-        &info!()
-            .filesystem
-            .read_bytes(&format!("{path}.png",))
-            .await?,
-    )
-    .map_err(|e| e.to_string())?;
+    let image = image::load_from_memory(&info!().filesystem.read_bytes(format!("{path}.png",))?)
+        .map_err(|e| e.to_string())?;
 
     unsafe {
         let texture = info!().gl.create_texture()?;

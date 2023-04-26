@@ -17,13 +17,17 @@
 
 pub use crate::audio;
 pub use crate::components::*;
-pub use crate::filesystem::Filesystem;
 pub use crate::modals::*;
 pub use crate::project::*;
 pub use crate::tabs::*;
 pub use crate::windows::*;
 
-pub use std::cell::RefCell;
+pub use crate::filesystem::Filesystem;
+pub use crate::project::CommandDB;
+pub use crate::project::LocalConfig;
+
+pub use std::cell::{Ref, RefCell, RefMut};
+pub use std::collections::HashMap;
 pub use std::path::{Path, PathBuf};
 pub use std::sync::Arc;
 

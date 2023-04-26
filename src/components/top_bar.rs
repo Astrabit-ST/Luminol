@@ -23,9 +23,7 @@ use crate::Pencil;
 #[derive(Default)]
 pub struct TopBar {
     open_project_promise: Option<Promise<Result<(), String>>>,
-    save_project_promise: Option<Promise<Result<(), String>>>,
     egui_settings_open: bool,
-    #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
 }
 
@@ -41,12 +39,9 @@ impl TopBar {
         let info = info!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.checkbox(&mut self.fullscreen, "Fullscreen");
+        ui.checkbox(&mut self.fullscreen, "Fullscreen");
 
-            frame.set_fullscreen(self.fullscreen);
-        }
+        frame.set_fullscreen(self.fullscreen);
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
             && info.filesystem.project_loaded();
@@ -70,11 +65,7 @@ impl TopBar {
                 info.windows.add_window(new_project::Window::default());
             }
 
-            if self.open_project_promise.is_none() {
-                open_project |= ui.button("Open Project").clicked();
-            } else {
-                ui.spinner();
-            }
+            open_project |= ui.button("Open Project").clicked();
 
             ui.separator();
 
@@ -89,11 +80,7 @@ impl TopBar {
                     info.tabs.clean_tabs(|t| t.requires_filesystem());
                 }
 
-                if self.save_project_promise.is_none() {
-                    save_project |= ui.button("Save Project").clicked();
-                } else {
-                    ui.spinner();
-                }
+                save_project |= ui.button("Save Project").clicked();
             });
 
             ui.separator();
@@ -273,7 +260,10 @@ impl TopBar {
 
         if save_project {
             info.toasts.info("Saving project...");
-            self.save_project_promise = Some(Promise::spawn_local(info.filesystem.save_cached()));
+            match info.filesystem.save_cached() {
+                Ok(_) => info.toasts.info("Saved project sucessfully!"),
+                Err(e) => info.toasts.error(e),
+            }
         }
 
         if self.open_project_promise.is_some() {
@@ -283,16 +273,6 @@ impl TopBar {
                     Err(e) => info.toasts.error(e),
                 }
                 self.open_project_promise = None;
-            }
-        }
-
-        if self.save_project_promise.is_some() {
-            if let Some(r) = self.save_project_promise.as_ref().unwrap().ready() {
-                match r {
-                    Ok(_) => info.toasts.info("Saved project sucessfully!"),
-                    Err(e) => info.toasts.error(e),
-                }
-                self.save_project_promise = None;
             }
         }
     }

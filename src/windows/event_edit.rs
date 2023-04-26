@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use egui_extras::RetainedImage;
-use poll_promise::Promise;
 
 use crate::prelude::*;
 
@@ -26,7 +25,7 @@ pub struct Window {
     map_id: i32,
     selected_page: usize,
     event: rpg::Event,
-    page_graphics_promise: Promise<(Vec<Option<RetainedImage>>, RetainedImage)>,
+    page_graphics: (Vec<Option<RetainedImage>>, RetainedImage),
     viewed_tab: u8,
     modals: (bool, bool, bool),
 }
@@ -34,27 +33,26 @@ pub struct Window {
 impl Window {
     /// Create a new event editor.
     pub fn new(id: usize, map_id: i32, event: rpg::Event, tileset_name: String) -> Self {
-        let pages_graphics: Vec<_> = event.pages.iter().map(|p| p.graphic.clone()).collect();
+        let pages_graphics = event
+            .pages
+            .iter()
+            .map(|p| {
+                crate::load_image_software(format!(
+                    "Graphics/Characters/{}",
+                    p.graphic.character_name
+                ))
+                .ok()
+            })
+            .collect();
+        let tileset_graphic =
+            crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}")).unwrap();
+
         Self {
             id,
             map_id,
             selected_page: 0,
             event,
-            page_graphics_promise: Promise::spawn_local(async move {
-                let futures = pages_graphics.iter().map(|p| {
-                    crate::load_image_software(format!("Graphics/Characters/{}", p.character_name))
-                });
-                (
-                    futures::future::join_all(futures)
-                        .await
-                        .into_iter()
-                        .map(std::result::Result::ok)
-                        .collect(),
-                    crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}"))
-                        .await
-                        .unwrap(),
-                )
-            }),
+            page_graphics: (pages_graphics, tileset_graphic),
             viewed_tab: 2,
             modals: (false, false, false),
         }
@@ -296,64 +294,59 @@ impl window::Window for Window {
                         });
                     }
                     1 => {
-                        if self.page_graphics_promise.ready().is_some() {
-                            let graphics = self.page_graphics_promise.ready().unwrap();
+                        let space =
+                            ui.available_size_before_wrap() - ui.spacing().button_padding * 2.;
+                        let (page_graphic, tileset_graphic) = &self.page_graphics;
 
-                            let space =
-                                ui.available_size_before_wrap() - ui.spacing().button_padding * 2.;
+                        if if page.graphic.tile_id.is_positive() {
+                            let ele = page.graphic.tile_id - 384;
 
-                            if if page.graphic.tile_id.is_positive() {
-                                let ele = page.graphic.tile_id - 384;
+                            let tile_width = 32. / tileset_graphic.width() as f32;
+                            let tile_height = 32. / tileset_graphic.height() as f32;
 
-                                let tile_width = 32. / graphics.1.width() as f32;
-                                let tile_height = 32. / graphics.1.height() as f32;
+                            let tile_x =
+                                (ele as usize % (tileset_graphic.width() / 32)) as f32 * tile_width;
+                            let tile_y = (ele as usize / (tileset_graphic.width() / 32)) as f32
+                                * tile_height;
 
-                                let tile_x =
-                                    (ele as usize % (graphics.1.width() / 32)) as f32 * tile_width;
-                                let tile_y =
-                                    (ele as usize / (graphics.1.width() / 32)) as f32 * tile_height;
+                            let uv = egui::Rect::from_min_size(
+                                egui::pos2(tile_x, tile_y),
+                                egui::vec2(tile_width, tile_height),
+                            );
 
-                                let uv = egui::Rect::from_min_size(
-                                    egui::pos2(tile_x, tile_y),
-                                    egui::vec2(tile_width, tile_height),
-                                );
-
-                                ui.add(
-                                    egui::ImageButton::new(
-                                        graphics.1.texture_id(ui.ctx()),
-                                        egui::vec2(space.x, space.x),
-                                    )
-                                    .uv(uv),
+                            ui.add(
+                                egui::ImageButton::new(
+                                    tileset_graphic.texture_id(ui.ctx()),
+                                    egui::vec2(space.x, space.x),
                                 )
-                            } else if let Some(ref tex) = graphics.0[self.selected_page] {
-                                let cw = (tex.width() / 4) as f32;
-                                let ch = (tex.height() / 4) as f32;
+                                .uv(uv),
+                            )
+                        } else if let Some(ref tex) = page_graphic[self.selected_page] {
+                            let cw = (tex.width() / 4) as f32;
+                            let ch = (tex.height() / 4) as f32;
 
-                                let cx = (page.graphic.pattern as f32 * cw) / tex.width() as f32;
-                                let cy = (((page.graphic.direction - 2) / 2) as f32 * ch)
-                                    / tex.height() as f32;
+                            let cx = (page.graphic.pattern as f32 * cw) / tex.width() as f32;
+                            let cy = (((page.graphic.direction - 2) / 2) as f32 * ch)
+                                / tex.height() as f32;
 
-                                let uv = egui::Rect::from_min_size(
-                                    egui::pos2(cx, cy),
-                                    egui::vec2(cw / tex.width() as f32, ch / tex.height() as f32),
-                                );
+                            let uv = egui::Rect::from_min_size(
+                                egui::pos2(cx, cy),
+                                egui::vec2(cw / tex.width() as f32, ch / tex.height() as f32),
+                            );
 
-                                ui.add(
-                                    egui::ImageButton::new(
-                                        tex.texture_id(ui.ctx()),
-                                        egui::vec2(space.x, ch * (space.x / cw)),
-                                    )
-                                    .uv(uv),
+                            ui.add(
+                                egui::ImageButton::new(
+                                    tex.texture_id(ui.ctx()),
+                                    egui::vec2(space.x, ch * (space.x / cw)),
                                 )
-                            } else {
-                                ui.button("Add image")
-                            }
-                            .clicked()
-                            {
-                                // TODO: Use modals for an image picker
-                            }
+                                .uv(uv),
+                            )
                         } else {
-                            ui.centered_and_justified(egui::Ui::spinner);
+                            ui.button("Add image")
+                        }
+                        .clicked()
+                        {
+                            // TODO: Use modals for an image picker
                         }
                     }
                     2 => {
