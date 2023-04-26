@@ -71,7 +71,7 @@ impl tab::Tab for Tab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let info = info!();
+        let info = state!();
 
         // Get the map.
         let mut map = info.data_cache.get_map(self.id);

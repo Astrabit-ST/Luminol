@@ -42,7 +42,7 @@ impl Window {
             let image = match load_image_software(format!("Graphics/Icons/{}", icon_path.clone())) {
                 Ok(ri) => ri,
                 Err(why) => {
-                    info!()
+                    state!()
                         .toasts
                         .error(format!("Cannot load `{icon_path}` icon: {why}"));
                     continue;

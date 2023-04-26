@@ -39,11 +39,11 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = UpdateInfo::new(cc.gl.as_ref().unwrap().clone(), state);
-        crate::set_info(info);
+        let info = State::new(cc.gl.as_ref().unwrap().clone(), state);
+        crate::set_state(info);
 
         if let Some(path) = try_load_path {
-            info!()
+            state!()
                 .filesystem
                 .try_open_project(path)
                 .expect("failed to load project");
@@ -65,7 +65,7 @@ impl eframe::App for Luminol {
         eframe::set_value::<crate::SavedState>(
             storage,
             "SavedState",
-            &info!().saved_state.borrow(),
+            &state!().saved_state.borrow(),
         );
         eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
@@ -76,8 +76,8 @@ impl eframe::App for Luminol {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
-                if let Err(e) = info!().filesystem.try_open_project(path) {
-                    info!()
+                if let Err(e) = state!().filesystem.try_open_project(path) {
+                    state!()
                         .toasts
                         .error(format!("Error opening dropped project: {e}"))
                 }
@@ -96,14 +96,14 @@ impl eframe::App for Luminol {
 
         // Central panel with tabs.
         egui::CentralPanel::default().show(ctx, |ui| {
-            info!().tabs.ui(ui);
+            state!().tabs.ui(ui);
         });
 
         // Update all windows.
-        info!().windows.update(ctx);
+        state!().windows.update(ctx);
 
         // Show toasts.
-        info!().toasts.show(ctx);
+        state!().toasts.show(ctx);
 
         poll_promise::tick_local();
 

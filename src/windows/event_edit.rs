@@ -373,7 +373,7 @@ impl window::Window for Window {
                     let cancel_clicked = ui.button("Cancel").clicked();
 
                     if apply_clicked || ok_clicked {
-                        let mut map = info!().data_cache.get_map(self.map_id);
+                        let mut map = state!().data_cache.get_map(self.map_id);
                         map.events[self.id] = self.event.clone();
                     }
 

@@ -34,7 +34,7 @@ pub use atomic_refcell::{AtomicRefCell, AtomicRefMut};
 pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
-pub use crate::info;
+pub use crate::state;
 
 pub use eframe::egui;
 pub use eframe::egui_glow::glow;
@@ -43,7 +43,7 @@ pub use egui::Color32;
 pub use egui::TextureOptions;
 pub use egui_extras::RetainedImage;
 
-pub use crate::UpdateInfo;
+pub use crate::State;
 
 pub use poll_promise::Promise;
 

@@ -115,7 +115,7 @@ impl Filesystem {
 
     /// Save all cached files. An alias for [`DataCache::save`];
     pub fn save_cached(&self) -> Result<(), String> {
-        info!().data_cache.save(self)
+        state!().data_cache.save(self)
     }
 
     pub fn try_open_project(&self, path: impl AsRef<Path>) -> Result<(), String> {
@@ -127,7 +127,7 @@ impl Filesystem {
         *self.project_path.write() = Some(path);
         self.loading_project.store(true, Ordering::Relaxed);
 
-        info!().data_cache.load().map_err(|e| {
+        state!().data_cache.load().map_err(|e| {
             *self.project_path.write() = None;
             self.loading_project.store(false, Ordering::Relaxed);
             e
@@ -136,7 +136,7 @@ impl Filesystem {
         self.loading_project.store(false, Ordering::Relaxed);
 
         {
-            let projects = &mut info!().saved_state.borrow_mut().recent_projects;
+            let projects = &mut state!().saved_state.borrow_mut().recent_projects;
 
             *projects = projects
                 .iter()
@@ -195,7 +195,7 @@ impl Filesystem {
                 })?;
 
             {
-                let projects = &mut info!().saved_state.borrow_mut().recent_projects;
+                let projects = &mut state!().saved_state.borrow_mut().recent_projects;
 
                 let path = self.project_path().unwrap().display().to_string();
                 *projects = projects
@@ -227,9 +227,9 @@ impl Filesystem {
 
         self.create_directory("Data")?;
 
-        info!().data_cache.setup_defaults();
+        state!().data_cache.setup_defaults();
         {
-            let mut config = info!().data_cache.config();
+            let mut config = state!().data_cache.config();
             config.rgss_ver = rgss_ver;
             config.project_name = name;
         }

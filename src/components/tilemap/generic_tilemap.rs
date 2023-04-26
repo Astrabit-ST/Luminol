@@ -29,7 +29,7 @@ use std::time::Instant;
 
 use egui::{Pos2, Response, Vec2};
 
-use crate::{info, load_image_software};
+use crate::{load_image_software, state};
 use rmxp_types::rpg;
 
 use super::TilemapDef;
@@ -624,7 +624,7 @@ impl TilemapDef for Tilemap {
 impl Tilemap {
     #[allow(unused_variables, unused_assignments)]
     fn load_data(id: i32) -> Result<Textures, String> {
-        let info = info!();
+        let info = state!();
         // Load the map.
 
         let map = info.data_cache.load_map(id)?;

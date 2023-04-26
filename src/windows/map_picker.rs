@@ -72,7 +72,7 @@ impl Window {
 
     fn create_map_tab(id: i32, name: String) {
         if let Some(m) = map::Tab::new(id, name) {
-            info!().tabs.add_tab(Box::new(m));
+            state!().tabs.add_tab(Box::new(m));
         }
     }
 }
@@ -91,7 +91,7 @@ impl window::Window for Window {
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
-                        let mut mapinfos = info!().data_cache.mapinfos();
+                        let mut mapinfos = state!().data_cache.mapinfos();
 
                         // We sort maps by their order.
                         let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();

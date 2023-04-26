@@ -100,7 +100,7 @@ pub enum Pencil {
 }
 
 /// Passed to windows and widgets when updating.
-pub struct UpdateInfo {
+pub struct State {
     /// Filesystem to be passed around.
     pub filesystem: filesystem::Filesystem,
     /// The data cache.
@@ -121,9 +121,9 @@ pub struct UpdateInfo {
     pub toolbar: AtomicRefCell<ToolbarState>,
 }
 
-static_assertions::assert_impl_all!(UpdateInfo: Send, Sync);
+static_assertions::assert_impl_all!(State: Send, Sync);
 
-impl UpdateInfo {
+impl State {
     /// Create a new UpdateInfo.
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
@@ -140,19 +140,19 @@ impl UpdateInfo {
     }
 }
 
-static INFO: once_cell::sync::OnceCell<UpdateInfo> = once_cell::sync::OnceCell::new();
+static STATE: once_cell::sync::OnceCell<State> = once_cell::sync::OnceCell::new();
 
 #[allow(clippy::panic)]
-fn set_info(info: UpdateInfo) {
-    if INFO.set(info).is_err() {
+fn set_state(info: State) {
+    if STATE.set(info).is_err() {
         panic!("failed to set updateinfo")
     }
 }
 
 #[macro_export]
-macro_rules! info {
+macro_rules! state {
     () => {
-        $crate::INFO.get().expect("failed to get updateinfo")
+        $crate::STATE.get().expect("failed to get updateinfo")
     };
 }
 
@@ -160,7 +160,7 @@ macro_rules! info {
 pub fn load_image_software(path: String) -> Result<RetainedImage, String> {
     egui_extras::RetainedImage::from_image_bytes(
         path.clone(),
-        &info!().filesystem.read_bytes(format!("{path}.png",))?,
+        &state!().filesystem.read_bytes(format!("{path}.png",))?,
     )
     .map(|i| i.with_options(TextureOptions::NEAREST))
 }
@@ -170,14 +170,14 @@ pub fn load_image_software(path: String) -> Result<RetainedImage, String> {
 pub fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
     use glow::HasContext;
 
-    let image = image::load_from_memory(&info!().filesystem.read_bytes(format!("{path}.png",))?)
+    let image = image::load_from_memory(&state!().filesystem.read_bytes(format!("{path}.png",))?)
         .map_err(|e| e.to_string())?;
 
     unsafe {
-        let texture = info!().gl.create_texture()?;
-        info!().gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+        let texture = state!().gl.create_texture()?;
+        state!().gl.bind_texture(glow::TEXTURE_2D, Some(texture));
 
-        info!().gl.tex_image_2d(
+        state!().gl.tex_image_2d(
             glow::TEXTURE_2D,
             0,
             glow::RGBA as _,
@@ -188,7 +188,7 @@ pub fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
             glow::UNSIGNED_BYTE,
             Some(image.as_bytes()),
         );
-        info!().gl.generate_mipmap(glow::TEXTURE_2D);
+        state!().gl.generate_mipmap(glow::TEXTURE_2D);
 
         Ok(texture)
     }
