@@ -92,13 +92,10 @@ impl TopBar {
                 }
             });
 
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                ui.separator();
+            ui.separator();
 
-                if ui.button("Quit").clicked() {
-                    frame.close();
-                }
+            if ui.button("Quit").clicked() {
+                frame.close();
             }
         });
 
@@ -198,7 +195,6 @@ impl TopBar {
 
         ui.separator();
 
-        #[cfg(not(target_arch = "wasm32"))]
         ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
             if ui.button("Playtest").clicked() {
                 let mut cmd = luminol_term::CommandBuilder::new("steamshim");

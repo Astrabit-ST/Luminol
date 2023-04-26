@@ -105,11 +105,7 @@ impl eframe::App for Luminol {
         // Show toasts.
         info!().toasts.show(ctx);
 
-        // Tick futures.
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            poll_promise::tick_local();
-        }
+        poll_promise::tick_local();
 
         self.lumi.ui(ctx);
     }

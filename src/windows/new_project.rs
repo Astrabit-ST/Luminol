@@ -28,9 +28,7 @@ pub struct Window {
     project_promise: Option<poll_promise::Promise<Result<(), String>>>,
     download_executable: bool,
     progress: Progress,
-    #[cfg(not(target_arch = "wasm32"))]
     init_git: bool,
-    #[cfg(not(target_arch = "wasm32"))]
     git_branch_name: String,
 }
 
@@ -50,9 +48,7 @@ impl Default for Window {
             project_promise: None,
             download_executable: false,
             progress: Progress::default(),
-            #[cfg(not(target_arch = "wasm32"))]
             init_git: false,
-            #[cfg(not(target_arch = "wasm32"))]
             git_branch_name: "master".to_string(),
         }
     }
@@ -76,14 +72,11 @@ impl window::Window for Window {
                     ui.label("Project Name");
                     ui.text_edit_singleline(&mut self.name);
 
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        ui.checkbox(&mut self.init_git, "Initialize with git repository");
-                        ui.add_enabled_ui(self.init_git, |ui| {
-                            ui.label("Git Branch");
-                            ui.text_edit_singleline(&mut self.git_branch_name);
-                        });
-                    }
+                    ui.checkbox(&mut self.init_git, "Initialize with git repository");
+                    ui.add_enabled_ui(self.init_git, |ui| {
+                        ui.label("Git Branch");
+                        ui.text_edit_singleline(&mut self.git_branch_name);
+                    });
 
                     egui::ComboBox::from_label("RGSS runtime")
                         .selected_text(self.rgss_ver.to_string())
@@ -152,9 +145,8 @@ impl window::Window for Window {
                                 );
                             let progress = self.progress.clone();
 
-                            #[cfg(not(target_arch = "wasm32"))]
                             let init_git = self.init_git;
-                            #[cfg(not(target_arch = "wasm32"))]
+
                             let branch_name = self.git_branch_name.clone();
 
                             self.project_promise =
@@ -163,39 +155,33 @@ impl window::Window for Window {
                                     let result =
                                         info.filesystem.try_create_project(name, rgss_ver).await;
 
-                                    #[allow(clippy::collapsible_if)]
-                                    if result.is_ok() {
-                                        #[cfg(not(target_arch = "wasm32"))]
-                                        if init_git {
-                                            use std::process::Command;
-                                            match Command::new("git")
-                                                .arg("init")
-                                                .arg("-b")
-                                                .arg(branch_name)
-                                                .current_dir(
-                                                    info.filesystem.project_path().unwrap(),
-                                                )
-                                                .spawn()
-                                            {
-                                                Ok(mut c) => {
-                                                    if let Err(e) = c.wait() {
-                                                        info.toasts.error(format!(
+                                    if init_git && result.is_ok() {
+                                        use std::process::Command;
+                                        match Command::new("git")
+                                            .arg("init")
+                                            .arg("-b")
+                                            .arg(branch_name)
+                                            .current_dir(info.filesystem.project_path().unwrap())
+                                            .spawn()
+                                        {
+                                            Ok(mut c) => {
+                                                if let Err(e) = c.wait() {
+                                                    info.toasts.error(format!(
                                                         "Failed to initialize git repository {e}"
                                                     ));
-                                                    }
                                                 }
-                                                Err(e) => info.toasts.error(format!(
-                                                    "Failed to initialize git repository {e}"
-                                                )),
                                             }
+                                            Err(e) => info.toasts.error(format!(
+                                                "Failed to initialize git repository {e}"
+                                            )),
                                         }
+                                    }
 
-                                        if download_executable {
-                                            if let Err(e) =
-                                                Self::download_executable(rgss_ver, progress).await
-                                            {
-                                                info.toasts.error(e);
-                                            }
+                                    if download_executable && result.is_ok() {
+                                        if let Err(e) =
+                                            Self::download_executable(rgss_ver, progress).await
+                                        {
+                                            info.toasts.error(e);
                                         }
                                     }
 

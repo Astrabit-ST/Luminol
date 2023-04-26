@@ -76,10 +76,8 @@ impl tab::Tab for Tab {
 
             ui.add_space(100.);
 
-            #[cfg(not(target_arch = "wasm32"))]
             ui.heading("Recent");
 
-            #[cfg(not(target_arch = "wasm32"))]
             for path in &info.saved_state.borrow().recent_projects {
                 if ui.button(path).clicked() {
                     let path = path.clone();
