@@ -30,7 +30,7 @@ impl Luminol {
     #[must_use]
     pub fn new(
         cc: &eframe::CreationContext<'_>,
-        #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
+        try_load_path: Option<std::ffi::OsString>,
     ) -> Self {
         let storage = cc.storage.unwrap();
 
@@ -42,10 +42,10 @@ impl Luminol {
         let info = UpdateInfo::new(cc.gl.as_ref().unwrap().clone(), state);
         crate::set_info(info);
 
-        #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
-            poll_promise::Promise::spawn_local(info!().filesystem.try_open_project(path))
-                .block_and_take()
+            info!()
+                .filesystem
+                .try_open_project(path)
                 .expect("failed to load project");
         }
 
@@ -72,15 +72,11 @@ impl eframe::App for Luminol {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
-        #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
-                if let Err(e) =
-                    poll_promise::Promise::spawn_local(info!().filesystem.try_open_project(path))
-                        .block_and_take()
-                {
+                if let Err(e) = info!().filesystem.try_open_project(path) {
                     info!()
                         .toasts
                         .error(format!("Error opening dropped project: {e}"))
@@ -109,11 +105,7 @@ impl eframe::App for Luminol {
         // Show toasts.
         info!().toasts.show(ctx);
 
-        // Tick futures.
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            poll_promise::tick_local();
-        }
+        poll_promise::tick_local();
 
         self.lumi.ui(ctx);
     }

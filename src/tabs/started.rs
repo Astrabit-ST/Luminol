@@ -76,16 +76,14 @@ impl tab::Tab for Tab {
 
             ui.add_space(100.);
 
-            #[cfg(not(target_arch = "wasm32"))]
             ui.heading("Recent");
 
-            #[cfg(not(target_arch = "wasm32"))]
             for path in &info.saved_state.borrow().recent_projects {
                 if ui.button(path).clicked() {
                     let path = path.clone();
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
-                        if let Err(why) = info.filesystem.try_open_project(path).await {
+                        if let Err(why) = info.filesystem.try_open_project(path) {
                             info.toasts
                                 .error(format!("Error loading the project: {why}"));
                         }

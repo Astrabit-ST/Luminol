@@ -21,7 +21,6 @@
 // TODO: Use eyre!
 use color_eyre::Result;
 
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
@@ -104,33 +103,5 @@ fn setup_file_assocs() -> std::io::Result<()> {
        let (open_key, _) = app_key.create_subkey("shell\\open\\command")?;
        open_key.set_value("", &command)?;
     */
-    Ok(())
-}
-
-// when compiling to web using trunk.
-#[cfg(target_arch = "wasm32")]
-fn main() -> Result<()> {
-    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
-    std::panic::set_hook(Box::new(move |info| {
-        let report = panic.panic_report(info);
-
-        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
-    }));
-
-    // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default();
-
-    let web_options = eframe::WebOptions::default();
-
-    wasm_bindgen_futures::spawn_local(async {
-        eframe::start_web(
-            "the_canvas_id", // hardcode it
-            web_options,
-            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-        )
-        .await
-        .expect("failed to start eframe");
-    });
-
     Ok(())
 }

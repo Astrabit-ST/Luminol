@@ -17,7 +17,6 @@
 
 use crate::{load_image_software, prelude::*};
 use egui_extras::RetainedImage;
-use poll_promise::Promise;
 
 pub struct Graphic {
     pub name: String,
@@ -40,12 +39,7 @@ impl Window {
 
             let icon_path = String::from(split[0]);
 
-            let image = match Promise::spawn_local(load_image_software(format!(
-                "Graphics/Icons/{}",
-                icon_path.clone()
-            )))
-            .block_and_take()
-            {
+            let image = match load_image_software(format!("Graphics/Icons/{}", icon_path.clone())) {
                 Ok(ri) => ri,
                 Err(why) => {
                     info!()

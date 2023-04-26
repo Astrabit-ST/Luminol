@@ -15,18 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use rmxp_types::rpg;
-use rmxp_types::NilPadded;
-use std::{
-    cell::{RefCell, RefMut},
-    collections::HashMap,
-};
-
-use crate::filesystem::Filesystem;
-
-use super::command_db::CommandDB;
-use super::config::LocalConfig;
-
+use crate::prelude::*;
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
@@ -65,7 +54,6 @@ macro_rules! save_data {
                 if let Some(_bytes) = _bytes {
                     $filesystem
                         .save_data(concat!("Data/", stringify!($name), ".rxdata"), _bytes?)
-                        .await
                         .map_err(|_| concat!("Failed to write", stringify!($name), "data"))?;
                 }
             }
@@ -80,7 +68,6 @@ macro_rules! load_data {
                 *$this.[< $name:lower >].borrow_mut() = Some(
                     $filesystem
                         .read_data(concat!("Data/", stringify!($name), ".rxdata"))
-                        .await
                         .map_err(|s| format!(concat!("Failed to load ", stringify!($name) ,": {}"), s))?,
                 );
             }
@@ -126,14 +113,15 @@ macro_rules! setup_default {
 
 impl Cache {
     /// Load all data required when opening a project.
-    pub async fn load(&self, filesystem: &impl Filesystem) -> Result<(), String> {
-        if !filesystem.path_exists(".luminol").await {
-            filesystem.create_directory(".luminol").await?;
+    pub fn load(&self) -> Result<(), String> {
+        let filesystem = &info!().filesystem;
+
+        if !filesystem.path_exists(".luminol") {
+            filesystem.create_directory(".luminol")?;
         }
 
         let config = match filesystem
             .read_bytes(".luminol/config")
-            .await
             .ok()
             .and_then(|v| String::from_utf8(v).ok())
             .and_then(|s| ron::from_str(&s).ok())
@@ -150,7 +138,6 @@ impl Cache {
                         )
                         .expect("Failed to serialize config"),
                     )
-                    .await
                     .expect("Failed to write config data after failing to load config data");
                 config
             }
@@ -158,7 +145,6 @@ impl Cache {
 
         let commanddb = match filesystem
             .read_bytes(".luminol/commands")
-            .await
             .ok()
             .and_then(|v| String::from_utf8(v).ok())
             .and_then(|s| ron::from_str(&s).ok())
@@ -175,7 +161,6 @@ impl Cache {
                         )
                         .expect("Failed to serialize commands"),
                     )
-                    .await
                     .expect("Failed to write config data after failing to load command data");
                 config
             }
@@ -193,12 +178,12 @@ impl Cache {
             Tilesets, Troops, Weapons
         }
 
-        let mut scripts = filesystem.read_data("Data/xScripts.rxdata").await;
+        let mut scripts = filesystem.read_data("Data/xScripts.rxdata");
 
         if let Err(e) = scripts {
             eprintln!("Attempted loading xScripts failed with {e}");
 
-            scripts = filesystem.read_data("Data/Scripts.rxdata").await;
+            scripts = filesystem.read_data("Data/Scripts.rxdata");
         } else {
             self.config.borrow_mut().as_mut().unwrap().scripts_path = "xScripts".to_string();
         }
@@ -212,16 +197,12 @@ impl Cache {
     }
 
     /// Load a map.
-    pub async fn load_map(
-        &self,
-        filesystem: &'static impl Filesystem,
-        id: i32,
-    ) -> Result<RefMut<'_, rpg::Map>, String> {
+    pub fn load_map(&self, id: i32) -> Result<RefMut<'_, rpg::Map>, String> {
         let has_map = self.maps.borrow().contains_key(&id);
         if !has_map {
-            let map = filesystem
+            let map = info!()
+                .filesystem
                 .read_data(format!("Data/Map{id:0>3}.rxdata",))
-                .await
                 .map_err(|e| format!("Failed to load map: {e}"))?;
             self.maps.borrow_mut().insert(id, map);
         }
@@ -231,7 +212,7 @@ impl Cache {
     }
 
     /// Get a map that has been loaded. This function is not async unlike [`Self::load_map`].
-    /// #Panics
+    /// # Panics
     /// Will panic if the map has not been loaded already.
     pub fn get_map(&self, id: i32) -> RefMut<'_, rpg::Map> {
         RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
@@ -259,9 +240,9 @@ impl Cache {
     }
 
     /// Save the local config.
-    pub async fn save_config(&self, filesystem: &impl Filesystem) -> Result<(), String> {
-        if !filesystem.path_exists(".luminol").await {
-            filesystem.create_directory(".luminol").await?;
+    pub fn save_config(&self, filesystem: &Filesystem) -> Result<(), String> {
+        if !filesystem.path_exists(".luminol") {
+            filesystem.create_directory(".luminol")?;
         }
 
         let config_str = ron::ser::to_string_pretty(
@@ -272,7 +253,6 @@ impl Cache {
 
         filesystem
             .save_data(".luminol/config", config_str)
-            .await
             .map_err(|_| "Failed to write Config data")?;
 
         let commands_str = ron::ser::to_string_pretty(
@@ -283,7 +263,6 @@ impl Cache {
 
         filesystem
             .save_data(".luminol/commands", commands_str)
-            .await
             .map_err(|_| "Failed to write Config data")?;
 
         Ok(())
@@ -291,7 +270,7 @@ impl Cache {
 
     /// Save all cached data to disk.
     /// Will flush the cache too.
-    pub async fn save(&self, filesystem: &impl Filesystem) -> Result<(), String> {
+    pub fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
         self.system().magic_number = rand::random();
 
         // Write map data and clear map cache.
@@ -307,7 +286,6 @@ impl Cache {
         for (id, map) in maps_bytes {
             filesystem
                 .save_data(format!("Data/Map{id:0>3}.rxdata",), map?)
-                .await
                 .map_err(|e| format!("Failed to write Map data {e}"))?;
         }
 
@@ -318,7 +296,6 @@ impl Cache {
                 format!("Data/{}.rxdata", self.config().scripts_path),
                 scripts_bytes,
             )
-            .await
             .map_err(|e| format!("Failed to write Script data {e}"))?;
 
         save_data! {
@@ -330,7 +307,7 @@ impl Cache {
             Tilesets, Troops, Weapons
         };
 
-        self.save_config(filesystem).await
+        self.save_config(filesystem)
     }
 
     /// Setup default values

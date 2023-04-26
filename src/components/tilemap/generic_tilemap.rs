@@ -22,11 +22,9 @@ It's slow and should only be used as a reference for how the tilemap works.
 
 use egui::Color32;
 use egui_extras::RetainedImage;
-#[cfg(target_arch = "wasm32")]
-use fluvio_wasm_timer::Instant; // FIXME: use time crate (why is this necessary)
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use egui::{Pos2, Response, Vec2};
@@ -50,10 +48,10 @@ pub struct Tilemap {
     pub move_preview: bool,
     ani_idx: i32,
     ani_instant: Instant,
-    load_promise: poll_promise::Promise<Result<Textures, String>>,
+    textures: Textures,
 }
 
-struct Textures {
+pub struct Textures {
     tileset_tex: Option<RetainedImage>,
     autotile_texs: Vec<Option<RetainedImage>>,
     event_texs: HashMap<(String, i32), Option<RetainedImage>>,
@@ -118,16 +116,17 @@ const AUTOTILES: [[i32; 4]; 48] = [
 
 #[allow(dead_code)]
 impl TilemapDef for Tilemap {
-    fn new(id: i32) -> Self {
-        Self {
+    fn new(id: i32) -> Result<Tilemap, String> {
+        let textures = Self::load_data(id)?;
+        Ok(Self {
             pan: Vec2::ZERO,
             scale: 100.,
             visible_display: false,
             move_preview: false,
             ani_idx: 0,
             ani_instant: Instant::now(),
-            load_promise: poll_promise::Promise::spawn_local(Self::load_data(id)),
-        }
+            textures,
+        })
     }
 
     fn ui(
@@ -139,8 +138,6 @@ impl TilemapDef for Tilemap {
         selected_layer: usize,
         dragging_event: bool,
     ) -> Response {
-        let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
-
         // Every 16 frames update autotile animation index
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
@@ -208,11 +205,13 @@ impl TilemapDef for Tilemap {
         let xsize = map.data.xsize();
         let ysize = map.data.ysize();
 
-        let tile_width = textures
+        let tile_width = self
+            .textures
             .tileset_tex
             .as_ref()
             .map(|t| 32. / t.width() as f32);
-        let tile_height = textures
+        let tile_height = self
+            .textures
             .tileset_tex
             .as_ref()
             .map(|t| 32. / t.height() as f32);
@@ -228,7 +227,7 @@ impl TilemapDef for Tilemap {
 
         // Do we need to render a panorama?
         if toggled_layers[map.data.zsize() + 1] {
-            if let Some(pano_tex) = &textures.pano_tex {
+            if let Some(pano_tex) = &self.textures.pano_tex {
                 // Find the minimum number of panoramas we can fit in the map size (should fit the screen)
                 let mut pano_repeat = map_rect.size() / (pano_tex.size_vec2() * scale);
                 // We want to display more not less than we possibly can
@@ -286,7 +285,7 @@ impl TilemapDef for Tilemap {
 
             // Do we draw an autotile or regular tile?
             if *ele >= 384 {
-                if let Some(ref tileset_tex) = textures.tileset_tex {
+                if let Some(ref tileset_tex) = self.textures.tileset_tex {
                     // Normalize element
                     let ele = ele - 384;
 
@@ -311,7 +310,7 @@ impl TilemapDef for Tilemap {
                 // Find what autotile we're displaying
                 let autotile_id = (ele / 48) - 1;
 
-                if let Some(autotile_tex) = &textures.autotile_texs[autotile_id as usize] {
+                if let Some(autotile_tex) = &self.textures.autotile_texs[autotile_id as usize] {
                     // Get the relative tile size
                     let tile_width = 16. / autotile_tex.width() as f32;
                     let tile_height = 16. / autotile_tex.height() as f32;
@@ -365,7 +364,7 @@ impl TilemapDef for Tilemap {
                 // aaaaaaaa
                 // Get graphic and texture
                 let graphic = &event.pages[0].graphic;
-                let Some(tex) = textures
+                let Some(tex) =self. textures
                     .event_texs
                     .get(&(graphic.character_name.clone(), graphic.character_hue))
                     else {
@@ -402,7 +401,7 @@ impl TilemapDef for Tilemap {
                         .paint_at(ui, c_rect);
                 // Do we need to display a tile instead?
                 } else if graphic.tile_id.is_positive() {
-                    if let Some(ref tileset_tex) = textures.tileset_tex {
+                    if let Some(ref tileset_tex) = self.textures.tileset_tex {
                         // Same logic for tiles. See above.
                         let tile_rect = egui::Rect::from_min_size(
                             map_rect.min
@@ -449,8 +448,8 @@ impl TilemapDef for Tilemap {
         // Display the fog if we should.
         // Uses an almost identical method to panoramas with an added scale.
         if toggled_layers[map.data.zsize() + 2] {
-            if let Some(fog_tex) = &textures.fog_tex {
-                let zoom = (textures.fog_zoom as f32 / 100.) * scale;
+            if let Some(fog_tex) = &self.textures.fog_tex {
+                let zoom = (self.textures.fog_zoom as f32 / 100.) * scale;
                 let mut fox_repeat = map_rect.size() / (fog_tex.size_vec2() * zoom);
                 fox_repeat.x = fox_repeat.x.ceil();
                 fox_repeat.y = fox_repeat.y.ceil();
@@ -595,9 +594,7 @@ impl TilemapDef for Tilemap {
     }
 
     fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
-        let textures = self.load_promise.ready().unwrap().as_ref().unwrap();
-
-        if let Some(ref tileset_tex) = textures.tileset_tex {
+        if let Some(ref tileset_tex) = self.textures.tileset_tex {
             let (rect, response) =
                 ui.allocate_exact_size(tileset_tex.size_vec2(), egui::Sense::click());
 
@@ -623,110 +620,55 @@ impl TilemapDef for Tilemap {
             );
         }
     }
-
-    fn textures_loaded(&self) -> bool {
-        self.load_promise.ready().is_some()
-    }
-
-    fn load_result(&self) -> Result<(), String> {
-        self.load_promise
-            .ready()
-            .unwrap()
-            .as_ref()
-            .map(|_| ())
-            .map_err(std::clone::Clone::clone)
-    }
 }
-
 impl Tilemap {
     #[allow(unused_variables, unused_assignments)]
-    async fn load_data(id: i32) -> Result<Textures, String> {
+    fn load_data(id: i32) -> Result<Textures, String> {
         let info = info!();
         // Load the map.
-        let tileset_name;
-        let autotile_names;
 
-        let event_names: Vec<_>;
+        let map = info.data_cache.load_map(id)?;
+        // Get tilesets.
+        let tilesets = info.data_cache.tilesets();
 
-        let fog_name;
-        let fog_hue;
-        let fog_zoom;
-
-        let pano_name;
-        let pano_hue;
-
-        // We get all the variables we need from here so we don't borrow the refcell across an await.
-        // This could be done with a RwLock or a Mutex but this is more practical.
-        // We do have to clone variables but this is negligble compared to the alternative.
-        {
-            let map = info.data_cache.load_map(&info.filesystem, id).await?;
-            // Get tilesets.
-            let tilesets = info.data_cache.tilesets();
-
-            // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-            let tileset = &tilesets[map.tileset_id as usize - 1];
-
-            tileset_name = tileset.tileset_name.clone();
-            autotile_names = tileset.autotile_names.clone();
-
-            event_names = map
-                .events
-                .iter()
-                .map(|(_, e)| {
-                    (
-                        e.pages[0].graphic.character_name.clone(),
-                        e.pages[0].graphic.character_hue,
-                    )
-                })
-                .collect();
-
-            fog_name = tileset.fog_name.clone();
-            fog_hue = tileset.fog_hue;
-            fog_zoom = tileset.fog_zoom;
-
-            pano_name = tileset.panorama_name.clone();
-            pano_hue = tileset.panorama_hue;
-        }
+        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+        let tileset = &tilesets[map.tileset_id as usize - 1];
 
         // Load tileset textures.
-        let tileset_tex = load_image_software(format!("Graphics/Tilesets/{tileset_name}"))
-            .await
-            .ok();
+        let tileset_tex =
+            load_image_software(format!("Graphics/Tilesets/{}", tileset.tileset_name)).ok();
 
         // Create an async iter over the autotile textures.
-        let autotile_texs_iter = autotile_names.iter().map(|str| async move {
-            load_image_software(format!("Graphics/Autotiles/{str}"))
-                .await
-                .ok()
-        });
+        let autotile_texs = tileset
+            .autotile_names
+            .iter()
+            .map(|path| load_image_software(format!("Graphics/Autotiles/{path}")).ok())
+            .collect();
 
         // Await all the futures.
-        let autotile_texs = futures::future::join_all(autotile_texs_iter).await;
 
-        // Similar deal as to the autotiles.
-        let event_texs_iter = event_names.iter().map(|(char_name, hue)| async move {
-            (
-                (char_name.clone(), *hue),
-                load_image_software(format!("Graphics/Characters/{char_name}"))
-                    .await
-                    .ok(),
-            )
-        });
-
-        // Unfortunately since join_all produces a vec, we need to convert it to a hashmap.
-        let event_texs: HashMap<_, _> = futures::future::join_all(event_texs_iter)
-            .await
-            .into_iter()
+        let event_texs = map
+            .events
+            .iter()
+            .map(|(_, e)| {
+                (
+                    e.pages[0].graphic.character_name.clone(),
+                    e.pages[0].graphic.character_hue,
+                )
+            })
+            .dedup()
+            .map(|(char_name, hue)| {
+                let texture = load_image_software(format!("Graphics/Characters/{char_name}")).ok();
+                ((char_name, hue), texture)
+            })
             .collect();
 
         // These two are pretty simple.
-        let fog_tex = load_image_software(format!("Graphics/Fogs/{fog_name}"))
-            .await
-            .ok();
+        let fog_tex = load_image_software(format!("Graphics/Fogs/{}", tileset.fog_name)).ok();
+        let fog_zoom = tileset.fog_zoom;
 
-        let pano_tex = load_image_software(format!("Graphics/Panoramas/{pano_name}"))
-            .await
-            .ok();
+        let pano_tex =
+            load_image_software(format!("Graphics/Panoramas/{}", tileset.panorama_name)).ok();
 
         // Finally create and return the struct.
         Ok(Textures {

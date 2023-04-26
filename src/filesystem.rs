@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use crate::prelude::*;
-use async_trait::async_trait;
 
 /// Native filesystem implementation.
 #[derive(Default)]
@@ -25,27 +24,26 @@ pub struct Filesystem {
     loading_project: RefCell<bool>,
 }
 
-#[async_trait(?Send)]
-impl super::filesystem_trait::Filesystem for Filesystem {
+impl Filesystem {
     /// Unload the currently loaded project.
     /// Does nothing if none is open.
-    fn unload_project(&self) {
+    pub fn unload_project(&self) {
         *self.project_path.borrow_mut() = None;
     }
 
     /// Is there a project loaded?
-    fn project_loaded(&self) -> bool {
+    pub fn project_loaded(&self) -> bool {
         self.project_path.borrow().is_some() && !*self.loading_project.borrow()
     }
 
     /// Get the project path.
-    fn project_path(&self) -> Option<PathBuf> {
+    pub fn project_path(&self) -> Option<PathBuf> {
         self.project_path.borrow().clone()
     }
 
     /// Get the directory children of a path.
-    async fn dir_children(&self, path: impl AsRef<Path>) -> Result<Vec<String>, String> {
-        // I am too lazy to make this actually async.
+    pub fn dir_children(&self, path: impl AsRef<Path>) -> Result<Vec<String>, String> {
+        // I am too lazy to make this actually .
         // It'd take an external library or some hacking that I'm not up for currently.
         std::fs::read_dir(
             self.project_path
@@ -65,7 +63,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     /// Read a data file and deserialize it with RON (rusty object notation)
     /// In the future this will take an optional parameter (type) to set the loading method.
     /// (Options would be Marshal, RON, Lumina)
-    async fn read_data<T>(&self, path: impl AsRef<Path>) -> Result<T, String>
+    pub fn read_data<T>(&self, path: impl AsRef<Path>) -> Result<T, String>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -76,7 +74,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
 
-        let data = async_fs::read(&path).await.map_err(|e| e.to_string())?;
+        let data = std::fs::read(&path).map_err(|e| e.to_string())?;
 
         // let de = &mut alox_48::Deserializer::new(&data).unwrap();
         // let result = serde_path_to_error::deserialize(de);
@@ -86,23 +84,17 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Read bytes from a file.
-    async fn read_bytes(&self, provided_path: impl AsRef<Path>) -> Result<Vec<u8>, String> {
+    pub fn read_bytes(&self, provided_path: impl AsRef<Path>) -> Result<Vec<u8>, String> {
         let path = self
             .project_path
             .borrow()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join(provided_path);
-        async_fs::read(&path)
-            .await
-            .map_err(|e| format!("Loading {path:?}: {e}"))
+        std::fs::read(&path).map_err(|e| format!("Loading {path:?}: {e}"))
     }
 
-    async fn save_data(
-        &self,
-        path: impl AsRef<Path>,
-        data: impl AsRef<[u8]>,
-    ) -> Result<(), String> {
+    pub fn save_data(&self, path: impl AsRef<Path>, data: impl AsRef<[u8]>) -> Result<(), String> {
         let path = self
             .project_path
             .borrow()
@@ -110,22 +102,22 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
 
-        async_fs::write(path, data).await.map_err(|e| e.to_string())
+        std::fs::write(path, data).map_err(|e| e.to_string())
     }
 
     /// Check if file path exists
-    async fn path_exists(&self, path: impl AsRef<Path>) -> bool {
+    pub fn path_exists(&self, path: impl AsRef<Path>) -> bool {
         let path = self.project_path.borrow().as_ref().unwrap().join(path);
 
-        async_fs::metadata(path).await.is_ok()
+        std::fs::metadata(path).is_ok()
     }
 
     /// Save all cached files. An alias for [`DataCache::save`];
-    async fn save_cached(&self) -> Result<(), String> {
-        info!().data_cache.save(self).await
+    pub fn save_cached(&self) -> Result<(), String> {
+        info!().data_cache.save(self)
     }
 
-    async fn try_open_project(&self, path: impl AsRef<Path>) -> Result<(), String> {
+    pub fn try_open_project(&self, path: impl AsRef<Path>) -> Result<(), String> {
         let mut path = path.as_ref().to_path_buf();
         let original_path = path.to_string_lossy().to_string();
 
@@ -135,7 +127,7 @@ impl super::filesystem_trait::Filesystem for Filesystem {
 
         *self.loading_project.borrow_mut() = true;
 
-        info!().data_cache.load(self).await.map_err(|e| {
+        info!().data_cache.load().map_err(|e| {
             *self.project_path.borrow_mut() = None;
             *self.loading_project.borrow_mut() = false;
             e
@@ -166,20 +158,20 @@ impl super::filesystem_trait::Filesystem for Filesystem {
     }
 
     /// Try to open a project.
-    async fn spawn_project_file_picker(&self) -> Result<(), String> {
+    pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "lumproj"])
             .pick_file()
             .await
         {
-            self.try_open_project(path.path().to_str().unwrap()).await
+            self.try_open_project(path.path())
         } else {
             Err("Cancelled loading project".to_string())
         }
     }
 
     /// Create a directory at the specified path.
-    async fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String> {
+    pub fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String> {
         let path = self
             .project_path
             .borrow()
@@ -187,16 +179,16 @@ impl super::filesystem_trait::Filesystem for Filesystem {
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
 
-        async_fs::create_dir(path).await.map_err(|e| e.to_string())
+        std::fs::create_dir(path).map_err(|e| e.to_string())
     }
 
     /// Try to create a project.
-    async fn try_create_project(&self, name: String, rgss_ver: RGSSVer) -> Result<(), String> {
+    pub async fn try_create_project(&self, name: String, rgss_ver: RGSSVer) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
-            let path = path.path().to_path_buf().join(name.clone());
+            let path: PathBuf = path.into();
+            let path = path.join(name.clone());
 
             self.create_project(name.clone(), path, rgss_ver)
-                .await
                 .map_err(|e| {
                     *self.project_path.borrow_mut() = None;
                     e
@@ -214,30 +206,26 @@ impl super::filesystem_trait::Filesystem for Filesystem {
                 projects.truncate(10);
             }
 
-            self.save_data(format!("{name}.lumproj"), "").await
+            self.save_data(format!("{name}.lumproj"), "")
         } else {
             Err("Cancelled opening a folder".to_owned())
         }
     }
-}
 
-impl Filesystem {
-    async fn create_project(
+    pub fn create_project(
         &self,
         name: String,
         path: PathBuf,
         rgss_ver: RGSSVer,
     ) -> Result<(), String> {
-        use super::filesystem_trait::Filesystem;
-
         *self.project_path.borrow_mut() = Some(path);
-        self.create_directory("").await?;
+        self.create_directory("")?;
 
-        if !self.dir_children(".").await?.is_empty() {
+        if !self.dir_children(".")?.is_empty() {
             return Err("Directory not empty".to_string());
         }
 
-        self.create_directory("Data").await?;
+        self.create_directory("Data")?;
 
         info!().data_cache.setup_defaults();
         {
@@ -246,28 +234,28 @@ impl Filesystem {
             config.project_name = name;
         }
 
-        self.save_cached().await?;
+        self.save_cached()?;
 
-        self.create_directory("Audio").await?;
-        self.create_directory("Audio/BGM").await?;
-        self.create_directory("Audio/BGS").await?;
-        self.create_directory("Audio/SE").await?;
-        self.create_directory("Audio/ME").await?;
+        self.create_directory("Audio")?;
+        self.create_directory("Audio/BGM")?;
+        self.create_directory("Audio/BGS")?;
+        self.create_directory("Audio/SE")?;
+        self.create_directory("Audio/ME")?;
 
-        self.create_directory("Graphics").await?;
-        self.create_directory("Graphics/Animations").await?;
-        self.create_directory("Graphics/Autotiles").await?;
-        self.create_directory("Graphics/Battlebacks").await?;
-        self.create_directory("Graphics/Battlers").await?;
-        self.create_directory("Graphics/Characters").await?;
-        self.create_directory("Graphics/Fogs").await?;
-        self.create_directory("Graphics/Icons").await?;
-        self.create_directory("Graphics/Panoramas").await?;
-        self.create_directory("Graphics/Pictures").await?;
-        self.create_directory("Graphics/Tilesets").await?;
-        self.create_directory("Graphics/Titles").await?;
-        self.create_directory("Graphics/Transitions").await?;
-        self.create_directory("Graphics/Windowskins").await?;
+        self.create_directory("Graphics")?;
+        self.create_directory("Graphics/Animations")?;
+        self.create_directory("Graphics/Autotiles")?;
+        self.create_directory("Graphics/Battlebacks")?;
+        self.create_directory("Graphics/Battlers")?;
+        self.create_directory("Graphics/Characters")?;
+        self.create_directory("Graphics/Fogs")?;
+        self.create_directory("Graphics/Icons")?;
+        self.create_directory("Graphics/Panoramas")?;
+        self.create_directory("Graphics/Pictures")?;
+        self.create_directory("Graphics/Tilesets")?;
+        self.create_directory("Graphics/Titles")?;
+        self.create_directory("Graphics/Transitions")?;
+        self.create_directory("Graphics/Windowskins")?;
 
         Ok(())
     }

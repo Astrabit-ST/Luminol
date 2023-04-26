@@ -51,9 +51,9 @@ mod tilemap {
     }
 
     /// A trait defining how a tilemap should function.
-    pub trait TilemapDef {
+    pub trait TilemapDef: Sized {
         /// Create a new tilemap.
-        fn new(id: i32) -> Self;
+        fn new(id: i32) -> Result<Self, String>;
 
         /// Display the tilemap.
         fn ui(
@@ -68,12 +68,6 @@ mod tilemap {
 
         /// Display the tile picker.
         fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
-
-        /// Check if the textures are loaded yet.
-        fn textures_loaded(&self) -> bool;
-
-        /// Return the result of loading the tilemap.
-        fn load_result(&self) -> Result<(), String>;
     }
 }
 

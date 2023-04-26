@@ -6,7 +6,7 @@
 
 Luminol is an experimental remake of the RGSS RPG Maker editors in Rust with love ❤️.
 
-Luminol targets wasm and native builds with eframe. Luminol currently reads *only* rxdata (not rvdata or rvdata2, sorry VX and VX Ace users). In the past, Luminol used to exclusively read rusty object notation (ron) files made from [rmxp_extractor](https://github.com/Speak2Erase/rmxp-extractor). Now, it uses [alox-48](https://github.com/Speak2Erase/alox-48) to deserialize rxdata. It is not 100% perfect, if it does not open your project properly, [please file an issue](https://github.com/Astrabit-ST/Luminol/issues).
+Luminol targets native builds with eframe. Luminol currently reads *only* rxdata (not rvdata or rvdata2, sorry VX and VX Ace users). In the past, Luminol used to exclusively read rusty object notation (ron) files made from [rmxp_extractor](https://github.com/Speak2Erase/rmxp-extractor). Now, it uses [alox-48](https://github.com/Speak2Erase/alox-48) to deserialize rxdata. It is not 100% perfect, if it does not open your project properly, [please file an issue](https://github.com/Astrabit-ST/Luminol/issues).
 
 In the future a custom .lumina format is planned, as well as ron, rvdata 1 & 2, and json.
 
@@ -35,9 +35,6 @@ Compatibility:
 #
 
 ## Running luminol
-
-wasm builds are deployed to [luminol.dev](https://luminol.dev/#dev)! They're the most accessible way to use Luminol at the moment, albiet a bit slow.
-wasm builds work great and are deployed using the awesome tool [trunk](https://trunkrs.dev)!
 
 Native builds are the main focus at the moment, but no official releases will be made until Luminol is stable.
 Instead, you will have to compile luminol yourself, by grabbing your favorite nightly rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.

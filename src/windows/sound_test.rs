@@ -26,8 +26,7 @@ pub struct SoundTab {
     volume: u8,
     pitch: u8,
     selected_track: String,
-    folder_children: Promise<Vec<String>>,
-    play_promise: Option<Promise<()>>,
+    folder_children: Vec<String>,
 }
 
 impl SoundTab {
@@ -39,14 +38,10 @@ impl SoundTab {
             volume: 100,
             pitch: 100,
             selected_track: String::new(),
-            folder_children: Promise::spawn_local(async move {
-                info!()
-                    .filesystem
-                    .dir_children(&format!("Audio/{source}"))
-                    .await
-                    .unwrap()
-            }),
-            play_promise: None,
+            folder_children: info!()
+                .filesystem
+                .dir_children(format!("Audio/{source}"))
+                .unwrap(),
         }
     }
 
@@ -63,15 +58,10 @@ impl SoundTab {
                             let volume = self.volume;
                             let source = self.source;
                             // Play it.
-                            self.play_promise = Some(Promise::spawn_local(async move {
-                                if let Err(e) = info!()
-                                    .audio
-                                    .play(&info!().filesystem, path, volume, pitch, source)
-                                    .await
-                                {
-                                    info!().toasts.error(e);
-                                }
-                            }));
+
+                            if let Err(e) = info!().audio.play(path, volume, pitch, source) {
+                                info!().toasts.error(e);
+                            }
                         }
 
                         if ui.button("Stop").clicked() {
@@ -117,18 +107,20 @@ impl SoundTab {
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            // Get folder children.
-            if let Some(folder_children) = self.folder_children.ready() {
-                // Get row height.
-                let row_height = ui.text_style_height(&egui::TextStyle::Body);
-                // Group together so it looks nicer.
-                ui.group(|ui| {
-                    egui::ScrollArea::both()
-                        .id_source(self.source)
-                        .auto_shrink([false, false])
-                        // Show only visible rows.
-                        .show_rows(ui, row_height, folder_children.len(), |ui, row_range| {
-                            for entry in &folder_children[row_range] {
+            // Get row height.
+            let row_height = ui.text_style_height(&egui::TextStyle::Body);
+            // Group together so it looks nicer.
+            ui.group(|ui| {
+                egui::ScrollArea::both()
+                    .id_source(self.source)
+                    .auto_shrink([false, false])
+                    // Show only visible rows.
+                    .show_rows(
+                        ui,
+                        row_height,
+                        self.folder_children.len(),
+                        |ui, row_range| {
+                            for entry in &self.folder_children[row_range] {
                                 // FIXME: Very hacky
                                 // Did the user double click a sound?
                                 if ui
@@ -145,25 +137,16 @@ impl SoundTab {
                                     let pitch = self.pitch;
                                     let volume = self.volume;
                                     let source = self.source;
-                                    // Play it.
-                                    self.play_promise = Some(Promise::spawn_local(async move {
-                                        if let Err(e) = info!()
-                                            .audio
-                                            .play(&info!().filesystem, path, volume, pitch, source)
-                                            .await
-                                        {
-                                            info!().toasts.error(e);
-                                        }
-                                    }));
+
+                                    if let Err(e) = info!().audio.play(path, volume, pitch, source)
+                                    {
+                                        info!().toasts.error(e);
+                                    }
                                 };
                             }
-                        });
-                });
-            } else {
-                ui.centered_and_justified(|ui| {
-                    ui.spinner();
-                });
-            }
+                        },
+                    );
+            });
         });
     }
 }
