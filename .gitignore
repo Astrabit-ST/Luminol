@@ -9,3 +9,6 @@
 #! Ruby Output Files
 /marshal_ruby
 /marshal_luminol
+
+#! conventional commits config
+git-conventional-commits.yaml

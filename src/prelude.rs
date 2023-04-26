@@ -26,10 +26,13 @@ pub use crate::filesystem::Filesystem;
 pub use crate::project::CommandDB;
 pub use crate::project::LocalConfig;
 
-pub use std::cell::{Ref, RefCell, RefMut};
 pub use std::collections::HashMap;
 pub use std::path::{Path, PathBuf};
 pub use std::sync::Arc;
+
+pub use atomic_refcell::{AtomicRefCell, AtomicRefMut};
+pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
+pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
 pub use crate::info;
 

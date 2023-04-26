@@ -16,29 +16,30 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::prelude::*;
+use core::ops::{Deref, DerefMut};
 /// A struct representing a cache of the current data.
 /// This is done so data stored here can be written to the disk on demand.
 #[derive(Default)]
 pub struct Cache {
-    actors: RefCell<Option<NilPadded<rpg::Actor>>>,
-    animations: RefCell<Option<NilPadded<rpg::Animation>>>,
-    armors: RefCell<Option<NilPadded<rpg::Armor>>>,
-    classes: RefCell<Option<NilPadded<rpg::Class>>>,
-    commonevents: RefCell<Option<NilPadded<rpg::CommonEvent>>>,
-    enemies: RefCell<Option<NilPadded<rpg::Enemy>>>,
-    items: RefCell<Option<NilPadded<rpg::Item>>>,
-    mapinfos: RefCell<Option<HashMap<i32, rpg::MapInfo>>>,
-    maps: RefCell<HashMap<i32, rpg::Map>>,
-    scripts: RefCell<Option<Vec<rpg::Script>>>,
-    skills: RefCell<Option<NilPadded<rpg::Skill>>>,
-    states: RefCell<Option<NilPadded<rpg::State>>>,
-    system: RefCell<Option<rpg::System>>,
-    tilesets: RefCell<Option<NilPadded<rpg::Tileset>>>,
-    troops: RefCell<Option<NilPadded<rpg::Troop>>>,
-    weapons: RefCell<Option<NilPadded<rpg::Weapon>>>,
+    actors: AtomicRefCell<Option<NilPadded<rpg::Actor>>>,
+    animations: AtomicRefCell<Option<NilPadded<rpg::Animation>>>,
+    armors: AtomicRefCell<Option<NilPadded<rpg::Armor>>>,
+    classes: AtomicRefCell<Option<NilPadded<rpg::Class>>>,
+    commonevents: AtomicRefCell<Option<NilPadded<rpg::CommonEvent>>>,
+    enemies: AtomicRefCell<Option<NilPadded<rpg::Enemy>>>,
+    items: AtomicRefCell<Option<NilPadded<rpg::Item>>>,
+    mapinfos: AtomicRefCell<Option<HashMap<i32, rpg::MapInfo>>>,
+    maps: AtomicRefCell<HashMap<i32, rpg::Map>>,
+    scripts: AtomicRefCell<Option<Vec<rpg::Script>>>,
+    skills: AtomicRefCell<Option<NilPadded<rpg::Skill>>>,
+    states: AtomicRefCell<Option<NilPadded<rpg::State>>>,
+    system: AtomicRefCell<Option<rpg::System>>,
+    tilesets: AtomicRefCell<Option<NilPadded<rpg::Tileset>>>,
+    troops: AtomicRefCell<Option<NilPadded<rpg::Troop>>>,
+    weapons: AtomicRefCell<Option<NilPadded<rpg::Weapon>>>,
 
-    config: RefCell<Option<LocalConfig>>,
-    commanddb: RefCell<Option<CommandDB>>,
+    config: AtomicRefCell<Option<LocalConfig>>,
+    commanddb: AtomicRefCell<Option<CommandDB>>,
 }
 
 macro_rules! save_data {
@@ -80,17 +81,17 @@ macro_rules! getter {
         $(
             paste::paste! {
                 #[doc = "Get `" $name "` from the data cache. Panics if the project was not loaded."]
-                pub fn [< $name:lower>](&self) -> RefMut<'_, $type> {
-                    RefMut::map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o).expect(concat!("Grabbing ", stringify!($name), " from the data cache failed because the project was not loaded. Please file this as an issue")))
+                pub fn [< $name:lower>](&self) -> impl Deref<Target = $type> + DerefMut + '_ {
+                    AtomicRefMut::map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o).expect(concat!("Grabbing ", stringify!($name), " from the data cache failed because the project was not loaded. Please file this as an issue")))
                 }
 
                 #[doc = "Try getting `" $name "` from the data cache."]
-                pub fn [<try_ $name:lower>](&self) -> Option<RefMut<'_, $type>> {
-                    RefMut::filter_map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o)).ok()
+                pub fn [<try_ $name:lower>](&self) -> Option<impl Deref<Target = $type> + DerefMut + '_ > {
+                    AtomicRefMut::filter_map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o))
                 }
 
                 #[doc = "Get the raw optional `" $name "` from the data cache."]
-                pub fn [<raw_ $name:lower>](&self) -> RefMut<'_, Option<$type>> {
+                pub fn [<raw_ $name:lower>](&self) -> impl Deref<Target = Option<$type>> + DerefMut + '_  {
                     self.[< $name:lower >].borrow_mut()
                 }
             }
@@ -102,10 +103,10 @@ macro_rules! setup_default {
     ($this:ident, $($name:ident),*) => {
         $(
             paste::paste! {
-                $this.[< $name:lower >].replace(Some(
+                *$this.[< $name:lower >].borrow_mut() = Some(
                     // This is a pretty dirty hack to make rustc assume that it's a vec of the type we're storing
                     NilPadded::from(vec![None, Some(Default::default())])
-                ));
+                );
             }
         )*
     };
@@ -197,7 +198,10 @@ impl Cache {
     }
 
     /// Load a map.
-    pub fn load_map(&self, id: i32) -> Result<RefMut<'_, rpg::Map>, String> {
+    pub fn load_map(
+        &self,
+        id: i32,
+    ) -> Result<impl Deref<Target = rpg::Map> + DerefMut + '_, String> {
         let has_map = self.maps.borrow().contains_key(&id);
         if !has_map {
             let map = info!()
@@ -206,7 +210,7 @@ impl Cache {
                 .map_err(|e| format!("Failed to load map: {e}"))?;
             self.maps.borrow_mut().insert(id, map);
         }
-        Ok(RefMut::map(self.maps.borrow_mut(), |m| {
+        Ok(AtomicRefMut::map(self.maps.borrow_mut(), |m| {
             m.get_mut(&id).unwrap()
         }))
     }
@@ -214,8 +218,8 @@ impl Cache {
     /// Get a map that has been loaded. This function is not async unlike [`Self::load_map`].
     /// # Panics
     /// Will panic if the map has not been loaded already.
-    pub fn get_map(&self, id: i32) -> RefMut<'_, rpg::Map> {
-        RefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
+    pub fn get_map(&self, id: i32) -> impl Deref<Target = rpg::Map> + DerefMut + '_ {
+        AtomicRefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
     }
 
     getter! {
@@ -274,7 +278,7 @@ impl Cache {
         self.system().magic_number = rand::random();
 
         // Write map data and clear map cache.
-        // We serialize all of these first before writing them to the disk to avoid bringing a refcell across an await.
+        // We serialize all of these first before writing them to the disk to avoid bringing a AtomicRefCell across an await.
         // A RwLock may be used in the future to solve this, though.
         let maps_bytes: HashMap<_, _> = {
             let maps = self.maps.borrow();
@@ -324,17 +328,16 @@ impl Cache {
                 scroll_y: 0,
             },
         );
-        self.mapinfos.replace(Some(map_infos));
+        *self.mapinfos.borrow_mut() = Some(map_infos);
 
         // FIXME: make this static somehow?
-        self.scripts.replace(Some(
-            alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
-        ));
+        *self.scripts.borrow_mut() =
+            Some(alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap());
 
-        self.system.replace(Some(rpg::System {
+        *self.system.borrow_mut() = Some(rpg::System {
             magic_number: rand::random(),
             ..Default::default()
-        }));
+        });
 
         let mut maps = HashMap::new();
         maps.insert(
@@ -347,10 +350,10 @@ impl Cache {
                 ..Default::default()
             },
         );
-        self.maps.replace(maps);
+        *self.maps.borrow_mut() = maps;
 
-        self.config.replace(Some(LocalConfig::default()));
-        self.commanddb.replace(Some(CommandDB::default()));
+        *self.config.borrow_mut() = Some(LocalConfig::default());
+        *self.commanddb.borrow_mut() = Some(CommandDB::default());
 
         setup_default! {
             self,

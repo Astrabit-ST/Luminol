@@ -16,29 +16,30 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use crate::prelude::*;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Native filesystem implementation.
 #[derive(Default)]
 pub struct Filesystem {
-    project_path: RefCell<Option<PathBuf>>,
-    loading_project: RefCell<bool>,
+    project_path: RwLock<Option<PathBuf>>,
+    loading_project: AtomicBool,
 }
 
 impl Filesystem {
     /// Unload the currently loaded project.
     /// Does nothing if none is open.
     pub fn unload_project(&self) {
-        *self.project_path.borrow_mut() = None;
+        *self.project_path.write() = None;
     }
 
     /// Is there a project loaded?
     pub fn project_loaded(&self) -> bool {
-        self.project_path.borrow().is_some() && !*self.loading_project.borrow()
+        self.project_path.read().is_some() && !self.loading_project.load(Ordering::Relaxed)
     }
 
     /// Get the project path.
     pub fn project_path(&self) -> Option<PathBuf> {
-        self.project_path.borrow().clone()
+        self.project_path.read().clone()
     }
 
     /// Get the directory children of a path.
@@ -47,7 +48,7 @@ impl Filesystem {
         // It'd take an external library or some hacking that I'm not up for currently.
         std::fs::read_dir(
             self.project_path
-                .borrow()
+                .read()
                 .as_ref()
                 .ok_or_else(|| "Project not open".to_string())?
                 .join(path),
@@ -69,7 +70,7 @@ impl Filesystem {
     {
         let path = self
             .project_path
-            .borrow()
+            .read()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
@@ -87,7 +88,7 @@ impl Filesystem {
     pub fn read_bytes(&self, provided_path: impl AsRef<Path>) -> Result<Vec<u8>, String> {
         let path = self
             .project_path
-            .borrow()
+            .read()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join(provided_path);
@@ -97,7 +98,7 @@ impl Filesystem {
     pub fn save_data(&self, path: impl AsRef<Path>, data: impl AsRef<[u8]>) -> Result<(), String> {
         let path = self
             .project_path
-            .borrow()
+            .read()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
@@ -107,7 +108,7 @@ impl Filesystem {
 
     /// Check if file path exists
     pub fn path_exists(&self, path: impl AsRef<Path>) -> bool {
-        let path = self.project_path.borrow().as_ref().unwrap().join(path);
+        let path = self.project_path.read().as_ref().unwrap().join(path);
 
         std::fs::metadata(path).is_ok()
     }
@@ -123,17 +124,16 @@ impl Filesystem {
 
         path.pop(); // Pop off filename
 
-        *self.project_path.borrow_mut() = Some(path);
-
-        *self.loading_project.borrow_mut() = true;
+        *self.project_path.write() = Some(path);
+        self.loading_project.store(true, Ordering::Relaxed);
 
         info!().data_cache.load().map_err(|e| {
-            *self.project_path.borrow_mut() = None;
-            *self.loading_project.borrow_mut() = false;
+            *self.project_path.write() = None;
+            self.loading_project.store(false, Ordering::Relaxed);
             e
         })?;
 
-        *self.loading_project.borrow_mut() = false;
+        self.loading_project.store(false, Ordering::Relaxed);
 
         {
             let projects = &mut info!().saved_state.borrow_mut().recent_projects;
@@ -174,7 +174,7 @@ impl Filesystem {
     pub fn create_directory(&self, path: impl AsRef<Path>) -> Result<(), String> {
         let path = self
             .project_path
-            .borrow()
+            .read()
             .as_ref()
             .ok_or_else(|| "Project not open".to_string())?
             .join(path);
@@ -190,7 +190,7 @@ impl Filesystem {
 
             self.create_project(name.clone(), path, rgss_ver)
                 .map_err(|e| {
-                    *self.project_path.borrow_mut() = None;
+                    *self.project_path.write() = None;
                     e
                 })?;
 
@@ -218,7 +218,7 @@ impl Filesystem {
         path: PathBuf,
         rgss_ver: RGSSVer,
     ) -> Result<(), String> {
-        *self.project_path.borrow_mut() = Some(path);
+        *self.project_path.write() = Some(path);
         self.create_directory("")?;
 
         if !self.dir_children(".")?.is_empty() {

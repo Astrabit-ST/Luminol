@@ -48,8 +48,7 @@ impl TopBar {
         let mut save_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S))
             && info.filesystem.project_loaded();
         if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::N)) {
-            info.windows
-                .add_window(crate::windows::new_project::Window::default());
+            info.windows.add_window(new_project::Window::default());
         }
 
         ui.separator();

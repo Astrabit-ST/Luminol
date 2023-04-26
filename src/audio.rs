@@ -37,7 +37,7 @@ pub enum Source {
 
 /// A struct for playing Audio.
 pub struct Audio {
-    inner: RefCell<Inner>,
+    inner: RwLock<Inner>,
 }
 
 struct Inner {
@@ -48,11 +48,16 @@ struct Inner {
     sinks: HashMap<Source, Sink>,
 }
 
+#[allow(unsafe_code)]
+unsafe impl Send for Inner {}
+#[allow(unsafe_code)]
+unsafe impl Sync for Inner {}
+
 impl Default for Audio {
     fn default() -> Self {
         let (output_stream, output_stream_handle) = OutputStream::try_default().unwrap();
         Self {
-            inner: RefCell::new(Inner {
+            inner: RwLock::new(Inner {
                 _output_stream: output_stream,
                 output_stream_handle,
                 sinks: HashMap::default(),
@@ -64,7 +69,7 @@ impl Default for Audio {
 impl Audio {
     /// Play a sound on a source.
     pub fn play(&self, path: String, volume: u8, pitch: u8, source: Source) -> Result<(), String> {
-        let mut inner = self.inner.borrow_mut();
+        let mut inner = self.inner.write();
         // Create a sink
         let sink = Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
 
@@ -97,7 +102,7 @@ impl Audio {
 
     /// Set the pitch of a source.
     pub fn set_pitch(&self, pitch: u8, source: &Source) {
-        let mut inner = self.inner.borrow_mut();
+        let mut inner = self.inner.write();
         if let Some(s) = inner.sinks.get_mut(source) {
             s.set_speed(f32::from(pitch) / 100.);
         }
@@ -105,7 +110,7 @@ impl Audio {
 
     /// Set the volume of a source.
     pub fn set_volume(&self, volume: u8, source: &Source) {
-        let mut inner = self.inner.borrow_mut();
+        let mut inner = self.inner.write();
         if let Some(s) = inner.sinks.get_mut(source) {
             s.set_volume(f32::from(volume) / 100.);
         }
@@ -113,7 +118,7 @@ impl Audio {
 
     /// Stop a source.
     pub fn stop(&self, source: &Source) {
-        let mut inner = self.inner.borrow_mut();
+        let mut inner = self.inner.write();
         if let Some(s) = inner.sinks.get_mut(source) {
             s.stop();
         }

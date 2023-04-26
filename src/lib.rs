@@ -108,7 +108,7 @@ pub struct UpdateInfo {
     /// Windows that are displayed.
     pub windows: window::Windows,
     /// Tabs that are displayed.
-    pub tabs: tabs::tab::Tabs<Box<dyn Tab>>,
+    pub tabs: tabs::tab::Tabs<Box<dyn Tab + Send>>,
     /// Audio that's played.
     pub audio: audio::Audio,
     /// Toasts to be displayed.
@@ -116,10 +116,12 @@ pub struct UpdateInfo {
     /// The gl context.
     pub gl: Arc<glow::Context>,
     /// State to be saved.
-    pub saved_state: RefCell<SavedState>,
+    pub saved_state: AtomicRefCell<SavedState>,
     /// Toolbar state
-    pub toolbar: RefCell<ToolbarState>,
+    pub toolbar: AtomicRefCell<ToolbarState>,
 }
+
+static_assertions::assert_impl_all!(UpdateInfo: Send, Sync);
 
 impl UpdateInfo {
     /// Create a new UpdateInfo.
@@ -132,20 +134,17 @@ impl UpdateInfo {
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             gl,
-            saved_state: RefCell::new(state),
-            toolbar: RefCell::default(),
+            saved_state: AtomicRefCell::new(state),
+            toolbar: AtomicRefCell::default(),
         }
     }
 }
 
-thread_local! {
-    static INFO: once_cell::unsync::OnceCell<&'static UpdateInfo> = once_cell::unsync::OnceCell::new()
-}
+static INFO: once_cell::sync::OnceCell<UpdateInfo> = once_cell::sync::OnceCell::new();
 
 #[allow(clippy::panic)]
 fn set_info(info: UpdateInfo) {
-    let info = Box::leak(Box::new(info));
-    if INFO.with(|i| i.set(info)).is_err() {
+    if INFO.set(info).is_err() {
         panic!("failed to set updateinfo")
     }
 }
@@ -153,7 +152,7 @@ fn set_info(info: UpdateInfo) {
 #[macro_export]
 macro_rules! info {
     () => {
-        $crate::INFO.with(|i| *i.get().expect("failed to get updateinfo"))
+        $crate::INFO.get().expect("failed to get updateinfo")
     };
 }
 

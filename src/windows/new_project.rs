@@ -15,11 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{cell::Cell, io::Read, rc::Rc};
+use crate::prelude::*;
 
 use strum::IntoEnumIterator;
 
-use crate::prelude::*;
+use std::io::Read;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// The new project window
 pub struct Window {
@@ -27,17 +29,17 @@ pub struct Window {
     rgss_ver: RGSSVer,
     project_promise: Option<poll_promise::Promise<Result<(), String>>>,
     download_executable: bool,
-    progress: Progress,
+    progress: Arc<Progress>,
     init_git: bool,
     git_branch_name: String,
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct Progress {
-    total_progress: Rc<Cell<usize>>,
-    current_progress: Rc<Cell<usize>>,
-    zip_total: Rc<Cell<usize>>,
-    zip_current: Rc<Cell<usize>>,
+    total_progress: AtomicUsize,
+    current_progress: AtomicUsize,
+    zip_total: AtomicUsize,
+    zip_current: AtomicUsize,
 }
 
 impl Default for Window {
@@ -47,7 +49,7 @@ impl Default for Window {
             rgss_ver: RGSSVer::RGSS1,
             project_promise: None,
             download_executable: false,
-            progress: Progress::default(),
+            progress: Arc::default(),
             init_git: false,
             git_branch_name: "master".to_string(),
         }
@@ -113,16 +115,16 @@ impl window::Window for Window {
                             }
                         }
 
-                        if self.progress.zip_total.get() != 0 {
+                        if self.progress.zip_total.load(Ordering::Relaxed) != 0 {
                             ui.label(format!(
                                 "Downloadind & Unzipping {}/{}",
-                                self.progress.zip_current.get() + 1,
-                                self.progress.zip_total.get()
+                                self.progress.zip_current.load(Ordering::Relaxed) + 1,
+                                self.progress.zip_total.load(Ordering::Relaxed)
                             ));
                         }
 
-                        let total = self.progress.total_progress.get();
-                        let current = self.progress.current_progress.get() + 1;
+                        let total = self.progress.total_progress.load(Ordering::Relaxed);
+                        let current = self.progress.current_progress.load(Ordering::Relaxed) + 1;
                         if total == 0 {
                             ui.spinner();
                         } else {
@@ -204,7 +206,7 @@ impl window::Window for Window {
 }
 
 impl Window {
-    async fn download_executable(rgss_ver: RGSSVer, progress: Progress) -> Result<(), String> {
+    async fn download_executable(rgss_ver: RGSSVer, progress: Arc<Progress>) -> Result<(), String> {
         let zip_url: &[_] = match rgss_ver {
             RGSSVer::ModShot => &[
                 "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Windows_bb6bcbc_Ruby-3.1-ucrt64_Steam-false.zip", 
@@ -223,7 +225,7 @@ impl Window {
                 _ => unreachable!()
         };
 
-        progress.zip_total.set(zip_url.len());
+        progress.zip_total.store(zip_url.len(), Ordering::Relaxed);
 
         let zips = futures::future::join_all(zip_url.iter().map(|url|
             // surf::get(format!("https://api.allorigins.win/raw?url={url}"))  FIXME: phishing scam, apparently
@@ -232,9 +234,9 @@ impl Window {
         .await;
 
         for (index, zip_response) in zips.into_iter().enumerate() {
-            progress.zip_current.set(index);
+            progress.zip_current.store(index, Ordering::Relaxed);
 
-            progress.total_progress.set(0);
+            progress.total_progress.store(0, Ordering::Relaxed);
             let mut response =
                 zip_response.map_err(|e| format!("Error downloading {rgss_ver}: {e}"))?;
 
@@ -245,12 +247,14 @@ impl Window {
 
             let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
                 .map_err(|e| format!("Failed to read zip archive for {rgss_ver}: {e}"))?;
-            progress.total_progress.set(archive.len());
+            progress
+                .total_progress
+                .store(archive.len(), Ordering::Relaxed);
 
             let info = info!();
             for index in 0..archive.len() {
                 let mut file = archive.by_index(index).unwrap();
-                progress.current_progress.set(index);
+                progress.current_progress.store(index, Ordering::Relaxed);
 
                 let file_path = match file.enclosed_name() {
                     Some(p) => p.to_owned(),
