@@ -40,6 +40,8 @@ parking_lot = { version = "0.12", features = [
     "hardware-lock-elision",
 ] }
 atomic_refcell = "0.1.9"
+dashmap = "5.4.0"
+
 futures = "0.3"
 poll-promise = { version = "0.2.0", features = ["smol"] }
 surf = "2.3.2"
@@ -81,7 +83,6 @@ rmxp-types = { version = "*", path = "rmxp-types" }
 luminol-term = { version = "*", path = "luminol-term" }
 
 rfd = "0.11"
-
 
 [features]
 default = ["generic-tilemap"]

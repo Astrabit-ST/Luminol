@@ -15,10 +15,5 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-/// The database of commands for this project.
-mod command_db;
-/// Luminol configuration
-mod config;
-
-pub use command_db::CommandDB;
-pub use config::{LocalConfig, RGSSVer};
+pub mod data;
+pub mod image_cache;

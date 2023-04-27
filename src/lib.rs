@@ -53,6 +53,8 @@ pub mod saved_state;
 /// Audio related structs and funtions.
 pub mod audio;
 
+pub mod cache;
+
 pub mod components;
 
 pub mod command_gen;
@@ -104,7 +106,8 @@ pub struct State {
     /// Filesystem to be passed around.
     pub filesystem: filesystem::Filesystem,
     /// The data cache.
-    pub data_cache: Cache,
+    pub data_cache: data::Cache,
+    pub image_cache: image_cache::Cache,
     /// Windows that are displayed.
     pub windows: window::Windows,
     /// Tabs that are displayed.
@@ -128,7 +131,8 @@ impl State {
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
             filesystem: filesystem::Filesystem::default(),
-            data_cache: Cache::default(),
+            data_cache: data::Cache::default(),
+            image_cache: image_cache::Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),

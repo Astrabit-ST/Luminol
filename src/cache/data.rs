@@ -29,7 +29,6 @@ pub struct Cache {
     enemies: AtomicRefCell<Option<NilPadded<rpg::Enemy>>>,
     items: AtomicRefCell<Option<NilPadded<rpg::Item>>>,
     mapinfos: AtomicRefCell<Option<HashMap<i32, rpg::MapInfo>>>,
-    maps: AtomicRefCell<HashMap<i32, rpg::Map>>,
     scripts: AtomicRefCell<Option<Vec<rpg::Script>>>,
     skills: AtomicRefCell<Option<NilPadded<rpg::Skill>>>,
     states: AtomicRefCell<Option<NilPadded<rpg::State>>>,
@@ -38,6 +37,7 @@ pub struct Cache {
     troops: AtomicRefCell<Option<NilPadded<rpg::Troop>>>,
     weapons: AtomicRefCell<Option<NilPadded<rpg::Weapon>>>,
 
+    maps: dashmap::DashMap<i32, rpg::Map>,
     config: AtomicRefCell<Option<LocalConfig>>,
     commanddb: AtomicRefCell<Option<CommandDB>>,
 }
@@ -193,7 +193,7 @@ impl Cache {
             scripts.map_err(|s| format!("Failed to read Scripts (tried xScripts first): {s}"))?,
         );
 
-        self.maps.borrow_mut().clear();
+        self.maps.clear();
         Ok(())
     }
 
@@ -202,24 +202,19 @@ impl Cache {
         &self,
         id: i32,
     ) -> Result<impl Deref<Target = rpg::Map> + DerefMut + '_, String> {
-        let has_map = self.maps.borrow().contains_key(&id);
-        if !has_map {
-            let map = state!()
+        self.maps.entry(id).or_try_insert_with(|| {
+            state!()
                 .filesystem
                 .read_data(format!("Data/Map{id:0>3}.rxdata",))
-                .map_err(|e| format!("Failed to load map: {e}"))?;
-            self.maps.borrow_mut().insert(id, map);
-        }
-        Ok(AtomicRefMut::map(self.maps.borrow_mut(), |m| {
-            m.get_mut(&id).unwrap()
-        }))
+                .map_err(|e| format!("Failed to load map: {e}"))
+        })
     }
 
     /// Get a map that has been loaded. This function is not async unlike [`Self::load_map`].
     /// # Panics
     /// Will panic if the map has not been loaded already.
     pub fn get_map(&self, id: i32) -> impl Deref<Target = rpg::Map> + DerefMut + '_ {
-        AtomicRefMut::map(self.maps.borrow_mut(), |maps| maps.get_mut(&id).unwrap())
+        self.maps.get_mut(&id).expect("map not loaded")
     }
 
     getter! {
@@ -280,16 +275,10 @@ impl Cache {
         // Write map data and clear map cache.
         // We serialize all of these first before writing them to the disk to avoid bringing a AtomicRefCell across an await.
         // A RwLock may be used in the future to solve this, though.
-        let maps_bytes: HashMap<_, _> = {
-            let maps = self.maps.borrow();
-            maps.iter()
-                .map(|(id, map)| (*id, alox_48::to_bytes(map).map_err(|e| e.to_string())))
-                .collect()
-        };
-
-        for (id, map) in maps_bytes {
+        for entry in self.maps.iter() {
+            let bytes = alox_48::to_bytes(entry.value()).map_err(|e| e.to_string())?;
             filesystem
-                .save_data(format!("Data/Map{id:0>3}.rxdata",), map?)
+                .save_data(format!("Data/Map{:0>3}.rxdata", entry.key()), bytes)
                 .map_err(|e| format!("Failed to write Map data {e}"))?;
         }
 
@@ -339,8 +328,8 @@ impl Cache {
             ..Default::default()
         });
 
-        let mut maps = HashMap::new();
-        maps.insert(
+        self.maps.clear();
+        self.maps.insert(
             1,
             rpg::Map {
                 tileset_id: 1,
@@ -350,7 +339,6 @@ impl Cache {
                 ..Default::default()
             },
         );
-        *self.maps.borrow_mut() = maps;
 
         *self.config.borrow_mut() = Some(LocalConfig::default());
         *self.commanddb.borrow_mut() = Some(CommandDB::default());

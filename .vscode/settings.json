@@ -19,7 +19,8 @@
 		"tabs",
 		"playtest",
 		"wasm",
-		"filesystem"
+		"filesystem",
+		"image cache"
 	],
   "rust-analyzer.showUnlinkedFileNotification": false
 }

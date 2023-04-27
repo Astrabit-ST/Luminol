@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use crate::audio;
+pub use crate::cache::*;
 pub use crate::components::*;
 pub use crate::modals::*;
 pub use crate::project::*;
