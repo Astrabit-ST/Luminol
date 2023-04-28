@@ -32,8 +32,6 @@ use egui::{Pos2, Response, Vec2};
 use crate::{load_image_software, state};
 use rmxp_types::rpg;
 
-use super::TilemapDef;
-
 /// A generic tilemap, implements TilemapDef.
 /// Does not use any special optimizations.
 #[allow(dead_code)]
@@ -115,7 +113,7 @@ const AUTOTILES: [[i32; 4]; 48] = [
 ];
 
 #[allow(dead_code)]
-impl TilemapDef for Tilemap {
+impl Tilemap {
     fn new(id: i32) -> Result<Tilemap, String> {
         let textures = Self::load_data(id)?;
         Ok(Self {
@@ -620,8 +618,7 @@ impl TilemapDef for Tilemap {
             );
         }
     }
-}
-impl Tilemap {
+
     #[allow(unused_variables, unused_assignments)]
     fn load_data(id: i32) -> Result<Textures, String> {
         let info = state!();

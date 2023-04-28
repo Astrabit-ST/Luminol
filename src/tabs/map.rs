@@ -44,14 +44,14 @@ pub struct Tab {
 
 impl Tab {
     /// Create a new map editor.
-    pub fn new(id: i32, name: String) -> Option<Self> {
-        Some(Self {
+    pub fn new(id: i32, name: String) -> Result<Self, String> {
+        Ok(Self {
             id,
             name,
             selected_layer: 0,
             toggled_layers: Vec::new(),
             cursor_pos: Pos2::ZERO,
-            tilemap: Tilemap::new(id).ok()?,
+            tilemap: Tilemap::new(id)?,
             selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,

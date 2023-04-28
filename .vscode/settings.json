@@ -8,9 +8,6 @@
 	"editor.formatOnSave": true,
 	"rust-analyzer.check.command": "clippy",
 	"rust-analyzer.procMacro.enable": true,
-	"rust-analyzer.server.extraEnv": {
-		"RUSTFLAGS": "--cfg=web_sys_unstable_apis"
-	},
 	"conventionalCommits.scopes": [
 		"data cache",
 		"ui",
@@ -20,7 +17,15 @@
 		"playtest",
 		"wasm",
 		"filesystem",
-		"image cache"
+		"image cache",
+		"tilemap"
 	],
-  "rust-analyzer.showUnlinkedFileNotification": false
+	"rust-analyzer.showUnlinkedFileNotification": false,
+	"rust-analyzer.cargo.extraEnv": {
+		"CARGO_PROFILE_RUST_ANALYZER_INHERITS": "dev"
+	},
+	"rust-analyzer.cargo.extraArgs": [
+		"--profile",
+		"rust-analyzer"
+	]
 }

@@ -63,7 +63,8 @@ impl Window {
             // Just display a label otherwise.
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
-                if ui.button(map_name).double_clicked() {
+                if ui.button(map_name).clicked() {
+                    println!("adding map");
                     Self::create_map_tab(id, map_name.clone());
                 }
             });
@@ -71,8 +72,9 @@ impl Window {
     }
 
     fn create_map_tab(id: i32, name: String) {
-        if let Some(m) = map::Tab::new(id, name) {
-            state!().tabs.add_tab(Box::new(m));
+        match map::Tab::new(id, name) {
+            Ok(m) => state!().tabs.add_tab(Box::new(m)),
+            Err(e) => state!().toasts.error(e),
         }
     }
 }

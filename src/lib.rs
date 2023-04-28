@@ -161,21 +161,32 @@ macro_rules! state {
 }
 
 /// Load a RetainedImage from disk.
-pub fn load_image_software(path: String) -> Result<RetainedImage, String> {
+pub fn load_image_software(path: impl AsRef<str>) -> Result<RetainedImage, String> {
+    let path = path.as_ref();
     egui_extras::RetainedImage::from_image_bytes(
-        path.clone(),
-        &state!().filesystem.read_bytes(format!("{path}.png",))?,
+        path,
+        &state!().filesystem.read_bytes(format!("{path}.png"))?,
     )
     .map(|i| i.with_options(TextureOptions::NEAREST))
 }
 
+#[derive(Clone, Copy)]
+struct Texture {
+    pub raw: glow::Texture,
+    pub width: u32,
+    pub height: u32,
+}
+
 /// Load a gl texture from disk.
 #[allow(clippy::cast_possible_wrap, unsafe_code)]
-pub fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
+pub fn load_image_hardware(path: impl AsRef<str>) -> Result<Texture, String> {
     use glow::HasContext;
+
+    let path = path.as_ref();
 
     let image = image::load_from_memory(&state!().filesystem.read_bytes(format!("{path}.png",))?)
         .map_err(|e| e.to_string())?;
+    let image = image.into_rgba8();
 
     unsafe {
         let texture = state!().gl.create_texture()?;
@@ -190,10 +201,14 @@ pub fn load_image_hardware(path: String) -> Result<glow::Texture, String> {
             0,
             glow::RGBA,
             glow::UNSIGNED_BYTE,
-            Some(image.as_bytes()),
+            Some(image.as_ref()),
         );
         state!().gl.generate_mipmap(glow::TEXTURE_2D);
 
-        Ok(texture)
+        Ok(Texture {
+            raw: texture,
+            width: image.width(),
+            height: image.height(),
+        })
     }
 }

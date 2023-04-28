@@ -95,6 +95,16 @@ impl Filesystem {
         std::fs::read(&path).map_err(|e| format!("Loading {path:?}: {e}"))
     }
 
+    pub fn reader(&self, provided_path: impl AsRef<Path>) -> Result<std::fs::File, String> {
+        let path = self
+            .project_path
+            .read()
+            .as_ref()
+            .ok_or_else(|| "Project not open".to_string())?
+            .join(provided_path);
+        std::fs::File::open(&path).map_err(|e| format!("Loading {path:?}: {e}"))
+    }
+
     pub fn save_data(&self, path: impl AsRef<Path>, data: impl AsRef<[u8]>) -> Result<(), String> {
         let path = self
             .project_path
