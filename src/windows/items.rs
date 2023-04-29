@@ -34,7 +34,7 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         let items = state!().data_cache.items().clone();
-        let icon_paths = match state!().filesystem.dir_children("Graphics/Icons") {
+        let icon_paths = match state!().filesystem.dir_children_strings("Graphics/Icons") {
             Ok(icons) => icons,
             Err(why) => {
                 state!()

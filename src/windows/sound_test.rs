@@ -40,7 +40,7 @@ impl SoundTab {
             selected_track: String::new(),
             folder_children: state!()
                 .filesystem
-                .dir_children(format!("Audio/{source}"))
+                .dir_children_strings(format!("Audio/{source}"))
                 .unwrap(),
         }
     }
