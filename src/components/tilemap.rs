@@ -18,10 +18,9 @@
 
 use std::sync::Arc;
 
+use crate::image_cache::GlTexture;
 use crate::prelude::*;
-use crate::Texture;
-use glow::HasContext as _;
-use itertools::Itertools;
+use glow::HasContext;
 
 pub struct Tilemap {
     /// The tilemap pan.
@@ -37,37 +36,14 @@ pub struct Tilemap {
 }
 
 struct Textures {
-    tileset_tex: Option<Texture>,
-    autotile_texs: Vec<Option<Texture>>,
-    event_texs: HashMap<String, Texture>,
-    fog_tex: Option<Texture>,
-    pano_tex: Option<Texture>,
+    tileset_tex: Option<Arc<GlTexture>>,
+    autotile_texs: Vec<Option<Arc<GlTexture>>>,
+    event_texs: HashMap<String, Arc<GlTexture>>,
+    fog_tex: Option<Arc<GlTexture>>,
+    pano_tex: Option<Arc<GlTexture>>,
 }
 
 static_assertions::assert_impl_all!(Textures: Send, Sync);
-
-impl Drop for Textures {
-    fn drop(&mut self) {
-        unsafe {
-            let gl = state!().gl.as_ref();
-            if let Some(tex) = self.tileset_tex {
-                gl.delete_texture(tex.raw)
-            }
-            for tex in self.autotile_texs.iter().flatten().copied() {
-                gl.delete_texture(tex.raw)
-            }
-            for tex in self.event_texs.values().copied() {
-                gl.delete_texture(tex.raw)
-            }
-            if let Some(tex) = self.fog_tex {
-                gl.delete_texture(tex.raw)
-            }
-            if let Some(tex) = self.pano_tex {
-                gl.delete_texture(tex.raw)
-            }
-        }
-    }
-}
 
 impl Tilemap {
     pub fn new(id: i32) -> Result<Tilemap, String> {
@@ -109,11 +85,9 @@ impl Tilemap {
     }
 
     pub fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
-        if let Some(tex) = self.textures.tileset_tex {
-            let (canvas_rect, response) = ui.allocate_exact_size(
-                egui::vec2(tex.width as f32, tex.height as f32),
-                egui::Sense::click(),
-            );
+        if let Some(ref tex) = self.textures.tileset_tex {
+            let (canvas_rect, response) =
+                ui.allocate_exact_size(tex.size_vec2(), egui::Sense::click());
 
             ui.painter().add(egui::PaintCallback {
                 rect: canvas_rect,
@@ -126,12 +100,12 @@ impl Tilemap {
 
     #[allow(unused_variables, unused_assignments)]
     fn load_data(id: i32) -> Result<Textures, String> {
-        let info = state!();
+        let state = state!();
         // Load the map.
 
-        let map = info.data_cache.load_map(id)?;
+        let map = state.data_cache.load_map(id)?;
         // Get tilesets.
-        let tilesets = info.data_cache.tilesets();
+        let tilesets = state.data_cache.tilesets();
 
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets[map.tileset_id as usize - 1];
@@ -140,8 +114,12 @@ impl Tilemap {
         let tileset_tex = if tileset.tileset_name.is_empty() {
             None
         } else {
-            crate::load_image_hardware(format!("Graphics/Tilesets/{}", tileset.tileset_name))
-                .map(Some)?
+            unsafe {
+                state
+                    .image_cache
+                    .load_glow_image("Graphics/Tilesets", "tileset.tileset_name")
+            }
+            .map(Some)?
         };
 
         // Create an async iter over the autotile textures.
@@ -152,7 +130,12 @@ impl Tilemap {
                 if s.is_empty() {
                     Ok(None)
                 } else {
-                    crate::load_image_hardware(format!("Graphics/Autotiles/{s}")).map(Some)
+                    unsafe {
+                        state
+                            .image_cache
+                            .load_glow_image("Graphics/Autotiles", s)
+                            .map(Some)
+                    }
                 }
             })
             .try_collect()?;
@@ -165,19 +148,28 @@ impl Tilemap {
             .filter_map(|(_, e)| e.pages.first().map(|p| p.graphic.character_name.clone()))
             .filter(|s| !s.is_empty())
             .dedup()
-            .map(|char_name| {
-                crate::load_image_hardware(format!("Graphics/Characters/{char_name}"))
+            .map(|char_name| unsafe {
+                state
+                    .image_cache
+                    .load_glow_image("Graphics/Characters", &char_name)
                     .map(|texture| (char_name, texture))
             })
             .try_collect()?;
 
         // These two are pretty simple.
-        let fog_tex =
-            crate::load_image_hardware(format!("Graphics/Fogs/{}", tileset.fog_name)).ok();
+        let fog_tex = unsafe {
+            state
+                .image_cache
+                .load_glow_image("Graphics/Fogs", &tileset.fog_name)
+        }
+        .ok();
 
-        let pano_tex =
-            crate::load_image_hardware(format!("Graphics/Panoramas/{}", tileset.panorama_name))
-                .ok();
+        let pano_tex = unsafe {
+            state
+                .image_cache
+                .load_glow_image("Graphics/Panoramas", &tileset.panorama_name)
+        }
+        .ok();
 
         // Finally create and return the struct.
         Ok(Textures {
