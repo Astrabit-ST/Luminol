@@ -107,6 +107,10 @@ impl tab::Tab for CommonEventTab {
         format!("{}: {}", self.event.name, self.event.id)
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_common_event").with(self.event.id)
+    }
+
     fn show(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let trigger_types = ["None", "Autorun", "Parallel"];

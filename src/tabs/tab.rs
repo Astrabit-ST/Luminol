@@ -58,7 +58,7 @@ where
         let mut tree = self.tree.lock();
         for n in tree.iter() {
             if let egui_dock::Node::Leaf { tabs, .. } = n {
-                if tabs.iter().any(|t| t.name() == tab.name()) {
+                if tabs.iter().any(|t| t.id() == tab.id()) {
                     return;
                 }
             }
@@ -100,7 +100,7 @@ where
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        tab.show(ui);
+        ui.push_id(tab.id(), |ui| tab.show(ui));
     }
 
     fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
@@ -110,8 +110,13 @@ where
 
 /// A tab trait.
 pub trait Tab {
-    /// The name of the tab.
-    fn name(&self) -> String;
+    /// Optionally used as the title of the tab.
+    fn name(&self) -> String {
+        "Untitled Window".to_string()
+    }
+
+    /// Required to prevent duplication.
+    fn id(&self) -> egui::Id;
 
     /// Show this tab.
     fn show(&mut self, ui: &mut egui::Ui);
@@ -134,6 +139,10 @@ impl Tab for Box<dyn Tab + Send> {
 
     fn name(&self) -> String {
         self.as_ref().name()
+    }
+
+    fn id(&self) -> egui::Id {
+        self.as_ref().id()
     }
 
     fn requires_filesystem(&self) -> bool {

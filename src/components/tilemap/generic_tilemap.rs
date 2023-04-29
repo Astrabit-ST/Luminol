@@ -625,18 +625,18 @@ impl TilemapDef for Tilemap {
 impl Tilemap {
     #[allow(unused_variables, unused_assignments)]
     fn load_data(id: i32) -> Result<Textures, String> {
-        let info = state!();
+        let state = state!();
         // Load the map.
 
-        let map = info.data_cache.load_map(id)?;
+        let map = state.data_cache.load_map(id)?;
         // Get tilesets.
-        let tilesets = info.data_cache.tilesets();
+        let tilesets = state.data_cache.tilesets();
 
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         // Load tileset textures.
-        let tileset_tex = info
+        let tileset_tex = state
             .image_cache
             .load_egui_image("Graphics/Tilesets", &tileset.tileset_name)
             .ok();
@@ -646,7 +646,8 @@ impl Tilemap {
             .autotile_names
             .iter()
             .map(|path| {
-                info.image_cache
+                state
+                    .image_cache
                     .load_egui_image("Graphics/Autotiles", path)
                     .ok()
             })
@@ -665,7 +666,7 @@ impl Tilemap {
             })
             .dedup()
             .map(|(char_name, hue)| {
-                let texture = info
+                let texture = state
                     .image_cache
                     .load_egui_image("Graphics/Characters", &char_name)
                     .ok();
@@ -674,13 +675,13 @@ impl Tilemap {
             .collect();
 
         // These two are pretty simple.
-        let fog_tex = info
+        let fog_tex = state
             .image_cache
             .load_egui_image("Graphics/Fogs", &tileset.fog_name)
             .ok();
         let fog_zoom = tileset.fog_zoom;
 
-        let pano_tex = info
+        let pano_tex = state
             .image_cache
             .load_egui_image("Graphics/Panoramas", &tileset.panorama_name)
             .ok();

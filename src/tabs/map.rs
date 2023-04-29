@@ -24,8 +24,6 @@ use crate::prelude::*;
 pub struct Tab {
     /// ID of the map that is being edited.
     pub id: i32,
-    /// Name of the map.
-    pub name: String,
     /// Selected layer.
     pub selected_layer: usize,
     /// Toggled layers.
@@ -44,10 +42,9 @@ pub struct Tab {
 
 impl Tab {
     /// Create a new map editor.
-    pub fn new(id: i32, name: String) -> Option<Self> {
+    pub fn new(id: i32) -> Option<Self> {
         Some(Self {
             id,
-            name,
             selected_layer: 0,
             toggled_layers: Vec::new(),
             cursor_pos: Pos2::ZERO,
@@ -63,7 +60,12 @@ impl Tab {
 
 impl tab::Tab for Tab {
     fn name(&self) -> String {
-        format!("Map {}: {}", self.id, self.name)
+        let mapinfos = state!().data_cache.mapinfos();
+        format!("Map {}: {}", self.id, mapinfos[&self.id].name)
+    }
+
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_map").with(self.id)
     }
 
     fn force_close(&mut self) -> bool {
@@ -71,11 +73,11 @@ impl tab::Tab for Tab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let info = state!();
+        let state = state!();
 
         // Get the map.
-        let mut map = info.data_cache.get_map(self.id);
-        let tileset = info.data_cache.tilesets();
+        let mut map = state.data_cache.get_map(self.id);
+        let tileset = state.data_cache.tilesets();
         let tileset = &tileset[map.tileset_id as usize - 1];
 
         // If there are no toggled layers (i.e we just loaded the map)
@@ -88,10 +90,6 @@ impl tab::Tab for Tab {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.label(format!("Map {}: {}", self.name, self.id));
-
-                ui.separator();
-
                 ui.add(
                     egui::Slider::new(&mut self.tilemap.scale, 15.0..=200.)
                         .text("Scale")
