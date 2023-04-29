@@ -95,7 +95,7 @@ impl window::Window for Window {
 
                         // We sort maps by their order.
                         let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();
-                        sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
+                        sorted_maps.sort_unstable();
 
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.

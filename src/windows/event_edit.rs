@@ -25,7 +25,7 @@ pub struct Window {
     map_id: i32,
     selected_page: usize,
     event: rpg::Event,
-    page_graphics: (Vec<Option<RetainedImage>>, RetainedImage),
+    page_graphics: (Vec<Option<Arc<RetainedImage>>>, Arc<RetainedImage>),
     viewed_tab: u8,
     modals: (bool, bool, bool),
 }
@@ -37,15 +37,16 @@ impl Window {
             .pages
             .iter()
             .map(|p| {
-                crate::load_image_software(format!(
-                    "Graphics/Characters/{}",
-                    p.graphic.character_name
-                ))
-                .ok()
+                state!()
+                    .image_cache
+                    .load_egui_image("Graphics/Characters", &p.graphic.character_name)
+                    .ok()
             })
             .collect();
-        let tileset_graphic =
-            crate::load_image_software(format!("Graphics/Tilesets/{tileset_name}")).unwrap();
+        let tileset_graphic = state!()
+            .image_cache
+            .load_egui_image("Graphics/Tilesets", tileset_name)
+            .unwrap();
 
         Self {
             id,

@@ -76,18 +76,19 @@ impl Cache {
             .egui_imgs
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.find(|entry| {
-                    entry.as_ref().is_ok_and(|entry| entry.file_name() == filename)
+                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
+                    entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
                 }) else {
                     return  Err("image not found".to_string());
                 };
 
                 egui_extras::RetainedImage::from_image_bytes(
                     format!("{directory}/{filename}"),
-                    std::fs::read(f.expect("invalid dir entry despite checking").path())
+                    std::fs::read(f.path())
                         .map_err(|e| e.to_string())?
                         .as_slice(),
                 )
+                .map(|i| i.with_options(egui::TextureOptions::NEAREST))
                 .map(Arc::new)
             })?;
         Ok(Arc::clone(&entry))
@@ -109,13 +110,13 @@ impl Cache {
             .glow_imgs
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.find(|entry| {
-                    entry.as_ref().is_ok_and(|entry| entry.file_name() == filename)
+                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
+                    entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
                 }) else {
                     return  Err("image not found".to_string());
                 };
 
-                let image = image::open(f.expect("invalid dir entry despite checking").path())
+                let image = image::open(f.path())
                     .map_err(|e| e.to_string())?;
                 // We force the image to be rgba8 to avoid any weird texture errors.
                 // If the image was not rgba8 (say it was rgb8) we would also get a segfault as opengl is expecting a series of bytes with the len of width * height * 4.
