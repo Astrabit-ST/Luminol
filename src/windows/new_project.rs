@@ -153,9 +153,9 @@ impl window::Window for Window {
 
                             self.project_promise =
                                 Some(poll_promise::Promise::spawn_local(async move {
-                                    let info = state!();
+                                    let state = state!();
                                     let result =
-                                        info.filesystem.try_create_project(name, rgss_ver).await;
+                                        state.filesystem.try_create_project(name, rgss_ver).await;
 
                                     if init_git && result.is_ok() {
                                         use std::process::Command;
@@ -163,17 +163,17 @@ impl window::Window for Window {
                                             .arg("init")
                                             .arg("-b")
                                             .arg(branch_name)
-                                            .current_dir(info.filesystem.project_path().unwrap())
+                                            .current_dir(state.filesystem.project_path().unwrap())
                                             .spawn()
                                         {
                                             Ok(mut c) => {
                                                 if let Err(e) = c.wait() {
-                                                    info.toasts.error(format!(
+                                                    state.toasts.error(format!(
                                                         "Failed to initialize git repository {e}"
                                                     ));
                                                 }
                                             }
-                                            Err(e) => info.toasts.error(format!(
+                                            Err(e) => state.toasts.error(format!(
                                                 "Failed to initialize git repository {e}"
                                             )),
                                         }
@@ -183,7 +183,7 @@ impl window::Window for Window {
                                         if let Err(e) =
                                             Self::download_executable(rgss_ver, progress).await
                                         {
-                                            info.toasts.error(e);
+                                            state.toasts.error(e);
                                         }
                                     }
 
@@ -251,7 +251,7 @@ impl Window {
                 .total_progress
                 .store(archive.len(), Ordering::Relaxed);
 
-            let info = state!();
+            let state = state!();
             for index in 0..archive.len() {
                 let mut file = archive.by_index(index).unwrap();
                 progress.current_progress.store(index, Ordering::Relaxed);
@@ -268,12 +268,13 @@ impl Window {
                     .to_str()
                     .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty() || info.filesystem.path_exists(file_path) {
+                if file_path.is_empty() || state.filesystem.path_exists(file_path) {
                     continue;
                 }
 
                 if file.is_dir() {
-                    info.filesystem
+                    state
+                        .filesystem
                         .create_directory(file_path)
                         .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
                 } else {
@@ -281,7 +282,8 @@ impl Window {
                     file.read_to_end(&mut bytes)
                         .map_err(|e| e.to_string())
                         .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
-                    info.filesystem
+                    state
+                        .filesystem
                         .save_data(file_path, bytes)
                         .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
                 }

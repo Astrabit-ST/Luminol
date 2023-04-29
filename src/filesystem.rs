@@ -43,9 +43,20 @@ impl Filesystem {
     }
 
     /// Get the directory children of a path.
-    pub fn dir_children(&self, path: impl AsRef<Path>) -> Result<Vec<String>, String> {
+    pub fn dir_children(&self, path: impl AsRef<Path>) -> Result<std::fs::ReadDir, String> {
         // I am too lazy to make this actually .
         // It'd take an external library or some hacking that I'm not up for currently.
+        std::fs::read_dir(
+            self.project_path
+                .read()
+                .as_ref()
+                .ok_or_else(|| "Project not open".to_string())?
+                .join(path),
+        )
+        .map_err(|e| e.to_string())
+    }
+
+    pub fn dir_children_strings(&self, path: impl AsRef<Path>) -> Result<Vec<String>, String> {
         std::fs::read_dir(
             self.project_path
                 .read()
@@ -231,7 +242,7 @@ impl Filesystem {
         *self.project_path.write() = Some(path);
         self.create_directory("")?;
 
-        if !self.dir_children(".")?.is_empty() {
+        if !self.dir_children(".")?.count() == 0 {
             return Err("Directory not empty".to_string());
         }
 

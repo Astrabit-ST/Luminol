@@ -24,12 +24,13 @@ use egui::Color32;
 use egui_extras::RetainedImage;
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
 use egui::{Pos2, Response, Vec2};
 
-use crate::{load_image_software, state};
+use crate::state;
 use rmxp_types::rpg;
 
 /// A generic tilemap, implements TilemapDef.
@@ -50,12 +51,12 @@ pub struct Tilemap {
 }
 
 pub struct Textures {
-    tileset_tex: Option<RetainedImage>,
-    autotile_texs: Vec<Option<RetainedImage>>,
-    event_texs: HashMap<(String, i32), Option<RetainedImage>>,
-    fog_tex: Option<RetainedImage>,
+    tileset_tex: Option<Arc<RetainedImage>>,
+    autotile_texs: Vec<Option<Arc<RetainedImage>>>,
+    event_texs: HashMap<(String, i32), Option<Arc<RetainedImage>>>,
+    fog_tex: Option<Arc<RetainedImage>>,
     fog_zoom: i32,
-    pano_tex: Option<RetainedImage>,
+    pano_tex: Option<Arc<RetainedImage>>,
 }
 
 /// Hardcoded list of tiles from r48 and old python Luminol.
@@ -621,25 +622,32 @@ impl Tilemap {
 
     #[allow(unused_variables, unused_assignments)]
     fn load_data(id: i32) -> Result<Textures, String> {
-        let info = state!();
+        let state = state!();
         // Load the map.
 
-        let map = info.data_cache.load_map(id)?;
+        let map = state.data_cache.load_map(id)?;
         // Get tilesets.
-        let tilesets = info.data_cache.tilesets();
+        let tilesets = state.data_cache.tilesets();
 
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         // Load tileset textures.
-        let tileset_tex =
-            load_image_software(format!("Graphics/Tilesets/{}", tileset.tileset_name)).ok();
+        let tileset_tex = state
+            .image_cache
+            .load_egui_image("Graphics/Tilesets", &tileset.tileset_name)
+            .ok();
 
         // Create an async iter over the autotile textures.
         let autotile_texs = tileset
             .autotile_names
             .iter()
-            .map(|path| load_image_software(format!("Graphics/Autotiles/{path}")).ok())
+            .map(|path| {
+                state
+                    .image_cache
+                    .load_egui_image("Graphics/Autotiles", path)
+                    .ok()
+            })
             .collect();
 
         // Await all the futures.
@@ -655,17 +663,25 @@ impl Tilemap {
             })
             .dedup()
             .map(|(char_name, hue)| {
-                let texture = load_image_software(format!("Graphics/Characters/{char_name}")).ok();
+                let texture = state
+                    .image_cache
+                    .load_egui_image("Graphics/Characters", &char_name)
+                    .ok();
                 ((char_name, hue), texture)
             })
             .collect();
 
         // These two are pretty simple.
-        let fog_tex = load_image_software(format!("Graphics/Fogs/{}", tileset.fog_name)).ok();
+        let fog_tex = state
+            .image_cache
+            .load_egui_image("Graphics/Fogs", &tileset.fog_name)
+            .ok();
         let fog_zoom = tileset.fog_zoom;
 
-        let pano_tex =
-            load_image_software(format!("Graphics/Panoramas/{}", tileset.panorama_name)).ok();
+        let pano_tex = state
+            .image_cache
+            .load_egui_image("Graphics/Panoramas", &tileset.panorama_name)
+            .ok();
 
         // Finally create and return the struct.
         Ok(Textures {

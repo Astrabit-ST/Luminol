@@ -126,6 +126,10 @@ impl tab::Tab for ScriptTab {
         self.index.to_string()
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_script_edit").with(self.index)
+    }
+
     fn show(&mut self, ui: &mut egui::Ui) {
         let theme = state!().saved_state.borrow().theme;
         ui.horizontal(|ui| {

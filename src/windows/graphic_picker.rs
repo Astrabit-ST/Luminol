@@ -15,12 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{load_image_software, prelude::*};
-use egui_extras::RetainedImage;
+use crate::prelude::*;
 
 pub struct Graphic {
     pub name: String,
-    pub image: RetainedImage,
+    pub image: Arc<RetainedImage>,
 }
 
 pub struct Window {
@@ -39,7 +38,10 @@ impl Window {
 
             let icon_path = String::from(split[0]);
 
-            let image = match load_image_software(format!("Graphics/Icons/{}", icon_path.clone())) {
+            let image = match state!()
+                .image_cache
+                .load_egui_image("Graphics/Icons", &icon_path)
+            {
                 Ok(ri) => ri,
                 Err(why) => {
                     state!()

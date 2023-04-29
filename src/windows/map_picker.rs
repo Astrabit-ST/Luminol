@@ -33,14 +33,14 @@ impl Window {
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
         let map_info = mapinfos.get_mut(&id).unwrap();
-        let map_name = &map_info.name;
+
         // Does this map have children?
         if children_data.contains_key(&id) {
             // Render a custom collapsing header.
             // It's custom so we can add a button to open a map.
             let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
-                ui.make_persistent_id(format!("map_info_{id}")),
+                ui.make_persistent_id(egui::Id::new("luminol_map_info").with(id)),
                 map_info.expanded,
             );
 
@@ -49,8 +49,8 @@ impl Window {
             header
                 .show_header(ui, |ui| {
                     // Has the user
-                    if ui.button(map_name).double_clicked() {
-                        Self::create_map_tab(id, map_name.clone());
+                    if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
+                        Self::create_map_tab(id);
                     }
                 })
                 .body(|ui| {
@@ -63,16 +63,15 @@ impl Window {
             // Just display a label otherwise.
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
-                if ui.button(map_name).clicked() {
-                    println!("adding map");
-                    Self::create_map_tab(id, map_name.clone());
+                if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
+                    Self::create_map_tab(id);
                 }
             });
         }
     }
 
-    fn create_map_tab(id: i32, name: String) {
-        match map::Tab::new(id, name) {
+    fn create_map_tab(id: i32) {
+        match map::Tab::new(id) {
             Ok(m) => state!().tabs.add_tab(Box::new(m)),
             Err(e) => state!().toasts.error(e),
         }
@@ -97,7 +96,7 @@ impl window::Window for Window {
 
                         // We sort maps by their order.
                         let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();
-                        sorted_maps.sort_by(|a, b| a.1.order.cmp(&b.1.order));
+                        sorted_maps.sort_unstable();
 
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.

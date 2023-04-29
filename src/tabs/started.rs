@@ -40,8 +40,12 @@ impl tab::Tab for Tab {
         "Get Started".to_string()
     }
 
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_started_tab")
+    }
+
     fn show(&mut self, ui: &mut egui::Ui) {
-        let info = state!();
+        let state = state!();
         ui.label(
             egui::RichText::new("Luminol")
                 .size(40.)
@@ -72,8 +76,10 @@ impl tab::Tab for Tab {
                 .clicked()
             {
                 self.load_project_promise = Some(Promise::spawn_local(async move {
-                    if let Err(e) = info.filesystem.spawn_project_file_picker().await {
-                        info.toasts.error(format!("Error loading the project: {e}"));
+                    if let Err(e) = state.filesystem.spawn_project_file_picker().await {
+                        state
+                            .toasts
+                            .error(format!("Error loading the project: {e}"));
                     }
                 }));
             }
@@ -82,13 +88,14 @@ impl tab::Tab for Tab {
 
             ui.heading("Recent");
 
-            for path in &info.saved_state.borrow().recent_projects {
+            for path in &state.saved_state.borrow().recent_projects {
                 if ui.button(path).clicked() {
                     let path = path.clone();
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
-                        if let Err(why) = info.filesystem.try_open_project(path) {
-                            info.toasts
+                        if let Err(why) = state.filesystem.try_open_project(path) {
+                            state
+                                .toasts
                                 .error(format!("Error loading the project: {why}"));
                         }
                     }));

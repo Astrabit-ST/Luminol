@@ -36,7 +36,7 @@ impl TopBar {
         style: &mut Arc<egui::Style>,
         frame: &mut eframe::Frame,
     ) {
-        let info = state!();
+        let state = state!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.checkbox(&mut self.fullscreen, "Fullscreen");
@@ -44,39 +44,39 @@ impl TopBar {
         frame.set_fullscreen(self.fullscreen);
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
-            && info.filesystem.project_loaded();
+            && state.filesystem.project_loaded();
         let mut save_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S))
-            && info.filesystem.project_loaded();
+            && state.filesystem.project_loaded();
         if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::N)) {
-            info.windows.add_window(new_project::Window::default());
+            state.windows.add_window(new_project::Window::default());
         }
 
         ui.separator();
 
         ui.menu_button("File", |ui| {
-            ui.label(if let Some(path) = info.filesystem.project_path() {
+            ui.label(if let Some(path) = state.filesystem.project_path() {
                 format!("Current project:\n{}", path.display())
             } else {
                 "No project open".to_string()
             });
 
             if ui.button("New Project").clicked() {
-                info.windows.add_window(new_project::Window::default());
+                state.windows.add_window(new_project::Window::default());
             }
 
             open_project |= ui.button("Open Project").clicked();
 
             ui.separator();
 
-            ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    info.windows.add_window(config::Window {});
+                    state.windows.add_window(config::Window {});
                 }
 
                 if ui.button("Close Project").clicked() {
-                    info.filesystem.unload_project();
-                    info.windows.clean_windows();
-                    info.tabs.clean_tabs(|t| t.requires_filesystem());
+                    state.filesystem.unload_project();
+                    state.windows.clean_windows();
+                    state.tabs.clean_tabs(|t| t.requires_filesystem());
                 }
 
                 save_project |= ui.button("Save Project").clicked();
@@ -84,9 +84,10 @@ impl TopBar {
 
             ui.separator();
 
-            ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
                 if ui.button("Command Maker").clicked() {
-                    info.windows
+                    state
+                        .windows
                         .add_window(crate::command_gen::CommandGeneratorWindow::default());
                 }
             });
@@ -122,7 +123,7 @@ impl TopBar {
                 *style = ui.ctx().style();
             });
 
-            let theme = &mut info.saved_state.borrow_mut().theme;
+            let theme = &mut state.saved_state.borrow_mut().theme;
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
 
@@ -141,31 +142,42 @@ impl TopBar {
                     "rb",
                 ));
             });
+
+            if ui
+                .button("Clear Loaded Textures")
+                .on_hover_text(
+                    "You may need to reopen maps/windows for any changes to take effect.",
+                )
+                .clicked()
+            {
+                state.image_cache.clear();
+            }
         });
 
         ui.separator();
 
         ui.menu_button("Data", |ui| {
-            ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
-                    info.windows.add_window(map_picker::Window::default());
+                    state.windows.add_window(map_picker::Window::default());
                 }
 
                 if ui.button("Items").clicked() {
-                    info.windows.add_window(items::Window::default());
+                    state.windows.add_window(items::Window::default());
                 }
 
                 if ui.button("Common Events").clicked() {
-                    info.windows
+                    state
+                        .windows
                         .add_window(common_event_edit::Window::default());
                 }
 
                 if ui.button("Scripts").clicked() {
-                    info.windows.add_window(script_edit::Window::default());
+                    state.windows.add_window(script_edit::Window::default());
                 }
 
                 if ui.button("Sound Test").clicked() {
-                    info.windows.add_window(sound_test::Window::default());
+                    state.windows.add_window(sound_test::Window::default());
                 }
             });
         });
@@ -174,17 +186,17 @@ impl TopBar {
 
         ui.menu_button("Help", |ui| {
             if ui.button("About...").clicked() {
-                info.windows.add_window(about::Window::default());
+                state.windows.add_window(about::Window::default());
             };
 
             ui.separator();
 
             if ui.button("Egui Inspection").clicked() {
-                info.windows.add_window(misc::EguiInspection::default());
+                state.windows.add_window(misc::EguiInspection::default());
             }
 
             if ui.button("Egui Memory").clicked() {
-                info.windows.add_window(misc::EguiMemory::default());
+                state.windows.add_window(misc::EguiMemory::default());
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();
@@ -194,21 +206,21 @@ impl TopBar {
 
         ui.separator();
 
-        ui.add_enabled_ui(info.filesystem.project_loaded(), |ui| {
+        ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
             if ui.button("Playtest").clicked() {
                 let mut cmd = luminol_term::CommandBuilder::new("steamshim");
-                cmd.cwd(info.filesystem.project_path().expect("project not loaded"));
+                cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
 
                 let result = crate::windows::console::Console::new(cmd).or_else(|_| {
                     let mut cmd = luminol_term::CommandBuilder::new("game");
-                    cmd.cwd(info.filesystem.project_path().expect("project not loaded"));
+                    cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
 
                     crate::windows::console::Console::new(cmd)
                 });
 
                 match result {
-                    Ok(w) => info.windows.add_window(w),
-                    Err(e) => info.toasts.error(format!(
+                    Ok(w) => state.windows.add_window(w),
+                    Err(e) => state.toasts.error(format!(
                         "error starting game (tried steamshim.exe and then game.exe): {e}"
                     )),
                 }
@@ -220,11 +232,11 @@ impl TopBar {
                 #[cfg(unix)]
                 let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
                 let mut cmd = luminol_term::CommandBuilder::new(shell);
-                cmd.cwd(info.filesystem.project_path().expect("project not loaded"));
+                cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
 
                 match crate::windows::console::Console::new(cmd) {
-                    Ok(w) => info.windows.add_window(w),
-                    Err(e) => info.toasts.error(format!("error starting shell: {e}")),
+                    Ok(w) => state.windows.add_window(w),
+                    Err(e) => state.toasts.error(format!("error starting shell: {e}")),
                 }
             }
         });
@@ -233,7 +245,7 @@ impl TopBar {
 
         ui.label("Brush:");
 
-        let mut toolbar = info.toolbar.borrow_mut();
+        let mut toolbar = state.toolbar.borrow_mut();
         for brush in Pencil::iter() {
             ui.selectable_value(&mut toolbar.pencil, brush, brush.to_string());
         }
@@ -249,23 +261,23 @@ impl TopBar {
 
         if open_project {
             self.open_project_promise = Some(Promise::spawn_local(
-                info.filesystem.spawn_project_file_picker(),
+                state.filesystem.spawn_project_file_picker(),
             ));
         }
 
         if save_project {
-            info.toasts.info("Saving project...");
-            match info.filesystem.save_cached() {
-                Ok(_) => info.toasts.info("Saved project sucessfully!"),
-                Err(e) => info.toasts.error(e),
+            state.toasts.info("Saving project...");
+            match state.filesystem.save_cached() {
+                Ok(_) => state.toasts.info("Saved project sucessfully!"),
+                Err(e) => state.toasts.error(e),
             }
         }
 
         if self.open_project_promise.is_some() {
             if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
                 match r {
-                    Ok(_) => info.toasts.info("Opened project successfully!"),
-                    Err(e) => info.toasts.error(e),
+                    Ok(_) => state.toasts.info("Opened project successfully!"),
+                    Err(e) => state.toasts.error(e),
                 }
                 self.open_project_promise = None;
             }
