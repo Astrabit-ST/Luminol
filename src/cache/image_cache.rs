@@ -46,6 +46,13 @@ impl GlTexture {
         self.raw
     }
 
+    /// # Safety
+    /// Texture must be valid. Dimensions must be correct.
+    #[allow(unsafe_code)]
+    pub unsafe fn new(raw: glow::Texture, width: u32, height: u32) -> Self {
+        Self { raw, width, height }
+    }
+
     pub fn width(&self) -> u32 {
         self.width
     }
@@ -82,23 +89,36 @@ impl Cache {
         let entry = self
             .egui_imgs
             .entry(format!("{directory}/{filename}"))
-            .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
-                    entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
-                }) else {
-                    return  Err("image not found".to_string());
-                };
-
-                egui_extras::RetainedImage::from_image_bytes(
+            .or_try_insert_with(|| -> Result<_, String> {
+                let image = self.load_image(directory, filename)?.into_rgba8();
+                let image = egui_extras::RetainedImage::from_color_image(
                     format!("{directory}/{filename}"),
-                    std::fs::read(f.path())
-                        .map_err(|e| e.to_string())?
-                        .as_slice(),
+                    egui::ColorImage::from_rgba_unmultiplied(
+                        [image.width() as usize, image.height() as usize],
+                        &image,
+                    ),
                 )
-                .map(|i| i.with_options(egui::TextureOptions::NEAREST))
-                .map(Arc::new)
+                .with_options(egui::TextureOptions::NEAREST);
+                Ok(Arc::new(image))
             })?;
         Ok(Arc::clone(&entry))
+    }
+
+    pub fn load_image(
+        &self,
+        directory: impl AsRef<str>,
+        filename: impl AsRef<str>,
+    ) -> Result<image::DynamicImage, String> {
+        let directory = directory.as_ref();
+        let filename = filename.as_ref();
+        let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
+                entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
+            }) else {
+                return Err(format!("{filename} not found in {directory}"));
+            };
+
+        let image = image::open(f.path()).map_err(|e| e.to_string())?;
+        Ok(image)
     }
 
     /// # Safety
@@ -116,18 +136,10 @@ impl Cache {
         let entry = self
             .glow_imgs
             .entry(format!("{directory}/{filename}"))
-            .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
-                    entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
-                }) else {
-                    return  Err("image not found".to_string());
-                };
-
-                let image = image::open(f.path())
-                    .map_err(|e| e.to_string())?;
+            .or_try_insert_with(|| -> Result<_, String> {
                 // We force the image to be rgba8 to avoid any weird texture errors.
                 // If the image was not rgba8 (say it was rgb8) we would also get a segfault as opengl is expecting a series of bytes with the len of width * height * 4.
-                let image = image.to_rgba8();
+                let image = self.load_image(directory, filename)?.into_rgba8();
                 // Check that the image will fit into the texture
                 // If we dont perform this check, we may get a segfault (dont ask me how i know this)
                 assert_eq!(image.len() as u32, image.width() * image.height() * 4);
