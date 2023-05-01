@@ -55,7 +55,6 @@ where
 
     /// Add a tab.
     pub fn add_tab(&self, tab: T) {
-        println!("I am adding a tab: {}", tab.name());
         let mut tree = self.tree.lock();
         for n in tree.iter() {
             if let egui_dock::Node::Leaf { tabs, .. } = n {
