@@ -25,6 +25,7 @@ pub struct Cache {
     glow_imgs: dashmap::DashMap<String, Arc<GlTexture>>,
 }
 
+#[derive(Debug)]
 pub struct GlTexture {
     raw: glow::Texture,
     width: u32,
