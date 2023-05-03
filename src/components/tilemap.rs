@@ -316,6 +316,16 @@ impl Tilemap {
                 None,
             );
             gl.generate_mipmap(glow::TEXTURE_2D);
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                glow::NEAREST as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                glow::NEAREST as i32,
+            );
             check_for_gl_error!("creating tileset atlas");
 
             let fbo = gl
@@ -329,7 +339,6 @@ impl Tilemap {
                 Some(atlas),
                 0,
             );
-
             for (index, tile) in tileset.autotile_names.iter().enumerate() {
                 if tile.is_empty() {
                     continue;
@@ -346,16 +355,21 @@ impl Tilemap {
                     Some(autotile_tex.raw()),
                     0,
                 );
+                println!("atlas_tex: {atlas:?}");
+                println!("autotile_tex: {autotile_tex:?}");
+
                 gl.draw_buffer(glow::COLOR_ATTACHMENT1);
+                gl.read_buffer(glow::COLOR_ATTACHMENT0);
+
                 gl.blit_framebuffer(
                     0,
                     0,
                     autotile_tex.width() as i32,
-                    AUTOTILE_HEIGHT,
+                    index as i32 * AUTOTILE_HEIGHT,
                     0,
-                    0,
+                    index as i32 * AUTOTILE_HEIGHT,
                     autotile_tex.width() as i32,
-                    AUTOTILE_HEIGHT,
+                    index as i32 * AUTOTILE_HEIGHT + AUTOTILE_HEIGHT,
                     glow::COLOR_BUFFER_BIT,
                     glow::NEAREST,
                 );
