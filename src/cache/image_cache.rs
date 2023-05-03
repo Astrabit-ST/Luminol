@@ -137,11 +137,12 @@ impl Cache {
                 // Check that the image will fit into the texture
                 // If we dont perform this check, we may get a segfault (dont ask me how i know this)
                 assert_eq!(image.len() as u32, image.width() * image.height() * 4);
+                let gl = &state!().gl;
 
-                let raw = state!().gl.create_texture()?;
-                state!().gl.bind_texture(glow::TEXTURE_2D, Some(raw));
+                let raw = gl.create_texture()?;
+                gl.bind_texture(glow::TEXTURE_2D, Some(raw));
 
-                state!().gl.tex_image_2d(
+                gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     0,
                     glow::RGBA as _,
@@ -152,7 +153,17 @@ impl Cache {
                     glow::UNSIGNED_BYTE,
                     Some(image.as_raw()),
                 );
-                state!().gl.generate_mipmap(glow::TEXTURE_2D);
+                gl.generate_mipmap(glow::TEXTURE_2D);
+                gl.tex_parameter_i32(
+                    glow::TEXTURE_2D,
+                    glow::TEXTURE_MIN_FILTER,
+                    glow::NEAREST as i32,
+                );
+                gl.tex_parameter_i32(
+                    glow::TEXTURE_2D,
+                    glow::TEXTURE_MAG_FILTER,
+                    glow::NEAREST as i32,
+                );
 
                 Ok(Arc::new(GlTexture {
                     raw,
