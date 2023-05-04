@@ -19,7 +19,10 @@ build = "build.rs"
 
 [dependencies]
 egui = "0.21"
-eframe = { version = "0.21", features = ["persistence"] }
+eframe = { version = "0.21", features = [
+    "persistence",
+    "wgpu",
+], default-features = false }
 egui_extras = { version = "0.21", features = ["svg", "image"] }
 egui-notify = "0.6"
 egui_dock = "0.4"

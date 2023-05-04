@@ -39,7 +39,7 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = State::new(cc.gl.as_ref().unwrap().clone(), state);
+        let info = State::new(cc.wgpu_render_state.clone().unwrap(), state);
         crate::set_state(info);
 
         if let Some(path) = try_load_path {
