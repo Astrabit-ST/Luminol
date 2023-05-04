@@ -126,8 +126,7 @@ pub struct State {
     pub audio: audio::Audio,
     /// Toasts to be displayed.
     pub toasts: Toasts,
-    /// The gl context.
-    pub gl: Arc<glow::Context>,
+    pub render_state: egui_wgpu::RenderState,
     /// State to be saved.
     pub saved_state: AtomicRefCell<SavedState>,
     /// Toolbar state
@@ -138,7 +137,7 @@ static_assertions::assert_impl_all!(State: Send, Sync);
 
 impl State {
     /// Create a new UpdateInfo.
-    pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
+    pub fn new(render_state: egui_wgpu::RenderState, state: SavedState) -> Self {
         Self {
             filesystem: filesystem::Filesystem::default(),
             data_cache: data::Cache::default(),
@@ -147,7 +146,7 @@ impl State {
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
-            gl,
+            render_state,
             saved_state: AtomicRefCell::new(state),
             toolbar: AtomicRefCell::default(),
         }

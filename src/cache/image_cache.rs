@@ -22,59 +22,25 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use eframe::wgpu::util::DeviceExt;
+
 use crate::prelude::*;
-use glow::HasContext;
 
 #[derive(Default)]
 pub struct Cache {
     // FIXME: This may not handle reloading textures properly.
     egui_imgs: dashmap::DashMap<String, Arc<RetainedImage>>,
-    glow_imgs: dashmap::DashMap<String, Arc<GlTexture>>,
+    glow_imgs: dashmap::DashMap<String, Arc<WgpuTexture>>,
 }
 
-#[derive(Debug)]
-pub struct GlTexture {
-    raw: glow::Texture,
-    width: u32,
-    height: u32,
+pub struct WgpuTexture {
+    pub texture: wgpu::Texture,
+    pub bind_group: wgpu::BindGroup,
 }
 
-impl GlTexture {
-    /// # Safety
-    /// Do not free the returned texture using glow::Context::delete_texture.
-    #[allow(unsafe_code)]
-    pub unsafe fn raw(&self) -> glow::Texture {
-        self.raw
-    }
-
-    /// # Safety
-    /// Texture must be valid. Dimensions must be correct.
-    #[allow(unsafe_code)]
-    pub unsafe fn new(raw: glow::Texture, width: u32, height: u32) -> Self {
-        Self { raw, width, height }
-    }
-
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    pub fn height(&self) -> u32 {
-        self.height
-    }
-
+impl WgpuTexture {
     pub fn size_vec2(&self) -> egui::Vec2 {
-        egui::vec2(self.width as _, self.height as _)
-    }
-}
-
-impl Drop for GlTexture {
-    fn drop(&mut self) {
-        // Delete the texture on drop.
-        // This assumes that the texture is valid.
-        #[allow(unsafe_code)]
-        unsafe {
-            state!().gl.delete_texture(self.raw)
-        }
+        egui::vec2(self.texture.width() as _, self.texture.height() as _)
     }
 }
 
@@ -122,15 +88,11 @@ impl Cache {
         Ok(image)
     }
 
-    /// # Safety
-    /// Do not free the returned texture using glow::Context::delete_texture.
-    /// All other safety rules when working with OpenGl apply.
-    #[allow(unsafe_code)]
-    pub unsafe fn load_glow_image(
+    pub fn load_wgpu_image(
         &self,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
-    ) -> Result<Arc<GlTexture>, String> {
+    ) -> Result<Arc<WgpuTexture>, String> {
         let directory = directory.as_ref();
         let filename = filename.as_ref();
 
@@ -139,44 +101,104 @@ impl Cache {
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| -> Result<_, String> {
                 // We force the image to be rgba8 to avoid any weird texture errors.
-                // If the image was not rgba8 (say it was rgb8) we would also get a segfault as opengl is expecting a series of bytes with the len of width * height * 4.
+                // If the image was not rgba8 (say it was rgb8) we would get weird texture errors
                 let image = self.load_image(directory, filename)?.into_rgba8();
                 // Check that the image will fit into the texture
                 // If we dont perform this check, we may get a segfault (dont ask me how i know this)
                 assert_eq!(image.len() as u32, image.width() * image.height() * 4);
-                let gl = &state!().gl;
-
-                let raw = gl.create_texture()?;
-                gl.bind_texture(glow::TEXTURE_2D, Some(raw));
-
-                gl.tex_image_2d(
-                    glow::TEXTURE_2D,
-                    0,
-                    glow::RGBA as _,
-                    image.width() as _,
-                    image.height() as _,
-                    0,
-                    glow::RGBA,
-                    glow::UNSIGNED_BYTE,
-                    Some(image.as_raw()),
+                let render_state = &state!().render_state;
+                // Create the texture and upload the data at the same time.
+                // This is just a utility function to avoid boilerplate
+                let texture = render_state.device.create_texture_with_data(
+                    &render_state.queue,
+                    &wgpu::TextureDescriptor {
+                        label: None,
+                        size: wgpu::Extent3d {
+                            width: image.width(),
+                            height: image.height(),
+                            depth_or_array_layers: 0,
+                        },
+                        dimension: wgpu::TextureDimension::D2,
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        usage: wgpu::TextureUsages::all(),
+                        view_formats: &[],
+                    },
+                    &image,
                 );
-                gl.generate_mipmap(glow::TEXTURE_2D);
-                gl.tex_parameter_i32(
-                    glow::TEXTURE_2D,
-                    glow::TEXTURE_MIN_FILTER,
-                    glow::NEAREST as i32,
-                );
-                gl.tex_parameter_i32(
-                    glow::TEXTURE_2D,
-                    glow::TEXTURE_MAG_FILTER,
-                    glow::NEAREST as i32,
-                );
+                // We *really* don't care about the fields here.
+                let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+                // We want our texture to use Nearest filtering and repeat.
+                // The only time our texture should be repeating is for fogs and panoramas.
+                let sampler = render_state
+                    .device
+                    .create_sampler(&wgpu::SamplerDescriptor {
+                        address_mode_u: wgpu::AddressMode::Repeat,
+                        address_mode_v: wgpu::AddressMode::Repeat,
+                        address_mode_w: wgpu::AddressMode::Repeat,
+                        mag_filter: wgpu::FilterMode::Nearest,
+                        min_filter: wgpu::FilterMode::Nearest,
+                        mipmap_filter: wgpu::FilterMode::Nearest,
+                        ..Default::default()
+                    });
 
-                Ok(Arc::new(GlTexture {
-                    raw,
-                    width: image.width(),
-                    height: image.height(),
-                }))
+                // Boilerplate boilerplate boilerplate
+                let layout = render_state.device.create_bind_group_layout(
+                    &wgpu::BindGroupLayoutDescriptor {
+                        label: None,
+                        // I just copy pasted this stuff from the wgpu guide.
+                        // No clue why I need it.
+                        entries: &[
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::FRAGMENT,
+                                ty: wgpu::BindingType::Texture {
+                                    multisampled: false,
+                                    view_dimension: wgpu::TextureViewDimension::D2,
+                                    sample_type: wgpu::TextureSampleType::Float {
+                                        filterable: true,
+                                    },
+                                },
+                                count: None,
+                            },
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 1,
+                                visibility: wgpu::ShaderStages::FRAGMENT,
+                                // This should match the filterable field of the
+                                // corresponding Texture entry above.
+                                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                                count: None,
+                            },
+                        ],
+                    },
+                );
+                // Create the bind group
+                // Again, I have no idea why its setup this way
+                let bind_group =
+                    render_state
+                        .device
+                        .create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: None,
+                            layout: &layout,
+                            entries: &[
+                                wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 1,
+                                    resource: wgpu::BindingResource::Sampler(&sampler),
+                                },
+                            ],
+                        });
+
+                let texture = WgpuTexture {
+                    texture,
+                    bind_group,
+                };
+
+                Ok(Arc::new(texture))
             })?;
         Ok(Arc::clone(&entry))
     }

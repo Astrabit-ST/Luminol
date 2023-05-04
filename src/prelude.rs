@@ -46,7 +46,9 @@ pub use crate::state;
 pub use crate::State;
 
 pub use eframe::egui;
-pub use eframe::egui_glow::glow;
+pub use eframe::egui_wgpu;
+pub use eframe::egui_wgpu::wgpu;
+
 pub use egui::epaint;
 pub use egui::Color32;
 pub use egui::TextureOptions;
