@@ -26,14 +26,30 @@ pub struct Cache {
     glow_imgs: dashmap::DashMap<String, Arc<WgpuTexture>>,
 }
 
+#[derive(Debug)]
 pub struct WgpuTexture {
     pub texture: wgpu::Texture,
     pub bind_group: wgpu::BindGroup,
 }
 
 impl WgpuTexture {
+    pub fn new(texture: wgpu::Texture, bind_group: wgpu::BindGroup) -> Self {
+        Self {
+            texture,
+            bind_group,
+        }
+    }
+
     pub fn size_vec2(&self) -> egui::Vec2 {
         egui::vec2(self.texture.width() as _, self.texture.height() as _)
+    }
+
+    pub fn width(&self) -> u32 {
+        self.texture.width()
+    }
+
+    pub fn height(&self) -> u32 {
+        self.texture.height()
     }
 }
 
@@ -81,6 +97,78 @@ impl Cache {
         Ok(image)
     }
 
+    pub fn create_texture_bind_group_layout() -> wgpu::BindGroupLayout {
+        // Boilerplate boilerplate boilerplate
+        state!()
+            .render_state
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                // I just copy pasted this stuff from the wgpu guide.
+                // No clue why I need it.
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        // This should match the filterable field of the
+                        // corresponding Texture entry above.
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            })
+    }
+
+    pub fn create_texture_bind_group(texture: &wgpu::Texture) -> wgpu::BindGroup {
+        let render_state = &state!().render_state;
+        // We *really* don't care about the fields here.
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // We want our texture to use Nearest filtering and repeat.
+        // The only time our texture should be repeating is for fogs and panoramas.
+        let sampler = render_state
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::Repeat,
+                address_mode_v: wgpu::AddressMode::Repeat,
+                address_mode_w: wgpu::AddressMode::Repeat,
+                mag_filter: wgpu::FilterMode::Nearest,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            });
+
+        let layout = Self::create_texture_bind_group_layout();
+
+        // Create the bind group
+        // Again, I have no idea why its setup this way
+        render_state
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                ],
+            })
+    }
+
     pub fn load_wgpu_image(
         &self,
         directory: impl AsRef<str>,
@@ -105,11 +193,11 @@ impl Cache {
                 let texture = render_state.device.create_texture_with_data(
                     &render_state.queue,
                     &wgpu::TextureDescriptor {
-                        label: None,
+                        label: Some(&format!("{directory}/{filename}")),
                         size: wgpu::Extent3d {
                             width: image.width(),
                             height: image.height(),
-                            depth_or_array_layers: 0,
+                            depth_or_array_layers: 1,
                         },
                         dimension: wgpu::TextureDimension::D2,
                         mip_level_count: 1,
@@ -120,71 +208,7 @@ impl Cache {
                     },
                     &image,
                 );
-                // We *really* don't care about the fields here.
-                let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-                // We want our texture to use Nearest filtering and repeat.
-                // The only time our texture should be repeating is for fogs and panoramas.
-                let sampler = render_state
-                    .device
-                    .create_sampler(&wgpu::SamplerDescriptor {
-                        address_mode_u: wgpu::AddressMode::Repeat,
-                        address_mode_v: wgpu::AddressMode::Repeat,
-                        address_mode_w: wgpu::AddressMode::Repeat,
-                        mag_filter: wgpu::FilterMode::Nearest,
-                        min_filter: wgpu::FilterMode::Nearest,
-                        mipmap_filter: wgpu::FilterMode::Nearest,
-                        ..Default::default()
-                    });
-
-                // Boilerplate boilerplate boilerplate
-                let layout = render_state.device.create_bind_group_layout(
-                    &wgpu::BindGroupLayoutDescriptor {
-                        label: None,
-                        // I just copy pasted this stuff from the wgpu guide.
-                        // No clue why I need it.
-                        entries: &[
-                            wgpu::BindGroupLayoutEntry {
-                                binding: 0,
-                                visibility: wgpu::ShaderStages::FRAGMENT,
-                                ty: wgpu::BindingType::Texture {
-                                    multisampled: false,
-                                    view_dimension: wgpu::TextureViewDimension::D2,
-                                    sample_type: wgpu::TextureSampleType::Float {
-                                        filterable: true,
-                                    },
-                                },
-                                count: None,
-                            },
-                            wgpu::BindGroupLayoutEntry {
-                                binding: 1,
-                                visibility: wgpu::ShaderStages::FRAGMENT,
-                                // This should match the filterable field of the
-                                // corresponding Texture entry above.
-                                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                                count: None,
-                            },
-                        ],
-                    },
-                );
-                // Create the bind group
-                // Again, I have no idea why its setup this way
-                let bind_group =
-                    render_state
-                        .device
-                        .create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: None,
-                            layout: &layout,
-                            entries: &[
-                                wgpu::BindGroupEntry {
-                                    binding: 0,
-                                    resource: wgpu::BindingResource::TextureView(&texture_view),
-                                },
-                                wgpu::BindGroupEntry {
-                                    binding: 1,
-                                    resource: wgpu::BindingResource::Sampler(&sampler),
-                                },
-                            ],
-                        });
+                let bind_group = Self::create_texture_bind_group(&texture);
 
                 let texture = WgpuTexture {
                     texture,
