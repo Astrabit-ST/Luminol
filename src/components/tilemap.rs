@@ -20,7 +20,7 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use eframe::wgpu::util::DeviceExt;
-use image::{GenericImage, GenericImageView};
+use image::GenericImageView;
 
 use crate::image_cache::WgpuTexture;
 use crate::prelude::*;
@@ -36,14 +36,33 @@ pub struct Tilemap {
     pub move_preview: bool,
 
     textures: Arc<Textures>,
-    vertex_buffer: Arc<wgpu::Buffer>,
+    tile_vertices: Arc<TileVertices>,
 }
 
+struct Textures {
+    atlas: Atlas,
+    event_texs: HashMap<String, Arc<WgpuTexture>>,
+    fog_tex: Option<Arc<WgpuTexture>>,
+    pano_tex: Option<Arc<WgpuTexture>>,
+}
+
+struct Atlas {
+    atlas_texture: wgpu::Texture,
+    bind_group: wgpu::BindGroup,
+    autotile_width: u32,
+    tileset_height: u32,
+}
+
+struct TileVertices {
+    buffer: wgpu::Buffer,
+    vertices: u32,
+    instances: u32,
+}
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
     position: [f32; 3],
-    tex_coords: [f32; 2], // NEW!
+    tex_coords: [f32; 2],
 }
 
 impl Vertex {
@@ -56,51 +75,6 @@ impl Vertex {
             attributes: &Self::ATTRIBS,
         }
     }
-}
-
-// A-----C
-// | \  |
-// |  \ |
-// B----D
-const VERTICES: &[Vertex] = &[
-    // A
-    Vertex {
-        position: [-1.0, 1.0, 0.0],
-        tex_coords: [0.0, 0.0],
-    },
-    // C
-    Vertex {
-        position: [1.0, 1.0, 0.0],
-        tex_coords: [1.0, 0.0],
-    },
-    // D
-    Vertex {
-        position: [1.0, -1.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    // D
-    Vertex {
-        position: [1.0, -1.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    // B
-    Vertex {
-        position: [-1.0, -1.0, 0.0],
-        tex_coords: [0.0, 1.0],
-    },
-    // A
-    Vertex {
-        position: [-1.0, 1.0, 0.0],
-        tex_coords: [0.0, 0.0],
-    },
-];
-
-struct Textures {
-    atlas: Arc<WgpuTexture>,
-    event_texs: HashMap<String, Arc<WgpuTexture>>,
-    fog_tex: Option<Arc<WgpuTexture>>,
-    pano_tex: Option<Arc<WgpuTexture>>,
-    tileset_height: u32,
 }
 
 static_assertions::assert_impl_all!(Textures: Send, Sync);
@@ -119,16 +93,16 @@ const UNDER_HEIGHT: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT;
 
 impl Tilemap {
     pub fn new(id: i32) -> Result<Tilemap, String> {
-        let textures = Arc::new(Self::load_data(id)?);
-        let vertex_buffer =
-            state!()
-                .render_state
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap vertex buffer"),
-                    contents: bytemuck::cast_slice(VERTICES),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
+        // Load the map.
+        let map = state!().data_cache.load_map(id)?;
+        // Get tilesets.
+        let tilesets = state!().data_cache.tilesets();
+        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+        let tileset = &tilesets[map.tileset_id as usize - 1];
+
+        let textures = Arc::new(Self::load_data(&map, tileset)?);
+
+        let vertex_buffer = Self::generate_tile_vertices(&map, &textures.atlas);
         let vertex_buffer = Arc::new(vertex_buffer);
 
         Ok(Self {
@@ -138,7 +112,7 @@ impl Tilemap {
             move_preview: false,
 
             textures,
-            vertex_buffer,
+            tile_vertices: vertex_buffer,
         })
     }
 
@@ -156,31 +130,32 @@ impl Tilemap {
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect);
 
-        let atlas = self.textures.atlas.clone();
-        let vertex_buffer = self.vertex_buffer.clone();
+        let textures = self.textures.clone();
+        let tile_vertices = self.tile_vertices.clone();
         ui.painter().add(egui::PaintCallback {
             rect: canvas_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |device, queue, _encoder, paint_callback_resources| {
                         //
-                        paint_callback_resources.insert(atlas.clone());
-                        paint_callback_resources.insert(vertex_buffer.clone());
+                        paint_callback_resources.insert(textures.clone());
+                        paint_callback_resources.insert(tile_vertices.clone());
                         vec![]
                     })
                     .paint(move |_info, render_pass, paint_callback_resources| {
                         //
-                        let atlas: &Arc<WgpuTexture> = paint_callback_resources
+                        let textures: &Arc<Textures> = paint_callback_resources
                             .get()
-                            .expect("failed to get tileset atlas");
-                        let vertex_buffer: &Arc<wgpu::Buffer> = paint_callback_resources
+                            .expect("failed to get tileset textures");
+                        let tile_vertices: &Arc<TileVertices> = paint_callback_resources
                             .get()
                             .expect("failed to get vertex buffer");
 
                         render_pass.set_pipeline(&TILEMAP_SHADER);
-                        render_pass.set_bind_group(0, &atlas.bind_group, &[]);
-                        render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                        render_pass.draw(0..6, 0..1);
+                        render_pass.set_bind_group(0, &textures.atlas.bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, tile_vertices.buffer.slice(..));
+
+                        render_pass.draw(0..tile_vertices.vertices, 0..tile_vertices.instances);
                     }),
             ),
         });
@@ -192,7 +167,10 @@ impl Tilemap {
 
     pub fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
         let (canvas_rect, response) = ui.allocate_exact_size(
-            egui::vec2(TILESET_WIDTH as f32, self.textures.tileset_height as f32),
+            egui::vec2(
+                TILESET_WIDTH as f32,
+                self.textures.atlas.tileset_height as f32,
+            ),
             egui::Sense::click(),
         );
 
@@ -212,19 +190,10 @@ impl Tilemap {
     }
 
     #[allow(unused_variables, unused_assignments)]
-    fn load_data(id: i32) -> Result<Textures, String> {
+    fn load_data(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<Textures, String> {
         let state = state!();
-        // Load the map.
 
-        let map = state.data_cache.load_map(id)?;
-        // Get tilesets.
-        let tilesets = state.data_cache.tilesets();
-
-        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-        let tileset = &tilesets[map.tileset_id as usize - 1];
-
-        let (atlas, tileset_height) = Self::build_atlas(tileset)?;
-        let atlas = Arc::new(atlas);
+        let atlas = Self::build_atlas(tileset)?;
 
         let event_texs = map
             .events
@@ -258,15 +227,116 @@ impl Tilemap {
             event_texs,
             fog_tex,
             pano_tex,
-            tileset_height,
         })
     }
 
-    fn build_atlas(tileset: &rpg::Tileset) -> Result<(WgpuTexture, u32), String> {
+    fn generate_tile_vertices(map: &rpg::Map, atlas: &Atlas) -> TileVertices {
+        let render_state = &state!().render_state;
+
+        let mut vertices: Vec<Vertex> = vec![];
+        let mut instances = 0;
+
+        let tile_width = 32. / atlas.atlas_texture.width() as f32;
+        let tile_height = 32. / atlas.atlas_texture.height() as f32;
+        for (index, tile_id) in map.data.iter().copied().enumerate() {
+            if tile_id < 48 {
+                continue;
+            }
+            //     | that is index
+            // [0, 200, 96, 385, ...]
+
+            // We reset the x every xsize elements.
+            let x = (index % map.data.xsize()) as f32;
+            // We reset the y every ysize elements, but only increment it every xsize elements.
+            let y = ((index / map.data.xsize()) % map.data.ysize()) as f32;
+            // We change the z every xsize * ysize elements.
+            let z = (index / (map.data.xsize() * map.data.ysize())) as f32;
+
+            let x = x - map.width as f32;
+            let y = map.height as f32 - y;
+            let z = z - map.data.zsize() as f32;
+
+            if tile_id >= 384 {
+                let tex_x = 0.;
+                let tex_y = 0.;
+
+                // Tiles are made like this:
+                // A-----C
+                // | \ / |
+                // | / \ |
+                // B-----D
+
+                // FIRST TRIANGLE
+                // A-----C
+                // |   /
+                // | /
+                // B
+
+                // A
+                vertices.push(Vertex {
+                    position: [x, y, z],
+                    tex_coords: [tex_x, tex_y],
+                });
+                // C
+                vertices.push(Vertex {
+                    position: [x + 1., y, z],
+                    tex_coords: [tex_x + tile_width, tex_y],
+                });
+                // B
+                vertices.push(Vertex {
+                    position: [x, y + 1., z],
+                    tex_coords: [tex_x, tex_y + tile_height],
+                });
+                instances += 1;
+
+                // SECOND TRIANGLE
+                //       C
+                //     / |
+                //   /   |
+                // B-----D
+                // C
+                vertices.push(Vertex {
+                    position: [x + 1., y, z],
+                    tex_coords: [tex_x + tile_width, tex_y],
+                });
+                // D
+                vertices.push(Vertex {
+                    position: [x + 1., y + 1., z],
+                    tex_coords: [tex_x + tile_width, tex_y + tile_height],
+                });
+                // B
+                vertices.push(Vertex {
+                    position: [x, y + 1., z],
+                    tex_coords: [tex_x, tex_y + tile_height],
+                });
+                instances += 1;
+            }
+        }
+
+        let buffer = render_state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("map_vertices"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        TileVertices {
+            buffer,
+            vertices: vertices.len() as u32,
+            instances,
+        }
+    }
+
+    fn build_atlas(tileset: &rpg::Tileset) -> Result<Atlas, String> {
         let tileset_img = state!()
             .image_cache
             .load_image("Graphics/Tilesets", &tileset.tileset_name)?;
         let tileset_img = tileset_img.to_rgba8();
+        // Tileset height brought up to the closest MAX_SIZE
+        let effective_tileset_height = tileset_img.height() % MAX_SIZE + tileset_img.height();
+        println!("effective_tileset_height: {effective_tileset_height}");
+
         let autotiles: Vec<_> = tileset
             .autotile_names
             .iter()
@@ -282,10 +352,11 @@ impl Tilemap {
             })
             .try_collect()?;
 
-        let mut auotile_width = 0;
+        let mut autotile_width = 0;
         for at in autotiles.iter().flatten() {
-            auotile_width = auotile_width.max(at.texture.width());
+            autotile_width = autotile_width.max(at.texture.width());
         }
+        println!("{autotile_width}");
 
         let render_state = &state!().render_state;
         let mut encoder =
@@ -298,22 +369,24 @@ impl Tilemap {
         let width;
         let height;
         if TOTAL_AUTOTILE_HEIGHT + tileset_img.height() < MAX_SIZE {
-            width = auotile_width.max(tileset_img.width()); // in case we have less autotiles frames than the tileset is wide
+            width = autotile_width.max(tileset_img.width()); // in case we have less autotiles frames than the tileset is wide
             height = TOTAL_AUTOTILE_HEIGHT + tileset_img.height(); // we're sure that the tileset can fit into the atlas just fine
         } else {
             // I have no idea how this math works.
             // Like at all lmao
-            let rows_under = tileset_img
-                .height()
-                .div_ceil(UNDER_HEIGHT)
-                .min(auotile_width.div_ceil(UNDER_HEIGHT));
-            let rows_side = (tileset_img.height() - rows_under * UNDER_HEIGHT) / MAX_SIZE;
+            let rows_under = u32::min(
+                tileset_img.height().div_ceil(UNDER_HEIGHT),
+                autotile_width.div_ceil(TILESET_WIDTH),
+            );
+            let rows_side = (tileset_img.height() - rows_under * UNDER_HEIGHT).div_ceil(MAX_SIZE);
+            println!("rows_under: {rows_under}");
+            println!("rows_side: {rows_side}");
 
             width = (rows_under + rows_side) * TILESET_WIDTH;
             height = MAX_SIZE;
         }
 
-        let atlas = render_state
+        let atlas_texture = render_state
             .device
             .create_texture(&wgpu::TextureDescriptor {
                 label: Some("tileset_atlas"),
@@ -330,7 +403,7 @@ impl Tilemap {
                 view_formats: &[],
             });
 
-        let mut atlas_copy = atlas.as_image_copy();
+        let mut atlas_copy = atlas_texture.as_image_copy();
 
         for (index, tile) in tileset.autotile_names.iter().enumerate() {
             if tile.is_empty() {
@@ -364,78 +437,96 @@ impl Tilemap {
                 },
             )
         } else {
-            let rows_under = tileset_img
-                .height()
-                .div_ceil(UNDER_HEIGHT)
-                .min(auotile_width.div_ceil(UNDER_HEIGHT));
-            let rows_side = (tileset_img.height() - rows_under * UNDER_HEIGHT) / MAX_SIZE;
+            // I have no idea how this math works.
+            // Like at all lmao
+            let rows_under = u32::min(
+                tileset_img.height().div_ceil(UNDER_HEIGHT),
+                autotile_width.div_ceil(TILESET_WIDTH),
+            );
+            let rows_side = (tileset_img.height() - rows_under * UNDER_HEIGHT).div_ceil(MAX_SIZE);
 
             for i in 0..rows_under {
-                atlas_copy.origin.x = i * TILESET_WIDTH;
-                atlas_copy.origin.y = TOTAL_AUTOTILE_HEIGHT;
-                let sub = tileset_img.view(0, UNDER_HEIGHT * i, TILESET_WIDTH, UNDER_HEIGHT);
-
-                let inner_width = sub.inner().width();
-                let stride = inner_width * 4;
-                let offset = ((UNDER_HEIGHT * i) * inner_width) * 4;
-
-                render_state.queue.write_texture(
-                    atlas_copy,
-                    sub.inner(),
-                    wgpu::ImageDataLayout {
-                        offset: offset as wgpu::BufferAddress,
-                        bytes_per_row: NonZeroU32::new(stride),
-                        rows_per_image: None,
-                    },
-                    wgpu::Extent3d {
-                        width: TILESET_WIDTH,
-                        height: UNDER_HEIGHT,
-                        depth_or_array_layers: 1,
-                    },
-                );
+                // out.image(tileset, TILESET_WIDTH * i, AUTOTILE_HEIGHT * AUTOTILE_AMOUNT, TILESET_WIDTH, underHeight, 0, underHeight * i, TILESET_WIDTH, underHeight);
+                //     image(img,     dx,                dy,                                dWidth,        dHeight,    sx, sy,              sWidth,        sHeight)
+                let y = UNDER_HEIGHT * i;
+                let height = if y + UNDER_HEIGHT > tileset_img.height() {
+                    tileset_img.height() - y
+                } else {
+                    UNDER_HEIGHT
+                };
+                write_texture_region(
+                    &atlas_texture,
+                    tileset_img.view(0, y, TILESET_WIDTH, height),
+                    (TILESET_WIDTH * i, TOTAL_AUTOTILE_HEIGHT),
+                )
             }
-            for i in 0..=rows_side {
-                atlas_copy.origin.x = TILESET_WIDTH * (rows_under + i);
-                atlas_copy.origin.y = 0;
-                let sub = tileset_img.view(
-                    0,
-                    (UNDER_HEIGHT * rows_under) + MAX_SIZE * i,
-                    TILESET_WIDTH,
-                    MAX_SIZE,
-                );
-
-                let inner_width = sub.inner().width();
-                let stride = inner_width * 4;
-                let offset = ((UNDER_HEIGHT * i) * inner_width) * 4;
-
-                render_state.queue.write_texture(
-                    atlas_copy,
-                    sub.inner(),
-                    wgpu::ImageDataLayout {
-                        offset: offset as wgpu::BufferAddress,
-                        bytes_per_row: NonZeroU32::new(stride),
-                        rows_per_image: None,
-                    },
-                    wgpu::Extent3d {
-                        width: TILESET_WIDTH,
-                        height: MAX_SIZE,
-                        depth_or_array_layers: 1,
-                    },
-                );
+            for i in 0..rows_side {
+                // out.image(tileset, TILESET_WIDTH * (rowsUnder + i), 0, TILESET_WIDTH, MAX_SIZE, 0, (underHeight * rowsUnder) + MAX_SIZE * i, TILESET_WIDTH, MAX_SIZE);
+                //     image(img,     dx,                             dy, dWidth,        dHeight, sx,                                       sy, sWidth,         sHeight)
+                let y = (UNDER_HEIGHT * rows_under) + MAX_SIZE * i;
+                let height = if y + MAX_SIZE > tileset_img.height() {
+                    tileset_img.height() - y
+                } else {
+                    MAX_SIZE
+                };
+                write_texture_region(
+                    &atlas_texture,
+                    tileset_img.view(0, y, TILESET_WIDTH, height),
+                    (TILESET_WIDTH * (rows_under + i), 0),
+                )
             }
         }
 
-        let bind_group = image_cache::Cache::create_texture_bind_group(&atlas);
+        let bind_group = image_cache::Cache::create_texture_bind_group(&atlas_texture);
 
-        Ok((WgpuTexture::new(atlas, bind_group), tileset_img.height()))
+        Ok(Atlas {
+            atlas_texture,
+            bind_group,
+            autotile_width,
+            tileset_height: tileset_img.height(),
+        })
     }
 }
 
-fn write_texture_region<P>(image: image::SubImage<&image::ImageBuffer<P, Vec<P::Subpixel>>>)
-where
+fn write_texture_region<P>(
+    texture: &wgpu::Texture,
+    image: image::SubImage<&image::ImageBuffer<P, Vec<P::Subpixel>>>,
+    (dest_x, dest_y): (u32, u32),
+) where
     P: image::Pixel,
     P::Subpixel: bytemuck::Pod,
 {
+    let (x, y, width, height) = image.bounds();
+    let bytes = bytemuck::cast_slice(image.inner().as_raw());
+
+    let inner_width = image.inner().width();
+    // let inner_width = subimage.width();
+    let stride = inner_width * std::mem::size_of::<P>() as u32;
+    let offset = (y * inner_width + x) * std::mem::size_of::<P>() as u32;
+
+    state!().render_state.queue.write_texture(
+        wgpu::ImageCopyTexture {
+            texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d {
+                x: dest_x,
+                y: dest_y,
+                z: 0,
+            },
+            aspect: wgpu::TextureAspect::All,
+        },
+        bytes,
+        wgpu::ImageDataLayout {
+            offset: offset as wgpu::BufferAddress,
+            bytes_per_row: NonZeroU32::new(stride),
+            rows_per_image: None,
+        },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+    );
 }
 
 fn create_tilemap_shader() -> wgpu::RenderPipeline {
