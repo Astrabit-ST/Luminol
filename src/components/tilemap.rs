@@ -82,7 +82,7 @@ static_assertions::assert_impl_all!(Textures: Send, Sync);
 static TILEMAP_SHADER: once_cell::sync::Lazy<wgpu::RenderPipeline> =
     once_cell::sync::Lazy::new(create_tilemap_shader);
 
-const MAX_SIZE: u32 = 2048; // Max texture size in one dimension
+const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 const TILE_SIZE: u32 = 32; // Tiles are 32x32
 const TILESET_WIDTH: u32 = TILE_SIZE * 8; // Tilesets are 8 tiles across
 
@@ -239,11 +239,10 @@ impl Tilemap {
         let tile_width = 32. / atlas.atlas_texture.width() as f32;
         let tile_height = 32. / atlas.atlas_texture.height() as f32;
         for (index, tile_id) in map.data.iter().copied().enumerate() {
+            let tile_id = tile_id as u32;
             if tile_id < 48 {
                 continue;
             }
-            //     | that is index
-            // [0, 200, 96, 385, ...]
 
             // We reset the x every xsize elements.
             let x = (index % map.data.xsize()) as f32;
@@ -252,62 +251,106 @@ impl Tilemap {
             // We change the z every xsize * ysize elements.
             let z = (index / (map.data.xsize() * map.data.ysize())) as f32;
 
-            let x = x - map.width as f32;
-            let y = map.height as f32 - y;
-            let z = z - map.data.zsize() as f32;
+            let x = x - map.data.xsize() as f32;
+            let y = map.data.ysize() as f32 - y;
+
+            if index == 0 {
+                println!("{}", tile_id - 384);
+            }
 
             if tile_id >= 384 {
-                let tex_x = 0.;
-                let tex_y = 0.;
+                // These are the coordinates of the tile we want, divided by 32
+                let tex_x;
+                let tex_y;
+                // If we can fit the tileset into MAX_SIZE, we don't need complex math
+                if TOTAL_AUTOTILE_HEIGHT + atlas.tileset_height < MAX_SIZE {
+                    let tile_id = tile_id - 384;
+                    // tile 384 starts at 0, AUTOTILE_AMOUNT * 4 (autotiles are 4 high!)
+                    tex_x = tile_id % 8;
+                    tex_y = (tile_id / 8) + (AUTOTILE_AMOUNT * 4);
+                } else {
+                    // The tile atlas is laid out like this:
+                    /*
+                    ? *------------------*-----------------*
+                    ? |   Autotiles      |     |     |     |
+                    ? |                  |     |     |     |
+                    ? |                  |     |     |     |
+                    ? |                  |     |     |     |
+                    ? *------------------*     |     |     |
+                    ? |     |     |     ||     |     |     |
+                    ? |     |     |     ||     |     |     |
+                    ? |     |     |     ||     |     |     |
+                    ? |     |     |     ||     |     |     |
+                    ? *------------------------------------*
+                    ! The autotile region is TOTAL_AUTOTILE_HEIGHT * atlas.autotile_width
+                    ! The tilesets under autotiles start at TOTAL_AUTOTILE_HEIGHT, and are UNDER_HEIGHT * TILESET_WIDTH
+                    */
+                    // Figure out how many rows are under the autotiles
+                    let rows_under = u32::min(
+                        atlas.tileset_height.div_ceil(UNDER_HEIGHT),
+                        atlas.autotile_width.div_ceil(TILESET_WIDTH),
+                    );
+                    // Figure out how many rows are next to the autotiles
+                    let rows_side = (atlas
+                        .tileset_height
+                        .saturating_sub(rows_under * UNDER_HEIGHT))
+                    .div_ceil(MAX_SIZE);
+                    tex_x = 0;
+                    tex_y = 0;
+                }
+                // Convert from pixel coords to texture coords
+                let tex_x = tex_x as f32 * tile_width;
+                let tex_y = tex_y as f32 * tile_height;
 
                 // Tiles are made like this:
-                // A-----C
+                // C-----D
                 // | \ / |
                 // | / \ |
-                // B-----D
+                // A-----B
 
                 // FIRST TRIANGLE
-                // A-----C
-                // |   /
-                // | /
-                // B
+                // C
+                // | \
+                // |   \
+                // A-----B
 
                 // A
                 vertices.push(Vertex {
                     position: [x, y, z],
-                    tex_coords: [tex_x, tex_y],
-                });
-                // C
-                vertices.push(Vertex {
-                    position: [x + 1., y, z],
-                    tex_coords: [tex_x + tile_width, tex_y],
+                    tex_coords: [tex_x, tex_y + tile_height],
                 });
                 // B
                 vertices.push(Vertex {
+                    position: [x + 1., y, z],
+                    tex_coords: [tex_x + tile_width, tex_y + tile_height],
+                });
+                // C
+                vertices.push(Vertex {
                     position: [x, y + 1., z],
-                    tex_coords: [tex_x, tex_y + tile_height],
+                    tex_coords: [tex_x, tex_y],
                 });
                 instances += 1;
 
                 // SECOND TRIANGLE
-                //       C
-                //     / |
-                //   /   |
-                // B-----D
-                // C
+                // C-----D
+                //   \   |
+                //     \ |
+                //       B
+
+                // B
                 vertices.push(Vertex {
                     position: [x + 1., y, z],
-                    tex_coords: [tex_x + tile_width, tex_y],
+                    tex_coords: [tex_x + tile_width, tex_y + tile_height],
+                });
+                // C
+                vertices.push(Vertex {
+                    position: [x, y + 1., z],
+                    tex_coords: [tex_x, tex_y],
                 });
                 // D
                 vertices.push(Vertex {
                     position: [x + 1., y + 1., z],
-                    tex_coords: [tex_x + tile_width, tex_y + tile_height],
-                });
-                // B
-                vertices.push(Vertex {
-                    position: [x, y + 1., z],
-                    tex_coords: [tex_x, tex_y + tile_height],
+                    tex_coords: [tex_x + tile_width, tex_y],
                 });
                 instances += 1;
             }
@@ -378,7 +421,10 @@ impl Tilemap {
                 tileset_img.height().div_ceil(UNDER_HEIGHT),
                 autotile_width.div_ceil(TILESET_WIDTH),
             );
-            let rows_side = (tileset_img.height() - rows_under * UNDER_HEIGHT).div_ceil(MAX_SIZE);
+            let rows_side = (tileset_img
+                .height()
+                .saturating_sub(rows_under * UNDER_HEIGHT))
+            .div_ceil(MAX_SIZE);
             println!("rows_under: {rows_under}");
             println!("rows_side: {rows_side}");
 
@@ -443,7 +489,10 @@ impl Tilemap {
                 tileset_img.height().div_ceil(UNDER_HEIGHT),
                 autotile_width.div_ceil(TILESET_WIDTH),
             );
-            let rows_side = (tileset_img.height() - rows_under * UNDER_HEIGHT).div_ceil(MAX_SIZE);
+            let rows_side = (tileset_img
+                .height()
+                .saturating_sub(rows_under * UNDER_HEIGHT))
+            .div_ceil(MAX_SIZE);
 
             for i in 0..rows_under {
                 // out.image(tileset, TILESET_WIDTH * i, AUTOTILE_HEIGHT * AUTOTILE_AMOUNT, TILESET_WIDTH, underHeight, 0, underHeight * i, TILESET_WIDTH, underHeight);
