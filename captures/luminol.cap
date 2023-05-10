@@ -1,0 +1,33 @@
+{
+    "rdocCaptureSettings": 1,
+    "settings": {
+        "autoStart": true,
+        "commandLine": "",
+        "environment": [
+            {
+                "separator": "Platform style",
+                "type": "Set",
+                "value": "gl",
+                "variable": "WGPU_BACKEND"
+            }
+        ],
+        "executable": "/home/lily/Git/Luminol/target/debug/luminol",
+        "inject": false,
+        "numQueuedFrames": 0,
+        "options": {
+            "allowFullscreen": true,
+            "allowVSync": false,
+            "apiValidation": true,
+            "captureAllCmdLists": false,
+            "captureCallstacks": true,
+            "captureCallstacksOnlyDraws": false,
+            "debugOutputMute": true,
+            "delayForDebugger": 0,
+            "hookIntoChildren": false,
+            "refAllResources": false,
+            "verifyBufferAccess": true
+        },
+        "queuedFrameCap": 0,
+        "workingDir": ""
+    }
+}

@@ -34,9 +34,6 @@ impl Atlas {
             .image_cache
             .load_image("Graphics/Tilesets", &tileset.tileset_name)?;
         let tileset_img = tileset_img.to_rgba8();
-        // Tileset height brought up to the closest MAX_SIZE
-        let effective_tileset_height = tileset_img.height() % MAX_SIZE + tileset_img.height();
-        println!("effective_tileset_height: {effective_tileset_height}");
 
         let autotiles: Vec<_> = tileset
             .autotile_names
