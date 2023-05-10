@@ -15,7 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{Atlas, AUTOTILE_AMOUNT, MAX_SIZE, TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT};
+use super::{
+    autotiles::AUTOTILES, Atlas, AUTOTILE_AMOUNT, MAX_SIZE, TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT,
+    UNDER_HEIGHT,
+};
 use crate::prelude::*;
 
 use wgpu::util::DeviceExt;
@@ -50,8 +53,6 @@ impl TileVertices {
 
         let mut vertices: Vec<Vertex> = vec![];
 
-        let tile_width = 32. / atlas.atlas_texture.width() as f32;
-        let tile_height = 32. / atlas.atlas_texture.height() as f32;
         for (index, tile_id) in map.data.iter().copied().enumerate() {
             let tile_id = tile_id as u32;
             if tile_id < 48 {
@@ -68,7 +69,34 @@ impl TileVertices {
             let x = x - map.data.xsize() as f32;
             let y = map.data.ysize() as f32 - y;
 
-            if tile_id >= 384 {
+            if tile_id <= 384 {
+                let autotile_width = 16. / atlas.atlas_texture.width() as f32;
+                let autotile_height = 16. / atlas.atlas_texture.height() as f32;
+                // Subtract 48, first 48 tiles are invisible
+                let tile_id = tile_id - 48;
+                let autotile_index = tile_id / 48;
+                // Display each autotile corner (taken from r48)
+                // Autotiles are made up of four "autotile regions"
+                // C-----D G-----H
+                // | \ / | | \ / |
+                // | / \ | | / \ |
+                // A-----B E-----F
+                // K-----L O-----P
+                // | \ / | | \ / |
+                // | / \ | | / \ |
+                // I-----J M-----N
+                const POSITIONS: [(i32, i32); 4] = [(0, 0), (16, 0), (0, 16), (16, 16)];
+                for (index, position) in AUTOTILES[autotile_index as usize]
+                    .into_iter()
+                    .zip(POSITIONS)
+                {
+                    let tex_x = index.x;
+                    let tex_y = index.y + 128. * autotile_index as f32;
+                }
+            } else {
+                let tile_width = 32. / atlas.atlas_texture.width() as f32;
+                let tile_height = 32. / atlas.atlas_texture.height() as f32;
+
                 // These are the coordinates of the tile we want, divided by 32
                 let tex_x;
                 let tex_y;

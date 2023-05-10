@@ -53,7 +53,7 @@ impl Shader {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Render Pipeline Layout"),
-                    bind_group_layouts: &[&texture_layout, &uniform_layout],
+                    bind_group_layouts: &[&texture_layout],
                     push_constant_ranges: &[],
                 });
         let pipeline =

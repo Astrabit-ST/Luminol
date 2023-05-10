@@ -78,6 +78,11 @@ fn main() {
             height: image.height(),
             rgba: image.into_bytes(),
         }),
+        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
+            backends: eframe::wgpu::util::backend_bits_from_env()
+                .unwrap_or(eframe::wgpu::Backends::PRIMARY),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
