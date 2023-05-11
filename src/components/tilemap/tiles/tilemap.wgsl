@@ -13,7 +13,7 @@ struct Viewport {
     // Projection matrix
     proj: mat4x4<f32>,
     // Pan
-    pan: vec2<f32>,
+    // pan: vec2<f32>,
     scale: f32,
 }
 
@@ -51,8 +51,8 @@ fn vs_main(
     //     out.tex_coords.x += (frame * AUTOTILE_WIDTH) / f32(textureDimensions(t_diffuse).y);
     // }
 
-    var model_position = (model.position.xy + viewport.pan) / (viewport.scale / 100.);
-    var position = viewport.proj * vec4<f32>(model_position, 0.0, 1.0);
+    // var model_position = (model.position.xy + viewport.pan) / (viewport.scale / 100.);
+    var position = viewport.proj * vec4<f32>(model.position.xy * (viewport.scale / 100.), 0.0, 1.0);
 
     out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;

@@ -35,9 +35,9 @@ pub struct Uniform {
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Viewport {
     proj: cgmath::Matrix4<f32>,
-    /// The tilemap pan.
-    pan: egui::Vec2,
-    /// The scale of the tilemap.
+    // The tilemap pan.
+    // pan: egui::Vec2,
+    // The scale of the tilemap.
     scale: f32,
 }
 
@@ -61,7 +61,7 @@ impl Uniform {
     pub fn new(atlas: &super::Atlas) -> Self {
         let viewport = Viewport {
             proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -1.0, 1.0),
-            pan: egui::Vec2::ZERO,
+            // pan: egui::Vec2::ZERO,
             scale: 100.,
         };
         let autotiles = Autotiles {
@@ -140,6 +140,7 @@ impl Uniform {
         self.regen_buffer();
     }
 
+    /*
     pub fn pan(&self) -> egui::Vec2 {
         self.viewport.load().pan
     }
@@ -151,6 +152,7 @@ impl Uniform {
         });
         self.regen_buffer();
     }
+    */
 
     pub fn inc_ani_index(&self) {
         let data = self.autotiles.load();

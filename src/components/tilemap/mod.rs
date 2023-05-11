@@ -31,6 +31,8 @@ pub struct Tilemap {
 
     tiles: Arc<tiles::Tiles>,
     ani_instant: Instant,
+
+    pub pan: egui::Vec2,
 }
 
 #[derive(Default, Debug)]
@@ -53,8 +55,9 @@ impl Tilemap {
             move_preview: false,
 
             tiles,
-
             ani_instant: Instant::now(),
+
+            pan: egui::Vec2::ZERO,
         })
     }
 
@@ -64,9 +67,6 @@ impl Tilemap {
         map: &rpg::Map,
         map_id: i32,
         cursor_pos: &mut egui::Pos2,
-        toggled_layers: &[bool],
-        selected_layer: usize,
-        dragging_event: bool,
     ) -> egui::Response {
         if Instant::now().duration_since(self.ani_instant).as_millis() > 16 {
             self.ani_instant = Instant::now();
@@ -80,9 +80,75 @@ impl Tilemap {
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect);
 
+        let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
+
+        // Handle zoom
+        if let Some(pos) = response.hover_pos() {
+            let mut scale = self.scale();
+            // We need to store the old scale before applying any transformations
+            let old_scale = scale;
+            let delta = ui.input(|i| i.scroll_delta.y * 5.0);
+
+            // Apply scroll and cap max zoom to 15%
+            scale += delta / 30.;
+            scale = 15.0_f32.max(scale);
+
+            // Get the normalized cursor position relative to pan
+            let pos_norm = (pos - self.pan - canvas_center) / old_scale;
+            // Offset the pan to the cursor remains in the same place
+            // Still not sure how the math works out, if it ain't broke don't fix it
+            self.pan = pos - canvas_center - pos_norm * scale;
+
+            // Figure out the tile the cursor is hovering over
+            let tile_size = (scale / 100.) * 32.;
+            let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
+                + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
+            // Force the cursor to a tile instead of in-between
+            pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
+            pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
+            // Handle input
+
+            if scale != self.scale() {
+                self.set_scale(scale);
+            }
+        }
+
+        // Handle pan
+        let panning_map_view = response.dragged_by(egui::PointerButton::Middle)
+            || (ui.input(|i| {
+                i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
+            }));
+        if panning_map_view {
+            self.pan += response.drag_delta();
+        }
+
+        // Handle cursor icon
+        if panning_map_view {
+            response = response.on_hover_cursor(egui::CursorIcon::Grabbing);
+        } else {
+            response = response.on_hover_cursor(egui::CursorIcon::Grab);
+        }
+
+        // Determine some values which are relatively constant
+        // If we don't use pixels_per_point then the map is the wrong size.
+        // *don't ask me how i know this*.
+        // its a *long* story
+        let scale = self.scale() / (ui.ctx().pixels_per_point() * 100.);
+        let tile_size = 32. * scale;
+        let canvas_pos = canvas_center + self.pan;
+
+        let width2 = map.width as f32 / 2.;
+        let height2 = map.height as f32 / 2.;
+
+        let pos = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
+        let map_rect = egui::Rect {
+            min: canvas_pos - pos,
+            max: canvas_pos + pos,
+        };
+
         let tiles = self.tiles.clone();
         ui.painter().add(egui::PaintCallback {
-            rect: canvas_rect,
+            rect: map_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
@@ -115,57 +181,46 @@ impl Tilemap {
             ),
         });
 
-        let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
+        ui.painter().rect_stroke(
+            map_rect,
+            5.0,
+            egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
+        );
 
-        let mut scale = self.tiles.uniform.scale();
-        let mut pan = self.tiles.uniform.pan();
+        // Do we display the visible region?
+        if self.visible_display {
+            // Determine the visible region.
+            let width2: f32 = (640. / 2.) * scale;
+            let height2: f32 = (480. / 2.) * scale;
 
-        // Handle zoom
-        if let Some(pos) = response.hover_pos() {
-            // We need to store the old scale before applying any transformations
-            let old_scale = scale;
-            let delta = ui.input(|i| i.scroll_delta.y * 5.0);
+            let pos = egui::Vec2::new(width2, height2);
+            let visible_rect = egui::Rect {
+                min: canvas_center - pos,
+                max: canvas_center + pos,
+            };
 
-            // Apply scroll and cap max zoom to 15%
-            scale += delta / 30.;
-            scale = 15.0_f32.max(scale);
-
-            // Get the normalized cursor position relative to pan
-            let pos_norm = (pos - pan - canvas_center) / old_scale;
-            // Offset the pan to the cursor remains in the same place
-            // Still not sure how the math works out, if it ain't broke don't fix it
-            pan = pos - canvas_center - pos_norm * scale;
-
-            // Figure out the tile the cursor is hovering over
-            let tile_size = (scale / 100.) * 32.;
-            let mut pos_tile = (pos - pan - canvas_center) / tile_size
-                + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
-            // Force the cursor to a tile instead of in-between
-            pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
-            pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
-            // Handle input
-            if selected_layer < map.data.zsize() || dragging_event || response.clicked() {
-                *cursor_pos = pos_tile.to_pos2();
-            }
+            // Show the region.
+            ui.painter().rect_stroke(
+                visible_rect,
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::YELLOW),
+            );
         }
 
-        let panning_map_view = response.dragged_by(egui::PointerButton::Middle)
-            || (ui.input(|i| {
-                i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
-            }));
-        if panning_map_view {
-            pan += response.drag_delta();
-        }
+        // Display cursor.
+        let cursor_rect = egui::Rect::from_min_size(
+            map_rect.min + (cursor_pos.to_vec2() * tile_size),
+            egui::Vec2::splat(tile_size),
+        );
+        ui.painter().rect_stroke(
+            cursor_rect,
+            5.0,
+            egui::Stroke::new(1.0, egui::Color32::YELLOW),
+        );
 
-        // Handle cursor icon
-        if panning_map_view {
-            response = response.on_hover_cursor(egui::CursorIcon::Grabbing);
-        } else {
-            response = response.on_hover_cursor(egui::CursorIcon::Grab);
-        }
-
-        self.tiles.uniform.set_scale(scale);
+        /*
         self.tiles.uniform.set_pan(pan);
+        */
 
         response
     }
