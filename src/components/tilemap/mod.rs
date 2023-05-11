@@ -16,9 +16,9 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 mod atlas;
 mod autotiles;
+mod quad;
 mod shader;
 mod vertices;
-mod quad;
 
 use atlas::Atlas;
 
@@ -123,10 +123,8 @@ impl Tilemap {
                             .expect("failed to get vertex buffer");
 
                         Shader::bind(render_pass);
-                        render_pass.set_bind_group(0, &textures.atlas.bind_group, &[]);
-                        render_pass.set_vertex_buffer(0, tile_vertices.buffer.slice(..));
-
-                        render_pass.draw(0..tile_vertices.vertices, 0..1);
+                        textures.atlas.bind(render_pass);
+                        tile_vertices.draw(render_pass);
                     }),
             ),
         });

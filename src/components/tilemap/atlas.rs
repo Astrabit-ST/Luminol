@@ -190,6 +190,10 @@ impl Atlas {
             tileset_height: tileset_img.height(),
         })
     }
+
+    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
+    }
 }
 
 fn write_texture_region<P>(
