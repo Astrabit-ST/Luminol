@@ -28,6 +28,8 @@ egui-notify = "0.6"
 egui_dock = "0.4"
 catppuccin-egui = "2.0.1"
 
+cgmath = "0.18"
+
 image = { version = "0.24", features = ["jpeg", "png"] }
 
 strum = { version = "0.24.1", features = ["derive"] }

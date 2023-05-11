@@ -59,8 +59,6 @@ impl TileVertices {
             // We change the z every xsize * ysize elements.
             let map_z = index / (map.data.xsize() * map.data.ysize());
 
-            let map_y = map.data.ysize() - map_y;
-
             // There are 4 cases we need to handle here:
             match tile {
                 // The tile is blank
@@ -72,8 +70,8 @@ impl TileVertices {
                     let tile = tile - 384;
 
                     let pos = egui::Rect::from_min_size(
-                        egui::pos2(map_x as f32, map_y as f32),
-                        egui::vec2(1., 1.),
+                        egui::pos2(map_x as f32 * 32., map_y as f32 * 32.),
+                        egui::vec2(32., 32.),
                     );
 
                     let tile_x = (tile % 8) as f32 * 32.;

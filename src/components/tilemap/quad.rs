@@ -45,7 +45,7 @@ impl TileQuad {
         let Self { pos, tex_coords, z } = self;
         let top_left = {
             let position = pos.left_top();
-            let tex_coords = tex_coords.left_bottom();
+            let tex_coords = tex_coords.left_top();
             Vertex {
                 position: [position.x, position.y, z],
                 tex_coords: [tex_coords.x, tex_coords.y],
@@ -53,7 +53,7 @@ impl TileQuad {
         };
         let top_right = {
             let position = pos.right_top();
-            let tex_coords = tex_coords.right_bottom();
+            let tex_coords = tex_coords.right_top();
             Vertex {
                 position: [position.x, position.y, z],
                 tex_coords: [tex_coords.x, tex_coords.y],
@@ -61,7 +61,7 @@ impl TileQuad {
         };
         let bottom_right = {
             let position = pos.right_bottom();
-            let tex_coords = tex_coords.right_top();
+            let tex_coords = tex_coords.right_bottom();
             Vertex {
                 position: [position.x, position.y, z],
                 tex_coords: [tex_coords.x, tex_coords.y],
@@ -69,7 +69,7 @@ impl TileQuad {
         };
         let bottom_left = {
             let position = pos.left_bottom();
-            let tex_coords = tex_coords.left_top();
+            let tex_coords = tex_coords.left_bottom();
             Vertex {
                 position: [position.x, position.y, z],
                 tex_coords: [tex_coords.x, tex_coords.y],
