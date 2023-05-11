@@ -61,12 +61,31 @@ impl TileVertices {
             // We change the z every xsize * ysize elements.
             let map_z = index / (map.data.xsize() * map.data.ysize());
 
+            let map_y = map.data.ysize() - map_y;
+
+            // There are 4 cases we need to handle here:
             match tile {
-                0..=47 => {
-                    continue;
-                }
+                // The tile is blank
+                0..=47 => continue,
+                // The tile is an autotile
                 48..=384 => {}
-                tile if atlas.tileset_height + TOTAL_AUTOTILE_HEIGHT <= MAX_SIZE => {}
+                // The tileset does not wrap
+                tile if atlas.tileset_height + TOTAL_AUTOTILE_HEIGHT <= MAX_SIZE => {
+                    let tile = tile - 384;
+
+                    let pos = egui::Rect::from_min_size(
+                        egui::pos2(map_x as f32, map_y as f32),
+                        egui::vec2(1., 1.),
+                    );
+
+                    let tile_x = (tile % 8) as f32 * 32.;
+                    let tile_y = (tile as u32 / 8 + AUTOTILE_AMOUNT * 4) as f32 * 32.;
+                    let tex_coords =
+                        egui::Rect::from_min_size(egui::pos2(tile_x, tile_y), egui::vec2(32., 32.));
+
+                    quads.push(TileQuad::new(pos, tex_coords, map_z as f32));
+                }
+                // The tileset *does* wrap
                 tile => {}
             }
         }
