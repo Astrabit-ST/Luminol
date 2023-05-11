@@ -139,6 +139,18 @@ impl Uniform {
         self.regen_buffer();
     }
 
+    pub fn pan(&self) -> egui::Vec2 {
+        self.viewport.load().pan
+    }
+
+    pub fn set_pan(&self, pan: egui::Vec2) {
+        self.viewport.store(Viewport {
+            pan,
+            ..self.viewport.load()
+        });
+        self.regen_buffer();
+    }
+
     pub fn inc_ani_index(&self) {
         let data = self.autotiles.load();
         self.autotiles.store(Autotiles {
