@@ -169,6 +169,7 @@ impl tab::Tab for Tab {
                 let response = self.tilemap.ui(
                     ui,
                     &map,
+                    self.id,
                     &mut self.cursor_pos,
                     &self.toggled_layers,
                     self.selected_layer,

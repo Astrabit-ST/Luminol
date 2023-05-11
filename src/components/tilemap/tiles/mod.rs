@@ -21,6 +21,8 @@ mod shader;
 mod uniform;
 mod vertices;
 
+use crate::prelude::*;
+
 pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
 pub const TILESET_WIDTH: u32 = TILE_SIZE * 8; // Tilesets are 8 tiles across
@@ -30,7 +32,36 @@ pub const AUTOTILE_AMOUNT: u32 = 7; // There are 7 autotiles per tileset
 pub const TOTAL_AUTOTILE_HEIGHT: u32 = AUTOTILE_HEIGHT * AUTOTILE_AMOUNT;
 pub const UNDER_HEIGHT: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT;
 
-pub use self::uniform::Uniform;
-pub use atlas::Atlas;
-pub use shader::Shader;
-pub use vertices::TileVertices;
+use atlas::Atlas;
+use shader::Shader;
+use uniform::Uniform;
+use vertices::TileVertices;
+
+#[derive(Debug)]
+pub struct Tiles {
+    pub uniform: Uniform,
+    pub atlas: Atlas,
+    vertices: TileVertices,
+}
+
+impl Tiles {
+    pub fn new(tileset: &rpg::Tileset, map: &rpg::Map) -> Result<Self, String> {
+        let atlas = Atlas::new(tileset)?;
+        let uniform = Uniform::new(&atlas);
+        let vertices = TileVertices::new(map, &atlas);
+
+        Ok(Self {
+            uniform,
+            atlas,
+            vertices,
+        })
+    }
+
+    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.push_debug_group("tilemap tiles renderer");
+        Shader::bind(render_pass);
+        self.uniform.bind(render_pass);
+        self.atlas.bind(render_pass);
+        self.vertices.draw(render_pass);
+    }
+}

@@ -21,6 +21,7 @@ use super::{
 use super::{quad::TileQuad, Atlas};
 use crate::prelude::*;
 
+#[derive(Debug)]
 pub struct TileVertices {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
