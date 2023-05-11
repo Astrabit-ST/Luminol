@@ -21,6 +21,7 @@ use crate::prelude::*;
 use image::GenericImageView;
 use std::num::NonZeroU32;
 
+#[derive(Debug)]
 pub struct Atlas {
     pub atlas_texture: wgpu::Texture,
     pub bind_group: wgpu::BindGroup,

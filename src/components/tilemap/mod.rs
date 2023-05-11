@@ -22,7 +22,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 pub use crate::prelude::*;
-use image_cache::WgpuTexture;
 
 pub struct Tilemap {
     /// Toggle to display the visible region in-game.
@@ -30,20 +29,12 @@ pub struct Tilemap {
     /// Toggle move route preview
     pub move_preview: bool,
 
-    textures: Arc<Textures>,
-    tile_vertices: Arc<tiles::TileVertices>,
-    uniform: Arc<tiles::Uniform>,
+    tiles: Arc<tiles::Tiles>,
     ani_instant: Instant,
 }
 
-struct Textures {
-    atlas: tiles::Atlas,
-    event_texs: HashMap<String, Arc<WgpuTexture>>,
-    fog_tex: Option<Arc<WgpuTexture>>,
-    pano_tex: Option<Arc<WgpuTexture>>,
-}
-
-static_assertions::assert_impl_all!(Textures: Send, Sync);
+#[derive(Default, Debug)]
+struct Resources(HashMap<i32, Arc<tiles::Tiles>>);
 
 impl Tilemap {
     pub fn new(id: i32) -> Result<Tilemap, String> {
@@ -54,21 +45,15 @@ impl Tilemap {
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
-        let textures = Arc::new(Self::load_data(&map, tileset)?);
-
-        let vertex_buffer = tiles::TileVertices::new(&map, &textures.atlas);
-        let vertex_buffer = Arc::new(vertex_buffer);
-
-        let uniform = tiles::Uniform::new(&textures.atlas);
-        let uniform = Arc::new(uniform);
+        let tiles = tiles::Tiles::new(tileset, &map)?;
+        let tiles = Arc::new(tiles);
 
         Ok(Self {
             visible_display: false,
             move_preview: false,
 
-            textures,
-            tile_vertices: vertex_buffer,
-            uniform,
+            tiles,
+
             ani_instant: Instant::now(),
         })
     }
@@ -77,6 +62,7 @@ impl Tilemap {
         &mut self,
         ui: &mut egui::Ui,
         map: &rpg::Map,
+        map_id: i32,
         cursor_pos: &mut egui::Pos2,
         toggled_layers: &[bool],
         selected_layer: usize,
@@ -84,7 +70,7 @@ impl Tilemap {
     ) -> egui::Response {
         if Instant::now().duration_since(self.ani_instant).as_millis() > 16 {
             self.ani_instant = Instant::now();
-            self.uniform.inc_ani_index();
+            self.tiles.uniform.inc_ani_index();
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(16));
         }
@@ -94,32 +80,28 @@ impl Tilemap {
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect);
 
-        let textures = self.textures.clone();
-        let tile_vertices = self.tile_vertices.clone();
-        let uniform = self.uniform.clone();
+        let tiles = self.tiles.clone();
         ui.painter().add(egui::PaintCallback {
             rect: canvas_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
                         //
-                        paint_callback_resources.insert(textures.clone());
-                        paint_callback_resources.insert(tile_vertices.clone());
-                        paint_callback_resources.insert(uniform.clone());
+                        let resources: &mut Resources = paint_callback_resources
+                            .entry()
+                            .or_insert_with(Default::default);
+                        resources.0.insert(map_id, tiles.clone());
+
                         vec![]
                     })
                     .paint(move |info, render_pass, paint_callback_resources| {
                         //
-                        let textures: &Arc<Textures> = paint_callback_resources
+                        let resources: &Resources = paint_callback_resources
                             .get()
-                            .expect("failed to get tileset textures");
-                        let tile_vertices: &Arc<tiles::TileVertices> = paint_callback_resources
-                            .get()
-                            .expect("failed to get vertex buffer");
-                        let uniform: &Arc<tiles::Uniform> = paint_callback_resources
-                            .get()
-                            .expect("failed to get tilemap uniform");
-                        uniform.set_proj(cgmath::ortho(
+                            .expect("failed to get tilemap resources");
+                        let tiles = resources.0[&map_id].as_ref();
+
+                        tiles.uniform.set_proj(cgmath::ortho(
                             0.0,
                             info.viewport_in_pixels().width_px,
                             info.viewport_in_pixels().height_px,
@@ -128,18 +110,15 @@ impl Tilemap {
                             1.0,
                         ));
 
-                        tiles::Shader::bind(render_pass);
-                        uniform.bind(render_pass);
-                        textures.atlas.bind(render_pass);
-                        tile_vertices.draw(render_pass);
+                        tiles.draw(render_pass);
                     }),
             ),
         });
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
-        let mut scale = self.uniform.scale();
-        let mut pan = self.uniform.pan();
+        let mut scale = self.tiles.uniform.scale();
+        let mut pan = self.tiles.uniform.pan();
 
         // Handle zoom
         if let Some(pos) = response.hover_pos() {
@@ -185,8 +164,8 @@ impl Tilemap {
             response = response.on_hover_cursor(egui::CursorIcon::Grab);
         }
 
-        self.uniform.set_scale(scale);
-        self.uniform.set_pan(pan);
+        self.tiles.uniform.set_scale(scale);
+        self.tiles.uniform.set_pan(pan);
 
         response
     }
@@ -195,7 +174,7 @@ impl Tilemap {
         let (canvas_rect, response) = ui.allocate_exact_size(
             egui::vec2(
                 tiles::TILESET_WIDTH as f32,
-                self.textures.atlas.tileset_height as f32,
+                self.tiles.atlas.tileset_height as f32,
             ),
             egui::Sense::click(),
         );
@@ -216,18 +195,17 @@ impl Tilemap {
     }
 
     pub fn scale(&mut self) -> f32 {
-        self.uniform.scale()
+        self.tiles.uniform.scale()
     }
 
     pub fn set_scale(&self, scale: f32) {
-        self.uniform.set_scale(scale);
+        self.tiles.uniform.set_scale(scale);
     }
 
+    /*
     #[allow(unused_variables, unused_assignments)]
-    fn load_data(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<Textures, String> {
+    fn load_data(map: &rpg::Map, tileset: &rpg::Tileset) {
         let state = state!();
-
-        let atlas = tiles::Atlas::new(tileset)?;
 
         let event_texs = map
             .events
@@ -256,11 +234,6 @@ impl Tilemap {
             .ok();
 
         // Finally create and return the struct.
-        Ok(Textures {
-            atlas,
-            event_texs,
-            fog_tex,
-            pano_tex,
-        })
     }
+    */
 }

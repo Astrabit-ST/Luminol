@@ -20,6 +20,7 @@ use super::Shader;
 use crate::prelude::*;
 use crossbeam::atomic::AtomicCell;
 
+#[derive(Debug)]
 pub struct Uniform {
     viewport: AtomicCell<Viewport>,
     autotiles: AtomicCell<Autotiles>,

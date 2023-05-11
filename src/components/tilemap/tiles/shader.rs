@@ -17,6 +17,7 @@
 use super::vertices::Vertex;
 use crate::prelude::*;
 
+#[derive(Debug)]
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
     pub uniform_layout: wgpu::BindGroupLayout,
