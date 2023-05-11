@@ -14,25 +14,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-mod atlas;
-mod autotiles;
-mod quad;
-mod shader;
-mod uniform;
-mod vertices;
-
-use atlas::Atlas;
-
-use shader::Shader;
-use vertices::TileVertices;
+mod events;
+mod planes;
+mod tiles;
 
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::image_cache::WgpuTexture;
-use crate::prelude::*;
-
-use self::uniform::Uniform;
+pub use crate::prelude::*;
+use image_cache::WgpuTexture;
 
 pub struct Tilemap {
     /// Toggle to display the visible region in-game.
@@ -41,28 +31,19 @@ pub struct Tilemap {
     pub move_preview: bool,
 
     textures: Arc<Textures>,
-    tile_vertices: Arc<TileVertices>,
-    uniform: Arc<Uniform>,
+    tile_vertices: Arc<tiles::TileVertices>,
+    uniform: Arc<tiles::Uniform>,
     ani_instant: Instant,
 }
 
 struct Textures {
-    atlas: Atlas,
+    atlas: tiles::Atlas,
     event_texs: HashMap<String, Arc<WgpuTexture>>,
     fog_tex: Option<Arc<WgpuTexture>>,
     pano_tex: Option<Arc<WgpuTexture>>,
 }
 
 static_assertions::assert_impl_all!(Textures: Send, Sync);
-
-const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
-const TILE_SIZE: u32 = 32; // Tiles are 32x32
-const TILESET_WIDTH: u32 = TILE_SIZE * 8; // Tilesets are 8 tiles across
-
-const AUTOTILE_HEIGHT: u32 = TILE_SIZE * 4; // Autotiles are 4 tiles high
-const AUTOTILE_AMOUNT: u32 = 7; // There are 7 autotiles per tileset
-const TOTAL_AUTOTILE_HEIGHT: u32 = AUTOTILE_HEIGHT * AUTOTILE_AMOUNT;
-const UNDER_HEIGHT: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT;
 
 impl Tilemap {
     pub fn new(id: i32) -> Result<Tilemap, String> {
@@ -75,10 +56,10 @@ impl Tilemap {
 
         let textures = Arc::new(Self::load_data(&map, tileset)?);
 
-        let vertex_buffer = TileVertices::new(&map, &textures.atlas);
+        let vertex_buffer = tiles::TileVertices::new(&map, &textures.atlas);
         let vertex_buffer = Arc::new(vertex_buffer);
 
-        let uniform = Uniform::new(&textures.atlas);
+        let uniform = tiles::Uniform::new(&textures.atlas);
         let uniform = Arc::new(uniform);
 
         Ok(Self {
@@ -120,7 +101,7 @@ impl Tilemap {
             rect: canvas_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
-                    .prepare(move |device, queue, _encoder, paint_callback_resources| {
+                    .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
                         //
                         paint_callback_resources.insert(textures.clone());
                         paint_callback_resources.insert(tile_vertices.clone());
@@ -132,10 +113,10 @@ impl Tilemap {
                         let textures: &Arc<Textures> = paint_callback_resources
                             .get()
                             .expect("failed to get tileset textures");
-                        let tile_vertices: &Arc<TileVertices> = paint_callback_resources
+                        let tile_vertices: &Arc<tiles::TileVertices> = paint_callback_resources
                             .get()
                             .expect("failed to get vertex buffer");
-                        let uniform: &Arc<Uniform> = paint_callback_resources
+                        let uniform: &Arc<tiles::Uniform> = paint_callback_resources
                             .get()
                             .expect("failed to get tilemap uniform");
                         uniform.set_proj(cgmath::ortho(
@@ -147,7 +128,7 @@ impl Tilemap {
                             1.0,
                         ));
 
-                        Shader::bind(render_pass);
+                        tiles::Shader::bind(render_pass);
                         uniform.bind(render_pass);
                         textures.atlas.bind(render_pass);
                         tile_vertices.draw(render_pass);
@@ -213,7 +194,7 @@ impl Tilemap {
     pub fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
         let (canvas_rect, response) = ui.allocate_exact_size(
             egui::vec2(
-                TILESET_WIDTH as f32,
+                tiles::TILESET_WIDTH as f32,
                 self.textures.atlas.tileset_height as f32,
             ),
             egui::Sense::click(),
@@ -246,7 +227,7 @@ impl Tilemap {
     fn load_data(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<Textures, String> {
         let state = state!();
 
-        let atlas = Atlas::new(tileset)?;
+        let atlas = tiles::Atlas::new(tileset)?;
 
         let event_texs = map
             .events

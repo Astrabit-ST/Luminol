@@ -16,9 +16,9 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{
-    autotiles::AUTOTILES, quad::TileQuad, Atlas, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE,
-    TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT,
+    autotiles::AUTOTILES, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TOTAL_AUTOTILE_HEIGHT,
 };
+use super::{quad::TileQuad, Atlas};
 use crate::prelude::*;
 
 pub struct TileVertices {
@@ -48,8 +48,6 @@ impl Vertex {
 
 impl TileVertices {
     pub fn new(map: &rpg::Map, atlas: &Atlas) -> Self {
-        let render_state = &state!().render_state;
-
         let mut quads = Vec::with_capacity(map.data.len());
         for (index, tile) in map.data.iter().copied().enumerate() {
             // We reset the x every xsize elements.
