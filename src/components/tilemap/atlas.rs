@@ -26,6 +26,7 @@ pub struct Atlas {
     pub bind_group: wgpu::BindGroup,
     pub autotile_width: u32,
     pub tileset_height: u32,
+    pub autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
 }
 
 impl Atlas {
@@ -49,6 +50,14 @@ impl Atlas {
                 }
             })
             .try_collect()?;
+
+        let autotile_frames = std::array::from_fn(|i| {
+            autotiles[i]
+                .as_deref()
+                .map(image_cache::WgpuTexture::width)
+                .unwrap_or(0)
+                / 96
+        });
 
         let mut autotile_width = 0;
         for at in autotiles.iter().flatten() {
@@ -188,6 +197,7 @@ impl Atlas {
             bind_group,
             autotile_width,
             tileset_height: tileset_img.height(),
+            autotile_frames,
         })
     }
 

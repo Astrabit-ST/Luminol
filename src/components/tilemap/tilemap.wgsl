@@ -9,24 +9,33 @@ struct VertexOutput {
     @location(0) tex_coords: vec2<f32>,
 }
 
-struct Uniform {
+struct Viewport {
+    proj: mat4x4<f32>,
     pan: vec2<f32>,
     scale: f32,
 }
 @group(1) @binding(0) // 1.
-var<uniform> uniform_data: Uniform;
+var<uniform> viewport: Viewport;
+
+struct Autotiles {
+    frame_counts: array<u32, 7>,
+    autotile_region_width: u32,
+    ani_frame: u32,
+}
+
+@group(1) @binding(1)
+var<storage, read> autotiles: Autotiles;
 
 @vertex
 fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    var position = model.position;
-    position *= (uniform_data.scale / 300.);
-    position.x -= 1.;
-    position.y -= 1.;
+    var model_position = model.position.xy;
+    var position = viewport.proj * vec4<f32>(model_position, 0.0, 1.0);
+
     out.tex_coords = model.tex_coords;
-    out.clip_position = vec4<f32>(position, 1.0);
+    out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;
 }
 

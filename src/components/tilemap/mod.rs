@@ -27,6 +27,7 @@ use shader::Shader;
 use vertices::TileVertices;
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::image_cache::WgpuTexture;
 use crate::prelude::*;
@@ -42,6 +43,7 @@ pub struct Tilemap {
     textures: Arc<Textures>,
     tile_vertices: Arc<TileVertices>,
     uniform: Arc<Uniform>,
+    ani_instant: Instant,
 }
 
 struct Textures {
@@ -76,7 +78,7 @@ impl Tilemap {
         let vertex_buffer = TileVertices::new(&map, &textures.atlas);
         let vertex_buffer = Arc::new(vertex_buffer);
 
-        let uniform = Uniform::new();
+        let uniform = Uniform::new(&textures.atlas);
         let uniform = Arc::new(uniform);
 
         Ok(Self {
@@ -86,6 +88,7 @@ impl Tilemap {
             textures,
             tile_vertices: vertex_buffer,
             uniform,
+            ani_instant: Instant::now(),
         })
     }
 
@@ -98,6 +101,13 @@ impl Tilemap {
         selected_layer: usize,
         dragging_event: bool,
     ) -> egui::Response {
+        if Instant::now().duration_since(self.ani_instant).as_millis() > 16 {
+            self.ani_instant = Instant::now();
+            self.uniform.inc_ani_index();
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_millis(16));
+        }
+
         // Allocate the largest size we can for the tilemap
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
@@ -117,7 +127,7 @@ impl Tilemap {
                         paint_callback_resources.insert(uniform.clone());
                         vec![]
                     })
-                    .paint(move |_info, render_pass, paint_callback_resources| {
+                    .paint(move |info, render_pass, paint_callback_resources| {
                         //
                         let textures: &Arc<Textures> = paint_callback_resources
                             .get()
@@ -128,6 +138,14 @@ impl Tilemap {
                         let uniform: &Arc<Uniform> = paint_callback_resources
                             .get()
                             .expect("failed to get tilemap uniform");
+                        uniform.set_proj(cgmath::ortho(
+                            0.0,
+                            info.viewport_in_pixels().width_px,
+                            info.viewport_in_pixels().height_px,
+                            0.0,
+                            -1.0,
+                            1.0,
+                        ));
 
                         Shader::bind(render_pass);
                         uniform.bind(render_pass);
