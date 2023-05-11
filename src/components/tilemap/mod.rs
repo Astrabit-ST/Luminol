@@ -157,6 +157,56 @@ impl Tilemap {
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
+        let mut scale = self.uniform.scale();
+        let mut pan = self.uniform.pan();
+
+        // Handle zoom
+        if let Some(pos) = response.hover_pos() {
+            // We need to store the old scale before applying any transformations
+            let old_scale = scale;
+            let delta = ui.input(|i| i.scroll_delta.y * 5.0);
+
+            // Apply scroll and cap max zoom to 15%
+            scale += delta / 30.;
+            scale = 15.0_f32.max(scale);
+
+            // Get the normalized cursor position relative to pan
+            let pos_norm = (pos - pan - canvas_center) / old_scale;
+            // Offset the pan to the cursor remains in the same place
+            // Still not sure how the math works out, if it ain't broke don't fix it
+            pan = pos - canvas_center - pos_norm * scale;
+
+            // Figure out the tile the cursor is hovering over
+            let tile_size = (scale / 100.) * 32.;
+            let mut pos_tile = (pos - pan - canvas_center) / tile_size
+                + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
+            // Force the cursor to a tile instead of in-between
+            pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
+            pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
+            // Handle input
+            if selected_layer < map.data.zsize() || dragging_event || response.clicked() {
+                *cursor_pos = pos_tile.to_pos2();
+            }
+        }
+
+        let panning_map_view = response.dragged_by(egui::PointerButton::Middle)
+            || (ui.input(|i| {
+                i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
+            }));
+        if panning_map_view {
+            pan += response.drag_delta();
+        }
+
+        // Handle cursor icon
+        if panning_map_view {
+            response = response.on_hover_cursor(egui::CursorIcon::Grabbing);
+        } else {
+            response = response.on_hover_cursor(egui::CursorIcon::Grab);
+        }
+
+        self.uniform.set_scale(scale);
+        self.uniform.set_pan(pan);
+
         response
     }
 

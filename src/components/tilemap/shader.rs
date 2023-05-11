@@ -82,9 +82,15 @@ impl Shader {
                     fragment: Some(wgpu::FragmentState {
                         module: &shader_module,
                         entry_point: "fs_main",
-                        targets: &[Some(render_state.target_format.into())],
+                        targets: &[Some(wgpu::ColorTargetState {
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            ..render_state.target_format.into()
+                        })],
                     }),
-                    primitive: wgpu::PrimitiveState::default(),
+                    primitive: wgpu::PrimitiveState {
+                        // polygon_mode: wgpu::PolygonMode::Line,
+                        ..Default::default()
+                    },
                     depth_stencil: None,
                     multisample: wgpu::MultisampleState::default(),
                     multiview: None,

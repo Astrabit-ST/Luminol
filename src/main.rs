@@ -83,6 +83,7 @@ fn main() {
                 .unwrap_or(eframe::wgpu::Backends::PRIMARY),
             device_descriptor: eframe::wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
+                // features: eframe::wgpu::Features::POLYGON_MODE_LINE,
                 ..Default::default()
             },
             ..Default::default()

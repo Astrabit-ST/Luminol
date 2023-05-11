@@ -16,8 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{
-    autotiles::AUTOTILES, quad::TileQuad, Atlas, AUTOTILE_AMOUNT, MAX_SIZE, TILESET_WIDTH,
-    TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT,
+    autotiles::AUTOTILES, quad::TileQuad, Atlas, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE,
+    TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT,
 };
 use crate::prelude::*;
 
@@ -58,13 +58,41 @@ impl TileVertices {
             let map_y = (index / map.data.xsize()) % map.data.ysize();
             // We change the z every xsize * ysize elements.
             let map_z = index / (map.data.xsize() * map.data.ysize());
+            // let map_z = map.data.zsize() - map_z;
 
             // There are 4 cases we need to handle here:
             match tile {
                 // The tile is blank
                 0..=47 => continue,
                 // The tile is an autotile
-                48..=384 => {}
+                48..=384 => {
+                    let autotile_id = (tile / 48) - 1;
+                    for s_a in 0..2 {
+                        for s_b in 0..2 {
+                            let pos = egui::Rect::from_min_size(
+                                egui::pos2(
+                                    map_x as f32 * 32. + s_a as f32 * 16.,
+                                    map_y as f32 * 32. + s_b as f32 * 16.,
+                                ),
+                                egui::vec2(16., 16.),
+                            );
+
+                            let ti = AUTOTILES[tile as usize % 48][s_a + s_b * 2] as f32;
+                            let tile_x = ti % 6.;
+                            let tile_x = tile_x * 16.;
+
+                            let tile_y =
+                                ti / 6. * 16. + (AUTOTILE_HEIGHT * autotile_id as u32) as f32;
+
+                            let tex_coords = egui::Rect::from_min_size(
+                                egui::pos2(tile_x, tile_y),
+                                egui::vec2(16., 16.),
+                            );
+
+                            quads.push(TileQuad::new(pos, tex_coords, map_z as f32));
+                        }
+                    }
+                }
                 // The tileset does not wrap
                 tile if atlas.tileset_height + TOTAL_AUTOTILE_HEIGHT <= MAX_SIZE => {
                     let tile = tile - 384;

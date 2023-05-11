@@ -31,7 +31,7 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    var model_position = model.position.xy;
+    var model_position = (model.position.xy + viewport.pan) / (viewport.scale / 100.);
     var position = viewport.proj * vec4<f32>(model_position, 0.0, 1.0);
 
     out.tex_coords = model.tex_coords;
