@@ -21,8 +21,6 @@ use super::{
 };
 use crate::prelude::*;
 
-use wgpu::util::DeviceExt;
-
 pub struct TileVertices {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -30,7 +28,7 @@ pub struct TileVertices {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],

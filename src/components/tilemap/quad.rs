@@ -84,8 +84,8 @@ impl TileQuad {
     ) -> (wgpu::Buffer, wgpu::Buffer, u32) {
         let render_state = &state!().render_state;
 
-        let mut indices: Vec<u32> = vec![];
-        let mut vertices: Vec<Vertex> = vec![];
+        let mut indices = Vec::with_capacity(this.len() * 6);
+        let mut vertices = Vec::with_capacity(this.len() * 4);
 
         for quad in this {
             let quad = quad.norm_tex_coords(extents);

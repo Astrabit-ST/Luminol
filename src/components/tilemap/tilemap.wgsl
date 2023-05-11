@@ -10,10 +10,11 @@ struct VertexOutput {
 }
 
 struct Uniform {
-    screen_size: vec2<f32>,
+    pan: vec2<f32>,
+    scale: f32,
 }
 @group(1) @binding(0) // 1.
-var<uniform> camera: Uniform;
+var<uniform> uniform_data: Uniform;
 
 @vertex
 fn vs_main(
@@ -21,7 +22,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     var position = model.position;
-    position /= 16.0;
+    position *= (uniform_data.scale / 300.);
     position.x -= 1.;
     position.y -= 1.;
     out.tex_coords = model.tex_coords;
@@ -36,7 +37,7 @@ var s_diffuse: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    var sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     if sample.a <= 0. {
         discard;
     }
