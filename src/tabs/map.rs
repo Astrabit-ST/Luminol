@@ -166,15 +166,7 @@ impl tab::Tab for Tab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let response = self.tilemap.ui(
-                    ui,
-                    &map,
-                    self.id,
-                    &mut self.cursor_pos,
-                    &self.toggled_layers,
-                    self.selected_layer,
-                    self.dragging_event,
-                );
+                let response = self.tilemap.ui(ui, &map, self.id, &mut self.cursor_pos);
 
                 let layers_max = map.data.zsize();
                 let map_x = self.cursor_pos.x as i32;
