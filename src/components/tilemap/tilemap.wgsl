@@ -21,8 +21,8 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     var position = model.position;
-    position /= 10.0;
-    position.x += 2.;
+    position /= 16.0;
+    position.x -= 1.;
     position.y -= 1.;
     out.tex_coords = model.tex_coords;
     out.clip_position = vec4<f32>(position, 1.0);

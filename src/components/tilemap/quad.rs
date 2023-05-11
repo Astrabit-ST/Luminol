@@ -25,17 +25,6 @@ pub struct TileQuad {
     pub z: f32,
 }
 
-macro_rules! quad_to_vert {
-    ($this:ident, $quadrant:ident) => {{
-        let position = $this.pos.$quadrant();
-        let tex_coords = $this.tex_coords.$quadrant();
-        Vertex {
-            position: [position.x, position.y, $this.z],
-            tex_coords: [tex_coords.x, tex_coords.y],
-        }
-    }};
-}
-
 impl TileQuad {
     pub fn new(pos: egui::Rect, tex_coords: egui::Rect, z: f32) -> Self {
         Self { pos, tex_coords, z }
@@ -53,10 +42,39 @@ impl TileQuad {
     }
 
     fn into_vertices(self) -> [Vertex; 4] {
-        let top_left = quad_to_vert!(self, left_top);
-        let top_right = quad_to_vert!(self, right_top);
-        let bottom_right = quad_to_vert!(self, right_bottom);
-        let bottom_left = quad_to_vert!(self, left_bottom);
+        let Self { pos, tex_coords, z } = self;
+        let top_left = {
+            let position = pos.left_top();
+            let tex_coords = tex_coords.left_bottom();
+            Vertex {
+                position: [position.x, position.y, z],
+                tex_coords: [tex_coords.x, tex_coords.y],
+            }
+        };
+        let top_right = {
+            let position = pos.right_top();
+            let tex_coords = tex_coords.right_bottom();
+            Vertex {
+                position: [position.x, position.y, z],
+                tex_coords: [tex_coords.x, tex_coords.y],
+            }
+        };
+        let bottom_right = {
+            let position = pos.right_bottom();
+            let tex_coords = tex_coords.right_top();
+            Vertex {
+                position: [position.x, position.y, z],
+                tex_coords: [tex_coords.x, tex_coords.y],
+            }
+        };
+        let bottom_left = {
+            let position = pos.left_bottom();
+            let tex_coords = tex_coords.left_top();
+            Vertex {
+                position: [position.x, position.y, z],
+                tex_coords: [tex_coords.x, tex_coords.y],
+            }
+        };
         [top_left, top_right, bottom_right, bottom_left]
     }
 
@@ -71,37 +89,36 @@ impl TileQuad {
 
         for quad in this {
             let quad = quad.norm_tex_coords(extents);
-            for vert in quad.into_vertices() {
-                let top_left = {
-                    vertices.push(vert);
-                    vertices.len() as u32
-                };
-                let top_right = {
-                    vertices.push(vert);
-                    vertices.len() as u32
-                };
-                let bottom_right = {
-                    vertices.push(vert);
-                    vertices.len() as u32
-                };
-                let bottom_left = {
-                    vertices.push(vert);
-                    vertices.len() as u32
-                };
+            let quad_verts = quad.into_vertices();
+            let top_left = {
+                vertices.push(quad_verts[0]);
+                vertices.len() as u32 - 1
+            };
+            let top_right = {
+                vertices.push(quad_verts[1]);
+                vertices.len() as u32 - 1
+            };
+            let bottom_right = {
+                vertices.push(quad_verts[2]);
+                vertices.len() as u32 - 1
+            };
+            let bottom_left = {
+                vertices.push(quad_verts[3]);
+                vertices.len() as u32 - 1
+            };
 
-                // Tiles are made like this:
-                // TL------TR
-                // |  \ /  |
-                // |  / \  |
-                // BL-----BR
-                indices.push(top_left);
-                indices.push(top_right);
-                indices.push(bottom_left);
+            // Tiles are made like this:
+            // TL------TR
+            // |  \ /  |
+            // |  / \  |
+            // BL-----BR
+            indices.push(top_left);
+            indices.push(top_right);
+            indices.push(bottom_left);
 
-                indices.push(top_right);
-                indices.push(bottom_left);
-                indices.push(bottom_right);
-            }
+            indices.push(top_right);
+            indices.push(bottom_left);
+            indices.push(bottom_right);
         }
 
         let index_buffer =
