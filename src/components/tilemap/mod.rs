@@ -18,6 +18,7 @@ mod atlas;
 mod autotiles;
 mod quad;
 mod shader;
+mod uniform;
 mod vertices;
 
 use atlas::Atlas;
@@ -30,11 +31,9 @@ use std::sync::Arc;
 use crate::image_cache::WgpuTexture;
 use crate::prelude::*;
 
+use self::uniform::Uniform;
+
 pub struct Tilemap {
-    /// The tilemap pan.
-    pub pan: egui::Vec2,
-    /// The scale of the tilemap.
-    pub scale: f32,
     /// Toggle to display the visible region in-game.
     pub visible_display: bool,
     /// Toggle move route preview
@@ -42,6 +41,7 @@ pub struct Tilemap {
 
     textures: Arc<Textures>,
     tile_vertices: Arc<TileVertices>,
+    uniform: Arc<Uniform>,
 }
 
 struct Textures {
@@ -76,14 +76,16 @@ impl Tilemap {
         let vertex_buffer = TileVertices::new(&map, &textures.atlas);
         let vertex_buffer = Arc::new(vertex_buffer);
 
+        let uniform = Uniform::new();
+        let uniform = Arc::new(uniform);
+
         Ok(Self {
-            pan: egui::Vec2::ZERO,
-            scale: 100.,
             visible_display: false,
             move_preview: false,
 
             textures,
             tile_vertices: vertex_buffer,
+            uniform,
         })
     }
 
@@ -103,6 +105,7 @@ impl Tilemap {
 
         let textures = self.textures.clone();
         let tile_vertices = self.tile_vertices.clone();
+        let uniform = self.uniform.clone();
         ui.painter().add(egui::PaintCallback {
             rect: canvas_rect,
             callback: Arc::new(
@@ -111,6 +114,7 @@ impl Tilemap {
                         //
                         paint_callback_resources.insert(textures.clone());
                         paint_callback_resources.insert(tile_vertices.clone());
+                        paint_callback_resources.insert(uniform.clone());
                         vec![]
                     })
                     .paint(move |_info, render_pass, paint_callback_resources| {
@@ -121,8 +125,12 @@ impl Tilemap {
                         let tile_vertices: &Arc<TileVertices> = paint_callback_resources
                             .get()
                             .expect("failed to get vertex buffer");
+                        let uniform: &Arc<Uniform> = paint_callback_resources
+                            .get()
+                            .expect("failed to get tilemap uniform");
 
                         Shader::bind(render_pass);
+                        uniform.bind(render_pass);
                         textures.atlas.bind(render_pass);
                         tile_vertices.draw(render_pass);
                     }),
@@ -156,6 +164,14 @@ impl Tilemap {
                     }),
             ),
         });
+    }
+
+    pub fn scale(&mut self) -> f32 {
+        self.uniform.scale()
+    }
+
+    pub fn set_scale(&self, scale: f32) {
+        self.uniform.set_scale(scale);
     }
 
     #[allow(unused_variables, unused_assignments)]

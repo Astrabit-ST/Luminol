@@ -97,11 +97,17 @@ impl tab::Tab for Tab {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.tilemap.scale, 15.0..=200.)
-                        .text("Scale")
-                        .fixed_decimals(0),
-                );
+                let mut scale = self.tilemap.scale();
+                if ui
+                    .add(
+                        egui::Slider::new(&mut scale, 15.0..=300.)
+                            .text("Scale")
+                            .fixed_decimals(0),
+                    )
+                    .changed()
+                {
+                    self.tilemap.set_scale(scale);
+                }
 
                 ui.separator();
 

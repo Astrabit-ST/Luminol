@@ -53,7 +53,7 @@ impl Shader {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Render Pipeline Layout"),
-                    bind_group_layouts: &[&texture_layout],
+                    bind_group_layouts: &[&texture_layout, &uniform_layout],
                     push_constant_ranges: &[],
                 });
         let pipeline =
@@ -86,6 +86,10 @@ impl Shader {
 
     pub fn bind(render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.set_pipeline(&TILEMAP_SHADER.pipeline)
+    }
+
+    pub fn uniform_layout() -> &'static wgpu::BindGroupLayout {
+        &TILEMAP_SHADER.uniform_layout
     }
 }
 

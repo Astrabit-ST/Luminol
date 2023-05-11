@@ -44,6 +44,7 @@ parking_lot = { version = "0.12", features = [
 ] }
 atomic_refcell = "0.1.9"
 dashmap = "5.4.0"
+crossbeam = "0.8"
 
 futures = "0.3"
 poll-promise = { version = "0.2.0", features = ["smol"] }
