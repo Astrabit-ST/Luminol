@@ -23,15 +23,15 @@ mod shader;
 #[derive(Debug)]
 pub struct Event {
     texture: Arc<image_cache::WgpuTexture>,
-    blend_mode: BlendMode,
+    pub blend_mode: BlendMode,
     vertices: Vertices,
 }
 
-#[derive(Debug)]
-enum BlendMode {
-    Normal,
-    Add,
-    Subtract,
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Hash)]
+pub enum BlendMode {
+    Normal = 0,
+    Add = 1,
+    Subtract = 2,
 }
 
 #[derive(Debug)]
@@ -115,10 +115,8 @@ impl Event {
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.push_debug_group("tilemap event renderer");
-        shader::Shader::bind(render_pass);
+        shader::Shader::bind(self.blend_mode, render_pass);
         self.texture.bind(render_pass);
         self.vertices.draw(render_pass);
-        render_pass.pop_debug_group();
     }
 }

@@ -17,7 +17,7 @@
 use crate::prelude::*;
 
 use super::super::viewport::Viewport;
-use super::Vertex;
+use super::{BlendMode, Vertex};
 use once_cell::sync::Lazy;
 
 pub struct Shader {
@@ -25,7 +25,7 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn new() -> Self {
+    pub fn new(target: wgpu::BlendState) -> Self {
         let render_state = &state!().render_state;
 
         let shader_module = render_state
@@ -58,7 +58,7 @@ impl Shader {
                         module: &shader_module,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            blend: Some(target),
                             ..render_state.target_format.into()
                         })],
                     }),
@@ -74,9 +74,46 @@ impl Shader {
         Shader { pipeline }
     }
 
-    pub fn bind(render_pass: &mut wgpu::RenderPass<'_>) {
-        render_pass.set_pipeline(&EVENT_SHADER.pipeline)
+    pub fn bind(mode: BlendMode, render_pass: &mut wgpu::RenderPass<'_>) {
+        render_pass.set_pipeline(&EVENT_SHADERS[&mode].pipeline)
     }
 }
 
-static EVENT_SHADER: Lazy<Shader> = Lazy::new(Shader::new);
+static EVENT_SHADERS: Lazy<HashMap<BlendMode, Shader>> = Lazy::new(|| {
+    [
+        (BlendMode::Normal, wgpu::BlendState::ALPHA_BLENDING),
+        (
+            BlendMode::Add,
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+            },
+        ),
+        (
+            BlendMode::Subtract,
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::Zero,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+            },
+        ),
+    ]
+    .into_iter()
+    .map(|(mode, target)| (mode, Shader::new(target)))
+    .collect()
+});
