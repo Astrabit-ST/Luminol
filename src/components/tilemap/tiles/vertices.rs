@@ -16,10 +16,10 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{
-    autotiles::AUTOTILES, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TOTAL_AUTOTILE_HEIGHT,
+    autotiles::AUTOTILES, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TILESET_WIDTH,
+    TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT,
 };
-use super::{quad::Quad, Atlas};
-use super::{TILESET_WIDTH, UNDER_HEIGHT};
+use super::{Atlas, Quad};
 use crate::prelude::*;
 
 #[derive(Debug)]
@@ -27,25 +27,6 @@ pub struct Vertices {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub indices: u32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub tex_coords: [f32; 2],
-}
-
-impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
-    pub const fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
 }
 
 impl Vertices {

@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::vertices::Vertex;
+use super::vertex::Vertex;
 use crate::prelude::*;
 use wgpu::util::DeviceExt;
 
@@ -125,7 +125,7 @@ impl Quad {
             render_state
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap index buffer"),
+                    label: Some("quad index buffer"),
                     usage: wgpu::BufferUsages::INDEX,
                     contents: bytemuck::cast_slice(&indices),
                 });
@@ -133,7 +133,7 @@ impl Quad {
             render_state
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap vertex buffer"),
+                    label: Some("quad vertex buffer"),
                     usage: wgpu::BufferUsages::VERTEX,
                     contents: bytemuck::cast_slice(&vertices),
                 });

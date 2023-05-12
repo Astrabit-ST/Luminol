@@ -15,57 +15,44 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::Vertex;
-use crate::prelude::*;
+pub use crate::prelude::*;
 
-#[derive(Debug)]
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
     pub uniform_layout: wgpu::BindGroupLayout,
 }
 
 impl Shader {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let render_state = &state!().render_state;
 
         let shader_module = render_state
             .device
-            .create_shader_module(wgpu::include_wgsl!("tilemap.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("event.wgsl"));
 
         let texture_layout = image_cache::Cache::create_texture_bind_group_layout();
         let uniform_layout =
             render_state
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
-                    label: Some("tilemap bind group layout"),
+                        count: None,
+                    }],
+                    label: Some("tilemap event bind group layout"),
                 });
 
         let pipeline_layout =
             render_state
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Tilemap Render Pipeline Layout"),
+                    label: Some("Tilemap Event Pipeline Layout"),
                     bind_group_layouts: &[&texture_layout, &uniform_layout],
                     push_constant_ranges: &[],
                 });
@@ -73,7 +60,7 @@ impl Shader {
             render_state
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Tilemap Render Pipeline"),
+                    label: Some("Tilemap Event Render Pipeline"),
                     layout: Some(&pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &shader_module,
@@ -97,19 +84,19 @@ impl Shader {
                     multiview: None,
                 });
 
-        Self {
+        Shader {
             pipeline,
             uniform_layout,
         }
     }
 
     pub fn bind(render_pass: &mut wgpu::RenderPass<'_>) {
-        render_pass.set_pipeline(&TILEMAP_SHADER.pipeline)
+        render_pass.set_pipeline(&EVENT_SHADER.pipeline)
     }
 
     pub fn uniform_layout() -> &'static wgpu::BindGroupLayout {
-        &TILEMAP_SHADER.uniform_layout
+        &EVENT_SHADER.uniform_layout
     }
 }
 
-static TILEMAP_SHADER: once_cell::sync::Lazy<Shader> = once_cell::sync::Lazy::new(Shader::new);
+static EVENT_SHADER: once_cell::sync::Lazy<Shader> = once_cell::sync::Lazy::new(Shader::new);

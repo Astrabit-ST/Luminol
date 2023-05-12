@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 mod atlas;
 mod autotiles;
-mod quad;
+
 mod shader;
 mod uniform;
 mod vertices;
@@ -32,7 +32,10 @@ pub const AUTOTILE_AMOUNT: u32 = 7; // There are 7 autotiles per tileset
 pub const TOTAL_AUTOTILE_HEIGHT: u32 = AUTOTILE_HEIGHT * AUTOTILE_AMOUNT;
 pub const UNDER_HEIGHT: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT;
 
-use atlas::Atlas;
+use super::quad::Quad;
+use super::vertex::Vertex;
+
+pub use atlas::Atlas;
 use shader::Shader;
 use uniform::Uniform;
 use vertices::Vertices;
