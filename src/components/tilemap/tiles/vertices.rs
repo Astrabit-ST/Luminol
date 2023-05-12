@@ -15,11 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::TILESET_WIDTH;
 use super::{
     autotiles::AUTOTILES, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TOTAL_AUTOTILE_HEIGHT,
 };
 use super::{quad::Quad, Atlas};
+use super::{TILESET_WIDTH, UNDER_HEIGHT};
 use crate::prelude::*;
 
 #[derive(Debug)]
@@ -129,15 +129,26 @@ impl Vertices {
                     let tile_x = (tile as u32 % 8) * 32;
                     let tile_y = (tile as u32 / 8 + AUTOTILE_AMOUNT * 4) * 32;
 
-                    let tile_x = if tile_y / MAX_SIZE > 0 {
-                        tile_x + (tile_y / MAX_SIZE - 1) * TILESET_WIDTH + atlas.autotile_width
+                    let h1 = AUTOTILE_HEIGHT + UNDER_HEIGHT * atlas.columns_under;
+                    let mut wrapped_x;
+                    let mut wrapped_y;
+                    if tile_y < h1 {
+                        // you're underneath the autotiles
+                        wrapped_x =
+                            tile_x + (tile_y - AUTOTILE_HEIGHT) / UNDER_HEIGHT * TILESET_WIDTH;
+                        wrapped_y = AUTOTILE_HEIGHT + (tile_y - AUTOTILE_HEIGHT) % UNDER_HEIGHT;
                     } else {
-                        tile_x
-                    };
-                    let tile_y = (tile_y % MAX_SIZE);
+                        // you're to the right
+                        // first wrap immediately to the right of the autotiles
+                        wrapped_x = tile_x + atlas.autotile_width;
+                        wrapped_y = tile_y - h1;
+                        // then wrap further
+                        wrapped_x += wrapped_y / MAX_SIZE * TILESET_WIDTH;
+                        wrapped_y %= MAX_SIZE;
+                    }
 
                     let tex_coords = egui::Rect::from_min_size(
-                        egui::pos2(tile_x as f32, tile_y as f32),
+                        egui::pos2(wrapped_x as f32, wrapped_y as f32),
                         egui::vec2(32., 32.),
                     );
 

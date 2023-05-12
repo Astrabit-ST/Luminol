@@ -27,6 +27,7 @@ pub struct Atlas {
     pub bind_group: wgpu::BindGroup,
     pub autotile_width: u32,
     pub tileset_height: u32,
+    pub columns_under: u32,
     pub autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
 }
 
@@ -193,10 +194,16 @@ impl Atlas {
 
         let bind_group = image_cache::Cache::create_texture_bind_group(&atlas_texture);
 
+        let columns_under = u32::min(
+            tileset_img.height().div_ceil(UNDER_HEIGHT),
+            autotile_width.div_ceil(TILESET_WIDTH),
+        );
+
         Ok(Atlas {
             atlas_texture,
             bind_group,
             autotile_width,
+            columns_under,
             tileset_height: tileset_img.height(),
             autotile_frames,
         })
