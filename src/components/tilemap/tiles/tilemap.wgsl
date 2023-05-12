@@ -13,8 +13,6 @@ struct VertexOutput {
 struct Viewport {
     // Projection matrix
     proj: mat4x4<f32>,
-    // Pan
-    // pan: vec2<f32>,
     scale: f32,
 }
 
@@ -49,16 +47,16 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    let dimensions = vec2<f32>(textureDimensions(t_diffuse));
-    var pix_tex_coords = vec2<f32>(textureDimensions(t_diffuse)) * model.tex_coords;
-    if pix_tex_coords.y < TOTAL_AUTOTILE_HEIGHT && pix_tex_coords.x < f32(autotiles.autotile_region_width) {
-        let autotile_id = u32(pix_tex_coords.y / AUTOTILE_HEIGHT);
-        let frame_count = autotiles.frame_counts[autotile_id];
-        let frame = autotiles.ani_frame % frame_count;
-
-        out.frame = frame;
-        out.tex_coords.x += (f32(frame) * AUTOTILE_WIDTH) / dimensions.x;
-    }
+    // let dimensions = vec2<f32>(textureDimensions(t_diffuse));
+    // var pix_tex_coords = vec2<f32>(textureDimensions(t_diffuse)) * model.tex_coords;
+    // if pix_tex_coords.y < TOTAL_AUTOTILE_HEIGHT && pix_tex_coords.x < f32(autotiles.autotile_region_width) {
+    //     let autotile_id = u32(pix_tex_coords.y / AUTOTILE_HEIGHT);
+    //     let frame_count = autotiles.frame_counts[autotile_id];
+    //     let frame = autotiles.ani_frame % frame_count;
+    // 
+    //     out.frame = frame;
+    //     out.tex_coords.x += (f32(frame) * AUTOTILE_WIDTH) / dimensions.x;
+    // }
 
     // var model_position = (model.position.xy + viewport.pan) / (viewport.scale / 100.);
     var position = viewport.proj * vec4<f32>(model.position.xy * (viewport.scale / 100.), 0.0, 1.0);

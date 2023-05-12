@@ -16,7 +16,9 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 mod events;
 mod planes;
+mod quad;
 mod tiles;
+mod vertex;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -30,13 +32,17 @@ pub struct Tilemap {
     pub move_preview: bool,
 
     tiles: Arc<tiles::Tiles>,
+    events: Arc<Vec<events::Event>>,
     ani_instant: Instant,
 
     pub pan: egui::Vec2,
 }
 
-#[derive(Default, Debug)]
-struct Resources(HashMap<i32, Arc<tiles::Tiles>>);
+#[derive(Debug)]
+struct Resources {
+    tiles: Arc<tiles::Tiles>,
+    events: Arc<Vec<events::Event>>,
+}
 
 impl Tilemap {
     pub fn new(id: i32) -> Result<Tilemap, String> {
@@ -48,16 +54,28 @@ impl Tilemap {
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         let tiles = tiles::Tiles::new(tileset, &map)?;
-        println!("{tiles:#?}");
+        // println!("{tiles:#?}");
         let tiles = Arc::new(tiles);
 
-        // println!("{tiles:#?}");
+        let events = map
+            .events
+            .iter()
+            .filter(|(_, e)| {
+                e.pages.first().is_some_and(|p| {
+                    !p.graphic.character_name.is_empty() || p.graphic.tile_id.is_positive()
+                })
+            })
+            .map(|(_, event)| events::Event::new(event, &tiles.atlas.atlas_texture))
+            .try_collect()?;
+        // println!("{events:#?}");
+        let events = Arc::new(events);
 
         Ok(Self {
             visible_display: false,
             move_preview: false,
 
             tiles,
+            events,
             ani_instant: Instant::now(),
 
             pan: egui::Vec2::ZERO,
@@ -149,36 +167,50 @@ impl Tilemap {
         };
 
         let tiles = self.tiles.clone();
+        let events = self.events.clone();
         ui.painter().add(egui::PaintCallback {
             rect: map_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
                         //
-                        let resources: &mut Resources = paint_callback_resources
+                        let resources: &mut HashMap<i32, Resources> = paint_callback_resources
                             .entry()
                             .or_insert_with(Default::default);
-                        resources.0.insert(map_id, tiles.clone());
+                        resources.insert(
+                            map_id,
+                            Resources {
+                                tiles: tiles.clone(),
+                                events: events.clone(),
+                            },
+                        );
 
                         vec![]
                     })
                     .paint(move |info, render_pass, paint_callback_resources| {
                         //
-                        let resources: &Resources = paint_callback_resources
+                        let resources: &HashMap<i32, Resources> = paint_callback_resources
                             .get()
                             .expect("failed to get tilemap resources");
-                        let tiles = resources.0[&map_id].as_ref();
+                        let Resources { tiles, events } = &resources[&map_id];
 
-                        tiles.uniform.set_proj(cgmath::ortho(
+                        let proj = cgmath::ortho(
                             0.0,
                             info.viewport_in_pixels().width_px,
                             info.viewport_in_pixels().height_px,
                             0.0,
                             -1.0,
                             1.0,
-                        ));
+                        );
+
+                        tiles.uniform.set_proj(proj);
 
                         tiles.draw(render_pass);
+
+                        for event in events.iter() {
+                            event.uniform.set_proj(proj);
+                            event.draw(render_pass);
+                        }
                     }),
             ),
         });
@@ -188,6 +220,18 @@ impl Tilemap {
             5.0,
             egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
         );
+
+        // TODO: draw event bounds instead?
+        for (_, event) in map.events.iter() {
+            let box_rect = egui::Rect::from_min_size(
+                map_rect.min
+                    + egui::Vec2::new(event.x as f32 * tile_size, event.y as f32 * tile_size),
+                egui::Vec2::splat(tile_size),
+            );
+
+            ui.painter()
+                .rect_stroke(box_rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        }
 
         // Do we display the visible region?
         if self.visible_display {
@@ -257,6 +301,9 @@ impl Tilemap {
 
     pub fn set_scale(&self, scale: f32) {
         self.tiles.uniform.set_scale(scale);
+        for event in self.events.iter() {
+            event.uniform.set_scale(scale);
+        }
     }
 
     /*

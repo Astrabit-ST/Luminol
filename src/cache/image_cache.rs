@@ -47,6 +47,10 @@ impl WgpuTexture {
         }
     }
 
+    pub fn size(&self) -> wgpu::Extent3d {
+        self.texture.size()
+    }
+
     pub fn size_vec2(&self) -> egui::Vec2 {
         egui::vec2(self.texture.width() as _, self.texture.height() as _)
     }
@@ -57,6 +61,10 @@ impl WgpuTexture {
 
     pub fn height(&self) -> u32 {
         self.texture.height()
+    }
+
+    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
     }
 }
 
@@ -95,7 +103,8 @@ impl Cache {
         let directory = directory.as_ref();
         let filename = filename.as_ref();
         let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
-                entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
+                entry.path().file_stem().and_then(std::ffi::OsStr::to_str).map(str::to_lowercase) == Some(filename.to_lowercase())
+                // entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
             }) else {
                 return Err(format!("{filename} not found in {directory}"));
             };

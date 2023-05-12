@@ -19,12 +19,11 @@ use super::{AUTOTILE_HEIGHT, MAX_SIZE, TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT, UND
 use crate::prelude::*;
 
 use image::GenericImageView;
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, sync::Arc};
 
 #[derive(Debug)]
 pub struct Atlas {
-    pub atlas_texture: wgpu::Texture,
-    pub bind_group: wgpu::BindGroup,
+    pub atlas_texture: Arc<image_cache::WgpuTexture>,
     pub autotile_width: u32,
     pub tileset_height: u32,
     pub columns_under: u32,
@@ -193,6 +192,7 @@ impl Atlas {
         }
 
         let bind_group = image_cache::Cache::create_texture_bind_group(&atlas_texture);
+        let atlas_texture = Arc::new(image_cache::WgpuTexture::new(atlas_texture, bind_group));
 
         let columns_under = u32::min(
             tileset_img.height().div_ceil(UNDER_HEIGHT),
@@ -201,7 +201,6 @@ impl Atlas {
 
         Ok(Atlas {
             atlas_texture,
-            bind_group,
             autotile_width,
             columns_under,
             tileset_height: tileset_img.height(),
@@ -210,7 +209,7 @@ impl Atlas {
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        self.atlas_texture.bind(render_pass);
     }
 }
 
