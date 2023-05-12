@@ -16,10 +16,6 @@ struct Viewport {
     scale: f32,
 }
 
-struct Layers {
-    enabled_layers: array<bool>,
-}
-
 struct Autotiles {
     frame_counts: array<u32, 7>,
     autotile_region_width: u32,
@@ -33,7 +29,7 @@ var s_diffuse: sampler;
 
 @group(1) @binding(0) // 1.
 var<uniform> viewport: Viewport;
-@group(1) @binding(1)
+@group(2) @binding(0)
 var<storage, read> autotiles: Autotiles;
 
 const AUTOTILE_WIDTH = 96.;

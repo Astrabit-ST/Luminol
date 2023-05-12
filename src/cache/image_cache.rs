@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use eframe::wgpu::util::DeviceExt;
+use once_cell::sync::Lazy;
 
 use crate::prelude::*;
 
@@ -106,38 +107,6 @@ impl Cache {
         Ok(image)
     }
 
-    pub fn create_texture_bind_group_layout() -> wgpu::BindGroupLayout {
-        // Boilerplate boilerplate boilerplate
-        state!()
-            .render_state
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: None,
-                // I just copy pasted this stuff from the wgpu guide.
-                // No clue why I need it.
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        // This should match the filterable field of the
-                        // corresponding Texture entry above.
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-            })
-    }
-
     pub fn create_texture_bind_group(texture: &wgpu::Texture) -> wgpu::BindGroup {
         let render_state = &state!().render_state;
         // We *really* don't care about the fields here.
@@ -156,15 +125,13 @@ impl Cache {
                 ..Default::default()
             });
 
-        let layout = Self::create_texture_bind_group_layout();
-
         // Create the bind group
         // Again, I have no idea why its setup this way
         render_state
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
-                layout: &layout,
+                layout: Self::bind_group_layout(),
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -233,4 +200,40 @@ impl Cache {
         self.egui_imgs.clear();
         self.glow_imgs.clear();
     }
+
+    pub fn bind_group_layout() -> &'static wgpu::BindGroupLayout {
+        &LAYOUT
+    }
 }
+
+static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
+    let render_state = &state!().render_state;
+
+    render_state
+        .device
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            // I just copy pasted this stuff from the wgpu guide.
+            // No clue why I need it.
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        })
+});

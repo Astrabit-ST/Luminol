@@ -15,10 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 mod atlas;
-mod autotiles;
+mod autotile_ids;
 
 mod shader;
-mod uniform;
+mod autotiles;
 mod vertices;
 
 use crate::prelude::*;
@@ -37,12 +37,12 @@ use super::vertex::Vertex;
 
 pub use atlas::Atlas;
 use shader::Shader;
-use uniform::Uniform;
+use autotiles::Autotiles;
 use vertices::Vertices;
 
 #[derive(Debug)]
 pub struct Tiles {
-    pub uniform: Uniform,
+    pub autotiles: Autotiles,
     pub atlas: Atlas,
     vertices: Vertices,
 }
@@ -50,11 +50,11 @@ pub struct Tiles {
 impl Tiles {
     pub fn new(tileset: &rpg::Tileset, map: &rpg::Map) -> Result<Self, String> {
         let atlas = Atlas::new(tileset)?;
-        let uniform = Uniform::new(&atlas);
+        let uniform = Autotiles::new(&atlas);
         let vertices = Vertices::new(map, &atlas);
 
         Ok(Self {
-            uniform,
+            autotiles: uniform,
             atlas,
             vertices,
         })
@@ -63,7 +63,7 @@ impl Tiles {
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
         render_pass.push_debug_group("tilemap tiles renderer");
         Shader::bind(render_pass);
-        self.uniform.bind(render_pass);
+        self.autotiles.bind(render_pass);
         self.atlas.bind(render_pass);
         self.vertices.draw(render_pass);
         render_pass.pop_debug_group();

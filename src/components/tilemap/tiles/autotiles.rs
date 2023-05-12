@@ -1,3 +1,5 @@
+use eframe::wgpu::util::DeviceExt;
+
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -14,356 +16,83 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use super::Shader;
+use crate::prelude::*;
+use crossbeam::atomic::AtomicCell;
 
-/*
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Autotile {
-    pub x: f32,
-    pub y: f32,
+#[derive(Debug)]
+pub struct Autotiles {
+    data: AtomicCell<Data>,
+
+    buffer: wgpu::Buffer,
+
+    bind_group: wgpu::BindGroup,
 }
 
-pub const AUTOTILES: [[Autotile; 4]; 48] = [
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 32.5, y: 80.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 48.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 48.5, y: 64.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 64.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 64.5 },
-        Autotile { x: 16.5, y: 64.5 },
-        Autotile { x: 0.5, y: 80.5 },
-        Autotile { x: 16.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 64.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 0.5, y: 80.5 },
-        Autotile { x: 16.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 64.5 },
-        Autotile { x: 16.5, y: 64.5 },
-        Autotile { x: 0.5, y: 80.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 64.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 0.5, y: 80.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 32.5 },
-        Autotile { x: 48.5, y: 32.5 },
-        Autotile { x: 32.5, y: 48.5 },
-        Autotile { x: 48.5, y: 48.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 32.5 },
-        Autotile { x: 48.5, y: 32.5 },
-        Autotile { x: 32.5, y: 48.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 32.5 },
-        Autotile { x: 48.5, y: 32.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 48.5, y: 48.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 32.5 },
-        Autotile { x: 48.5, y: 32.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 64.5 },
-        Autotile { x: 80.5, y: 64.5 },
-        Autotile { x: 64.5, y: 80.5 },
-        Autotile { x: 80.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 64.5 },
-        Autotile { x: 80.5, y: 64.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 64.5 },
-        Autotile { x: 64.5, y: 80.5 },
-        Autotile { x: 80.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 64.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 96.5 },
-        Autotile { x: 48.5, y: 96.5 },
-        Autotile { x: 32.5, y: 112.5 },
-        Autotile { x: 48.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 48.5, y: 96.5 },
-        Autotile { x: 32.5, y: 112.5 },
-        Autotile { x: 48.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 96.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 32.5, y: 112.5 },
-        Autotile { x: 48.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 32.5, y: 112.5 },
-        Autotile { x: 48.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 64.5 },
-        Autotile { x: 80.5, y: 64.5 },
-        Autotile { x: 0.5, y: 80.5 },
-        Autotile { x: 80.5, y: 80.5 },
-    ],
-    [
-        Autotile { x: 32.5, y: 32.5 },
-        Autotile { x: 48.5, y: 32.5 },
-        Autotile { x: 32.5, y: 112.5 },
-        Autotile { x: 48.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 32.5 },
-        Autotile { x: 16.5, y: 32.5 },
-        Autotile { x: 0.5, y: 48.5 },
-        Autotile { x: 16.5, y: 48.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 32.5 },
-        Autotile { x: 16.5, y: 32.5 },
-        Autotile { x: 0.5, y: 48.5 },
-        Autotile { x: 80.5, y: 16.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 32.5 },
-        Autotile { x: 80.5, y: 32.5 },
-        Autotile { x: 64.5, y: 48.5 },
-        Autotile { x: 80.5, y: 48.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 32.5 },
-        Autotile { x: 80.5, y: 32.5 },
-        Autotile { x: 64.5, y: 16.5 },
-        Autotile { x: 80.5, y: 48.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 96.5 },
-        Autotile { x: 80.5, y: 96.5 },
-        Autotile { x: 64.5, y: 112.5 },
-        Autotile { x: 80.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 0.5 },
-        Autotile { x: 80.5, y: 96.5 },
-        Autotile { x: 64.5, y: 112.5 },
-        Autotile { x: 80.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 96.5 },
-        Autotile { x: 16.5, y: 96.5 },
-        Autotile { x: 0.5, y: 112.5 },
-        Autotile { x: 16.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 96.5 },
-        Autotile { x: 80.5, y: 0.5 },
-        Autotile { x: 0.5, y: 112.5 },
-        Autotile { x: 16.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 32.5 },
-        Autotile { x: 80.5, y: 32.5 },
-        Autotile { x: 0.5, y: 48.5 },
-        Autotile { x: 80.5, y: 48.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 32.5 },
-        Autotile { x: 16.5, y: 32.5 },
-        Autotile { x: 0.5, y: 112.5 },
-        Autotile { x: 16.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 96.5 },
-        Autotile { x: 80.5, y: 96.5 },
-        Autotile { x: 0.5, y: 112.5 },
-        Autotile { x: 80.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 64.5, y: 32.5 },
-        Autotile { x: 80.5, y: 32.5 },
-        Autotile { x: 64.5, y: 112.5 },
-        Autotile { x: 80.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 32.5 },
-        Autotile { x: 80.5, y: 32.5 },
-        Autotile { x: 0.5, y: 112.5 },
-        Autotile { x: 80.5, y: 112.5 },
-    ],
-    [
-        Autotile { x: 0.5, y: 0.5 },
-        Autotile { x: 16.5, y: 0.5 },
-        Autotile { x: 0.5, y: 16.5 },
-        Autotile { x: 16.5, y: 16.5 },
-    ],
-];
-*/
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+struct Data {
+    autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
+    autotile_region_width: u32,
+    ani_index: u32,
+}
 
-/// Hardcoded list of tiles from r48 and old python Luminol.
-/// There seems to be very little pattern in autotile IDs so this is sadly
-/// the best we can do.
-pub const AUTOTILES: [[i32; 4]; 48] = [
-    [26, 27, 32, 33],
-    [4, 27, 32, 33],
-    [26, 5, 32, 33],
-    [4, 5, 32, 33],
-    [26, 27, 32, 11],
-    [4, 27, 32, 11],
-    [26, 5, 32, 11],
-    [4, 5, 32, 11],
-    [26, 27, 10, 33],
-    [4, 27, 10, 33],
-    [26, 5, 10, 33],
-    [4, 5, 10, 33],
-    [26, 27, 10, 11],
-    [4, 27, 10, 11],
-    [26, 5, 10, 11],
-    [4, 5, 10, 11],
-    [24, 25, 30, 31],
-    [24, 5, 30, 31],
-    [24, 25, 30, 11],
-    [24, 5, 30, 11],
-    [14, 15, 20, 21],
-    [14, 15, 20, 11],
-    [14, 15, 10, 21],
-    [14, 15, 10, 11],
-    [28, 29, 34, 35],
-    [28, 29, 10, 35],
-    [4, 29, 34, 35],
-    [4, 29, 10, 35],
-    [38, 39, 44, 45],
-    [4, 39, 44, 45],
-    [38, 5, 44, 45],
-    [4, 5, 44, 45],
-    [24, 29, 30, 35],
-    [14, 15, 44, 45],
-    [12, 13, 18, 19],
-    [12, 13, 18, 11],
-    [16, 17, 22, 23],
-    [16, 17, 10, 23],
-    [40, 41, 46, 47],
-    [4, 41, 46, 47],
-    [36, 37, 42, 43],
-    [36, 5, 42, 43],
-    [12, 17, 18, 23],
-    [12, 13, 42, 43],
-    [36, 41, 42, 47],
-    [16, 17, 46, 47],
-    [12, 17, 42, 47],
-    [0, 1, 6, 7],
-];
+impl Autotiles {
+    pub fn new(atlas: &super::Atlas) -> Self {
+        let autotiles = Data {
+            autotile_frames: atlas.autotile_frames,
+            autotile_region_width: atlas.autotile_width,
+            ani_index: 0,
+        };
+
+        let render_state = &state!().render_state;
+
+        let autotile_buffer =
+            render_state
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("tilemap autotile buffer"),
+                    contents: bytemuck::cast_slice(&[autotiles]),
+                    usage: wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::COPY_DST
+                        | wgpu::BufferUsages::UNIFORM,
+                });
+
+        let bind_group = render_state
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("tilemap autotiles bind group"),
+                layout: Shader::uniform_layout(),
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: autotile_buffer.as_entire_binding(),
+                }],
+            });
+
+        Autotiles {
+            data: AtomicCell::new(autotiles),
+            buffer: autotile_buffer,
+            bind_group,
+        }
+    }
+
+    pub fn inc_ani_index(&self) {
+        let data = self.data.load();
+        self.data.store(Data {
+            ani_index: data.ani_index.wrapping_add(1),
+            ..data
+        });
+        self.regen_buffer();
+    }
+
+    fn regen_buffer(&self) {
+        let render_state = &state!().render_state;
+        render_state
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data.load()]));
+    }
+
+    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.set_bind_group(2, &self.bind_group, &[]);
+    }
+}
