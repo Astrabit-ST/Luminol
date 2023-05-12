@@ -18,6 +18,7 @@ use super::quad::Quad;
 use super::vertex::Vertex;
 use crate::prelude::*;
 
+mod hue;
 mod shader;
 
 #[derive(Debug)]
@@ -25,6 +26,7 @@ pub struct Event {
     texture: Arc<image_cache::WgpuTexture>,
     pub blend_mode: BlendMode,
     vertices: Vertices,
+    hue: hue::Hue,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Hash)]
@@ -106,17 +108,20 @@ impl Event {
             2 => BlendMode::Subtract,
             mode => return Err(format!("unexpected blend mode {mode}")),
         };
+        let hue = hue::Hue::new(page.graphic.character_hue);
 
         Ok(Self {
             texture,
             blend_mode,
             vertices,
+            hue,
         })
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
         shader::Shader::bind(self.blend_mode, render_pass);
         self.texture.bind(render_pass);
+        self.hue.bind(render_pass);
         self.vertices.draw(render_pass);
     }
 }
