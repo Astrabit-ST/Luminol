@@ -57,7 +57,7 @@ impl Tilemap {
 
         let tiles = tiles::Tiles::new(tileset, &map)?;
 
-        let events = map
+        let mut events: Vec<_> = map
             .events
             .iter()
             .filter(|(_, e)| {
@@ -67,6 +67,7 @@ impl Tilemap {
             })
             .map(|(_, event)| events::Event::new(event, &tiles.atlas.atlas_texture))
             .try_collect()?;
+        events.sort_unstable_by(|e1, e2| e1.blend_mode.cmp(&e2.blend_mode));
 
         let viewport = viewport::Viewport::new();
 
@@ -206,9 +207,11 @@ impl Tilemap {
 
                         tiles.draw(render_pass);
 
+                        render_pass.push_debug_group("tilemap event renderer");
                         for event in events.iter() {
                             event.draw(render_pass);
                         }
+                        render_pass.pop_debug_group();
                     }),
             ),
         });

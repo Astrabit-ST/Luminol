@@ -79,11 +79,11 @@ impl Viewport {
     }
 
     pub fn set_proj(&self, proj: cgmath::Matrix4<f32>) {
-        self.data.store(Data {
-            proj,
-            ..self.data.load()
-        });
-        self.regen_buffer();
+        let data = self.data.load();
+        if data.proj != proj {
+            self.data.store(Data { proj, ..data });
+            self.regen_buffer();
+        }
     }
 
     pub fn scale(&self) -> f32 {
@@ -91,11 +91,11 @@ impl Viewport {
     }
 
     pub fn set_scale(&self, scale: f32) {
-        self.data.store(Data {
-            scale,
-            ..self.data.load()
-        });
-        self.regen_buffer();
+        let data = self.data.load();
+        if data.scale != scale {
+            self.data.store(Data { scale, ..data });
+            self.regen_buffer();
+        }
     }
 
     fn regen_buffer(&self) {
