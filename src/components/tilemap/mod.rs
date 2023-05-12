@@ -19,7 +19,7 @@ mod planes;
 mod tiles;
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub use crate::prelude::*;
 
@@ -48,7 +48,10 @@ impl Tilemap {
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         let tiles = tiles::Tiles::new(tileset, &map)?;
+        println!("{tiles:#?}");
         let tiles = Arc::new(tiles);
+
+        // println!("{tiles:#?}");
 
         Ok(Self {
             visible_display: false,
@@ -68,12 +71,11 @@ impl Tilemap {
         map_id: i32,
         cursor_pos: &mut egui::Pos2,
     ) -> egui::Response {
-        if Instant::now().duration_since(self.ani_instant).as_millis() > 16 {
+        if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
             self.tiles.uniform.inc_ani_index();
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(16));
         }
+        ui.ctx().request_repaint_after(Duration::from_millis(16));
 
         // Allocate the largest size we can for the tilemap
         let canvas_rect = ui.max_rect();

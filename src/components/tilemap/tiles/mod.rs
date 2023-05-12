@@ -23,7 +23,7 @@ mod vertices;
 
 use crate::prelude::*;
 
-pub const MAX_SIZE: u32 = 2048; // Max texture size in one dimension
+pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
 pub const TILESET_WIDTH: u32 = TILE_SIZE * 8; // Tilesets are 8 tiles across
 
