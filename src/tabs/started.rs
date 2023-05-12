@@ -97,6 +97,14 @@ impl tab::Tab for Tab {
                             state
                                 .toasts
                                 .error(format!("Error loading the project: {why}"));
+                        } else {
+                            state!().toasts.info(format!(
+                                "Successfully opened {:?}",
+                                state!()
+                                    .filesystem
+                                    .project_path()
+                                    .expect("project not open")
+                            ));
                         }
                     }));
                 }

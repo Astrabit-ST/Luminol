@@ -23,7 +23,7 @@ mod vertices;
 
 use crate::prelude::*;
 
-pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
+pub const MAX_SIZE: u32 = 2048; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
 pub const TILESET_WIDTH: u32 = TILE_SIZE * 8; // Tilesets are 8 tiles across
 
@@ -35,20 +35,20 @@ pub const UNDER_HEIGHT: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT;
 use atlas::Atlas;
 use shader::Shader;
 use uniform::Uniform;
-use vertices::TileVertices;
+use vertices::Vertices;
 
 #[derive(Debug)]
 pub struct Tiles {
     pub uniform: Uniform,
     pub atlas: Atlas,
-    vertices: TileVertices,
+    vertices: Vertices,
 }
 
 impl Tiles {
     pub fn new(tileset: &rpg::Tileset, map: &rpg::Map) -> Result<Self, String> {
         let atlas = Atlas::new(tileset)?;
         let uniform = Uniform::new(&atlas);
-        let vertices = TileVertices::new(map, &atlas);
+        let vertices = Vertices::new(map, &atlas);
 
         Ok(Self {
             uniform,
@@ -63,5 +63,6 @@ impl Tiles {
         self.uniform.bind(render_pass);
         self.atlas.bind(render_pass);
         self.vertices.draw(render_pass);
+        render_pass.pop_debug_group();
     }
 }

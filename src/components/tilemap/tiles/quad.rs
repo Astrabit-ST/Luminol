@@ -19,13 +19,13 @@ use crate::prelude::*;
 use wgpu::util::DeviceExt;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct TileQuad {
+pub struct Quad {
     pub pos: egui::Rect,
     pub tex_coords: egui::Rect,
     pub z: f32,
 }
 
-impl TileQuad {
+impl Quad {
     pub fn new(pos: egui::Rect, tex_coords: egui::Rect, z: f32) -> Self {
         Self { pos, tex_coords, z }
     }

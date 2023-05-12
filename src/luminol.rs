@@ -80,6 +80,14 @@ impl eframe::App for Luminol {
                     state!()
                         .toasts
                         .error(format!("Error opening dropped project: {e}"))
+                } else {
+                    state!().toasts.info(format!(
+                        "Successfully opened {:?}",
+                        state!()
+                            .filesystem
+                            .project_path()
+                            .expect("project not open")
+                    ));
                 }
             }
         });
