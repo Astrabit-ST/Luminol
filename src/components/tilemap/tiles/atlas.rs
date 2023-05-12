@@ -93,7 +93,7 @@ impl Atlas {
             println!("rows_under: {rows_under}");
             println!("rows_side: {rows_side}");
 
-            width = (rows_under + rows_side) * TILESET_WIDTH;
+            width = ((rows_under + rows_side) * TILESET_WIDTH).max(autotile_width);
             height = MAX_SIZE;
         }
 
