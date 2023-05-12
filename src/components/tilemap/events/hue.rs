@@ -22,6 +22,7 @@ use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 pub struct Hue {
+    hue: AtomicCell<f32>,
     buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 }
@@ -49,7 +50,27 @@ impl Hue {
                 }],
             });
 
-        Self { bind_group, buffer }
+        Self {
+            bind_group,
+            buffer,
+            hue: AtomicCell::new(hue),
+        }
+    }
+
+    pub fn hue(&self) -> i32 {
+        (self.hue.load() * 360.) as i32
+    }
+
+    pub fn set_hue(&self, hue: i32) {
+        let hue = (hue % 360) as f32 / 360.0;
+        if self.hue.load() != hue {
+            self.hue.store(hue);
+
+            state!()
+                .render_state
+                .queue
+                .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[hue]));
+        }
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {

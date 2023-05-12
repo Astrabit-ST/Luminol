@@ -22,7 +22,38 @@ mod hue;
 mod shader;
 
 #[derive(Debug)]
-pub struct Event {
+pub struct Events {
+    events: Vec<Event>,
+}
+
+impl Events {
+    pub fn new(map: &rpg::Map, atlas: &Arc<image_cache::WgpuTexture>) -> Result<Self, String> {
+        let mut events: Vec<_> = map
+            .events
+            .iter()
+            .filter(|(_, e)| {
+                e.pages.first().is_some_and(|p| {
+                    !p.graphic.character_name.is_empty() || p.graphic.tile_id.is_positive()
+                })
+            })
+            .map(|(_, event)| Event::new(event, atlas))
+            .try_collect()?;
+        events.sort_unstable_by(|e1, e2| e1.blend_mode.cmp(&e2.blend_mode));
+
+        Ok(Self { events })
+    }
+
+    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.push_debug_group("tilemap event renderer");
+        for event in self.events.iter() {
+            event.draw(render_pass);
+        }
+        render_pass.pop_debug_group();
+    }
+}
+
+#[derive(Debug)]
+struct Event {
     texture: Arc<image_cache::WgpuTexture>,
     pub blend_mode: BlendMode,
     vertices: Vertices,
