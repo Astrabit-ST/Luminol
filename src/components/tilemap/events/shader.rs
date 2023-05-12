@@ -14,12 +14,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::prelude::*;
+
+use super::super::viewport::Viewport;
 use super::Vertex;
-pub use crate::prelude::*;
+use once_cell::sync::Lazy;
 
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
-    pub uniform_layout: wgpu::BindGroupLayout,
 }
 
 impl Shader {
@@ -30,30 +32,15 @@ impl Shader {
             .device
             .create_shader_module(wgpu::include_wgsl!("event.wgsl"));
 
-        let texture_layout = image_cache::Cache::create_texture_bind_group_layout();
-        let uniform_layout =
-            render_state
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                    label: Some("tilemap event bind group layout"),
-                });
-
         let pipeline_layout =
             render_state
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Event Pipeline Layout"),
-                    bind_group_layouts: &[&texture_layout, &uniform_layout],
+                    bind_group_layouts: &[
+                        image_cache::Cache::bind_group_layout(),
+                        Viewport::layout(),
+                    ],
                     push_constant_ranges: &[],
                 });
         let pipeline =
@@ -84,19 +71,12 @@ impl Shader {
                     multiview: None,
                 });
 
-        Shader {
-            pipeline,
-            uniform_layout,
-        }
+        Shader { pipeline }
     }
 
     pub fn bind(render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.set_pipeline(&EVENT_SHADER.pipeline)
     }
-
-    pub fn uniform_layout() -> &'static wgpu::BindGroupLayout {
-        &EVENT_SHADER.uniform_layout
-    }
 }
 
-static EVENT_SHADER: once_cell::sync::Lazy<Shader> = once_cell::sync::Lazy::new(Shader::new);
+static EVENT_SHADER: Lazy<Shader> = Lazy::new(Shader::new);

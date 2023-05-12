@@ -19,29 +19,31 @@ mod planes;
 mod quad;
 mod tiles;
 mod vertex;
+mod viewport;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub use crate::prelude::*;
 
+#[derive(Debug)]
 pub struct Tilemap {
     /// Toggle to display the visible region in-game.
     pub visible_display: bool,
     /// Toggle move route preview
     pub move_preview: bool,
 
-    tiles: Arc<tiles::Tiles>,
-    events: Arc<Vec<events::Event>>,
-    ani_instant: Instant,
-
     pub pan: egui::Vec2,
+
+    resources: Arc<Resources>,
+    ani_instant: Instant,
 }
 
 #[derive(Debug)]
 struct Resources {
-    tiles: Arc<tiles::Tiles>,
-    events: Arc<Vec<events::Event>>,
+    tiles: tiles::Tiles,
+    events: Vec<events::Event>,
+    viewport: viewport::Viewport,
 }
 
 impl Tilemap {
@@ -54,8 +56,6 @@ impl Tilemap {
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         let tiles = tiles::Tiles::new(tileset, &map)?;
-        // println!("{tiles:#?}");
-        let tiles = Arc::new(tiles);
 
         let events = map
             .events
@@ -67,18 +67,20 @@ impl Tilemap {
             })
             .map(|(_, event)| events::Event::new(event, &tiles.atlas.atlas_texture))
             .try_collect()?;
-        // println!("{events:#?}");
-        let events = Arc::new(events);
+
+        let viewport = viewport::Viewport::new();
 
         Ok(Self {
             visible_display: false,
             move_preview: false,
-
-            tiles,
-            events,
-            ani_instant: Instant::now(),
-
             pan: egui::Vec2::ZERO,
+
+            resources: Arc::new(Resources {
+                tiles,
+                events,
+                viewport,
+            }),
+            ani_instant: Instant::now(),
         })
     }
 
@@ -91,7 +93,7 @@ impl Tilemap {
     ) -> egui::Response {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
-            self.tiles.uniform.inc_ani_index();
+            self.resources.tiles.autotiles.inc_ani_index();
         }
         ui.ctx().request_repaint_after(Duration::from_millis(16));
 
@@ -166,33 +168,30 @@ impl Tilemap {
             max: canvas_pos + pos,
         };
 
-        let tiles = self.tiles.clone();
-        let events = self.events.clone();
+        let resources = self.resources.clone();
         ui.painter().add(egui::PaintCallback {
             rect: map_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
                         //
-                        let resources: &mut HashMap<i32, Resources> = paint_callback_resources
+                        let res_hash: &mut HashMap<i32, Arc<Resources>> = paint_callback_resources
                             .entry()
                             .or_insert_with(Default::default);
-                        resources.insert(
-                            map_id,
-                            Resources {
-                                tiles: tiles.clone(),
-                                events: events.clone(),
-                            },
-                        );
+                        res_hash.insert(map_id, resources.clone());
 
                         vec![]
                     })
                     .paint(move |info, render_pass, paint_callback_resources| {
                         //
-                        let resources: &HashMap<i32, Resources> = paint_callback_resources
+                        let res_hash: &HashMap<i32, Arc<Resources>> = paint_callback_resources
                             .get()
                             .expect("failed to get tilemap resources");
-                        let Resources { tiles, events } = &resources[&map_id];
+                        let Resources {
+                            tiles,
+                            events,
+                            viewport,
+                        } = res_hash[&map_id].as_ref();
 
                         let proj = cgmath::ortho(
                             0.0,
@@ -202,13 +201,12 @@ impl Tilemap {
                             -1.0,
                             1.0,
                         );
-
-                        tiles.uniform.set_proj(proj);
+                        viewport.set_proj(proj);
+                        viewport.bind(render_pass);
 
                         tiles.draw(render_pass);
 
                         for event in events.iter() {
-                            event.uniform.set_proj(proj);
                             event.draw(render_pass);
                         }
                     }),
@@ -275,7 +273,7 @@ impl Tilemap {
         let (canvas_rect, response) = ui.allocate_exact_size(
             egui::vec2(
                 tiles::TILESET_WIDTH as f32,
-                self.tiles.atlas.tileset_height as f32,
+                self.resources.tiles.atlas.tileset_height as f32,
             ),
             egui::Sense::click(),
         );
@@ -296,14 +294,11 @@ impl Tilemap {
     }
 
     pub fn scale(&mut self) -> f32 {
-        self.tiles.uniform.scale()
+        self.resources.viewport.scale()
     }
 
     pub fn set_scale(&self, scale: f32) {
-        self.tiles.uniform.set_scale(scale);
-        for event in self.events.iter() {
-            event.uniform.set_scale(scale);
-        }
+        self.resources.viewport.set_scale(scale);
     }
 
     /*

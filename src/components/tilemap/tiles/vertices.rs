@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{
-    autotiles::AUTOTILES, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TILESET_WIDTH,
+    autotile_ids::AUTOTILES, AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TILESET_WIDTH,
     TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT,
 };
 use super::{Atlas, Quad};

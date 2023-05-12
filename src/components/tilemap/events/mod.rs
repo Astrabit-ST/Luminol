@@ -19,14 +19,12 @@ use super::vertex::Vertex;
 use crate::prelude::*;
 
 mod shader;
-mod uniform;
 
 #[derive(Debug)]
 pub struct Event {
     texture: Arc<image_cache::WgpuTexture>,
     blend_mode: BlendMode,
     vertices: Vertices,
-    pub uniform: uniform::Uniform,
 }
 
 #[derive(Debug)]
@@ -102,8 +100,6 @@ impl Event {
             indices,
         };
 
-        let uniform = uniform::Uniform::new();
-
         let blend_mode = match page.graphic.blend_type {
             0 => BlendMode::Normal,
             1 => BlendMode::Add,
@@ -115,7 +111,6 @@ impl Event {
             texture,
             blend_mode,
             vertices,
-            uniform,
         })
     }
 
@@ -123,7 +118,6 @@ impl Event {
         render_pass.push_debug_group("tilemap event renderer");
         shader::Shader::bind(render_pass);
         self.texture.bind(render_pass);
-        self.uniform.bind(render_pass);
         self.vertices.draw(render_pass);
         render_pass.pop_debug_group();
     }

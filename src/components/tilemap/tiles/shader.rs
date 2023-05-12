@@ -14,8 +14,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use super::super::viewport::Viewport;
 use super::Vertex;
 use crate::prelude::*;
+
+use once_cell::sync::Lazy;
 
 #[derive(Debug)]
 pub struct Shader {
@@ -31,34 +34,21 @@ impl Shader {
             .device
             .create_shader_module(wgpu::include_wgsl!("tilemap.wgsl"));
 
-        let texture_layout = image_cache::Cache::create_texture_bind_group_layout();
         let uniform_layout =
             render_state
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
-                    label: Some("tilemap bind group layout"),
+                        count: None,
+                    }],
+                    label: Some("tilemap autotiles bind group layout"),
                 });
 
         let pipeline_layout =
@@ -66,7 +56,11 @@ impl Shader {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Render Pipeline Layout"),
-                    bind_group_layouts: &[&texture_layout, &uniform_layout],
+                    bind_group_layouts: &[
+                        image_cache::Cache::bind_group_layout(),
+                        Viewport::layout(),
+                        &uniform_layout,
+                    ],
                     push_constant_ranges: &[],
                 });
         let pipeline =
@@ -112,4 +106,4 @@ impl Shader {
     }
 }
 
-static TILEMAP_SHADER: once_cell::sync::Lazy<Shader> = once_cell::sync::Lazy::new(Shader::new);
+static TILEMAP_SHADER: Lazy<Shader> = Lazy::new(Shader::new);
