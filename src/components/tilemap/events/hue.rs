@@ -1,3 +1,5 @@
+use once_cell::sync::Lazy;
+
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -14,82 +16,40 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
 use crate::prelude::*;
 use crossbeam::atomic::AtomicCell;
-use once_cell::sync::Lazy;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
-pub struct Autotiles {
-    data: AtomicCell<Data>,
-
+pub struct Hue {
     buffer: wgpu::Buffer,
-
     bind_group: wgpu::BindGroup,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
-struct Data {
-    autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
-    autotile_region_width: u32,
-    ani_index: u32,
-}
-
-impl Autotiles {
-    pub fn new(atlas: &super::Atlas) -> Self {
-        let autotiles = Data {
-            autotile_frames: atlas.autotile_frames,
-            autotile_region_width: atlas.autotile_width,
-            ani_index: 0,
-        };
-
+impl Hue {
+    pub fn new(hue: i32) -> Self {
+        let hue = (hue % 360) as f32 / 360.0;
         let render_state = &state!().render_state;
 
-        let autotile_buffer =
-            render_state
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap autotile buffer"),
-                    contents: bytemuck::cast_slice(&[autotiles]),
-                    usage: wgpu::BufferUsages::STORAGE
-                        | wgpu::BufferUsages::COPY_DST
-                        | wgpu::BufferUsages::UNIFORM,
-                });
-
+        let buffer = render_state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("tilemap event hue buffer"),
+                contents: bytemuck::cast_slice(&[hue]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
         let bind_group = render_state
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("tilemap autotiles bind group"),
+                label: Some("tilemap event hue bind group"),
                 layout: &LAYOUT,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: autotile_buffer.as_entire_binding(),
+                    resource: buffer.as_entire_binding(),
                 }],
             });
 
-        Autotiles {
-            data: AtomicCell::new(autotiles),
-            buffer: autotile_buffer,
-            bind_group,
-        }
-    }
-
-    pub fn inc_ani_index(&self) {
-        let data = self.data.load();
-        self.data.store(Data {
-            ani_index: data.ani_index.wrapping_add(1),
-            ..data
-        });
-        self.regen_buffer();
-    }
-
-    fn regen_buffer(&self) {
-        let render_state = &state!().render_state;
-        render_state
-            .queue
-            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data.load()]));
+        Self { bind_group, buffer }
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
@@ -111,12 +71,12 @@ static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
                 count: None,
             }],
-            label: Some("tilemap autotiles bind group layout"),
+            label: Some("tilemap event hue bind group layout"),
         })
 });
