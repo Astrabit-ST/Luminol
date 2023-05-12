@@ -42,7 +42,7 @@ pub struct Tilemap {
 #[derive(Debug)]
 struct Resources {
     tiles: tiles::Tiles,
-    events: Vec<events::Event>,
+    events: events::Events,
     viewport: viewport::Viewport,
 }
 
@@ -56,18 +56,7 @@ impl Tilemap {
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         let tiles = tiles::Tiles::new(tileset, &map)?;
-
-        let mut events: Vec<_> = map
-            .events
-            .iter()
-            .filter(|(_, e)| {
-                e.pages.first().is_some_and(|p| {
-                    !p.graphic.character_name.is_empty() || p.graphic.tile_id.is_positive()
-                })
-            })
-            .map(|(_, event)| events::Event::new(event, &tiles.atlas.atlas_texture))
-            .try_collect()?;
-        events.sort_unstable_by(|e1, e2| e1.blend_mode.cmp(&e2.blend_mode));
+        let events = events::Events::new(&map, &tiles.atlas.atlas_texture)?;
 
         let viewport = viewport::Viewport::new();
 
@@ -206,12 +195,7 @@ impl Tilemap {
                         viewport.bind(render_pass);
 
                         tiles.draw(render_pass);
-
-                        render_pass.push_debug_group("tilemap event renderer");
-                        for event in events.iter() {
-                            event.draw(render_pass);
-                        }
-                        render_pass.pop_debug_group();
+                        events.draw(render_pass);
                     }),
             ),
         });
