@@ -31,13 +31,13 @@ impl Shader {
 
         let shader_module = render_state
             .device
-            .create_shader_module(wgpu::include_wgsl!("plane.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("sprite.wgsl"));
 
         let pipeline_layout =
             render_state
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Tilemap Plane Pipeline Layout"),
+                    label: Some("Tilemap Sprite Pipeline Layout"),
                     bind_group_layouts: &[
                         image_cache::Cache::bind_group_layout(),
                         Viewport::layout(),
@@ -49,7 +49,7 @@ impl Shader {
             render_state
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Tilemap Plane Render Pipeline"),
+                    label: Some("Tilemap Sprite Render Pipeline"),
                     layout: Some(&pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &shader_module,

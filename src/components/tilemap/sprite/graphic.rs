@@ -44,14 +44,14 @@ impl Graphic {
         let buffer = render_state
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("tilemap plane graphic buffer"),
+                label: Some("tilemap sprite graphic buffer"),
                 contents: bytemuck::cast_slice(&[data]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
         let bind_group = render_state
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("tilemap plane graphic bind group"),
+                label: Some("tilemap sprite graphic bind group"),
                 layout: &LAYOUT,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
@@ -124,6 +124,6 @@ static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
                 },
                 count: None,
             }],
-            label: Some("tilemap event hue bind group layout"),
+            label: Some("tilemap sprite graphic bind group layout"),
         })
 });

@@ -15,12 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::quad::Quad;
-use super::vertex::Vertex;
-use super::BlendMode;
+use super::sprite::Sprite;
 use crate::prelude::*;
-
-mod graphic;
-mod shader;
 
 #[derive(Debug)]
 pub struct Events {
@@ -39,7 +35,7 @@ impl Events {
             })
             .map(|(_, event)| Event::new(event, atlas))
             .try_collect()?;
-        events.sort_unstable_by(|e1, e2| e1.blend_mode.cmp(&e2.blend_mode));
+        events.sort_unstable_by(|e1, e2| e1.sprite.blend_mode.cmp(&e2.sprite.blend_mode));
 
         Ok(Self { events })
     }
@@ -55,25 +51,7 @@ impl Events {
 
 #[derive(Debug)]
 struct Event {
-    texture: Arc<image_cache::WgpuTexture>,
-    pub blend_mode: BlendMode,
-    vertices: Vertices,
-    graphic: graphic::Graphic,
-}
-
-#[derive(Debug)]
-pub struct Vertices {
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub indices: u32,
-}
-
-impl Vertices {
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.draw_indexed(0..self.indices, 0, 0..1);
-    }
+    sprite: Sprite,
 }
 
 impl Event {
@@ -107,46 +85,30 @@ impl Event {
 
         let cw = texture.width() as f32 / 4.;
         let ch = texture.height() as f32 / 4.;
-        let (index_buffer, vertex_buffer, indices) = Quad::into_buffer(
-            &[Quad::new(
-                egui::Rect::from_min_size(
-                    egui::pos2(
-                        (event.x as f32 * 32.) + (16. - (cw / 2.)),
-                        (event.y as f32 * 32.) + (32. - ch),
-                    ),
-                    tex_coords.size(),
+        let quad = Quad::new(
+            egui::Rect::from_min_size(
+                egui::pos2(
+                    (event.x as f32 * 32.) + (16. - (cw / 2.)),
+                    (event.y as f32 * 32.) + (32. - ch),
                 ),
-                tex_coords,
-                0.0,
-            )],
-            texture.size(),
+                tex_coords.size(),
+            ),
+            tex_coords,
+            0.0,
         );
-        let vertices = Vertices {
-            vertex_buffer,
-            index_buffer,
-            indices,
-        };
 
-        let blend_mode = match page.graphic.blend_type {
-            0 => BlendMode::Normal,
-            1 => BlendMode::Add,
-            2 => BlendMode::Subtract,
-            mode => return Err(format!("unexpected blend mode {mode}")),
-        };
-        let graphic = graphic::Graphic::new(page.graphic.character_hue, page.graphic.opacity);
-
-        Ok(Self {
+        let sprite = Sprite::new(
+            &[quad],
             texture,
-            blend_mode,
-            vertices,
-            graphic,
-        })
+            page.graphic.blend_type.try_into()?,
+            page.graphic.character_hue,
+            page.graphic.opacity,
+        );
+
+        Ok(Self { sprite })
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        shader::Shader::bind(self.blend_mode, render_pass);
-        self.texture.bind(render_pass);
-        self.graphic.bind(render_pass);
-        self.vertices.draw(render_pass);
+        self.sprite.draw(render_pass);
     }
 }
