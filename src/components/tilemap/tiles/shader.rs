@@ -62,7 +62,7 @@ impl Shader {
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                            ..render_state.target_format.into()
+                            ..wgpu::TextureFormat::Rgba8UnormSrgb.into()
                         })],
                     }),
                     primitive: wgpu::PrimitiveState {

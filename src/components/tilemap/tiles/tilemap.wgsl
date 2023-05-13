@@ -13,7 +13,6 @@ struct VertexOutput {
 struct Viewport {
     // Projection matrix
     proj: mat4x4<f32>,
-    scale: f32,
 }
 
 struct Autotiles {
@@ -55,7 +54,7 @@ fn vs_main(
     // }
 
     // var model_position = (model.position.xy + viewport.pan) / (viewport.scale / 100.);
-    var position = viewport.proj * vec4<f32>(model.position.xy * (viewport.scale / 100.), 0.0, 1.0);
+    var position = viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
 
     out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;

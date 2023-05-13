@@ -45,6 +45,7 @@ pub struct Tilemap {
     pub pano_enabled: bool,
     pub event_enabled: bool,
     pub toggled_layers: Vec<bool>,
+    pub scale: f32,
 }
 
 #[derive(Debug)]
@@ -54,7 +55,13 @@ struct Resources {
     viewport: viewport::Viewport,
     panorama: Option<plane::Plane>,
     fog: Option<plane::Plane>,
+
+    render_tex: wgpu::Texture,
+    render_tex_view: wgpu::TextureView,
+    render_tex_bind_group: wgpu::BindGroup,
 }
+
+type ResourcesHash = HashMap<i32, Arc<Resources>>;
 
 impl Tilemap {
     pub fn new(map_id: i32, map: &rpg::Map) -> Result<Tilemap, String> {
@@ -63,8 +70,8 @@ impl Tilemap {
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
-        let tiles = tiles::Tiles::new(tileset, &map)?;
-        let events = events::Events::new(&map, &tiles.atlas.atlas_texture)?;
+        let tiles = tiles::Tiles::new(tileset, map)?;
+        let events = events::Events::new(map, &tiles.atlas.atlas_texture)?;
 
         let panorama = if tileset.panorama_name.is_empty() {
             None
@@ -99,6 +106,27 @@ impl Tilemap {
 
         let viewport = viewport::Viewport::new();
 
+        let render_state = &state!().render_state;
+        let render_tex = render_state
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some(&format!("tilemap map {map_id} render texture")),
+                size: wgpu::Extent3d {
+                    width: map.width as u32 * 32,
+                    height: map.height as u32 * 32,
+                    depth_or_array_layers: 1,
+                },
+                dimension: wgpu::TextureDimension::D2,
+                mip_level_count: 1,
+                sample_count: 1,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+        let render_tex_view = render_tex.create_view(&wgpu::TextureViewDescriptor::default());
+        let render_tex_bind_group = image_cache::Cache::create_texture_bind_group(&render_tex);
+
         Ok(Self {
             visible_display: false,
             move_preview: false,
@@ -110,6 +138,10 @@ impl Tilemap {
                 viewport,
                 panorama,
                 fog,
+
+                render_tex,
+                render_tex_view,
+                render_tex_bind_group,
             }),
             ani_instant: Instant::now(),
             map_id,
@@ -118,6 +150,7 @@ impl Tilemap {
             pano_enabled: true,
             event_enabled: true,
             toggled_layers: vec![true; map.data.zsize()],
+            scale: 100.,
         })
     }
 
@@ -144,23 +177,22 @@ impl Tilemap {
 
         // Handle zoom
         if let Some(pos) = response.hover_pos() {
-            let mut scale = self.scale();
             // We need to store the old scale before applying any transformations
-            let old_scale = scale;
+            let old_scale = self.scale;
             let delta = ui.input(|i| i.scroll_delta.y * 5.0);
 
             // Apply scroll and cap max zoom to 15%
-            scale += delta / 30.;
-            scale = 15.0_f32.max(scale);
+            self.scale += delta / 30.;
+            self.scale = 15.0_f32.max(self.scale);
 
             // Get the normalized cursor position relative to pan
             let pos_norm = (pos - self.pan - canvas_center) / old_scale;
             // Offset the pan to the cursor remains in the same place
             // Still not sure how the math works out, if it ain't broke don't fix it
-            self.pan = pos - canvas_center - pos_norm * scale;
+            self.pan = pos - canvas_center - pos_norm * self.scale;
 
             // Figure out the tile the cursor is hovering over
-            let tile_size = (scale / 100.) * 32.;
+            let tile_size = (self.scale / 100.) * 32.;
             let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
                 + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
             // Force the cursor to a tile instead of in-between
@@ -169,10 +201,6 @@ impl Tilemap {
             // Handle input
             if selected_layer < map.data.zsize() || dragging_event || response.clicked() {
                 *cursor_pos = pos_tile.to_pos2();
-            }
-
-            if scale != self.scale() {
-                self.set_scale(scale);
             }
         }
 
@@ -197,7 +225,7 @@ impl Tilemap {
         // If we don't use pixels_per_point then the map is the wrong size.
         // *don't ask me how i know this*.
         // its a *long* story
-        let scale = self.scale() / (ui.ctx().pixels_per_point() * 100.);
+        let scale = self.scale / (ui.ctx().pixels_per_point() * 100.);
         let tile_size = 32. * scale;
         let canvas_pos = canvas_center + self.pan;
 
@@ -216,64 +244,86 @@ impl Tilemap {
         let fog_enabled = self.fog_enabled;
         let pano_enabled = self.pano_enabled;
         let event_enabled = self.event_enabled;
+
+        let paint_callback = egui_wgpu::CallbackFn::new()
+            .prepare(move |device, _queue, _encoder, paint_callback_resources| {
+                let Resources {
+                    tiles,
+                    events,
+                    viewport,
+                    panorama,
+                    fog,
+
+                    render_tex,
+                    render_tex_view,
+                    ..
+                } = resources.as_ref();
+                let res_hash: &mut ResourcesHash = paint_callback_resources
+                    .entry()
+                    .or_insert_with(Default::default);
+                res_hash.insert(map_id, resources.clone());
+
+                let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("tilemap render encoder"),
+                });
+
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some(&format!("map {map_id} tilemap render pass")),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: render_tex_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 0.0,
+                            }),
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                });
+
+                let proj = cgmath::ortho(
+                    0.0,
+                    render_tex.width() as f32,
+                    render_tex.height() as f32,
+                    0.0,
+                    -1.0,
+                    1.0,
+                );
+                viewport.set_proj(proj);
+                viewport.bind(&mut render_pass);
+
+                if pano_enabled {
+                    if let Some(panorama) = panorama {
+                        panorama.draw(&mut render_pass);
+                    }
+                }
+
+                tiles.draw(&mut render_pass);
+
+                if event_enabled {
+                    events.draw(&mut render_pass);
+                }
+                if fog_enabled {
+                    if let Some(fog) = fog {
+                        fog.draw(&mut render_pass);
+                    }
+                }
+
+                drop(render_pass);
+
+                vec![encoder.finish()]
+            })
+            .paint(move |_info, render_pass, _paint_info| {
+                //
+            });
+
         ui.painter().add(egui::PaintCallback {
             rect: map_rect,
-            callback: Arc::new(
-                egui_wgpu::CallbackFn::new()
-                    .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
-                        //
-                        let res_hash: &mut HashMap<i32, Arc<Resources>> = paint_callback_resources
-                            .entry()
-                            .or_insert_with(Default::default);
-                        res_hash.insert(map_id, resources.clone());
-
-                        vec![]
-                    })
-                    .paint(move |info, render_pass, paint_callback_resources| {
-                        //
-                        render_pass.push_debug_group(&format!("map {map_id} tilemap render"));
-                        let res_hash: &HashMap<i32, Arc<Resources>> = paint_callback_resources
-                            .get()
-                            .expect("failed to get tilemap resources");
-                        let Resources {
-                            tiles,
-                            events,
-                            viewport,
-                            panorama,
-                            fog,
-                        } = res_hash[&map_id].as_ref();
-                        let viewport_px = info.viewport_in_pixels();
-
-                        let proj = cgmath::ortho(
-                            0.0,
-                            viewport_px.width_px,
-                            viewport_px.height_px,
-                            0.0,
-                            -1.0,
-                            1.0,
-                        );
-                        viewport.set_proj(proj);
-                        viewport.bind(render_pass);
-
-                        if pano_enabled {
-                            if let Some(panorama) = panorama {
-                                panorama.draw(render_pass);
-                            }
-                        }
-
-                        tiles.draw(render_pass);
-
-                        if event_enabled {
-                            events.draw(render_pass);
-                        }
-                        if fog_enabled {
-                            if let Some(fog) = fog {
-                                fog.draw(render_pass);
-                            }
-                        }
-                        render_pass.pop_debug_group();
-                    }),
-            ),
+            callback: Arc::new(paint_callback),
         });
 
         ui.painter().rect_stroke(
@@ -355,13 +405,5 @@ impl Tilemap {
                     }),
             ),
         });
-    }
-
-    pub fn scale(&mut self) -> f32 {
-        self.resources.viewport.scale()
-    }
-
-    pub fn set_scale(&self, scale: f32) {
-        self.resources.viewport.set_scale(scale);
     }
 }
