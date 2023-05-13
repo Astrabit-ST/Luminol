@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 mod events;
-mod planes;
+mod plane;
 mod quad;
 mod tiles;
 mod vertex;
@@ -44,6 +44,15 @@ struct Resources {
     tiles: tiles::Tiles,
     events: events::Events,
     viewport: viewport::Viewport,
+    panorama: Option<plane::Plane>,
+    fog: Option<plane::Plane>,
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Hash)]
+pub enum BlendMode {
+    Normal = 0,
+    Add = 1,
+    Subtract = 2,
 }
 
 impl Tilemap {
@@ -58,6 +67,38 @@ impl Tilemap {
         let tiles = tiles::Tiles::new(tileset, &map)?;
         let events = events::Events::new(&map, &tiles.atlas.atlas_texture)?;
 
+        let panorama = if tileset.panorama_name.is_empty() {
+            None
+        } else {
+            Some(plane::Plane::new(
+                state!()
+                    .image_cache
+                    .load_wgpu_image("Graphics/Panoramas", &tileset.panorama_name)?,
+                tileset.panorama_hue,
+                1,
+                BlendMode::Normal,
+                1,
+            ))
+        };
+        let fog = if tileset.panorama_name.is_empty() {
+            None
+        } else {
+            Some(plane::Plane::new(
+                state!()
+                    .image_cache
+                    .load_wgpu_image("Graphics/Fogs", &tileset.fog_name)?,
+                tileset.fog_hue,
+                tileset.fog_zoom,
+                match tileset.fog_blend_type {
+                    0 => BlendMode::Normal,
+                    1 => BlendMode::Add,
+                    2 => BlendMode::Subtract,
+                    mode => return Err(format!("unexpected blend mode {mode}")),
+                },
+                tileset.fog_opacity,
+            ))
+        };
+
         let viewport = viewport::Viewport::new();
 
         Ok(Self {
@@ -69,6 +110,8 @@ impl Tilemap {
                 tiles,
                 events,
                 viewport,
+                panorama,
+                fog,
             }),
             ani_instant: Instant::now(),
         })
@@ -182,6 +225,8 @@ impl Tilemap {
                             tiles,
                             events,
                             viewport,
+                            panorama,
+                            fog,
                         } = res_hash[&map_id].as_ref();
 
                         let proj = cgmath::ortho(
@@ -195,8 +240,14 @@ impl Tilemap {
                         viewport.set_proj(proj);
                         viewport.bind(render_pass);
 
+                        if let Some(panorama) = panorama {
+                            panorama.draw(render_pass);
+                        }
                         tiles.draw(render_pass);
                         events.draw(render_pass);
+                        if let Some(fog) = fog {
+                            fog.draw(render_pass);
+                        }
                     }),
             ),
         });

@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::quad::Quad;
 use super::vertex::Vertex;
+use super::BlendMode;
 use crate::prelude::*;
 
 mod graphic;
@@ -58,13 +59,6 @@ struct Event {
     pub blend_mode: BlendMode,
     vertices: Vertices,
     graphic: graphic::Graphic,
-}
-
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Hash)]
-pub enum BlendMode {
-    Normal = 0,
-    Add = 1,
-    Subtract = 2,
 }
 
 #[derive(Debug)]
