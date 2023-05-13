@@ -17,7 +17,7 @@
 use crate::prelude::*;
 
 use super::super::viewport::Viewport;
-use super::hue::Hue;
+use super::graphic::Graphic;
 use super::{BlendMode, Vertex};
 use once_cell::sync::Lazy;
 
@@ -41,7 +41,7 @@ impl Shader {
                     bind_group_layouts: &[
                         image_cache::Cache::bind_group_layout(),
                         Viewport::layout(),
-                        Hue::layout(),
+                        Graphic::layout(),
                     ],
                     push_constant_ranges: &[],
                 });

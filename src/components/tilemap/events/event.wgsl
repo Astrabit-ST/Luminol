@@ -23,8 +23,13 @@ var s_diffuse: sampler;
 @group(1) @binding(0) // 1.
 var<uniform> viewport: Viewport;
 
+struct Graphic {
+    hue: f32,
+    opacity: f32
+}
+
 @group(2) @binding(0)
-var<uniform> hue: f32;
+var<uniform> graphic: Graphic;
 
 fn rgb_to_hsv(c: vec3<f32>) -> vec3<f32> {
     let K = vec4<f32>(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -64,15 +69,16 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    tex_sample.a *= graphic.opacity;
     if tex_sample.a <= 0. {
         discard;
     }
 
-    if hue > 0.0 {
+    if graphic.hue > 0.0 {
         var hsv = rgb_to_hsv(tex_sample.rgb);
 
-        hsv.x += hue;
-        tex_sample = vec4<f32>(hsv_to_rgb(hsv), tex_sample.w);
+        hsv.x += graphic.hue;
+        tex_sample = vec4<f32>(hsv_to_rgb(hsv), tex_sample.a);
     }
 
     return tex_sample;

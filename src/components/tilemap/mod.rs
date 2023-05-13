@@ -132,6 +132,7 @@ impl Tilemap {
             }));
         if panning_map_view {
             self.pan += response.drag_delta();
+            ui.ctx().request_repaint();
         }
 
         // Handle cursor icon
