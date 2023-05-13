@@ -3,7 +3,6 @@ name = "luminol"
 version = "0.4.0"
 authors = [
     "Lily Lyons <lily@nowaffles.com>",
-    "Egor Poleshko <somedevfox@gmail.com>",
 ]
 edition = "2021"
 rust-version = "1.62"
@@ -87,11 +86,6 @@ rfd = "0.11"
 [features]
 default = ["generic-tilemap"]
 generic-tilemap = []
-
-
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.46.0", features = ["Win32_System_Registry"] }
-winreg = "0.11.0"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
