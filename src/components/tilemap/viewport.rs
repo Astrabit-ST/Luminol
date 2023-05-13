@@ -31,7 +31,6 @@ pub struct Viewport {
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Data {
     proj: cgmath::Matrix4<f32>,
-    scale: f32,
 }
 
 // SAFETY:
@@ -46,7 +45,6 @@ impl Viewport {
     pub fn new() -> Self {
         let data = Data {
             proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -1.0, 1.0),
-            scale: 100.,
         };
         let render_state = &state!().render_state;
 
@@ -82,18 +80,6 @@ impl Viewport {
         let data = self.data.load();
         if data.proj != proj {
             self.data.store(Data { proj, ..data });
-            self.regen_buffer();
-        }
-    }
-
-    pub fn scale(&self) -> f32 {
-        self.data.load().scale
-    }
-
-    pub fn set_scale(&self, scale: f32) {
-        let data = self.data.load();
-        if data.scale != scale {
-            self.data.store(Data { scale, ..data });
             self.regen_buffer();
         }
     }
