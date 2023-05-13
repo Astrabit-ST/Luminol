@@ -81,7 +81,7 @@ command-lib = { version = "*", path = "command-lib" }
 rmxp-types = { version = "*", path = "rmxp-types" }
 luminol-term = { version = "*", path = "luminol-term" }
 
-rfd = "0.11"
+rfd = { git = "https://github.com/somedevfox/rfd" }
 
 [features]
 default = ["generic-tilemap"]
@@ -101,7 +101,7 @@ lto = "fat"
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]
-opt-level = 1
+# opt-level = 1
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]

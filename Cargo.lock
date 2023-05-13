@@ -3664,8 +3664,7 @@ dependencies = [
 [[package]]
 name = "rfd"
 version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cb2988ec50c9bcdb0c012b89643a6094a35a785a37897211ee62e1639342f7b"
+source = "git+https://github.com/somedevfox/rfd#c285eea6bf37ee16cc9a1d92cc2aaeb8044d68ae"
 dependencies = [
  "async-io",
  "block",
@@ -3683,7 +3682,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "windows 0.44.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -5476,15 +5475,6 @@ dependencies = [
  "windows_x86_64_gnu 0.42.2",
  "windows_x86_64_gnullvm 0.42.2",
  "windows_x86_64_msvc 0.42.2",
-]
-
-[[package]]
-name = "windows"
-version = "0.44.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e745dab35a0c4c77aa3ce42d595e13d2003d6902d6b08c9ef5fc326d08da12b"
-dependencies = [
- "windows-targets 0.42.2",
 ]
 
 [[package]]
