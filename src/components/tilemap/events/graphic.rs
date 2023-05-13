@@ -21,22 +21,31 @@ use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
-pub struct Hue {
-    hue: AtomicCell<f32>,
+pub struct Graphic {
+    data: AtomicCell<Data>,
     buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 }
 
-impl Hue {
-    pub fn new(hue: i32) -> Self {
+#[repr(C)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Data {
+    hue: f32,
+    opacity: f32,
+}
+
+impl Graphic {
+    pub fn new(hue: i32, opacity: i32) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
+        let opacity = opacity as f32 / 255.;
+        let data = Data { hue, opacity };
         let render_state = &state!().render_state;
 
         let buffer = render_state
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("tilemap event hue buffer"),
-                contents: bytemuck::cast_slice(&[hue]),
+                contents: bytemuck::cast_slice(&[data]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
         let bind_group = render_state
@@ -53,24 +62,41 @@ impl Hue {
         Self {
             bind_group,
             buffer,
-            hue: AtomicCell::new(hue),
+            data: AtomicCell::new(data),
         }
     }
 
     pub fn hue(&self) -> i32 {
-        (self.hue.load() * 360.) as i32
+        (self.data.load().hue * 360.) as i32
     }
 
     pub fn set_hue(&self, hue: i32) {
         let hue = (hue % 360) as f32 / 360.0;
-        if self.hue.load() != hue {
-            self.hue.store(hue);
-
-            state!()
-                .render_state
-                .queue
-                .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[hue]));
+        let data = self.data.load();
+        if data.hue != hue {
+            self.data.store(Data { hue, ..data });
+            self.regen_buffer();
         }
+    }
+
+    pub fn opacity(&self) -> i32 {
+        (self.data.load().opacity * 255.) as i32
+    }
+
+    pub fn set_opacity(&self, opacity: i32) {
+        let opacity = opacity as f32 / 255.0;
+        let data = self.data.load();
+        if data.opacity != opacity {
+            self.data.store(Data { opacity, ..data });
+            self.regen_buffer();
+        }
+    }
+
+    fn regen_buffer(&self) {
+        let render_state = &state!().render_state;
+        render_state
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data.load()]));
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
