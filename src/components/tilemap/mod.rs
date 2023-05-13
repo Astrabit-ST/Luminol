@@ -22,8 +22,6 @@ mod tiles;
 mod vertex;
 mod viewport;
 
-mod basic_render;
-
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -43,11 +41,20 @@ pub struct Tilemap {
     resources: Arc<Resources>,
     ani_instant: Instant,
 
+    texture_id: egui::TextureId,
+
     pub fog_enabled: bool,
     pub pano_enabled: bool,
     pub event_enabled: bool,
     pub toggled_layers: Vec<bool>,
     pub scale: f32,
+}
+
+impl Drop for Tilemap {
+    fn drop(&mut self) {
+        let mut renderer = state!().render_state.renderer.write();
+        renderer.free_texture(&self.texture_id);
+    }
 }
 
 #[derive(Debug)]
@@ -60,7 +67,6 @@ struct Resources {
 
     render_tex: wgpu::Texture,
     render_tex_view: wgpu::TextureView,
-    render_tex_bind_group: wgpu::BindGroup,
 }
 
 type ResourcesHash = HashMap<i32, Arc<Resources>>;
@@ -119,14 +125,20 @@ impl Tilemap {
                 dimension: wgpu::TextureDimension::D2,
                 mip_level_count: 1,
                 sample_count: 1,
-                format: wgpu::TextureFormat::Rgba8Unorm,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                     | wgpu::TextureUsages::TEXTURE_BINDING
                     | wgpu::TextureUsages::COPY_SRC,
                 view_formats: &[],
             });
         let render_tex_view = render_tex.create_view(&wgpu::TextureViewDescriptor::default());
-        let render_tex_bind_group = image_cache::Cache::create_texture_bind_group(&render_tex);
+
+        let mut renderer = render_state.renderer.write();
+        let texture_id = renderer.register_native_texture(
+            &render_state.device,
+            &render_tex_view,
+            wgpu::FilterMode::Nearest,
+        );
 
         let viewport = viewport::Viewport::new();
         let proj = cgmath::ortho(
@@ -153,8 +165,10 @@ impl Tilemap {
 
                 render_tex,
                 render_tex_view,
-                render_tex_bind_group,
             }),
+
+            texture_id,
+
             ani_instant: Instant::now(),
             map_id,
 
@@ -257,8 +271,8 @@ impl Tilemap {
         let pano_enabled = self.pano_enabled;
         let event_enabled = self.event_enabled;
 
-        let paint_callback = egui_wgpu::CallbackFn::new()
-            .prepare(move |device, _queue, _encoder, paint_callback_resources| {
+        let paint_callback = egui_wgpu::CallbackFn::new().prepare(
+            move |device, _queue, _encoder, paint_callback_resources| {
                 let Resources {
                     tiles,
                     events,
@@ -266,7 +280,6 @@ impl Tilemap {
                     panorama,
                     fog,
 
-                    render_tex,
                     render_tex_view,
                     ..
                 } = resources.as_ref();
@@ -319,26 +332,20 @@ impl Tilemap {
                 drop(render_pass);
 
                 vec![encoder.finish()]
-            })
-            .paint(move |_info, render_pass, paint_info| {
-                //
-                let res_hash: &ResourcesHash = paint_info
-                    .get()
-                    .expect("failed to get tilemap resources hashmap");
-
-                let Resources {
-                    render_tex_bind_group,
-                    ..
-                } = res_hash[&map_id].as_ref();
-
-                render_pass.set_bind_group(0, render_tex_bind_group, &[]);
-                basic_render::Shader::draw(render_pass);
-            });
+            },
+        );
 
         ui.painter().add(egui::PaintCallback {
             rect: map_rect,
             callback: Arc::new(paint_callback),
         });
+
+        ui.painter().image(
+            self.texture_id,
+            map_rect,
+            egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(1., 1.)),
+            egui::Color32::WHITE,
+        );
 
         ui.painter().rect_stroke(
             map_rect,
@@ -419,6 +426,10 @@ impl Tilemap {
                     }),
             ),
         });
+    }
+
+    pub fn texture_id(&self) -> egui::TextureId {
+        self.texture_id
     }
 
     pub fn save_to_disk(&self) {
