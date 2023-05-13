@@ -179,7 +179,9 @@ impl Cache {
                         mip_level_count: 1,
                         sample_count: 1,
                         format: wgpu::TextureFormat::Rgba8Unorm,
-                        usage: wgpu::TextureUsages::all(),
+                        usage: wgpu::TextureUsages::COPY_SRC
+                            | wgpu::TextureUsages::COPY_DST
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
                         view_formats: &[],
                     },
                     &image,

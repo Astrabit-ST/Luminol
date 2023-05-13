@@ -134,6 +134,11 @@ impl tab::Tab for Tab {
 
                 ui.checkbox(&mut self.tilemap.visible_display, "Display Visible Area");
                 ui.checkbox(&mut self.tilemap.move_preview, "Preview event move routes");
+
+                if ui.button("Save map preview").clicked() {
+                    self.tilemap.save_to_disk();
+                }
+
                 if map.preview_move_route.is_some()
                     && ui.button("Clear move route preview").clicked()
                 {

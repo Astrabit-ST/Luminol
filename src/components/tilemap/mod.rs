@@ -22,6 +22,8 @@ mod tiles;
 mod vertex;
 mod viewport;
 
+mod basic_render;
+
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -104,8 +106,6 @@ impl Tilemap {
             ))
         };
 
-        let viewport = viewport::Viewport::new();
-
         let render_state = &state!().render_state;
         let render_tex = render_state
             .device
@@ -119,13 +119,25 @@ impl Tilemap {
                 dimension: wgpu::TextureDimension::D2,
                 mip_level_count: 1,
                 sample_count: 1,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format: wgpu::TextureFormat::Rgba8Unorm,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                    | wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC,
                 view_formats: &[],
             });
         let render_tex_view = render_tex.create_view(&wgpu::TextureViewDescriptor::default());
         let render_tex_bind_group = image_cache::Cache::create_texture_bind_group(&render_tex);
+
+        let viewport = viewport::Viewport::new();
+        let proj = cgmath::ortho(
+            0.0,
+            render_tex.width() as f32,
+            render_tex.height() as f32,
+            0.0,
+            -1.0,
+            1.0,
+        );
+        viewport.set_proj(proj);
 
         Ok(Self {
             visible_display: false,
@@ -285,15 +297,6 @@ impl Tilemap {
                     depth_stencil_attachment: None,
                 });
 
-                let proj = cgmath::ortho(
-                    0.0,
-                    render_tex.width() as f32,
-                    render_tex.height() as f32,
-                    0.0,
-                    -1.0,
-                    1.0,
-                );
-                viewport.set_proj(proj);
                 viewport.bind(&mut render_pass);
 
                 if pano_enabled {
@@ -317,8 +320,19 @@ impl Tilemap {
 
                 vec![encoder.finish()]
             })
-            .paint(move |_info, render_pass, _paint_info| {
+            .paint(move |_info, render_pass, paint_info| {
                 //
+                let res_hash: &ResourcesHash = paint_info
+                    .get()
+                    .expect("failed to get tilemap resources hashmap");
+
+                let Resources {
+                    render_tex_bind_group,
+                    ..
+                } = res_hash[&map_id].as_ref();
+
+                render_pass.set_bind_group(0, render_tex_bind_group, &[]);
+                basic_render::Shader::draw(render_pass);
             });
 
         ui.painter().add(egui::PaintCallback {
@@ -405,5 +419,130 @@ impl Tilemap {
                     }),
             ),
         });
+    }
+
+    pub fn save_to_disk(&self) {
+        let render_state = &state!().render_state;
+
+        let mut encoder =
+            render_state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("tilemap disk image render encoder"),
+                });
+
+        let Resources {
+            tiles,
+            events,
+            viewport,
+            panorama,
+            fog,
+
+            render_tex,
+            render_tex_view,
+            ..
+        } = self.resources.as_ref();
+        let map_id = self.map_id;
+        let width = render_tex.width();
+        let height = render_tex.height();
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: render_tex_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
+                    }),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        });
+
+        viewport.bind(&mut render_pass);
+
+        if self.pano_enabled {
+            if let Some(panorama) = panorama {
+                panorama.draw(&mut render_pass);
+            }
+        }
+
+        tiles.draw(&mut render_pass);
+
+        if self.event_enabled {
+            events.draw(&mut render_pass);
+        }
+        if self.fog_enabled {
+            if let Some(fog) = fog {
+                fog.draw(&mut render_pass);
+            }
+        }
+
+        drop(render_pass);
+
+        let buffer = render_state.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(&format!("tilemap {map_id} buffer render to disk")),
+            size: (render_tex.width() * render_tex.height() * 4) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        encoder.copy_texture_to_buffer(
+            render_tex.as_image_copy(),
+            wgpu::ImageCopyBuffer {
+                buffer: &buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: std::num::NonZeroU32::new(4 * width),
+                    rows_per_image: None,
+                },
+            },
+            render_tex.size(),
+        );
+
+        render_state.queue.submit(std::iter::once(encoder.finish()));
+
+        wgpu::util::DownloadBuffer::read_buffer(
+            &render_state.device,
+            &render_state.queue,
+            &buffer.slice(..),
+            move |result| {
+                let buffer = match result {
+                    Ok(b) => b,
+                    Err(e) => {
+                        state!()
+                            .toasts
+                            .error(format!("error getting tilemap view into ram: {e:?}"));
+                        return;
+                    }
+                };
+
+                let mut buffer =
+                    image::RgbaImage::from_raw(width, height, buffer.to_vec()).unwrap();
+                /*
+                for p in buffer.pixels_mut() {
+                    let r = p.0[2];
+                    let b = p.0[0];
+                    p.0[0] = r;
+                    p.0[2] = b;
+                }
+                 */
+                let result = buffer.save(format!("map_{map_id}.png"));
+
+                match result {
+                    Ok(_) => state!()
+                        .toasts
+                        .info(format!("Sucessfully saved \"map_{map_id}.png\"")),
+                    Err(e) => state!()
+                        .toasts
+                        .error(format!("Error saving tileset view to disk: {e:?}")),
+                }
+            },
+        );
     }
 }
