@@ -36,8 +36,15 @@ pub struct Tilemap {
 
     pub pan: egui::Vec2,
 
+    map_id: i32,
+
     resources: Arc<Resources>,
     ani_instant: Instant,
+
+    pub fog_enabled: bool,
+    pub pano_enabled: bool,
+    pub event_enabled: bool,
+    pub toggled_layers: Vec<bool>,
 }
 
 #[derive(Debug)]
@@ -50,9 +57,7 @@ struct Resources {
 }
 
 impl Tilemap {
-    pub fn new(id: i32) -> Result<Tilemap, String> {
-        // Load the map.
-        let map = state!().data_cache.load_map(id)?;
+    pub fn new(map_id: i32, map: &rpg::Map) -> Result<Tilemap, String> {
         // Get tilesets.
         let tilesets = state!().data_cache.tilesets();
         // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
@@ -107,6 +112,12 @@ impl Tilemap {
                 fog,
             }),
             ani_instant: Instant::now(),
+            map_id,
+
+            fog_enabled: true,
+            pano_enabled: true,
+            event_enabled: true,
+            toggled_layers: vec![true; map.data.zsize()],
         })
     }
 
@@ -114,8 +125,9 @@ impl Tilemap {
         &mut self,
         ui: &mut egui::Ui,
         map: &rpg::Map,
-        map_id: i32,
         cursor_pos: &mut egui::Pos2,
+        selected_layer: usize,
+        dragging_event: bool,
     ) -> egui::Response {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
@@ -155,6 +167,9 @@ impl Tilemap {
             pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
             // Handle input
+            if selected_layer < map.data.zsize() || dragging_event || response.clicked() {
+                *cursor_pos = pos_tile.to_pos2();
+            }
 
             if scale != self.scale() {
                 self.set_scale(scale);
@@ -196,6 +211,11 @@ impl Tilemap {
         };
 
         let resources = self.resources.clone();
+        let map_id = self.map_id;
+
+        let fog_enabled = self.fog_enabled;
+        let pano_enabled = self.pano_enabled;
+        let event_enabled = self.event_enabled;
         ui.painter().add(egui::PaintCallback {
             rect: map_rect,
             callback: Arc::new(
@@ -211,6 +231,7 @@ impl Tilemap {
                     })
                     .paint(move |info, render_pass, paint_callback_resources| {
                         //
+                        render_pass.push_debug_group(&format!("map {map_id} tilemap render"));
                         let res_hash: &HashMap<i32, Arc<Resources>> = paint_callback_resources
                             .get()
                             .expect("failed to get tilemap resources");
@@ -234,14 +255,23 @@ impl Tilemap {
                         viewport.set_proj(proj);
                         viewport.bind(render_pass);
 
-                        if let Some(panorama) = panorama {
-                            panorama.draw(render_pass);
+                        if pano_enabled {
+                            if let Some(panorama) = panorama {
+                                panorama.draw(render_pass);
+                            }
                         }
+
                         tiles.draw(render_pass);
-                        events.draw(render_pass);
-                        if let Some(fog) = fog {
-                            fog.draw(render_pass);
+
+                        if event_enabled {
+                            events.draw(render_pass);
                         }
+                        if fog_enabled {
+                            if let Some(fog) = fog {
+                                fog.draw(render_pass);
+                            }
+                        }
+                        render_pass.pop_debug_group();
                     }),
             ),
         });
@@ -253,15 +283,20 @@ impl Tilemap {
         );
 
         // TODO: draw event bounds instead?
-        for (_, event) in map.events.iter() {
-            let box_rect = egui::Rect::from_min_size(
-                map_rect.min
-                    + egui::Vec2::new(event.x as f32 * tile_size, event.y as f32 * tile_size),
-                egui::Vec2::splat(tile_size),
-            );
+        if event_enabled {
+            for (_, event) in map.events.iter() {
+                let box_rect = egui::Rect::from_min_size(
+                    map_rect.min
+                        + egui::Vec2::new(event.x as f32 * tile_size, event.y as f32 * tile_size),
+                    egui::Vec2::splat(tile_size),
+                );
 
-            ui.painter()
-                .rect_stroke(box_rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+                ui.painter().rect_stroke(
+                    box_rect,
+                    5.0,
+                    egui::Stroke::new(1.0, egui::Color32::WHITE),
+                );
+            }
         }
 
         // Do we display the visible region?
@@ -294,10 +329,6 @@ impl Tilemap {
             5.0,
             egui::Stroke::new(1.0, egui::Color32::YELLOW),
         );
-
-        /*
-        self.tiles.uniform.set_pan(pan);
-        */
 
         response
     }
@@ -333,39 +364,4 @@ impl Tilemap {
     pub fn set_scale(&self, scale: f32) {
         self.resources.viewport.set_scale(scale);
     }
-
-    /*
-    #[allow(unused_variables, unused_assignments)]
-    fn load_data(map: &rpg::Map, tileset: &rpg::Tileset) {
-        let state = state!();
-
-        let event_texs = map
-            .events
-            .iter()
-            .filter_map(|(_, e)| e.pages.first().map(|p| p.graphic.character_name.clone()))
-            .filter(|s| !s.is_empty())
-            .dedup()
-            .map(|char_name| {
-                //
-                state
-                    .image_cache
-                    .load_wgpu_image("Graphics/Characters", &char_name)
-                    .map(|texture| (char_name, texture))
-            })
-            .try_collect()?;
-
-        // These two are pretty simple.
-        let fog_tex = state
-            .image_cache
-            .load_wgpu_image("Graphics/Fogs", &tileset.fog_name)
-            .ok();
-
-        let pano_tex = state
-            .image_cache
-            .load_wgpu_image("Graphics/Panoramas", &tileset.panorama_name)
-            .ok();
-
-        // Finally create and return the struct.
-    }
-    */
 }

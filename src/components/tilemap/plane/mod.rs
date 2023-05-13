@@ -19,12 +19,9 @@ use super::sprite::{BlendMode, Sprite};
 
 use crate::prelude::*;
 
-use crossbeam::atomic::AtomicCell;
-
 #[derive(Debug)]
 pub struct Plane {
     sprite: Sprite,
-    zoom: f32,
 }
 
 impl Plane {
@@ -54,7 +51,7 @@ impl Plane {
 
         let sprite = Sprite::new(&[quad], texture, blend_mode, hue, opacity);
 
-        Self { sprite, zoom }
+        Self { sprite }
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
