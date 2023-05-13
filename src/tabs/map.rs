@@ -26,8 +26,6 @@ pub struct Tab {
     pub id: i32,
     /// Selected layer.
     pub selected_layer: usize,
-    /// Toggled layers.
-    pub toggled_layers: Vec<bool>,
     /// The cursor position.
     pub cursor_pos: Pos2,
     /// The tilemap.
@@ -43,12 +41,12 @@ pub struct Tab {
 impl Tab {
     /// Create a new map editor.
     pub fn new(id: i32) -> Result<Self, String> {
+        let map = state!().data_cache.load_map(id)?;
         Ok(Self {
             id,
-            selected_layer: 0,
-            toggled_layers: Vec::new(),
+            selected_layer: map.data.zsize(),
             cursor_pos: Pos2::ZERO,
-            tilemap: Tilemap::new(id)?,
+            tilemap: Tilemap::new(id, &map)?,
             selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,
@@ -80,13 +78,6 @@ impl tab::Tab for Tab {
         let tileset = state.data_cache.tilesets();
         let tileset = &tileset[map.tileset_id as usize - 1];
 
-        // If there are no toggled layers (i.e we just loaded the map)
-        // then fill up the vector with `true`;
-        if self.toggled_layers.is_empty() {
-            self.toggled_layers = vec![true; map.data.zsize() + 3];
-            self.selected_layer = map.data.zsize() + 1;
-        }
-
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -108,7 +99,7 @@ impl tab::Tab for Tab {
                 let layers = map.data.zsize();
                 ui.menu_button(
                     // Format the text based on what layer is selected.
-                    if self.selected_layer > layers {
+                    if self.selected_layer == layers {
                         "Events ⏷".to_string()
                     } else {
                         format!("Layer {} ⏷", self.selected_layer + 1)
@@ -118,27 +109,29 @@ impl tab::Tab for Tab {
                         // Display all layers.
                         ui.columns(2, |columns| {
                             columns[1].visuals_mut().button_frame = true;
-                            columns[0].label("Panorama");
-                            columns[1].checkbox(&mut self.toggled_layers[layers + 1], "👁");
+                            columns[0].label(egui::RichText::new("Panorama").underline());
+                            columns[1].checkbox(&mut self.tilemap.pano_enabled, "👁");
 
-                            for layer in 0..layers {
+                            for (index, layer) in self.tilemap.toggled_layers.iter_mut().enumerate()
+                            {
                                 columns[0].selectable_value(
                                     &mut self.selected_layer,
-                                    layer,
-                                    format!("Layer {}", layer + 1),
+                                    index,
+                                    format!("Layer {}", index + 1),
                                 );
-                                columns[1].checkbox(&mut self.toggled_layers[layer], "👁");
+                                columns[1].checkbox(layer, "👁");
                             }
+
                             // Display event layer.
                             columns[0].selectable_value(
                                 &mut self.selected_layer,
-                                layers + 1,
-                                "Events",
+                                layers,
+                                egui::RichText::new("Events").italics(),
                             );
-                            columns[1].checkbox(&mut self.toggled_layers[layers], "👁");
+                            columns[1].checkbox(&mut self.tilemap.event_enabled, "👁");
 
-                            columns[0].label("Fog");
-                            columns[1].checkbox(&mut self.toggled_layers[layers + 2], "👁");
+                            columns[0].label(egui::RichText::new("Fog").underline());
+                            columns[1].checkbox(&mut self.tilemap.fog_enabled, "👁");
                         });
                     },
                 );
@@ -166,7 +159,13 @@ impl tab::Tab for Tab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let response = self.tilemap.ui(ui, &map, self.id, &mut self.cursor_pos);
+                let response = self.tilemap.ui(
+                    ui,
+                    &map,
+                    &mut self.cursor_pos,
+                    self.selected_layer,
+                    self.dragging_event,
+                );
 
                 let layers_max = map.data.zsize();
                 let map_x = self.cursor_pos.x as i32;
