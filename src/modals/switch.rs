@@ -39,7 +39,7 @@ impl modal::Modal for Modal {
 
     fn button(mut self, ui: &mut egui::Ui, state: &mut bool, data: &mut Self::Data) -> Self {
         {
-            let system = state!().data_cache.system();
+            let system = interfaces!().data_cache.system();
 
             if ui
                 .button(format!("{data}: {}", system.switches[*data - 1]))
@@ -67,7 +67,7 @@ impl modal::Modal for Modal {
             .resizable(false)
             .open(&mut win_open)
             .show(ctx, |ui| {
-                let system = state!().data_cache.system();
+                let system = interfaces!().data_cache.system();
 
                 let mut memory: (usize, usize, String) =
                     ctx.data_mut(|m| m.get_temp(self.id).unwrap());

@@ -30,7 +30,7 @@ use std::time::Instant;
 
 use egui::{Pos2, Response, Vec2};
 
-use crate::state;
+use crate::interfaces;
 use rmxp_types::rpg;
 
 use super::TilemapDef;
@@ -625,7 +625,7 @@ impl TilemapDef for Tilemap {
 impl Tilemap {
     #[allow(unused_variables, unused_assignments)]
     fn load_data(id: i32) -> Result<Textures, String> {
-        let state = state!();
+        let state = interfaces!();
         // Load the map.
 
         let map = state.data_cache.load_map(id)?;

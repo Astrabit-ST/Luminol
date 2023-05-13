@@ -37,13 +37,13 @@ impl Window {
             .pages
             .iter()
             .map(|p| {
-                state!()
+                interfaces!()
                     .image_cache
                     .load_egui_image("Graphics/Characters", &p.graphic.character_name)
                     .ok()
             })
             .collect();
-        let tileset_graphic = state!()
+        let tileset_graphic = interfaces!()
             .image_cache
             .load_egui_image("Graphics/Tilesets", tileset_name)
             .unwrap();
@@ -374,7 +374,7 @@ impl window::Window for Window {
                     let cancel_clicked = ui.button("Cancel").clicked();
 
                     if apply_clicked || ok_clicked {
-                        let mut map = state!().data_cache.get_map(self.map_id);
+                        let mut map = interfaces!().data_cache.get_map(self.map_id);
                         map.events[self.id] = self.event.clone();
                     }
 

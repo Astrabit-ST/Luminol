@@ -19,7 +19,7 @@ pub use crate::prelude::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Native filesystem implementation.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Filesystem {
     project_path: RwLock<Option<PathBuf>>,
     loading_project: AtomicBool,
@@ -126,7 +126,7 @@ impl Filesystem {
 
     /// Save all cached files. An alias for [`DataCache::save`];
     pub fn save_cached(&self) -> Result<(), String> {
-        state!().data_cache.save(self)
+        interfaces!().data_cache.save(self)
     }
 
     pub fn try_open_project(&self, path: impl AsRef<Path>) -> Result<(), String> {
@@ -138,7 +138,7 @@ impl Filesystem {
         *self.project_path.write() = Some(path);
         self.loading_project.store(true, Ordering::Relaxed);
 
-        state!().data_cache.load().map_err(|e| {
+        interfaces!().data_cache.load().map_err(|e| {
             *self.project_path.write() = None;
             self.loading_project.store(false, Ordering::Relaxed);
             e
@@ -147,7 +147,7 @@ impl Filesystem {
         self.loading_project.store(false, Ordering::Relaxed);
 
         {
-            let projects = &mut state!().saved_state.borrow_mut().recent_projects;
+            let projects = &mut interfaces!().saved_state.borrow_mut().recent_projects;
 
             *projects = projects
                 .iter()
@@ -206,7 +206,7 @@ impl Filesystem {
                 })?;
 
             {
-                let projects = &mut state!().saved_state.borrow_mut().recent_projects;
+                let projects = &mut interfaces!().saved_state.borrow_mut().recent_projects;
 
                 let path = self.project_path().unwrap().display().to_string();
                 *projects = projects
@@ -238,9 +238,9 @@ impl Filesystem {
 
         self.create_directory("Data")?;
 
-        state!().data_cache.setup_defaults();
+        interfaces!().data_cache.setup_defaults();
         {
-            let mut config = state!().data_cache.config();
+            let mut config = interfaces!().data_cache.config();
             config.rgss_ver = rgss_ver;
             config.project_name = name;
         }

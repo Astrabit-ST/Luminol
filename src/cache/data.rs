@@ -115,7 +115,7 @@ macro_rules! setup_default {
 impl Cache {
     /// Load all data required when opening a project.
     pub fn load(&self) -> Result<(), String> {
-        let filesystem = &state!().filesystem;
+        let filesystem = &interfaces!().filesystem;
 
         if !filesystem.path_exists(".luminol") {
             filesystem.create_directory(".luminol")?;
@@ -203,7 +203,7 @@ impl Cache {
         id: i32,
     ) -> Result<impl Deref<Target = rpg::Map> + DerefMut + '_, String> {
         self.maps.entry(id).or_try_insert_with(|| {
-            state!()
+            interfaces!()
                 .filesystem
                 .read_data(format!("Data/Map{id:0>3}.rxdata",))
                 .map_err(|e| format!("Failed to load map: {e}"))

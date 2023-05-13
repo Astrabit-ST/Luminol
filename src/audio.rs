@@ -72,7 +72,7 @@ impl Audio {
         let sink = Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
 
         // Append the sound
-        let cursor = Cursor::new(state!().filesystem.read_bytes(path)?);
+        let cursor = Cursor::new(interfaces!().filesystem.read_bytes(path)?);
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {

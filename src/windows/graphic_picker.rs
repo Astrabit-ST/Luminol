@@ -38,13 +38,13 @@ impl Window {
 
             let icon_path = String::from(split[0]);
 
-            let image = match state!()
+            let image = match interfaces!()
                 .image_cache
                 .load_egui_image("Graphics/Icons", &icon_path)
             {
                 Ok(ri) => ri,
                 Err(why) => {
-                    state!()
+                    interfaces!()
                         .toasts
                         .error(format!("Cannot load `{icon_path}` icon: {why}"));
                     continue;

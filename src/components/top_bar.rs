@@ -36,7 +36,7 @@ impl TopBar {
         style: &mut Arc<egui::Style>,
         frame: &mut eframe::Frame,
     ) {
-        let state = state!();
+        let state = interfaces!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.checkbox(&mut self.fullscreen, "Fullscreen");

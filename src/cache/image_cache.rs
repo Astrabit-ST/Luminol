@@ -58,7 +58,7 @@ impl Drop for GlTexture {
         // This assumes that the texture is valid.
         #[allow(unsafe_code)]
         unsafe {
-            state!().gl.delete_texture(self.raw)
+            interfaces!().gl.delete_texture(self.raw)
         }
     }
 }
@@ -76,7 +76,7 @@ impl Cache {
             .egui_imgs
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
+                let Some(f) = interfaces!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
                     entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
                 }) else {
                     return  Err("image not found".to_string());
@@ -110,7 +110,7 @@ impl Cache {
             .glow_imgs
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
+                let Some(f) = interfaces!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
                     entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
                 }) else {
                     return  Err("image not found".to_string());
@@ -125,10 +125,10 @@ impl Cache {
                 // If we dont perform this check, we may get a segfault (dont ask me how i know this)
                 assert_eq!(image.len() as u32, image.width() * image.height() * 4);
 
-                let raw = state!().gl.create_texture()?;
-                state!().gl.bind_texture(glow::TEXTURE_2D, Some(raw));
+                let raw = interfaces!().gl.create_texture()?;
+                interfaces!().gl.bind_texture(glow::TEXTURE_2D, Some(raw));
 
-                state!().gl.tex_image_2d(
+                interfaces!().gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     0,
                     glow::RGBA as _,
@@ -139,7 +139,7 @@ impl Cache {
                     glow::UNSIGNED_BYTE,
                     Some(image.as_raw()),
                 );
-                state!().gl.generate_mipmap(glow::TEXTURE_2D);
+                interfaces!().gl.generate_mipmap(glow::TEXTURE_2D);
 
                 Ok(Arc::new(GlTexture {
                     raw,

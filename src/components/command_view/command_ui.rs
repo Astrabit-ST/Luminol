@@ -145,7 +145,7 @@ impl CommandView {
                         Color32::YELLOW
                     ));
                     if highlight {
-                        let theme = state!().saved_state.borrow().theme;
+                        let theme = interfaces!().saved_state.borrow().theme;
 
                         ui.selectable_value(
                             &mut self.selected_index,
@@ -227,7 +227,7 @@ fn parameter_label(
                 }
                 ParameterKind::Switch => {
                     let id = *value.into_integer() as usize;
-                    let system = state!().data_cache.system();
+                    let system = interfaces!().data_cache.system();
                     let switch = system
                         .variables
                         .get(id)
@@ -237,7 +237,7 @@ fn parameter_label(
                 }
                 ParameterKind::Variable => {
                     let id = *value.into_integer() as usize;
-                    let system = state!().data_cache.system();
+                    let system = interfaces!().data_cache.system();
                     let variable = system
                         .variables
                         .get(id)

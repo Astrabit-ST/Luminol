@@ -38,7 +38,7 @@ impl SoundTab {
             volume: 100,
             pitch: 100,
             selected_track: String::new(),
-            folder_children: state!()
+            folder_children: interfaces!()
                 .filesystem
                 .dir_children_strings(format!("Audio/{source}"))
                 .unwrap(),
@@ -59,14 +59,14 @@ impl SoundTab {
                             let source = self.source;
                             // Play it.
 
-                            if let Err(e) = state!().audio.play(path, volume, pitch, source) {
-                                state!().toasts.error(e);
+                            if let Err(e) = interfaces!().audio.play(path, volume, pitch, source) {
+                                interfaces!().toasts.error(e);
                             }
                         }
 
                         if ui.button("Stop").clicked() {
                             // Stop sound.
-                            state!().audio.stop(&self.source);
+                            interfaces!().audio.stop(&self.source);
                         }
                     });
 
@@ -81,7 +81,7 @@ impl SoundTab {
                             )
                             .changed()
                         {
-                            state!().audio.set_volume(self.volume, &self.source);
+                            interfaces!().audio.set_volume(self.volume, &self.source);
                         };
                         // Add a pitch slider.
                         // If it's changed, update the pitch.
@@ -93,7 +93,7 @@ impl SoundTab {
                             )
                             .changed()
                         {
-                            state!().audio.set_pitch(self.pitch, &self.source);
+                            interfaces!().audio.set_pitch(self.pitch, &self.source);
                         };
                     });
 
@@ -138,9 +138,10 @@ impl SoundTab {
                                     let volume = self.volume;
                                     let source = self.source;
 
-                                    if let Err(e) = state!().audio.play(path, volume, pitch, source)
+                                    if let Err(e) =
+                                        interfaces!().audio.play(path, volume, pitch, source)
                                     {
-                                        state!().toasts.error(e);
+                                        interfaces!().toasts.error(e);
                                     }
                                 };
                             }

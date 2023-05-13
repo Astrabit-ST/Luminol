@@ -60,7 +60,7 @@ impl Tab {
 
 impl tab::Tab for Tab {
     fn name(&self) -> String {
-        let mapinfos = state!().data_cache.mapinfos();
+        let mapinfos = interfaces!().data_cache.mapinfos();
         format!("Map {}: {}", self.id, mapinfos[&self.id].name)
     }
 
@@ -73,7 +73,7 @@ impl tab::Tab for Tab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let state = state!();
+        let state = interfaces!();
 
         // Get the map.
         let mut map = state.data_cache.get_map(self.id);

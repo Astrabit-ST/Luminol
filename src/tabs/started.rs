@@ -45,7 +45,7 @@ impl tab::Tab for Tab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let state = state!();
+        let state = interfaces!();
         ui.label(
             egui::RichText::new("Luminol")
                 .size(40.)
@@ -67,7 +67,7 @@ impl tab::Tab for Tab {
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()
             {
-                state!()
+                interfaces!()
                     .windows
                     .add_window(crate::windows::new_project::Window::default());
             }

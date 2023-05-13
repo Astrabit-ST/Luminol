@@ -102,7 +102,7 @@ pub enum Pencil {
 }
 
 /// Passed to windows and widgets when updating.
-pub struct State {
+pub struct Interfaces {
     /// Filesystem to be passed around.
     pub filesystem: filesystem::Filesystem,
     /// The data cache.
@@ -124,9 +124,9 @@ pub struct State {
     pub toolbar: AtomicRefCell<ToolbarState>,
 }
 
-static_assertions::assert_impl_all!(State: Send, Sync);
+static_assertions::assert_impl_all!(Interfaces: Send, Sync);
 
-impl State {
+impl Interfaces {
     /// Create a new UpdateInfo.
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
@@ -144,18 +144,18 @@ impl State {
     }
 }
 
-static STATE: once_cell::sync::OnceCell<State> = once_cell::sync::OnceCell::new();
+static INTERFACES: once_cell::sync::OnceCell<Interfaces> = once_cell::sync::OnceCell::new();
 
 #[allow(clippy::panic)]
-fn set_state(info: State) {
-    if STATE.set(info).is_err() {
-        panic!("failed to set updateinfo")
+fn set_state(info: Interfaces) {
+    if INTERFACES.set(info).is_err() {
+        panic!("failed to set application programming interfaces")
     }
 }
 
 #[macro_export]
-macro_rules! state {
+macro_rules! interfaces {
     () => {
-        $crate::STATE.get().expect("failed to get updateinfo")
+        $crate::INTERFACES.get().expect("failed to get updateinfo")
     };
 }

@@ -39,7 +39,7 @@ impl modal::Modal for Modal {
 
     fn button(mut self, ui: &mut egui::Ui, state: &mut bool, data: &mut Self::Data) -> Self {
         {
-            let system = state!().data_cache.system();
+            let system = interfaces!().data_cache.system();
 
             if ui
                 .button(format!("{data}: {}", system.variables[*data]))
@@ -69,7 +69,7 @@ impl modal::Modal for Modal {
             .resizable(false)
             .open(&mut win_open)
             .show(ctx, |ui| {
-                let system = state!().data_cache.system();
+                let system = interfaces!().data_cache.system();
 
                 // (selected value, value to scroll to, filter text)
                 let mut memory: (usize, usize, String) =

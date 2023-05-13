@@ -107,7 +107,7 @@ impl window::Window for Window {
                             match res {
                                 Ok(_) => *open = false,
                                 Err(e) => {
-                                    state!()
+                                    interfaces!()
                                         .toasts
                                         .error(format!("Failed to create project: {e}"));
                                     self.project_promise = None;
@@ -153,7 +153,7 @@ impl window::Window for Window {
 
                             self.project_promise =
                                 Some(poll_promise::Promise::spawn_local(async move {
-                                    let state = state!();
+                                    let state = interfaces!();
                                     let result =
                                         state.filesystem.try_create_project(name, rgss_ver).await;
 
@@ -251,7 +251,7 @@ impl Window {
                 .total_progress
                 .store(archive.len(), Ordering::Relaxed);
 
-            let state = state!();
+            let state = interfaces!();
             for index in 0..archive.len() {
                 let mut file = archive.by_index(index).unwrap();
                 progress.current_progress.store(index, Ordering::Relaxed);

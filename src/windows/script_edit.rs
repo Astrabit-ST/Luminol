@@ -52,7 +52,7 @@ impl window::Window for Window {
                     egui::ScrollArea::both()
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
-                            let mut scripts = state!().data_cache.scripts();
+                            let mut scripts = interfaces!().data_cache.scripts();
 
                             let mut insert_index = None;
                             let mut del_index = None;
@@ -131,7 +131,7 @@ impl tab::Tab for ScriptTab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let theme = state!().saved_state.borrow().theme;
+        let theme = interfaces!().saved_state.borrow().theme;
         ui.horizontal(|ui| {
             let mut save_script = false;
 
@@ -149,7 +149,7 @@ impl tab::Tab for ScriptTab {
             }
 
             if save_script {
-                let mut scripts = state!().data_cache.scripts();
+                let mut scripts = interfaces!().data_cache.scripts();
 
                 scripts[self.index].script_text = self.script_text.clone();
             }

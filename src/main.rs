@@ -20,6 +20,7 @@
 
 // TODO: Use eyre!
 use color_eyre::Result;
+use luminol::Luminol;
 
 fn main() -> Result<()> {
     #[cfg(debug_assertions)]
@@ -52,25 +53,7 @@ fn main() -> Result<()> {
         eprintln!("error setting up registry {e}")
     }
 
-    let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");
-
-    let native_options = eframe::NativeOptions {
-        drag_and_drop_support: true,
-        transparent: true,
-        icon_data: Some(eframe::IconData {
-            width: image.width(),
-            height: image.height(),
-            rgba: image.into_bytes(),
-        }),
-        ..Default::default()
-    };
-
-    eframe::run_native(
-        "Luminol",
-        native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
-    )
-    .expect("failed to start luminol");
+    Luminol::run(std::env::args_os().nth(1));
 
     Ok(())
 }

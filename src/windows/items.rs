@@ -33,11 +33,14 @@ pub struct Window {
 
 impl Default for Window {
     fn default() -> Self {
-        let items = state!().data_cache.items().clone();
-        let icon_paths = match state!().filesystem.dir_children_strings("Graphics/Icons") {
+        let items = interfaces!().data_cache.items().clone();
+        let icon_paths = match interfaces!()
+            .filesystem
+            .dir_children_strings("Graphics/Icons")
+        {
             Ok(icons) => icons,
             Err(why) => {
-                state!()
+                interfaces!()
                     .toasts
                     .error(format!("Error while reading `Graphics/Icons`: {why}"));
                 Vec::new()
@@ -72,9 +75,9 @@ impl window::Window for Window {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let _selected_item = &self.items[self.selected_item];
-        let animations = state!().data_cache.animations();
+        let animations = interfaces!().data_cache.animations();
 
-        let common_events = state!().data_cache.commonevents();
+        let common_events = interfaces!().data_cache.commonevents();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations

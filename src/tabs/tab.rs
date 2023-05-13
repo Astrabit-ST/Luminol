@@ -21,6 +21,7 @@ use std::hash::Hash;
 /// The tree type;
 type Tree<T> = egui_dock::Tree<T>;
 
+#[derive(Debug)]
 /// Helper struct for tabs.
 pub struct Tabs<T> {
     tree: Mutex<Tree<T>>,

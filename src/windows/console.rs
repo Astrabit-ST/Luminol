@@ -47,7 +47,7 @@ impl super::window::Window for Console {
             .resizable(false)
             .show(ctx, |ui| {
                 if let Err(e) = self.term.ui(ui) {
-                    crate::state!()
+                    crate::interfaces!()
                         .toasts
                         .error(format!("error displaying terminal: {e:?}"));
                 }
