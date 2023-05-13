@@ -14,36 +14,17 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
 use super::quad::Quad;
-use super::vertex::Vertex;
-use super::BlendMode;
+use super::sprite::{BlendMode, Sprite};
+
 use crate::prelude::*;
 
-mod graphic;
-mod shader;
+use crossbeam::atomic::AtomicCell;
 
 #[derive(Debug)]
 pub struct Plane {
-    texture: Arc<image_cache::WgpuTexture>,
-    pub blend_mode: BlendMode,
-    vertices: Vertices,
-    graphic: graphic::Graphic,
-}
-
-#[derive(Debug)]
-pub struct Vertices {
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub indices: u32,
-}
-
-impl Vertices {
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.draw_indexed(0..self.indices, 0, 0..1);
-    }
+    sprite: Sprite,
+    zoom: f32,
 }
 
 impl Plane {
@@ -53,38 +34,30 @@ impl Plane {
         zoom: i32,
         blend_mode: BlendMode,
         opacity: i32,
+        map_width: usize,
+        map_height: usize,
     ) -> Self {
+        let zoom = zoom as f32 / 100.;
+        let map_width = map_width as f32 * 32.;
+        let map_height = map_height as f32 * 32.;
+
         let tex_coords = egui::Rect::from_min_size(
             egui::pos2(0.0, 0.0),
-            egui::vec2(texture.width() as f32, texture.height() as f32),
+            egui::vec2(map_width / zoom, map_height / zoom),
         );
 
-        let (index_buffer, vertex_buffer, indices) = Quad::into_buffer(
-            &[Quad::new(
-                egui::Rect::from_min_size(egui::pos2(0.0, 0.0), tex_coords.size()),
-                tex_coords,
-                0.0,
-            )],
-            texture.size(),
+        let quad = Quad::new(
+            egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(map_width, map_height)),
+            tex_coords,
+            0.0,
         );
-        let vertices = Vertices {
-            vertex_buffer,
-            index_buffer,
-            indices,
-        };
 
-        let graphic = graphic::Graphic::new(hue, opacity);
+        let sprite = Sprite::new(&[quad], texture, blend_mode, hue, opacity);
 
-        Self {
-            texture,
-            blend_mode,
-            vertices,
-            graphic,
-        }
+        Self { sprite, zoom }
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        shader::Shader::bind(self.blend_mode, render_pass);
-        self.vertices.draw(render_pass);
+        self.sprite.draw(render_pass);
     }
 }

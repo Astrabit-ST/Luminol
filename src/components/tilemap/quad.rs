@@ -78,12 +78,7 @@ impl Quad {
         [top_left, top_right, bottom_right, bottom_left]
     }
 
-    pub fn into_buffer(
-        this: &[Self],
-        extents: wgpu::Extent3d,
-    ) -> (wgpu::Buffer, wgpu::Buffer, u32) {
-        let render_state = &state!().render_state;
-
+    pub fn into_raw_verts(this: &[Self], extents: wgpu::Extent3d) -> (Vec<Vertex>, Vec<u32>) {
         let mut indices = Vec::with_capacity(this.len() * 6);
         let mut vertices = Vec::with_capacity(this.len() * 4);
 
@@ -121,12 +116,23 @@ impl Quad {
             indices.push(bottom_right);
         }
 
+        (vertices, indices)
+    }
+
+    pub fn into_buffer(
+        this: &[Self],
+        extents: wgpu::Extent3d,
+    ) -> (wgpu::Buffer, wgpu::Buffer, u32) {
+        let render_state = &state!().render_state;
+
+        let (vertices, indices) = Self::into_raw_verts(this, extents);
+
         let index_buffer =
             render_state
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("quad index buffer"),
-                    usage: wgpu::BufferUsages::INDEX,
+                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                     contents: bytemuck::cast_slice(&indices),
                 });
         let vertex_buffer =
@@ -134,7 +140,7 @@ impl Quad {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("quad vertex buffer"),
-                    usage: wgpu::BufferUsages::VERTEX,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     contents: bytemuck::cast_slice(&vertices),
                 });
 

@@ -17,6 +17,7 @@
 mod events;
 mod plane;
 mod quad;
+mod sprite;
 mod tiles;
 mod vertex;
 mod viewport;
@@ -48,13 +49,6 @@ struct Resources {
     fog: Option<plane::Plane>,
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Hash)]
-pub enum BlendMode {
-    Normal = 0,
-    Add = 1,
-    Subtract = 2,
-}
-
 impl Tilemap {
     pub fn new(id: i32) -> Result<Tilemap, String> {
         // Load the map.
@@ -75,12 +69,14 @@ impl Tilemap {
                     .image_cache
                     .load_wgpu_image("Graphics/Panoramas", &tileset.panorama_name)?,
                 tileset.panorama_hue,
-                1,
-                BlendMode::Normal,
-                1,
+                100,
+                sprite::BlendMode::Normal,
+                255,
+                map.width,
+                map.height,
             ))
         };
-        let fog = if tileset.panorama_name.is_empty() {
+        let fog = if tileset.fog_name.is_empty() {
             None
         } else {
             Some(plane::Plane::new(
@@ -89,13 +85,10 @@ impl Tilemap {
                     .load_wgpu_image("Graphics/Fogs", &tileset.fog_name)?,
                 tileset.fog_hue,
                 tileset.fog_zoom,
-                match tileset.fog_blend_type {
-                    0 => BlendMode::Normal,
-                    1 => BlendMode::Add,
-                    2 => BlendMode::Subtract,
-                    mode => return Err(format!("unexpected blend mode {mode}")),
-                },
+                tileset.fog_blend_type.try_into()?,
                 tileset.fog_opacity,
+                map.width,
+                map.height,
             ))
         };
 
@@ -228,11 +221,12 @@ impl Tilemap {
                             panorama,
                             fog,
                         } = res_hash[&map_id].as_ref();
+                        let viewport_px = info.viewport_in_pixels();
 
                         let proj = cgmath::ortho(
                             0.0,
-                            info.viewport_in_pixels().width_px,
-                            info.viewport_in_pixels().height_px,
+                            viewport_px.width_px,
+                            viewport_px.height_px,
                             0.0,
                             -1.0,
                             1.0,
