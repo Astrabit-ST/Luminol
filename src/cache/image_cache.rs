@@ -185,7 +185,7 @@ impl Cache {
                         dimension: wgpu::TextureDimension::D2,
                         mip_level_count: 1,
                         sample_count: 1,
-                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
                         usage: wgpu::TextureUsages::COPY_SRC
                             | wgpu::TextureUsages::COPY_DST
                             | wgpu::TextureUsages::TEXTURE_BINDING,
