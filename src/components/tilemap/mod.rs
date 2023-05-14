@@ -79,7 +79,7 @@ impl Tilemap {
         let tileset = &tilesets[map.tileset_id as usize - 1];
 
         let tiles = tiles::Tiles::new(tileset, map)?;
-        let events = events::Events::new(map, &tiles.atlas.atlas_texture)?;
+        let events = events::Events::new(map, &tiles.atlas)?;
 
         let panorama = if tileset.panorama_name.is_empty() {
             None
