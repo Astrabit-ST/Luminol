@@ -24,7 +24,7 @@ pub struct Events {
 }
 
 impl Events {
-    pub fn new(map: &rpg::Map, atlas: &Arc<image_cache::WgpuTexture>) -> Result<Self, String> {
+    pub fn new(map: &rpg::Map, atlas: &super::tiles::Atlas) -> Result<Self, String> {
         let mut events: Vec<_> = map
             .events
             .iter()
@@ -55,50 +55,54 @@ struct Event {
 }
 
 impl Event {
-    pub fn new(event: &rpg::Event, atlas: &Arc<image_cache::WgpuTexture>) -> Result<Self, String> {
+    pub fn new(event: &rpg::Event, atlas: &super::tiles::Atlas) -> Result<Self, String> {
         let Some(page) = event.pages.first() else {
             return Err("event does not have first page".to_string())
         };
 
         let texture = if page.graphic.tile_id.is_positive() {
-            atlas.clone()
+            atlas.atlas_texture.clone()
         } else {
             state!()
                 .image_cache
                 .load_wgpu_image("Graphics/Characters", &page.graphic.character_name)?
         };
 
-        let tex_coords = if page.graphic.tile_id.is_positive() {
-            // FIXME: Calc tile coordinates
-            egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(32., 32.))
+        let quads = if page.graphic.tile_id.is_positive() {
+            let mut tile_quads = vec![];
+            atlas.calc_quads(
+                page.graphic.tile_id as i16,
+                event.x as usize,
+                event.y as usize,
+                0,
+                &mut tile_quads,
+            );
+            tile_quads
         } else {
             let cw = texture.width() as f32 / 4.;
             let ch = texture.height() as f32 / 4.;
-            egui::Rect::from_min_size(
-                egui::pos2(
-                    page.graphic.pattern as f32 * cw,
-                    (page.graphic.direction as f32 - 2.) / 2. * ch,
-                ),
-                egui::vec2(texture.width() as f32 / 4., texture.height() as f32 / 4.),
-            )
-        };
-
-        let cw = texture.width() as f32 / 4.;
-        let ch = texture.height() as f32 / 4.;
-        let quad = Quad::new(
-            egui::Rect::from_min_size(
+            let pos = egui::Rect::from_min_size(
                 egui::pos2(
                     (event.x as f32 * 32.) + (16. - (cw / 2.)),
                     (event.y as f32 * 32.) + (32. - ch),
                 ),
-                tex_coords.size(),
-            ),
-            tex_coords,
-            0.0,
-        );
+                egui::vec2(cw, ch),
+            );
+
+            let tex_coords = egui::Rect::from_min_size(
+                egui::pos2(
+                    page.graphic.pattern as f32 * cw,
+                    (page.graphic.direction as f32 - 2.) / 2. * ch,
+                ),
+                egui::vec2(cw, ch),
+            );
+            let quad = Quad::new(pos, tex_coords, 0.0);
+
+            vec![quad]
+        };
 
         let sprite = Sprite::new(
-            &[quad],
+            &quads,
             texture,
             page.graphic.blend_type.try_into()?,
             page.graphic.character_hue,
