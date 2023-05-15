@@ -79,7 +79,7 @@ impl Viewport {
     pub fn set_proj(&self, proj: cgmath::Matrix4<f32>) {
         let data = self.data.load();
         if data.proj != proj {
-            self.data.store(Data { proj, ..data });
+            self.data.store(Data { proj });
             self.regen_buffer();
         }
     }

@@ -20,38 +20,54 @@ use crate::prelude::*;
 
 #[derive(Debug)]
 pub struct Vertices {
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub indices: u32,
+    buffers: Vec<Buffer>,
+}
+
+#[derive(Debug)]
+struct Buffer {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    indices: u32,
 }
 
 impl Vertices {
     pub fn new(map: &rpg::Map, atlas: &Atlas) -> Self {
-        let mut quads = Vec::with_capacity(map.data.len());
-        for (index, tile) in map.data.iter().copied().enumerate() {
-            // We reset the x every xsize elements.
-            let map_x = index % map.data.xsize();
-            // We reset the y every ysize elements, but only increment it every xsize elements.
-            let map_y = (index / map.data.xsize()) % map.data.ysize();
-            // We change the z every xsize * ysize elements.
-            let map_z = index / (map.data.xsize() * map.data.ysize());
-            let z = map_z as f32 / map.data.zsize() as f32;
-            // let map_z = map.data.zsize() - map_z;
-            atlas.calc_quads(tile, map_x, map_y, z, &mut quads);
-        }
-        let (index_buffer, vertex_buffer, indices) =
-            Quad::into_buffer(&quads, atlas.atlas_texture.size());
+        let mut buffers = Vec::with_capacity(map.data.zsize());
 
-        Vertices {
-            vertex_buffer,
-            index_buffer,
-            indices,
+        for layer in map.data.iter_layers() {
+            let mut quads = Vec::with_capacity(map.width * map.height);
+            for (index, tile) in layer.iter().copied().enumerate() {
+                // We reset the x every xsize elements.
+                let map_x = index % map.data.xsize();
+                // We reset the y every ysize elements, but only increment it every xsize elements.
+                let map_y = (index / map.data.xsize()) % map.data.ysize();
+                atlas.calc_quads(tile, map_x, map_y, &mut quads);
+            }
+
+            let (index_buffer, vertex_buffer, indices) =
+                Quad::into_buffer(&quads, atlas.atlas_texture.size());
+            buffers.push(Buffer {
+                vertex_buffer,
+                index_buffer,
+                indices,
+            });
         }
+
+        Vertices { buffers }
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.draw_indexed(0..self.indices, 0, 0..1);
+    pub fn draw<'rpass>(
+        &'rpass self,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+        enabled_layers: &[bool],
+    ) {
+        for (index, buffer) in self.buffers.iter().enumerate() {
+            if enabled_layers.get(index).copied().unwrap_or(true) {
+                render_pass
+                    .set_index_buffer(buffer.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.set_vertex_buffer(0, buffer.vertex_buffer.slice(..));
+                render_pass.draw_indexed(0..buffer.indices, 0, 0..1);
+            }
+        }
     }
 }

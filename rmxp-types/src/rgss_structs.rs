@@ -383,6 +383,43 @@ impl Table3 {
     pub fn iter(&self) -> Iter<'_, i16> {
         self.data.iter()
     }
+
+    pub fn iter_layers(&self) -> LayersIter<'_> {
+        LayersIter {
+            table: self,
+            layer: 0,
+        }
+    }
+}
+
+pub struct LayersIter<'table> {
+    table: &'table Table3,
+    layer: usize,
+}
+
+impl<'table> Iterator for LayersIter<'table> {
+    type Item = &'table [i16];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.layer < self.table.zsize {
+            self.layer += 1;
+            let start = self.table.xsize * self.table.ysize * (self.layer - 1);
+            let end = self.table.xsize * self.table.ysize * self.layer;
+            Some(&self.table.data[start..end])
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.table.zsize, Some(self.table.zsize))
+    }
+}
+
+impl ExactSizeIterator for LayersIter<'_> {
+    fn len(&self) -> usize {
+        self.table.zsize
+    }
 }
 
 impl Index<(usize, usize, usize)> for Table3 {
