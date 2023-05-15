@@ -218,7 +218,7 @@ impl Tilemap {
             self.pan = pos - canvas_center - pos_norm * self.scale;
 
             // Figure out the tile the cursor is hovering over
-            let tile_size = (self.scale / 100.) * 32.;
+            let tile_size = (self.scale / (ui.ctx().pixels_per_point() * 100.)) * 32.;
             let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
                 + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
             // Force the cursor to a tile instead of in-between

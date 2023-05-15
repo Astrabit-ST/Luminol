@@ -35,8 +35,9 @@ impl Vertices {
             let map_y = (index / map.data.xsize()) % map.data.ysize();
             // We change the z every xsize * ysize elements.
             let map_z = index / (map.data.xsize() * map.data.ysize());
+            let z = map_z as f32 / map.data.zsize() as f32;
             // let map_z = map.data.zsize() - map_z;
-            atlas.calc_quads(tile, map_x, map_y, map_z, &mut quads);
+            atlas.calc_quads(tile, map_x, map_y, z, &mut quads);
         }
         let (index_buffer, vertex_buffer, indices) =
             Quad::into_buffer(&quads, atlas.atlas_texture.size());
