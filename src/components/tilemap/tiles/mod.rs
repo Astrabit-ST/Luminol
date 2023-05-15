@@ -17,8 +17,8 @@
 mod atlas;
 mod autotile_ids;
 
-mod shader;
 mod autotiles;
+mod shader;
 mod vertices;
 
 use crate::prelude::*;
@@ -36,8 +36,8 @@ use super::quad::Quad;
 use super::vertex::Vertex;
 
 pub use atlas::Atlas;
-use shader::Shader;
 use autotiles::Autotiles;
+use shader::Shader;
 use vertices::Vertices;
 
 #[derive(Debug)]
@@ -60,12 +60,16 @@ impl Tiles {
         })
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw<'rpass>(
+        &'rpass self,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+        enabled_layers: &[bool],
+    ) {
         render_pass.push_debug_group("tilemap tiles renderer");
         Shader::bind(render_pass);
         self.autotiles.bind(render_pass);
         self.atlas.bind(render_pass);
-        self.vertices.draw(render_pass);
+        self.vertices.draw(render_pass, enabled_layers);
         render_pass.pop_debug_group();
     }
 }

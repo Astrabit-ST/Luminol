@@ -215,7 +215,7 @@ impl Atlas {
         })
     }
 
-    pub fn calc_quads(&self, tile: i16, x: usize, y: usize, z: f32, quads: &mut Vec<Quad>) {
+    pub fn calc_quads(&self, tile: i16, x: usize, y: usize, quads: &mut Vec<Quad>) {
         // There are 4 cases we need to handle here:
         match tile {
             // The tile is blank
@@ -245,7 +245,7 @@ impl Atlas {
                             egui::vec2(16., 16.),
                         );
 
-                        quads.push(Quad::new(pos, tex_coords, z));
+                        quads.push(Quad::new(pos, tex_coords, 0.));
                     }
                 }
             }
@@ -263,7 +263,7 @@ impl Atlas {
                 let tex_coords =
                     egui::Rect::from_min_size(egui::pos2(tile_x, tile_y), egui::vec2(32., 32.));
 
-                quads.push(Quad::new(pos, tex_coords, z as f32));
+                quads.push(Quad::new(pos, tex_coords, 0.));
             }
             // The tileset *does* wrap
             tile => {
@@ -299,7 +299,7 @@ impl Atlas {
                     egui::vec2(32., 32.),
                 );
 
-                quads.push(Quad::new(pos, tex_coords, z));
+                quads.push(Quad::new(pos, tex_coords, 0.));
             }
         }
     }

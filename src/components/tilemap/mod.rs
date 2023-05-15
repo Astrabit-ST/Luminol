@@ -46,7 +46,7 @@ pub struct Tilemap {
     pub fog_enabled: bool,
     pub pano_enabled: bool,
     pub event_enabled: bool,
-    pub toggled_layers: Vec<bool>,
+    pub enabled_layers: Vec<bool>,
     pub scale: f32,
 }
 
@@ -175,7 +175,7 @@ impl Tilemap {
             fog_enabled: true,
             pano_enabled: true,
             event_enabled: true,
-            toggled_layers: vec![true; map.data.zsize()],
+            enabled_layers: vec![true; map.data.zsize()],
             scale: 100.,
         })
     }
@@ -270,9 +270,10 @@ impl Tilemap {
         let fog_enabled = self.fog_enabled;
         let pano_enabled = self.pano_enabled;
         let event_enabled = self.event_enabled;
+        let enabled_layers = self.enabled_layers.clone();
 
         let paint_callback = egui_wgpu::CallbackFn::new().prepare(
-            move |device, _queue, _encoder, paint_callback_resources| {
+            move |_device, _queue, encoder, paint_callback_resources| {
                 let Resources {
                     tiles,
                     events,
@@ -287,10 +288,6 @@ impl Tilemap {
                     .entry()
                     .or_insert_with(Default::default);
                 res_hash.insert(map_id, resources.clone());
-
-                let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("tilemap render encoder"),
-                });
 
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some(&format!("map {map_id} tilemap render pass")),
@@ -318,7 +315,7 @@ impl Tilemap {
                     }
                 }
 
-                tiles.draw(&mut render_pass);
+                tiles.draw(&mut render_pass, &enabled_layers);
 
                 if event_enabled {
                     events.draw(&mut render_pass);
@@ -329,9 +326,7 @@ impl Tilemap {
                     }
                 }
 
-                drop(render_pass);
-
-                vec![encoder.finish()]
+                vec![]
             },
         );
 
@@ -483,7 +478,7 @@ impl Tilemap {
             }
         }
 
-        tiles.draw(&mut render_pass);
+        tiles.draw(&mut render_pass, &self.enabled_layers);
 
         if self.event_enabled {
             events.draw(&mut render_pass);
@@ -496,9 +491,13 @@ impl Tilemap {
 
         drop(render_pass);
 
+        let bytes_per_row = width * 4;
+        let bytes_per_row = bytes_per_row + 256 - (bytes_per_row % 256);
+        let buffer_len = bytes_per_row * height;
+
         let buffer = render_state.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&format!("tilemap {map_id} buffer render to disk")),
-            size: (render_tex.width() * render_tex.height() * 4) as u64,
+            size: buffer_len as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -509,7 +508,7 @@ impl Tilemap {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4 * width),
+                    bytes_per_row: std::num::NonZeroU32::new(bytes_per_row),
                     rows_per_image: None,
                 },
             },
@@ -533,16 +532,9 @@ impl Tilemap {
                     }
                 };
 
-                let mut buffer =
-                    image::RgbaImage::from_raw(width, height, buffer.to_vec()).unwrap();
-                /*
-                for p in buffer.pixels_mut() {
-                    let r = p.0[2];
-                    let b = p.0[0];
-                    p.0[0] = r;
-                    p.0[2] = b;
-                }
-                 */
+                let buffer =
+                    image::RgbaImage::from_raw(bytes_per_row / 4, height, buffer.to_vec()).unwrap();
+
                 let result = buffer.save(format!("map_{map_id}.png"));
 
                 match result {

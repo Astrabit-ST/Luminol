@@ -106,7 +106,7 @@ impl tab::Tab for Tab {
                             columns[0].label(egui::RichText::new("Panorama").underline());
                             columns[1].checkbox(&mut self.tilemap.pano_enabled, "👁");
 
-                            for (index, layer) in self.tilemap.toggled_layers.iter_mut().enumerate()
+                            for (index, layer) in self.tilemap.enabled_layers.iter_mut().enumerate()
                             {
                                 columns[0].selectable_value(
                                     &mut self.selected_layer,
