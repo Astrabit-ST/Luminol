@@ -74,7 +74,7 @@ impl Event {
                 page.graphic.tile_id as i16,
                 event.x as usize,
                 event.y as usize,
-                0,
+                0.,
                 &mut tile_quads,
             );
             tile_quads
