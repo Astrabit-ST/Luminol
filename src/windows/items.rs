@@ -196,8 +196,8 @@ impl<'win> window::WindowExt for Window<'win> {
     }
 }
 
-impl<'win> Into<crate::Window<'win>> for Window<'win> {
-    fn into(self) -> crate::Window<'win> {
-        crate::Window::Items(self)
+impl<'win> From<Window<'win>> for crate::Window<'win> {
+    fn from(value: Window<'win>) -> crate::Window<'win> {
+        crate::Window::Items(value)
     }
 }

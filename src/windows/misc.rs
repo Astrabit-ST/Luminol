@@ -19,7 +19,7 @@ use super::window::WindowExt;
 
 /// Egui inspection window.
 #[derive(Default)]
-pub struct EguiInspection {}
+pub struct EguiInspection;
 
 impl WindowExt for EguiInspection {
     fn name(&self) -> String {
@@ -37,15 +37,15 @@ impl WindowExt for EguiInspection {
     }
 }
 
-impl<'win> Into<crate::Window<'win>> for EguiInspection {
-    fn into(self) -> crate::Window<'win> {
-        crate::Window::Egui(crate::EguiWindows::Inspection(self))
+impl<'win> From<EguiInspection> for crate::Window<'win> {
+    fn from(value: EguiInspection) -> crate::Window<'win> {
+        crate::Window::Egui(crate::EguiWindow::Inspection(value))
     }
 }
 
 /// Egui memory display.
 #[derive(Default)]
-pub struct EguiMemory {}
+pub struct EguiMemory;
 
 impl WindowExt for EguiMemory {
     fn name(&self) -> String {
@@ -63,8 +63,8 @@ impl WindowExt for EguiMemory {
     }
 }
 
-impl<'win> Into<crate::Window<'win>> for EguiMemory {
-    fn into(self) -> crate::Window<'win> {
-        crate::Window::Egui(crate::EguiWindows::Memory(self))
+impl<'win> From<EguiMemory> for crate::Window<'win> {
+    fn from(value: EguiMemory) -> crate::Window<'win> {
+        crate::Window::Egui(crate::EguiWindow::Memory(value))
     }
 }

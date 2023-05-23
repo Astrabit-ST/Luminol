@@ -104,9 +104,9 @@ impl window::WindowExt for Window {
     }
 }
 
-impl<'win> Into<crate::Window<'win>> for Window {
-    fn into(self) -> crate::Window<'win> {
-        crate::Window::ScriptEdit(self)
+impl<'win> From<Window> for crate::Window<'win> {
+    fn from(value: Window) -> crate::Window<'win> {
+        crate::Window::ScriptEdit(value)
     }
 }
 

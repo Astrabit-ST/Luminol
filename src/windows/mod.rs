@@ -57,11 +57,11 @@ macro_rules! impl_window_for_enum {
 	};
 }
 
-pub enum EguiWindows {
+pub enum EguiWindow {
     Inspection(misc::EguiInspection),
     Memory(misc::EguiMemory),
 }
-impl_window_for_enum! {EguiWindows, Inspection, Memory}
+impl_window_for_enum! {EguiWindow, Inspection, Memory}
 
 pub enum Window<'win> {
     About(about::Window),
@@ -76,7 +76,7 @@ pub enum Window<'win> {
     NewProject(new_project::Window),
     ScriptEdit(script_edit::Window),
     SoundTest(sound_test::Window),
-    Egui(EguiWindows),
+    Egui(EguiWindow),
 }
 impl_window_for_enum! {
     Window<'_>,

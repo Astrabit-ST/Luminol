@@ -55,8 +55,8 @@ impl super::window::WindowExt for Console {
     }
 }
 
-impl<'win> Into<crate::Window<'win>> for Console {
-    fn into(self) -> crate::Window<'win> {
-        crate::Window::Console(self)
+impl<'win> From<Console> for crate::Window<'win> {
+    fn from(value: Console) -> crate::Window<'win> {
+        crate::Window::Console(value)
     }
 }
