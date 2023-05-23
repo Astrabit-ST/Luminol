@@ -56,7 +56,7 @@ impl Default for Window {
     }
 }
 
-impl window::Window for Window {
+impl window::WindowExt for Window {
     fn name(&self) -> String {
         "New Project".to_string()
     }
@@ -291,5 +291,11 @@ impl Window {
         }
 
         Ok(())
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::NewProject(self)
     }
 }

@@ -17,13 +17,13 @@
 use crate::prelude::*;
 
 /// Database - Items management window.
-pub struct Window {
+pub struct Window<'win> {
     // ? Items ?
     items: NilPadded<rpg::Item>,
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker: graphic_picker::Window,
+    icon_picker: graphic_picker::Window<'win>,
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
@@ -31,7 +31,7 @@ pub struct Window {
     menu_se_picker_open: bool,
 }
 
-impl Default for Window {
+impl<'win> Default for Window<'win> {
     fn default() -> Self {
         let items = interfaces!().data_cache.items().clone();
         let icon_paths = match interfaces!()
@@ -60,7 +60,7 @@ impl Default for Window {
     }
 }
 
-impl window::Window for Window {
+impl<'win> window::WindowExt for Window<'win> {
     fn name(&self) -> String {
         format!("Editing item {}", self.items[self.selected_item].name)
     }
@@ -182,11 +182,8 @@ impl window::Window for Window {
                 });
 
                 if self.icon_picker_open {
-                    self.icon_picker.show(
-                        ctx,
-                        &mut self.icon_picker_open,
-                        &mut selected_item.icon_name,
-                    );
+                    self.icon_picker.set_icon_ptr(&mut selected_item.icon_name);
+                    self.icon_picker.show(ctx, &mut self.icon_picker_open);
                 }
                 if self.menu_se_picker_open {
                     egui::Window::new("Menu Sound Effect Picker")
@@ -196,5 +193,11 @@ impl window::Window for Window {
                         });
                 }
             });
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window<'win> {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::Items(self)
     }
 }

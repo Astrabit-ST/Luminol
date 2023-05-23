@@ -171,7 +171,7 @@ impl Default for Window {
     }
 }
 
-impl super::window::Window for Window {
+impl super::window::WindowExt for Window {
     fn id(&self) -> egui::Id {
         egui::Id::new("Sound Test")
     }
@@ -207,5 +207,11 @@ impl super::window::Window for Window {
     // Technically we don't need the cache, but we do rely on the project being open.
     fn requires_filesystem(&self) -> bool {
         true
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::SoundTest(self)
     }
 }

@@ -27,7 +27,7 @@ impl Console {
     }
 }
 
-impl super::window::Window for Console {
+impl super::window::WindowExt for Console {
     fn name(&self) -> String {
         self.term.title()
     }
@@ -52,5 +52,11 @@ impl super::window::Window for Console {
                         .error(format!("error displaying terminal: {e:?}"));
                 }
             });
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Console {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::Console(self)
     }
 }

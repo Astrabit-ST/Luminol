@@ -14,6 +14,87 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+macro_rules! impl_window_for_enum {
+	($enum:ty, $($variant:ident),+) => {
+		impl WindowExt for $enum {
+			fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+				$(
+					if let Self::$variant(window) = self {
+						window.show(ctx, open);
+						return;
+					}
+				)*
+				unreachable!();
+			}
+
+			fn name(&self) -> String {
+				$(
+					if let Self::$variant(window) = self {
+						return window.name();
+					}
+				)*
+				unreachable!();
+			}
+
+			fn id(&self) -> egui::Id {
+				$(
+					if let Self::$variant(window) = self {
+						return window.id();
+					}
+				)*
+				unreachable!();
+			}
+
+			fn requires_filesystem(&self) -> bool {
+				$(
+					if let Self::$variant(window) = self {
+						return window.requires_filesystem();
+					}
+				)*
+				unreachable!();
+			}
+		}
+	};
+}
+
+pub enum EguiWindows {
+    Inspection(misc::EguiInspection),
+    Memory(misc::EguiMemory),
+}
+impl_window_for_enum! {EguiWindows, Inspection, Memory}
+
+pub enum Window<'win> {
+    About(about::Window),
+    CommandGeneratorWindow(command_gen::CommandGeneratorWindow),
+    CommonEventEdit(common_event_edit::Window),
+    Config(config::Window),
+    Console(console::Console),
+    EventEdit(event_edit::Window),
+    GraphicPicker(graphic_picker::Window<'win>),
+    Items(items::Window<'win>),
+    MapPicker(map_picker::Window),
+    NewProject(new_project::Window),
+    ScriptEdit(script_edit::Window),
+    SoundTest(sound_test::Window),
+    Egui(EguiWindows),
+}
+impl_window_for_enum! {
+    Window<'_>,
+    About,
+    CommandGeneratorWindow,
+    CommonEventEdit,
+    Config,
+    Console,
+    EventEdit,
+    GraphicPicker,
+    Items,
+    MapPicker,
+    NewProject,
+    ScriptEdit,
+    SoundTest,
+    Egui
+}
+
 /// The about window.
 pub mod about;
 /// The common event editor.
@@ -41,4 +122,6 @@ pub mod sound_test;
 /// Traits and structs related to windows.
 pub mod window;
 
-pub use window::Window;
+pub use window::WindowExt;
+
+use crate::command_gen;

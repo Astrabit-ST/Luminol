@@ -30,7 +30,7 @@ impl Default for Window {
     }
 }
 
-impl window::Window for Window {
+impl window::WindowExt for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -101,6 +101,12 @@ impl window::Window for Window {
 
     fn requires_filesystem(&self) -> bool {
         true
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::ScriptEdit(self)
     }
 }
 

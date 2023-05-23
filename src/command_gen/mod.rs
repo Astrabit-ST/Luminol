@@ -80,7 +80,7 @@ impl CommandGeneratorWindow {
     }
 }
 
-impl window::Window for CommandGeneratorWindow {
+impl window::WindowExt for CommandGeneratorWindow {
     fn name(&self) -> String {
         String::from("Luminol Command Maker")
     }
@@ -224,5 +224,11 @@ impl window::Window for CommandGeneratorWindow {
 
             self.ui_examples.retain_mut(|e| e.update(ctx));
         });
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for CommandGeneratorWindow {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::CommandGeneratorWindow(self)
     }
 }

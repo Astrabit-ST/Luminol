@@ -15,13 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::window::Window;
+use super::window::WindowExt;
 
 /// Egui inspection window.
 #[derive(Default)]
 pub struct EguiInspection {}
 
-impl Window for EguiInspection {
+impl WindowExt for EguiInspection {
     fn name(&self) -> String {
         "Egui Inspection".to_string()
     }
@@ -37,11 +37,17 @@ impl Window for EguiInspection {
     }
 }
 
+impl<'win> Into<crate::Window<'win>> for EguiInspection {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::Egui(crate::EguiWindows::Inspection(self))
+    }
+}
+
 /// Egui memory display.
 #[derive(Default)]
 pub struct EguiMemory {}
 
-impl Window for EguiMemory {
+impl WindowExt for EguiMemory {
     fn name(&self) -> String {
         "Egui Memory".to_string()
     }
@@ -54,5 +60,11 @@ impl Window for EguiMemory {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.memory_ui(ui));
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for EguiMemory {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::Egui(crate::EguiWindows::Memory(self))
     }
 }

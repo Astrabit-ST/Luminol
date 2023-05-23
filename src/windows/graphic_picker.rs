@@ -22,12 +22,13 @@ pub struct Graphic {
     pub image: Arc<RetainedImage>,
 }
 
-pub struct Window {
+pub struct Window<'win> {
     icons: Vec<Graphic>,
     selected_icon: usize,
+    icon_mut_ptr: Option<&'win mut String>,
 }
 
-impl Window {
+impl<'win> Window<'win> {
     #[must_use]
     pub fn new(icons: Vec<String>) -> Self {
         let mut retained_images = Vec::new();
@@ -59,6 +60,7 @@ impl Window {
         Self {
             icons: retained_images,
             selected_icon: 0,
+            icon_mut_ptr: None,
         }
     }
 
@@ -67,10 +69,15 @@ impl Window {
             self.selected_icon = active_icon_index;
         }
     }
+    pub fn set_icon_ptr(&mut self, new_ptr: &'win mut String) {
+        self.icon_mut_ptr = Some(new_ptr);
+    }
+}
 
-    pub fn show(&mut self, ctx: &egui::Context, open: &mut bool, graphic_icon: &mut String) {
-        egui::Window::new("Graphic Picker")
-            .id(egui::Id::new("icon_picker"))
+impl<'win> crate::WindowExt for Window<'win> {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new(self.name())
+            .id(self.id())
             .resize(|res| res.min_width(480.))
             .open(open)
             .show(ctx, |ui| {
@@ -87,8 +94,12 @@ impl Window {
                                 .filter(|(ele, _)| rows.contains(ele))
                             {
                                 ui.selectable_value(&mut self.selected_icon, id, icon.name.clone());
-                                *graphic_icon =
-                                    self.icons.get(self.selected_icon).unwrap().name.clone();
+                                if let Some(icon_mut_ptr) = &mut self.icon_mut_ptr {
+                                    **icon_mut_ptr =
+                                        self.icons.get(self.selected_icon).unwrap().name.clone();
+                                } else {
+                                    core::panic!("icon_mut_ptr is not set");
+                                }
                             }
                         },
                     );
@@ -97,5 +108,23 @@ impl Window {
                 let icon = &self.icons[self.selected_icon];
                 icon.image.show_scaled(ui, 3.);
             });
+    }
+
+    fn name(&self) -> String {
+        String::from("Graphic Picker")
+    }
+
+    fn id(&self) -> egui::Id {
+        egui::Id::new("icon_picker")
+    }
+
+    fn requires_filesystem(&self) -> bool {
+        false
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window<'win> {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::GraphicPicker(self)
     }
 }

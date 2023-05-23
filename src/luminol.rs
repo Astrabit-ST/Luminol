@@ -43,7 +43,7 @@ impl Luminol {
         cc.egui_ctx.set_style(style.clone());
 
         let info = Interfaces::new(cc.gl.as_ref().unwrap().clone(), state);
-        crate::set_state(info);
+        crate::set_interfaces(info);
 
         if let Some(path) = try_load_path {
             interfaces!()

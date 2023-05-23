@@ -33,7 +33,7 @@ impl Default for Window {
     }
 }
 
-impl super::window::Window for Window {
+impl super::window::WindowExt for Window {
     fn name(&self) -> String {
         "About".to_string()
     }
@@ -68,5 +68,11 @@ impl super::window::Window for Window {
                     ))
                 })
             });
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::About(self)
     }
 }

@@ -102,14 +102,14 @@ pub enum Pencil {
 }
 
 /// Passed to windows and widgets when updating.
-pub struct Interfaces {
+pub struct Interfaces<'api> {
     /// Filesystem to be passed around.
     pub filesystem: filesystem::Filesystem,
     /// The data cache.
     pub data_cache: data::Cache,
     pub image_cache: image_cache::Cache,
     /// Windows that are displayed.
-    pub windows: window::Windows,
+    pub windows: window::WindowsManager<Window<'api>>,
     /// Tabs that are displayed.
     pub tabs: tabs::tab::Tabs<Box<dyn Tab + Send>>,
     /// Audio that's played.
@@ -124,16 +124,16 @@ pub struct Interfaces {
     pub toolbar: AtomicRefCell<ToolbarState>,
 }
 
-static_assertions::assert_impl_all!(Interfaces: Send, Sync);
+static_assertions::assert_impl_all!(Interfaces<'static>: Send, Sync);
 
-impl Interfaces {
+impl<'api> Interfaces<'api> {
     /// Create a new UpdateInfo.
     pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
         Self {
             filesystem: filesystem::Filesystem::default(),
             data_cache: data::Cache::default(),
             image_cache: image_cache::Cache::default(),
-            windows: windows::window::Windows::default(),
+            windows: windows::window::WindowsManager::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
@@ -144,10 +144,11 @@ impl Interfaces {
     }
 }
 
-static INTERFACES: once_cell::sync::OnceCell<Interfaces> = once_cell::sync::OnceCell::new();
+static INTERFACES: once_cell::sync::OnceCell<Interfaces<'static>> =
+    once_cell::sync::OnceCell::new();
 
 #[allow(clippy::panic)]
-fn set_state(info: Interfaces) {
+fn set_interfaces(info: Interfaces<'static>) {
     if INTERFACES.set(info).is_err() {
         panic!("failed to set application programming interfaces")
     }

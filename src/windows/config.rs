@@ -22,7 +22,7 @@ pub struct Window {}
 
 impl Window {}
 
-impl window::Window for Window {
+impl window::WindowExt for Window {
     fn name(&self) -> String {
         "Local Luminol Config".to_string()
     }
@@ -55,5 +55,11 @@ impl window::Window for Window {
 
     fn requires_filesystem(&self) -> bool {
         true
+    }
+}
+
+impl<'win> Into<crate::Window<'win>> for Window {
+    fn into(self) -> crate::Window<'win> {
+        crate::Window::Config(self)
     }
 }

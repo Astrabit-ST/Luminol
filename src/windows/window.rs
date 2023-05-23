@@ -20,23 +20,27 @@ use parking_lot::Mutex;
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
-#[derive(Default)]
-pub struct Windows {
+pub struct WindowsManager<W> {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: Mutex<Vec<Box<dyn Window + Send>>>,
+    windows: Mutex<Vec<W>>,
+}
+impl<W: WindowExt> Default for WindowsManager<W> {
+    fn default() -> Self {
+        Self {
+            windows: Mutex::new(Vec::new()),
+        }
+    }
 }
 
-impl Windows {
+impl<W: WindowExt> WindowsManager<W> {
     /// A function to add a window.
-    pub fn add_window<T>(&self, window: T)
-    where
-        T: Window + Send + 'static,
-    {
+    pub fn add_window(&self, window: impl Into<W>) {
+        let window = window.into();
         let mut windows = self.windows.lock();
         if windows.iter().any(|w| w.id() == window.id()) {
             return;
         }
-        windows.push(Box::new(window));
+        windows.push(window);
     }
 
     /// Clean all windows that need the data cache.
@@ -64,7 +68,7 @@ impl Windows {
 ///
 /// However, they can store internal state and allow for multiple windows to be open at one time.
 /// This makes up for most of their losses. Modals are still useful in certain cases, though.
-pub trait Window {
+pub trait WindowExt: Send {
     /// Show this window.
     fn show(&mut self, ctx: &egui::Context, open: &mut bool);
 
@@ -79,5 +83,23 @@ pub trait Window {
     ///  A function to determine if this window needs the data cache.
     fn requires_filesystem(&self) -> bool {
         false
+    }
+}
+
+impl WindowExt for Box<dyn WindowExt> {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        self.as_mut().show(ctx, open)
+    }
+
+    fn name(&self) -> String {
+        self.as_ref().name()
+    }
+
+    fn id(&self) -> egui::Id {
+        self.as_ref().id()
+    }
+
+    fn requires_filesystem(&self) -> bool {
+        self.as_ref().requires_filesystem()
     }
 }
