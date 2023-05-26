@@ -31,9 +31,9 @@ impl window::Window for Window {
         egui::Id::new("Local Luminol Config")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            let mut config = info.data_cache.config();
+            let mut config = state!().data_cache.config();
 
             ui.label("Project name");
             ui.text_edit_singleline(&mut config.project_name);

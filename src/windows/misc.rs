@@ -30,7 +30,7 @@ impl Window for EguiInspection {
         egui::Id::new("Egui Inspection")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.inspection_ui(ui));
@@ -50,7 +50,7 @@ impl Window for EguiMemory {
         egui::Id::new("Egui Memory")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.memory_ui(ui));

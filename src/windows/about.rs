@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::UpdateInfo;
-
 /// A basic about window.
 /// Shows some info on Luminol, along with an icon.
 pub struct Window {
@@ -44,7 +42,7 @@ impl super::window::Window for Window {
         egui::Id::new("About Luminol")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, _: &'static UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")
             // Open is passed in. egui sets it to false if the window is closed.

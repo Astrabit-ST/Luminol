@@ -26,7 +26,6 @@ impl CommandView {
         db: &CommandDB,
         (index, command): (usize, &'i mut rpg::EventCommand),
         iter: &mut std::iter::Peekable<I>,
-        info: &'static UpdateInfo,
     ) where
         I: Iterator<Item = (usize, &'i mut rpg::EventCommand)>,
     {
@@ -73,7 +72,7 @@ impl CommandView {
                 let mut str = format!("[{}] {}:", desc.code, desc.name);
 
                 for parameter in parameters.iter() {
-                    parameter_label(&mut str, parameter, command, info).expect("failed to format");
+                    parameter_label(&mut str, parameter, command).expect("failed to format");
                 }
 
                 Some(str)
@@ -104,7 +103,7 @@ impl CommandView {
                                 break;
                             }
 
-                            self.command_ui(ui, db, (index, command), iter, info);
+                            self.command_ui(ui, db, (index, command), iter);
                         }
                     });
 
@@ -146,7 +145,7 @@ impl CommandView {
                         Color32::YELLOW
                     ));
                     if highlight {
-                        let theme = info.saved_state.borrow().theme;
+                        let theme = state!().saved_state.borrow().theme;
 
                         ui.selectable_value(
                             &mut self.selected_index,
@@ -197,14 +196,13 @@ fn parameter_label(
     string: &mut String,
     parameter: &Parameter,
     command: &mut rpg::EventCommand,
-    info: &'static UpdateInfo,
 ) -> std::fmt::Result {
     use std::fmt::Write;
 
     match parameter {
         Parameter::Group { parameters, .. } => parameters
             .iter()
-            .try_for_each(|p| parameter_label(string, p, command, info)),
+            .try_for_each(|p| parameter_label(string, p, command)),
         Parameter::Selection {
             parameters, index, ..
         } => {
@@ -217,7 +215,7 @@ fn parameter_label(
             }) else {
                 return write!(string, " invalid selection");
             };
-            parameter_label(string, parameter, command, info)
+            parameter_label(string, parameter, command)
         }
         Parameter::Single { kind, index, .. } => {
             let Some(value) = command.parameters.get_mut(index.as_usize()) else {
@@ -229,7 +227,7 @@ fn parameter_label(
                 }
                 ParameterKind::Switch => {
                     let id = *value.into_integer() as usize;
-                    let system = info.data_cache.system();
+                    let system = state!().data_cache.system();
                     let switch = system
                         .variables
                         .get(id)
@@ -239,7 +237,7 @@ fn parameter_label(
                 }
                 ParameterKind::Variable => {
                     let id = *value.into_integer() as usize;
-                    let system = info.data_cache.system();
+                    let system = state!().data_cache.system();
                     let variable = system
                         .variables
                         .get(id)

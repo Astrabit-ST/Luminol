@@ -15,11 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{cell::Cell, io::Read, rc::Rc};
+use crate::prelude::*;
 
 use strum::IntoEnumIterator;
 
-use crate::prelude::*;
+use std::io::Read;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// The new project window
 pub struct Window {
@@ -27,19 +29,17 @@ pub struct Window {
     rgss_ver: RGSSVer,
     project_promise: Option<poll_promise::Promise<Result<(), String>>>,
     download_executable: bool,
-    progress: Progress,
-    #[cfg(not(target_arch = "wasm32"))]
+    progress: Arc<Progress>,
     init_git: bool,
-    #[cfg(not(target_arch = "wasm32"))]
     git_branch_name: String,
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct Progress {
-    total_progress: Rc<Cell<usize>>,
-    current_progress: Rc<Cell<usize>>,
-    zip_total: Rc<Cell<usize>>,
-    zip_current: Rc<Cell<usize>>,
+    total_progress: AtomicUsize,
+    current_progress: AtomicUsize,
+    zip_total: AtomicUsize,
+    zip_current: AtomicUsize,
 }
 
 impl Default for Window {
@@ -49,10 +49,8 @@ impl Default for Window {
             rgss_ver: RGSSVer::RGSS1,
             project_promise: None,
             download_executable: false,
-            progress: Progress::default(),
-            #[cfg(not(target_arch = "wasm32"))]
+            progress: Arc::default(),
             init_git: false,
-            #[cfg(not(target_arch = "wasm32"))]
             git_branch_name: "master".to_string(),
         }
     }
@@ -67,7 +65,7 @@ impl window::Window for Window {
         egui::Id::new("New Project")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let mut win_open = true;
         egui::Window::new(self.name())
             .open(&mut win_open)
@@ -76,14 +74,11 @@ impl window::Window for Window {
                     ui.label("Project Name");
                     ui.text_edit_singleline(&mut self.name);
 
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        ui.checkbox(&mut self.init_git, "Initialize with git repository");
-                        ui.add_enabled_ui(self.init_git, |ui| {
-                            ui.label("Git Branch");
-                            ui.text_edit_singleline(&mut self.git_branch_name);
-                        });
-                    }
+                    ui.checkbox(&mut self.init_git, "Initialize with git repository");
+                    ui.add_enabled_ui(self.init_git, |ui| {
+                        ui.label("Git Branch");
+                        ui.text_edit_singleline(&mut self.git_branch_name);
+                    });
 
                     egui::ComboBox::from_label("RGSS runtime")
                         .selected_text(self.rgss_ver.to_string())
@@ -112,22 +107,24 @@ impl window::Window for Window {
                             match res {
                                 Ok(_) => *open = false,
                                 Err(e) => {
-                                    info.toasts.error(format!("Failed to create project: {e}"));
+                                    state!()
+                                        .toasts
+                                        .error(format!("Failed to create project: {e}"));
                                     self.project_promise = None;
                                 }
                             }
                         }
 
-                        if self.progress.zip_total.get() != 0 {
+                        if self.progress.zip_total.load(Ordering::Relaxed) != 0 {
                             ui.label(format!(
                                 "Downloadind & Unzipping {}/{}",
-                                self.progress.zip_current.get() + 1,
-                                self.progress.zip_total.get()
+                                self.progress.zip_current.load(Ordering::Relaxed) + 1,
+                                self.progress.zip_total.load(Ordering::Relaxed)
                             ));
                         }
 
-                        let total = self.progress.total_progress.get();
-                        let current = self.progress.current_progress.get() + 1;
+                        let total = self.progress.total_progress.load(Ordering::Relaxed);
+                        let current = self.progress.current_progress.load(Ordering::Relaxed) + 1;
                         if total == 0 {
                             ui.spinner();
                         } else {
@@ -150,52 +147,43 @@ impl window::Window for Window {
                                 );
                             let progress = self.progress.clone();
 
-                            #[cfg(not(target_arch = "wasm32"))]
                             let init_git = self.init_git;
-                            #[cfg(not(target_arch = "wasm32"))]
+
                             let branch_name = self.git_branch_name.clone();
 
                             self.project_promise =
                                 Some(poll_promise::Promise::spawn_local(async move {
-                                    let result = info
-                                        .filesystem
-                                        .try_create_project(name, info, rgss_ver)
-                                        .await;
+                                    let state = state!();
+                                    let result =
+                                        state.filesystem.try_create_project(name, rgss_ver).await;
 
-                                    #[allow(clippy::collapsible_if)]
-                                    if result.is_ok() {
-                                        #[cfg(not(target_arch = "wasm32"))]
-                                        if init_git {
-                                            use std::process::Command;
-                                            match Command::new("git")
-                                                .arg("init")
-                                                .arg("-b")
-                                                .arg(branch_name)
-                                                .current_dir(
-                                                    info.filesystem.project_path().unwrap(),
-                                                )
-                                                .spawn()
-                                            {
-                                                Ok(mut c) => {
-                                                    if let Err(e) = c.wait() {
-                                                        info.toasts.error(format!(
+                                    if init_git && result.is_ok() {
+                                        use std::process::Command;
+                                        match Command::new("git")
+                                            .arg("init")
+                                            .arg("-b")
+                                            .arg(branch_name)
+                                            .current_dir(state.filesystem.project_path().unwrap())
+                                            .spawn()
+                                        {
+                                            Ok(mut c) => {
+                                                if let Err(e) = c.wait() {
+                                                    state.toasts.error(format!(
                                                         "Failed to initialize git repository {e}"
                                                     ));
-                                                    }
                                                 }
-                                                Err(e) => info.toasts.error(format!(
-                                                    "Failed to initialize git repository {e}"
-                                                )),
                                             }
+                                            Err(e) => state.toasts.error(format!(
+                                                "Failed to initialize git repository {e}"
+                                            )),
                                         }
+                                    }
 
-                                        if download_executable {
-                                            if let Err(e) =
-                                                Self::download_executable(rgss_ver, info, progress)
-                                                    .await
-                                            {
-                                                info.toasts.error(e);
-                                            }
+                                    if download_executable && result.is_ok() {
+                                        if let Err(e) =
+                                            Self::download_executable(rgss_ver, progress).await
+                                        {
+                                            state.toasts.error(e);
                                         }
                                     }
 
@@ -218,11 +206,7 @@ impl window::Window for Window {
 }
 
 impl Window {
-    async fn download_executable(
-        rgss_ver: RGSSVer,
-        info: &'static UpdateInfo,
-        progress: Progress,
-    ) -> Result<(), String> {
+    async fn download_executable(rgss_ver: RGSSVer, progress: Arc<Progress>) -> Result<(), String> {
         let zip_url: &[_] = match rgss_ver {
             RGSSVer::ModShot => &[
                 "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Windows_bb6bcbc_Ruby-3.1-ucrt64_Steam-false.zip", 
@@ -237,22 +221,22 @@ impl Window {
                 // "https://mapleshrine.eu/releases/mkxp-freebird/win64/mkxp-win64-211207-5d38b1f.zip",
                 // Use an unofficial host for now
                 "https://nowaffles.com/wp-content/uploads/2022/11/mkxp-win64-211207-5d38b1f.zip",
-            ],
-            _ => unreachable!()
+                ],
+                _ => unreachable!()
         };
 
-        progress.zip_total.set(zip_url.len());
+        progress.zip_total.store(zip_url.len(), Ordering::Relaxed);
 
         let zips = futures::future::join_all(zip_url.iter().map(|url|
             // surf::get(format!("https://api.allorigins.win/raw?url={url}"))  FIXME: phishing scam, apparently
             surf::get(url)
-                .middleware(surf::middleware::Redirect::new(10))))
+            .middleware(surf::middleware::Redirect::new(10))))
         .await;
 
         for (index, zip_response) in zips.into_iter().enumerate() {
-            progress.zip_current.set(index);
+            progress.zip_current.store(index, Ordering::Relaxed);
 
-            progress.total_progress.set(0);
+            progress.total_progress.store(0, Ordering::Relaxed);
             let mut response =
                 zip_response.map_err(|e| format!("Error downloading {rgss_ver}: {e}"))?;
 
@@ -263,11 +247,14 @@ impl Window {
 
             let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
                 .map_err(|e| format!("Failed to read zip archive for {rgss_ver}: {e}"))?;
-            progress.total_progress.set(archive.len());
+            progress
+                .total_progress
+                .store(archive.len(), Ordering::Relaxed);
 
+            let state = state!();
             for index in 0..archive.len() {
                 let mut file = archive.by_index(index).unwrap();
-                progress.current_progress.set(index);
+                progress.current_progress.store(index, Ordering::Relaxed);
 
                 let file_path = match file.enclosed_name() {
                     Some(p) => p.to_owned(),
@@ -281,23 +268,23 @@ impl Window {
                     .to_str()
                     .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty() || info.filesystem.path_exists(file_path).await {
+                if file_path.is_empty() || state.filesystem.path_exists(file_path) {
                     continue;
                 }
 
                 if file.is_dir() {
-                    info.filesystem
+                    state
+                        .filesystem
                         .create_directory(file_path)
-                        .await
                         .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
                 } else {
                     let mut bytes = Vec::new();
                     file.read_to_end(&mut bytes)
                         .map_err(|e| e.to_string())
                         .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
-                    info.filesystem
+                    state
+                        .filesystem
                         .save_data(file_path, bytes)
-                        .await
                         .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
                 }
             }

@@ -15,13 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{load_image_software, UpdateInfo};
-use egui_extras::RetainedImage;
-use poll_promise::Promise;
+use crate::prelude::*;
 
 pub struct Graphic {
     pub name: String,
-    pub image: RetainedImage,
+    pub image: Arc<RetainedImage>,
 }
 
 pub struct Window {
@@ -31,7 +29,7 @@ pub struct Window {
 
 impl Window {
     #[must_use]
-    pub fn new(icons: Vec<String>, info: &'static UpdateInfo) -> Self {
+    pub fn new(icons: Vec<String>) -> Self {
         let mut retained_images = Vec::new();
 
         for icon_path in icons {
@@ -40,15 +38,14 @@ impl Window {
 
             let icon_path = String::from(split[0]);
 
-            let image = match Promise::spawn_local(load_image_software(
-                format!("Graphics/Icons/{}", icon_path.clone()),
-                info,
-            ))
-            .block_and_take()
+            let image = match state!()
+                .image_cache
+                .load_egui_image("Graphics/Icons", &icon_path)
             {
                 Ok(ri) => ri,
                 Err(why) => {
-                    info.toasts
+                    state!()
+                        .toasts
                         .error(format!("Cannot load `{icon_path}` icon: {why}"));
                     continue;
                 }
@@ -71,13 +68,7 @@ impl Window {
         }
     }
 
-    pub fn show(
-        &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
-        _info: &'static crate::UpdateInfo,
-        graphic_icon: &mut String,
-    ) {
+    pub fn show(&mut self, ctx: &egui::Context, open: &mut bool, graphic_icon: &mut String) {
         egui::Window::new("Graphic Picker")
             .id(egui::Id::new("icon_picker"))
             .resize(|res| res.min_width(480.))

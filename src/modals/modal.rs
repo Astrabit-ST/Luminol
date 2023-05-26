@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::UpdateInfo;
-
 /// A basic trait describing a modal that edits some value.
 /// Modals can be open and will set their open state.
 /// They should (generally) respect the open bool passed to them and only show if it is true.
@@ -33,20 +31,8 @@ pub trait Modal {
 
     /// Display a button to show this modal.
     /// It should call show.
-    fn button(
-        self,
-        ui: &mut egui::Ui,
-        state: &mut bool,
-        data: &mut Self::Data,
-        info: &'static UpdateInfo,
-    ) -> Self;
+    fn button(self, ui: &mut egui::Ui, state: &mut bool, data: &mut Self::Data) -> Self;
 
     /// Show this modal.
-    fn show(
-        &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
-        data: &mut Self::Data,
-        info: &'static UpdateInfo,
-    );
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, data: &mut Self::Data);
 }

@@ -15,16 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, hash::Hash};
-
-use crate::UpdateInfo;
+use parking_lot::Mutex;
+use std::hash::Hash;
 
 /// The tree type;
 type Tree<T> = egui_dock::Tree<T>;
 
 /// Helper struct for tabs.
 pub struct Tabs<T> {
-    tree: RefCell<Tree<T>>,
+    tree: Mutex<Tree<T>>,
     id: egui::Id,
 }
 
@@ -41,14 +40,13 @@ where
     }
 
     /// Display all tabs.
-    pub fn ui(&self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
+    pub fn ui(&self, ui: &mut egui::Ui) {
         ui.group(|ui| {
-            egui_dock::DockArea::new(&mut self.tree.borrow_mut())
+            egui_dock::DockArea::new(&mut self.tree.lock())
                 .id(self.id)
                 .show_inside(
                     ui,
                     &mut TabViewer {
-                        info,
                         marker: std::marker::PhantomData,
                     },
                 );
@@ -57,10 +55,10 @@ where
 
     /// Add a tab.
     pub fn add_tab(&self, tab: T) {
-        let mut tree = self.tree.borrow_mut();
+        let mut tree = self.tree.lock();
         for n in tree.iter() {
             if let egui_dock::Node::Leaf { tabs, .. } = n {
-                if tabs.iter().any(|t| t.name() == tab.name()) {
+                if tabs.iter().any(|t| t.id() == tab.id()) {
                     return;
                 }
             }
@@ -70,7 +68,7 @@ where
 
     /// Clean tabs by if they need the filesystem.
     pub fn clean_tabs<F: FnMut(&mut T) -> bool>(&self, mut f: F) {
-        let mut tree = self.tree.borrow_mut();
+        let mut tree = self.tree.lock();
         for node in tree.iter_mut() {
             if let egui_dock::Node::Leaf { tabs, .. } = node {
                 tabs.drain_filter(&mut f);
@@ -80,14 +78,12 @@ where
 
     /// Returns the name of the focused tab.
     pub fn focused_name(&self) -> Option<String> {
-        let mut tree = self.tree.borrow_mut();
+        let mut tree = self.tree.lock();
         tree.find_active().map(|(_, t)| t.name())
     }
 }
 
 struct TabViewer<T: Tab> {
-    info: &'static UpdateInfo,
-
     // we don't actually own any types of T, but we use them in TabViewer
     // *const is used here to avoid needing lifetimes and to indicate to the drop checker that we don't own any types of T
     marker: std::marker::PhantomData<*const T>,
@@ -104,7 +100,7 @@ where
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        tab.show(ui, self.info);
+        ui.push_id(tab.id(), |ui| tab.show(ui));
     }
 
     fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
@@ -114,11 +110,16 @@ where
 
 /// A tab trait.
 pub trait Tab {
-    /// The name of the tab.
-    fn name(&self) -> String;
+    /// Optionally used as the title of the tab.
+    fn name(&self) -> String {
+        "Untitled Window".to_string()
+    }
+
+    /// Required to prevent duplication.
+    fn id(&self) -> egui::Id;
 
     /// Show this tab.
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo);
+    fn show(&mut self, ui: &mut egui::Ui);
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {
@@ -131,7 +132,7 @@ pub trait Tab {
     }
 }
 
-impl Tab for Box<dyn Tab> {
+impl Tab for Box<dyn Tab + Send> {
     fn force_close(&mut self) -> bool {
         self.as_mut().force_close()
     }
@@ -140,11 +141,15 @@ impl Tab for Box<dyn Tab> {
         self.as_ref().name()
     }
 
+    fn id(&self) -> egui::Id {
+        self.as_ref().id()
+    }
+
     fn requires_filesystem(&self) -> bool {
         self.as_ref().requires_filesystem()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static UpdateInfo) {
-        self.as_mut().show(ui, info)
+    fn show(&mut self, ui: &mut egui::Ui) {
+        self.as_mut().show(ui)
     }
 }

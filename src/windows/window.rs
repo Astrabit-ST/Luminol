@@ -15,9 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use std::cell::RefCell;
-
-use crate::UpdateInfo;
+use parking_lot::Mutex;
 
 /// A window management system to handle heap allocated windows
 ///
@@ -25,16 +23,16 @@ use crate::UpdateInfo;
 #[derive(Default)]
 pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: RefCell<Vec<Box<dyn Window>>>,
+    windows: Mutex<Vec<Box<dyn Window + Send>>>,
 }
 
 impl Windows {
     /// A function to add a window.
     pub fn add_window<T>(&self, window: T)
     where
-        T: Window + 'static,
+        T: Window + Send + 'static,
     {
-        let mut windows = self.windows.borrow_mut();
+        let mut windows = self.windows.lock();
         if windows.iter().any(|w| w.id() == window.id()) {
             return;
         }
@@ -44,18 +42,18 @@ impl Windows {
     /// Clean all windows that need the data cache.
     /// This is usually when a project is closed.
     pub fn clean_windows(&self) {
-        let mut windows = self.windows.borrow_mut();
+        let mut windows = self.windows.lock();
         windows.retain(|window| !window.requires_filesystem());
     }
 
     /// Update and draw all windows.
-    pub fn update(&self, ctx: &egui::Context, info: &'static UpdateInfo) {
+    pub fn update(&self, ctx: &egui::Context) {
         // Iterate through all the windows and clean them up if necessary.
-        let mut windows = self.windows.borrow_mut();
+        let mut windows = self.windows.lock();
         windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
-            window.show(ctx, &mut open, info);
+            window.show(ctx, &mut open);
             open
         });
     }
@@ -68,7 +66,7 @@ impl Windows {
 /// This makes up for most of their losses. Modals are still useful in certain cases, though.
 pub trait Window {
     /// Show this window.
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static UpdateInfo);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
 
     /// Optionally used as the title of the window.
     fn name(&self) -> String {

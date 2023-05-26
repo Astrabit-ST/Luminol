@@ -32,7 +32,7 @@ pub struct Map {
     pub preview_move_route: Option<(i32, MoveRoute)>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename = "RPG::MapInfo")]
 pub struct MapInfo {
     pub name: String,
@@ -41,6 +41,18 @@ pub struct MapInfo {
     pub expanded: bool,
     pub scroll_x: i32,
     pub scroll_y: i32,
+}
+
+impl PartialOrd for MapInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.order.partial_cmp(&other.order)
+    }
+}
+
+impl Ord for MapInfo {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.order.cmp(&other.order)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

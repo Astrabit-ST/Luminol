@@ -23,6 +23,10 @@ pub struct Tab {
     load_project_promise: Option<poll_promise::Promise<()>>,
 }
 
+// FIXME
+#[allow(unsafe_code)]
+unsafe impl Send for Tab {}
+
 impl Tab {
     /// Create a new starting screen.
     #[must_use]
@@ -36,7 +40,12 @@ impl tab::Tab for Tab {
         "Get Started".to_string()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_started_tab")
+    }
+
+    fn show(&mut self, ui: &mut egui::Ui) {
+        let state = state!();
         ui.label(
             egui::RichText::new("Luminol")
                 .size(40.)
@@ -58,7 +67,8 @@ impl tab::Tab for Tab {
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()
             {
-                info.windows
+                state!()
+                    .windows
                     .add_window(crate::windows::new_project::Window::default());
             }
             if ui
@@ -66,25 +76,26 @@ impl tab::Tab for Tab {
                 .clicked()
             {
                 self.load_project_promise = Some(Promise::spawn_local(async move {
-                    if let Err(e) = info.filesystem.spawn_project_file_picker(info).await {
-                        info.toasts.error(format!("Error loading the project: {e}"));
+                    if let Err(e) = state.filesystem.spawn_project_file_picker().await {
+                        state
+                            .toasts
+                            .error(format!("Error loading the project: {e}"));
                     }
                 }));
             }
 
             ui.add_space(100.);
 
-            #[cfg(not(target_arch = "wasm32"))]
             ui.heading("Recent");
 
-            #[cfg(not(target_arch = "wasm32"))]
-            for path in &info.saved_state.borrow().recent_projects {
+            for path in &state.saved_state.borrow().recent_projects {
                 if ui.button(path).clicked() {
                     let path = path.clone();
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
-                        if let Err(why) = info.filesystem.try_open_project(info, path).await {
-                            info.toasts
+                        if let Err(why) = state.filesystem.try_open_project(path) {
+                            state
+                                .toasts
                                 .error(format!("Error loading the project: {why}"));
                         }
                     }));

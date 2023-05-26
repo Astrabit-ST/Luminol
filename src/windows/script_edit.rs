@@ -43,7 +43,7 @@ impl window::Window for Window {
         egui::Id::new("Script Edit")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, info: &'static crate::UpdateInfo) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .id(egui::Id::new("script_editor_window"))
@@ -52,7 +52,7 @@ impl window::Window for Window {
                     egui::ScrollArea::both()
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
-                            let mut scripts = info.data_cache.scripts();
+                            let mut scripts = state!().data_cache.scripts();
 
                             let mut insert_index = None;
                             let mut del_index = None;
@@ -95,7 +95,7 @@ impl window::Window for Window {
                         });
                 });
 
-                self.tabs.ui(ui, info);
+                self.tabs.ui(ui);
             });
     }
 
@@ -126,8 +126,12 @@ impl tab::Tab for ScriptTab {
         self.index.to_string()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, info: &'static crate::UpdateInfo) {
-        let theme = info.saved_state.borrow().theme;
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_script_edit").with(self.index)
+    }
+
+    fn show(&mut self, ui: &mut egui::Ui) {
+        let theme = state!().saved_state.borrow().theme;
         ui.horizontal(|ui| {
             let mut save_script = false;
 
@@ -145,7 +149,7 @@ impl tab::Tab for ScriptTab {
             }
 
             if save_script {
-                let mut scripts = info.data_cache.scripts();
+                let mut scripts = state!().data_cache.scripts();
 
                 scripts[self.index].script_text = self.script_text.clone();
             }

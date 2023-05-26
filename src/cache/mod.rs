@@ -14,15 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-/// Filesystem access API.
-mod filesystem_trait;
-pub use filesystem_trait::Filesystem;
 
-// FIXME: MAKE TRAIT
-cfg_if::cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
-        pub(crate) mod filesystem_native;
-    } else {
-        pub(crate) mod filesystem_wasm32;
-    }
-}
+pub mod data;
+pub mod image_cache;

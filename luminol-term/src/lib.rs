@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crossbeam_channel::{unbounded, Receiver};
 use std::io::prelude::*;
-use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 
 mod into;
@@ -56,7 +56,7 @@ impl Terminal {
             writer,
         );
 
-        let (sender, reciever) = channel();
+        let (sender, reciever) = unbounded();
         std::thread::spawn(move || {
             let mut buf = [0; 2usize.pow(10)];
             let mut reader = std::io::BufReader::new(reader);

@@ -21,8 +21,27 @@
 // TODO: Use eyre!
 use color_eyre::Result;
 
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<()> {
+    #[cfg(debug_assertions)]
+    std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let deadlocks = parking_lot::deadlock::check_deadlock();
+        if deadlocks.is_empty() {
+            continue;
+        }
+
+        println!("Luminol has deadlocked! Please file an issue.");
+        println!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            println!("Deadlock #{}", i);
+            for t in threads {
+                println!("Thread Id {:#?}", t.thread_id());
+                println!("{:#?}", t.backtrace());
+            }
+        }
+        std::process::exit(1);
+    });
+
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -104,33 +123,5 @@ fn setup_file_assocs() -> std::io::Result<()> {
        let (open_key, _) = app_key.create_subkey("shell\\open\\command")?;
        open_key.set_value("", &command)?;
     */
-    Ok(())
-}
-
-// when compiling to web using trunk.
-#[cfg(target_arch = "wasm32")]
-fn main() -> Result<()> {
-    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
-    std::panic::set_hook(Box::new(move |info| {
-        let report = panic.panic_report(info);
-
-        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
-    }));
-
-    // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default();
-
-    let web_options = eframe::WebOptions::default();
-
-    wasm_bindgen_futures::spawn_local(async {
-        eframe::start_web(
-            "the_canvas_id", // hardcode it
-            web_options,
-            Box::new(|cc| Box::new(luminol::Luminol::new(cc))),
-        )
-        .await
-        .expect("failed to start eframe");
-    });
-
     Ok(())
 }
