@@ -27,7 +27,19 @@ static XP_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
     )
 });
 
-#[derive(Deserialize, Serialize)]
+static VX_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
+    ron::from_str(include_str!("vx_default.ron")).expect(
+        "failed to statically load the default commands for rpg maker vx . please report this bug",
+    )
+});
+
+static ACE_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
+    ron::from_str(include_str!("ace_default.ron")).expect(
+        "failed to statically load the default commands for rpg maker vx ace. please report this bug",
+    )
+});
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct CommandDB {
     /// Default commands
     default: Vec<CommandDescription>,
@@ -35,20 +47,13 @@ pub struct CommandDB {
     pub user: Vec<CommandDescription>,
 }
 
-impl Default for CommandDB {
-    fn default() -> Self {
-        Self {
-            default: XP_DEFAULT.clone(),
-            user: vec![],
-        }
-    }
-}
-
 impl CommandDB {
     pub fn new(ver: RMVer) -> Self {
         Self {
             default: match ver {
                 RMVer::XP => &*XP_DEFAULT,
+                RMVer::VX => &*VX_DEFAULT,
+                RMVer::Ace => &*ACE_DEFAULT,
             }
             .clone(),
             user: vec![],

@@ -93,7 +93,7 @@ impl tab::Tab for Tab {
                     let path = path.clone();
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
-                        if let Err(why) = state.filesystem.try_open_project(path) {
+                        if let Err(why) = state.filesystem.load_project(path) {
                             state
                                 .toasts
                                 .error(format!("Error loading the project: {why}"));

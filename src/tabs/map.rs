@@ -41,7 +41,7 @@ pub struct Tab {
 impl Tab {
     /// Create a new map editor.
     pub fn new(id: i32) -> Result<Self, String> {
-        let map = state!().data_cache.load_map(id)?;
+        let map = state!().data_cache.map(id);
         Ok(Self {
             id,
             selected_layer: map.data.zsize(),
@@ -74,7 +74,7 @@ impl tab::Tab for Tab {
         let state = state!();
 
         // Get the map.
-        let mut map = state.data_cache.get_map(self.id);
+        let mut map = state.data_cache.map(self.id);
         let tileset = state.data_cache.tilesets();
         let tileset = &tileset[map.tileset_id as usize - 1];
 

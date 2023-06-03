@@ -115,9 +115,9 @@ const AUTOTILES: [[i32; 4]; 48] = [
 
 #[allow(dead_code)]
 impl Tilemap {
-    fn new(id: i32) -> Result<Tilemap, String> {
-        let textures = Self::load_data(id)?;
-        Ok(Self {
+    fn new(id: i32) -> Tilemap {
+        let textures = Self::load_data(id);
+        Self {
             pan: Vec2::ZERO,
             scale: 100.,
             visible_display: false,
@@ -125,7 +125,7 @@ impl Tilemap {
             ani_idx: 0,
             ani_instant: Instant::now(),
             textures,
-        })
+        }
     }
 
     fn ui(
@@ -621,11 +621,11 @@ impl Tilemap {
     }
 
     #[allow(unused_variables, unused_assignments)]
-    fn load_data(id: i32) -> Result<Textures, String> {
+    fn load_data(id: i32) -> Textures {
         let state = state!();
         // Load the map.
 
-        let map = state.data_cache.load_map(id)?;
+        let map = state.data_cache.map(id);
         // Get tilesets.
         let tilesets = state.data_cache.tilesets();
 
@@ -684,13 +684,13 @@ impl Tilemap {
             .ok();
 
         // Finally create and return the struct.
-        Ok(Textures {
+        Textures {
             tileset_tex,
             autotile_texs,
             event_texs,
             fog_tex,
             fog_zoom,
             pano_tex,
-        })
+        }
     }
 }

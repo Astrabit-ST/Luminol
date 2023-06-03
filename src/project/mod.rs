@@ -21,4 +21,4 @@ mod command_db;
 mod config;
 
 pub use command_db::CommandDB;
-pub use config::{LocalConfig, RGSSVer};
+pub use config::{LocalConfig, RGSSVer, RMVer};
