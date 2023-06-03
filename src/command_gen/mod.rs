@@ -31,7 +31,7 @@ pub struct CommandGeneratorWindow {
 impl Default for CommandGeneratorWindow {
     fn default() -> Self {
         Self {
-            commands: state!().data_cache.commanddb().user.clone(),
+            commands: state!().data_cache.command_db().user.clone(),
             ui_examples: vec![],
         }
     }
@@ -217,7 +217,7 @@ impl window::Window for CommandGeneratorWindow {
                     }
 
                     if ui.button("Save").clicked() {
-                        state!().data_cache.commanddb().user = self.commands.clone();
+                        state!().data_cache.command_db().user = self.commands.clone();
                     }
                 });
             });

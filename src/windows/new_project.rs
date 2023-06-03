@@ -34,6 +34,7 @@ use std::sync::Arc;
 pub struct Window {
     name: String,
     rgss_ver: RGSSVer,
+    editor_ver: RMVer,
     project_promise: Option<poll_promise::Promise<Result<(), String>>>,
     download_executable: bool,
     progress: Arc<Progress>,
@@ -54,6 +55,7 @@ impl Default for Window {
         Self {
             name: "My Project".to_string(),
             rgss_ver: RGSSVer::RGSS1,
+            editor_ver: RMVer::XP,
             project_promise: None,
             download_executable: false,
             progress: Arc::default(),
@@ -145,8 +147,13 @@ impl window::Window for Window {
                         }
                     } else {
                         if ui.button("Ok").clicked() {
-                            let name = self.name.clone();
                             let rgss_ver = self.rgss_ver;
+                            let config = LocalConfig {
+                                project_name: self.name.clone(),
+                                rgss_ver,
+                                editor_ver: self.editor_ver,
+                                ..Default::default()
+                            };
                             let download_executable = self.download_executable
                                 && matches!(
                                     rgss_ver,
@@ -161,8 +168,7 @@ impl window::Window for Window {
                             self.project_promise =
                                 Some(poll_promise::Promise::spawn_local(async move {
                                     let state = state!();
-                                    let result =
-                                        state.filesystem.try_create_project(name, rgss_ver).await;
+                                    let result = state.data_cache.create_project(config).await;
 
                                     if init_git && result.is_ok() {
                                         use std::process::Command;
@@ -275,7 +281,7 @@ impl Window {
                     .to_str()
                     .ok_or(format!("Invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty() || state.filesystem.path_exists(file_path) {
+                if file_path.is_empty() || state.filesystem.path_exists(file_path)? {
                     continue;
                 }
 

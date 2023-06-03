@@ -24,7 +24,7 @@ use super::{
 use crate::prelude::*;
 
 use image::GenericImageView;
-use std::{num::NonZeroU32, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Atlas {
@@ -145,8 +145,8 @@ impl Atlas {
                 &tileset_img,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(4 * tileset_img.width()),
-                    rows_per_image: NonZeroU32::new(tileset_img.height()),
+                    bytes_per_row: Some(4 * tileset_img.width()),
+                    rows_per_image: Some(tileset_img.height()),
                 },
                 wgpu::Extent3d {
                     width: tileset_img.width(),
@@ -339,7 +339,7 @@ fn write_texture_region<P>(
         bytes,
         wgpu::ImageDataLayout {
             offset: offset as wgpu::BufferAddress,
-            bytes_per_row: NonZeroU32::new(stride),
+            bytes_per_row: Some(stride),
             rows_per_image: None,
         },
         wgpu::Extent3d {

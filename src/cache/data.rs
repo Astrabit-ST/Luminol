@@ -24,108 +24,170 @@
 
 use crate::prelude::*;
 use core::ops::{Deref, DerefMut};
-/// A struct representing a cache of the current data.
-/// This is done so data stored here can be written to the disk on demand.
-#[derive(Default)]
+
+#[derive(Default, Debug)]
 pub struct Cache {
-    actors: AtomicRefCell<Option<NilPadded<rpg::Actor>>>,
-    animations: AtomicRefCell<Option<NilPadded<rpg::Animation>>>,
-    armors: AtomicRefCell<Option<NilPadded<rpg::Armor>>>,
-    classes: AtomicRefCell<Option<NilPadded<rpg::Class>>>,
-    commonevents: AtomicRefCell<Option<NilPadded<rpg::CommonEvent>>>,
-    enemies: AtomicRefCell<Option<NilPadded<rpg::Enemy>>>,
-    items: AtomicRefCell<Option<NilPadded<rpg::Item>>>,
-    mapinfos: AtomicRefCell<Option<HashMap<i32, rpg::MapInfo>>>,
-    scripts: AtomicRefCell<Option<Vec<rpg::Script>>>,
-    skills: AtomicRefCell<Option<NilPadded<rpg::Skill>>>,
-    states: AtomicRefCell<Option<NilPadded<rpg::State>>>,
-    system: AtomicRefCell<Option<rpg::System>>,
-    tilesets: AtomicRefCell<Option<NilPadded<rpg::Tileset>>>,
-    troops: AtomicRefCell<Option<NilPadded<rpg::Troop>>>,
-    weapons: AtomicRefCell<Option<NilPadded<rpg::Weapon>>>,
-
-    maps: dashmap::DashMap<i32, rpg::Map>,
-    config: AtomicRefCell<Option<LocalConfig>>,
-    commanddb: AtomicRefCell<Option<CommandDB>>,
+    state: AtomicRefCell<State>,
 }
 
-macro_rules! save_data {
-    ($this:ident, $filesystem:ident, $($name:ident),*) => {
-        $(
-            paste::paste! {
-                let _bytes = $this
-                    .[< $name:lower >]
-                    .borrow()
-                    .as_ref()
-                    .map(|t| alox_48::to_bytes(t).map_err(|e| format!(concat!("Saving ", stringify!($name), ": {}"), e)));
+// Loaded is used 99% of the time. The size discrepancy is okay.
+#[allow(clippy::large_enum_variant)]
+#[derive(Default, Debug)]
+enum State {
+    #[default]
+    Unloaded,
+    ConfigLoaded {
+        config: AtomicRefCell<LocalConfig>,
+        command_db: AtomicRefCell<CommandDB>,
+    },
+    Loaded {
+        actors: AtomicRefCell<rpg::Actors>,
+        animations: AtomicRefCell<rpg::Animations>,
+        armors: AtomicRefCell<rpg::Armors>,
+        classes: AtomicRefCell<rpg::Classes>,
+        common_events: AtomicRefCell<rpg::CommonEvents>,
+        enemies: AtomicRefCell<rpg::Enemies>,
+        items: AtomicRefCell<rpg::Items>,
+        mapinfos: AtomicRefCell<rpg::MapInfos>,
+        scripts: AtomicRefCell<Vec<rpg::Script>>,
+        skills: AtomicRefCell<rpg::Skills>,
+        states: AtomicRefCell<rpg::States>,
+        system: AtomicRefCell<rpg::System>,
+        tilesets: AtomicRefCell<rpg::Tilesets>,
+        troops: AtomicRefCell<rpg::Troops>,
+        weapons: AtomicRefCell<rpg::Weapons>,
 
-                if let Some(_bytes) = _bytes {
-                    $filesystem
-                        .save_data(concat!("Data/", stringify!($name), ".rxdata"), _bytes?)
-                        .map_err(|_| concat!("Failed to write", stringify!($name), "data"))?;
-                }
-            }
-        )*
-    };
+        maps: dashmap::DashMap<i32, rpg::Map>,
+        config: AtomicRefCell<LocalConfig>,
+        command_db: AtomicRefCell<CommandDB>,
+    },
 }
 
-macro_rules! load_data {
-    ($this:ident, $filesystem:ident, $($name:ident),*) => {
+macro_rules! nested_ref_getter {
+    ($(
+        $typ:ty, $name:ident, $($enum_type:ident :: $variant:ident),+
+    );*) => {
         $(
-            paste::paste! {
-                *$this.[< $name:lower >].borrow_mut() = Some(
-                    $filesystem
-                        .read_data(concat!("Data/", stringify!($name), ".rxdata"))
-                        .map_err(|s| format!(concat!("Failed to load ", stringify!($name) ,": {}"), s))?,
-                );
-            }
-        )*
-    };
-}
+            #[allow(unsafe_code, dead_code)]
+            pub fn $name<'a>(&'a self) -> impl core::ops::Deref<Target = $typ> + core::ops::DerefMut + 'a {
+                struct _Ref<'b> {
+                    _this_ref: atomic_refcell::AtomicRef<'b, State>,
+                    _other_ref: atomic_refcell::AtomicRefMut<'b, $typ>,
+                }
+                impl<'b> core::ops::Deref for _Ref<'b> {
+                    type Target = $typ;
 
-macro_rules! getter {
-    ($($name:ident, $type:ty),*) => {
-        $(
-            paste::paste! {
-                #[doc = "Get `" $name "` from the data cache. Panics if the project was not loaded."]
-                pub fn [< $name:lower>](&self) -> impl Deref<Target = $type> + DerefMut + '_ {
-                    AtomicRefMut::map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o).expect(concat!("Grabbing ", stringify!($name), " from the data cache failed because the project was not loaded. Please file this as an issue")))
+                    fn deref(&self) -> &Self::Target {
+                        &self._other_ref
+                    }
+                }
+                impl<'b> core::ops::DerefMut for _Ref<'b> {
+                    fn deref_mut(&mut self) -> &mut Self::Target {
+                        &mut self._other_ref
+                    }
                 }
 
-                #[doc = "Try getting `" $name "` from the data cache."]
-                pub fn [<try_ $name:lower>](&self) -> Option<impl Deref<Target = $type> + DerefMut + '_ > {
-                    AtomicRefMut::filter_map(self.[< $name:lower >].borrow_mut(), |o| Option::as_mut(o))
-                }
+                let _this_ref = self.state.borrow();
+                let _other_ref: atomic_refcell::AtomicRefMut<'a, $typ> = unsafe {
+                    // See Self::map for safety
+                    match &*(&*_this_ref as *const _) {
+                        $(
+                            $enum_type::$variant { $name, .. } => $name.borrow_mut(),
+                        )+
+                        _ => panic!("Project not loaded"),
+                    }
+                };
 
-                #[doc = "Get the raw optional `" $name "` from the data cache."]
-                pub fn [<raw_ $name:lower>](&self) -> impl Deref<Target = Option<$type>> + DerefMut + '_  {
-                    self.[< $name:lower >].borrow_mut()
+                _Ref {
+                    _this_ref,
+                    _other_ref,
                 }
             }
-        )*
-    };
-}
-
-macro_rules! setup_default {
-    ($this:ident, $($name:ident),*) => {
-        $(
-            paste::paste! {
-                *$this.[< $name:lower >].borrow_mut() = Some(
-                    // This is a pretty dirty hack to make rustc assume that it's a vec of the type we're storing
-                    NilPadded::from(vec![None, Some(Default::default())])
-                );
-            }
-        )*
+        )+
     };
 }
 
 impl Cache {
     /// Load all data required when opening a project.
+    /// Does not load config. That is expected to have been loaded beforehand.
     pub fn load(&self) -> Result<(), String> {
+        macro_rules! load {
+            ($this:ident, $($field:ident, $file:literal),+) => {
+                let mut config = self.config().clone();
+                let command_db = self.command_db().clone().into();
+                let filesystem = &state!().filesystem;
+
+                let mut scripts = None;
+                for file in [&config.scripts_path.clone(), "xScripts", "Scripts"] {
+                    match filesystem.read_data(format!("Data/{file}.{}", self.rxdata_ext())) {
+                        Ok(s) => {
+                            scripts = Some(s);
+                            config.scripts_path = file.to_string();
+                            break;
+                        },
+                        Err(e) => {
+                            eprintln!("Error loading scripts: {e:#?}");
+                        }
+                    }
+                }
+                let Some(scripts) = scripts else {
+                    return Err("Unable to load scripts, tried scripts file from config, then xScripts, then Scripts".to_string());
+                };
+
+                *self.state.borrow_mut() = State::Loaded {
+                    $(
+                        $field: AtomicRefCell::new(
+                            filesystem
+                                .read_data(format!("Data/{}.{}", $file, self.rxdata_ext()))
+                                .map_err(|e| {
+                                    format!(concat!("Failed to load ", stringify!($field), ": {}"), e)
+                                })?
+                        ),
+                    )+
+
+                    maps: Default::default(),
+                    scripts: AtomicRefCell::new(scripts),
+
+                    config: AtomicRefCell::new(config),
+                    command_db,
+                };
+            };
+        }
+
+        load! {
+            self,
+            actors, "Actors",
+            animations, "Animations",
+            armors, "Armors",
+            classes, "Classes",
+            common_events, "CommonEvents",
+            enemies, "Enemies",
+            items, "Items",
+            mapinfos, "MapInfos",
+            skills, "Skills",
+            states, "States",
+            system, "System",
+            tilesets, "Tilesets",
+            troops, "Troops",
+            weapons, "Weapons"
+        }
+
+        Ok(())
+    }
+
+    pub fn rxdata_ext(&self) -> &'static str {
+        match self.config().editor_ver {
+            RMVer::XP => "rxdata",
+            RMVer::VX => "rvdata",
+            RMVer::Ace => "rvdata2",
+        }
+    }
+
+    pub fn load_config(&self) -> Result<(), String> {
         let filesystem = &state!().filesystem;
 
-        if !filesystem.path_exists(".luminol") {
-            filesystem.create_directory(".luminol")?;
+        if !filesystem.path_exists(".luminol")? {
+            // filesystem.create_directory(".luminol")?;
         }
 
         let config = match filesystem
@@ -136,22 +198,19 @@ impl Cache {
         {
             Some(c) => c,
             None => {
-                let config = LocalConfig::default();
-                filesystem
-                    .save_data(
-                        ".luminol/config",
-                        ron::ser::to_string_pretty(
-                            &config,
-                            ron::ser::PrettyConfig::default().struct_names(true),
-                        )
-                        .expect("Failed to serialize config"),
-                    )
-                    .expect("Failed to write config data after failing to load config data");
+                let Some(editor_ver) =filesystem.detect_rm_ver() else {
+                    return Err("Unable to detect RPG Maker version".to_string());
+                };
+                let config = LocalConfig {
+                    editor_ver,
+                    ..Default::default()
+                };
+                filesystem.save_data(".luminol/config", ron::to_string(&config).unwrap())?;
                 config
             }
         };
 
-        let commanddb = match filesystem
+        let command_db = match filesystem
             .read_bytes(".luminol/commands")
             .ok()
             .and_then(|v| String::from_utf8(v).ok())
@@ -159,203 +218,196 @@ impl Cache {
         {
             Some(c) => c,
             None => {
-                let config = CommandDB::new(config.editor_ver);
-                filesystem
-                    .save_data(
-                        ".luminol/commands",
-                        ron::ser::to_string_pretty(
-                            &config,
-                            ron::ser::PrettyConfig::default().struct_names(true),
-                        )
-                        .expect("Failed to serialize commands"),
-                    )
-                    .expect("Failed to write config data after failing to load command data");
-                config
+                let command_db = CommandDB::new(config.editor_ver);
+                filesystem.save_data(".luminol/commands", ron::to_string(&command_db).unwrap())?;
+                command_db
             }
         };
 
-        *self.config.borrow_mut() = Some(config);
-        *self.commanddb.borrow_mut() = Some(commanddb);
+        *self.state.borrow_mut() = State::ConfigLoaded {
+            config: config.into(),
+            command_db: command_db.into(),
+        };
 
-        load_data! {
-            self, filesystem,
-            Actors, Animations, Armors,
-            Classes, CommonEvents, Enemies,
-            Items, MapInfos,
-            Skills, States, System,
-            Tilesets, Troops, Weapons
-        }
-
-        let mut scripts = filesystem.read_data("Data/xScripts.rxdata");
-
-        if let Err(e) = scripts {
-            eprintln!("Attempted loading xScripts failed with {e}");
-
-            scripts = filesystem.read_data("Data/Scripts.rxdata");
-        } else {
-            self.config.borrow_mut().as_mut().unwrap().scripts_path = "xScripts".to_string();
-        }
-
-        *self.scripts.borrow_mut() = Some(
-            scripts.map_err(|s| format!("Failed to read Scripts (tried xScripts first): {s}"))?,
-        );
-
-        self.maps.clear();
         Ok(())
     }
 
-    /// Load a map.
-    pub fn load_map(
-        &self,
-        id: i32,
-    ) -> Result<impl Deref<Target = rpg::Map> + DerefMut + '_, String> {
-        self.maps.entry(id).or_try_insert_with(|| {
-            state!()
-                .filesystem
-                .read_data(format!("Data/Map{id:0>3}.rxdata",))
-                .map_err(|e| format!("Failed to load map: {e}"))
-        })
-    }
-
-    /// Get a map that has been loaded. This function is not async unlike [`Self::load_map`].
-    /// # Panics
-    /// Will panic if the map has not been loaded already.
-    pub fn get_map(&self, id: i32) -> impl Deref<Target = rpg::Map> + DerefMut + '_ {
-        self.maps.get_mut(&id).expect("map not loaded")
-    }
-
-    getter! {
-        Actors, NilPadded<rpg::Actor>,
-        Animations, NilPadded<rpg::Animation>,
-        Armors, NilPadded<rpg::Armor>,
-        Classes, NilPadded<rpg::Class>,
-        CommonEvents, NilPadded<rpg::CommonEvent>,
-        Enemies, NilPadded<rpg::Enemy>,
-        Items, NilPadded<rpg::Item>,
-        MapInfos, HashMap<i32, rpg::MapInfo>,
-        Scripts, Vec<rpg::Script>,
-        Skills, NilPadded<rpg::Skill>,
-        States, NilPadded<rpg::State>,
-        System, rpg::System,
-        Tilesets, NilPadded<rpg::Tileset>,
-        Troops, NilPadded<rpg::Troop>,
-        Weapons, NilPadded<rpg::Weapon>,
-
-        Config, LocalConfig,
-        CommandDB, CommandDB
-    }
-
     /// Save the local config.
-    pub fn save_config(&self, filesystem: &Filesystem) -> Result<(), String> {
-        if !filesystem.path_exists(".luminol") {
-            filesystem.create_directory(".luminol")?;
-        }
-
-        let config_str = ron::ser::to_string_pretty(
-            &*self.config(),
-            ron::ser::PrettyConfig::default().struct_names(true),
-        )
-        .map_err(|e| format!("Failed to serialize config data: {e}"))?;
-
-        filesystem
-            .save_data(".luminol/config", config_str)
-            .map_err(|_| "Failed to write Config data")?;
-
-        let commands_str = ron::ser::to_string_pretty(
-            &*self.commanddb(),
-            ron::ser::PrettyConfig::default().struct_names(true),
-        )
-        .map_err(|e| format!("Failed to serialize command data: {e}"))?;
-
-        filesystem
-            .save_data(".luminol/commands", commands_str)
-            .map_err(|_| "Failed to write Config data")?;
-
+    pub fn save_config(&self) -> Result<(), String> {
         Ok(())
     }
 
     /// Save all cached data to disk.
     /// Will flush the cache too.
-    pub fn save(&self, filesystem: &Filesystem) -> Result<(), String> {
-        self.system().magic_number = rand::random();
+    pub fn save(&self) -> Result<(), String> {
+        self.save_config()
+    }
 
-        // Write map data and clear map cache.
-        // We serialize all of these first before writing them to the disk to avoid bringing a AtomicRefCell across an await.
-        // A RwLock may be used in the future to solve this, though.
-        for entry in self.maps.iter() {
-            let bytes = alox_48::to_bytes(entry.value()).map_err(|e| e.to_string())?;
-            filesystem
-                .save_data(format!("Data/Map{:0>3}.rxdata", entry.key()), bytes)
-                .map_err(|e| format!("Failed to write Map data {e}"))?;
+    pub async fn create_project(&self, config: LocalConfig) -> Result<(), String> {
+        if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
+            let path = path.path().join(&config.project_name);
+            std::fs::create_dir(&path).map_err(|e| e.to_string())?;
+
+            let filesystem = &state!().filesystem;
+            filesystem.start_loading(path); // FIXME: this is lazy, we're telling the filesystem that "hey the project is loaded now lol pls believe us"
+
+            let mut state = self.state.borrow_mut();
+            *state = State::ConfigLoaded {
+                command_db: CommandDB::new(config.editor_ver).into(),
+                config: config.into(),
+            };
+
+            self.setup_defaults();
+            self.save()?;
+        } else {
+            return Err("Cancelled picking a project directory".to_string());
         }
 
-        let scripts_bytes =
-            alox_48::to_bytes(&*self.scripts()).map_err(|e| format!("Saving Scripts: {e}"))?;
-        filesystem
-            .save_data(
-                format!("Data/{}.rxdata", self.config().scripts_path),
-                scripts_bytes,
-            )
-            .map_err(|e| format!("Failed to write Script data {e}"))?;
-
-        save_data! {
-            self, filesystem,
-            Actors, Animations, Armors,
-            Classes, CommonEvents, Enemies,
-            Items, MapInfos,
-            Skills, States, System, // FIXME: save to xScripts too!
-            Tilesets, Troops, Weapons
-        };
-
-        self.save_config(filesystem)
+        Ok(())
     }
 
     /// Setup default values
+    // FIXME: Code jank
     pub fn setup_defaults(&self) {
-        let mut map_infos = HashMap::new();
-        map_infos.insert(
-            1,
-            rpg::MapInfo {
-                parent_id: 0,
-                name: "Map 001".to_string(),
-                order: 0,
-                expanded: false,
-                scroll_x: 0,
-                scroll_y: 0,
-            },
-        );
-        *self.mapinfos.borrow_mut() = Some(map_infos);
+        macro_rules! setup_default {
+            ($this:ident, $($field:ident),+) => {
+                // i hate doing this. but oh well
+                let config = self.config().clone().into();
+                let command_db = self.command_db().clone().into();
+                let mut mapinfos = rpg::MapInfos::new();
+                mapinfos.insert(
+                    1,
+                    rpg::MapInfo {
+                        parent_id: 0,
+                        name: "Map 001".to_string(),
+                        order: 0,
+                        expanded: false,
+                        scroll_x: 0,
+                        scroll_y: 0,
+                    },
+                );
+                let mapinfos = mapinfos.into();
 
-        // FIXME: make this static somehow?
-        *self.scripts.borrow_mut() =
-            Some(alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap());
+                let maps = dashmap::DashMap::new();
+                maps.insert(1, rpg::Map {
+                    tileset_id: 1,
+                    width: 20,
+                    height: 15,
+                    data: rmxp_types::Table3::new(20, 15, 3),
+                    ..Default::default()
+                });
 
-        *self.system.borrow_mut() = Some(rpg::System {
-            magic_number: rand::random(),
-            ..Default::default()
-        });
+                let system = rpg::System {
+                    magic_number: rand::random(),
+                    ..Default::default()
+                }.into();
 
-        self.maps.clear();
-        self.maps.insert(
-            1,
-            rpg::Map {
-                tileset_id: 1,
-                width: 20,
-                height: 15,
-                data: rmxp_types::Table3::new(20, 15, 3),
-                ..Default::default()
-            },
-        );
+                let scripts = match self.config().editor_ver {
+                    RMVer::XP => alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
+                    RMVer::VX => todo!(),
+                    RMVer::Ace => todo!(),
+                };
 
-        *self.config.borrow_mut() = Some(LocalConfig::default());
-        *self.commanddb.borrow_mut() = Some(CommandDB::default());
+                *self.state.borrow_mut() = State::Loaded {
+                    $(
+                        $field: AtomicRefCell::new(NilPadded::from(vec![None, Some(Default::default())])),
+                    )+
+
+                    mapinfos,
+                    maps,
+                    system,
+                    scripts: AtomicRefCell::new(scripts),
+
+                    config,
+                    command_db,
+                };
+            };
+        }
 
         setup_default! {
             self,
-            Actors, Animations, Armors,
-            Classes, CommonEvents, Enemies,
-            Items, Skills, States,
-            Tilesets, Troops, Weapons
+            actors,
+            animations,
+            armors,
+            classes,
+            common_events,
+            enemies,
+            items,
+            skills,
+            states,
+            tilesets,
+            troops,
+            weapons
+        }
+    }
+
+    nested_ref_getter! {
+        rpg::Actors, actors, State::Loaded;
+        rpg::Animations, animations, State::Loaded;
+        rpg::Armors, armors, State::Loaded;
+        rpg::Classes, classes, State::Loaded;
+        rpg::CommonEvents, common_events, State::Loaded;
+        rpg::Enemies, enemies, State::Loaded;
+        rpg::Items, items, State::Loaded;
+        rpg::MapInfos, mapinfos, State::Loaded;
+        Vec<rpg::Script>, scripts, State::Loaded;
+        rpg::Skills, skills, State::Loaded;
+        rpg::States, states, State::Loaded;
+        rpg::System, system, State::Loaded;
+        rpg::Tilesets, tilesets, State::Loaded;
+        rpg::Troops, troops, State::Loaded;
+        rpg::Weapons, weapons, State::Loaded;
+
+        LocalConfig, config, State::Loaded, State::ConfigLoaded;
+        CommandDB, command_db, State::Loaded, State::ConfigLoaded
+    }
+
+    /// Load a map.
+    #[allow(unsafe_code)]
+    #[allow(clippy::panic)]
+    pub fn map<'a>(&'a self, id: i32) -> impl Deref<Target = rpg::Map> + DerefMut + 'a {
+        struct Ref<'b> {
+            _state: atomic_refcell::AtomicRef<'b, State>,
+            map_ref: dashmap::mapref::one::RefMut<'b, i32, rpg::Map>,
+        }
+        impl<'b> Deref for Ref<'b> {
+            type Target = rpg::Map;
+
+            fn deref(&self) -> &Self::Target {
+                &self.map_ref
+            }
+        }
+        impl<'b> DerefMut for Ref<'b> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.map_ref
+            }
+        }
+
+        let state = self.state.borrow();
+        let State::Loaded { ref maps, ..} = &*state else {
+                panic!("project not loaded")
+            };
+        //? # SAFETY
+        // For starters, this has been tested against miri. Miri is okay with it.
+        // Ref is self referential- map_ref borrows from _state. We need to store _state so it gets dropped at the same time as map_ref.
+        // If it didn't, map_ref would invalidate the refcell. We could unload the project, changing State while map_ref is live. Storing _state prevents this.
+        // Because the rust borrow checker isn't smart enough for this, we need to create an unbounded reference to maps to get a map out. We're not actually using this reference
+        // for any longer than it would be valid for (notice the fact that we assign map_ref a lifetime of 'a, which is the lifetime it should have anyway) so this is okay.
+        let map_ref: dashmap::mapref::one::RefMut<'a, _, _> = unsafe {
+            let unsafe_maps_ref: &dashmap::DashMap<i32, rpg::Map> = &*(maps as *const _);
+            unsafe_maps_ref
+                .entry(id)
+                .or_try_insert_with(|| {
+                    state!()
+                        .filesystem
+                        .read_data(format!("Data/Map{id:0>3}.{}", self.rxdata_ext()))
+                })
+                .expect("failed to load map") // FIXME
+        };
+
+        Ref {
+            _state: state,
+            map_ref,
         }
     }
 }

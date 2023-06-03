@@ -48,16 +48,14 @@ where
 
     /// Display all tabs.
     pub fn ui(&self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            egui_dock::DockArea::new(&mut self.tree.lock())
-                .id(self.id)
-                .show_inside(
-                    ui,
-                    &mut TabViewer {
-                        marker: std::marker::PhantomData,
-                    },
-                );
-        });
+        egui_dock::DockArea::new(&mut self.tree.lock())
+            .id(self.id)
+            .show_inside(
+                ui,
+                &mut TabViewer {
+                    marker: std::marker::PhantomData,
+                },
+            );
     }
 
     /// Add a tab.

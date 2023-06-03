@@ -25,7 +25,7 @@
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 /// Local luminol project config
 #[allow(missing_docs)]
@@ -36,6 +36,7 @@ pub struct LocalConfig {
     pub rgss_ver: RGSSVer,
     pub editor_ver: RMVer,
     pub playtest_exe: String,
+    pub prefer_rgssad: bool,
 }
 
 impl Default for LocalConfig {
@@ -47,11 +48,12 @@ impl Default for LocalConfig {
             rgss_ver: RGSSVer::RGSS1,
             editor_ver: RMVer::XP,
             playtest_exe: "game".to_string(),
+            prefer_rgssad: false,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display, Debug)]
 #[allow(missing_docs)]
 pub enum RGSSVer {
     #[strum(to_string = "ModShot")]
@@ -70,14 +72,16 @@ pub enum RGSSVer {
     RGSS1,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display, Default)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter, strum::Display, Default, Debug,
+)]
 #[allow(missing_docs)]
 pub enum RMVer {
     #[default]
     #[strum(to_string = "RPG Maker XP")]
     XP,
-    // #[strum(to_string = "RPG Maker VX")]
-    // VX,
-    // #[strum(to_string = "RPG Maker VX Ace")]
-    // Ace,
+    #[strum(to_string = "RPG Maker VX")]
+    VX,
+    #[strum(to_string = "RPG Maker VX Ace")]
+    Ace,
 }

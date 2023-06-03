@@ -42,8 +42,8 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         let items = state!().data_cache.items().clone();
-        let icon_paths = match state!().filesystem.dir_children_strings("Graphics/Icons") {
-            Ok(icons) => icons,
+        let icon_paths = match state!().filesystem.dir_children("Graphics/Icons") {
+            Ok(icons) => icons.map(Into::into).collect_vec(),
             Err(why) => {
                 state!()
                     .toasts
@@ -82,7 +82,7 @@ impl window::Window for Window {
         let _selected_item = &self.items[self.selected_item];
         let animations = state!().data_cache.animations();
 
-        let common_events = state!().data_cache.commonevents();
+        let common_events = state!().data_cache.common_events();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations

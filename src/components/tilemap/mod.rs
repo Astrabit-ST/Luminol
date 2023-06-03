@@ -508,7 +508,7 @@ impl Tilemap {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(bytes_per_row),
+                    bytes_per_row: Some(bytes_per_row),
                     rows_per_image: None,
                 },
             },

@@ -32,20 +32,23 @@
 #![warn(rust_2018_idioms)]
 #![warn(
     clippy::all,
-    // clippy::pedantic,
     clippy::panic,
     clippy::panic_in_result_fn,
     clippy::panicking_unwrap,
-    // clippy::unwrap_used,
-    clippy::unnecessary_wraps
+    clippy::unnecessary_wraps,
+    // unsafe code is sometimes fine but in general we don't want to use it.
+    unsafe_code,
 )]
+// These may be turned on in the future.
+// #![warn(clippy::unwrap, clippy::pedantic)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::doc_markdown,
     clippy::missing_panics_doc,
     clippy::too_many_lines
 )]
-#![deny(unsafe_code)]
+// You must provide a safety doc. DO NOT TURN OFF THESE LINTS.
+#![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
 // Okay, lemme run through *why* some of these are enabled
 // 1) drain filter
 // drain filter saves on code complexity and unecessary allocations

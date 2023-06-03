@@ -94,7 +94,7 @@ impl Luminol {
         if let Some(path) = try_load_path {
             state!()
                 .filesystem
-                .try_open_project(path)
+                .load_project(path)
                 .expect("failed to load project");
         }
 
@@ -125,7 +125,7 @@ impl eframe::App for Luminol {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
-                if let Err(e) = state!().filesystem.try_open_project(path) {
+                if let Err(e) = state!().filesystem.load_project(path) {
                     state!()
                         .toasts
                         .error(format!("Error opening dropped project: {e}"))

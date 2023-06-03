@@ -274,7 +274,7 @@ impl TopBar {
 
         if save_project {
             state.toasts.info("Saving project...");
-            match state.filesystem.save_cached() {
+            match state.data_cache.save() {
                 Ok(_) => state.toasts.info("Saved project sucessfully!"),
                 Err(e) => state.toasts.error(e),
             }
