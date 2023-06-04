@@ -65,11 +65,11 @@ pub use prelude::*;
 pub mod luminol;
 
 pub mod prelude;
-/// The state Luminol saves on shutdown.
-pub mod saved_state;
 
 /// Audio related structs and funtions.
 pub mod audio;
+
+pub mod config;
 
 pub mod cache;
 
@@ -83,8 +83,6 @@ pub mod windows;
 /// Stack defined windows that edit values.
 pub mod modals;
 
-/// Structs related to Luminol's internal data.
-pub mod project;
 /// Tabs to be displayed in the center of Luminol.
 pub mod tabs;
 
@@ -99,7 +97,6 @@ pub mod lumi;
 pub mod steam;
 
 pub use luminol::Luminol;
-use saved_state::SavedState;
 use tabs::tab::Tab;
 
 /// Embedded icon 256x256 in size.
@@ -138,8 +135,6 @@ pub struct State {
     /// Toasts to be displayed.
     pub toasts: Toasts,
     pub render_state: egui_wgpu::RenderState,
-    /// State to be saved.
-    pub saved_state: AtomicRefCell<SavedState>,
     /// Toolbar state
     pub toolbar: AtomicRefCell<ToolbarState>,
 }
@@ -148,7 +143,7 @@ static_assertions::assert_impl_all!(State: Send, Sync);
 
 impl State {
     /// Create a new UpdateInfo.
-    pub fn new(render_state: egui_wgpu::RenderState, state: SavedState) -> Self {
+    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         Self {
             filesystem: filesystem::Filesystem::default(),
             data_cache: data::Cache::default(),
@@ -158,7 +153,6 @@ impl State {
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             render_state,
-            saved_state: AtomicRefCell::new(state),
             toolbar: AtomicRefCell::default(),
         }
     }

@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
+use config::RMVer;
 
 mod rgss2a;
 mod rgss3a;
@@ -170,11 +171,10 @@ impl Filesystem {
 
         self.start_loading(project_path.clone());
 
-        let data_cache = &state!().data_cache;
-        data_cache.load_config()?;
+        config::Project::load()?;
 
         let path = {
-            let config = data_cache.config();
+            let config = project_config!();
             let archiver = match config.editor_ver {
                 RMVer::XP => rgssad::Archiver::new(&project_path).into(),
                 RMVer::VX => rgss2a::Archiver::new(&project_path).into(),
@@ -191,7 +191,7 @@ impl Filesystem {
 
         *self.state.borrow_mut() = State::Loaded { path, project_path };
 
-        data_cache.load()
+        state!().data_cache.load()
     }
 
     pub fn unload_project(&self) {

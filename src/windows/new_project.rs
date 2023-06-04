@@ -23,8 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::prelude::*;
-
-use strum::IntoEnumIterator;
+use config::{RGSSVer, RMVer};
 
 use std::io::Read;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -148,7 +147,7 @@ impl window::Window for Window {
                     } else {
                         if ui.button("Ok").clicked() {
                             let rgss_ver = self.rgss_ver;
-                            let config = LocalConfig {
+                            let config = config::project::Config {
                                 project_name: self.name.clone(),
                                 rgss_ver,
                                 editor_ver: self.editor_ver,

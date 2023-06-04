@@ -41,12 +41,14 @@ impl Luminol {
     ) -> Self {
         let storage = cc.storage.unwrap();
 
-        let state = eframe::get_value(storage, "SavedState").unwrap_or_default();
+        if let Some(global_config) = eframe::get_value(storage, "SavedState") {
+            *global_config!() = global_config;
+        }
         let style =
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = State::new(cc.wgpu_render_state.clone().unwrap(), state);
+        let info = State::new(cc.wgpu_render_state.clone().unwrap());
         crate::set_state(info);
 
         state!()
@@ -111,11 +113,7 @@ impl Luminol {
 impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value::<crate::SavedState>(
-            storage,
-            "SavedState",
-            &state!().saved_state.borrow(),
-        );
+        eframe::set_value(storage, "SavedState", &*global_config!());
         eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
 

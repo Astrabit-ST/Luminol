@@ -95,7 +95,7 @@ impl tab::Tab for Tab {
 
             ui.heading("Recent");
 
-            for path in &state.saved_state.borrow().recent_projects {
+            for path in &global_config!().recent_projects {
                 if ui.button(path).clicked() {
                     let path = path.clone();
 

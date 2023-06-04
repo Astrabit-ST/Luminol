@@ -19,7 +19,9 @@
 		"playtest",
 		"wasm",
 		"filesystem",
-		"image cache"
+		"image cache",
+		"tilemap",
+		"config"
 	],
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"rust-analyzer.cargo.extraEnv": {

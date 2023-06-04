@@ -26,22 +26,22 @@ use command_lib::CommandDescription;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use super::config::RMVer;
+use super::RMVer;
 
 static XP_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
-    ron::from_str(include_str!("xp_default.ron")).expect(
+    ron::from_str(include_str!("commands/xp.ron")).expect(
         "failed to statically load the default commands for rpg maker xp. please report this bug",
     )
 });
 
 static VX_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
-    ron::from_str(include_str!("vx_default.ron")).expect(
-        "failed to statically load the default commands for rpg maker vx . please report this bug",
+    ron::from_str(include_str!("commands/vx.ron")).expect(
+        "failed to statically load the default commands for rpg maker vx. please report this bug",
     )
 });
 
 static ACE_DEFAULT: Lazy<Vec<CommandDescription>> = Lazy::new(|| {
-    ron::from_str(include_str!("ace_default.ron")).expect(
+    ron::from_str(include_str!("commands/ace.ron")).expect(
         "failed to statically load the default commands for rpg maker vx ace. please report this bug",
     )
 });

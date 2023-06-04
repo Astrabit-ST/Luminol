@@ -77,7 +77,7 @@ impl TopBar {
 
             ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    state.windows.add_window(config::Window {});
+                    state.windows.add_window(config_window::Window {});
                 }
 
                 if ui.button("Close Project").clicked() {
@@ -130,7 +130,7 @@ impl TopBar {
                 *style = ui.ctx().style();
             });
 
-            let theme = &mut state.saved_state.borrow_mut().theme;
+            let theme = &mut global_config!().theme;
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
 
