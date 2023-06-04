@@ -29,10 +29,6 @@ pub struct Cache {
 enum State {
     #[default]
     Unloaded,
-    ConfigLoaded {
-        config: AtomicRefCell<LocalConfig>,
-        command_db: AtomicRefCell<CommandDB>,
-    },
     Loaded {
         actors: AtomicRefCell<rpg::Actors>,
         animations: AtomicRefCell<rpg::Animations>,
@@ -51,8 +47,6 @@ enum State {
         weapons: AtomicRefCell<rpg::Weapons>,
 
         maps: dashmap::DashMap<i32, rpg::Map>,
-        config: AtomicRefCell<LocalConfig>,
-        command_db: AtomicRefCell<CommandDB>,
     },
 }
 
@@ -106,16 +100,14 @@ impl Cache {
     pub fn load(&self) -> Result<(), String> {
         macro_rules! load {
             ($this:ident, $($field:ident, $file:literal),+) => {
-                let mut config = self.config().clone();
-                let command_db = self.command_db().clone().into();
                 let filesystem = &state!().filesystem;
 
                 let mut scripts = None;
-                for file in [&config.scripts_path.clone(), "xScripts", "Scripts"] {
+                for file in [project_config!().scripts_path.clone(), "xScripts".to_string(), "Scripts".to_string()] {
                     match filesystem.read_data(format!("Data/{file}.{}", self.rxdata_ext())) {
                         Ok(s) => {
                             scripts = Some(s);
-                            config.scripts_path = file.to_string();
+                            project_config!().scripts_path = file;
                             break;
                         },
                         Err(e) => {
@@ -140,9 +132,6 @@ impl Cache {
 
                     maps: Default::default(),
                     scripts: AtomicRefCell::new(scripts),
-
-                    config: AtomicRefCell::new(config),
-                    command_db,
                 };
             };
         }
@@ -169,74 +158,20 @@ impl Cache {
     }
 
     pub fn rxdata_ext(&self) -> &'static str {
-        match self.config().editor_ver {
-            RMVer::XP => "rxdata",
-            RMVer::VX => "rvdata",
-            RMVer::Ace => "rvdata2",
+        match project_config!().editor_ver {
+            config::RMVer::XP => "rxdata",
+            config::RMVer::VX => "rvdata",
+            config::RMVer::Ace => "rvdata2",
         }
-    }
-
-    pub fn load_config(&self) -> Result<(), String> {
-        let filesystem = &state!().filesystem;
-
-        if !filesystem.path_exists(".luminol")? {
-            // filesystem.create_directory(".luminol")?;
-        }
-
-        let config = match filesystem
-            .read_bytes(".luminol/config")
-            .ok()
-            .and_then(|v| String::from_utf8(v).ok())
-            .and_then(|s| ron::from_str(&s).ok())
-        {
-            Some(c) => c,
-            None => {
-                let Some(editor_ver) =filesystem.detect_rm_ver() else {
-                    return Err("Unable to detect RPG Maker version".to_string());
-                };
-                let config = LocalConfig {
-                    editor_ver,
-                    ..Default::default()
-                };
-                filesystem.save_data(".luminol/config", ron::to_string(&config).unwrap())?;
-                config
-            }
-        };
-
-        let command_db = match filesystem
-            .read_bytes(".luminol/commands")
-            .ok()
-            .and_then(|v| String::from_utf8(v).ok())
-            .and_then(|s| ron::from_str(&s).ok())
-        {
-            Some(c) => c,
-            None => {
-                let command_db = CommandDB::new(config.editor_ver);
-                filesystem.save_data(".luminol/commands", ron::to_string(&command_db).unwrap())?;
-                command_db
-            }
-        };
-
-        *self.state.borrow_mut() = State::ConfigLoaded {
-            config: config.into(),
-            command_db: command_db.into(),
-        };
-
-        Ok(())
-    }
-
-    /// Save the local config.
-    pub fn save_config(&self) -> Result<(), String> {
-        Ok(())
     }
 
     /// Save all cached data to disk.
     /// Will flush the cache too.
     pub fn save(&self) -> Result<(), String> {
-        self.save_config()
+        config::Project::save()
     }
 
-    pub async fn create_project(&self, config: LocalConfig) -> Result<(), String> {
+    pub async fn create_project(&self, config: config::project::Config) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
             let path = path.path().join(&config.project_name);
             std::fs::create_dir(&path).map_err(|e| e.to_string())?;
@@ -244,10 +179,9 @@ impl Cache {
             let filesystem = &state!().filesystem;
             filesystem.start_loading(path); // FIXME: this is lazy, we're telling the filesystem that "hey the project is loaded now lol pls believe us"
 
-            let mut state = self.state.borrow_mut();
-            *state = State::ConfigLoaded {
-                command_db: CommandDB::new(config.editor_ver).into(),
-                config: config.into(),
+            *config::PROJECT.borrow_mut() = config::Project::Loaded {
+                command_db: config::CommandDB::new(config.editor_ver),
+                config,
             };
 
             self.setup_defaults();
@@ -264,9 +198,6 @@ impl Cache {
     pub fn setup_defaults(&self) {
         macro_rules! setup_default {
             ($this:ident, $($field:ident),+) => {
-                // i hate doing this. but oh well
-                let config = self.config().clone().into();
-                let command_db = self.command_db().clone().into();
                 let mut mapinfos = rpg::MapInfos::new();
                 mapinfos.insert(
                     1,
@@ -295,10 +226,10 @@ impl Cache {
                     ..Default::default()
                 }.into();
 
-                let scripts = match self.config().editor_ver {
-                    RMVer::XP => alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
-                    RMVer::VX => todo!(),
-                    RMVer::Ace => todo!(),
+                let scripts = match project_config!().editor_ver {
+                    config::RMVer::XP => alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
+                    config::RMVer::VX => todo!(),
+                    config::RMVer::Ace => todo!(),
                 };
 
                 *self.state.borrow_mut() = State::Loaded {
@@ -310,9 +241,6 @@ impl Cache {
                     maps,
                     system,
                     scripts: AtomicRefCell::new(scripts),
-
-                    config,
-                    command_db,
                 };
             };
         }
@@ -349,10 +277,7 @@ impl Cache {
         rpg::System, system, State::Loaded;
         rpg::Tilesets, tilesets, State::Loaded;
         rpg::Troops, troops, State::Loaded;
-        rpg::Weapons, weapons, State::Loaded;
-
-        LocalConfig, config, State::Loaded, State::ConfigLoaded;
-        CommandDB, command_db, State::Loaded, State::ConfigLoaded
+        rpg::Weapons, weapons, State::Loaded
     }
 
     /// Load a map.

@@ -14,24 +14,34 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
-use std::collections::VecDeque;
 
-/// The state saved by Luminol between sessions.
-#[derive(serde::Serialize, serde::Deserialize)]
+use super::{RGSSVer, RMVer};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
-pub struct SavedState {
-    /// Recently open projects.
-    pub recent_projects: VecDeque<String>,
-    /// The current code theme
-    pub theme: syntax_highlighting::CodeTheme,
+/// Local luminol project config
+#[allow(missing_docs)]
+pub struct Config {
+    pub project_name: String,
+    pub scripts_path: String,
+    pub use_ron: bool,
+    pub rgss_ver: RGSSVer,
+    pub editor_ver: RMVer,
+    pub playtest_exe: String,
+    pub prefer_rgssad: bool,
 }
 
-impl Default for SavedState {
+impl Default for Config {
     fn default() -> Self {
-        SavedState {
-            recent_projects: VecDeque::with_capacity(10),
-            theme: syntax_highlighting::CodeTheme::default(),
+        Self {
+            project_name: String::new(),
+            scripts_path: "Scripts".to_string(),
+            use_ron: false,
+            rgss_ver: RGSSVer::RGSS1,
+            editor_ver: RMVer::XP,
+            playtest_exe: "game".to_string(),
+            prefer_rgssad: false,
         }
     }
 }

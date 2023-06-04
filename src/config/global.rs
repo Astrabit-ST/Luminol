@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Lily Lyons
+// Copyright (C) 2022 Lily Lyons
 //
 // This file is part of Luminol.
 //
@@ -14,11 +14,30 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::prelude::*;
+use std::collections::VecDeque;
 
-/// The database of commands for this project.
-mod command_db;
-/// Luminol configuration
-mod config;
+/// The state saved by Luminol between sessions.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct Config {
+    /// Recently open projects.
+    pub recent_projects: VecDeque<String>,
+    /// The current code theme
+    pub theme: syntax_highlighting::CodeTheme,
+}
 
-pub use command_db::CommandDB;
-pub use config::{LocalConfig, RGSSVer, RMVer};
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Config {
+    pub const fn new() -> Self {
+        Self {
+            recent_projects: VecDeque::new(),
+            theme: syntax_highlighting::CodeTheme::dark(),
+        }
+    }
+}

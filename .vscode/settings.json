@@ -18,7 +18,8 @@
 		"wasm",
 		"filesystem",
 		"image cache",
-		"tilemap"
+		"tilemap",
+		"config"
 	],
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"rust-analyzer.cargo.extraEnv": {

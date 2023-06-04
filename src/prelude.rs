@@ -18,14 +18,12 @@
 pub use crate::audio;
 pub use crate::cache::*;
 pub use crate::components::*;
+pub use crate::config;
 pub use crate::modals::*;
-pub use crate::project::*;
 pub use crate::tabs::*;
 pub use crate::windows::*;
 
 pub use crate::filesystem::Filesystem;
-pub use crate::project::CommandDB;
-pub use crate::project::LocalConfig;
 
 pub use std::collections::HashMap;
 pub use std::path::{Path, PathBuf};
@@ -35,8 +33,12 @@ pub use atomic_refcell::{AtomicRefCell, AtomicRefMut};
 pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
-pub use crate::state;
 pub use crate::State;
+
+pub use crate::command_db;
+pub use crate::global_config;
+pub use crate::project_config;
+pub use crate::state;
 
 pub use eframe::egui;
 pub use eframe::egui_wgpu;
