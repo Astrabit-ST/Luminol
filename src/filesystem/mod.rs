@@ -60,16 +60,7 @@ impl Filesystem {
         Ok(buf)
     }
 
-    pub fn read_data<T>(&self, path: impl AsRef<str>) -> Result<T, String>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let data = self.read_bytes(path)?;
-
-        alox_48::from_bytes(&data).map_err(|e| e.to_string())
-    }
-
-    pub fn save_data(&self, path: impl AsRef<str>, bytes: impl AsRef<[u8]>) -> Result<(), String> {
+    pub fn save_bytes(&self, path: impl AsRef<str>, bytes: impl AsRef<[u8]>) -> Result<(), String> {
         let state = self.state.borrow();
         let vfs_path = match &*state {
             State::Loaded { path, .. } => path,
@@ -84,6 +75,22 @@ impl Filesystem {
         file.write_all(bytes.as_ref()).map_err(|e| e.to_string())?;
 
         Ok(())
+    }
+
+    pub fn read_data<T>(&self, path: impl AsRef<str>) -> Result<T, String>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let data = self.read_bytes(path)?;
+
+        alox_48::from_bytes(&data).map_err(|e| e.to_string())
+    }
+
+    pub fn save_data<T>(&self, path: impl AsRef<str>, data: &T) -> Result<(), String>
+    where
+        T: serde::ser::Serialize,
+    {
+        self.save_bytes(path, alox_48::to_bytes(data).map_err(|e| e.to_string())?)
     }
 
     pub fn create_directory(&self, path: impl AsRef<str>) -> Result<(), String> {

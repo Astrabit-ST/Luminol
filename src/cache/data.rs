@@ -57,50 +57,6 @@ enum State {
     },
 }
 
-macro_rules! nested_ref_getter {
-    ($(
-        $typ:ty, $name:ident, $($enum_type:ident :: $variant:ident),+
-    );*) => {
-        $(
-            #[allow(unsafe_code, dead_code)]
-            pub fn $name<'a>(&'a self) -> impl core::ops::Deref<Target = $typ> + core::ops::DerefMut + 'a {
-                struct _Ref<'b> {
-                    _this_ref: atomic_refcell::AtomicRef<'b, State>,
-                    _other_ref: atomic_refcell::AtomicRefMut<'b, $typ>,
-                }
-                impl<'b> core::ops::Deref for _Ref<'b> {
-                    type Target = $typ;
-
-                    fn deref(&self) -> &Self::Target {
-                        &self._other_ref
-                    }
-                }
-                impl<'b> core::ops::DerefMut for _Ref<'b> {
-                    fn deref_mut(&mut self) -> &mut Self::Target {
-                        &mut self._other_ref
-                    }
-                }
-
-                let _this_ref = self.state.borrow();
-                let _other_ref: atomic_refcell::AtomicRefMut<'a, $typ> = unsafe {
-                    // See Self::map for safety
-                    match &*(&*_this_ref as *const _) {
-                        $(
-                            $enum_type::$variant { $name, .. } => $name.borrow_mut(),
-                        )+
-                        _ => panic!("Project not loaded"),
-                    }
-                };
-
-                _Ref {
-                    _this_ref,
-                    _other_ref,
-                }
-            }
-        )+
-    };
-}
-
 impl Cache {
     /// Load all data required when opening a project.
     /// Does not load config. That is expected to have been loaded beforehand.
@@ -175,7 +131,56 @@ impl Cache {
     /// Save all cached data to disk.
     /// Will flush the cache too.
     pub fn save(&self) -> Result<(), String> {
-        config::Project::save()
+        config::Project::save()?;
+
+        let filesystem = &state!().filesystem;
+
+        let state = self.state.borrow();
+        let State::Loaded {
+            actors,
+            animations,
+            armors,
+            classes,
+            common_events,
+            enemies,
+            items,
+            mapinfos,
+            scripts,
+            skills,
+            states,
+            system,
+            tilesets,
+            troops,
+            weapons,
+            maps,
+        } = &*state else {
+            return Err("Project not loaded".to_string());
+        };
+
+        let ext = self.rxdata_ext();
+
+        filesystem.save_data(format!("Data/Actors.{ext}"), &*actors.borrow())?;
+        filesystem.save_data(format!("Data/Animations.{ext}"), &*animations.borrow())?;
+        filesystem.save_data(format!("Data/Armors.{ext}"), &*armors.borrow())?;
+        filesystem.save_data(format!("Data/Classes.{ext}"), &*classes.borrow())?;
+        filesystem.save_data(format!("Data/CommonEvents.{ext}"), &*common_events.borrow())?;
+        filesystem.save_data(format!("Data/Enemies.{ext}"), &*enemies.borrow())?;
+        filesystem.save_data(format!("Data/Items.{ext}"), &*items.borrow())?;
+        filesystem.save_data(format!("Data/MapInfos.{ext}"), &*mapinfos.borrow())?;
+        filesystem.save_data(format!("Data/Scripts.{ext}"), &*scripts.borrow())?;
+        filesystem.save_data(format!("Data/Skills.{ext}"), &*skills.borrow())?;
+        filesystem.save_data(format!("Data/States.{ext}"), &*states.borrow())?;
+        filesystem.save_data(format!("Data/System.{ext}"), &*system.borrow())?;
+        filesystem.save_data(format!("Data/Tilesets.{ext}"), &*tilesets.borrow())?;
+        filesystem.save_data(format!("Data/Troops.{ext}"), &*troops.borrow())?;
+        filesystem.save_data(format!("Data/Weapons.{ext}"), &*weapons.borrow())?;
+
+        for entry in maps.iter() {
+            filesystem.save_data(format!("Data/Map{:0>3}.{ext}", entry.key()), entry.value())?
+        }
+        maps.clear();
+
+        Ok(())
     }
 
     pub async fn create_project(&self, config: config::project::Config) -> Result<(), String> {
@@ -203,72 +208,113 @@ impl Cache {
     /// Setup default values
     // FIXME: Code jank
     pub fn setup_defaults(&self) {
-        macro_rules! setup_default {
-            ($this:ident, $($field:ident),+) => {
-                let mut mapinfos = rpg::MapInfos::new();
-                mapinfos.insert(
-                    1,
-                    rpg::MapInfo {
-                        parent_id: 0,
-                        name: "Map 001".to_string(),
-                        order: 0,
-                        expanded: false,
-                        scroll_x: 0,
-                        scroll_y: 0,
-                    },
-                );
-                let mapinfos = mapinfos.into();
+        let mut mapinfos = rpg::MapInfos::new();
+        mapinfos.insert(
+            1,
+            rpg::MapInfo {
+                parent_id: 0,
+                name: "Map 001".to_string(),
+                order: 0,
+                expanded: false,
+                scroll_x: 0,
+                scroll_y: 0,
+            },
+        );
+        let mapinfos = mapinfos.into();
 
-                let maps = dashmap::DashMap::new();
-                maps.insert(1, rpg::Map {
-                    tileset_id: 1,
-                    width: 20,
-                    height: 15,
-                    data: rmxp_types::Table3::new(20, 15, 3),
-                    ..Default::default()
-                });
+        let maps = dashmap::DashMap::new();
+        maps.insert(
+            1,
+            rpg::Map {
+                tileset_id: 1,
+                width: 20,
+                height: 15,
+                data: rmxp_types::Table3::new(20, 15, 3),
+                ..Default::default()
+            },
+        );
 
-                let system = rpg::System {
-                    magic_number: rand::random(),
-                    ..Default::default()
-                }.into();
-
-                let scripts = match project_config!().editor_ver {
-                    config::RMVer::XP => alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
-                    config::RMVer::VX => todo!(),
-                    config::RMVer::Ace => todo!(),
-                };
-
-                *self.state.borrow_mut() = State::Loaded {
-                    $(
-                        $field: AtomicRefCell::new(NilPadded::from(vec![None, Some(Default::default())])),
-                    )+
-
-                    mapinfos,
-                    maps,
-                    system,
-                    scripts: AtomicRefCell::new(scripts),
-                };
-            };
+        let system = rpg::System {
+            magic_number: rand::random(),
+            ..Default::default()
         }
+        .into();
 
-        setup_default! {
-            self,
-            actors,
-            animations,
-            armors,
-            classes,
-            common_events,
-            enemies,
-            items,
-            skills,
-            states,
-            tilesets,
-            troops,
-            weapons
-        }
+        let scripts = match project_config!().editor_ver {
+            config::RMVer::XP => alox_48::from_bytes(include_bytes!("Scripts.rxdata")).unwrap(),
+            config::RMVer::VX => todo!(),
+            config::RMVer::Ace => todo!(),
+        };
+        let scripts = AtomicRefCell::new(scripts);
+
+        *self.state.borrow_mut() = State::Loaded {
+            actors: AtomicRefCell::new(NilPadded::from(vec![rpg::Actor::default()])),
+            animations: AtomicRefCell::new(NilPadded::from(vec![rpg::Animation::default()])),
+            armors: AtomicRefCell::new(NilPadded::from(vec![rpg::Armor::default()])),
+            classes: AtomicRefCell::new(NilPadded::from(vec![rpg::Class::default()])),
+            common_events: AtomicRefCell::new(NilPadded::from(vec![rpg::CommonEvent::default()])),
+            enemies: AtomicRefCell::new(NilPadded::from(vec![rpg::Enemy::default()])),
+            items: AtomicRefCell::new(NilPadded::from(vec![rpg::Item::default()])),
+            skills: AtomicRefCell::new(NilPadded::from(vec![rpg::Skill::default()])),
+            states: AtomicRefCell::new(NilPadded::from(vec![rpg::State::default()])),
+            tilesets: AtomicRefCell::new(NilPadded::from(vec![rpg::Tileset::default()])),
+            troops: AtomicRefCell::new(NilPadded::from(vec![rpg::Troop::default()])),
+            weapons: AtomicRefCell::new(NilPadded::from(vec![rpg::Weapon::default()])),
+
+            mapinfos,
+            maps,
+            system,
+            scripts,
+        };
     }
+}
 
+macro_rules! nested_ref_getter {
+    ($(
+        $typ:ty, $name:ident, $($enum_type:ident :: $variant:ident),+
+    );*) => {
+        $(
+            #[allow(unsafe_code, dead_code)]
+            pub fn $name<'a>(&'a self) -> impl core::ops::Deref<Target = $typ> + core::ops::DerefMut + 'a {
+                struct _Ref<'b> {
+                    _this_ref: atomic_refcell::AtomicRef<'b, State>,
+                    _other_ref: atomic_refcell::AtomicRefMut<'b, $typ>,
+                }
+                impl<'b> core::ops::Deref for _Ref<'b> {
+                    type Target = $typ;
+
+                    fn deref(&self) -> &Self::Target {
+                        &self._other_ref
+                    }
+                }
+                impl<'b> core::ops::DerefMut for _Ref<'b> {
+                    fn deref_mut(&mut self) -> &mut Self::Target {
+                        &mut self._other_ref
+                    }
+                }
+
+                let _this_ref = self.state.borrow();
+                let _other_ref: atomic_refcell::AtomicRefMut<'a, $typ> = unsafe {
+                    // See Self::map for safety
+                    match &*(&*_this_ref as *const _) {
+                        $(
+                            $enum_type::$variant { $name, .. } => $name.borrow_mut(),
+                        )+
+                        _ => panic!("Project not loaded"),
+                    }
+                };
+
+                _Ref {
+                    _this_ref,
+                    _other_ref,
+                }
+            }
+        )+
+    };
+
+}
+
+impl Cache {
     nested_ref_getter! {
         rpg::Actors, actors, State::Loaded;
         rpg::Animations, animations, State::Loaded;
