@@ -289,7 +289,7 @@ impl Window {
                         .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
                     state
                         .filesystem
-                        .save_data(file_path, bytes)
+                        .save_bytes(file_path, bytes)
                         .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
                 }
             }

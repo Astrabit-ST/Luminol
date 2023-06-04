@@ -39,7 +39,7 @@ impl Project {
         let filesystem = &state!().filesystem;
 
         if !filesystem.path_exists(".luminol")? {
-            // filesystem.create_directory(".luminol")?;
+            filesystem.create_directory(".luminol")?;
         }
 
         let config = match filesystem
@@ -57,7 +57,7 @@ impl Project {
                     editor_ver,
                     ..Default::default()
                 };
-                filesystem.save_data(".luminol/config", ron::to_string(&config).unwrap())?;
+                filesystem.save_bytes(".luminol/config", ron::to_string(&config).unwrap())?;
                 config
             }
         };
@@ -71,7 +71,7 @@ impl Project {
             Some(c) => c,
             None => {
                 let command_db = CommandDB::new(config.editor_ver);
-                filesystem.save_data(".luminol/commands", ron::to_string(&command_db).unwrap())?;
+                filesystem.save_bytes(".luminol/commands", ron::to_string(&command_db).unwrap())?;
                 command_db
             }
         };
@@ -82,6 +82,21 @@ impl Project {
     }
 
     pub fn save() -> Result<(), String> {
+        match &*PROJECT.borrow() {
+            Project::Unloaded => return Err("Project not loaded".to_string()),
+            Project::Loaded { config, command_db } => {
+                state!().filesystem.save_bytes(
+                    ".luminol/commands",
+                    ron::to_string(command_db).map_err(|e| e.to_string())?,
+                )?;
+
+                state!().filesystem.save_bytes(
+                    ".luminol/config",
+                    ron::to_string(config).map_err(|e| e.to_string())?,
+                )?;
+            }
+        }
+
         Ok(())
     }
 }
