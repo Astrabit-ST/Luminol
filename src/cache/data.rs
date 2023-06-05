@@ -356,8 +356,8 @@ impl Cache {
 
         let state = self.state.borrow();
         let State::Loaded { ref maps, ..} = &*state else {
-                panic!("project not loaded")
-            };
+            panic!("project not loaded")
+        };
         //? # SAFETY
         // For starters, this has been tested against miri. Miri is okay with it.
         // Ref is self referential- map_ref borrows from _state. We need to store _state so it gets dropped at the same time as map_ref.
