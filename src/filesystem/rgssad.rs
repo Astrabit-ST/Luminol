@@ -15,50 +15,95 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
+use std::io::Cursor;
 
 #[derive(Debug)]
 pub struct Archiver {}
 
 impl Archiver {
-    pub fn new(project_path: impl AsRef<Path>) -> Self {
-        Archiver {}
+    pub fn new(project_path: impl AsRef<Path>) -> Result<Self, Error> {
+        Ok(Archiver {})
     }
 }
 
-impl vfs::FileSystem for Archiver {
-    fn read_dir(&self, path: &str) -> vfs::VfsResult<Box<dyn Iterator<Item = String> + Send>> {
-        todo!()
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("The provided path does not exist.")]
+    NotExist,
+}
+
+pub struct File {
+    cursor: Cursor<Vec<u8>>,
+}
+
+impl std::io::Write for File {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.cursor.write(buf)
     }
 
-    fn create_dir(&self, path: &str) -> vfs::VfsResult<()> {
-        todo!()
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
+        self.cursor.write_vectored(bufs)
     }
 
-    fn open_file(&self, path: &str) -> vfs::VfsResult<Box<dyn vfs::SeekAndRead + Send>> {
-        todo!()
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl std::io::Read for File {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.cursor.read(buf)
     }
 
-    fn create_file(&self, path: &str) -> vfs::VfsResult<Box<dyn std::io::Write + Send>> {
-        todo!()
+    fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
+        self.cursor.read_vectored(bufs)
     }
 
-    fn append_file(&self, path: &str) -> vfs::VfsResult<Box<dyn std::io::Write + Send>> {
-        todo!()
+    fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+        self.cursor.read_exact(buf)
+    }
+}
+
+impl std::io::Seek for File {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.cursor.seek(pos)
     }
 
-    fn metadata(&self, path: &str) -> vfs::VfsResult<vfs::VfsMetadata> {
-        todo!()
+    fn stream_position(&mut self) -> std::io::Result<u64> {
+        self.cursor.stream_position()
+    }
+}
+
+impl super::File for File {}
+
+impl super::FileSystem for Archiver {
+    type File = File;
+    type Error = Error;
+
+    fn open_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self::File, Self::Error> {
+        Err(Error::NotExist)
     }
 
-    fn exists(&self, path: &str) -> vfs::VfsResult<bool> {
-        Ok(false)
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error> {
+        Err(Error::NotExist)
     }
 
-    fn remove_file(&self, path: &str) -> vfs::VfsResult<()> {
-        todo!()
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Self::Error> {
+        Err(Error::NotExist)
     }
 
-    fn remove_dir(&self, path: &str) -> vfs::VfsResult<()> {
-        todo!()
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error> {
+        Err(Error::NotExist)
+    }
+
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error> {
+        Err(Error::NotExist)
+    }
+
+    fn read_dir(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+    ) -> Result<Vec<camino::Utf8PathBuf>, Self::Error> {
+        Err(Error::NotExist)
     }
 }

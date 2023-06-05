@@ -112,7 +112,7 @@ pub enum Pencil {
 /// Passed to windows and widgets when updating.
 pub struct State {
     /// Filesystem to be passed around.
-    pub filesystem: filesystem::Filesystem,
+    pub filesystem: filesystem::LuminolFS,
     /// The data cache.
     pub data_cache: data::Cache,
     pub image_cache: image_cache::Cache,
@@ -135,7 +135,7 @@ impl State {
     /// Create a new UpdateInfo.
     pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         Self {
-            filesystem: filesystem::Filesystem::default(),
+            filesystem: filesystem::LuminolFS::default(),
             data_cache: data::Cache::default(),
             image_cache: image_cache::Cache::default(),
             windows: windows::window::Windows::default(),
