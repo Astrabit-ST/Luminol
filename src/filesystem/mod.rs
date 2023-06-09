@@ -14,58 +14,117 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
 use std::io::prelude::*;
 
-mod rgss2a;
-mod rgss3a;
-mod rgssad;
-
+mod archiver;
 mod host;
+mod overlay;
+mod path_cache;
+mod project;
 
-#[derive(Default, Debug)]
-pub struct LuminolFS {
-    state: AtomicRefCell<State>,
+pub use project::ProjectFS;
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("File or directory does not exist")]
+    NotExist,
+    #[error("Io error {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("UTF-8 Error {0}")]
+    Utf8Error(#[from] std::string::FromUtf8Error),
+    #[error("Project not loaded")]
+    NotLoaded,
 }
 
-#[derive(Default, Debug)]
-pub enum State {
-    #[default]
-    Unloaded,
-    HostLoaded {
-        host: host::HostFS,
-        project_path: camino::Utf8PathBuf,
-    },
-    Loaded {
-        host: host::HostFS,
-        archiver: Archiver,
-        project_path: camino::Utf8PathBuf,
-    },
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Metadata {
+    pub is_file: bool,
+    pub size: u64,
 }
 
-#[derive(Debug)]
-enum Archiver {
-    RGSSAD(rgssad::Archiver),
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct OpenFlags: u8 {
+        const Read = 0b00000001;
+        const Write = 0b00000010;
+        const Truncate = 0b00000100;
+        const Create = 0b00001000;
+    }
 }
 
-trait File: Read + Write + Seek {}
+pub trait FileSystem {
+    type File<'fs>: Read + Write + Seek + 'fs
+    where
+        Self: 'fs;
 
-trait FileSystem {
-    type File: File;
-    type Error: std::error::Error;
+    fn open_file(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+        flags: OpenFlags,
+    ) -> Result<Self::File<'_>, Error>;
 
-    fn open_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self::File, Self::Error>;
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error>;
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Self::Error>;
+    fn rename(
+        &self,
+        from: impl AsRef<camino::Utf8Path>,
+        to: impl AsRef<camino::Utf8Path>,
+    ) -> Result<(), Error>;
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error>;
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error>;
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error>;
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error>;
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error>;
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error>;
+
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error>;
+
+    fn remove(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        let path = path.as_ref();
+        let metadata = self.metadata(path)?;
+        if metadata.is_file {
+            self.remove_file(path)
+        } else {
+            self.remove_dir(path)
+        }
+    }
 
     fn read_dir(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Self::Error>;
+    ) -> Result<Vec<camino::Utf8PathBuf>, Error>;
+
+    /// Corresponds to [`std::fs::read()`].
+    /// Will open a file at the path and read the entire file into a buffer.
+    fn read(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<u8>, Error> {
+        let path = path.as_ref();
+
+        let mut buf = Vec::with_capacity(self.metadata(path)?.size as usize);
+        let mut file = self.open_file(path, OpenFlags::Read)?;
+        file.read_to_end(&mut buf)?;
+
+        Ok(buf)
+    }
+
+    fn read_to_string(&self, path: impl AsRef<camino::Utf8Path>) -> Result<String, Error> {
+        let buf = self.read(path)?;
+        String::from_utf8(buf).map_err(Into::into)
+    }
+
+    /// Corresponds to [`std::fs::write()`].
+    /// Will open a file at the path, create it if it exists (and truncate it) and then write the provided bytes.
+    fn write(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+        data: impl AsRef<[u8]>,
+    ) -> Result<(), Error> {
+        let mut file = self.open_file(
+            path,
+            OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,
+        )?;
+        file.write_all(data.as_ref())?;
+        file.flush()?;
+
+        Ok(())
+    }
 }

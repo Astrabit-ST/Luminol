@@ -62,7 +62,7 @@ impl TopBar {
 
         ui.menu_button("File", |ui| {
             ui.label(if let Some(path) = state.filesystem.project_path() {
-                format!("Current project:\n{}", path.display())
+                format!("Current project:\n{}", path)
             } else {
                 "No project open".to_string()
             });

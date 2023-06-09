@@ -61,61 +61,121 @@ impl Cache {
     /// Load all data required when opening a project.
     /// Does not load config. That is expected to have been loaded beforehand.
     pub fn load(&self) -> Result<(), String> {
-        macro_rules! load {
-            ($this:ident, $($field:ident, $file:literal),+) => {
-                let filesystem = &state!().filesystem;
+        let filesystem = &state!().filesystem;
+        let ext = self.rxdata_ext();
 
-                let mut scripts = None;
-                for file in [project_config!().scripts_path.clone(), "xScripts".to_string(), "Scripts".to_string()] {
-                    match filesystem.read_data(format!("Data/{file}.{}", self.rxdata_ext())) {
-                        Ok(s) => {
-                            scripts = Some(s);
-                            project_config!().scripts_path = file;
-                            break;
-                        },
-                        Err(e) => {
-                            eprintln!("Error loading scripts: {e:#?}");
-                        }
-                    }
+        let mut scripts = None;
+        let scripts_paths = [
+            project_config!().scripts_path.clone(),
+            "xScripts".to_string(),
+            "Scripts".to_string(),
+        ];
+        for file in scripts_paths {
+            match filesystem.read_data(format!("Data/{file}.{ext}")) {
+                Ok(s) => {
+                    scripts = Some(s);
+                    project_config!().scripts_path = file;
+                    break;
                 }
-                let Some(scripts) = scripts else {
-                    return Err("Unable to load scripts, tried scripts file from config, then xScripts, then Scripts".to_string());
-                };
-
-                *self.state.borrow_mut() = State::Loaded {
-                    $(
-                        $field: AtomicRefCell::new(
-                            filesystem
-                                .read_data(format!("Data/{}.{}", $file, self.rxdata_ext()))
-                                .map_err(|e| {
-                                    format!(concat!("Failed to load ", stringify!($field), ": {}"), e)
-                                })?
-                        ),
-                    )+
-
-                    maps: Default::default(),
-                    scripts: AtomicRefCell::new(scripts),
-                };
-            };
+                Err(e) => {
+                    eprintln!("Error loading Data/{file}.{ext}: {e:#?}");
+                }
+            }
         }
+        let Some(scripts) = scripts else {
+            return Err("Unable to load scripts, tried scripts file from config, then xScripts, then Scripts".to_string());
+        };
 
-        load! {
-            self,
-            actors, "Actors",
-            animations, "Animations",
-            armors, "Armors",
-            classes, "Classes",
-            common_events, "CommonEvents",
-            enemies, "Enemies",
-            items, "Items",
-            mapinfos, "MapInfos",
-            skills, "Skills",
-            states, "States",
-            system, "System",
-            tilesets, "Tilesets",
-            troops, "Troops",
-            weapons, "Weapons"
-        }
+        let actors = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Actors.{ext}"))
+                .map_err(|e| format!("Failed to load Actors.{ext}: {e}"))?,
+        );
+        let animations = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Animations.{ext}"))
+                .map_err(|e| format!("Failed to load Animations.{ext}: {e}"))?,
+        );
+        let armors = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Armors.{ext}"))
+                .map_err(|e| format!("Failed to load Armors.{ext}: {e}"))?,
+        );
+        let classes = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Classes.{ext}"))
+                .map_err(|e| format!("Failed to load Classes.{ext}: {e}"))?,
+        );
+        let common_events = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/CommonEvents.{ext}"))
+                .map_err(|e| format!("Failed to load CommonEvents.{ext}: {e}"))?,
+        );
+        let enemies = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Enemies.{ext}"))
+                .map_err(|e| format!("Failed to load Enemies.{ext}: {e}"))?,
+        );
+        let items = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Items.{ext}"))
+                .map_err(|e| format!("Failed to load Items.{ext}: {e}"))?,
+        );
+        let mapinfos = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/MapInfos.{ext}"))
+                .map_err(|e| format!("Failed to load MapInfos.{ext}: {e}"))?,
+        );
+        let skills = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Skills.{ext}"))
+                .map_err(|e| format!("Failed to load Skills.{ext}: {e}"))?,
+        );
+        let states = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/States.{ext}"))
+                .map_err(|e| format!("Failed to load States.{ext}: {e}"))?,
+        );
+        let system = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/System.{ext}"))
+                .map_err(|e| format!("Failed to load System.{ext}: {e}"))?,
+        );
+        let tilesets = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Tilesets.{ext}"))
+                .map_err(|e| format!("Failed to load Tilesets.{ext}: {e}"))?,
+        );
+        let troops = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Troops.{ext}"))
+                .map_err(|e| format!("Failed to load Troops.{ext}: {e}"))?,
+        );
+        let weapons = AtomicRefCell::new(
+            filesystem
+                .read_data(format!("Data/Weapons.{ext}"))
+                .map_err(|e| format!("Failed to load Weapons.{ext}: {e}"))?,
+        );
+
+        *self.state.borrow_mut() = State::Loaded {
+            actors,
+            animations,
+            armors,
+            classes,
+            common_events,
+            enemies,
+            items,
+            mapinfos,
+            skills,
+            states,
+            system,
+            tilesets,
+            troops,
+            weapons,
+
+            maps: Default::default(),
+            scripts: AtomicRefCell::new(scripts),
+        };
 
         Ok(())
     }
@@ -186,10 +246,10 @@ impl Cache {
     pub async fn create_project(&self, config: config::project::Config) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
             let path = path.path().join(&config.project_name);
-            std::fs::create_dir(&path).map_err(|e| e.to_string())?;
+            std::fs::create_dir(path).map_err(|e| e.to_string())?;
 
-            let filesystem = &state!().filesystem;
-            filesystem.start_loading(path); // FIXME: this is lazy, we're telling the filesystem that "hey the project is loaded now lol pls believe us"
+            // let filesystem = &state!().filesystem;
+            // filesystem.start_loading(path); // FIXME: this is lazy, we're telling the filesystem that "hey the project is loaded now lol pls believe us"
 
             *config::PROJECT.borrow_mut() = config::Project::Loaded {
                 command_db: config::CommandDB::new(config.editor_ver),

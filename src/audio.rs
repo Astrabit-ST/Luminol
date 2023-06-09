@@ -26,7 +26,6 @@ use rodio::Decoder;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 
 use crate::prelude::*;
-use std::io::Cursor;
 
 use strum::Display;
 use strum::EnumIter;
@@ -79,7 +78,10 @@ impl Audio {
         let sink = Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
 
         // Append the sound
-        let cursor = Cursor::new(state!().filesystem.read_bytes(path)?);
+        let cursor = state!()
+            .filesystem
+            .open_file(path, filesystem::OpenFlags::Read)
+            .map_err(|e| e.to_string())?;
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {

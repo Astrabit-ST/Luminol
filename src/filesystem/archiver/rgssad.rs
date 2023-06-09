@@ -14,24 +14,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use super::{Error, FileSystem, Metadata, OpenFlags};
 use crate::prelude::*;
 use std::io::Cursor;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Archiver {}
 
 impl Archiver {
-    pub fn new(project_path: impl AsRef<Path>) -> Result<Self, Error> {
+    pub fn new() -> Result<Self, Error> {
         Ok(Archiver {})
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("The provided path does not exist.")]
-    NotExist,
-}
-
+#[derive(Debug)]
 pub struct File {
     cursor: Cursor<Vec<u8>>,
 }
@@ -74,36 +70,49 @@ impl std::io::Seek for File {
     }
 }
 
-impl super::File for File {}
+impl FileSystem for Archiver {
+    type File<'fs> = File where Self: 'fs;
 
-impl super::FileSystem for Archiver {
-    type File = File;
-    type Error = Error;
-
-    fn open_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self::File, Self::Error> {
+    fn open_file(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+        flags: OpenFlags,
+    ) -> Result<Self::File<'_>, Error> {
         Err(Error::NotExist)
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error> {
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
         Err(Error::NotExist)
     }
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Self::Error> {
+    fn rename(
+        &self,
+        from: impl AsRef<camino::Utf8Path>,
+        to: impl AsRef<camino::Utf8Path>,
+    ) -> std::result::Result<(), Error> {
         Err(Error::NotExist)
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error> {
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         Err(Error::NotExist)
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Self::Error> {
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+        Ok(false)
+    }
+
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        Err(Error::NotExist)
+    }
+
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         Err(Error::NotExist)
     }
 
     fn read_dir(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Self::Error> {
+    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
         Err(Error::NotExist)
     }
 }

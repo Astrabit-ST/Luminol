@@ -42,8 +42,8 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         let items = state!().data_cache.items().clone();
-        let icon_paths = match state!().filesystem.dir_children("Graphics/Icons") {
-            Ok(icons) => icons.map(Into::into).collect_vec(),
+        let icon_paths = match state!().filesystem.read_dir("Graphics/Icons") {
+            Ok(icons) => icons,
             Err(why) => {
                 state!()
                     .toasts
