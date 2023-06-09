@@ -38,32 +38,36 @@ impl Project {
     pub fn load() -> Result<(), String> {
         let filesystem = &state!().filesystem;
 
-        if !filesystem.path_exists(".luminol")? {
-            filesystem.create_directory(".luminol")?;
+        if !filesystem.exists(".luminol").map_err(|e| e.to_string())? {
+            filesystem
+                .create_dir(".luminol")
+                .map_err(|e| e.to_string())?;
         }
 
         let config = match filesystem
-            .read_bytes(".luminol/config")
+            .read(".luminol/config")
             .ok()
             .and_then(|v| String::from_utf8(v).ok())
             .and_then(|s| ron::from_str(&s).ok())
         {
             Some(c) => c,
             None => {
-                let Some(editor_ver) =filesystem.detect_rm_ver() else {
+                let Some(editor_ver) = filesystem.detect_rm_ver() else {
                     return Err("Unable to detect RPG Maker version".to_string());
                 };
                 let config = project::Config {
                     editor_ver,
                     ..Default::default()
                 };
-                filesystem.save_bytes(".luminol/config", ron::to_string(&config).unwrap())?;
+                filesystem
+                    .write(".luminol/config", ron::to_string(&config).unwrap())
+                    .map_err(|e| e.to_string())?;
                 config
             }
         };
 
         let command_db = match filesystem
-            .read_bytes(".luminol/commands")
+            .read(".luminol/commands")
             .ok()
             .and_then(|v| String::from_utf8(v).ok())
             .and_then(|s| ron::from_str(&s).ok())
@@ -71,7 +75,9 @@ impl Project {
             Some(c) => c,
             None => {
                 let command_db = CommandDB::new(config.editor_ver);
-                filesystem.save_bytes(".luminol/commands", ron::to_string(&command_db).unwrap())?;
+                filesystem
+                    .write(".luminol/commands", ron::to_string(&command_db).unwrap())
+                    .map_err(|e| e.to_string())?;
                 command_db
             }
         };
@@ -85,15 +91,21 @@ impl Project {
         match &*PROJECT.borrow() {
             Project::Unloaded => return Err("Project not loaded".to_string()),
             Project::Loaded { config, command_db } => {
-                state!().filesystem.save_bytes(
-                    ".luminol/commands",
-                    ron::to_string(command_db).map_err(|e| e.to_string())?,
-                )?;
+                state!()
+                    .filesystem
+                    .write(
+                        ".luminol/commands",
+                        ron::to_string(command_db).map_err(|e| e.to_string())?,
+                    )
+                    .map_err(|e| e.to_string())?;
 
-                state!().filesystem.save_bytes(
-                    ".luminol/config",
-                    ron::to_string(config).map_err(|e| e.to_string())?,
-                )?;
+                state!()
+                    .filesystem
+                    .write(
+                        ".luminol/config",
+                        ron::to_string(config).map_err(|e| e.to_string())?,
+                    )
+                    .map_err(|e| e.to_string())?;
             }
         }
 

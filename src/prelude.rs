@@ -23,13 +23,14 @@ pub use crate::modals::*;
 pub use crate::tabs::*;
 pub use crate::windows::*;
 
-pub use crate::filesystem::Filesystem;
+pub use crate::filesystem;
+pub use crate::filesystem::FileSystem;
 
 pub use std::collections::HashMap;
 pub use std::path::{Path, PathBuf};
 pub use std::sync::Arc;
 
-pub use atomic_refcell::{AtomicRefCell, AtomicRefMut};
+pub use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 

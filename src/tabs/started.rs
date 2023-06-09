@@ -110,5 +110,7 @@ impl tab::Tab for Tab {
                 }
             }
         }
+
+        state!().filesystem.debug_ui(ui);
     }
 }

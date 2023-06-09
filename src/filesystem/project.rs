@@ -1,0 +1,328 @@
+// Copyright (C) 2023 Lily Lyons
+//
+// This file is part of Luminol.
+//
+// Luminol is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Luminol is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::prelude::*;
+
+use super::{
+    archiver::Archiver, host::HostFS, overlay::Overlay, path_cache::PathCache, Error, FileSystem,
+    Metadata, OpenFlags,
+};
+
+type LoadedFS = PathCache<Overlay<HostFS, Archiver>>;
+
+#[derive(Debug, Clone, Default)]
+pub struct ProjectFS {
+    state: AtomicRefCell<State>,
+}
+
+impl ProjectFS {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn read_data<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<T, String>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let data = self.read(path).map_err(|e| e.to_string())?;
+
+        alox_48::from_bytes(&data).map_err(|e| e.to_string())
+    }
+
+    pub fn save_data<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &T) -> Result<(), String>
+    where
+        T: serde::ser::Serialize,
+    {
+        self.write(path, alox_48::to_bytes(data).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn project_path(&self) -> Option<camino::Utf8PathBuf> {
+        let state = self.state.borrow();
+        let fs = match &*state {
+            State::Unloaded => return None,
+            State::HostLoaded(h) => h,
+            State::Loaded(p) => p.fs().primary(),
+        };
+        Some(fs.root_path().to_path_buf())
+    }
+
+    pub fn project_loaded(&self) -> bool {
+        !matches!(&*self.state.borrow(), State::Unloaded)
+    }
+
+    pub fn unload_project(&self) {
+        *self.state.borrow_mut() = State::Unloaded;
+    }
+
+    pub fn detect_rm_ver(&self) -> Option<config::RMVer> {
+        if self.exists("Data/Actors.rxdata").ok()? {
+            return Some(config::RMVer::XP);
+        }
+
+        if self.exists("Data/Actors.rvdata").ok()? {
+            return Some(config::RMVer::VX);
+        }
+
+        if self.exists("Data/Actors.rvdata2").ok()? {
+            return Some(config::RMVer::Ace);
+        }
+
+        for path in self.read_dir("").ok()? {
+            if path.file_stem() == Some(".rgssad") {
+                return Some(config::RMVer::XP);
+            }
+
+            if path.file_stem() == Some(".rgss2a") {
+                return Some(config::RMVer::VX);
+            }
+
+            if path.file_stem() == Some(".rgss3a") {
+                return Some(config::RMVer::Ace);
+            }
+        }
+
+        None
+    }
+
+    pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
+        if let Some(path) = rfd::AsyncFileDialog::default()
+            .add_filter("project file", &["rxproj", "lumproj"])
+            .pick_file()
+            .await
+        {
+            self.load_project(path.path())
+        } else {
+            Err("Cancelled loading project".to_string())
+        }
+    }
+
+    pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
+        let path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
+        let path = path.parent().unwrap_or(path);
+
+        *self.state.borrow_mut() = State::HostLoaded(HostFS::new(path));
+
+        config::Project::load()?;
+
+        let overlay = Overlay::new(
+            HostFS::new(path),
+            Archiver::new(project_config!().editor_ver).map_err(|e| e.to_string())?,
+        );
+        let patch_cache = PathCache::new(overlay).map_err(|e| e.to_string())?;
+
+        *self.state.borrow_mut() = State::Loaded(patch_cache);
+
+        state!().data_cache.load()?;
+
+        Ok(())
+    }
+
+    pub fn debug_ui(&self, ui: &mut egui::Ui) {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => {
+                ui.label("Unloaded");
+            }
+            State::HostLoaded(fs) => {
+                ui.label("Host Filesystem Loaded");
+                ui.horizontal(|ui| {
+                    ui.label("Project path: ");
+                    ui.label(fs.root_path().as_str());
+                });
+            }
+            State::Loaded(fs) => {
+                ui.label("Loaded");
+                fs.debug_ui(ui);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+enum State {
+    #[default]
+    Unloaded,
+    HostLoaded(HostFS),
+    Loaded(LoadedFS),
+}
+
+#[ouroboros::self_referencing]
+#[derive(Debug)]
+pub struct File<'fs> {
+    state: AtomicRef<'fs, State>,
+    #[borrows(state)]
+    #[not_covariant]
+    file: FileType<'this>,
+}
+
+#[derive(Debug)]
+enum FileType<'fs> {
+    Host(<HostFS as FileSystem>::File<'fs>),
+    Loaded(<LoadedFS as FileSystem>::File<'fs>),
+}
+
+impl<'fs> std::io::Write for File<'fs> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.write(buf),
+            FileType::Loaded(f) => f.write(buf),
+        })
+    }
+
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.write_vectored(bufs),
+            FileType::Loaded(f) => f.write_vectored(bufs),
+        })
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.flush(),
+            FileType::Loaded(f) => f.flush(),
+        })
+    }
+}
+
+impl<'fs> std::io::Read for File<'fs> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.read(buf),
+            FileType::Loaded(f) => f.read(buf),
+        })
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.read_vectored(bufs),
+            FileType::Loaded(f) => f.read_vectored(bufs),
+        })
+    }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.read_exact(buf),
+            FileType::Loaded(f) => f.read_exact(buf),
+        })
+    }
+}
+
+impl<'fs> std::io::Seek for File<'fs> {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.seek(pos),
+            FileType::Loaded(f) => f.seek(pos),
+        })
+    }
+
+    fn stream_position(&mut self) -> std::io::Result<u64> {
+        self.with_file_mut(|f| match f {
+            FileType::Host(f) => f.stream_position(),
+            FileType::Loaded(f) => f.stream_position(),
+        })
+    }
+}
+
+impl FileSystem for ProjectFS {
+    type File<'fs> = File<'fs> where Self: 'fs;
+
+    fn open_file(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+        flags: OpenFlags,
+    ) -> Result<Self::File<'_>, Error> {
+        let state = self.state.borrow();
+        File::try_new(state, |state| {
+            //
+            match &**state {
+                State::Unloaded => Err(Error::NotLoaded),
+                State::HostLoaded(f) => f.open_file(path, flags).map(FileType::Host),
+                State::Loaded(f) => f.open_file(path, flags).map(FileType::Loaded),
+            }
+        })
+    }
+
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.metadata(path),
+            State::Loaded(f) => f.metadata(path),
+        }
+    }
+
+    fn rename(
+        &self,
+        from: impl AsRef<camino::Utf8Path>,
+        to: impl AsRef<camino::Utf8Path>,
+    ) -> Result<(), Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.rename(from, to),
+            State::Loaded(f) => f.rename(from, to),
+        }
+    }
+
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.exists(path),
+            State::Loaded(f) => f.exists(path),
+        }
+    }
+
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.create_dir(path),
+            State::Loaded(f) => f.create_dir(path),
+        }
+    }
+
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.remove_dir(path),
+            State::Loaded(f) => f.remove_dir(path),
+        }
+    }
+
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.remove_file(path),
+            State::Loaded(f) => f.remove_file(path),
+        }
+    }
+
+    fn read_dir(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
+        let state = self.state.borrow();
+        match &*state {
+            State::Unloaded => Err(Error::NotLoaded),
+            State::HostLoaded(f) => f.read_dir(path),
+            State::Loaded(f) => f.read_dir(path),
+        }
+    }
+}

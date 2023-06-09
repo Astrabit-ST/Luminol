@@ -158,7 +158,7 @@ impl tab::Tab for CommonEventTab {
             .auto_shrink([false; 2])
             .show(ui, |ui| {
                 self.command_view
-                    .ui(ui, &*command_db!(), &mut self.event.list);
+                    .ui(ui, &command_db!(), &mut self.event.list);
             });
     }
 

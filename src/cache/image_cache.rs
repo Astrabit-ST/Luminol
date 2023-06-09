@@ -91,20 +91,13 @@ impl Cache {
 
     pub fn load_image(
         &self,
-        directory: impl AsRef<str>,
-        filename: impl AsRef<str>,
+        directory: impl AsRef<camino::Utf8Path>,
+        filename: impl AsRef<camino::Utf8Path>,
     ) -> Result<image::DynamicImage, String> {
-        let directory = directory.as_ref();
-        let filename = filename.as_ref();
-        let Some(f) = state!().filesystem.dir_children(directory)?.find(|entry| {
-            println!("{entry}, {:?}", entry.file_stem());
-                entry.file_stem().map(str::to_lowercase) == Some(filename.to_lowercase())
-            }) else {
-                return Err(format!("{filename} not found in {directory}"));
-            };
-
-        let image = image::load_from_memory(&state!().filesystem.read_bytes(f)?)
-            .map_err(|e| e.to_string())?;
+        let path = directory.as_ref().join(filename);
+        let image =
+            image::load_from_memory(&state!().filesystem.read(path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
         Ok(image)
     }
 
