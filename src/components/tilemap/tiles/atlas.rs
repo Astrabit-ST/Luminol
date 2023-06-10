@@ -221,7 +221,7 @@ impl Atlas {
             // The tile is blank
             0..=47 => {}
             // The tile is an autotile
-            48..=384 => {
+            48..=383 => {
                 let autotile_id = (tile / 48) - 1;
                 for s_a in 0..2 {
                     for s_b in 0..2 {
