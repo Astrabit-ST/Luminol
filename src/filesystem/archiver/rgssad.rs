@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{Error, FileSystem, Metadata, OpenFlags};
+use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 use crate::prelude::*;
 use std::io::Cursor;
 
@@ -109,10 +109,7 @@ impl FileSystem for Archiver {
         Err(Error::NotExist)
     }
 
-    fn read_dir(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         Err(Error::NotExist)
     }
 }

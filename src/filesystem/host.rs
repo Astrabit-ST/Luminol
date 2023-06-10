@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{Error, FileSystem, Metadata, OpenFlags};
+use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 use itertools::Itertools;
 use std::fs::File;
 
@@ -92,20 +92,19 @@ impl FileSystem for HostFS {
         std::fs::remove_file(path).map_err(Into::into)
     }
 
-    fn read_dir(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = self.root_path.join(path);
         path.read_dir_utf8()?
-            .map(|e| {
-                e.map(|e| {
-                    let path = e.into_path();
-                    path.strip_prefix(&self.root_path)
-                        .unwrap_or(&path)
-                        .to_path_buf()
-                })
+            .map_ok(|entry| -> Result<DirEntry, Error> {
+                let path = entry.into_path();
+                let path = path
+                    .strip_prefix(&self.root_path)
+                    .unwrap_or(&path)
+                    .to_path_buf();
+                let metadata = self.metadata(&path)?;
+                Ok(DirEntry::new(path, metadata))
             })
+            .flatten()
             .try_collect()
             .map_err(Into::into)
     }

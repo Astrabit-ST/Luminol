@@ -32,8 +32,8 @@ pub struct SoundTab {
     pub source: audio::Source,
     volume: u8,
     pitch: u8,
-    selected_track: camino::Utf8PathBuf,
-    folder_children: Vec<camino::Utf8PathBuf>,
+    selected_track: String,
+    folder_children: Vec<filesystem::DirEntry>,
 }
 
 impl SoundTab {
@@ -44,7 +44,7 @@ impl SoundTab {
             source,
             volume: 100,
             pitch: 100,
-            selected_track: camino::Utf8PathBuf::new(),
+            selected_track: String::new(),
             folder_children: state!()
                 .filesystem
                 .read_dir(format!("Audio/{source}"))
@@ -133,8 +133,8 @@ impl SoundTab {
                                 if ui
                                     .selectable_value(
                                         &mut self.selected_track,
-                                        entry.clone(),
-                                        entry.as_str(),
+                                        entry.file_name().to_string(),
+                                        entry.file_name(),
                                     )
                                     .double_clicked()
                                 {

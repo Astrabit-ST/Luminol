@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{Error, FileSystem, Metadata, OpenFlags};
+use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 
 #[derive(Debug, Clone)]
 pub struct PathCache<F> {
@@ -50,10 +50,10 @@ where
                 path: impl AsRef<camino::Utf8Path>,
                 f: &mut impl FnMut(&camino::Utf8Path),
             ) -> Result<(), Error> {
-                for dir in fs.read_dir(path)? {
-                    f(&dir);
-                    if !fs.metadata(&dir)?.is_file {
-                        internal(fs, dir, f)?;
+                for entry in fs.read_dir(path)? {
+                    f(entry.path());
+                    if !entry.metadata().is_file {
+                        internal(fs, entry.path(), f)?;
                     }
                 }
                 Ok(())
@@ -117,6 +117,12 @@ where
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
+        let path = path.as_ref();
+        if flags.contains(OpenFlags::Create) {
+            let mut lower_path = to_lowercase(path);
+            lower_path.set_extension("");
+            self.cache.insert(lower_path, path.to_path_buf());
+        }
         let path = self.desensitize(path).ok_or(Error::NotExist)?;
         self.fs.open_file(path, flags)
     }
@@ -176,10 +182,7 @@ where
         Ok(())
     }
 
-    fn read_dir(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = self.desensitize(path).ok_or(Error::NotExist)?;
         self.fs.read_dir(path)
     }

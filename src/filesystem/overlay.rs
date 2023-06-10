@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{Error, FileSystem, Metadata, OpenFlags};
+use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 use std::io::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -190,10 +190,7 @@ where
         self.primary.remove_file(path)
     }
 
-    fn read_dir(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = path.as_ref();
 
         let mut primary = vec![]; // FIXME: inefficient

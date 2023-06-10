@@ -43,7 +43,10 @@ impl Default for Window {
     fn default() -> Self {
         let items = state!().data_cache.items().clone();
         let icon_paths = match state!().filesystem.read_dir("Graphics/Icons") {
-            Ok(icons) => icons,
+            Ok(icons) => icons
+                .into_iter()
+                .map(filesystem::DirEntry::into_path)
+                .collect(),
             Err(why) => {
                 state!()
                     .toasts

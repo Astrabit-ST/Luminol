@@ -17,8 +17,8 @@
 use crate::prelude::*;
 
 use super::{
-    archiver::Archiver, host::HostFS, overlay::Overlay, path_cache::PathCache, Error, FileSystem,
-    Metadata, OpenFlags,
+    archiver::Archiver, host::HostFS, overlay::Overlay, path_cache::PathCache, DirEntry, Error,
+    FileSystem, Metadata, OpenFlags,
 };
 
 type LoadedFS = PathCache<Overlay<HostFS, Archiver>>;
@@ -82,6 +82,7 @@ impl ProjectFS {
         }
 
         for path in self.read_dir("").ok()? {
+            let path = path.path();
             if path.file_stem() == Some(".rgssad") {
                 return Some(config::RMVer::XP);
             }
@@ -314,10 +315,7 @@ impl FileSystem for ProjectFS {
         }
     }
 
-    fn read_dir(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let state = self.state.borrow();
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
