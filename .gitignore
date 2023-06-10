@@ -20,4 +20,4 @@ steamworks/*
 # Allow the redistributable, though
 !steamworks/redistributable_bin
 #! renderdoc
-captures/*.rdc
+captures/

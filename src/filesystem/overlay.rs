@@ -141,7 +141,7 @@ where
         flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
         let path = path.as_ref();
-        if self.primary.exists(path)? {
+        if self.primary.exists(path)? || flags.contains(OpenFlags::Create) {
             return self.primary.open_file(path, flags).map(File::Primary);
         }
 
