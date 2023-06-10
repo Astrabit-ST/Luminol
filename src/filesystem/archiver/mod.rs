@@ -21,7 +21,7 @@ mod rgss2a;
 mod rgss3a;
 mod rgssad;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Archiver {
     RGSSAD(rgssad::Archiver),
     // RGSS2A(rgss2a::Archiver),
@@ -29,9 +29,12 @@ pub enum Archiver {
 }
 
 impl Archiver {
-    pub fn new(editor_ver: config::RMVer) -> Result<Self, Error> {
+    pub fn new(
+        editor_ver: config::RMVer,
+        project_path: impl AsRef<camino::Utf8Path>,
+    ) -> Result<Self, Error> {
         Ok(match editor_ver {
-            config::RMVer::XP => Archiver::RGSSAD(rgssad::Archiver::new()?),
+            config::RMVer::XP => Archiver::RGSSAD(rgssad::Archiver::new(project_path)?),
             _ => todo!(),
         })
     }

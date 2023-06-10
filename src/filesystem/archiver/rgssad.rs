@@ -16,20 +16,114 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 use crate::prelude::*;
-use std::io::Cursor;
+use std::io::{prelude::*, Cursor, SeekFrom};
 
-#[derive(Debug, Clone)]
-pub struct Archiver {}
+#[derive(Debug)]
+pub struct Archiver {
+    files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
+    directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
+    file: std::fs::File,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct Entry {
+    offset: u64,
+    size: u64,
+    start_magic: u32,
+}
+
+const MAGIC: u32 = 0xDEADCAFE;
+const HEADER: &[u8] = b"RGSSAD\0";
 
 impl Archiver {
-    pub fn new() -> Result<Self, Error> {
-        Ok(Archiver {})
+    pub fn new(project_path: impl AsRef<camino::Utf8Path>) -> Result<Self, Error> {
+        let project_path = project_path.as_ref();
+        let archive_path = project_path
+            .read_dir_utf8()?
+            .flatten()
+            .map(camino::Utf8DirEntry::into_path)
+            .find(|entry| entry.extension() == Some("rgssad"));
+        let Some(archive_path) = archive_path else {
+            return  Err(Error::NotExist);
+        };
+
+        let mut file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(archive_path)?;
+        Self::verify_header(&mut file)?;
+
+        let mut magic = MAGIC;
+        let files = dashmap::DashMap::new();
+        let directories = dashmap::DashMap::new();
+
+        let mut len_buffer = [0; 4];
+        while let Ok(4) = file.read(&mut len_buffer) {
+            let name_len = u32::from_le_bytes(len_buffer);
+            let name_len = name_len ^ Self::advance_magic(&mut magic);
+
+            let mut name = vec![0; name_len as usize];
+            file.read_exact(&mut name).unwrap();
+            for byte in name.iter_mut() {
+                let char = *byte ^ Self::advance_magic(&mut magic) as u8;
+                if char == b'\\' {
+                    *byte = b'/';
+                } else {
+                    *byte = char;
+                }
+            }
+            let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
+
+            file.read_exact(&mut len_buffer).unwrap();
+            let entry_len = u32::from_le_bytes(len_buffer);
+            let entry_len = entry_len ^ Self::advance_magic(&mut magic);
+
+            let entry = Entry {
+                size: entry_len as u64,
+                offset: file.stream_position()?,
+                start_magic: magic,
+            };
+
+            files.insert(name, entry);
+
+            file.seek(SeekFrom::Start(entry.offset + entry.size))?;
+        }
+
+        Ok(Archiver {
+            files,
+            directories,
+            file,
+        })
+    }
+
+    fn advance_magic(magic: &mut u32) -> u32 {
+        let old = *magic;
+
+        *magic = magic.wrapping_mul(7).wrapping_add(3);
+
+        old
+    }
+
+    fn verify_header(file: &mut std::fs::File) -> Result<(), Error> {
+        let mut header_buf = [0; 8];
+
+        file.read_exact(&mut header_buf)?;
+
+        if !header_buf.starts_with(HEADER) {
+            return Err(Error::InvalidHeader);
+        }
+
+        if header_buf[7] != 1 {
+            return Err(Error::InvalidHeader);
+        }
+
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 pub struct File {
-    cursor: Cursor<Vec<u8>>,
+    cursor: Cursor<Vec<u8>>, // TODO WRITE
 }
 
 impl std::io::Write for File {
@@ -78,10 +172,29 @@ impl FileSystem for Archiver {
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
-        Err(Error::NotExist)
+        if flags.contains(OpenFlags::Write) {
+            return Err(Error::NotSupported);
+        }
+
+        todo!()
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+        let path = path.as_ref();
+        if let Some(entry) = self.files.get(path) {
+            return Ok(Metadata {
+                is_file: true,
+                size: entry.size,
+            });
+        }
+
+        if let Some(directory) = self.directories.get(path) {
+            return Ok(Metadata {
+                is_file: false,
+                size: directory.len() as u64,
+            });
+        }
+
         Err(Error::NotExist)
     }
 
@@ -90,26 +203,36 @@ impl FileSystem for Archiver {
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
     ) -> std::result::Result<(), Error> {
-        Err(Error::NotExist)
+        Err(Error::NotSupported)
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        Err(Error::NotExist)
+        Err(Error::NotSupported)
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
-        Ok(false)
+        let path = path.as_ref();
+        Ok(self.files.contains_key(path) || self.directories.contains_key(path))
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        Err(Error::NotExist)
+        Err(Error::NotSupported)
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        Err(Error::NotExist)
+        Err(Error::NotSupported)
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
-        Err(Error::NotExist)
+        let path = path.as_ref();
+        let directory = self.directories.get(path).ok_or(Error::NotExist)?;
+        directory
+            .iter()
+            .map(|entry| {
+                let path = path.join(&*entry);
+                let metadata = self.metadata(&path)?;
+                Ok(DirEntry { path, metadata })
+            })
+            .try_collect()
     }
 }

@@ -95,7 +95,7 @@ impl FileSystem for HostFS {
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = self.root_path.join(path);
         path.read_dir_utf8()?
-            .map_ok(|entry| -> Result<DirEntry, Error> {
+            .map_ok(|entry| {
                 let path = entry.into_path();
                 let path = path
                     .strip_prefix(&self.root_path)
@@ -106,6 +106,5 @@ impl FileSystem for HostFS {
             })
             .flatten()
             .try_collect()
-            .map_err(Into::into)
     }
 }

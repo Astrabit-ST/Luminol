@@ -34,6 +34,10 @@ pub enum Error {
     Utf8Error(#[from] std::string::FromUtf8Error),
     #[error("Project not loaded")]
     NotLoaded,
+    #[error("Operation not supported by this filesystem")]
+    NotSupported,
+    #[error("Archive header is incorrect")]
+    InvalidHeader,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
