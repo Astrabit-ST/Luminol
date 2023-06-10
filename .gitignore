@@ -14,4 +14,4 @@
 git-conventional-commits.yaml
 
 #! renderdoc
-captures/*.rdc
+captures/
