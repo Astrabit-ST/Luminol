@@ -25,7 +25,7 @@ eframe = { version = "0.22", features = [
 ], default-features = false }
 egui_extras = { version = "0.22", features = ["svg", "image"] }
 egui-notify = { version = "0.6", git = "https://github.com/ItsEthra/egui-notify" } # temporary patch
-egui_dock = "0.6.1"
+egui_dock = "0.6"
 catppuccin-egui = "3.0.0"
 
 cgmath = "0.18"

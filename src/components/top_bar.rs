@@ -74,9 +74,9 @@ impl TopBar {
                 }
 
                 if ui.button("Close Project").clicked() {
-                    state.filesystem.unload_project();
                     state.windows.clean_windows();
                     state.tabs.clean_tabs(|t| t.requires_filesystem());
+                    state.filesystem.unload_project();
                 }
 
                 save_project |= ui.button("Save Project").clicked();

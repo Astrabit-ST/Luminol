@@ -18,11 +18,11 @@ use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 use crate::prelude::*;
 use std::io::{prelude::*, Cursor, SeekFrom};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Archiver {
     files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
     directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
-    file: std::fs::File,
+    archive_path: camino::Utf8PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,13 +44,13 @@ impl Archiver {
             .map(camino::Utf8DirEntry::into_path)
             .find(|entry| entry.extension() == Some("rgssad"));
         let Some(archive_path) = archive_path else {
-            return  Err(Error::NotExist);
+            return Ok(Default::default());
         };
 
         let mut file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
-            .open(archive_path)?;
+            .open(&archive_path)?;
         Self::verify_header(&mut file)?;
 
         let mut magic = MAGIC;
@@ -74,6 +74,8 @@ impl Archiver {
             }
             let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
 
+            Self::process_path(&directories, &name);
+
             file.read_exact(&mut len_buffer).unwrap();
             let entry_len = u32::from_le_bytes(len_buffer);
             let entry_len = entry_len ^ Self::advance_magic(&mut magic);
@@ -89,11 +91,34 @@ impl Archiver {
             file.seek(SeekFrom::Start(entry.offset + entry.size))?;
         }
 
+        /*
+        for dir in directories.iter() {
+            println!("===========");
+            println!("{}", dir.key());
+            for i in dir.value().iter() {
+                println!("{}", &*i);
+            }
+            println!("----------");
+        }
+        */
+
         Ok(Archiver {
             files,
             directories,
-            file,
+            archive_path,
         })
+    }
+
+    fn process_path(
+        directories: &dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
+        path: impl AsRef<camino::Utf8Path>,
+    ) {
+        for (a, b) in path.as_ref().ancestors().tuple_windows() {
+            directories
+                .entry(b.to_path_buf())
+                .or_default()
+                .insert(a.strip_prefix(b).unwrap_or(a).to_path_buf());
+        }
     }
 
     fn advance_magic(magic: &mut u32) -> u32 {
@@ -176,7 +201,28 @@ impl FileSystem for Archiver {
             return Err(Error::NotSupported);
         }
 
-        todo!()
+        let entry = self.files.get(path.as_ref()).ok_or(Error::NotExist)?;
+        let mut buf = vec![0; entry.size as usize];
+
+        let mut archive = std::fs::File::open(&self.archive_path)?;
+        archive.seek(SeekFrom::Start(entry.offset))?;
+        archive.read_exact(&mut buf)?;
+
+        let mut magic = entry.start_magic;
+        let mut j = 0;
+        for byte in buf.iter_mut() {
+            if j == 4 {
+                j = 0;
+                magic = magic.wrapping_mul(7).wrapping_add(3);
+            }
+
+            *byte ^= bytemuck::cast::<_, [u8; 4]>(magic)[j];
+
+            j += 1;
+        }
+
+        let cursor = Cursor::new(buf);
+        Ok(File { cursor })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
