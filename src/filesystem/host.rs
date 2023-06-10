@@ -101,6 +101,11 @@ impl FileSystem for HostFS {
                     .strip_prefix(&self.root_path)
                     .unwrap_or(&path)
                     .to_path_buf();
+
+                // i hate windows.
+                #[cfg(windows)]
+                let path = path.into_string().replace('\\', "/").into();
+
                 let metadata = self.metadata(&path)?;
                 Ok(DirEntry::new(path, metadata))
             })

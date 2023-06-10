@@ -687,7 +687,7 @@ pub struct System {
     pub actor_collapse_se: AudioFile,
     pub enemy_collapse_se: AudioFile,
     pub words: Words,
-    #[serde(skip_deserializing)]
+    // #[serde(skip_deserializing)]
     pub test_battlers: Vec<TestBattler>,
     pub test_troop_id: i32,
     pub start_map_id: i32,
