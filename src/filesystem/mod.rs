@@ -42,6 +42,36 @@ pub struct Metadata {
     pub size: u64,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DirEntry {
+    path: camino::Utf8PathBuf,
+    metadata: Metadata,
+}
+
+impl DirEntry {
+    fn new(path: camino::Utf8PathBuf, metadata: Metadata) -> Self {
+        Self { path, metadata }
+    }
+
+    pub fn path(&self) -> &camino::Utf8Path {
+        &self.path
+    }
+
+    pub fn metadata(&self) -> Metadata {
+        self.metadata
+    }
+
+    pub fn file_name(&self) -> &str {
+        self.path
+            .file_name()
+            .expect("path created through DirEntry must have a filename")
+    }
+
+    pub fn into_path(self) -> camino::Utf8PathBuf {
+        self.path
+    }
+}
+
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct OpenFlags: u8 {
@@ -89,10 +119,7 @@ pub trait FileSystem {
         }
     }
 
-    fn read_dir(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<Vec<camino::Utf8PathBuf>, Error>;
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error>;
 
     /// Corresponds to [`std::fs::read()`].
     /// Will open a file at the path and read the entire file into a buffer.

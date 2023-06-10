@@ -86,9 +86,7 @@ tracing-subscriber = "0.3"
 itertools = "0.10"
 static_assertions = "1.1.0"
 
-rodio = { version = "0.17.0", features = [
-    "symphonia-all",
-], default-features = false }
+rodio = { version = "0.17.1" }
 
 command-lib = { version = "*", path = "command-lib" }
 rmxp-types = { version = "*", path = "rmxp-types" }
