@@ -23,7 +23,7 @@ use super::{
 
 type LoadedFS = PathCache<Overlay<HostFS, Archiver>>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct ProjectFS {
     state: AtomicRefCell<State>,
 }
@@ -83,15 +83,15 @@ impl ProjectFS {
 
         for path in self.read_dir("").ok()? {
             let path = path.path();
-            if path.file_stem() == Some(".rgssad") {
+            if path.extension() == Some("rgssad") {
                 return Some(config::RMVer::XP);
             }
 
-            if path.file_stem() == Some(".rgss2a") {
+            if path.extension() == Some("rgss2a") {
                 return Some(config::RMVer::VX);
             }
 
-            if path.file_stem() == Some(".rgss3a") {
+            if path.extension() == Some("rgss3a") {
                 return Some(config::RMVer::Ace);
             }
         }
@@ -121,7 +121,7 @@ impl ProjectFS {
 
         let overlay = Overlay::new(
             HostFS::new(path),
-            Archiver::new(project_config!().editor_ver).map_err(|e| e.to_string())?,
+            Archiver::new(project_config!().editor_ver, path).map_err(|e| e.to_string())?,
         );
         let patch_cache = PathCache::new(overlay).map_err(|e| e.to_string())?;
 
@@ -153,7 +153,7 @@ impl ProjectFS {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 enum State {
     #[default]
     Unloaded,

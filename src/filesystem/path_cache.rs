@@ -73,7 +73,7 @@ where
 
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical()
-            .id_source("luminol_path_cache_dbeug_ui")
+            .id_source("luminol_path_cache_debug_ui")
             .show_rows(
                 ui,
                 ui.text_style_height(&egui::TextStyle::Body),
