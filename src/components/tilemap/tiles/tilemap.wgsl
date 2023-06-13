@@ -1,71 +1,56 @@
-// Vertex shader
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
 }
 
+struct InstanceInput {
+    @location(2) tile_postion: vec3<f32>,
+    @location(3) tile_id: i32,
+}
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-    @location(1) frame: u32,
+    // todo: look into using multiple textures?
 }
 
 struct Viewport {
-    // Projection matrix
     proj: mat4x4<f32>,
 }
+@group(1) @binding(0)
+var<uniform> viewport: Viewport;
 
 struct Autotiles {
-    frame_counts: array<u32, 7>,
-    autotile_region_width: u32,
-    ani_frame: u32,
+    animation_index: u32,
+    max_frame_count: u32,
+    frame_counts: array<u32, 7>
 }
-
-@group(0) @binding(0)
-var t_diffuse: texture_2d<f32>;
-@group(0)@binding(1)
-var s_diffuse: sampler;
-
-@group(1) @binding(0) // 1.
-var<uniform> viewport: Viewport;
 @group(2) @binding(0)
 var<storage, read> autotiles: Autotiles;
 
-const AUTOTILE_WIDTH = 96.;
-const AUTOTILE_HEIGHT = 128.;
-const TOTAL_AUTOTILE_HEIGHT = 896.;
-
 @vertex
-fn vs_main(
-    model: VertexInput,
-) -> VertexOutput {
+fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
-    out.tex_coords = model.tex_coords;
 
-    // let dimensions = vec2<f32>(textureDimensions(t_diffuse));
-    // var pix_tex_coords = vec2<f32>(textureDimensions(t_diffuse)) * model.tex_coords;
-    // if pix_tex_coords.y < TOTAL_AUTOTILE_HEIGHT && pix_tex_coords.x < f32(autotiles.autotile_region_width) {
-    //     let autotile_id = u32(pix_tex_coords.y / AUTOTILE_HEIGHT);
-    //     let frame_count = autotiles.frame_counts[autotile_id];
-    //     let frame = autotiles.ani_frame % frame_count;
-    // 
-    //     out.frame = frame;
-    //     out.tex_coords.x += (f32(frame) * AUTOTILE_WIDTH) / dimensions.x;
-    // }
+    var position = viewport.proj * vec4<f32>(vertex.position.xy + instance.tile_postion.xy, 0.0, 1.0);
+    out.clip_position = vec4<f32>(position.xy, instance.tile_postion.z, 1.0);
 
-    var position = viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
-
-    out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;
 }
 
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    //  var sample = vec4<f32>(in.tex_coords.xy, f32(in.frame) / 10., tex_sample.w);
+@group(0) @binding(0)
+var atlas: texture_2d<f32>;
+@group(0) @binding(1)
+var atlas_sampler: sampler;
 
-    if tex_sample.a <= 0. {
+
+@fragment
+fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    let color = textureSample(atlas, atlas_sampler, input.tex_coords);
+
+    if color.a <= 0.0 {
         discard;
     }
-    return tex_sample;
+
+    return color;
 }

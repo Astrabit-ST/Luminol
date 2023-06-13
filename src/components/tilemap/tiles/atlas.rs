@@ -18,7 +18,8 @@
 use super::autotile_ids::AUTOTILES;
 use super::Quad;
 use super::{
-    AUTOTILE_AMOUNT, AUTOTILE_HEIGHT, MAX_SIZE, TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT, UNDER_HEIGHT,
+    AUTOTILE_AMOUNT, AUTOTILE_FRAME_COLS, AUTOTILE_FRAME_WIDTH, HEIGHT_UNDER_AUTOTILES, MAX_SIZE,
+    TILESET_WIDTH, TOTAL_AUTOTILE_HEIGHT,
 };
 
 use crate::prelude::*;
@@ -31,8 +32,7 @@ pub struct Atlas {
     pub atlas_texture: Arc<image_cache::WgpuTexture>,
     pub autotile_width: u32,
     pub tileset_height: u32,
-    pub columns_under: u32,
-    pub autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
+    pub autotile_frames: [u32; AUTOTILE_AMOUNT as usize],
 }
 
 impl Atlas {
@@ -65,10 +65,11 @@ impl Atlas {
                 / 96
         });
 
-        let mut autotile_width = 0;
-        for at in autotiles.iter().flatten() {
-            autotile_width = autotile_width.max(at.texture.width());
-        }
+        let autotile_width = autotile_frames
+            .iter()
+            .map(|f| f * AUTOTILE_FRAME_WIDTH)
+            .max()
+            .unwrap_or(0);
         println!("{autotile_width}");
 
         let render_state = &state!().render_state;
@@ -88,12 +89,12 @@ impl Atlas {
             // I have no idea how this math works.
             // Like at all lmao
             let rows_under = u32::min(
-                tileset_img.height().div_ceil(UNDER_HEIGHT),
+                tileset_img.height().div_ceil(HEIGHT_UNDER_AUTOTILES),
                 autotile_width.div_ceil(TILESET_WIDTH),
             );
             let rows_side = (tileset_img
                 .height()
-                .saturating_sub(rows_under * UNDER_HEIGHT))
+                .saturating_sub(rows_under * HEIGHT_UNDER_AUTOTILES))
             .div_ceil(MAX_SIZE);
             println!("rows_under: {rows_under}");
             println!("rows_side: {rows_side}");
@@ -121,187 +122,24 @@ impl Atlas {
                 view_formats: &[],
             });
 
-        let mut atlas_copy = atlas_texture.as_image_copy();
-
-        for (index, tile) in tileset.autotile_names.iter().enumerate() {
-            if tile.is_empty() {
-                continue;
-            }
-            let autotile_tex = state!()
-                .image_cache
-                .load_wgpu_image("Graphics/Autotiles", tile)?;
-            let autotile_copy = autotile_tex.texture.as_image_copy();
-            atlas_copy.origin.y = AUTOTILE_HEIGHT * index as u32;
-
-            encoder.copy_texture_to_texture(autotile_copy, atlas_copy, autotile_tex.texture.size())
-        }
-
-        render_state.queue.submit(std::iter::once(encoder.finish()));
-        atlas_copy.origin.y = TOTAL_AUTOTILE_HEIGHT;
-
-        if TOTAL_AUTOTILE_HEIGHT + tileset_img.height() < MAX_SIZE {
-            render_state.queue.write_texture(
-                atlas_copy,
-                &tileset_img,
-                wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * tileset_img.width()),
-                    rows_per_image: Some(tileset_img.height()),
-                },
-                wgpu::Extent3d {
-                    width: tileset_img.width(),
-                    height: tileset_img.height(),
-                    depth_or_array_layers: 1,
-                },
-            )
-        } else {
-            // I have no idea how this math works.
-            // Like at all lmao
-            let rows_under = u32::min(
-                tileset_img.height().div_ceil(UNDER_HEIGHT),
-                autotile_width.div_ceil(TILESET_WIDTH),
-            );
-            let rows_side = (tileset_img
-                .height()
-                .saturating_sub(rows_under * UNDER_HEIGHT))
-            .div_ceil(MAX_SIZE);
-
-            for i in 0..rows_under {
-                // out.image(tileset, TILESET_WIDTH * i, AUTOTILE_HEIGHT * AUTOTILE_AMOUNT, TILESET_WIDTH, underHeight, 0, underHeight * i, TILESET_WIDTH, underHeight);
-                //     image(img,     dx,                dy,                                dWidth,        dHeight,    sx, sy,              sWidth,        sHeight)
-                let y = UNDER_HEIGHT * i;
-                let height = if y + UNDER_HEIGHT > tileset_img.height() {
-                    tileset_img.height() - y
-                } else {
-                    UNDER_HEIGHT
-                };
-                write_texture_region(
-                    &atlas_texture,
-                    tileset_img.view(0, y, TILESET_WIDTH, height),
-                    (TILESET_WIDTH * i, TOTAL_AUTOTILE_HEIGHT),
-                )
-            }
-            for i in 0..rows_side {
-                // out.image(tileset, TILESET_WIDTH * (rowsUnder + i), 0, TILESET_WIDTH, MAX_SIZE, 0, (underHeight * rowsUnder) + MAX_SIZE * i, TILESET_WIDTH, MAX_SIZE);
-                //     image(img,     dx,                             dy, dWidth,        dHeight, sx,                                       sy, sWidth,         sHeight)
-                let y = (UNDER_HEIGHT * rows_under) + MAX_SIZE * i;
-                let height = if y + MAX_SIZE > tileset_img.height() {
-                    tileset_img.height() - y
-                } else {
-                    MAX_SIZE
-                };
-                write_texture_region(
-                    &atlas_texture,
-                    tileset_img.view(0, y, TILESET_WIDTH, height),
-                    (TILESET_WIDTH * (rows_under + i), 0),
-                )
-            }
-        }
-
         let bind_group = image_cache::Cache::create_texture_bind_group(&atlas_texture);
         let atlas_texture = Arc::new(image_cache::WgpuTexture::new(atlas_texture, bind_group));
-
-        let columns_under = u32::min(
-            tileset_img.height().div_ceil(UNDER_HEIGHT),
-            autotile_width.div_ceil(TILESET_WIDTH),
-        );
 
         Ok(Atlas {
             atlas_texture,
             autotile_width,
-            columns_under,
+
             tileset_height: tileset_img.height(),
             autotile_frames,
         })
     }
 
     pub fn calc_quads(&self, tile: i16, x: usize, y: usize, quads: &mut Vec<Quad>) {
-        // There are 4 cases we need to handle here:
-        match tile {
-            // The tile is blank
-            0..=47 => {}
-            // The tile is an autotile
-            48..=383 => {
-                let autotile_id = (tile / 48) - 1;
-                for s_a in 0..2 {
-                    for s_b in 0..2 {
-                        let pos = egui::Rect::from_min_size(
-                            egui::pos2(
-                                x as f32 * 32. + (s_a as f32 * 16.),
-                                y as f32 * 32. + (s_b as f32 * 16.),
-                            ),
-                            egui::vec2(16., 16.),
-                        );
-
-                        let ti = AUTOTILES[tile as usize % 48][s_a + (s_b * 2)];
-                        // let tile_x = ti % 6;
-                        let tile_x = (ti % 6 * 16) as f32;
-
-                        let tile_y =
-                            (ti / 6 * 16) as f32 + (AUTOTILE_HEIGHT * autotile_id as u32) as f32;
-
-                        let tex_coords = egui::Rect::from_min_size(
-                            egui::pos2(tile_x, tile_y),
-                            egui::vec2(16., 16.),
-                        );
-
-                        quads.push(Quad::new(pos, tex_coords, 0.));
-                    }
-                }
-            }
-            // The tileset does not wrap
-            tile if self.tileset_height + TOTAL_AUTOTILE_HEIGHT <= MAX_SIZE => {
-                let tile = tile - 384;
-
-                let pos = egui::Rect::from_min_size(
-                    egui::pos2(x as f32 * 32., y as f32 * 32.),
-                    egui::vec2(32., 32.),
-                );
-
-                let tile_x = (tile % 8) as f32 * 32.;
-                let tile_y = (tile as u32 / 8 + AUTOTILE_AMOUNT * 4) as f32 * 32.;
-                let tex_coords =
-                    egui::Rect::from_min_size(egui::pos2(tile_x, tile_y), egui::vec2(32., 32.));
-
-                quads.push(Quad::new(pos, tex_coords, 0.));
-            }
-            // The tileset *does* wrap
-            tile => {
-                let tile = tile - 384;
-
-                let pos = egui::Rect::from_min_size(
-                    egui::pos2(x as f32 * 32., y as f32 * 32.),
-                    egui::vec2(32., 32.),
-                );
-
-                let tile_x = (tile as u32 % 8) * 32;
-                let tile_y = (tile as u32 / 8 + AUTOTILE_AMOUNT * 4) * 32;
-
-                let h1 = AUTOTILE_HEIGHT + UNDER_HEIGHT * self.columns_under;
-                let mut wrapped_x;
-                let mut wrapped_y;
-                if tile_y < h1 {
-                    // you're underneath the autotiles
-                    wrapped_x = tile_x + (tile_y - AUTOTILE_HEIGHT) / UNDER_HEIGHT * TILESET_WIDTH;
-                    wrapped_y = AUTOTILE_HEIGHT + (tile_y - AUTOTILE_HEIGHT) % UNDER_HEIGHT;
-                } else {
-                    // you're to the right
-                    // first wrap immediately to the right of the autotiles
-                    wrapped_x = tile_x + self.autotile_width;
-                    wrapped_y = tile_y - h1;
-                    // then wrap further
-                    wrapped_x += wrapped_y / MAX_SIZE * TILESET_WIDTH;
-                    wrapped_y %= MAX_SIZE;
-                }
-
-                let tex_coords = egui::Rect::from_min_size(
-                    egui::pos2(wrapped_x as f32, wrapped_y as f32),
-                    egui::vec2(32., 32.),
-                );
-
-                quads.push(Quad::new(pos, tex_coords, 0.));
-            }
-        }
+        quads.push(Quad::new(
+            egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
+            egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
+            0.0,
+        ));
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {

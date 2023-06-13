@@ -18,45 +18,53 @@ mod atlas;
 mod autotile_ids;
 
 mod autotiles;
+mod instance;
 mod shader;
-mod vertices;
 
 use crate::prelude::*;
 
-pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
+pub const MAX_SIZE: u32 = 4096; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
-pub const TILESET_WIDTH: u32 = TILE_SIZE * 8; // Tilesets are 8 tiles across
+pub const TILESET_COLUMNS: u32 = 8; // Tilesets are 8 tiles across
+pub const TILESET_WIDTH: u32 = TILE_SIZE * TILESET_COLUMNS;
 
-pub const AUTOTILE_HEIGHT: u32 = TILE_SIZE * 4; // Autotiles are 4 tiles high
+pub const AUTOTILE_ID_AMOUNT: u32 = 48; // there are 48 tile ids per autotile
+pub const AUTOTILE_ROWS: u32 = AUTOTILE_ID_AMOUNT / TILESET_COLUMNS; // split up the 48 tiles across each tileset row
+pub const AUTOTILE_ROW_HEIGHT: u32 = AUTOTILE_ROWS * TILE_SIZE;
+pub const TOTAL_AUTOTILE_HEIGHT: u32 = AUTOTILE_ROW_HEIGHT * AUTOTILE_AMOUNT;
+
+// This is per frame!
+pub const AUTOTILE_FRAME_COLS: u32 = TILESET_COLUMNS; // this is how many "columns" of autotiles there are per frame
+pub const AUTOTILE_FRAME_WIDTH: u32 = AUTOTILE_FRAME_COLS * TILE_SIZE;
+
 pub const AUTOTILE_AMOUNT: u32 = 7; // There are 7 autotiles per tileset
-pub const TOTAL_AUTOTILE_HEIGHT: u32 = AUTOTILE_HEIGHT * AUTOTILE_AMOUNT;
-pub const UNDER_HEIGHT: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT;
+pub const HEIGHT_UNDER_AUTOTILES: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT; // this is the hieght under autotiles
 
 use super::quad::Quad;
 use super::vertex::Vertex;
 
 pub use atlas::Atlas;
 use autotiles::Autotiles;
+use instance::Instances;
 use shader::Shader;
-use vertices::Vertices;
 
 #[derive(Debug)]
 pub struct Tiles {
     pub autotiles: Autotiles,
     pub atlas: Atlas,
-    vertices: Vertices,
+    pub instances: Instances,
 }
 
 impl Tiles {
     pub fn new(tileset: &rpg::Tileset, map: &rpg::Map) -> Result<Self, String> {
         let atlas = Atlas::new(tileset)?;
-        let uniform = Autotiles::new(&atlas);
-        let vertices = Vertices::new(map, &atlas);
+        let autotiles = Autotiles::new(&atlas);
+        let instances = Instances::new(map, atlas.atlas_texture.size());
 
         Ok(Self {
-            autotiles: uniform,
+            autotiles,
             atlas,
-            vertices,
+            instances,
         })
     }
 
@@ -69,7 +77,7 @@ impl Tiles {
         Shader::bind(render_pass);
         self.autotiles.bind(render_pass);
         self.atlas.bind(render_pass);
-        self.vertices.draw(render_pass, enabled_layers);
+        self.instances.draw(render_pass);
         render_pass.pop_debug_group();
     }
 }

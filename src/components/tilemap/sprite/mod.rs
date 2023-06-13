@@ -73,18 +73,12 @@ impl Sprite {
     pub fn reupload_verts(&self, quads: &[Quad]) {
         let render_state = &state!().render_state;
 
-        let (vertices, indices) = Quad::into_raw_verts(quads, self.texture.size());
+        let vertices = Quad::into_vertices(quads, self.texture.size());
         render_state.queue.write_buffer(
             &self.vertices.vertex_buffer,
             0,
             bytemuck::cast_slice(&vertices),
         );
-        render_state.queue.write_buffer(
-            &self.vertices.index_buffer,
-            0,
-            bytemuck::cast_slice(&indices),
-        );
-        self.vertices.indices.store(indices.len() as u32);
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {

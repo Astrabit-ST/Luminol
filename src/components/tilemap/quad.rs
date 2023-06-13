@@ -26,7 +26,7 @@ pub struct Quad {
 }
 
 impl Quad {
-    pub fn new(pos: egui::Rect, tex_coords: egui::Rect, z: f32) -> Self {
+    pub const fn new(pos: egui::Rect, tex_coords: egui::Rect, z: f32) -> Self {
         Self { pos, tex_coords, z }
     }
 
@@ -41,7 +41,7 @@ impl Quad {
         }
     }
 
-    fn into_vertices(self) -> [Vertex; 4] {
+    fn into_corners(self) -> [Vertex; 4] {
         let Self { pos, tex_coords, z } = self;
         let top_left = {
             let position = pos.left_top();
@@ -78,72 +78,48 @@ impl Quad {
         [top_left, top_right, bottom_right, bottom_left]
     }
 
-    pub fn into_raw_verts(this: &[Self], extents: wgpu::Extent3d) -> (Vec<Vertex>, Vec<u32>) {
-        let mut indices = Vec::with_capacity(this.len() * 6);
-        let mut vertices = Vec::with_capacity(this.len() * 4);
+    pub fn into_vertices(this: &[Self], extents: wgpu::Extent3d) -> Vec<Vertex> {
+        let mut vertices = Vec::with_capacity(this.len() * 6);
 
+        // Quads are made like this:
+        // TL------TR
+        // |  \ /  |
+        // |  / \  |
+        // BL-----BR
         for quad in this {
             let quad = quad.norm_tex_coords(extents);
-            let quad_verts = quad.into_vertices();
-            let top_left = {
-                vertices.push(quad_verts[0]);
-                vertices.len() as u32 - 1
-            };
-            let top_right = {
-                vertices.push(quad_verts[1]);
-                vertices.len() as u32 - 1
-            };
-            let bottom_right = {
-                vertices.push(quad_verts[2]);
-                vertices.len() as u32 - 1
-            };
-            let bottom_left = {
-                vertices.push(quad_verts[3]);
-                vertices.len() as u32 - 1
-            };
+            let quad_verts = quad.into_corners();
+            // Top left
+            vertices.push(quad_verts[0]);
+            // Top right
+            vertices.push(quad_verts[1]);
+            // Bottom left
+            vertices.push(quad_verts[3]);
 
-            // Tiles are made like this:
-            // TL------TR
-            // |  \ /  |
-            // |  / \  |
-            // BL-----BR
-            indices.push(top_left);
-            indices.push(top_right);
-            indices.push(bottom_left);
-
-            indices.push(top_right);
-            indices.push(bottom_left);
-            indices.push(bottom_right);
+            // Top right
+            vertices.push(quad_verts[1]);
+            // Bottom right
+            vertices.push(quad_verts[3]);
+            // Bottom left
+            vertices.push(quad_verts[2]);
         }
 
-        (vertices, indices)
+        vertices
     }
 
-    pub fn into_buffer(
-        this: &[Self],
-        extents: wgpu::Extent3d,
-    ) -> (wgpu::Buffer, wgpu::Buffer, u32) {
+    pub fn into_buffer(this: &[Self], extents: wgpu::Extent3d) -> (wgpu::Buffer, usize) {
         let render_state = &state!().render_state;
 
-        let (vertices, indices) = Self::into_raw_verts(this, extents);
+        let vertices = Self::into_vertices(this, extents);
 
-        let index_buffer =
-            render_state
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("quad index buffer"),
-                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                    contents: bytemuck::cast_slice(&indices),
-                });
-        let vertex_buffer =
-            render_state
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("quad vertex buffer"),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    contents: bytemuck::cast_slice(&vertices),
-                });
+        let buffer = render_state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("quad vertex buffer"),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                contents: bytemuck::cast_slice(&vertices),
+            });
 
-        (index_buffer, vertex_buffer, indices.len() as u32)
+        (buffer, vertices.len())
     }
 }
