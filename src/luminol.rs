@@ -51,6 +51,7 @@ impl Luminol {
         let info = State::new(cc.wgpu_render_state.clone().unwrap());
         crate::set_state(info);
 
+        #[cfg(not(debug_assertions))]
         state!()
             .render_state
             .device

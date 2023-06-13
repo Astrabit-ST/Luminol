@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::super::viewport::Viewport;
 use super::autotiles::Autotiles;
+use super::instance::Instances;
 use super::Vertex;
 use crate::prelude::*;
 
@@ -55,7 +56,7 @@ impl Shader {
                     vertex: wgpu::VertexState {
                         module: &shader_module,
                         entry_point: "vs_main",
-                        buffers: &[Vertex::desc()],
+                        buffers: &[Vertex::desc(), Instances::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader_module,
