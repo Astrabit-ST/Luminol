@@ -1,6 +1,6 @@
-### LUMINOL IS LOOKING FOR CONTRIBUTORS! PLEASE CONTACT Leelee#7575 ON DISCORD OR EMAIL lily@nowaffles.com IF YOU WANT TO HELP!
-
 # Luminol
+
+## LUMINOL IS LOOKING FOR CONTRIBUTORS! PLEASE CONTACT Leelee#7575 ON DISCORD OR EMAIL <lily@nowaffles.com> IF YOU WANT TO HELP
 
 ![Crates.io](https://img.shields.io/crates/v/luminol)![Crates.io](https://img.shields.io/crates/l/luminol)![Crates.io](https://img.shields.io/crates/d/luminol)[![wakatime](https://wakatime.com/badge/user/5cff5352-cb55-44dc-819e-b47f231dcfa2/project/edee199a-95c3-4206-b23e-eb6f0a7e06ba.svg)](https://wakatime.com/badge/user/5cff5352-cb55-44dc-819e-b47f231dcfa2/project/edee199a-95c3-4206-b23e-eb6f0a7e06ba)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Astrabit-ST/Luminol)[![CI](https://github.com/Astrabit-ST/Luminol/actions/workflows/rust.yml/badge.svg)](https://github.com/Astrabit-ST/Luminol/actions/workflows/rust.yml)![GitHub issues](https://img.shields.io/github/issues/Astrabit-ST/Luminol)
 
@@ -10,9 +10,9 @@ Luminol targets native builds with eframe. Luminol currently reads *only* rxdata
 
 In the future a custom .lumina format is planned, as well as ron, rvdata 1 & 2, and json.
 
-Luminol _may_ use `Lua` for plugins in the future. It is something I am actively looking into.
+Luminol *may* use `Lua` for plugins in the future. It is something I am actively looking into.
 
-### Credits
+## Credits
 
 - [@Speak2Erase](https://github.com/Speak2Erase): Luminol's main contributor
 - [@somedevfox](https://github.com/somedevfox): Occasional contributor and creator of rsgss (a sister project of Luminol)
@@ -21,18 +21,20 @@ Luminol _may_ use `Lua` for plugins in the future. It is something I am actively
 ## RGSS version support
 
 Luminol is compatible only with **RGSS1** for now. RGSS2 & 3 use different tileset formats which Luminol does not support.
-There are plans to support them in the future, though. 
-Lily (Luminol's main contributor) does not have a copy of VX or VX Ace yet, so until then Luminol is focused on RGSS1. If you want, [you can buy her a copy](https://steamcommunity.com/id/lily-panpan/) [or send her a crack](discord://-/users/351871502460649485).
+There are plans to support them in the future, though.
+
+~~Lily (Luminol's main contributor) does not have a copy of VX or VX Ace yet, so until then Luminol is focused on RGSS1. If you want, [you can buy her a copy](https://steamcommunity.com/id/lily-panpan/) [or send her a crack](discord://-/users/351871502460649485).~~
+
+Scratch that, thank you to [bobhostern?](https://steamcommunity.com/id/bobhostern/) for buying Lily VX Ace.
 
 Luminol, however will have compatibility modes for various RGSS1 compatible runtimes, usually enabling extra features.
 Compatibility:
+
 - RGSS1: Equivalent to RPG Maker XP
 - mkxp/mkxp-freebird: Has extra layers
 - mkxp-z: Has extra layers, support for playing movies, etc
 - ModShot: (Luminol's target) extra layers, OpenAL effects, ruby gem support?
 - rsgss: Likely the same as ModShot
-
-#
 
 ## Running luminol
 
@@ -44,9 +46,10 @@ Luminol has like a bajillion dependencies right now so it may take upwards of 15
 
 ## Functionality
 
-# RPG Maker XP
+### RPG Maker XP
 
 Basic functionality:
+
 - [x] Load from rxdata
 - [x] Load projects
 - [x] Make new projects
@@ -78,6 +81,7 @@ Basic functionality:
 - [x] Script editor
 
 Extra functionality:
+
 - [x] Edit multiple maps at the same time
 - [x] Edit multiple events at the same time
 - [x] Edit multiple scripts

@@ -33,7 +33,11 @@ pub struct Luminol {
 
 impl Luminol {
     /// Called once before the first frame.
-    fn new(cc: &eframe::CreationContext<'_>, try_load_path: Option<std::ffi::OsString>) -> Self {
+    #[must_use]
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        try_load_path: Option<std::ffi::OsString>,
+    ) -> Self {
         let icon = RetainedImage::from_image_bytes("", crate::ICON).unwrap();
         let storage = cc.storage.unwrap();
 
