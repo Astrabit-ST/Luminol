@@ -37,12 +37,6 @@ impl WindowExt for EguiInspection {
     }
 }
 
-impl<'win> From<EguiInspection> for crate::Window<'win> {
-    fn from(value: EguiInspection) -> crate::Window<'win> {
-        crate::Window::Egui(crate::EguiWindow::Inspection(value))
-    }
-}
-
 /// Egui memory display.
 #[derive(Default)]
 pub struct EguiMemory;
@@ -60,11 +54,5 @@ impl WindowExt for EguiMemory {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.memory_ui(ui));
-    }
-}
-
-impl<'win> From<EguiMemory> for crate::Window<'win> {
-    fn from(value: EguiMemory) -> crate::Window<'win> {
-        crate::Window::Egui(crate::EguiWindow::Memory(value))
     }
 }

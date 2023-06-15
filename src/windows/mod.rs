@@ -14,85 +14,80 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-macro_rules! impl_window_for_enum {
-	($enum:ty, $($variant:ident),+) => {
-		impl WindowExt for $enum {
-			fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-				$(
-					if let Self::$variant(window) = self {
-						window.show(ctx, open);
-						return;
-					}
-				)*
-				unreachable!();
-			}
+macro_rules! window_enum {
+    ($visibility:vis enum $name:ident {
+		$($variant_name:ident($variant_type:ty)),+
+	}) => {
+        $(
+            static_assertions::assert_impl_all!($variant_type: WindowExt);
+        )+
 
-			fn name(&self) -> String {
-				$(
-					if let Self::$variant(window) = self {
-						return window.name();
-					}
-				)*
-				unreachable!();
-			}
+        $visibility enum $name {
+            $(
+                $variant_name($variant_type),
+            )+
+        }
 
-			fn id(&self) -> egui::Id {
-				$(
-					if let Self::$variant(window) = self {
-						return window.id();
-					}
-				)*
-				unreachable!();
-			}
+        impl WindowExt for $name {
+            fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+                match self {
+                    $(
+                        Self::$variant_name(w) => w.show(ctx, open),
+                    )+
+                }
+            }
 
-			fn requires_filesystem(&self) -> bool {
-				$(
-					if let Self::$variant(window) = self {
-						return window.requires_filesystem();
-					}
-				)*
-				unreachable!();
+            fn name(&self) -> String {
+                match self {
+                    $(
+                        Self::$variant_name(w) => w.name(),
+                    )+
+                }
+            }
+
+            fn id(&self) -> egui::Id {
+                match self {
+                    $(
+                        Self::$variant_name(w) => w.id(),
+                    )+
+                }
+            }
+
+            fn requires_filesystem(&self) -> bool {
+                match self {
+                    $(
+                        Self::$variant_name(w) => w.requires_filesystem(),
+                    )+
+                }
+            }
+        }
+
+		$(
+			impl From<$variant_type> for $name {
+				fn from(value: $variant_type) -> Self {
+					Self::$variant_name(value)
+				}
 			}
-		}
+		)+
 	};
 }
 
-pub enum EguiWindow {
-    Inspection(misc::EguiInspection),
-    Memory(misc::EguiMemory),
-}
-impl_window_for_enum! {EguiWindow, Inspection, Memory}
-
-pub enum Window<'win> {
-    About(about::Window),
-    CommandGeneratorWindow(command_gen::CommandGeneratorWindow),
-    CommonEventEdit(common_event_edit::Window),
-    Config(config::Window),
-    Console(console::Console),
-    EventEdit(event_edit::Window),
-    GraphicPicker(graphic_picker::Window<'win>),
-    Items(items::Window<'win>),
-    MapPicker(map_picker::Window),
-    NewProject(new_project::Window),
-    ScriptEdit(script_edit::Window),
-    SoundTest(sound_test::Window),
-    Egui(EguiWindow),
-}
-impl_window_for_enum! {
-    Window<'_>,
-    About,
-    CommandGeneratorWindow,
-    CommonEventEdit,
-    Config,
-    Console,
-    EventEdit,
-    GraphicPicker,
-    Items,
-    MapPicker,
-    NewProject,
-    ScriptEdit,
-    SoundTest,
-    Egui
+window_enum! {
+    pub enum Window {
+        About(about::Window),
+        CommandGeneratorWindow(command_gen::CommandGeneratorWindow),
+        CommonEventEdit(common_event_edit::Window),
+        Config(config::Window),
+        Console(console::Console),
+        EventEdit(event_edit::Window),
+        Items(items::Window),
+        MapPicker(map_picker::Window),
+        NewProject(new_project::Window),
+        ScriptEdit(script_edit::Window),
+        SoundTest(sound_test::Window),
+        Inspection(misc::EguiInspection),
+        Memory(misc::EguiMemory)
+    }
 }
 
 /// The about window.
@@ -105,8 +100,6 @@ pub mod config;
 pub mod console;
 /// The event editor.
 pub mod event_edit;
-/// The Graphic picker.
-pub mod graphic_picker;
 /// The item editor.
 pub mod items;
 /// The map picker.

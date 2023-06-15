@@ -21,7 +21,7 @@ use std::{cell::RefMut, collections::HashMap};
 use crate::prelude::*;
 
 /// The map editor.
-pub struct Tab<'tab> {
+pub struct Tab {
     /// ID of the map that is being edited.
     pub id: i32,
     /// Selected layer.
@@ -36,11 +36,11 @@ pub struct Tab<'tab> {
     pub selected_tile: i16,
     dragged_event: usize,
     dragging_event: bool,
-    event_windows: window::WindowsManager<Window<'tab>>,
+    event_windows: window::WindowsManager<Window>,
     force_close: bool,
 }
 
-impl<'tab> Tab<'tab> {
+impl Tab {
     /// Create a new map editor.
     pub fn new(id: i32) -> Option<Self> {
         Some(Self {
@@ -58,7 +58,7 @@ impl<'tab> Tab<'tab> {
     }
 }
 
-impl<'tab> tab::Tab for Tab<'tab> {
+impl tab::Tab for Tab {
     fn name(&self) -> String {
         let mapinfos = interfaces!().data_cache.mapinfos();
         format!("Map {}: {}", self.id, mapinfos[&self.id].name)

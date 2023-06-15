@@ -95,12 +95,6 @@ impl window::WindowExt for Window {
     }
 }
 
-impl<'win> From<Window> for crate::Window<'win> {
-    fn from(value: Window) -> Self {
-        crate::Window::CommonEventEdit(value)
-    }
-}
-
 struct CommonEventTab {
     event: rpg::CommonEvent,
     force_close: bool,

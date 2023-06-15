@@ -70,9 +70,3 @@ impl super::window::WindowExt for Window {
             });
     }
 }
-
-impl<'win> From<Window> for crate::Window<'win> {
-    fn from(value: Window) -> Self {
-        crate::Window::About(value)
-    }
-}

@@ -104,12 +104,6 @@ impl window::WindowExt for Window {
     }
 }
 
-impl<'win> From<Window> for crate::Window<'win> {
-    fn from(value: Window) -> crate::Window<'win> {
-        crate::Window::ScriptEdit(value)
-    }
-}
-
 /// FIXME: Change behavior of script tab to aboid panics and stay synchronized
 struct ScriptTab {
     index: usize,

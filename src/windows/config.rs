@@ -57,9 +57,3 @@ impl window::WindowExt for Window {
         true
     }
 }
-
-impl<'win> From<Window> for crate::Window<'win> {
-    fn from(value: Window) -> Self {
-        crate::Window::Config(value)
-    }
-}

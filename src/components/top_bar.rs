@@ -192,11 +192,11 @@ impl TopBar {
             ui.separator();
 
             if ui.button("Egui Inspection").clicked() {
-                state.windows.add_window(misc::EguiInspection::default());
+                state.windows.add_window(misc::EguiInspection);
             }
 
             if ui.button("Egui Memory").clicked() {
-                state.windows.add_window(misc::EguiMemory::default());
+                state.windows.add_window(misc::EguiMemory);
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();

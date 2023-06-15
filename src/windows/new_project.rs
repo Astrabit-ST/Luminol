@@ -293,9 +293,3 @@ impl Window {
         Ok(())
     }
 }
-
-impl<'win> From<Window> for crate::Window<'win> {
-    fn from(value: Window) -> crate::Window<'win> {
-        crate::Window::NewProject(value)
-    }
-}

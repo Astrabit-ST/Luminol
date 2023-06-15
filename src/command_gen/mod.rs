@@ -226,9 +226,3 @@ impl window::WindowExt for CommandGeneratorWindow {
         });
     }
 }
-
-impl<'win> Into<crate::Window<'win>> for CommandGeneratorWindow {
-    fn into(self) -> crate::Window<'win> {
-        crate::Window::CommandGeneratorWindow(self)
-    }
-}

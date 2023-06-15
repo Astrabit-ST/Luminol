@@ -17,13 +17,12 @@
 use crate::prelude::*;
 
 /// Database - Items management window.
-pub struct Window<'win> {
+pub struct Window {
     // ? Items ?
     items: NilPadded<rpg::Item>,
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker: graphic_picker::Window<'win>,
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
@@ -31,27 +30,14 @@ pub struct Window<'win> {
     menu_se_picker_open: bool,
 }
 
-impl<'win> Default for Window<'win> {
+impl Default for Window {
     fn default() -> Self {
         let items = interfaces!().data_cache.items().clone();
-        let icon_paths = match interfaces!()
-            .filesystem
-            .dir_children_strings("Graphics/Icons")
-        {
-            Ok(icons) => icons,
-            Err(why) => {
-                interfaces!()
-                    .toasts
-                    .error(format!("Error while reading `Graphics/Icons`: {why}"));
-                Vec::new()
-            }
-        };
-        let icon_picker = graphic_picker::Window::new(icon_paths);
+
         Self {
             items,
             selected_item: 0,
 
-            icon_picker,
             icon_picker_open: false,
 
             menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, true),
@@ -60,7 +46,7 @@ impl<'win> Default for Window<'win> {
     }
 }
 
-impl<'win> window::WindowExt for Window<'win> {
+impl window::WindowExt for Window {
     fn name(&self) -> String {
         format!("Editing item {}", self.items[self.selected_item].name)
     }
@@ -181,10 +167,7 @@ impl<'win> window::WindowExt for Window<'win> {
                     egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
 
-                if self.icon_picker_open {
-                    self.icon_picker.set_icon_ptr(&mut selected_item.icon_name);
-                    self.icon_picker.show(ctx, &mut self.icon_picker_open);
-                }
+                if self.icon_picker_open {}
                 if self.menu_se_picker_open {
                     egui::Window::new("Menu Sound Effect Picker")
                         .id(egui::Id::new("menu_se_picker"))
@@ -193,11 +176,5 @@ impl<'win> window::WindowExt for Window<'win> {
                         });
                 }
             });
-    }
-}
-
-impl<'win> From<Window<'win>> for crate::Window<'win> {
-    fn from(value: Window<'win>) -> crate::Window<'win> {
-        crate::Window::Items(value)
     }
 }
