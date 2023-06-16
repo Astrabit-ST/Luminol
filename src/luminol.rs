@@ -144,9 +144,11 @@ impl eframe::App for Luminol {
         });
 
         // Central panel with tabs.
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.group(|ui| state!().tabs.ui(ui));
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.))
+            .show(ctx, |ui| {
+                ui.group(|ui| state!().tabs.ui(ui));
+            });
 
         // Update all windows.
         state!().windows.update(ctx);

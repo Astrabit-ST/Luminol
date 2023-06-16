@@ -317,7 +317,7 @@ pub const AUTOTILES: [[Autotile; 4]; 48] = [
 /// Hardcoded list of tiles from r48 and old python Luminol.
 /// There seems to be very little pattern in autotile IDs so this is sadly
 /// the best we can do.
-pub const AUTOTILES: [[i32; 4]; 48] = [
+pub const AUTOTILES: [[u32; 4]; 48] = [
     [26, 27, 32, 33],
     [4, 27, 32, 33],
     [26, 5, 32, 33],

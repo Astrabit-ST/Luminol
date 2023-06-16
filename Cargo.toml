@@ -105,6 +105,7 @@ ProductName = "Luminol"
 
 [features]
 
+
 # Fast and performant.
 [profile.release]
 opt-level = 3

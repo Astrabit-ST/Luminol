@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use once_cell::sync::Lazy;
 use wgpu::util::DeviceExt;
 
 use super::Quad;
@@ -42,25 +41,7 @@ const TILE_QUAD: Quad = Quad::new(
 
 impl Instances {
     pub fn new(map: &rpg::Map, atlas_size: wgpu::Extent3d) -> Self {
-        let instances = map
-            .data
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(index, tile_id)| {
-                // We reset the x every xsize elements.
-                let map_x = index % map.data.xsize();
-                // We reset the y every ysize elements, but only increment it every xsize elements.
-                let map_y = (index / map.data.xsize()) % map.data.ysize();
-                // We change the z every xsize * ysize elements.
-                let map_z = index / (map.data.xsize() * map.data.ysize());
-
-                Instance {
-                    position: [map_x as f32, map_y as f32, map_z as f32],
-                    tile_id: tile_id as i32,
-                }
-            })
-            .collect_vec();
+        let instances = Self::calculate_instances(&map.data);
         let instance_buffer =
             state!()
                 .render_state
@@ -79,6 +60,32 @@ impl Instances {
             vertex_buffer,
             instances,
         }
+    }
+
+    fn calculate_instances(map_data: &Table3) -> Vec<Instance> {
+        map_data
+            .iter()
+            .copied()
+            .enumerate()
+            .filter(|(_, tile_id)| *tile_id >= 48)
+            .map(|(index, tile_id)| {
+                // We reset the x every xsize elements.
+                let map_x = index % map_data.xsize();
+                // We reset the y every ysize elements, but only increment it every xsize elements.
+                let map_y = (index / map_data.xsize()) % map_data.ysize();
+                // We change the z every xsize * ysize elements.
+                let map_z = index / (map_data.xsize() * map_data.ysize());
+
+                Instance {
+                    position: [
+                        map_x as f32,
+                        map_y as f32,
+                        1. - (map_z as f32 / map_data.zsize() as f32), // reverse tile order (higher z is closer?)
+                    ],
+                    tile_id: tile_id as i32,
+                }
+            })
+            .collect_vec()
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
