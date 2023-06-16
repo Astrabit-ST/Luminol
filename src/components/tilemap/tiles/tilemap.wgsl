@@ -4,7 +4,7 @@ struct VertexInput {
 }
 
 struct InstanceInput {
-    @location(2) tile_postion: vec3<f32>,
+    @location(2) tile_position: vec3<f32>,
     @location(3) tile_id: i32,
 }
 
@@ -32,8 +32,20 @@ var<storage, read> autotiles: Autotiles;
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
 
-    var position = viewport.proj * vec4<f32>(vertex.position.xy + instance.tile_postion.xy, 0.0, 1.0);
-    out.clip_position = vec4<f32>(position.xy, instance.tile_postion.z, 1.0);
+    let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * 32.), 0.0, 1.0);
+    out.clip_position = vec4<f32>(position.xy, instance.tile_position.z, 1.0);
+
+    var atlas_tile_position = vec2<f32>(
+        f32((instance.tile_id - 48) % 8 * 32),
+        f32((instance.tile_id - 48) / 8 * 32)
+    );
+    if instance.tile_id < 384 {
+        let frame_count = autotiles.frame_counts[instance.tile_id / 48 - 1];
+        let frame = autotiles.animation_index % frame_count;
+        atlas_tile_position.x += f32(frame * 256u);
+    }
+    let tex_size = vec2<f32>(textureDimensions(atlas));
+    out.tex_coords = vertex.tex_coords + (atlas_tile_position / tex_size);
 
     return out;
 }
@@ -46,7 +58,7 @@ var atlas_sampler: sampler;
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let color = textureSample(atlas, atlas_sampler, input.tex_coords);
+    var color = textureSample(atlas, atlas_sampler, input.tex_coords);
 
     if color.a <= 0.0 {
         discard;

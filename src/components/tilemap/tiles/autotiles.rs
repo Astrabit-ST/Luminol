@@ -32,9 +32,9 @@ pub struct Autotiles {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Data {
-    autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
-    autotile_region_width: u32,
     ani_index: u32,
+    autotile_region_width: u32,
+    autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
 }
 
 impl Autotiles {
@@ -78,6 +78,7 @@ impl Autotiles {
 
     pub fn inc_ani_index(&self) {
         let data = self.data.load();
+        println!("{data:#?}");
         self.data.store(Data {
             ani_index: data.ani_index.wrapping_add(1),
             ..data
