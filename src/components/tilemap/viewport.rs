@@ -51,7 +51,7 @@ impl Viewport {
         let buffer = render_state
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("tilemap autotile buffer"),
+                label: Some("tilemap viewport buffer"),
                 contents: bytemuck::cast_slice(&[data]),
                 usage: wgpu::BufferUsages::STORAGE
                     | wgpu::BufferUsages::COPY_DST
@@ -61,7 +61,7 @@ impl Viewport {
         let bind_group = render_state
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("tilemap uniform bind group"),
+                label: Some("tilemap viewport uniform bind group"),
                 layout: &LAYOUT,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,

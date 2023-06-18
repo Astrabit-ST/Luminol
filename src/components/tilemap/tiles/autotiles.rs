@@ -78,7 +78,6 @@ impl Autotiles {
 
     pub fn inc_ani_index(&self) {
         let data = self.data.load();
-        println!("{data:#?}");
         self.data.store(Data {
             ani_index: data.ani_index.wrapping_add(1),
             ..data

@@ -349,6 +349,17 @@ impl Table3 {
         }
     }
 
+    #[must_use]
+    pub fn new_data(xsize: usize, ysize: usize, zsize: usize, data: Vec<i16>) -> Self {
+        assert_eq!(xsize * ysize * zsize, data.len());
+        Self {
+            xsize,
+            ysize,
+            zsize,
+            data,
+        }
+    }
+
     /// Width of the table.
     #[must_use]
     pub fn xsize(&self) -> usize {

@@ -41,7 +41,9 @@ pub struct Tilemap {
     resources: Arc<Resources>,
     ani_instant: Instant,
 
-    texture_id: egui::TextureId,
+    pub selected_tile: SelectedTile,
+    pub selected_layer: SelectedLayer,
+    pub cursor_pos: egui::Pos2,
 
     pub fog_enabled: bool,
     pub pano_enabled: bool,
@@ -50,10 +52,22 @@ pub struct Tilemap {
     pub scale: f32,
 }
 
-impl Drop for Tilemap {
-    fn drop(&mut self) {
-        let mut renderer = state!().render_state.renderer.write();
-        renderer.free_texture(&self.texture_id);
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum SelectedTile {
+    Autotile(i16),
+    Tile(i16),
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
+pub enum SelectedLayer {
+    #[default]
+    Events,
+    Tiles(usize),
+}
+
+impl Default for SelectedTile {
+    fn default() -> Self {
+        SelectedTile::Autotile(0)
     }
 }
 
@@ -61,12 +75,10 @@ impl Drop for Tilemap {
 struct Resources {
     tiles: tiles::Tiles,
     events: events::Events,
-    viewport: viewport::Viewport,
+    map_viewport: viewport::Viewport,
+    tilepicker_viewport: viewport::Viewport,
     panorama: Option<plane::Plane>,
     fog: Option<plane::Plane>,
-
-    render_tex: wgpu::Texture,
-    render_tex_view: wgpu::TextureView,
 }
 
 type ResourcesHash = HashMap<i32, Arc<Resources>>;
@@ -111,45 +123,24 @@ impl Tilemap {
                 map.height,
             ))
         };
-
-        let render_state = &state!().render_state;
-        let render_tex = render_state
-            .device
-            .create_texture(&wgpu::TextureDescriptor {
-                label: Some(&format!("tilemap map {map_id} render texture")),
-                size: wgpu::Extent3d {
-                    width: map.width as u32 * 32,
-                    height: map.height as u32 * 32,
-                    depth_or_array_layers: 1,
-                },
-                dimension: wgpu::TextureDimension::D2,
-                mip_level_count: 1,
-                sample_count: 1,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::TEXTURE_BINDING
-                    | wgpu::TextureUsages::COPY_SRC,
-                view_formats: &[],
-            });
-        let render_tex_view = render_tex.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut renderer = render_state.renderer.write();
-        let texture_id = renderer.register_native_texture(
-            &render_state.device,
-            &render_tex_view,
-            wgpu::FilterMode::Nearest,
-        );
-
-        let viewport = viewport::Viewport::new();
-        let proj = cgmath::ortho(
+        let map_viewport = viewport::Viewport::new();
+        map_viewport.set_proj(cgmath::ortho(
             0.0,
-            render_tex.width() as f32,
-            render_tex.height() as f32,
+            map.width as f32 * 32.,
+            map.height as f32 * 32.,
             0.0,
             -1.0,
             1.0,
-        );
-        viewport.set_proj(proj);
+        ));
+        let tilepicker_viewport = viewport::Viewport::new();
+        tilepicker_viewport.set_proj(cgmath::ortho(
+            0.0,
+            256.,
+            tiles.atlas.tileset_height as f32,
+            0.0,
+            -1.0,
+            1.0,
+        ));
 
         Ok(Self {
             visible_display: false,
@@ -159,18 +150,18 @@ impl Tilemap {
             resources: Arc::new(Resources {
                 tiles,
                 events,
-                viewport,
+                map_viewport,
+                tilepicker_viewport,
                 panorama,
                 fog,
-
-                render_tex,
-                render_tex_view,
             }),
-
-            texture_id,
 
             ani_instant: Instant::now(),
             map_id,
+
+            selected_layer: SelectedLayer::default(),
+            selected_tile: SelectedTile::default(),
+            cursor_pos: egui::Pos2::ZERO,
 
             fog_enabled: true,
             pano_enabled: true,
@@ -184,8 +175,6 @@ impl Tilemap {
         &mut self,
         ui: &mut egui::Ui,
         map: &rpg::Map,
-        cursor_pos: &mut egui::Pos2,
-        selected_layer: usize,
         dragging_event: bool,
     ) -> egui::Response {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
@@ -225,8 +214,11 @@ impl Tilemap {
             pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
             // Handle input
-            if selected_layer < map.data.zsize() || dragging_event || response.clicked() {
-                *cursor_pos = pos_tile.to_pos2();
+            if matches!(self.selected_layer, SelectedLayer::Tiles(_))
+                || dragging_event
+                || response.clicked()
+            {
+                self.cursor_pos = pos_tile.to_pos2();
             }
         }
 
@@ -272,75 +264,51 @@ impl Tilemap {
         let event_enabled = self.event_enabled;
         let enabled_layers = self.enabled_layers.clone();
 
-        let paint_callback = egui_wgpu::CallbackFn::new().prepare(
-            move |_device, _queue, encoder, paint_callback_resources| {
-                let Resources {
-                    tiles,
-                    events,
-                    viewport,
-                    panorama,
-                    fog,
-
-                    render_tex_view,
-                    ..
-                } = resources.as_ref();
+        let paint_callback = egui_wgpu::CallbackFn::new()
+            .prepare(move |_device, _queue, _, paint_callback_resources| {
                 let res_hash: &mut ResourcesHash = paint_callback_resources
                     .entry()
                     .or_insert_with(Default::default);
                 res_hash.insert(map_id, resources.clone());
 
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some(&format!("map {map_id} tilemap render pass")),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: render_tex_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
-                                a: 0.0,
-                            }),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                });
+                vec![]
+            })
+            .paint(move |_info, render_pass, paint_callback_resources| {
+                let res_hash: &ResourcesHash = paint_callback_resources.get().unwrap();
+                let resources = &res_hash[&map_id];
+                let Resources {
+                    tiles,
+                    map_viewport,
+                    panorama,
+                    fog,
+                    events,
+                    ..
+                } = resources.as_ref();
 
-                viewport.bind(&mut render_pass);
+                map_viewport.bind(render_pass);
 
                 if pano_enabled {
                     if let Some(panorama) = panorama {
-                        panorama.draw(&mut render_pass);
+                        panorama.draw(render_pass);
                     }
                 }
 
-                tiles.draw(&mut render_pass, &enabled_layers);
+                tiles.draw_map(render_pass, &enabled_layers);
 
                 if event_enabled {
-                    events.draw(&mut render_pass);
+                    events.draw(render_pass);
                 }
                 if fog_enabled {
                     if let Some(fog) = fog {
-                        fog.draw(&mut render_pass);
+                        fog.draw(render_pass);
                     }
                 }
-
-                vec![]
-            },
-        );
+            });
 
         ui.painter().add(egui::PaintCallback {
             rect: map_rect,
             callback: Arc::new(paint_callback),
         });
-
-        ui.painter().image(
-            self.texture_id,
-            map_rect,
-            egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(1., 1.)),
-            egui::Color32::WHITE,
-        );
 
         ui.painter().rect_stroke(
             map_rect,
@@ -387,7 +355,7 @@ impl Tilemap {
 
         // Display cursor.
         let cursor_rect = egui::Rect::from_min_size(
-            map_rect.min + (cursor_pos.to_vec2() * tile_size),
+            map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
             egui::Vec2::splat(tile_size),
         );
         ui.painter().rect_stroke(
@@ -399,34 +367,73 @@ impl Tilemap {
         response
     }
 
-    pub fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16) {
+    pub fn tilepicker(&mut self, ui: &mut egui::Ui) {
         let (canvas_rect, response) = ui.allocate_exact_size(
             egui::vec2(
                 tiles::TILESET_WIDTH as f32,
                 self.resources.tiles.atlas.tileset_height as f32,
             ),
-            egui::Sense::click(),
+            egui::Sense::click_and_drag(),
         );
 
+        let resources = self.resources.clone();
+        let map_id = self.map_id;
         ui.painter().add(egui::PaintCallback {
             rect: canvas_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
-                    .prepare(|device, queue, _encoder, paint_callback_resources| {
-                        //
+                    .prepare(move |_, _, _encoder, paint_callback_resources| {
+                        let res_hash: &mut ResourcesHash = paint_callback_resources
+                            .entry()
+                            .or_insert_with(Default::default);
+                        res_hash.insert(map_id, resources.clone());
+
                         vec![]
                     })
                     .paint(move |_info, render_pass, paint_callback_resources| {
                         //
+                        let res_hash: &ResourcesHash = paint_callback_resources.get().unwrap();
+                        let resources = &res_hash[&map_id];
+                        let Resources {
+                            tiles,
+                            tilepicker_viewport,
+                            ..
+                        } = resources.as_ref();
+
+                        tilepicker_viewport.bind(render_pass);
+                        tiles.draw_tilepicker(render_pass);
                     }),
             ),
         });
+
+        let pos = match self.selected_tile {
+            SelectedTile::Autotile(t) => egui::vec2(t as f32 * 32., 0.),
+            SelectedTile::Tile(t) => {
+                let tile_x = t % 8 * 32;
+                let tile_y = (t / 8) * 32 - 1_504;
+                egui::vec2(tile_x as f32, tile_y as f32)
+            }
+        };
+        let rect = egui::Rect::from_min_size(canvas_rect.min + pos, egui::Vec2::splat(32.));
+        ui.painter()
+            .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+
+        let Some(pos) = response.interact_pointer_pos() else {
+            return;
+        };
+        let pos = (pos - canvas_rect.min) / 32.;
+        let cursor_x = pos.x as i16;
+        let cursor_y = pos.y as i16;
+
+        if response.clicked() {
+            self.selected_tile = match cursor_y {
+                ..=0 => SelectedTile::Autotile(cursor_x),
+                _ => SelectedTile::Tile(cursor_x + (cursor_y - 1) * 8 + 384),
+            };
+        }
     }
 
-    pub fn texture_id(&self) -> egui::TextureId {
-        self.texture_id
-    }
-
+    /*
     pub fn save_to_disk(&self) {
         let render_state = &state!().render_state;
 
@@ -440,15 +447,15 @@ impl Tilemap {
         let Resources {
             tiles,
             events,
-            viewport,
+            map_viewport,
             panorama,
             fog,
-
-            render_tex,
-            render_tex_view,
             ..
         } = self.resources.as_ref();
         let map_id = self.map_id;
+        let render_tex: &wgpu::Texture = todo!();
+        let render_tex_view = todo!();
+
         let width = render_tex.width();
         let height = render_tex.height();
 
@@ -470,7 +477,7 @@ impl Tilemap {
             depth_stencil_attachment: None,
         });
 
-        viewport.bind(&mut render_pass);
+        map_viewport.bind(&mut render_pass);
 
         if self.pano_enabled {
             if let Some(panorama) = panorama {
@@ -478,7 +485,7 @@ impl Tilemap {
             }
         }
 
-        tiles.draw(&mut render_pass, &self.enabled_layers);
+        tiles.draw_map(&mut render_pass, &self.enabled_layers);
 
         if self.event_enabled {
             events.draw(&mut render_pass);
@@ -548,4 +555,5 @@ impl Tilemap {
             },
         );
     }
+    */
 }

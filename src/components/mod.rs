@@ -45,39 +45,8 @@ pub use toasts::Toasts;
 pub use top_bar::TopBar;
 
 /// The tilemap.
-mod tilemap {
-    use rmxp_types::rpg;
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "generic-tilemap")] {
-            mod generic_tilemap;
-            pub use generic_tilemap::Tilemap;
-        } else {
-            mod hardware_tilemap;
-            pub use hardware_tilemap::Tilemap;
-        }
-    }
-
-    /// A trait defining how a tilemap should function.
-    pub trait TilemapDef: Sized {
-        /// Create a new tilemap.
-        fn new(id: i32) -> Result<Self, String>;
-
-        /// Display the tilemap.
-        fn ui(
-            &mut self,
-            ui: &mut egui::Ui,
-            map: &rpg::Map,
-            cursor_pos: &mut egui::Pos2,
-            toggled_layers: &[bool],
-            selected_layer: usize,
-            dragging_event: bool,
-        ) -> egui::Response;
-
-        /// Display the tile picker.
-        fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
-    }
-}
+mod tilemap;
+pub use tilemap::*;
 
 // btw there's a buncha places this could be used
 // uhh in event edit there's an array of strings that gets itered over to do what this does lol
