@@ -40,8 +40,8 @@ const TILE_QUAD: Quad = Quad::new(
 );
 
 impl Instances {
-    pub fn new(map: &rpg::Map, atlas_size: wgpu::Extent3d) -> Self {
-        let instances = Self::calculate_instances(&map.data);
+    pub fn new(map_data: &Table3, atlas_size: wgpu::Extent3d) -> Self {
+        let instances = Self::calculate_instances(map_data);
         let instance_buffer =
             state!()
                 .render_state

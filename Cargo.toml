@@ -25,7 +25,7 @@ eframe = { version = "0.22", features = [
 ], default-features = false }
 egui_extras = { version = "0.22", features = ["svg", "image"] }
 egui-notify = { version = "0.6", git = "https://github.com/ItsEthra/egui-notify" } # temporary patch
-egui_dock = "0.6"
+egui_dock = { version = "0.6", git = "https://github.com/Adanos020/egui_dock" }
 catppuccin-egui = "3.0.0"
 
 cgmath = "0.18"
@@ -51,7 +51,9 @@ dashmap = "5.4.0"
 crossbeam = "0.8"
 
 futures = "0.3"
-poll-promise = { version = "0.2.0", features = ["smol"] }
+poll-promise = { version = "0.2.0", features = [
+    "smol",
+], git = "https://github.com/EmbarkStudios/poll-promise" }
 surf = "2.3.2"
 
 slab = { version = "0.4", features = ["serde"] }
@@ -127,13 +129,6 @@ opt-level = 3
 members = ["alox-48", "command-lib", "rmxp-types", "luminol-term"]
 
 [patch.crates-io]
-poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }
-egui_dock = { git = "https://github.com/Adanos020/egui_dock" }
-# js-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-# web-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-# wasm-bindgen = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-
-
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
 # eframe = { git = "https://github.com/emilk/egui", branch = "master" }

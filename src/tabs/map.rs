@@ -24,14 +24,9 @@ use crate::prelude::*;
 pub struct Tab {
     /// ID of the map that is being edited.
     pub id: i32,
-    /// Selected layer.
-    pub selected_layer: usize,
-    /// The cursor position.
-    pub cursor_pos: Pos2,
     /// The tilemap.
     pub tilemap: Tilemap,
-    /// The selected tile in the tile picker.
-    pub selected_tile: i16,
+
     dragged_event: usize,
     dragging_event: bool,
     event_windows: window::Windows,
@@ -44,10 +39,7 @@ impl Tab {
         let map = state!().data_cache.map(id);
         Ok(Self {
             id,
-            selected_layer: map.data.zsize(),
-            cursor_pos: Pos2::ZERO,
             tilemap: Tilemap::new(id, &map)?,
-            selected_tile: 0,
             dragged_event: 0,
             dragging_event: false,
             event_windows: window::Windows::default(),
@@ -75,8 +67,6 @@ impl tab::Tab for Tab {
 
         // Get the map.
         let mut map = state.data_cache.map(self.id);
-        let tileset = state.data_cache.tilesets();
-        let tileset = &tileset[map.tileset_id as usize - 1];
 
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
@@ -89,14 +79,11 @@ impl tab::Tab for Tab {
 
                 ui.separator();
 
-                // Find the number of layers.
-                let layers = map.data.zsize();
                 ui.menu_button(
                     // Format the text based on what layer is selected.
-                    if self.selected_layer == layers {
-                        "Events ⏷".to_string()
-                    } else {
-                        format!("Layer {} ⏷", self.selected_layer + 1)
+                    match self.tilemap.selected_layer {
+                        SelectedLayer::Events => "Events ⏷".to_string(),
+                        SelectedLayer::Tiles(layer) => format!("Layer {layer} ⏷"),
                     },
                     |ui| {
                         // TODO: Add layer enable button
@@ -109,8 +96,8 @@ impl tab::Tab for Tab {
                             for (index, layer) in self.tilemap.enabled_layers.iter_mut().enumerate()
                             {
                                 columns[0].selectable_value(
-                                    &mut self.selected_layer,
-                                    index,
+                                    &mut self.tilemap.selected_layer,
+                                    SelectedLayer::Tiles(index),
                                     format!("Layer {}", index + 1),
                                 );
                                 columns[1].checkbox(layer, "👁");
@@ -118,8 +105,8 @@ impl tab::Tab for Tab {
 
                             // Display event layer.
                             columns[0].selectable_value(
-                                &mut self.selected_layer,
-                                layers,
+                                &mut self.tilemap.selected_layer,
+                                SelectedLayer::Events,
                                 egui::RichText::new("Events").italics(),
                             );
                             columns[1].checkbox(&mut self.tilemap.event_enabled, "👁");
@@ -135,9 +122,11 @@ impl tab::Tab for Tab {
                 ui.checkbox(&mut self.tilemap.visible_display, "Display Visible Area");
                 ui.checkbox(&mut self.tilemap.move_preview, "Preview event move routes");
 
+                /*
                 if ui.button("Save map preview").clicked() {
                     self.tilemap.save_to_disk();
                 }
+                */
 
                 if map.preview_move_route.is_some()
                     && ui.button("Clear move route preview").clicked()
@@ -152,73 +141,17 @@ impl tab::Tab for Tab {
             .default_width(256.)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    self.tilemap.tilepicker(ui, &mut self.selected_tile);
+                    self.tilemap.tilepicker(ui);
                 });
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let response = self.tilemap.ui(
-                    ui,
-                    &map,
-                    &mut self.cursor_pos,
-                    self.selected_layer,
-                    self.dragging_event,
-                );
+                let response = self.tilemap.ui(ui, &map, self.dragging_event);
 
                 let layers_max = map.data.zsize();
-                let map_x = self.cursor_pos.x as i32;
-                let map_y = self.cursor_pos.y as i32;
-
-                if response.dragged()
-                    && self.selected_layer < layers_max
-                    && !ui.input(|i| i.modifiers.command)
-                {
-                    map.data[(map_x as usize, map_y as usize, self.selected_layer)] =
-                        self.selected_tile + 384;
-                } else if self.selected_layer >= layers_max {
-                    if response.double_clicked() {
-                        if let Some((id, event)) = map
-                            .events
-                            .iter()
-                            .find(|(_, event)| event.x == map_x && event.y == map_y)
-                        {
-                            self.event_windows.add_window(event_edit::Window::new(
-                                id,
-                                self.id,
-                                event.clone(),
-                                tileset.tileset_name.clone(),
-                            ));
-                        } else {
-                            let id = map.events.vacant_key();
-                            let event = rpg::Event::new(map_x, map_y, id);
-
-                            map.events.insert(event.clone());
-
-                            self.event_windows.add_window(event_edit::Window::new(
-                                id,
-                                self.id,
-                                event,
-                                tileset.tileset_name.clone(),
-                            ));
-                        }
-                        self.dragging_event = false;
-                    } else if response.drag_started() && response.clicked() {
-                        if let Some((id, _)) = map
-                            .events
-                            .iter()
-                            .find(|(_, event)| event.x == map_x && event.y == map_y)
-                        {
-                            self.dragged_event = id;
-                            self.dragging_event = true;
-                        }
-                    } else if response.dragged() && self.dragging_event {
-                        map.events[self.dragged_event].x = map_x;
-                        map.events[self.dragged_event].y = map_y;
-                    } else {
-                        self.dragging_event = false;
-                    }
-                }
+                let map_x = self.tilemap.cursor_pos.x as i32;
+                let map_y = self.tilemap.cursor_pos.y as i32;
 
                 if ui.input(|i| {
                     i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)

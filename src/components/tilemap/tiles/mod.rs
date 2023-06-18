@@ -51,23 +51,37 @@ use shader::Shader;
 pub struct Tiles {
     pub autotiles: Autotiles,
     pub atlas: Atlas,
-    pub instances: Instances,
+    pub map_instances: Instances,
+    pub tilepicker_instances: Instances,
 }
 
 impl Tiles {
     pub fn new(tileset: &rpg::Tileset, map: &rpg::Map) -> Result<Self, String> {
         let atlas = Atlas::new(tileset)?;
         let autotiles = Autotiles::new(&atlas);
-        let instances = Instances::new(map, atlas.atlas_texture.size());
+        let map_instances = Instances::new(&map.data, atlas.atlas_texture.size());
+
+        let tilepicker_data = [0, 48, 96, 144, 192, 240, 288, 336]
+            .into_iter()
+            .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
+            .collect_vec();
+        let tilepicker_data = Table3::new_data(
+            8,
+            1 + (atlas.tileset_height / 32) as usize,
+            1,
+            tilepicker_data,
+        );
+        let tilepicker_instances = Instances::new(&tilepicker_data, atlas.atlas_texture.size());
 
         Ok(Self {
             autotiles,
             atlas,
-            instances,
+            map_instances,
+            tilepicker_instances,
         })
     }
 
-    pub fn draw<'rpass>(
+    pub fn draw_map<'rpass>(
         &'rpass self,
         render_pass: &mut wgpu::RenderPass<'rpass>,
         enabled_layers: &[bool],
@@ -76,7 +90,16 @@ impl Tiles {
         Shader::bind(render_pass);
         self.autotiles.bind(render_pass);
         self.atlas.bind(render_pass);
-        self.instances.draw(render_pass);
+        self.map_instances.draw(render_pass);
+        render_pass.pop_debug_group();
+    }
+
+    pub fn draw_tilepicker<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.push_debug_group("tilemap tiles renderer");
+        Shader::bind(render_pass);
+        self.autotiles.bind(render_pass);
+        self.atlas.bind(render_pass);
+        self.tilepicker_instances.draw(render_pass);
         render_pass.pop_debug_group();
     }
 }

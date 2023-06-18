@@ -1545,8 +1545,8 @@ dependencies = [
 
 [[package]]
 name = "egui_dock"
-version = "0.6.2"
-source = "git+https://github.com/Adanos020/egui_dock#9257bd756de762824b89698cf614c97b1e925bde"
+version = "0.6.3"
+source = "git+https://github.com/Adanos020/egui_dock#45d340318eb4bfe1c54cb29c9400017530607bfe"
 dependencies = [
  "duplicate",
  "egui",
@@ -3806,7 +3806,7 @@ dependencies = [
 [[package]]
 name = "poll-promise"
 version = "0.2.0"
-source = "git+https://github.com/EmbarkStudios/poll-promise?rev=8c4d0d6e4d693cf54e9306950cb2f6d271c77080#8c4d0d6e4d693cf54e9306950cb2f6d271c77080"
+source = "git+https://github.com/EmbarkStudios/poll-promise#b493586107b0e508860aa2e9d18049fd8cd9d13f"
 dependencies = [
  "smol",
  "static_assertions",
