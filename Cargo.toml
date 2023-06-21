@@ -84,6 +84,9 @@ luminol-term = { version = "*", path = "luminol-term" }
 
 rfd = "0.11"
 
+mlua = { version = "0.8.9", features = ["luau", "send"] }
+toml = "0.7.4"
+
 [features]
 default = ["generic-tilemap"]
 generic-tilemap = []

@@ -40,6 +40,10 @@
 )]
 #![deny(unsafe_code)]
 #![feature(drain_filter, min_specialization)]
+#[macro_use]
+extern crate serde;
+#[macro_use]
+extern crate cfg_if;
 
 pub use prelude::*;
 
@@ -76,6 +80,9 @@ pub mod filesystem;
 
 /// The code for handling lumi, the friendly world machine!
 pub mod lumi;
+
+/// Lua-powered plugin loader and Application Programming Interface module.
+pub mod plugin;
 
 pub use luminol::Luminol;
 use saved_state::SavedState;
