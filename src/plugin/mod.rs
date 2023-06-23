@@ -185,7 +185,12 @@ impl Loader {
         }
         Err(Error::NotFound)
     }
+    pub fn reload<Id: ToString>(&self, id: Id) -> Result<()> {
+        let id = id.to_string();
 
+        self.unload(id.clone());
+        self.load(id)
+    }
     pub fn unload<Id: ToString>(&self, id: Id) {
         self.plugins.remove(&id.to_string());
     }
