@@ -186,6 +186,10 @@ impl Loader {
         Err(Error::NotFound)
     }
 
+    pub fn unload<Id: ToString>(&self, id: Id) {
+        self.plugins.remove(&id.to_string());
+    }
+
     pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
         if let Some(mut entry) = self.plugins.get_mut(&id.to_string()) {
             let lua = LUA.lock();
