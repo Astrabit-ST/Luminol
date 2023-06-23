@@ -33,7 +33,7 @@ impl window::Window for Window {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            let mut config = state!().data_cache.config();
+            let mut config = project_config!();
 
             ui.label("Project name");
             ui.text_edit_singleline(&mut config.project_name);
@@ -43,7 +43,7 @@ impl window::Window for Window {
             egui::ComboBox::from_label("RGSS Version")
                 .selected_text(config.rgss_ver.to_string())
                 .show_ui(ui, |ui| {
-                    for ver in RGSSVer::iter() {
+                    for ver in config::RGSSVer::iter() {
                         ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
                     }
                 });

@@ -15,51 +15,50 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use eframe::wgpu::util::DeviceExt;
+use once_cell::sync::Lazy;
+
 use crate::prelude::*;
-use glow::HasContext;
 
 #[derive(Default)]
 pub struct Cache {
     // FIXME: This may not handle reloading textures properly.
     egui_imgs: dashmap::DashMap<String, Arc<RetainedImage>>,
-    glow_imgs: dashmap::DashMap<String, Arc<GlTexture>>,
+    glow_imgs: dashmap::DashMap<String, Arc<WgpuTexture>>,
 }
 
-pub struct GlTexture {
-    raw: glow::Texture,
-    width: u32,
-    height: u32,
+#[derive(Debug)]
+pub struct WgpuTexture {
+    pub texture: wgpu::Texture,
+    pub bind_group: wgpu::BindGroup,
 }
 
-impl GlTexture {
-    /// # Safety
-    /// Do not free the returned texture using glow::Context::delete_texture.
-    #[allow(unsafe_code)]
-    pub unsafe fn raw(&self) -> glow::Texture {
-        self.raw
+impl WgpuTexture {
+    pub fn new(texture: wgpu::Texture, bind_group: wgpu::BindGroup) -> Self {
+        Self {
+            texture,
+            bind_group,
+        }
     }
 
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    pub fn height(&self) -> u32 {
-        self.height
+    pub fn size(&self) -> wgpu::Extent3d {
+        self.texture.size()
     }
 
     pub fn size_vec2(&self) -> egui::Vec2 {
-        egui::vec2(self.width as _, self.height as _)
+        egui::vec2(self.texture.width() as _, self.texture.height() as _)
     }
-}
 
-impl Drop for GlTexture {
-    fn drop(&mut self) {
-        // Delete the texture on drop.
-        // This assumes that the texture is valid.
-        #[allow(unsafe_code)]
-        unsafe {
-            state!().gl.delete_texture(self.raw)
-        }
+    pub fn width(&self) -> u32 {
+        self.texture.width()
+    }
+
+    pub fn height(&self) -> u32 {
+        self.texture.height()
+    }
+
+    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
     }
 }
 
@@ -75,77 +74,120 @@ impl Cache {
         let entry = self
             .egui_imgs
             .entry(format!("{directory}/{filename}"))
-            .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
-                    entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
-                }) else {
-                    return  Err("image not found".to_string());
-                };
-
-                egui_extras::RetainedImage::from_image_bytes(
+            .or_try_insert_with(|| -> Result<_, String> {
+                let image = self.load_image(directory, filename)?.into_rgba8();
+                let image = egui_extras::RetainedImage::from_color_image(
                     format!("{directory}/{filename}"),
-                    std::fs::read(f.path())
-                        .map_err(|e| e.to_string())?
-                        .as_slice(),
+                    egui::ColorImage::from_rgba_unmultiplied(
+                        [image.width() as usize, image.height() as usize],
+                        &image,
+                    ),
                 )
-                .map(|i| i.with_options(egui::TextureOptions::NEAREST))
-                .map(Arc::new)
+                .with_options(egui::TextureOptions::NEAREST);
+                Ok(Arc::new(image))
             })?;
         Ok(Arc::clone(&entry))
     }
 
-    /// # Safety
-    /// Do not free the returned texture using glow::Context::delete_texture.
-    /// All other safety rules when working with OpenGl apply.
-    #[allow(unsafe_code)]
-    pub unsafe fn load_glow_image(
+    pub fn load_image(
+        &self,
+        directory: impl AsRef<camino::Utf8Path>,
+        filename: impl AsRef<camino::Utf8Path>,
+    ) -> Result<image::DynamicImage, String> {
+        let path = directory.as_ref().join(filename);
+        let image =
+            image::load_from_memory(&state!().filesystem.read(path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+        Ok(image)
+    }
+
+    pub fn create_texture_bind_group(texture: &wgpu::Texture) -> wgpu::BindGroup {
+        let render_state = &state!().render_state;
+        // We *really* don't care about the fields here.
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // We want our texture to use Nearest filtering and repeat.
+        // The only time our texture should be repeating is for fogs and panoramas.
+        let sampler = render_state
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::Repeat,
+                address_mode_v: wgpu::AddressMode::Repeat,
+                address_mode_w: wgpu::AddressMode::Repeat,
+                mag_filter: wgpu::FilterMode::Nearest,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            });
+
+        // Create the bind group
+        // Again, I have no idea why its setup this way
+        render_state
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: Self::bind_group_layout(),
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                ],
+            })
+    }
+
+    pub fn load_wgpu_image(
         &self,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
-    ) -> Result<Arc<GlTexture>, String> {
+    ) -> Result<Arc<WgpuTexture>, String> {
         let directory = directory.as_ref();
         let filename = filename.as_ref();
 
         let entry = self
             .glow_imgs
             .entry(format!("{directory}/{filename}"))
-            .or_try_insert_with(|| {
-                let Some(f) = state!().filesystem.dir_children(directory)?.map(Result::unwrap).find(|entry| {
-                    entry.path().file_stem() == Some(std::ffi::OsStr::new(filename))
-                }) else {
-                    return  Err("image not found".to_string());
-                };
-
-                let image = image::open(f.path())
-                    .map_err(|e| e.to_string())?;
+            .or_try_insert_with(|| -> Result<_, String> {
                 // We force the image to be rgba8 to avoid any weird texture errors.
-                // If the image was not rgba8 (say it was rgb8) we would also get a segfault as opengl is expecting a series of bytes with the len of width * height * 4.
-                let image = image.to_rgba8();
+                // If the image was not rgba8 (say it was rgb8) we would get weird texture errors
+                let image = self.load_image(directory, filename)?.into_rgba8();
                 // Check that the image will fit into the texture
                 // If we dont perform this check, we may get a segfault (dont ask me how i know this)
                 assert_eq!(image.len() as u32, image.width() * image.height() * 4);
-
-                let raw = state!().gl.create_texture()?;
-                state!().gl.bind_texture(glow::TEXTURE_2D, Some(raw));
-
-                state!().gl.tex_image_2d(
-                    glow::TEXTURE_2D,
-                    0,
-                    glow::RGBA as _,
-                    image.width() as _,
-                    image.height() as _,
-                    0,
-                    glow::RGBA,
-                    glow::UNSIGNED_BYTE,
-                    Some(image.as_raw()),
+                let render_state = &state!().render_state;
+                // Create the texture and upload the data at the same time.
+                // This is just a utility function to avoid boilerplate
+                let texture = render_state.device.create_texture_with_data(
+                    &render_state.queue,
+                    &wgpu::TextureDescriptor {
+                        label: Some(&format!("{directory}/{filename}")),
+                        size: wgpu::Extent3d {
+                            width: image.width(),
+                            height: image.height(),
+                            depth_or_array_layers: 1,
+                        },
+                        dimension: wgpu::TextureDimension::D2,
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        usage: wgpu::TextureUsages::COPY_SRC
+                            | wgpu::TextureUsages::COPY_DST
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                        view_formats: &[],
+                    },
+                    &image,
                 );
-                state!().gl.generate_mipmap(glow::TEXTURE_2D);
+                let bind_group = Self::create_texture_bind_group(&texture);
 
-                Ok(Arc::new(GlTexture {
-                    raw,
-                    width: image.width(),
-                    height: image.height(),
-                }))
+                let texture = WgpuTexture {
+                    texture,
+                    bind_group,
+                };
+
+                Ok(Arc::new(texture))
             })?;
         Ok(Arc::clone(&entry))
     }
@@ -154,4 +196,40 @@ impl Cache {
         self.egui_imgs.clear();
         self.glow_imgs.clear();
     }
+
+    pub fn bind_group_layout() -> &'static wgpu::BindGroupLayout {
+        &LAYOUT
+    }
 }
+
+static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
+    let render_state = &state!().render_state;
+
+    render_state
+        .device
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            // I just copy pasted this stuff from the wgpu guide.
+            // No clue why I need it.
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        })
+});

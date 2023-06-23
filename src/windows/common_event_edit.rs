@@ -52,7 +52,7 @@ impl window::Window for Window {
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let common_events = state!().data_cache.commonevents();
+                    let common_events = state!().data_cache.common_events();
 
                     egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
                         ui,
@@ -143,7 +143,7 @@ impl tab::Tab for CommonEventTab {
             }
 
             if save_event {
-                let mut common_events = state!().data_cache.commonevents();
+                let mut common_events = state!().data_cache.common_events();
 
                 common_events[self.event.id - 1] = self.event.clone();
             }
@@ -158,7 +158,7 @@ impl tab::Tab for CommonEventTab {
             .auto_shrink([false; 2])
             .show(ui, |ui| {
                 self.command_view
-                    .ui(ui, &state!().data_cache.commanddb(), &mut self.event.list);
+                    .ui(ui, &command_db!(), &mut self.event.list);
             });
     }
 

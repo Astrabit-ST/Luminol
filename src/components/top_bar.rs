@@ -55,7 +55,7 @@ impl TopBar {
 
         ui.menu_button("File", |ui| {
             ui.label(if let Some(path) = state.filesystem.project_path() {
-                format!("Current project:\n{}", path.display())
+                format!("Current project:\n{}", path)
             } else {
                 "No project open".to_string()
             });
@@ -70,13 +70,13 @@ impl TopBar {
 
             ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    state.windows.add_window(config::Window {});
+                    state.windows.add_window(config_window::Window {});
                 }
 
                 if ui.button("Close Project").clicked() {
-                    state.filesystem.unload_project();
                     state.windows.clean_windows();
                     state.tabs.clean_tabs(|t| t.requires_filesystem());
+                    state.filesystem.unload_project();
                 }
 
                 save_project |= ui.button("Save Project").clicked();
@@ -131,7 +131,7 @@ impl TopBar {
                 *style = ui.ctx().style();
             });
 
-            let theme = &mut state.saved_state.borrow_mut().theme;
+            let theme = &mut global_config!().theme;
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
 
@@ -275,7 +275,7 @@ impl TopBar {
 
         if save_project {
             state.toasts.info("Saving project...");
-            match state.filesystem.save_cached() {
+            match state.data_cache.save() {
                 Ok(_) => state.toasts.info("Saved project sucessfully!"),
                 Err(e) => state.toasts.error(e),
             }

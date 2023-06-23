@@ -18,20 +18,26 @@ use crate::prelude::*;
 use std::collections::VecDeque;
 
 /// The state saved by Luminol between sessions.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(default)]
-pub struct SavedState {
+pub struct Config {
     /// Recently open projects.
     pub recent_projects: VecDeque<String>,
     /// The current code theme
     pub theme: syntax_highlighting::CodeTheme,
 }
 
-impl Default for SavedState {
+impl Default for Config {
     fn default() -> Self {
-        SavedState {
-            recent_projects: VecDeque::with_capacity(10),
-            theme: syntax_highlighting::CodeTheme::default(),
+        Self::new()
+    }
+}
+
+impl Config {
+    pub const fn new() -> Self {
+        Self {
+            recent_projects: VecDeque::new(),
+            theme: syntax_highlighting::CodeTheme::dark(),
         }
     }
 }

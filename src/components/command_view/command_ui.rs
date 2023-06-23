@@ -23,7 +23,7 @@ impl CommandView {
     pub fn command_ui<'i, I>(
         &mut self,
         ui: &mut egui::Ui,
-        db: &CommandDB,
+        db: &config::CommandDB,
         (index, command): (usize, &'i mut rpg::EventCommand),
         iter: &mut std::iter::Peekable<I>,
     ) where
@@ -145,7 +145,7 @@ impl CommandView {
                         Color32::YELLOW
                     ));
                     if highlight {
-                        let theme = state!().saved_state.borrow().theme;
+                        let theme = global_config!().theme;
 
                         ui.selectable_value(
                             &mut self.selected_index,

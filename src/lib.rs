@@ -25,21 +25,32 @@
 #![warn(rust_2018_idioms)]
 #![warn(
     clippy::all,
-    // clippy::pedantic,
     clippy::panic,
     clippy::panic_in_result_fn,
     clippy::panicking_unwrap,
-    // clippy::unwrap_used,
-    clippy::unnecessary_wraps
+    clippy::unnecessary_wraps,
+    // unsafe code is sometimes fine but in general we don't want to use it.
+    unsafe_code,
 )]
+// These may be turned on in the future.
+// #![warn(clippy::unwrap, clippy::pedantic)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::doc_markdown,
     clippy::missing_panics_doc,
     clippy::too_many_lines
 )]
-#![deny(unsafe_code)]
-#![feature(drain_filter, min_specialization)]
+// You must provide a safety doc. DO NOT TURN OFF THESE LINTS.
+#![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
+// Okay, lemme run through *why* some of these are enabled
+// 1) drain filter
+// drain filter saves on code complexity and unecessary allocations
+// as far as i can tell, it is close to stabilization.
+// 2) min_specialization
+// min_specialization is used in alox-48 to deserialize extra data types.
+// 3) int_roundings
+// int_roundings is close to stabilization.
+#![feature(drain_filter, min_specialization, int_roundings)]
 
 pub use prelude::*;
 
@@ -47,11 +58,11 @@ pub use prelude::*;
 pub mod luminol;
 
 pub mod prelude;
-/// The state Luminol saves on shutdown.
-pub mod saved_state;
 
 /// Audio related structs and funtions.
 pub mod audio;
+
+pub mod config;
 
 pub mod cache;
 
@@ -65,8 +76,6 @@ pub mod windows;
 /// Stack defined windows that edit values.
 pub mod modals;
 
-/// Structs related to Luminol's internal data.
-pub mod project;
 /// Tabs to be displayed in the center of Luminol.
 pub mod tabs;
 
@@ -81,7 +90,6 @@ pub mod lumi;
 pub mod plugin;
 
 pub use luminol::Luminol;
-use saved_state::SavedState;
 use tabs::tab::Tab;
 
 /// Embedded icon 256x256 in size.
@@ -107,7 +115,7 @@ pub enum Pencil {
 /// Passed to windows and widgets when updating.
 pub struct State {
     /// Filesystem to be passed around.
-    pub filesystem: filesystem::Filesystem,
+    pub filesystem: filesystem::ProjectFS,
     /// The data cache.
     pub data_cache: data::Cache,
     pub image_cache: image_cache::Cache,
@@ -119,10 +127,7 @@ pub struct State {
     pub audio: audio::Audio,
     /// Toasts to be displayed.
     pub toasts: Toasts,
-    /// The gl context.
-    pub gl: Arc<glow::Context>,
-    /// State to be saved.
-    pub saved_state: AtomicRefCell<SavedState>,
+    pub render_state: egui_wgpu::RenderState,
     /// Toolbar state
     pub toolbar: AtomicRefCell<ToolbarState>,
 }
@@ -131,17 +136,16 @@ static_assertions::assert_impl_all!(State: Send, Sync);
 
 impl State {
     /// Create a new UpdateInfo.
-    pub fn new(gl: Arc<glow::Context>, state: SavedState) -> Self {
+    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         Self {
-            filesystem: filesystem::Filesystem::default(),
+            filesystem: filesystem::ProjectFS::default(),
             data_cache: data::Cache::default(),
             image_cache: image_cache::Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
-            gl,
-            saved_state: AtomicRefCell::new(state),
+            render_state,
             toolbar: AtomicRefCell::default(),
         }
     }

@@ -19,7 +19,6 @@ use rodio::Decoder;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 
 use crate::prelude::*;
-use std::io::Cursor;
 
 use strum::Display;
 use strum::EnumIter;
@@ -66,22 +65,31 @@ impl Default for Audio {
 
 impl Audio {
     /// Play a sound on a source.
-    pub fn play(&self, path: String, volume: u8, pitch: u8, source: Source) -> Result<(), String> {
+    pub fn play(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+        volume: u8,
+        pitch: u8,
+        source: Source,
+    ) -> Result<(), String> {
         let mut inner = self.inner.lock();
         // Create a sink
         let sink = Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
 
-        // Append the sound
-        let cursor = Cursor::new(state!().filesystem.read_bytes(path)?);
+        let file = state!()
+            .filesystem
+            .open_file(path, filesystem::OpenFlags::Read)
+            .map_err(|e| e.to_string())?;
+
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {
                 // Non looping
-                sink.append(Decoder::new(cursor).map_err(|e| e.to_string())?);
+                sink.append(Decoder::new(file).map_err(|e| e.to_string())?);
             }
             _ => {
                 // Looping
-                sink.append(Decoder::new_looped(cursor).map_err(|e| e.to_string())?);
+                sink.append(Decoder::new_looped(file).map_err(|e| e.to_string())?);
             }
         }
 

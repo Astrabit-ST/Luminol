@@ -88,19 +88,29 @@ impl tab::Tab for Tab {
 
             ui.heading("Recent");
 
-            for path in &state.saved_state.borrow().recent_projects {
+            for path in &global_config!().recent_projects {
                 if ui.button(path).clicked() {
                     let path = path.clone();
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
-                        if let Err(why) = state.filesystem.try_open_project(path) {
+                        if let Err(why) = state.filesystem.load_project(path) {
                             state
                                 .toasts
                                 .error(format!("Error loading the project: {why}"));
+                        } else {
+                            state!().toasts.info(format!(
+                                "Successfully opened {:?}",
+                                state!()
+                                    .filesystem
+                                    .project_path()
+                                    .expect("project not open")
+                            ));
                         }
                     }));
                 }
             }
         }
+
+        state!().filesystem.debug_ui(ui);
     }
 }

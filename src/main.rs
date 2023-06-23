@@ -24,22 +24,37 @@ use color_eyre::Result;
 fn main() -> Result<()> {
     #[cfg(debug_assertions)]
     std::thread::spawn(|| loop {
+        use std::fmt::Write;
+
         std::thread::sleep(std::time::Duration::from_secs(5));
+
         let deadlocks = parking_lot::deadlock::check_deadlock();
         if deadlocks.is_empty() {
             continue;
         }
 
-        println!("Luminol has deadlocked! Please file an issue.");
-        println!("{} deadlocks detected", deadlocks.len());
+        rfd::MessageDialog::new()
+            .set_title("Fatal Error")
+            .set_level(rfd::MessageLevel::Error)
+            .set_description(&format!(
+                "Luminol has deadlocked! Please file an issue.\n{} deadlocks detected",
+                deadlocks.len()
+            ))
+            .show();
         for (i, threads) in deadlocks.iter().enumerate() {
-            println!("Deadlock #{}", i);
+            let mut description = String::new();
             for t in threads {
-                println!("Thread Id {:#?}", t.thread_id());
-                println!("{:#?}", t.backtrace());
+                writeln!(description, "Thread Id {:#?}", t.thread_id()).unwrap();
+                writeln!(description, "{:#?}", t.backtrace()).unwrap();
             }
+            rfd::MessageDialog::new()
+                .set_title(&format!("Deadlock #{i}"))
+                .set_level(rfd::MessageLevel::Error)
+                .set_description(&description)
+                .show();
         }
-        std::process::exit(1);
+
+        std::process::abort();
     });
 
     // Log to stdout (if you run with `RUST_LOG=debug`).
@@ -62,6 +77,18 @@ fn main() -> Result<()> {
             height: image.height(),
             rgba: image.into_bytes(),
         }),
+        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
+            supported_backends: eframe::wgpu::util::backend_bits_from_env()
+                .unwrap_or(eframe::wgpu::Backends::PRIMARY),
+            device_descriptor: luminol::Arc::new(|_| {
+                eframe::wgpu::DeviceDescriptor {
+                    label: Some("luminol device descriptor"),
+                    // features: eframe::wgpu::Features::POLYGON_MODE_LINE,
+                    ..Default::default()
+                }
+            }),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
