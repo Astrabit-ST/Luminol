@@ -18,9 +18,11 @@ use std::io;
 
 #[derive(Debug)]
 pub enum Error {
+    AlreadyLoaded,
     NotFound,
     ExpectedRelativePath,
     ExpectedFileName,
+
     Lua(mlua::Error),
     Io(io::Error),
     TomlParser(toml::de::Error),

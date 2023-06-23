@@ -145,45 +145,49 @@ impl Loader {
 
     pub fn load<Id: ToString>(&self, id: Id) -> Result<()> {
         let id = id.to_string();
-        for path in &self.lookup_paths {
-            fs::DirBuilder::new().recursive(true).create(path)?;
-            for direntry in fs::read_dir(path)?.flatten() {
-                let mut path = direntry.path();
-                path.push("plugin.toml");
-
-                if !path.exists() {
-                    continue;
-                }
-
-                let manifest = Manifest::from_file(path).unwrap();
-                if manifest.id == id {
-                    if manifest.main_file.is_absolute() {
-                        return Err(Error::ExpectedRelativePath);
-                    }
-                    if manifest.main_file.is_dir() {
-                        return Err(Error::ExpectedFileName);
-                    }
+        Err(if self.plugins.contains_key(&id) {
+            Error::AlreadyLoaded
+        } else {
+            for path in &self.lookup_paths {
+                fs::DirBuilder::new().recursive(true).create(path)?;
+                for direntry in fs::read_dir(path)?.flatten() {
                     let mut path = direntry.path();
-                    path.push(&manifest.main_file);
-                    let code = fs::read_to_string(path)?;
+                    path.push("plugin.toml");
 
-                    let lua = lua!();
-                    let function = lua.load(&code).into_function()?;
-                    let entry_fn = lua.create_registry_value(function)?;
+                    if !path.exists() {
+                        continue;
+                    }
 
-                    self.plugins.insert(
-                        manifest.id.clone(),
-                        LoadedPlugin {
-                            manifest,
-                            entry_fn,
-                            thread: None,
-                        },
-                    );
-                    return Ok(());
+                    let manifest = Manifest::from_file(path).unwrap();
+                    if manifest.id == id {
+                        if manifest.main_file.is_absolute() {
+                            return Err(Error::ExpectedRelativePath);
+                        }
+                        if manifest.main_file.is_dir() {
+                            return Err(Error::ExpectedFileName);
+                        }
+                        let mut path = direntry.path();
+                        path.push(&manifest.main_file);
+                        let code = fs::read_to_string(path)?;
+
+                        let lua = lua!();
+                        let function = lua.load(&code).into_function()?;
+                        let entry_fn = lua.create_registry_value(function)?;
+
+                        self.plugins.insert(
+                            manifest.id.clone(),
+                            LoadedPlugin {
+                                manifest,
+                                entry_fn,
+                                thread: None,
+                            },
+                        );
+                        return Ok(());
+                    }
                 }
             }
-        }
-        Err(Error::NotFound)
+            Error::NotFound
+        })
     }
     pub fn reload<Id: ToString>(&self, id: Id) -> Result<()> {
         let id = id.to_string();
