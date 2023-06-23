@@ -23,7 +23,6 @@ use std::{
     env,
     fmt::Debug,
     fs,
-    io::Read,
     path::{Path, PathBuf},
 };
 
@@ -107,11 +106,7 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let mut file = fs::OpenOptions::new().read(true).open(path)?;
-        let mut buffer = String::new();
-        file.read_to_string(&mut buffer)?;
-
-        Self::from_string(buffer)
+        Self::from_string(fs::read_to_string(path)?)
     }
 
     pub fn from_string<S: ToString>(string: S) -> Result<Self> {
@@ -149,19 +144,18 @@ impl Loader {
     }
 
     pub fn load<Id: ToString>(&self, id: Id) -> Result<()> {
-        println!("{self:?}");
         let id = id.to_string();
         for path in &self.lookup_paths {
             fs::DirBuilder::new().recursive(true).create(path)?;
-            for direntry in fs::read_dir(path)? {
-                let mut path = direntry?.path();
+            for direntry in fs::read_dir(path)?.flatten() {
+                let mut path = direntry.path();
                 path.push("plugin.toml");
 
                 if !path.exists() {
                     continue;
                 }
 
-                let manifest = Manifest::from_file(path)?;
+                let manifest = Manifest::from_file(path).unwrap();
                 if manifest.id == id {
                     if manifest.main_file.is_absolute() {
                         return Err(Error::ExpectedRelativePath);
@@ -169,14 +163,9 @@ impl Loader {
                     if manifest.main_file.is_dir() {
                         return Err(Error::ExpectedFileName);
                     }
-                    let code = {
-                        let mut file = fs::OpenOptions::new()
-                            .read(true)
-                            .open(manifest.main_file.clone())?;
-                        let mut buffer = String::new();
-                        file.read_to_string(&mut buffer)?;
-                        buffer
-                    };
+                    let mut path = direntry.path();
+                    path.push(&manifest.main_file);
+                    let code = fs::read_to_string(path)?;
 
                     let lua = lua!();
                     let function = lua.load(&code).into_function()?;
