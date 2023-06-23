@@ -14,12 +14,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+#![allow(unsafe_code)]
+use core::ops;
 use mlua::{Lua, LuaOptions, StdLib};
 use once_cell::sync::Lazy;
 use parking_lot::{Mutex, RwLock};
 use result::{Error, Result};
 use std::{
-    collections::HashMap,
     env,
     fmt::Debug,
     fs,
@@ -31,7 +32,12 @@ use std::{
 pub mod result;
 pub mod ui;
 
-static LOADER: Lazy<Loader> = Lazy::new(|| Loader::init());
+static LOADER: Lazy<Loader> = Lazy::new(Loader::init);
+
+/* WARNING, FIXME: Unsafe implementations of thread-safe traits is a temporary solution, made just so the base loader can be implemented
+as quickly as possible. */
+unsafe impl Sync for Loader {}
+unsafe impl Send for Loader {}
 
 macro_rules! global_data_path {
     () => {{
@@ -95,10 +101,28 @@ impl Into<String> for Manifest {
     }
 }
 
-static LUA: Lazy<mlua::Lua> = Lazy::new(|| {
+struct SyncLua {
+    inner: mlua::Lua,
+}
+impl From<mlua::Lua> for SyncLua {
+    fn from(inner: mlua::Lua) -> Self {
+        Self { inner }
+    }
+}
+impl ops::Deref for SyncLua {
+    type Target = mlua::Lua;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+unsafe impl Sync for SyncLua {}
+
+static LUA: Lazy<SyncLua> = Lazy::new(|| {
     /* Create a sandboxed Lua Environment */
     let interp = Lua::new_with(StdLib::ALL_SAFE, LuaOptions::default()).unwrap();
     interp.sandbox(true).unwrap();
+    SyncLua::from(interp)
 });
 
 #[derive(Debug)]
@@ -108,7 +132,7 @@ pub struct LoaderInner {
 }
 
 #[derive(Debug)]
-struct LoadedPlugin {
+pub struct LoadedPlugin {
     manifest: Manifest,
     entry_fn: mlua::Function<'static>,
     thread: Option<mlua::Thread<'static>>,
@@ -148,9 +172,15 @@ impl LoaderInner {
                         file.read_to_string(&mut buffer)?;
                         buffer
                     };
-                    let function = self.lua.load(&code).into_function()?;
-                    self.plugins
-                        .insert(manifest.id.clone(), (manifest, function));
+                    let function = LUA.load(&code).into_function()?;
+                    self.plugins.insert(
+                        manifest.id.clone(),
+                        LoadedPlugin {
+                            manifest,
+                            entry_fn: function,
+                            thread: None,
+                        },
+                    );
                     return Ok(());
                 }
             }
@@ -159,8 +189,8 @@ impl LoaderInner {
     }
 
     pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        if let Some(entry) = self.plugins.get_mut(&id.to_string()) {
-            entry.thread = Some(LUA.create_thread(entry.entry_fn.clone()));
+        if let Some(mut entry) = self.plugins.get_mut(&id.to_string()) {
+            entry.thread = Some(LUA.create_thread(entry.entry_fn.clone())?);
         }
 
         Ok(())
@@ -197,23 +227,23 @@ impl Loader {
                     buf.push("plugins");
                     buf
                 }],
-                plugins: dashmap::DashMap::deafault(),
+                plugins: dashmap::DashMap::default(),
             },
         })
     }
 
     pub fn load<Id: ToString>(&self, id: Id) -> Result<()> {
-        inner.load(id)
+        self.inner.load(id)
     }
 
     pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        inner.activate_plugin(id)
+        self.inner.activate_plugin(id)
     }
     pub fn is_plugin_active<Id: ToString>(&self, id: Id) -> bool {
-        inner.is_plugin_active(id)
+        self.inner.is_plugin_active(id)
     }
     pub fn deactivate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        inner.deactivate_plugin(id)
+        self.inner.deactivate_plugin(id)
     }
 }
 impl Default for Loader {
@@ -223,14 +253,13 @@ impl Default for Loader {
 }
 
 fn get_application_data_path() -> String {
-    let mut home_directory =
-        env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap();
+    let mut home_directory = env::var(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap();
 
-    home_directory.push(if cfg!(windows) {
+    home_directory.push_str(if cfg!(windows) {
         "\\AppData\\LocalLow"
     } else {
         "/.local"
     });
 
-    home_directory.to_string_lossy().to_string()
+    home_directory
 }
