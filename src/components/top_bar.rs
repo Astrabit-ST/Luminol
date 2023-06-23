@@ -94,6 +94,14 @@ impl TopBar {
 
             ui.separator();
 
+            if ui.button("Open Plugin Manager").clicked() {
+                state
+                    .windows
+                    .add_window(crate::plugin::ui::PluginManagerWindow);
+            }
+
+            ui.separator();
+
             if ui.button("Quit").clicked() {
                 frame.close();
             }

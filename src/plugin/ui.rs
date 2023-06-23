@@ -15,15 +15,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::LOADER;
+use crate::Window;
 
 #[derive(Debug)]
 pub struct PluginManagerWindow;
-impl PluginManagerWindow {
-    pub fn show(ctx: &egui::Context) {
-        egui::Window::new("pluginmgr").show(ctx, |ui| {
-            if ui.button("Reload Plugins").clicked() {
-                LOADER.load("net.somedevfox.test");
-            }
-        });
+impl Window for PluginManagerWindow {
+    fn id(&self) -> egui::Id {
+        egui::Id::new("pluginmgr")
+    }
+    fn name(&self) -> String {
+        String::from("Plugin Manager")
+    }
+    fn requires_filesystem(&self) -> bool {
+        false
+    }
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new(self.name())
+            .id(self.id())
+            .open(open)
+            .show(ctx, |ui| {
+                if ui.button("Reload Plugins").clicked() {
+                    LOADER.load("net.somedevfox.test").unwrap();
+                }
+            });
     }
 }

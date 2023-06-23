@@ -35,6 +35,8 @@ pub use atomic_refcell::{AtomicRefCell, AtomicRefMut};
 pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
+pub use crate::lua;
+pub use crate::plugin_loader;
 pub use crate::state;
 
 pub use eframe::egui;

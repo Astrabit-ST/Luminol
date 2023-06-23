@@ -40,10 +40,6 @@
 )]
 #![deny(unsafe_code)]
 #![feature(drain_filter, min_specialization)]
-#[macro_use]
-extern crate serde;
-#[macro_use]
-extern crate cfg_if;
 
 pub use prelude::*;
 

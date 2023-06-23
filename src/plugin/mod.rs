@@ -15,29 +15,43 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 #![allow(unsafe_code)]
-use core::ops;
-use mlua::{Lua, LuaOptions, StdLib};
 use once_cell::sync::Lazy;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use result::{Error, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     env,
     fmt::Debug,
     fs,
     io::Read,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 pub mod result;
 pub mod ui;
 
-static LOADER: Lazy<Loader> = Lazy::new(Loader::init);
+pub static LOADER: Lazy<Loader> = Lazy::new(Loader::init);
 
-/* WARNING, FIXME: Unsafe implementations of thread-safe traits is a temporary solution, made just so the base loader can be implemented
-as quickly as possible. */
-unsafe impl Sync for Loader {}
-unsafe impl Send for Loader {}
+pub static LUA: Lazy<Mutex<mlua::Lua>> = Lazy::new(|| {
+    /* Create a sandboxed Lua Environment */
+    let interp = mlua::Lua::new_with(mlua::StdLib::ALL_SAFE, mlua::LuaOptions::default()).unwrap();
+    interp.sandbox(true).unwrap();
+    interp.into()
+});
+
+#[macro_export]
+macro_rules! lua {
+    () => {
+        $crate::plugin::LUA.lock()
+    };
+}
+
+#[macro_export]
+macro_rules! plugin_loader {
+    () => {
+        &*$crate::plugin::LOADER
+    };
+}
 
 macro_rules! global_data_path {
     () => {{
@@ -47,6 +61,19 @@ macro_rules! global_data_path {
         buffer.push("Luminol");
         buffer
     }};
+}
+
+#[derive(Debug)]
+pub struct Loader {
+    pub lookup_paths: Vec<PathBuf>,
+    pub plugins: dashmap::DashMap<String, LoadedPlugin>,
+}
+
+#[derive(Debug)]
+pub struct LoadedPlugin {
+    manifest: Manifest,
+    entry_fn: mlua::RegistryKey,
+    thread: Option<mlua::RegistryKey>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -77,6 +104,7 @@ pub struct Manifest {
     pub authors: Vec<String>,
     pub main_file: PathBuf,
 }
+
 impl Manifest {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut file = fs::OpenOptions::new().read(true).open(path)?;
@@ -85,15 +113,18 @@ impl Manifest {
 
         Self::from_string(buffer)
     }
+
     pub fn from_string<S: ToString>(string: S) -> Result<Self> {
         Ok(toml::from_str::<RawManifest>(string.to_string().as_str())?.into())
     }
 }
+
 impl ToString for Manifest {
     fn to_string(&self) -> String {
         toml::to_string_pretty(&self).unwrap()
     }
 }
+
 #[allow(clippy::from_over_into)]
 impl Into<String> for Manifest {
     fn into(self) -> String {
@@ -101,50 +132,24 @@ impl Into<String> for Manifest {
     }
 }
 
-struct SyncLua {
-    inner: mlua::Lua,
-}
-impl From<mlua::Lua> for SyncLua {
-    fn from(inner: mlua::Lua) -> Self {
-        Self { inner }
+impl Loader {
+    pub fn init() -> Self {
+        Self::try_init().unwrap()
     }
-}
-impl ops::Deref for SyncLua {
-    type Target = mlua::Lua;
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+    pub fn try_init() -> Result<Self> {
+        Ok(Loader {
+            lookup_paths: vec![{
+                let mut buf = global_data_path!();
+                buf.push("plugins");
+                buf
+            }],
+            plugins: dashmap::DashMap::default(),
+        })
     }
-}
-unsafe impl Sync for SyncLua {}
 
-static LUA: Lazy<SyncLua> = Lazy::new(|| {
-    /* Create a sandboxed Lua Environment */
-    let interp = Lua::new_with(StdLib::ALL_SAFE, LuaOptions::default()).unwrap();
-    interp.sandbox(true).unwrap();
-    SyncLua::from(interp)
-});
-
-#[derive(Debug)]
-pub struct LoaderInner {
-    pub lookup_paths: Vec<PathBuf>,
-    pub plugins: dashmap::DashMap<String, LoadedPlugin>,
-}
-
-#[derive(Debug)]
-pub struct LoadedPlugin {
-    manifest: Manifest,
-    entry_fn: mlua::Function<'static>,
-    thread: Option<mlua::Thread<'static>>,
-}
-
-static_assertions::assert_impl_all!(mlua::Lua: Send);
-static_assertions::assert_not_impl_all!(mlua::Lua: Sync);
-
-static_assertions::assert_impl_all!(parking_lot::Mutex<mlua::Lua>: Send, Sync);
-
-impl LoaderInner {
     pub fn load<Id: ToString>(&self, id: Id) -> Result<()> {
+        println!("{self:?}");
         let id = id.to_string();
         for path in &self.lookup_paths {
             fs::DirBuilder::new().recursive(true).create(path)?;
@@ -172,12 +177,16 @@ impl LoaderInner {
                         file.read_to_string(&mut buffer)?;
                         buffer
                     };
-                    let function = LUA.load(&code).into_function()?;
+
+                    let lua = lua!();
+                    let function = lua.load(&code).into_function()?;
+                    let entry_fn = lua.create_registry_value(function)?;
+
                     self.plugins.insert(
                         manifest.id.clone(),
                         LoadedPlugin {
                             manifest,
-                            entry_fn: function,
+                            entry_fn,
                             thread: None,
                         },
                     );
@@ -190,7 +199,11 @@ impl LoaderInner {
 
     pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
         if let Some(mut entry) = self.plugins.get_mut(&id.to_string()) {
-            entry.thread = Some(LUA.create_thread(entry.entry_fn.clone())?);
+            let lua = LUA.lock();
+            let function = lua.registry_value(&entry.entry_fn)?;
+            let thread = lua.create_thread(function)?;
+            let thread = lua.create_registry_value(thread)?;
+            entry.thread = Some(thread);
         }
 
         Ok(())
@@ -204,51 +217,13 @@ impl LoaderInner {
 
     pub fn deactivate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
         if let Some(mut entry) = self.plugins.get_mut(&id.to_string()) {
-            entry.thread = None;
+            if let Some(thread) = entry.thread.take() {
+                let lua = lua!();
+                let thread: mlua::Thread<'_> = lua.registry_value(&thread)?;
+            }
         }
 
         Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct Loader {
-    inner: LoaderInner,
-}
-impl Loader {
-    pub fn init() -> Self {
-        Self::try_init().unwrap()
-    }
-    pub fn try_init() -> Result<Self> {
-        Ok(Self {
-            inner: LoaderInner {
-                lookup_paths: vec![{
-                    let mut buf = global_data_path!();
-                    buf.push("plugins");
-                    buf
-                }],
-                plugins: dashmap::DashMap::default(),
-            },
-        })
-    }
-
-    pub fn load<Id: ToString>(&self, id: Id) -> Result<()> {
-        self.inner.load(id)
-    }
-
-    pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        self.inner.activate_plugin(id)
-    }
-    pub fn is_plugin_active<Id: ToString>(&self, id: Id) -> bool {
-        self.inner.is_plugin_active(id)
-    }
-    pub fn deactivate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        self.inner.deactivate_plugin(id)
-    }
-}
-impl Default for Loader {
-    fn default() -> Self {
-        Self::init()
     }
 }
 
