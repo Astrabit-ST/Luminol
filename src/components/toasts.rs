@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use egui_notify::{Toast, Toasts as ToastsInner};
+use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
 
 /// A toasts management struct.
@@ -34,22 +35,30 @@ impl Toasts {
 
     /// Display an info toast.
     pub fn info(&self, caption: impl Into<String>) {
-        self.inner.write().info(caption);
+        let caption = caption.into();
+        info!("{}", caption);
+        self.add(Toast::info(caption));
     }
 
     /// Display a warning toast.
     pub fn warning(&self, caption: impl Into<String>) {
-        self.inner.write().warning(caption);
+        let caption = caption.into();
+        warn!("{}", caption);
+        self.add(Toast::warning(caption));
     }
 
     /// Display an error toast.
     pub fn error(&self, caption: impl Into<String>) {
-        self.inner.write().error(caption);
+        let caption = caption.into();
+        error!("{}", caption);
+        self.add(Toast::error(caption));
     }
 
     /// Display a generic toast.
     pub fn basic(&self, caption: impl Into<String>) {
-        self.inner.write().basic(caption);
+        let caption = caption.into();
+        trace!("{}", caption);
+        self.add(Toast::basic(caption));
     }
 
     /// Display all toasts.

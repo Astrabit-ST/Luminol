@@ -58,7 +58,15 @@ fn main() -> Result<()> {
     });
 
     // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .pretty()
+        .with_thread_ids(cfg!(debug_assertions))
+        .with_thread_names(cfg!(debug_assertions))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_env("LUMI_LOG")
+                .add_directive("luminol".parse().unwrap()),
+        )
+        .init();
 
     color_eyre::install()?;
 
