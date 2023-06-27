@@ -97,7 +97,7 @@ impl TopBar {
             if ui.button("Open Plugin Manager").clicked() {
                 state
                     .windows
-                    .add_window(crate::plugin::ui::PluginManagerWindow);
+                    .add_window(crate::plugin::ui::PluginManagerWindow::default());
             }
 
             ui.separator();
