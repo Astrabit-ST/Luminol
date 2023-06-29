@@ -14,10 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{
-    loader::{Manifest, LOADER},
-    result::Result,
-};
+use super::{loader::Manifest, result::Result, Manager};
 use crate::{state, Window};
 use log::debug;
 
@@ -37,11 +34,12 @@ impl Window for PluginManagerWindow {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        let manager = Manager::get();
         let inner = egui::Window::new(self.name())
             .id(self.id())
             .open(open)
             .show(ctx, |ui| -> Result<()> {
-                let plugins: Vec<Manifest> = LOADER.get_manifests().collect();
+                let plugins: Vec<Manifest> = manager.get_manifests().collect();
 
                 /* TODO: For now, this field is static (will always print out "Active"), however this should be replaced with
                    something dynamic, once we implement a way for Luminol to NOT crash if interpreter failed to initialize. */
@@ -52,19 +50,18 @@ impl Window for PluginManagerWindow {
                 egui::ScrollArea::both()
                     .show::<Result<()>>(ui, |ui| {
                         for manifest in plugins {
-                            let is_plugin_active = LOADER.is_plugin_active(manifest.id.clone());
-                            debug!("is_plugin_active = {}", is_plugin_active);
+                            let is_plugin_active = manager.is_plugin_active(manifest.id.clone());
                             ui.with_layout(egui::Layout::left_to_right(egui::Align::LEFT), |ui| {
                                 ui.vertical(|ui| {
                                     ui.label(manifest.name);
                                     ui.label(format!("{}@{}", manifest.id, manifest.version));
                                 });
                                 ui.vertical::<Result<()>>(|ui| {
-                                    if ui.button(if is_plugin_active { "Enable" } else { "Disable" }).clicked() {
+                                    if ui.button(if is_plugin_active { "Disable" } else { "Enable" }).clicked() {
                                         if is_plugin_active {
-                                            LOADER.activate_plugin(manifest.id)?;
+                                            manager.deactivate_plugin(manifest.id)?;
                                         } else {
-                                            LOADER.deactivate_plugin(manifest.id)?;
+                                            manager.activate_plugin(manifest.id)?;
                                         }
                                     }
 
@@ -76,10 +73,7 @@ impl Window for PluginManagerWindow {
                         Ok(())
                     }).inner?;
                 if ui.button("Reload").clicked() {
-                    LOADER.load("net.somedevfox.test")?;
-                }
-                if ui.button("Activate").clicked() {
-                    LOADER.activate_plugin("net.somedevfox.test")?;
+                    manager.reload_all();
                 }
                 Ok(())
             });

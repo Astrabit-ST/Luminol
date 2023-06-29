@@ -14,15 +14,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use std::{sync::Mutex, path::{PathBuf, Path}, fs};
+use super::result::{BasicResult, Error, ErrorKind, Result};
+use log::{debug, info, warn};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use log::{warn, info, debug};
-use super::{result::{BasicResult, Result, ErrorKind, Error}};
-use crate::global_data_path;
-
-pub static LOADER: Lazy<Loader> = Lazy::new(Loader::init);
-
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 pub static LUA: Lazy<Mutex<mlua::Lua>> = Lazy::new(|| {
     /* Create a sandboxed Lua Environment */
     let interp = mlua::Lua::new_with(mlua::StdLib::ALL_SAFE, mlua::LuaOptions::default()).unwrap();
@@ -37,24 +37,11 @@ macro_rules! lua {
     };
 }
 
-#[macro_export]
-macro_rules! plugin_loader {
-    () => {
-        &*$crate::plugin::loader::LOADER
-    };
-}
-
-#[derive(Debug)]
-pub struct Loader {
-    pub lookup_paths: Vec<PathBuf>,
-    pub plugins: dashmap::DashMap<String, LoadedPlugin>,
-}
-
 #[derive(Debug)]
 pub struct LoadedPlugin {
-    manifest: Manifest,
-    entry_fn: mlua::RegistryKey,
-    thread: Option<mlua::RegistryKey>,
+    pub manifest: Manifest,
+    pub entry_fn: mlua::RegistryKey,
+    pub thread: Option<mlua::RegistryKey>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -73,7 +60,7 @@ impl From<RawManifest> for Manifest {
             version: value.version,
             authors: value.authors,
             main_file: PathBuf::from(value.main_file.unwrap_or({
-                warn!("The `main_file` key is missing. Assuming that the path is `src/main.lua`");
+                warn!(target: "luminol::plugin::raw_manifest_loader", "The `main_file` key is missing. Assuming that the path is `src/main.lua`");
                 String::from(if cfg!(unix) {
                     "src/main.lua"
                 } else {
@@ -94,7 +81,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    fn from_directory<P: AsRef<Path>>(path: P) -> BasicResult<impl Iterator<Item = Self>> {
+    pub fn from_directory<P: AsRef<Path>>(path: P) -> BasicResult<impl Iterator<Item = Self>> {
         let path: &Path = path.as_ref();
 
         if !path.exists() {
@@ -126,13 +113,13 @@ impl Manifest {
         Ok(manifests.into_iter())
     }
 
-    fn from_file<P: AsRef<Path>>(path: P) -> BasicResult<Self> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> BasicResult<Self> {
         let path: &Path = path.as_ref();
-        info!("Trying to load a `{path:?}` file as a manifest...");
+        info!(target: "luminol::plugin::manifest_loader", "Trying to load a `{path:?}` file as a manifest...");
         Self::from_string(fs::read_to_string(path)?, path)
     }
 
-    fn from_string<S: ToString, P: AsRef<Path>>(string: S, path: P) -> BasicResult<Self> {
+    pub fn from_string<S: ToString, P: AsRef<Path>>(string: S, path: P) -> BasicResult<Self> {
         let path = path.as_ref();
 
         let mut manifest: Self = toml::from_str::<RawManifest>(string.to_string().as_str())?.into();
@@ -145,12 +132,13 @@ impl Manifest {
                 path.push(manifest.main_file);
                 path
             };
-            info!("Manifest has been successfully loaded!");
+            info!(target: "luminol::plugin::manifest_loader", "Manifest has been successfully loaded!");
             debug!(
-                "Manifest = {{\n\tName = {}\n\tVersion = {}\n\tAuthors = {:?}\n\tMain script file location = {:?}\n}}", 
-                manifest.name, 
-                manifest.version, 
-                manifest.authors, 
+                target: "luminol::plugin::manifest_loader",
+                "Manifest = {{\n\tName = {}\n\tVersion = {}\n\tAuthors = {:?}\n\tMain script file location = {:?}\n}}",
+                manifest.name,
+                manifest.version,
+                manifest.authors,
                 manifest.main_file
             );
             Ok(manifest)
@@ -171,131 +159,36 @@ impl Into<String> for Manifest {
     }
 }
 
-impl Loader {
-    pub fn init() -> Self {
-        Self::try_init().unwrap()
-    }
+pub fn load<P: AsRef<Path>, Id: ToString>(path: P, id: Id) -> Result<LoadedPlugin> {
+    let id = id.to_string();
+    let path = path.as_ref();
+    info!(target: "luminol::plugin::loader", "Attempting to load a plugin with ID of {id}");
+    fn internal(path: &Path, id: &str) -> std::result::Result<LoadedPlugin, ErrorKind> {
+        info!(target: "luminol::plugin::loader", "Trying to find the plugin in the `{path:?}` directory...");
+        fs::DirBuilder::new().recursive(true).create(path)?;
+        for manifest in Manifest::from_directory(path)? {
+            if manifest.id == id {
+                info!(target: "luminol::plugin::loader", "Plugin found! Loading it's main script into the Lua Interpreter...");
+                let code = fs::read_to_string(manifest.main_file.clone())?;
+                let lua = lua!();
+                let function = lua.load(&code).into_function()?;
+                let entry_fn = lua.create_registry_value(function)?;
 
-    pub fn try_init() -> Result<Self> {
-        info!("Initializing the plugin loader... Done");
-        Ok(Loader {
-            lookup_paths: vec![{
-                let mut buf = global_data_path!();
-                buf.push("plugins");
-                buf
-            }],
-            plugins: dashmap::DashMap::default(),
-        })
-    }
-
-    pub fn load<Id: ToString>(&self, id: Id) -> Result<()> {
-        let id = id.to_string();
-        info!("Attempting to load a plugin with ID of {id}");
-        fn internal(this: &Loader, id: &str) -> std::result::Result<(), ErrorKind> {
-            if this.plugins.contains_key(id) {
-                return Err(ErrorKind::AlreadyLoaded);
+                info!(
+                    target: "luminol::plugin::loader",
+                    "Done. Plugin \"{}@{}\" by {} has been successfully loaded.",
+                    manifest.name,
+                    manifest.version,
+                    manifest.authors.join(", ")
+                );
+                return Ok(LoadedPlugin {
+                    manifest: manifest.clone(),
+                    entry_fn,
+                    thread: None,
+                });
             }
-
-            info!("Requested plugin is not loaded, continuing the loading process.");
-
-            for path in &this.lookup_paths {
-                info!("Trying to find the plugin in the `{path:?}` directory...");
-                fs::DirBuilder::new().recursive(true).create(path)?;
-                for manifest in Manifest::from_directory(path)? {
-                    if manifest.id == id {
-                        info!("Plugin found! Loading it's main script into the Lua Interpreter...");
-                        let code = fs::read_to_string(manifest.main_file.clone())?;
-                        let lua = lua!();
-                        let function = lua.load(&code).into_function()?;
-                        let entry_fn = lua.create_registry_value(function)?;
-
-                        this.plugins.insert(
-                            manifest.id.clone(),
-                            LoadedPlugin {
-                                manifest: manifest.clone(),
-                                entry_fn,
-                                thread: None,
-                            },
-                        );
-
-                        info!(
-                            "Done. Plugin \"{}@{}\" by {} has been successfully loaded.",
-                            manifest.name, manifest.version, manifest.authors.join(", ")
-                        );
-
-                        return Ok(());
-                    }
-                }
-            }
-            Ok(())
         }
-        internal(self, id.as_str()).map_err(|e| Error::new(e).set_plugin_id(id))
+        Err(ErrorKind::NotFound)
     }
-    pub fn reload<Id: ToString>(&self, id: Id) -> Result<()> {
-        let id = id.to_string();
-
-        self.unload(id.clone());
-        self.load(id)
-    }
-    pub fn unload<Id: ToString>(&self, id: Id) {
-        self.plugins.remove(&id.to_string());
-    }
-
-    pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        let id = id.to_string();
-        info!("Checking if the plugin with an ID of `{id}` exists...");
-        let result = || -> core::result::Result<(), ErrorKind> {
-            if let Some(mut entry) = self.plugins.get_mut(&id) {
-                info!("Plugin found, activating...");
-                let lua = LUA.lock().unwrap();
-                let function = lua.registry_value(&entry.entry_fn)?;
-                debug!("entry_fn registry value: {function:?}");
-                let thread = lua.create_thread(function)?;
-                thread.resume::<_, ()>(())?;
-                debug!("created a lua thread: {thread:?}");
-                let thread = lua.create_registry_value(thread)?;
-                debug!("successfully registered the newly created thread as a registry value");
-                entry.thread = Some(thread);
-                info!("All done, plugin active.");
-            }
-
-            Ok(())
-        }();
-
-        result.map_err(|why| Error::new(why).set_plugin_id(id))
-    }
-
-    pub fn is_plugin_active<Id: ToString>(&self, id: Id) -> bool {
-        self.plugins
-            .get(&id.to_string())
-            .is_some_and(|entry| entry.thread.is_some())
-    }
-
-    pub fn deactivate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
-        let id = id.to_string();
-        info!("Checking if the plugin with an ID of `{id}` exists...");
-        fn internal(this: &Loader, id: &str) -> BasicResult<()> {
-            if let Some(mut entry) = this.plugins.get_mut(id) {
-                info!("Plugin found, checking it's activation state...");
-                if let Some(thread) = entry.thread.take() {
-                    info!("Active. Deactivating...");
-                    let lua = lua!();
-                    lua.remove_registry_value(thread)?;
-                    info!("Done. `{id}` is loaded, but inactive.");
-                } else {
-                    info!("Plugin is already inactive, nothing left to do.");
-                }
-            }
-
-            Ok(())
-        }
-
-        internal(self, id.as_str()).map_err(|e| Error::new(e).set_plugin_id(id))
-    }
-
-    pub fn get_manifests(&self) -> impl Iterator<Item = Manifest> {
-        self.plugins
-            .iter()
-            .map(|x| x.manifest.clone()).collect::<Vec<Manifest>>().into_iter()
-    }
+    internal(path, id.as_str()).map_err(|e| Error::new(e).set_plugin_id(id))
 }
