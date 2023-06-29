@@ -39,7 +39,7 @@ pub use crate::State;
 pub use crate::command_db;
 pub use crate::global_config;
 pub use crate::lua;
-pub use crate::plugin_loader;
+pub use crate::plugin;
 pub use crate::project_config;
 pub use crate::state;
 
