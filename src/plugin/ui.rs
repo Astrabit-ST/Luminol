@@ -14,23 +14,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{result::Result, Manifest, LOADER};
+use super::{
+    loader::{Manifest, LOADER},
+    result::Result,
+};
 use crate::{state, Window};
-use dashmap::DashMap;
 use log::debug;
-use std::time::{Duration, Instant};
 
-#[derive(Debug)]
-pub struct PluginManagerWindow {
-    plugins: DashMap<String, Manifest>,
-}
-impl Default for PluginManagerWindow {
-    fn default() -> Self {
-        Self {
-            plugins: DashMap::new(),
-        }
-    }
-}
+#[derive(Debug, Default)]
+pub struct PluginManagerWindow {}
 impl Window for PluginManagerWindow {
     fn id(&self) -> egui::Id {
         egui::Id::new("pluginmgr")
