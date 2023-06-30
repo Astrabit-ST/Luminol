@@ -41,7 +41,7 @@ macro_rules! lua {
 pub struct LoadedPlugin {
     pub manifest: Manifest,
     pub entry_fn: mlua::RegistryKey,
-    pub thread: Option<mlua::RegistryKey>,
+    pub thread: mlua::RegistryKey,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -172,7 +172,9 @@ pub fn load<P: AsRef<Path>, Id: ToString>(path: P, id: Id) -> Result<LoadedPlugi
                 let code = fs::read_to_string(manifest.main_file.clone())?;
                 let lua = lua!();
                 let function = lua.load(&code).into_function()?;
-                let entry_fn = lua.create_registry_value(function)?;
+                let entry_fn = lua.create_registry_value(function.clone())?;
+                let thread = lua.create_thread(function)?;
+                let thread = lua.create_registry_value(thread)?;
 
                 info!(
                     target: "luminol::plugin::loader",
@@ -182,9 +184,9 @@ pub fn load<P: AsRef<Path>, Id: ToString>(path: P, id: Id) -> Result<LoadedPlugi
                     manifest.authors.join(", ")
                 );
                 return Ok(LoadedPlugin {
-                    manifest: manifest.clone(),
+                    manifest,
                     entry_fn,
-                    thread: None,
+                    thread,
                 });
             }
         }

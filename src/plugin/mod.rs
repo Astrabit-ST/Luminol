@@ -150,9 +150,10 @@ impl Manager {
         self.plugins.contains_key(&id.to_string())
     }
     pub fn is_plugin_active<Id: ToString>(&self, id: Id) -> bool {
-        self.plugins
-            .get(&id.to_string())
-            .is_some_and(|entry| entry.thread.is_some())
+        self.plugins.get(&id.to_string()).is_some_and(|entry| {
+            let thread: mlua::Thread<'_> = lua!().registry_value(&entry.thread).unwrap();
+            thread.status() == mlua::ThreadStatus::Resumable
+        })
     }
 
     pub fn activate_plugin<Id: ToString>(&self, id: Id) -> Result<()> {
@@ -162,14 +163,10 @@ impl Manager {
             if let Some(mut entry) = self.plugins.get_mut(&id) {
                 info!(target: "luminol::plugin::manager", "Plugin found, activating...");
                 let lua = LUA.lock().unwrap();
-                let function = lua.registry_value(&entry.entry_fn)?;
+                let function: mlua::Function<'_> = lua.registry_value(&entry.entry_fn)?;
                 debug!(target: "luminol::plugin::manager", "entry_fn registry value: {function:?}");
-                let thread = lua.create_thread(function)?;
+                let thread: mlua::Thread<'_> = lua.registry_value(&entry.thread)?;
                 thread.resume::<_, ()>(())?;
-                debug!(target: "luminol::plugin::manager", "created a lua thread: {thread:?}");
-                let thread = lua.create_registry_value(thread)?;
-                debug!(target: "luminol::plugin::manager", "successfully registered the newly created thread as a registry value");
-                entry.thread = Some(thread);
                 info!(target: "luminol::plugin::manager", "All done, plugin active.");
             }
 
@@ -182,12 +179,14 @@ impl Manager {
         let id = id.to_string();
         info!(target: "luminol::plugin::loader", "Checking if the plugin with an ID of `{id}` exists...");
         fn internal(this: &Manager, id: &str) -> BasicResult<()> {
-            if let Some(mut entry) = this.plugins.get_mut(id) {
+            let lua = lua!();
+            if let Some(entry) = this.plugins.get_mut(id) {
                 info!(target: "luminol::plugin::loader", "Plugin found, checking it's activation state...");
-                if let Some(thread) = entry.thread.take() {
+                let thread: mlua::Thread<'_> = lua.registry_value(&entry.thread)?;
+                if thread.status() == mlua::ThreadStatus::Unresumable {
                     info!(target: "luminol::plugin::loader", "Active. Deactivating...");
-                    let lua = lua!();
-                    lua.remove_registry_value(thread)?;
+                    let function: mlua::Function<'_> = lua.registry_value(&entry.entry_fn)?;
+                    thread.reset(function)?;
                     info!(target: "luminol::plugin::loader", "Done. `{id}` is loaded, but inactive.");
                 } else {
                     warn!(target: "luminol::plugin::loader", "Plugin is already inactive, nothing left to do.");
