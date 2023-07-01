@@ -16,11 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 mod events;
 mod plane;
-mod quad;
-mod sprite;
-mod tiles;
-mod vertex;
-mod viewport;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -73,12 +68,15 @@ impl Default for SelectedTile {
 
 #[derive(Debug)]
 struct Resources {
-    tiles: tiles::Tiles,
+    map_tiles: Tiles,
+    tilepicker_tiles: Tiles,
+
     events: events::Events,
-    map_viewport: viewport::Viewport,
-    tilepicker_viewport: viewport::Viewport,
+    map_viewport: Viewport,
+    tilepicker_viewport: Viewport,
     panorama: Option<plane::Plane>,
     fog: Option<plane::Plane>,
+    atlas: Atlas,
 }
 
 type ResourcesHash = HashMap<i32, Arc<Resources>>;
@@ -86,12 +84,23 @@ type ResourcesHash = HashMap<i32, Arc<Resources>>;
 impl Tilemap {
     pub fn new(map_id: i32, map: &rpg::Map) -> Result<Tilemap, String> {
         // Get tilesets.
-        let tilesets = state!().data_cache.tilesets();
-        // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-        let tileset = &tilesets[map.tileset_id as usize - 1];
+        let atlas = state!().atlas_cache.load_atlas(map.tileset_id)?;
 
-        let tiles = tiles::Tiles::new(tileset, map)?;
-        let events = events::Events::new(map, &tiles.atlas)?;
+        let map_tiles = Tiles::new(atlas.clone(), &map.data);
+
+        let tilepicker_data = [0, 48, 96, 144, 192, 240, 288, 336]
+            .into_iter()
+            .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
+            .collect_vec();
+        let tilepicker_data = Table3::new_data(
+            8,
+            1 + (atlas.tileset_height / 32) as usize,
+            1,
+            tilepicker_data,
+        );
+        let tilepicker_tiles = Tiles::new(atlas.clone(), &tilepicker_data);
+
+        let events = events::Events::new(map, &atlas)?;
 
         let panorama = if tileset.panorama_name.is_empty() {
             None
@@ -102,7 +111,7 @@ impl Tilemap {
                     .load_wgpu_image("Graphics/Panoramas", &tileset.panorama_name)?,
                 tileset.panorama_hue,
                 100,
-                sprite::BlendMode::Normal,
+                BlendMode::Normal,
                 255,
                 map.width,
                 map.height,
@@ -123,7 +132,7 @@ impl Tilemap {
                 map.height,
             ))
         };
-        let map_viewport = viewport::Viewport::new();
+        let map_viewport = Viewport::new();
         map_viewport.set_proj(cgmath::ortho(
             0.0,
             map.width as f32 * 32.,
@@ -132,11 +141,11 @@ impl Tilemap {
             -1.0,
             1.0,
         ));
-        let tilepicker_viewport = viewport::Viewport::new();
+        let tilepicker_viewport = Viewport::new();
         tilepicker_viewport.set_proj(cgmath::ortho(
             0.0,
             256.,
-            tiles.atlas.tileset_height as f32,
+            map_tiles.atlas.tileset_height as f32,
             0.0,
             -1.0,
             1.0,
@@ -148,12 +157,15 @@ impl Tilemap {
             pan: egui::Vec2::ZERO,
 
             resources: Arc::new(Resources {
-                tiles,
+                map_tiles,
+                tilepicker_tiles,
+
                 events,
                 map_viewport,
                 tilepicker_viewport,
                 panorama,
                 fog,
+                atlas,
             }),
 
             ani_instant: Instant::now(),
@@ -179,7 +191,8 @@ impl Tilemap {
     ) -> egui::Response {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
-            self.resources.tiles.autotiles.inc_ani_index();
+            self.resources.map_tiles.autotiles.inc_ani_index();
+            self.resources.tilepicker_tiles.autotiles.inc_ani_index();
         }
         ui.ctx().request_repaint_after(Duration::from_millis(16));
 
@@ -277,7 +290,7 @@ impl Tilemap {
                 let res_hash: &ResourcesHash = paint_callback_resources.get().unwrap();
                 let resources = &res_hash[&map_id];
                 let Resources {
-                    tiles,
+                    map_tiles,
                     map_viewport,
                     panorama,
                     fog,
@@ -293,7 +306,7 @@ impl Tilemap {
                     }
                 }
 
-                tiles.draw_map(render_pass, &enabled_layers);
+                map_tiles.draw(render_pass, &enabled_layers);
 
                 if event_enabled {
                     events.draw(render_pass);
@@ -369,10 +382,7 @@ impl Tilemap {
 
     pub fn tilepicker(&mut self, ui: &mut egui::Ui) {
         let (canvas_rect, response) = ui.allocate_exact_size(
-            egui::vec2(
-                tiles::TILESET_WIDTH as f32,
-                self.resources.tiles.atlas.tileset_height as f32,
-            ),
+            egui::vec2(256., self.resources.atlas.tileset_height as f32),
             egui::Sense::click_and_drag(),
         );
 
@@ -395,13 +405,13 @@ impl Tilemap {
                         let res_hash: &ResourcesHash = paint_callback_resources.get().unwrap();
                         let resources = &res_hash[&map_id];
                         let Resources {
-                            tiles,
+                            tilepicker_tiles,
                             tilepicker_viewport,
                             ..
                         } = resources.as_ref();
 
                         tilepicker_viewport.bind(render_pass);
-                        tiles.draw_tilepicker(render_pass);
+                        tilepicker_tiles.draw(render_pass, &[]);
                     }),
             ),
         });

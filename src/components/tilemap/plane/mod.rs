@@ -14,9 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::quad::Quad;
-use super::sprite::{BlendMode, Sprite};
-
 use crate::prelude::*;
 
 #[derive(Debug)]

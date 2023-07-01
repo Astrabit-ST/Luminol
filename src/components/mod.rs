@@ -46,7 +46,7 @@ pub use top_bar::TopBar;
 
 /// The tilemap.
 mod tilemap;
-pub use tilemap::*;
+pub use tilemap::{SelectedLayer, SelectedTile, Tilemap};
 
 // btw there's a buncha places this could be used
 // uhh in event edit there's an array of strings that gets itered over to do what this does lol

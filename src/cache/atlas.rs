@@ -14,14 +14,22 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-//
-//     Additional permission under GNU GPL version 3 section 7
-//
-// If you modify this Program, or any covered work, by linking or combining
-// it with Steamworks API by Valve Corporation, containing parts covered by
-// terms of the Steamworks API by Valve Corporation, the licensors of this
-// Program grant you additional permission to convey the resulting work.
+use crate::prelude::*;
 
-pub mod atlas;
-pub mod data;
-pub mod image_cache;
+#[derive(Default, Debug)]
+pub struct Cache {
+    atlases: dashmap::DashMap<i32, Atlas>,
+}
+
+impl Cache {
+    pub fn load_atlas(&self, tileset_id: i32) -> Result<Atlas, String> {
+        let entry = self.atlases.entry(tileset_id).or_try_insert_with(|| {
+            let tilesets = state!().data_cache.tilesets();
+            // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
+            let tileset = &tilesets[tileset_id as usize - 1];
+
+            Atlas::new(tileset)
+        })?;
+        Ok(entry.clone())
+    }
+}

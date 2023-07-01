@@ -34,7 +34,7 @@ pub struct Autotiles {
 struct Data {
     ani_index: u32,
     autotile_region_width: u32,
-    autotile_frames: [u32; super::AUTOTILE_AMOUNT as usize],
+    autotile_frames: [u32; 7],
 }
 
 impl Autotiles {

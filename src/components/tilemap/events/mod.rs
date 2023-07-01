@@ -14,8 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::quad::Quad;
-use super::sprite::Sprite;
+
 use crate::prelude::*;
 
 #[derive(Debug)]
@@ -24,7 +23,7 @@ pub struct Events {
 }
 
 impl Events {
-    pub fn new(map: &rpg::Map, atlas: &super::tiles::Atlas) -> Result<Self, String> {
+    pub fn new(map: &rpg::Map, atlas: &Atlas) -> Result<Self, String> {
         let mut events: Vec<_> = map
             .events
             .iter()
@@ -55,7 +54,7 @@ struct Event {
 }
 
 impl Event {
-    pub fn new(event: &rpg::Event, atlas: &super::tiles::Atlas) -> Result<Self, String> {
+    pub fn new(event: &rpg::Event, atlas: &Atlas) -> Result<Self, String> {
         let Some(page) = event.pages.first() else {
             return Err("event does not have first page".to_string())
         };

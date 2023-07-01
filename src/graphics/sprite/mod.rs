@@ -23,26 +23,6 @@ use super::quad::Quad;
 use super::vertex::Vertex;
 use crate::prelude::*;
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Hash)]
-pub enum BlendMode {
-    Normal = 0,
-    Add = 1,
-    Subtract = 2,
-}
-
-impl TryFrom<i32> for BlendMode {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        Ok(match value {
-            0 => BlendMode::Normal,
-            1 => BlendMode::Add,
-            2 => BlendMode::Subtract,
-            mode => return Err(format!("unexpected blend mode {mode}")),
-        })
-    }
-}
-
 #[derive(Debug)]
 pub struct Sprite {
     pub texture: Arc<image_cache::WgpuTexture>,

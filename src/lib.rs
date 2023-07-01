@@ -96,6 +96,8 @@ pub mod lumi;
 #[cfg(feature = "steamworks")]
 pub mod steam;
 
+pub mod graphics;
+
 pub use luminol::Luminol;
 use tabs::tab::Tab;
 
@@ -126,6 +128,7 @@ pub struct State {
     /// The data cache.
     pub data_cache: data::Cache,
     pub image_cache: image_cache::Cache,
+    pub atlas_cache: atlas::Cache,
     /// Windows that are displayed.
     pub windows: window::Windows,
     /// Tabs that are displayed.
@@ -148,6 +151,7 @@ impl State {
             filesystem: filesystem::ProjectFS::default(),
             data_cache: data::Cache::default(),
             image_cache: image_cache::Cache::default(),
+            atlas_cache: atlas::Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
             audio: audio::Audio::default(),

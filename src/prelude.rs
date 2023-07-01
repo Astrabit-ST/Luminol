@@ -26,6 +26,7 @@ pub use crate::audio;
 pub use crate::cache::*;
 pub use crate::components::*;
 pub use crate::config;
+pub use crate::graphics::*;
 pub use crate::modals::*;
 pub use crate::tabs::*;
 pub use crate::windows::*;
