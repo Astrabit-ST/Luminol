@@ -98,3 +98,7 @@ Extra functionality:
 - [ ] Lua plugin API?
 - [ ] Text based event editor [based on keke](https://github.com/Astrabit-ST/keke)
 - [ ] Extra properties
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Astrabit-ST/Luminol&type=Date)](https://star-history.com/#Astrabit-ST/Luminol&Date)
