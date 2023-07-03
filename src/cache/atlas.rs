@@ -18,15 +18,15 @@ use crate::prelude::*;
 
 #[derive(Default, Debug)]
 pub struct Cache {
-    atlases: dashmap::DashMap<i32, Atlas>,
+    atlases: dashmap::DashMap<usize, Atlas>,
 }
 
 impl Cache {
-    pub fn load_atlas(&self, tileset_id: i32) -> Result<Atlas, String> {
+    pub fn load_atlas(&self, tileset_id: usize) -> Result<Atlas, String> {
         let entry = self.atlases.entry(tileset_id).or_try_insert_with(|| {
             let tilesets = state!().data_cache.tilesets();
             // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-            let tileset = &tilesets[tileset_id as usize - 1];
+            let tileset = &tilesets[tileset_id];
 
             Atlas::new(tileset)
         })?;

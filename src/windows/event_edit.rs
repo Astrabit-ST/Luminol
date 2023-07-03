@@ -29,7 +29,7 @@ use crate::prelude::*;
 /// The event editor window.
 pub struct Window {
     id: usize,
-    map_id: i32,
+    map_id: usize,
     selected_page: usize,
     event: rpg::Event,
     page_graphics: (Vec<Option<Arc<RetainedImage>>>, Arc<RetainedImage>),
@@ -39,7 +39,7 @@ pub struct Window {
 
 impl Window {
     /// Create a new event editor.
-    pub fn new(id: usize, map_id: i32, event: rpg::Event, tileset_name: String) -> Self {
+    pub fn new(id: usize, map_id: usize, event: rpg::Event, tileset_name: String) -> Self {
         let pages_graphics = event
             .pages
             .iter()
@@ -306,7 +306,7 @@ impl window::Window for Window {
                             ui.available_size_before_wrap() - ui.spacing().button_padding * 2.;
                         let (page_graphic, tileset_graphic) = &self.page_graphics;
 
-                        if if page.graphic.tile_id.is_positive() {
+                        if if page.graphic.tile_id == 0 {
                             let ele = page.graphic.tile_id - 384;
 
                             let tile_width = 32. / tileset_graphic.width() as f32;

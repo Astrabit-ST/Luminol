@@ -27,7 +27,7 @@ use crate::prelude::*;
 /// Database - Items management window.
 pub struct Window {
     // ? Items ?
-    items: NilPadded<rpg::Item>,
+    items: rpg::Items,
     selected_item: usize,
 
     // ? Icon Graphic Picker ?

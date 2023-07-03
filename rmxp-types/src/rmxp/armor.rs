@@ -14,18 +14,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{optional_path, Path};
+use crate::{id, id_vec, optional_path, Path};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Armor")]
 pub struct Armor {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
     #[serde(with = "optional_path")]
     pub icon_name: Path,
     pub description: String,
     pub kind: i32,
-    pub auto_state_id: i32,
+    #[serde(with = "id")]
+    pub auto_state_id: usize,
     pub price: i32,
     pub pdef: i32,
     pub mdef: i32,
@@ -34,6 +36,8 @@ pub struct Armor {
     pub dex_plus: i32,
     pub agi_plus: i32,
     pub int_plus: i32,
-    pub guard_element_set: Vec<i32>,
-    pub guard_state_set: Vec<i32>,
+    #[serde(with = "id_vec")]
+    pub guard_element_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub guard_state_set: Vec<usize>,
 }

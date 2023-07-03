@@ -14,16 +14,19 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::Table1;
+pub use crate::{id, id_vec, Table1};
 
 #[derive(Default, Debug, serde:: Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Class")]
 pub struct Class {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
     pub position: i32,
-    pub weapon_set: Vec<i32>,
-    pub armor_set: Vec<i32>,
+    #[serde(with = "id_vec")]
+    pub weapon_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub armor_set: Vec<usize>,
     pub element_ranks: Table1,
     pub state_ranks: Table1,
     pub learnings: Vec<Learning>,
@@ -33,5 +36,6 @@ pub struct Class {
 #[serde(rename = "RPG::Class::Learning")]
 pub struct Learning {
     pub level: i32,
-    pub skill_id: i32,
+    #[serde(with = "id")]
+    pub skill_id: usize,
 }

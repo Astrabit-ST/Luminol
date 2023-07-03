@@ -14,22 +14,26 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{optional_path, rpg::AudioFile, Path};
+pub use crate::{id, id_vec, optional_path, rpg::AudioFile, Path};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Skill")]
 pub struct Skill {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
     #[serde(with = "optional_path")]
     pub icon_name: Path,
     pub description: String,
     pub scope: i32,
     pub occasion: i32,
-    pub animation1_id: i32,
-    pub animation2_id: i32,
+    #[serde(with = "id")]
+    pub animation1_id: usize,
+    #[serde(with = "id")]
+    pub animation2_id: usize,
     pub menu_se: AudioFile,
-    pub common_event_id: i32,
+    #[serde(with = "id")]
+    pub common_event_id: usize,
     pub sp_cost: i32,
     pub power: i32,
     pub atk_f: i32,
@@ -42,7 +46,10 @@ pub struct Skill {
     pub pdef_f: i32,
     pub mdef_f: i32,
     pub variance: i32,
-    pub element_set: Vec<i32>,
-    pub plus_state_set: Vec<i32>,
-    pub minus_state_set: Vec<i32>,
+    #[serde(with = "id_vec")]
+    pub element_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub plus_state_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub minus_state_set: Vec<usize>,
 }

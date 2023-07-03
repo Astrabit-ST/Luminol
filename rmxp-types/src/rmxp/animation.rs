@@ -14,12 +14,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{optional_path, rpg::AudioFile, Color, Path, Table2};
+use crate::{id, optional_path, rpg::AudioFile, Color, Path, Table2};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Animation")]
 pub struct Animation {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
     #[serde(with = "optional_path")]
     pub animation_name: Path,

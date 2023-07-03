@@ -31,7 +31,7 @@ pub struct Tilemap {
 
     pub pan: egui::Vec2,
 
-    map_id: i32,
+    map_id: usize,
 
     resources: Arc<Resources>,
     ani_instant: Instant,
@@ -79,10 +79,10 @@ struct Resources {
     atlas: Atlas,
 }
 
-type ResourcesHash = HashMap<i32, Arc<Resources>>;
+type ResourcesHash = HashMap<usize, Arc<Resources>>;
 
 impl Tilemap {
-    pub fn new(map_id: i32, map: &rpg::Map) -> Result<Tilemap, String> {
+    pub fn new(map_id: usize, map: &rpg::Map) -> Result<Tilemap, String> {
         // Get tilesets.
         let atlas = state!().atlas_cache.load_atlas(map.tileset_id)?;
 

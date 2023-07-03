@@ -14,13 +14,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::{id, id_vec};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::State")]
 pub struct State {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
-    pub animation_id: i32,
+    #[serde(with = "id")]
+    pub animation_id: usize,
     pub restriction: i32,
     pub nonresistance: bool,
     pub zero_hp: bool,
@@ -43,7 +46,10 @@ pub struct State {
     pub hold_turn: i32,
     pub auto_release_prob: i32,
     pub shock_release_prob: i32,
-    pub guard_element_set: Vec<i32>,
-    pub plus_state_set: Vec<i32>,
-    pub minus_state_set: Vec<i32>,
+    #[serde(with = "id_vec")]
+    pub guard_element_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub plus_state_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub minus_state_set: Vec<usize>,
 }

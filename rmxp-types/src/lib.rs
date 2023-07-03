@@ -24,7 +24,7 @@ pub mod rpg {
     pub type CommonEvents = Vec<CommonEvent>;
     pub type Enemies = Vec<Enemy>;
     pub type Items = Vec<Item>;
-    pub type MapInfos = std::collections::HashMap<i32, MapInfo>;
+    pub type MapInfos = std::collections::HashMap<usize, MapInfo>;
     pub type Skills = Vec<Skill>;
     pub type States = Vec<State>;
     pub type Tilesets = Vec<Tileset>;

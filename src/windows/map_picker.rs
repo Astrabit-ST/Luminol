@@ -33,9 +33,9 @@ pub struct Window {}
 
 impl Window {
     fn render_submap(
-        id: i32,
-        children_data: &HashMap<i32, Vec<i32>>,
-        mapinfos: &mut HashMap<i32, rpg::MapInfo>,
+        id: usize,
+        children_data: &HashMap<usize, Vec<usize>>,
+        mapinfos: &mut rpg::MapInfos,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
@@ -77,9 +77,10 @@ impl Window {
         }
     }
 
-    fn create_map_tab(id: i32) {
-        if let Some(m) = map::Tab::new(id) {
-            state!().tabs.add_tab(Box::new(m));
+    fn create_map_tab(id: usize) {
+        match map::Tab::new(id) {
+            Ok(m) => state!().tabs.add_tab(Box::new(m)),
+            Err(e) => state!().toasts.error(e),
         }
     }
 }
@@ -106,7 +107,7 @@ impl window::Window for Window {
 
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.
-                        let mut children_data: HashMap<i32, Vec<i32>> = HashMap::new();
+                        let mut children_data: HashMap<_, Vec<_>> = HashMap::new();
                         for (id, map) in sorted_maps {
                             // Is there an entry for our parent?
                             // If not, then just add a blank vector to it.

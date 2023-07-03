@@ -53,7 +53,7 @@ enum State {
         troops: AtomicRefCell<rpg::Troops>,
         weapons: AtomicRefCell<rpg::Weapons>,
 
-        maps: dashmap::DashMap<i32, rpg::Map>,
+        maps: dashmap::DashMap<usize, rpg::Map>,
     },
 }
 
@@ -396,10 +396,10 @@ impl Cache {
     /// Load a map.
     #[allow(unsafe_code)]
     #[allow(clippy::panic)]
-    pub fn map<'a>(&'a self, id: i32) -> impl Deref<Target = rpg::Map> + DerefMut + 'a {
+    pub fn map<'a>(&'a self, id: usize) -> impl Deref<Target = rpg::Map> + DerefMut + 'a {
         struct Ref<'b> {
             _state: atomic_refcell::AtomicRef<'b, State>,
-            map_ref: dashmap::mapref::one::RefMut<'b, i32, rpg::Map>,
+            map_ref: dashmap::mapref::one::RefMut<'b, usize, rpg::Map>,
         }
         impl<'b> Deref for Ref<'b> {
             type Target = rpg::Map;
@@ -425,7 +425,7 @@ impl Cache {
         // Because the rust borrow checker isn't smart enough for this, we need to create an unbounded reference to maps to get a map out. We're not actually using this reference
         // for any longer than it would be valid for (notice the fact that we assign map_ref a lifetime of 'a, which is the lifetime it should have anyway) so this is okay.
         let map_ref: dashmap::mapref::one::RefMut<'a, _, _> = unsafe {
-            let unsafe_maps_ref: &dashmap::DashMap<i32, rpg::Map> = &*(maps as *const _);
+            let unsafe_maps_ref: &dashmap::DashMap<usize, rpg::Map> = &*(maps as *const _);
             unsafe_maps_ref
                 .entry(id)
                 .or_try_insert_with(|| {

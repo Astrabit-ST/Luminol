@@ -14,11 +14,12 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{optional_path, rpg::MoveRoute, ParameterType, Path};
+use crate::{id, optional_path, rpg::MoveRoute, ParameterType, Path};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename = "RPG::Event")]
 pub struct Event {
+    #[serde(with = "id")]
     pub id: usize,
     pub name: String,
     pub x: i32,
@@ -37,6 +38,17 @@ impl Event {
             pages: vec![EventPage::default()],
         }
     }
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename = "RPG::CommonEvent")]
+pub struct CommonEvent {
+    #[serde(with = "id")]
+    pub id: usize,
+    pub name: String,
+    pub trigger: usize,
+    pub switch_id: usize,
+    pub list: Vec<EventCommand>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -80,7 +92,8 @@ impl Default for EventPage {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename = "RPG::Event::Page::Graphic")]
 pub struct Graphic {
-    pub tile_id: i32,
+    #[serde(with = "id")]
+    pub tile_id: usize,
     #[serde(with = "optional_path")]
     pub character_name: Path,
     pub character_hue: i32,
@@ -111,7 +124,9 @@ pub struct EventCondition {
     pub switch2_valid: bool,
     pub variable_valid: bool,
     pub self_switch_valid: bool,
+    #[serde(with = "id")]
     pub switch1_id: usize,
+    #[serde(with = "id")]
     pub switch2_id: usize,
     pub variable_id: usize,
     pub variable_value: i32,
@@ -125,23 +140,13 @@ impl Default for EventCondition {
             switch2_valid: false,
             variable_valid: false,
             self_switch_valid: false,
-            switch1_id: 1,
-            switch2_id: 1,
-            variable_id: 1,
+            switch1_id: 0,
+            switch2_id: 0,
+            variable_id: 0,
             variable_value: 0,
             self_switch_ch: "A".to_string(),
         }
     }
-}
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename = "RPG::CommonEvent")]
-pub struct CommonEvent {
-    pub id: usize,
-    pub name: String,
-    pub trigger: usize,
-    pub switch_id: usize,
-    pub list: Vec<EventCommand>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

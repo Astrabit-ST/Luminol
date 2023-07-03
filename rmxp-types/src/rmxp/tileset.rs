@@ -15,12 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{optional_path, Path, Table1};
+use crate::{id, optional_path, Path, Table1};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Tileset")]
 pub struct Tileset {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
     #[serde(with = "optional_path")]
     pub tileset_name: Path,

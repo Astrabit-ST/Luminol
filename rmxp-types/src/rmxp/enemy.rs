@@ -14,12 +14,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{optional_path, Path, Table1};
+pub use crate::{id, optional_path, Path, Table1};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Enemy")]
 pub struct Enemy {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
     #[serde(with = "optional_path")]
     pub battler_name: Path,
@@ -34,16 +35,21 @@ pub struct Enemy {
     pub pdef: i32,
     pub mdef: i32,
     pub eva: i32,
-    pub animation1_id: i32,
-    pub animation2_id: i32,
+    #[serde(with = "id")]
+    pub animation1_id: usize,
+    #[serde(with = "id")]
+    pub animation2_id: usize,
     pub element_ranks: Table1,
     pub state_ranks: Table1,
     pub actions: Vec<Action>,
     pub exp: i32,
     pub gold: i32,
-    pub item_id: i32,
-    pub weapon_id: i32,
-    pub armor_id: i32,
+    #[serde(with = "id")]
+    pub item_id: usize,
+    #[serde(with = "id")]
+    pub weapon_id: usize,
+    #[serde(with = "id")]
+    pub armor_id: usize,
     pub treasure_prob: i32,
 }
 
@@ -52,11 +58,13 @@ pub struct Enemy {
 pub struct Action {
     pub kind: i32,
     pub basic: i32,
-    pub skill_id: i32,
+    #[serde(with = "id")]
+    pub skill_id: usize,
     pub condition_turn_a: i32,
     pub condition_turn_b: i32,
     pub condition_hp: i32,
     pub condition_level: i32,
-    pub condition_switch_id: i32,
+    #[serde(with = "id")]
+    pub condition_switch_id: usize,
     pub rating: i32,
 }

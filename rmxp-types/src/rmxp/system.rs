@@ -59,7 +59,8 @@ pub struct System {
     pub test_battlers: Vec<TestBattler>,
     #[serde(with = "id")]
     pub test_troop_id: usize,
-    pub start_map_id: i32,
+    #[serde(with = "id")]
+    pub start_map_id: usize,
     pub start_x: i32,
     pub start_y: i32,
     #[serde(with = "optional_path")]

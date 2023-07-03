@@ -30,7 +30,7 @@ use crate::prelude::*;
 
 pub struct Tab {
     /// ID of the map that is being edited.
-    pub id: i32,
+    pub id: usize,
     /// The tilemap.
     pub tilemap: Tilemap,
 
@@ -42,7 +42,7 @@ pub struct Tab {
 
 impl Tab {
     /// Create a new map editor.
-    pub fn new(id: i32) -> Result<Self, String> {
+    pub fn new(id: usize) -> Result<Self, String> {
         let map = state!().data_cache.map(id);
         Ok(Self {
             id,

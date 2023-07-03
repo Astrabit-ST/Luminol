@@ -14,12 +14,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::id;
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
 #[serde(rename = "RPG::MapInfo")]
 pub struct MapInfo {
     pub name: String,
-    pub parent_id: i32,
+    #[serde(with = "id")]
+    pub parent_id: usize,
     pub order: i32,
     pub expanded: bool,
     pub scroll_x: i32,

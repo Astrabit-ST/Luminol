@@ -14,14 +14,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{optional_path, Path, Table2};
+use crate::{id, optional_path, Path, Table2};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Actor")]
 pub struct Actor {
-    pub id: i32,
+    #[serde(with = "id")]
+    pub id: usize,
     pub name: String,
-    pub class_id: i32,
+    #[serde(with = "id")]
+    pub class_id: usize,
     pub initial_level: i32,
     pub final_level: i32,
     pub exp_basis: i32,
@@ -33,11 +35,16 @@ pub struct Actor {
     pub battler_name: Path,
     pub battler_hue: i32,
     pub parameters: Table2,
-    pub weapon_id: i32,
-    pub armor1_id: i32,
-    pub armor2_id: i32,
-    pub armor3_id: i32,
-    pub armor4_id: i32,
+    #[serde(with = "id")]
+    pub weapon_id: usize,
+    #[serde(with = "id")]
+    pub armor1_id: usize,
+    #[serde(with = "id")]
+    pub armor2_id: usize,
+    #[serde(with = "id")]
+    pub armor3_id: usize,
+    #[serde(with = "id")]
+    pub armor4_id: usize,
     pub weapon_fix: bool,
     pub armor1_fix: bool,
     pub armor2_fix: bool,

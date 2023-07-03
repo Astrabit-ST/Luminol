@@ -14,13 +14,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::rpg::{AudioFile, Event, MoveRoute};
+use crate::rpg::{id, AudioFile, Event, MoveRoute};
 use crate::Table3;
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Map")]
 pub struct Map {
-    pub tileset_id: i32,
+    #[serde(with = "id")]
+    pub tileset_id: usize,
     pub width: usize,
     pub height: usize,
     pub autoplay_bgm: bool,

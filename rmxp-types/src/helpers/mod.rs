@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod id;
+pub mod id_vec;
 pub mod nil_padded;
 pub mod optional_path;
 
