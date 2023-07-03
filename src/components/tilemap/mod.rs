@@ -86,6 +86,9 @@ impl Tilemap {
         // Get tilesets.
         let atlas = state!().atlas_cache.load_atlas(map.tileset_id)?;
 
+        let tilesets = state!().data_cache.tilesets();
+        let tileset = &tilesets[map.tileset_id];
+
         let map_tiles = Tiles::new(atlas.clone(), &map.data);
 
         let tilepicker_data = [0, 48, 96, 144, 192, 240, 288, 336]
@@ -102,13 +105,11 @@ impl Tilemap {
 
         let events = events::Events::new(map, &atlas)?;
 
-        let panorama = if tileset.panorama_name.is_empty() {
-            None
-        } else {
+        let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(plane::Plane::new(
                 state!()
                     .image_cache
-                    .load_wgpu_image("Graphics/Panoramas", &tileset.panorama_name)?,
+                    .load_wgpu_image("Graphics/Panoramas", panorama_name)?,
                 tileset.panorama_hue,
                 100,
                 BlendMode::Normal,
@@ -116,14 +117,14 @@ impl Tilemap {
                 map.width,
                 map.height,
             ))
-        };
-        let fog = if tileset.fog_name.is_empty() {
-            None
         } else {
+            None
+        };
+        let fog = if let Some(ref fog_name) = tileset.fog_name {
             Some(plane::Plane::new(
                 state!()
                     .image_cache
-                    .load_wgpu_image("Graphics/Fogs", &tileset.fog_name)?,
+                    .load_wgpu_image("Graphics/Fogs", fog_name)?,
                 tileset.fog_hue,
                 tileset.fog_zoom,
                 tileset.fog_blend_type.try_into()?,
@@ -131,6 +132,8 @@ impl Tilemap {
                 map.width,
                 map.height,
             ))
+        } else {
+            None
         };
         let map_viewport = Viewport::new();
         map_viewport.set_proj(cgmath::ortho(

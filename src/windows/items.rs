@@ -31,7 +31,6 @@ pub struct Window {
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker: graphic_picker::Window,
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
@@ -42,24 +41,11 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         let items = state!().data_cache.items().clone();
-        let icon_paths = match state!().filesystem.read_dir("Graphics/Icons") {
-            Ok(icons) => icons
-                .into_iter()
-                .map(filesystem::DirEntry::into_path)
-                .collect(),
-            Err(why) => {
-                state!()
-                    .toasts
-                    .error(format!("Error while reading `Graphics/Icons`: {why}"));
-                Vec::new()
-            }
-        };
-        let icon_picker = graphic_picker::Window::new(icon_paths);
+
         Self {
             items,
             selected_item: 0,
 
-            icon_picker,
             icon_picker_open: false,
 
             menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, true),
@@ -132,11 +118,6 @@ impl window::Window for Window {
                         egui::TextEdit::singleline(&mut selected_item.name),
                     ));
 
-                    ui.add(Field::new(
-                        "Icon",
-                        CallbackButton::new(selected_item.icon_name.clone())
-                            .on_click(|| self.icon_picker_open = !self.icon_picker_open),
-                    ));
                     ui.end_row();
 
                     ui.add(Field::new(
@@ -145,57 +126,9 @@ impl window::Window for Window {
                     ));
                     ui.end_row();
 
-                    ui.add(Field::new(
-                        "Scope",
-                        EnumMenuButton::new(selected_item.scope, rpg::ItemScope::None, |scope| {
-                            selected_item.scope = scope as i32;
-                        }),
-                    ));
-
-                    ui.add(Field::new(
-                        "Occasion",
-                        EnumMenuButton::new(
-                            selected_item.occasion,
-                            rpg::ItemOccasion::Always,
-                            |occasion| {
-                                selected_item.occasion = occasion as i32;
-                            },
-                        ),
-                    ));
-                    ui.end_row();
-
-                    ui.add(Field::new(
-                        "User Animation",
-                        NilPaddedMenu::new(&mut selected_item.animation1_id, &*animations),
-                    ));
-                    ui.add(Field::new(
-                        "Target Animation",
-                        NilPaddedMenu::new(&mut selected_item.animation2_id, &*animations),
-                    ));
-                    ui.end_row();
-
-                    ui.add(Field::new(
-                        "Menu Use SE",
-                        CallbackButton::new(selected_item.menu_se.name.clone()).on_click(|| {
-                            self.menu_se_picker_open = true;
-                        }),
-                    ));
-                    ui.add(Field::new(
-                        "Common Event",
-                        NilPaddedMenu::new(&mut selected_item.common_event_id, &*common_events),
-                    ));
-                    ui.end_row();
-
                     egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
 
-                if self.icon_picker_open {
-                    self.icon_picker.show(
-                        ctx,
-                        &mut self.icon_picker_open,
-                        &mut selected_item.icon_name,
-                    );
-                }
                 if self.menu_se_picker_open {
                     egui::Window::new("Menu Sound Effect Picker")
                         .id(egui::Id::new("menu_se_picker"))

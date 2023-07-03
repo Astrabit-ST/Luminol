@@ -49,10 +49,15 @@ pub struct Atlas {
 
 impl Atlas {
     pub fn new(tileset: &rpg::Tileset) -> Result<Atlas, String> {
-        let tileset_img = state!()
-            .image_cache
-            .load_image("Graphics/Tilesets", &tileset.tileset_name)?;
-        let tileset_img = tileset_img.to_rgba8();
+        let tileset_img = tileset.tileset_name.as_ref().and_then(|tileset_name| {
+            let tileset_img = state!()
+                .image_cache
+                .load_image("Graphics/Tilesets", tileset_name)
+                .ok()?;
+            Some(tileset_img.to_rgba8())
+        });
+        let tileset_width = tileset_img.as_ref().map(|i| i.width()).unwrap_or(0);
+        let tileset_height = tileset_img.as_ref().map(|i| i.height()).unwrap_or(0);
 
         let autotiles: Vec<_> = tileset
             .autotile_names
@@ -96,9 +101,9 @@ impl Atlas {
 
         let rows_under;
         let rows_side;
-        if TOTAL_AUTOTILE_HEIGHT + tileset_img.height() < MAX_SIZE {
-            width = autotile_width.max(tileset_img.width()); // in case we have less autotiles frames than the tileset is wide
-            height = TOTAL_AUTOTILE_HEIGHT + tileset_img.height(); // we're sure that the tileset can fit into the atlas just fine
+        if TOTAL_AUTOTILE_HEIGHT + tileset_height < MAX_SIZE {
+            width = autotile_width.max(tileset_height); // in case we have less autotiles frames than the tileset is wide
+            height = TOTAL_AUTOTILE_HEIGHT + tileset_height; // we're sure that the tileset can fit into the atlas just fine
 
             rows_under = 1;
             rows_side = 0;
@@ -107,13 +112,12 @@ impl Atlas {
             // Take the smallest of these
             rows_under = u32::min(
                 // How many times can the tileset fit under the autotiles?
-                tileset_img.height().div_ceil(HEIGHT_UNDER_AUTOTILES),
+                tileset_height.div_ceil(HEIGHT_UNDER_AUTOTILES),
                 // How many columns of autotiles are there
                 autotile_width.div_ceil(TILESET_WIDTH),
             );
             // Find out how many rows would fit on the side by dividing the left over height by MAX_SIZE
-            rows_side = tileset_img
-                .height()
+            rows_side = tileset_height
                 .saturating_sub(rows_under * HEIGHT_UNDER_AUTOTILES)
                 .div_ceil(MAX_SIZE);
 
@@ -190,38 +194,40 @@ impl Atlas {
         render_state.queue.submit(std::iter::once(encoder.finish()));
 
         atlas_copy.origin.x = 0;
-        if TOTAL_AUTOTILE_HEIGHT + tileset_img.height() < MAX_SIZE {
-            write_texture_region(
-                &atlas_texture,
-                tileset_img.view(0, 0, TILESET_WIDTH, tileset_img.height()),
-                (0, TOTAL_AUTOTILE_HEIGHT),
-            )
-        } else {
-            for i in 0..rows_under {
-                let y = HEIGHT_UNDER_AUTOTILES * i;
-                let height = if y + HEIGHT_UNDER_AUTOTILES > tileset_img.height() {
-                    tileset_img.height() - y
-                } else {
-                    HEIGHT_UNDER_AUTOTILES
-                };
+        if let Some(tileset_img) = tileset_img {
+            if TOTAL_AUTOTILE_HEIGHT + tileset_height < MAX_SIZE {
                 write_texture_region(
                     &atlas_texture,
-                    tileset_img.view(0, y, TILESET_WIDTH, height),
-                    (TILESET_WIDTH * i, TOTAL_AUTOTILE_HEIGHT),
+                    tileset_img.view(0, 0, TILESET_WIDTH, tileset_height),
+                    (0, TOTAL_AUTOTILE_HEIGHT),
                 )
-            }
-            for i in 0..rows_side {
-                let y = (HEIGHT_UNDER_AUTOTILES * rows_under) + MAX_SIZE * i;
-                let height = if y + MAX_SIZE > tileset_img.height() {
-                    tileset_img.height() - y
-                } else {
-                    MAX_SIZE
-                };
-                write_texture_region(
-                    &atlas_texture,
-                    tileset_img.view(0, y, TILESET_WIDTH, height),
-                    (TILESET_WIDTH * (rows_under + i), 0),
-                )
+            } else {
+                for i in 0..rows_under {
+                    let y = HEIGHT_UNDER_AUTOTILES * i;
+                    let height = if y + HEIGHT_UNDER_AUTOTILES > tileset_height {
+                        tileset_height - y
+                    } else {
+                        HEIGHT_UNDER_AUTOTILES
+                    };
+                    write_texture_region(
+                        &atlas_texture,
+                        tileset_img.view(0, y, TILESET_WIDTH, height),
+                        (TILESET_WIDTH * i, TOTAL_AUTOTILE_HEIGHT),
+                    )
+                }
+                for i in 0..rows_side {
+                    let y = (HEIGHT_UNDER_AUTOTILES * rows_under) + MAX_SIZE * i;
+                    let height = if y + MAX_SIZE > tileset_height {
+                        tileset_height - y
+                    } else {
+                        MAX_SIZE
+                    };
+                    write_texture_region(
+                        &atlas_texture,
+                        tileset_img.view(0, y, TILESET_WIDTH, height),
+                        (TILESET_WIDTH * (rows_under + i), 0),
+                    )
+                }
             }
         }
 
@@ -232,7 +238,7 @@ impl Atlas {
             atlas_texture,
             autotile_width,
 
-            tileset_height: tileset_img.height(),
+            tileset_height,
             autotile_frames,
         })
     }

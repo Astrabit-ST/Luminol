@@ -32,7 +32,6 @@ pub struct Window {
     map_id: usize,
     selected_page: usize,
     event: rpg::Event,
-    page_graphics: (Vec<Option<Arc<RetainedImage>>>, Arc<RetainedImage>),
     viewed_tab: u8,
     modals: (bool, bool, bool),
 }
@@ -40,27 +39,11 @@ pub struct Window {
 impl Window {
     /// Create a new event editor.
     pub fn new(id: usize, map_id: usize, event: rpg::Event, tileset_name: String) -> Self {
-        let pages_graphics = event
-            .pages
-            .iter()
-            .map(|p| {
-                state!()
-                    .image_cache
-                    .load_egui_image("Graphics/Characters", &p.graphic.character_name)
-                    .ok()
-            })
-            .collect();
-        let tileset_graphic = state!()
-            .image_cache
-            .load_egui_image("Graphics/Tilesets", tileset_name)
-            .unwrap();
-
         Self {
             id,
             map_id,
             selected_page: 0,
             event,
-            page_graphics: (pages_graphics, tileset_graphic),
             viewed_tab: 2,
             modals: (false, false, false),
         }
@@ -301,62 +284,7 @@ impl window::Window for Window {
                             });
                         });
                     }
-                    1 => {
-                        let space =
-                            ui.available_size_before_wrap() - ui.spacing().button_padding * 2.;
-                        let (page_graphic, tileset_graphic) = &self.page_graphics;
-
-                        if if page.graphic.tile_id == 0 {
-                            let ele = page.graphic.tile_id - 384;
-
-                            let tile_width = 32. / tileset_graphic.width() as f32;
-                            let tile_height = 32. / tileset_graphic.height() as f32;
-
-                            let tile_x =
-                                (ele as usize % (tileset_graphic.width() / 32)) as f32 * tile_width;
-                            let tile_y = (ele as usize / (tileset_graphic.width() / 32)) as f32
-                                * tile_height;
-
-                            let uv = egui::Rect::from_min_size(
-                                egui::pos2(tile_x, tile_y),
-                                egui::vec2(tile_width, tile_height),
-                            );
-
-                            ui.add(
-                                egui::ImageButton::new(
-                                    tileset_graphic.texture_id(ui.ctx()),
-                                    egui::vec2(space.x, space.x),
-                                )
-                                .uv(uv),
-                            )
-                        } else if let Some(ref tex) = page_graphic[self.selected_page] {
-                            let cw = (tex.width() / 4) as f32;
-                            let ch = (tex.height() / 4) as f32;
-
-                            let cx = (page.graphic.pattern as f32 * cw) / tex.width() as f32;
-                            let cy = (((page.graphic.direction - 2) / 2) as f32 * ch)
-                                / tex.height() as f32;
-
-                            let uv = egui::Rect::from_min_size(
-                                egui::pos2(cx, cy),
-                                egui::vec2(cw / tex.width() as f32, ch / tex.height() as f32),
-                            );
-
-                            ui.add(
-                                egui::ImageButton::new(
-                                    tex.texture_id(ui.ctx()),
-                                    egui::vec2(space.x, ch * (space.x / cw)),
-                                )
-                                .uv(uv),
-                            )
-                        } else {
-                            ui.button("Add image")
-                        }
-                        .clicked()
-                        {
-                            // TODO: Use modals for an image picker
-                        }
-                    }
+                    1 => {}
                     2 => {
                         ui.vertical(|ui| {
                             ui.group(|ui| {

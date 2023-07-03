@@ -27,12 +27,8 @@ impl Events {
         let mut events: Vec<_> = map
             .events
             .iter()
-            .filter(|(_, e)| {
-                e.pages.first().is_some_and(|p| {
-                    !p.graphic.character_name.is_empty() || p.graphic.tile_id.is_positive()
-                })
-            })
             .map(|(_, event)| Event::new(event, atlas))
+            .flatten_ok()
             .try_collect()?;
         events.sort_unstable_by(|e1, e2| e1.sprite.blend_mode.cmp(&e2.sprite.blend_mode));
 
@@ -54,20 +50,23 @@ struct Event {
 }
 
 impl Event {
-    pub fn new(event: &rpg::Event, atlas: &Atlas) -> Result<Self, String> {
+    // code smell, fix
+    pub fn new(event: &rpg::Event, atlas: &Atlas) -> Result<Option<Self>, String> {
         let Some(page) = event.pages.first() else {
             return Err("event does not have first page".to_string())
         };
 
-        let texture = if page.graphic.tile_id.is_positive() {
-            atlas.atlas_texture.clone()
-        } else {
+        let texture = if let Some(ref filename) = page.graphic.character_name {
             state!()
                 .image_cache
-                .load_wgpu_image("Graphics/Characters", &page.graphic.character_name)?
+                .load_wgpu_image("Graphics/Characters", filename)?
+        } else if page.graphic.tile_id > 0 {
+            atlas.atlas_texture.clone()
+        } else {
+            return Ok(None);
         };
 
-        let quads = if page.graphic.tile_id.is_positive() {
+        let quads = if page.graphic.tile_id > 0 {
             let mut tile_quads = vec![];
             atlas.calc_quads(
                 page.graphic.tile_id as i16,
@@ -107,7 +106,7 @@ impl Event {
             page.graphic.opacity,
         );
 
-        Ok(Self { sprite })
+        Ok(Some(Self { sprite }))
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
