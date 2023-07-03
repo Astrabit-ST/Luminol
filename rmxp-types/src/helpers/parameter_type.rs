@@ -23,10 +23,9 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::rgss_structs::{Color, Tone};
-use crate::rpg::{AudioFile, MoveCommand, MoveRoute};
-use serde::{Deserialize, Serialize};
+use crate::shared::{AudioFile, MoveCommand, MoveRoute};
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Default)]
 #[allow(missing_docs)]
 #[serde(from = "alox_48::Value")]
 #[serde(into = "alox_48::Value")]

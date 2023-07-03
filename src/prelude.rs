@@ -35,6 +35,7 @@ pub use crate::filesystem;
 pub use crate::filesystem::FileSystem;
 
 pub use std::collections::HashMap;
+pub use std::num::NonZeroUsize;
 pub use std::path::{Path, PathBuf};
 pub use std::sync::Arc;
 
