@@ -1,0 +1,4 @@
+fallback_language = "en-AU"
+
+[fluent]
+assets_dir = "lang"
