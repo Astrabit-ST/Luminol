@@ -24,6 +24,7 @@
 
 use crate::prelude::*;
 use core::ops::{Deref, DerefMut};
+use dashmap::DashMap;
 
 #[derive(Default, Debug)]
 pub struct Cache {
@@ -172,7 +173,6 @@ impl Cache {
             tilesets,
             troops,
             weapons,
-
             maps: Default::default(),
             scripts: AtomicRefCell::new(scripts),
         };
