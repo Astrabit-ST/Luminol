@@ -27,49 +27,54 @@ use eframe::egui;
 
 use strum::IntoEnumIterator;
 
+use crate::fl;
+
 pub fn parameter_ui(
     ui: &mut egui::Ui,
     parameter: &mut Parameter,
     del_idx: (usize, &mut Option<usize>),
 ) {
     ui.horizontal(|ui| {
-            ui.menu_button(format!("{} ⏷", <&str>::from(&*parameter)), |ui| {
-                for iter_kind in Parameter::iter() {
-                    if let Parameter::Group {ref mut guid , ..}
-                    | Parameter::Selection { ref mut  guid, .. } = parameter {
-                        *guid = rand::random();
-                    }
-                    let text: &str = (&iter_kind).into();
-                    ui.selectable_value(parameter, iter_kind, text);
+        ui.menu_button(format!("{} ⏷", <&str>::from(&*parameter)), |ui| {
+            for iter_kind in Parameter::iter() {
+                if let Parameter::Group { ref mut guid, .. }
+                | Parameter::Selection { ref mut guid, .. } = parameter
+                {
+                    *guid = rand::random();
                 }
-            });
-
-            if let Parameter::Single { ref mut index, ..}
-            | Parameter::Selection { ref mut index, .. } = parameter {
-                ui.label("Position: ").on_hover_text_at_pointer("Position of this parameter, when not set it is assumed to be the index of the parameter");
-                match index {
-                    Index::Overridden(ref mut idx) => {
-                        ui.add(egui::DragValue::new(idx));
-                    }
-                    Index::Assumed(ref mut assumed_idx) => {
-                        if ui.add(egui::DragValue::new(assumed_idx)).changed() {
-                            *index = Index::Overridden(*assumed_idx);
-                        }
-                    }
-                }
-            }
-
-            if ui
-                .button(
-                    egui::RichText::new("-")
-                        .monospace()
-                        .color(egui::Color32::RED),
-                )
-                .clicked()
-            {
-                *del_idx.1 = Some(del_idx.0);
+                let text: &str = (&iter_kind).into();
+                ui.selectable_value(parameter, iter_kind, text);
             }
         });
+
+        if let Parameter::Single { ref mut index, .. }
+        | Parameter::Selection { ref mut index, .. } = parameter
+        {
+            ui.label(format!("{}: ", fl!("position")))
+                .on_hover_text_at_pointer(fl!("window_commandgen_position_onhover_label"));
+            match index {
+                Index::Overridden(ref mut idx) => {
+                    ui.add(egui::DragValue::new(idx));
+                }
+                Index::Assumed(ref mut assumed_idx) => {
+                    if ui.add(egui::DragValue::new(assumed_idx)).changed() {
+                        *index = Index::Overridden(*assumed_idx);
+                    }
+                }
+            }
+        }
+
+        if ui
+            .button(
+                egui::RichText::new("-")
+                    .monospace()
+                    .color(egui::Color32::RED),
+            )
+            .clicked()
+        {
+            *del_idx.1 = Some(del_idx.0);
+        }
+    });
 
     match parameter {
         Parameter::Group {
@@ -77,7 +82,7 @@ pub fn parameter_ui(
             guid,
         } => {
             ui.push_id(guid, |ui| {
-                egui::CollapsingHeader::new("Grouped parameters")
+                egui::CollapsingHeader::new(fl!("window_commandgen_grouped_params_label"))
                     .default_open(true)
                     .show(ui, |ui| {
                         let mut del_idx = None;
@@ -101,7 +106,7 @@ pub fn parameter_ui(
                         }
                     })
                     .header_response
-                    .on_hover_text("This parameter groups together other parameters");
+                    .on_hover_text(fl!("window_commandgen_grouped_params_onhover_label"));
             });
         }
         Parameter::Selection {
@@ -110,7 +115,7 @@ pub fn parameter_ui(
             ..
         } => {
             ui.push_id(guid, |ui| {
-                egui::CollapsingHeader::new("Subparameters")
+                egui::CollapsingHeader::new(fl!("window_commandgen_subparams_label"))
                     .default_open(true)
                     .show(ui, |ui| {
                         let mut del_idx = None;
@@ -142,7 +147,7 @@ pub fn parameter_ui(
                         }
                     })
                     .header_response
-                    .on_hover_text("This parameter selects one of the following parameters");
+                    .on_hover_text(fl!("window_commandgen_subparams_onhover_label"));
             });
         }
         Parameter::Single {
@@ -152,18 +157,18 @@ pub fn parameter_ui(
             ..
         } => {
             ui.horizontal(|ui| {
-                ui.label("Name");
+                ui.label(fl!("name"));
                 ui.text_edit_singleline(name);
             });
 
             ui.horizontal(|ui| {
-                ui.label("Description:");
+                ui.label(format!("{}:", fl!("description")));
                 ui.text_edit_singleline(description)
-                    .on_hover_text("Description for this parameter");
+                    .on_hover_text(fl!("window_commandgen_description_onhover_label"));
             });
 
             ui.horizontal(|ui| {
-                ui.label("Type: ");
+                ui.label(format!("{}: ", fl!("type")));
                 ui.menu_button(format!("{} ⏷", <&str>::from(&*kind)), |ui| {
                     for iter_kind in ParameterKind::iter() {
                         let text: &str = (&iter_kind).into();
@@ -173,7 +178,7 @@ pub fn parameter_ui(
             });
 
             if let ParameterKind::Enum { ref mut variants } = kind {
-                egui::CollapsingHeader::new("Variants")
+                egui::CollapsingHeader::new(fl!("variants"))
                     .default_open(true)
                     .show(ui, |ui| {
                         let mut del_idx = None;
@@ -211,7 +216,7 @@ pub fn parameter_ui(
                         }
                     })
                     .header_response
-                    .on_disabled_hover_text("Variants for the enum");
+                    .on_disabled_hover_text(fl!("window_commandgen_variants_onhover_label"));
             }
         }
         Parameter::Dummy => {}

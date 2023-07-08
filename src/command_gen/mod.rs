@@ -18,7 +18,7 @@ use command_lib::{CommandDescription, CommandKind, Index, Parameter};
 
 use ui_example::UiExample;
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 
 pub mod parameter_ui;
 pub mod ui_example;
@@ -82,7 +82,7 @@ impl CommandGeneratorWindow {
 
 impl window::Window for CommandGeneratorWindow {
     fn name(&self) -> String {
-        String::from("Luminol Command Maker")
+        fl!("window_commandgen_title_label")
     }
 
     fn id(&self) -> egui::Id {
@@ -94,19 +94,20 @@ impl window::Window for CommandGeneratorWindow {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mut del_index = None;
                 for (idx, command) in self.commands.iter_mut().enumerate() {
-                        ui.push_id(command.guid, |ui| {
-                        let header = egui::collapsing_header::CollapsingState::load_with_default_open(
-                            ui.ctx(),
-                            format!("command_{idx}").into(),
-                            false,
-                        );
+                    ui.push_id(command.guid, |ui| {
+                        let header =
+                            egui::collapsing_header::CollapsingState::load_with_default_open(
+                                ui.ctx(),
+                                format!("command_{idx}").into(),
+                                false,
+                            );
                         header
                             .show_header(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label("Name:");
+                                    ui.label(format!("{}:", fl!("name")));
                                     ui.text_edit_singleline(&mut command.name);
 
-                                    ui.label("Code:");
+                                    ui.label(format!("{}:", fl!("code")));
                                     ui.add(egui::DragValue::new(&mut command.code));
                                 });
 
@@ -122,56 +123,78 @@ impl window::Window for CommandGeneratorWindow {
                                 }
                             })
                             .body(|ui| {
-                                ui.label("Description:");
+                                ui.label(format!("{}:", fl!("description")));
                                 ui.text_edit_multiline(&mut command.description)
-                                    .on_hover_text("Description for this command");
-                                ui.label("Lumi help text");
-                                ui.text_edit_multiline(&mut command.lumi_text).on_hover_text("This text will be shown by lumi if she's enabled");
+                                    .on_hover_text(fl!("window_commandgen_desc_label"));
+                                ui.label(fl!("window_commandgen_lumi_label"));
+                                ui.text_edit_multiline(&mut command.lumi_text)
+                                    .on_hover_text(fl!("window_commandgen_lumi_onhover_label"));
 
                                 ui.separator();
 
-                                ui.label("Type");
+                                ui.label(fl!("type"));
                                 ui.horizontal(|ui| {
                                     ui.menu_button(
                                         format!("{} ⏷", <&str>::from(&command.kind)),
                                         |ui| {
                                             for kind in CommandKind::iter() {
-                                                let text =<&str>::from(&kind);
-                                                ui.selectable_value(
-                                                    &mut command.kind,
-                                                    kind,
-                                                    text,
-                                                );
+                                                let text = <&str>::from(&kind);
+                                                ui.selectable_value(&mut command.kind, kind, text);
                                             }
                                         },
                                     );
                                     match command.kind {
-                                        CommandKind::Multi { ref mut code, ref mut highlight} =>{
-                                            ui.label("Cont. Code").on_hover_text("Luminol will assume that any following commands with this code are a part of this one");
+                                        CommandKind::Multi {
+                                            ref mut code,
+                                            ref mut highlight,
+                                        } => {
+                                            ui.label(fl!("window_commandgen_contcode_label"))
+                                                .on_hover_text(fl!(
+                                                    "window_commandgen_contcode_onhover_label"
+                                                ));
                                             ui.add(egui::DragValue::new(code));
-                                            ui.checkbox(highlight, "Enable ruby syntax highlighting");
+                                            ui.checkbox(
+                                                highlight,
+                                                fl!("window_commandgen_syntax_highlighting_cb"),
+                                            );
                                         }
-                                        CommandKind::Branch { ref mut end_code, .. } => {
-                                            ui.label("End Code").on_hover_text("Luminol will add this command to denote the end of the branch");
+                                        CommandKind::Branch {
+                                            ref mut end_code, ..
+                                        } => {
+                                            ui.label(fl!("window_commandgen_endcode_label"))
+                                                .on_hover_text(fl!(
+                                                    "window_commandgen_endcode_onhover_label"
+                                                ));
                                             ui.add(egui::DragValue::new(end_code));
                                         }
                                         _ => {}
                                     }
                                 });
 
-                                ui.checkbox(&mut command.hidden, "Hide in menu");
+                                ui.checkbox(&mut command.hidden, fl!("window_commandgen_him_cb"));
 
                                 ui.separator();
 
-                                if let CommandKind::Single(ref mut parameters) | CommandKind::Branch { ref mut parameters, .. } = command.kind {
-                                    ui.collapsing("Parameters", |ui| {
+                                if let CommandKind::Single(ref mut parameters)
+                                | CommandKind::Branch {
+                                    ref mut parameters, ..
+                                } = command.kind
+                                {
+                                    ui.collapsing(fl!("parameters"), |ui| {
                                         let mut del_idx = None;
 
                                         let mut passed_index = 0;
                                         for (ele, parameter) in parameters.iter_mut().enumerate() {
-                                            parameter_ui::parameter_ui(ui, parameter,  (ele, &mut del_idx));
+                                            parameter_ui::parameter_ui(
+                                                ui,
+                                                parameter,
+                                                (ele, &mut del_idx),
+                                            );
 
-                                            Self::recalculate_parameter_index(parameter, &mut passed_index);
+                                            Self::recalculate_parameter_index(
+                                                parameter,
+                                                &mut passed_index,
+                                            );
                                         }
 
                                         if let Some(idx) = del_idx {
@@ -192,7 +215,9 @@ impl window::Window for CommandGeneratorWindow {
                                 }
                             });
 
-                        if command.parameter_count() > 0 && ui.button("Preview UI").clicked() {
+                        if command.parameter_count() > 0
+                            && ui.button(fl!("window_commandgen_preview_btn")).clicked()
+                        {
                             self.ui_examples.push(UiExample::new(command));
                         }
 
@@ -206,17 +231,17 @@ impl window::Window for CommandGeneratorWindow {
 
                 ui.horizontal(|ui| {
                     if ui
-                    .button(
-                        egui::RichText::new("+")
-                            .monospace()
-                            .color(egui::Color32::GREEN),
-                    )
-                    .clicked()
+                        .button(
+                            egui::RichText::new("+")
+                                .monospace()
+                                .color(egui::Color32::GREEN),
+                        )
+                        .clicked()
                     {
                         self.commands.push(CommandDescription::default());
                     }
 
-                    if ui.button("Save").clicked() {
+                    if ui.button(fl!("save")).clicked() {
                         command_db!().user = self.commands.clone();
                     }
                 });

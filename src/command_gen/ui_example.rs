@@ -25,6 +25,8 @@
 use command_lib::{CommandDescription, CommandKind, Parameter, ParameterKind};
 use eframe::egui;
 
+use crate::fl;
+
 pub struct UiExample {
     command: CommandDescription,
 }
@@ -38,9 +40,10 @@ impl UiExample {
 
     pub fn update(&mut self, ctx: &egui::Context) -> bool {
         let mut open = true;
-        egui::Window::new(format!(
-            "[{}] {} UI example",
-            self.command.code, self.command.name
+        egui::Window::new(fl!(
+            "window_commandgen_ui_example_label",
+            code = self.command.code,
+            name = self.command.name.clone()
         ))
         .open(&mut open)
         .show(ctx, |ui| {
@@ -104,10 +107,20 @@ impl UiExample {
 
                 match kind {
                     ParameterKind::Switch => {
-                        ui.button("Switch: [000: EXAMPLE]").clicked();
+                        ui.button(format!(
+                            "{}: [000: {}]",
+                            fl!("switch"),
+                            fl!("example_allcaps")
+                        ))
+                        .clicked();
                     }
                     ParameterKind::Variable => {
-                        ui.button("Variable [000: EXAMPLE]").clicked();
+                        ui.button(format!(
+                            "{} [000: {}]",
+                            fl!("variable"),
+                            fl!("example_allcaps")
+                        ))
+                        .clicked();
                     }
                     ParameterKind::String => {
                         ui.text_edit_singleline(&mut "".to_string());
