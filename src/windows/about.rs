@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::fl;
+
 /// A basic about window.
 /// Shows some info on Luminol, along with an icon.
 pub struct Window {
@@ -42,7 +44,7 @@ impl Default for Window {
 
 impl super::window::Window for Window {
     fn name(&self) -> String {
-        "About".to_string()
+        fl!("window_about_title_label")
     }
 
     fn id(&self) -> egui::Id {
@@ -51,7 +53,7 @@ impl super::window::Window for Window {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         // Show the window. Name it "About Luminol"
-        egui::Window::new("About Luminol")
+        egui::Window::new(fl!("window_about_luminol_label"))
             // Open is passed in. egui sets it to false if the window is closed.
             .open(open)
             .resizable(false)
@@ -59,19 +61,22 @@ impl super::window::Window for Window {
                 // Center the widgets vertically for cleanliness.
                 ui.vertical_centered(|ui| {
                     self.icon.show_scaled(ui, 0.5); // We scale the icon down since it's pretty huge.
-                    ui.heading("Luminol");
+                    ui.heading(fl!("luminol"));
 
                     ui.separator();
-                    ui.label(format!("Luminol version {}", env!("CARGO_PKG_VERSION")));
+                    ui.label(fl!(
+                        "window_about_version_text_label",
+                        version = env!("CARGO_PKG_VERSION")
+                    ));
                     ui.label(format!("git-rev {}", git_version::git_version!()));
                     ui.separator();
 
-                    ui.label("Luminol is a FOSS version of the RPG Maker XP editor.");
+                    ui.label(fl!("window_about_description_text_label"));
                     ui.separator();
 
-                    ui.label(format!(
-                        "Authors: \n{}",
-                        env!("CARGO_PKG_AUTHORS").replace(':', "\n")
+                    ui.label(fl!(
+                        "window_about_authors_label",
+                        authorsArray = env!("CARGO_PKG_AUTHORS").replace(':', "\n")
                     ))
                 })
             });

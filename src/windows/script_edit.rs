@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::fl;
 pub use crate::prelude::*;
 
 /// The script editor.
@@ -41,8 +42,8 @@ impl window::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
-            .map_or("Scripts".to_string(), |name| {
-                format!("Editing Script {name}")
+            .map_or(fl!("window_script_editor_fallback_title_label"), |name| {
+                fl!("window_script_editor_title_label", name = name)
             })
     }
 
@@ -69,12 +70,18 @@ impl window::Window for Window {
                                 let response = ui
                                     .text_edit_singleline(&mut script.name)
                                     .context_menu(|ui| {
-                                        if ui.button("Insert").clicked() {
+                                        if ui
+                                            .button(fl!("window_script_editor_insert_btn"))
+                                            .clicked()
+                                        {
                                             insert_index = Some(index);
                                         }
 
                                         ui.add_enabled_ui(scripts_len > 1, |ui| {
-                                            if ui.button("Delete").clicked() {
+                                            if ui
+                                                .button(fl!("window_script_editor_delete_btn"))
+                                                .clicked()
+                                            {
                                                 del_index = Some(index);
                                             }
                                         });
@@ -90,7 +97,7 @@ impl window::Window for Window {
                                 scripts.insert(
                                     index,
                                     rpg::Script {
-                                        name: "New Script".to_string(),
+                                        name: fl!("window_script_editor_new_str"),
                                         script_text: String::new(),
                                     },
                                 );
@@ -142,16 +149,16 @@ impl tab::Tab for ScriptTab {
         ui.horizontal(|ui| {
             let mut save_script = false;
 
-            if ui.button("Ok").clicked() {
+            if ui.button(fl!("ok")).clicked() {
                 save_script = true;
                 self.force_close = true;
             }
 
-            if ui.button("Cancel").clicked() {
+            if ui.button(fl!("cancel")).clicked() {
                 self.force_close = true;
             }
 
-            if ui.button("Apply").clicked() {
+            if ui.button(fl!("apply")).clicked() {
                 save_script = true;
             }
 

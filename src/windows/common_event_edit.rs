@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 
 /// The common event editor.
 pub struct Window {
@@ -43,8 +43,8 @@ impl window::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
-            .map_or("Common Events".to_string(), |name| {
-                format!("Editing Common Event {name}")
+            .map_or(fl!("common_events"), |name| {
+                fl!("window_common_events_editing_label", name = name)
             })
     }
 
@@ -120,9 +120,13 @@ impl tab::Tab for CommonEventTab {
 
     fn show(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            let trigger_types = ["None", "Autorun", "Parallel"];
+            let trigger_types = [
+                fl!("window_common_events_type_none_sv"),
+                fl!("window_common_events_type_autorun_sv"),
+                fl!("window_common_events_type_parallel_sv"),
+            ];
             egui::ComboBox::new(format!("common_event_{}_trigger", self.event.id), "Trigger")
-                .selected_text(trigger_types[self.event.trigger])
+                .selected_text(trigger_types[self.event.trigger].clone())
                 .show_ui(ui, |ui| {
                     for (ele, trigger) in trigger_types.into_iter().enumerate() {
                         ui.selectable_value(&mut self.event.trigger, ele, trigger);
@@ -136,16 +140,16 @@ impl tab::Tab for CommonEventTab {
 
             let mut save_event = false;
 
-            if ui.button("Ok").clicked() {
+            if ui.button(fl!("ok")).clicked() {
                 save_event = true;
                 self.force_close = true;
             }
 
-            if ui.button("Cancel").clicked() {
+            if ui.button(fl!("cancel")).clicked() {
                 self.force_close = true;
             }
 
-            if ui.button("Apply").clicked() {
+            if ui.button(fl!("apply")).clicked() {
                 save_event = true;
             }
 
@@ -155,7 +159,7 @@ impl tab::Tab for CommonEventTab {
                 common_events[self.event.id - 1] = self.event.clone();
             }
 
-            ui.label("Name");
+            ui.label(fl!("name"));
             ui.text_edit_singleline(&mut self.event.name);
         });
 

@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 
 /// A tab for a sound (be it BGM, ME, SE, etc)
 /// Optionally can be in 'picker' mode to pick a sound effect.
@@ -60,7 +60,9 @@ impl SoundTab {
             .show_inside(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        if ui.button("Play").clicked() && !self.selected_track.as_str().is_empty() {
+                        if ui.button(fl!("window_sound_test_play_btn")).clicked()
+                            && !self.selected_track.as_str().is_empty()
+                        {
                             let path = format!("Audio/{}/{}", self.source, &self.selected_track);
                             let pitch = self.pitch;
                             let volume = self.volume;
@@ -72,7 +74,7 @@ impl SoundTab {
                             }
                         }
 
-                        if ui.button("Stop").clicked() {
+                        if ui.button(fl!("window_sound_test_stop_btn")).clicked() {
                             // Stop sound.
                             state!().audio.stop(&self.source);
                         }
@@ -85,7 +87,7 @@ impl SoundTab {
                             .add(
                                 egui::Slider::new(&mut self.volume, 0..=100)
                                     .orientation(egui::SliderOrientation::Vertical)
-                                    .text("Volume"),
+                                    .text(fl!("window_sound_test_volume_label")),
                             )
                             .changed()
                         {
@@ -97,7 +99,7 @@ impl SoundTab {
                             .add(
                                 egui::Slider::new(&mut self.pitch, 50..=150)
                                     .orientation(egui::SliderOrientation::Vertical)
-                                    .text("Pitch"),
+                                    .text(fl!("window_sound_test_pitch_label")),
                             )
                             .changed()
                         {
@@ -107,8 +109,8 @@ impl SoundTab {
 
                     if self.picker {
                         ui.horizontal(|ui| {
-                            if ui.button("Cancel").clicked() {}
-                            if ui.button("Ok").clicked() {}
+                            if ui.button(fl!("cancel")).clicked() {}
+                            if ui.button(fl!("ok")).clicked() {}
                         });
                     }
                 });
@@ -184,31 +186,33 @@ impl super::window::Window for Window {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new("Sound Test").open(open).show(ctx, |ui| {
-            egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
-                // Display the tab selector.
-                ui.horizontal_wrapped(|ui| {
-                    for source in &self.sources {
-                        if ui
-                            .selectable_label(
-                                source.source == self.selected_source,
-                                source.source.to_string(),
-                            )
-                            .clicked()
-                        {
-                            self.selected_source = source.source;
+        egui::Window::new(fl!("window_sound_test_title_label"))
+            .open(open)
+            .show(ctx, |ui| {
+                egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
+                    // Display the tab selector.
+                    ui.horizontal_wrapped(|ui| {
+                        for source in &self.sources {
+                            if ui
+                                .selectable_label(
+                                    source.source == self.selected_source,
+                                    source.source.to_string(),
+                                )
+                                .clicked()
+                            {
+                                self.selected_source = source.source;
+                            }
                         }
-                    }
-                })
-            });
+                    })
+                });
 
-            // We should be finding something. The unwrap is safe here.
-            self.sources
-                .iter_mut()
-                .find(|t| t.source == self.selected_source)
-                .unwrap()
-                .ui(ui);
-        });
+                // We should be finding something. The unwrap is safe here.
+                self.sources
+                    .iter_mut()
+                    .find(|t| t.source == self.selected_source)
+                    .unwrap()
+                    .ui(ui);
+            });
     }
 
     // Technically we don't need the cache, but we do rely on the project being open.

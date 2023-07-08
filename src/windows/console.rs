@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::fl;
+
 pub struct Console {
     term: luminol_term::Terminal,
 }
@@ -56,7 +58,7 @@ impl super::window::Window for Console {
                 if let Err(e) = self.term.ui(ui) {
                     crate::state!()
                         .toasts
-                        .error(format!("error displaying terminal: {e:?}"));
+                        .error(fl!("toast_error_displaying_term", why = e.to_string()));
                 }
             });
     }

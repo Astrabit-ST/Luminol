@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 
 pub struct Graphic {
     pub name: String,
@@ -48,9 +48,11 @@ impl Window {
             {
                 Ok(ri) => ri,
                 Err(why) => {
-                    state!()
-                        .toasts
-                        .error(format!("Cannot load `{icon_path}` icon: {why}"));
+                    state!().toasts.error(fl!(
+                        "toast_error_cannot_load_icon",
+                        icon_path = icon_path.to_string(),
+                        why = why.to_string()
+                    ));
                     continue;
                 }
             };
@@ -73,7 +75,7 @@ impl Window {
     }
 
     pub fn show(&mut self, ctx: &egui::Context, open: &mut bool, graphic_icon: &mut String) {
-        egui::Window::new("Graphic Picker")
+        egui::Window::new(fl!("window_graphic_picker_title_label"))
             .id(egui::Id::new("icon_picker"))
             .resize(|res| res.min_width(480.))
             .open(open)

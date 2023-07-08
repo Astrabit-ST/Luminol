@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::fl;
+
 use super::window::Window;
 use crate::prelude::*;
 /// Egui inspection window.
@@ -30,7 +32,7 @@ pub struct EguiInspection {}
 
 impl Window for EguiInspection {
     fn name(&self) -> String {
-        "Egui Inspection".to_string()
+        fl!("window_egui_inspec_title_label")
     }
 
     fn id(&self) -> egui::Id {
@@ -50,7 +52,7 @@ pub struct EguiMemory {}
 
 impl Window for EguiMemory {
     fn name(&self) -> String {
-        "Egui Memory".to_string()
+        fl!("window_egui_memory_title_label")
     }
 
     fn id(&self) -> egui::Id {

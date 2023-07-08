@@ -41,7 +41,6 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         let items = state!().data_cache.items().clone();
-
         Self {
             items,
             selected_item: 0,
@@ -56,7 +55,10 @@ impl Default for Window {
 
 impl window::Window for Window {
     fn name(&self) -> String {
-        format!("Editing item {}", self.items[self.selected_item].name)
+        fl!(
+            "window_items_title_label",
+            name = self.items[self.selected_item].name.clone()
+        )
     }
 
     fn id(&self) -> egui::Id {
@@ -91,7 +93,7 @@ impl window::Window for Window {
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
-                    ui.label("Items");
+                    ui.label(fl!("items"));
                     egui::ScrollArea::both().max_height(600.).show_rows(
                         ui,
                         ui.text_style_height(&egui::TextStyle::Body),
@@ -107,21 +109,21 @@ impl window::Window for Window {
                         },
                     );
 
-                    if ui.button("Change maximum...").clicked() {
+                    if ui.button(fl!("window_items_change_max_btn")).clicked() {
                         eprintln!("`Change maximum...` button trigger");
                     }
                 });
                 let selected_item = &mut self.items[self.selected_item];
                 egui::Grid::new("item_edit_central_grid").show(ui, |ui| {
                     ui.add(Field::new(
-                        "Name",
+                        fl!("name"),
                         egui::TextEdit::singleline(&mut selected_item.name),
                     ));
 
                     ui.end_row();
 
                     ui.add(Field::new(
-                        "Description",
+                        fl!("description"),
                         egui::TextEdit::singleline(&mut selected_item.description),
                     ));
                     ui.end_row();
@@ -130,7 +132,7 @@ impl window::Window for Window {
                 });
 
                 if self.menu_se_picker_open {
-                    egui::Window::new("Menu Sound Effect Picker")
+                    egui::Window::new(fl!("window_items_msep_label"))
                         .id(egui::Id::new("menu_se_picker"))
                         .show(ctx, |ui| {
                             self.menu_se_picker.ui(ui);

@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 use config::{RGSSVer, RMVer};
 
 use std::io::Read;
@@ -52,7 +52,7 @@ struct Progress {
 impl Default for Window {
     fn default() -> Self {
         Self {
-            name: "My Project".to_string(),
+            name: fl!("window_new_proj_my_proj_str"),
             rgss_ver: RGSSVer::RGSS1,
             editor_ver: RMVer::XP,
             project_promise: None,
@@ -66,7 +66,7 @@ impl Default for Window {
 
 impl window::Window for Window {
     fn name(&self) -> String {
-        "New Project".to_string()
+        fl!("new_project")
     }
 
     fn id(&self) -> egui::Id {
@@ -79,16 +79,16 @@ impl window::Window for Window {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 ui.add_enabled_ui(self.project_promise.is_none(), |ui| {
-                    ui.label("Project Name");
+                    ui.label(fl!("window_new_proj_name_label"));
                     ui.text_edit_singleline(&mut self.name);
 
-                    ui.checkbox(&mut self.init_git, "Initialize with git repository");
+                    ui.checkbox(&mut self.init_git, fl!("window_new_proj_with_git_cb"));
                     ui.add_enabled_ui(self.init_git, |ui| {
-                        ui.label("Git Branch");
+                        ui.label(fl!("window_new_proj_git_branch_label"));
                         ui.text_edit_singleline(&mut self.git_branch_name);
                     });
 
-                    egui::ComboBox::from_label("RGSS runtime")
+                    egui::ComboBox::from_label(fl!("window_new_proj_rgss_runtime_label"))
                         .selected_text(self.rgss_ver.to_string())
                         .show_ui(ui, |ui| {
                             for ver in RGSSVer::iter() {
@@ -102,7 +102,10 @@ impl window::Window for Window {
                     ) {
                         ui.checkbox(
                             &mut self.download_executable,
-                            format!("Download latest version of {}", self.rgss_ver),
+                            fl!(
+                                "window_new_proj_with_exe_download_cb",
+                                variant = self.rgss_ver.to_string()
+                            ),
                         );
                     }
                 });
@@ -115,19 +118,20 @@ impl window::Window for Window {
                             match res {
                                 Ok(_) => *open = false,
                                 Err(e) => {
-                                    state!()
-                                        .toasts
-                                        .error(format!("Failed to create project: {e}"));
+                                    state!().toasts.error(fl!(
+                                        "toast_error_creating_proj",
+                                        why = e.to_string()
+                                    ));
                                     self.project_promise = None;
                                 }
                             }
                         }
 
                         if self.progress.zip_total.load(Ordering::Relaxed) != 0 {
-                            ui.label(format!(
-                                "Downloadind & Unzipping {}/{}",
-                                self.progress.zip_current.load(Ordering::Relaxed) + 1,
-                                self.progress.zip_total.load(Ordering::Relaxed)
+                            ui.label(fl!(
+                                "window_new_proj_dl_and_unzipping_label",
+                                current = (self.progress.zip_current.load(Ordering::Relaxed) + 1),
+                                total = self.progress.zip_total.load(Ordering::Relaxed)
                             ));
                         }
 
@@ -145,7 +149,7 @@ impl window::Window for Window {
                             });
                         }
                     } else {
-                        if ui.button("Ok").clicked() {
+                        if ui.button(fl!("ok")).clicked() {
                             let rgss_ver = self.rgss_ver;
                             let config = config::project::Config {
                                 project_name: self.name.clone(),
@@ -180,13 +184,15 @@ impl window::Window for Window {
                                         {
                                             Ok(mut c) => {
                                                 if let Err(e) = c.wait() {
-                                                    state.toasts.error(format!(
-                                                        "Failed to initialize git repository {e}"
+                                                    state.toasts.error(fl!(
+                                                        "toast_error_init_git",
+                                                        why = e.to_string()
                                                     ));
                                                 }
                                             }
-                                            Err(e) => state.toasts.error(format!(
-                                                "Failed to initialize git repository {e}"
+                                            Err(e) => state.toasts.error(fl!(
+                                                "toast_error_init_git",
+                                                why = e.to_string()
                                             )),
                                         }
                                     }
@@ -202,7 +208,7 @@ impl window::Window for Window {
                                     result
                                 }));
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(fl!("cancel")).clicked() {
                             *open = false;
                         }
                     }
@@ -249,16 +255,29 @@ impl Window {
             progress.zip_current.store(index, Ordering::Relaxed);
 
             progress.total_progress.store(0, Ordering::Relaxed);
-            let mut response =
-                zip_response.map_err(|e| format!("Error downloading {rgss_ver}: {e}"))?;
+            let mut response = zip_response.map_err(|e| {
+                fl!(
+                    "toast_error_downloading_rgss",
+                    variant = rgss_ver.to_string(),
+                    why = e.to_string()
+                )
+            })?;
 
-            let bytes = response
-                .body_bytes()
-                .await
-                .map_err(|e| format!("Error getting response body for {rgss_ver}: {e}"))?;
+            let bytes = response.body_bytes().await.map_err(|e| {
+                fl!(
+                    "toast_error_getting_body_resp",
+                    variant = rgss_ver.to_string(),
+                    why = e.to_string()
+                )
+            })?;
 
-            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
-                .map_err(|e| format!("Failed to read zip archive for {rgss_ver}: {e}"))?;
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|e| {
+                fl!(
+                    "toast_error_read_zip",
+                    variant = rgss_ver.to_string(),
+                    why = e.to_string()
+                )
+            })?;
             progress
                 .total_progress
                 .store(archive.len(), Ordering::Relaxed);
@@ -276,9 +295,10 @@ impl Window {
                 let file_path = file_path
                     .strip_prefix("mkxp-z_2.4.0/")
                     .unwrap_or(&file_path);
-                let file_path = file_path
-                    .to_str()
-                    .ok_or(format!("Invalid file path {file_path:#?}"))?;
+                let file_path = file_path.to_str().ok_or(fl!(
+                    "toast_error_invalid_file_path",
+                    file_path = file_path.to_string_lossy()
+                ))?;
 
                 if file_path.is_empty()
                     || state
@@ -290,19 +310,31 @@ impl Window {
                 }
 
                 if file.is_dir() {
-                    state
-                        .filesystem
-                        .create_dir(file_path)
-                        .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
+                    state.filesystem.create_dir(file_path).map_err(|e| {
+                        fl!(
+                            "toast_error_create_dir",
+                            file_path = file_path,
+                            why = e.to_string()
+                        )
+                    })?;
                 } else {
                     let mut bytes = Vec::new();
                     file.read_to_end(&mut bytes)
                         .map_err(|e| e.to_string())
-                        .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
-                    state
-                        .filesystem
-                        .write(file_path, bytes)
-                        .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
+                        .map_err(|e| {
+                            fl!(
+                                "toast_error_reading_file_data",
+                                file_path = file_path,
+                                why = e
+                            )
+                        })?;
+                    state.filesystem.write(file_path, bytes).map_err(|e| {
+                        fl!(
+                            "toast_error_saving_file_data",
+                            file_path = file_path,
+                            why = e.to_string()
+                        )
+                    })?;
                 }
             }
         }
