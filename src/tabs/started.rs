@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
@@ -44,7 +44,7 @@ impl Tab {
 
 impl tab::Tab for Tab {
     fn name(&self) -> String {
-        "Get Started".to_string()
+        fl!("tab_started_title_label")
     }
 
     fn id(&self) -> egui::Id {
@@ -54,14 +54,14 @@ impl tab::Tab for Tab {
     fn show(&mut self, ui: &mut egui::Ui) {
         let state = state!();
         ui.label(
-            egui::RichText::new("Luminol")
+            egui::RichText::new(fl!("luminol"))
                 .size(40.)
                 .color(egui::Color32::LIGHT_GRAY),
         );
 
         ui.add_space(100.);
 
-        ui.heading("Start");
+        ui.heading(fl!("start"));
 
         if self
             .load_project_promise
@@ -71,7 +71,7 @@ impl tab::Tab for Tab {
             ui.spinner();
         } else {
             if ui
-                .button(egui::RichText::new("New Project").size(20.))
+                .button(egui::RichText::new(fl!("new_project")).size(20.))
                 .clicked()
             {
                 state!()
@@ -79,21 +79,19 @@ impl tab::Tab for Tab {
                     .add_window(crate::windows::new_project::Window::default());
             }
             if ui
-                .button(egui::RichText::new("Open Project").size(20.))
+                .button(egui::RichText::new(fl!("open_project")).size(20.))
                 .clicked()
             {
                 self.load_project_promise = Some(Promise::spawn_local(async move {
                     if let Err(e) = state.filesystem.spawn_project_file_picker().await {
-                        state
-                            .toasts
-                            .error(format!("Error loading the project: {e}"));
+                        state.toasts.error(fl!("toast_error_load_proj", why = e));
                     }
                 }));
             }
 
             ui.add_space(100.);
 
-            ui.heading("Recent");
+            ui.heading(fl!("tab_started_recent_projects_label"));
 
             for path in &global_config!().recent_projects {
                 if ui.button(path).clicked() {
@@ -101,16 +99,15 @@ impl tab::Tab for Tab {
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
                         if let Err(why) = state.filesystem.load_project(path) {
-                            state
-                                .toasts
-                                .error(format!("Error loading the project: {why}"));
+                            state.toasts.error(fl!("toast_error_load_proj", why = why));
                         } else {
-                            state!().toasts.info(format!(
-                                "Successfully opened {:?}",
-                                state!()
+                            state!().toasts.info(fl!(
+                                "toast_info_successful_load",
+                                projectName = state!()
                                     .filesystem
                                     .project_path()
                                     .expect("project not open")
+                                    .to_string()
                             ));
                         }
                     }));

@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 #![allow(unused_imports)]
+use crate::{fl, prelude::*};
 use egui::Pos2;
 use std::{cell::RefMut, collections::HashMap, collections::VecDeque};
 
@@ -318,7 +319,11 @@ impl Tab {
 impl tab::Tab for Tab {
     fn name(&self) -> String {
         let mapinfos = state!().data_cache.mapinfos();
-        format!("Map {}: {}", self.id, mapinfos[&self.id].name)
+        fl!(
+            "tab_map_title_label",
+            id = self.id,
+            name = mapinfos[&self.id].name.clone()
+        )
     }
 
     fn id(&self) -> egui::Id {
@@ -335,7 +340,7 @@ impl tab::Tab for Tab {
             ui.horizontal_wrapped(|ui| {
                 ui.add(
                     egui::Slider::new(&mut self.view.scale, 15.0..=300.)
-                        .text("Scale")
+                        .text(fl!("scale"))
                         .fixed_decimals(0),
                 );
 
@@ -344,15 +349,19 @@ impl tab::Tab for Tab {
                 ui.menu_button(
                     // Format the text based on what layer is selected.
                     match self.view.selected_layer {
-                        SelectedLayer::Events => "Events ⏷".to_string(),
-                        SelectedLayer::Tiles(layer) => format!("Layer {} ⏷", layer + 1),
+                        SelectedLayer::Events => format!("{} ⏷", fl!("events")),
+                        SelectedLayer::Tiles(layer) => {
+                            format!("{} ⏷", fl!("tab_map_layer_section_sv", num = layer))
+                        }
                     },
                     |ui| {
                         // TODO: Add layer enable button
                         // Display all layers.
                         ui.columns(2, |columns| {
                             columns[1].visuals_mut().button_frame = true;
-                            columns[0].label(egui::RichText::new("Panorama").underline());
+                            columns[0].label(
+                                egui::RichText::new(fl!("tab_map_panorama_label")).underline(),
+                            );
                             columns[1].checkbox(&mut self.view.map.pano_enabled, "👁");
 
                             for (index, layer) in
@@ -361,7 +370,7 @@ impl tab::Tab for Tab {
                                 columns[0].selectable_value(
                                     &mut self.view.selected_layer,
                                     SelectedLayer::Tiles(index),
-                                    format!("Layer {}", index + 1),
+                                    fl!("tab_map_layer_section_sv", num = (index + 1)),
                                 );
                                 columns[1].checkbox(layer, "👁");
                             }
@@ -370,7 +379,7 @@ impl tab::Tab for Tab {
                             columns[0].selectable_value(
                                 &mut self.view.selected_layer,
                                 SelectedLayer::Events,
-                                egui::RichText::new("Events").italics(),
+                                egui::RichText::new(fl!("events")).italics(),
                             );
                             columns[1].checkbox(&mut self.view.event_enabled, "👁");
 
@@ -382,9 +391,9 @@ impl tab::Tab for Tab {
 
                 ui.separator();
 
-                ui.checkbox(&mut self.view.visible_display, "Display Visible Area")
+                ui.checkbox(&mut self.view.visible_display, fl!("tab_map_dva_cb"))
                     .on_hover_text("Display the visible area in-game (640x480)");
-                ui.checkbox(&mut self.view.move_preview, "Preview event move routes")
+                ui.checkbox(&mut self.view.move_preview, fl!("tab_map_pemr_cb"))
                     .on_hover_text("Preview event page move routes");
                 ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
                     .on_hover_text("Snap's the viewport to the tile grid");
@@ -399,8 +408,7 @@ impl tab::Tab for Tab {
                     self.tilemap.save_to_disk();
                 }
 
-                if map.preview_move_route.is_some()
-                && ui.button("Clear move route preview").clicked()
+                if map.preview_move_route.is_some() && ui.button(fl!("tab_map_cmrp_btn")).clicked()
                 {
                     map.preview_move_route = None;
                 }
