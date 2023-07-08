@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use crate::{fl, prelude::*};
 
 /// The variable picker modal.
 pub struct Modal {
@@ -71,7 +71,7 @@ impl modal::Modal for Modal {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, data: &mut Self::Data) {
         let mut win_open = true;
-        egui::Window::new("Variable Picker")
+        egui::Window::new(fl!("modal_variable_title_label"))
             .id(self.id)
             .resizable(false)
             .open(&mut win_open)
@@ -130,7 +130,7 @@ impl modal::Modal for Modal {
                         memory.1 = memory.0;
                     };
                     egui::TextEdit::singleline(&mut memory.2)
-                        .hint_text("Search 🔎")
+                        .hint_text(format!("{} 🔎", fl!("search")))
                         .show(ui);
                 });
 
