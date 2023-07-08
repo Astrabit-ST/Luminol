@@ -45,26 +45,32 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_secs(5));
 
         let deadlocks = parking_lot::deadlock::check_deadlock();
+
         if deadlocks.is_empty() {
             continue;
         }
 
         rfd::MessageDialog::new()
-            .set_title("Fatal Error")
+            .set_title(fl!("fatal_error"))
             .set_level(rfd::MessageLevel::Error)
-            .set_description(&format!(
-                "Luminol has deadlocked! Please file an issue.\n{} deadlocks detected",
-                deadlocks.len()
+            .set_description(fl!(
+                "deadlock_detected_description",
+                numOfDeadLocks = deadlocks.len()
             ))
             .show();
         for (i, threads) in deadlocks.iter().enumerate() {
             let mut description = String::new();
             for t in threads {
-                writeln!(description, "Thread Id {:#?}", t.thread_id()).unwrap();
+                writeln!(
+                    description,
+                    "{}",
+                    fl!("thread_id", id = format!("{:#?}", t.thread_id()))
+                )
+                .unwrap();
                 writeln!(description, "{:#?}", t.backtrace()).unwrap();
             }
             rfd::MessageDialog::new()
-                .set_title(&format!("Deadlock #{i}"))
+                .set_title(fl!("deadlock_detected_title", deadlockIndex = i))
                 .set_level(rfd::MessageLevel::Error)
                 .set_description(&description)
                 .show();
@@ -111,7 +117,7 @@ fn main() {
     };
 
     eframe::run_native(
-        "Luminol",
+        &fl!("luminol"),
         native_options,
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )

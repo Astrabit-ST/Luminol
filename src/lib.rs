@@ -95,6 +95,8 @@ pub mod steam;
 
 pub mod graphics;
 
+pub mod i18n;
+
 pub use luminol::Luminol;
 use tabs::tab::Tab;
 
