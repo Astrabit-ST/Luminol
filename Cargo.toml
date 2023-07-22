@@ -24,8 +24,8 @@ eframe = { version = "0.22", features = [
     "wgpu",
 ], default-features = false }
 egui_extras = { version = "0.22", features = ["svg", "image"] }
-egui-notify = { version = "0.6", git = "https://github.com/ItsEthra/egui-notify" } # temporary patch
-egui_dock = { version = "0.6", git = "https://github.com/Adanos020/egui_dock" }
+egui-notify = { version = "0.7" } # temporary patch
+egui_dock = { version = "0.6" }
 catppuccin-egui = "3.0.0"
 
 cgmath = "0.18"
@@ -65,7 +65,7 @@ syntect = { version = "5.0", features = [
 rand = "0.8.5"
 
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
-notify = "5.1"
+notify = "6.0"
 rfd = "0.11"
 camino = "1.1"
 
@@ -79,13 +79,13 @@ paste = "1.0"
 cfg-if = "1.0.0"
 
 serde = { version = "1.0", features = ["derive"] }
-alox-48 = { version = "*", path = "alox-48" }
+alox-48 = { version = "0.4.0" }
 ron = "0.8.0"
 
 tracing = "0.1.37"
 tracing-subscriber = "0.3"
 
-itertools = "0.10"
+itertools = "0.11"
 static_assertions = "1.1.0"
 
 rodio = { version = "0.17.1" }
@@ -129,7 +129,7 @@ opt-level = 3
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = ["alox-48", "command-lib", "rmxp-types", "luminol-term"]
+members = ["command-lib", "rmxp-types", "luminol-term"]
 
 [patch.crates-io]
 # If you want to use the bleeding edge version of egui and eframe:
