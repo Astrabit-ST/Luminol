@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Lily Lyons
+// Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
 //
@@ -14,12 +14,18 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+//
+//     Additional permission under GNU GPL version 3 section 7
+//
+// If you modify this Program, or any covered work, by linking or combining
+// it with Steamworks API by Valve Corporation, containing parts covered by
+// terms of the Steamworks API by Valve Corporation, the licensors of this
+// Program grant you additional permission to convey the resulting work.
 
 /*
 This file serves as a baseline for how to handle the tilemap.
 It's slow and should only be used as a reference for how the tilemap works.
 */
-
 use egui::Color32;
 use egui_extras::RetainedImage;
 use itertools::Itertools;

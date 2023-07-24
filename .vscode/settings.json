@@ -1,16 +1,15 @@
 {
-	"licenser.license": "GPLv3",
+	"licenser.license": "Custom",
 	"licenser.author": "Lily Lyons",
 	"licenser.projectName": "Luminol",
+	"licenser.customHeaderFile": "${workspaceFolder}/.vscode/header.txt",
 	"licenser.disableAutoHeaderInsertion": false,
-	"rust-analyzer.cargo.features": [],
-	// "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
+	"rust-analyzer.cargo.features": [
+		"steamworks"
+	],
 	"editor.formatOnSave": true,
 	"rust-analyzer.check.command": "clippy",
 	"rust-analyzer.procMacro.enable": true,
-	"rust-analyzer.server.extraEnv": {
-		"RUSTFLAGS": "--cfg=web_sys_unstable_apis"
-	},
 	"conventionalCommits.scopes": [
 		"data cache",
 		"ui",
@@ -29,5 +28,5 @@
 	"rust-analyzer.cargo.extraArgs": [
 		"--profile",
 		"rust-analyzer"
-	]
+	],
 }

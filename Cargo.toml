@@ -84,9 +84,12 @@ luminol-term = { version = "*", path = "luminol-term" }
 
 rfd = "0.11"
 
+steamworks = { version = "0.10.0", optional = true }
+
 [features]
 default = ["generic-tilemap"]
 generic-tilemap = []
+steamworks = ["dep:steamworks"]
 
 
 [target.'cfg(windows)'.dependencies]

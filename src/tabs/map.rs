@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Lily Lyons
+// Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
 //
@@ -14,13 +14,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+//
+//     Additional permission under GNU GPL version 3 section 7
+//
+// If you modify this Program, or any covered work, by linking or combining
+// it with Steamworks API by Valve Corporation, containing parts covered by
+// terms of the Steamworks API by Valve Corporation, the licensors of this
+// Program grant you additional permission to convey the resulting work.
+
 #![allow(unused_imports)]
 use egui::Pos2;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::prelude::*;
 
-/// The map editor.
 pub struct Tab {
     /// ID of the map that is being edited.
     pub id: i32,
