@@ -29,7 +29,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-
 #![warn(rust_2018_idioms)]
 #![warn(
     clippy::all,
@@ -84,6 +83,9 @@ pub mod filesystem;
 
 /// The code for handling lumi, the friendly world machine!
 pub mod lumi;
+
+#[cfg(feature = "steamworks")]
+pub mod steam;
 
 pub use luminol::Luminol;
 use saved_state::SavedState;

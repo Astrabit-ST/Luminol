@@ -25,10 +25,19 @@
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-// TODO: Use eyre!
-use color_eyre::Result;
+fn main() {
+    #[cfg(feature = "steamworks")]
+    if let Err(e) = luminol::steam::Steamworks::setup() {
+        rfd::MessageDialog::new()
+            .set_title("Error")
+            .set_level(rfd::MessageLevel::Error)
+            .set_description(&format!(
+                "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
+            ))
+            .show();
+        return;
+    }
 
-fn main() -> Result<()> {
     #[cfg(debug_assertions)]
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_secs(5));
@@ -52,7 +61,7 @@ fn main() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    color_eyre::install()?;
+    color_eyre::install().expect("failed to setup eyre hooks");
 
     #[cfg(windows)]
     if let Err(e) = setup_file_assocs() {
@@ -78,8 +87,6 @@ fn main() -> Result<()> {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
-
-    Ok(())
 }
 
 #[cfg(windows)]

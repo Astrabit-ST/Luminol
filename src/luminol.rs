@@ -115,6 +115,9 @@ impl eframe::App for Luminol {
         poll_promise::tick_local();
 
         self.lumi.ui(ctx);
+
+        #[cfg(feature = "steamworks")]
+        Steamworks::update()
     }
 
     fn persist_egui_memory(&self) -> bool {

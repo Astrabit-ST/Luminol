@@ -21,43 +21,41 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 
-pub use crate::audio;
-pub use crate::cache::*;
-pub use crate::components::*;
-pub use crate::modals::*;
-pub use crate::project::*;
-pub use crate::tabs::*;
-pub use crate::windows::*;
+const APPID: u32 = 2501490;
 
-pub use crate::filesystem::Filesystem;
-pub use crate::project::CommandDB;
-pub use crate::project::LocalConfig;
+pub struct Steamworks {
+    pub client: steamworks::Client<steamworks::ClientManager>,
+    pub single: Mutex<steamworks::SingleClient<steamworks::ClientManager>>,
+}
 
-pub use std::collections::HashMap;
-pub use std::path::{Path, PathBuf};
-pub use std::sync::Arc;
+impl Steamworks {
+    pub fn setup() -> Result<(), steamworks::SteamError> {
+        let (client, single) = steamworks::Client::init_app(APPID)?;
+        let single = Mutex::new(single);
 
-pub use atomic_refcell::{AtomicRefCell, AtomicRefMut};
-pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
-pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
+        let steamworks = Steamworks { client, single };
 
-pub use crate::state;
+        STEAMWORKS
+            .set(steamworks)
+            .ok()
+            .expect("steamworks already initialized");
 
-pub use eframe::egui;
-pub use eframe::egui_glow::glow;
-pub use egui::epaint;
-pub use egui::Color32;
-pub use egui::TextureOptions;
-pub use egui_extras::RetainedImage;
+        Ok(())
+    }
 
-pub use crate::State;
+    pub fn get() -> &'static Self {
+        STEAMWORKS.get().expect("failed to get steamworks")
+    }
 
-pub use poll_promise::Promise;
+    pub fn update() {
+        let steamworks = Self::get();
+        let single = steamworks.single.lock();
 
-pub use strum::IntoEnumIterator;
+        single.run_callbacks();
+    }
+}
 
-pub use rmxp_types::*;
-
-#[cfg(feature = "steamworks")]
-pub use crate::steam::Steamworks;
+static STEAMWORKS: OnceCell<Steamworks> = OnceCell::new();
