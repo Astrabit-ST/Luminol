@@ -2,12 +2,6 @@ on: [push, pull_request]
 
 name: CI
 
-env:
-  # This is required to enable the web_sys clipboard API which egui_web uses
-  # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
-  # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
-  RUSTFLAGS: --cfg=web_sys_unstable_apis
-
 jobs:
   check:
     name: Check
@@ -77,41 +71,3 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-
-#  trunk:
-#    name: trunk
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          submodules: true
-#      - uses: actions-rs/toolchain@v1
-#        with:
-#          profile: minimal
-#          toolchain: nightly
-#          target: wasm32-unknown-unknown
-#          override: true
-#      - name: Download and install Trunk binary
-#        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-#      - name: Build
-#        run: ./trunk build
-
-#  check_wasm:
-#    name: Check wasm32
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          submodules: true
-#      - uses: actions-rs/toolchain@v1
-#        with:
-#          profile: minimal
-#          toolchain: nightly
-#          target: wasm32-unknown-unknown
-#          override: true
-#      - name: Install libraries
-#        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: check
-#          args: --lib --target wasm32-unknown-unknown
