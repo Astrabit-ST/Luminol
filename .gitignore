@@ -14,3 +14,8 @@
 git-conventional-commits.yaml
 
 .env
+
+# Steamworks common folder
+steamworks/*
+# Allow the redistributable, though
+!steamworks/redistributable_bin

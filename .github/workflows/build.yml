@@ -19,11 +19,16 @@ jobs:
           toolchain: nightly-2023-04-21
       - name: Build luminol (Release)
         run: cargo build --features steamworks --release
+      - name: Setup artifact
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact
+          cp ${{ github.workspace }}/target/release/luminol ${{ github.workspace }}/artifact
+          cp ${{ github.workspace }}/steamworks/redistributable_bin/linux64/libsteam_api.so ${{ github.workspace }}/artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: luminol-linux
-          path: ${{ github.workspace }}/target/release/luminol
+          path: ${{ github.workspace }}/artifact/
 
   build-windows: 
     name: Build Windows
@@ -37,11 +42,16 @@ jobs:
           toolchain: nightly-2023-04-21
       - name: Build luminol (Release)
         run: cargo build --features steamworks --release
+      - name: Setup artifact
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact
+          cp ${{ github.workspace }}/target/release/luminol.exe ${{ github.workspace }}/artifact
+          cp ${{ github.workspace }}/steamworks/redistributable_bin/win64/steam_api64.dll ${{ github.workspace }}/artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: luminol-windows
-          path: ${{ github.workspace }}/target/release/luminol.exe
+          path: ${{ github.workspace }}/artifact/
 
   build-mac: 
     name: Build MacOS
@@ -55,17 +65,21 @@ jobs:
           toolchain: nightly-2023-04-21
       - name: Build luminol (Release)
         run: cargo build --features steamworks --release
-      - run: ls ${{ github.workspace }}/target/release # I have no clue whats in here 
+      - name: Setup artifact
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact
+          cp ${{ github.workspace }}/target/release/luminol ${{ github.workspace }}/artifact
+          cp ${{ github.workspace }}/steamworks/redistributable_bin/osx/libsteam_api.dylib ${{ github.workspace }}/artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: luminol-mac
-          path: ${{ github.workspace }}/target/release/luminol
+          path: ${{ github.workspace }}/artifact/
 
   deploy-steam:
     name: Deploy Steam
     runs-on: ubuntu-latest
-    needs: [build-ubuntu, build-windows]
+    needs: [build-ubuntu, build-windows, build-mac]
     steps:
       - name: Extract branch name
         run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
