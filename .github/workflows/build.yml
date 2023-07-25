@@ -1,4 +1,7 @@
-on: [push]
+on: 
+  push:
+    branches: master
+  workflow_dispatch:
 
 name: Autobuild
 
@@ -88,14 +91,17 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: ${{ github.workspace }}/artifacts
-      - run: ls ${{ github.workspace }}/artifacts
+      - name: Get current date
+        id: date
+        run: |
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
       - name: Deploy to steam
         uses: game-ci/steam-deploy@v3
         with:
           username: ${{ secrets.STEAM_USERNAME }}          
           configVdf: ${{ secrets.STEAM_CONFIG_VDF}}          
           appId: 2501490
-          buildDescription: beta test
+          buildDescription: nightly-${{ steps.date.outputs.date }}
           rootPath: artifacts # ??
           depot1Path: luminol-windows
           depot2Path: luminol-linux

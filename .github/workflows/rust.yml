@@ -48,6 +48,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2023-04-21
+          components: rustfmt
       - run: cargo fmt --all -- --check
 
   clippy:
@@ -64,4 +65,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2023-04-21
+          components: clippy
       - run: cargo clippy -- # -D warnings
