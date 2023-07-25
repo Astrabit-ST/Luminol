@@ -2,12 +2,6 @@ on: [push, pull_request]
 
 name: CI
 
-env:
-  # This is required to enable the web_sys clipboard API which egui_web uses
-  # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
-  # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
-  RUSTFLAGS: --cfg=web_sys_unstable_apis
-
 jobs:
   check:
     name: Check
@@ -16,15 +10,14 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: ructions/toolchain@v1
-        with:
-          profile: minimal
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
-      - uses: actions-rs/cargo@v1
+        run: |
+          sudo apt update
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          command: check
-          args: --all-features
+          toolchain: nightly-2023-04-21
+      - run: cargo check --all-features
 
   test:
     name: Test Suite
@@ -33,14 +26,13 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: ructions/toolchain@v1
+      - run: |
+          sudo apt update
+          sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev libasound2-dev -y
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev libasound2-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib
+          toolchain: nightly-2023-04-21
+      - run: cargo test --lib
 
   fmt:
     name: Rustfmt
@@ -49,16 +41,15 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: ructions/toolchain@v1
-        with:
-          profile: minimal
-          components: rustfmt
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
-      - uses: actions-rs/cargo@v1
+        run: |
+          sudo apt update
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          command: fmt
-          args: --all -- --check
+          toolchain: nightly-2023-04-21
+          components: rustfmt
+      - run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
@@ -67,51 +58,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: ructions/toolchain@v1
-        with:
-          profile: minimal
-          components: clippy
       - name: Install libraries
-        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
-      - uses: actions-rs/cargo@v1
+        run: |
+          sudo apt update
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          command: clippy
-          args: -- -D warnings
-
-#  trunk:
-#    name: trunk
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          submodules: true
-#      - uses: actions-rs/toolchain@v1
-#        with:
-#          profile: minimal
-#          toolchain: nightly
-#          target: wasm32-unknown-unknown
-#          override: true
-#      - name: Download and install Trunk binary
-#        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-#      - name: Build
-#        run: ./trunk build
-
-#  check_wasm:
-#    name: Check wasm32
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          submodules: true
-#      - uses: actions-rs/toolchain@v1
-#        with:
-#          profile: minimal
-#          toolchain: nightly
-#          target: wasm32-unknown-unknown
-#          override: true
-#      - name: Install libraries
-#        run: sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: check
-#          args: --lib --target wasm32-unknown-unknown
+          toolchain: nightly-2023-04-21
+          components: clippy
+      - run: cargo clippy -- # -D warnings

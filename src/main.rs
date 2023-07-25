@@ -1,6 +1,6 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![allow(clippy::uninlined_format_args)]
-// Copyright (C) 2022 Lily Lyons
+// Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
 //
@@ -16,12 +16,28 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+//
+//     Additional permission under GNU GPL version 3 section 7
+//
+// If you modify this Program, or any covered work, by linking or combining
+// it with Steamworks API by Valve Corporation, containing parts covered by
+// terms of the Steamworks API by Valve Corporation, the licensors of this
+// Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-// TODO: Use eyre!
-use color_eyre::Result;
+fn main() {
+    #[cfg(feature = "steamworks")]
+    if let Err(e) = luminol::steam::Steamworks::setup() {
+        rfd::MessageDialog::new()
+            .set_title("Error")
+            .set_level(rfd::MessageLevel::Error)
+            .set_description(&format!(
+                "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
+            ))
+            .show();
+        return;
+    }
 
-fn main() -> Result<()> {
     #[cfg(debug_assertions)]
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_secs(5));
@@ -45,7 +61,7 @@ fn main() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    color_eyre::install()?;
+    color_eyre::install().expect("failed to setup eyre hooks");
 
     #[cfg(windows)]
     if let Err(e) = setup_file_assocs() {
@@ -71,8 +87,6 @@ fn main() -> Result<()> {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
-
-    Ok(())
 }
 
 #[cfg(windows)]
