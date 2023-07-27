@@ -61,17 +61,17 @@ where
     })
 }
 
-pub fn serialize<S, T>(vec: &Vec<T>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S, T>(elements: &[T], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
     T: serde::Serialize,
 {
     use serde::ser::SerializeSeq;
 
-    let mut seq = serializer.serialize_seq(Some(vec.len() + 1))?;
+    let mut seq = serializer.serialize_seq(Some(elements.len() + 1))?;
     seq.serialize_element(&None::<T>)?;
 
-    for v in vec.iter() {
+    for v in elements {
         seq.serialize_element(v)?;
     }
 

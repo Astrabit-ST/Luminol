@@ -14,22 +14,27 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::rpg::{id, AudioFile, Event};
-use crate::Table3;
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Map")]
-pub struct Map {
-    #[serde(with = "id")]
-    pub tileset_id: usize,
-    pub width: usize,
-    pub height: usize,
-    pub autoplay_bgm: bool,
-    pub bgm: AudioFile,
-    pub autoplay_bgs: bool,
-    pub bgs: AudioFile,
-    pub encounter_list: Vec<i32>,
-    pub encounter_step: i32,
-    pub data: Table3,
-    pub events: slab::Slab<Event>,
+pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<usize>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    Ok(match usize::deserialize(deserializer)? {
+        0 => None,
+        v => Some(v - 1),
+    })
+}
+
+pub fn serialize<S>(value: &Option<usize>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::Serialize;
+
+    match value {
+        Some(v) => (v + 1).serialize(serializer),
+        None => 0.serialize(serializer),
+    }
 }

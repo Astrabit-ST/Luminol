@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, id_vec};
+use crate::{id, id_vec, optional_id};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::State")]
@@ -22,9 +22,9 @@ pub struct State {
     #[serde(with = "id")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "id")]
-    pub animation_id: usize,
-    pub restriction: i32,
+    #[serde(with = "optional_id")]
+    pub animation_id: Option<usize>,
+    pub restriction: Restriction,
     pub nonresistance: bool,
     pub zero_hp: bool,
     pub cant_get_exp: bool,
@@ -52,4 +52,28 @@ pub struct State {
     pub plus_state_set: Vec<usize>,
     #[serde(with = "id_vec")]
     pub minus_state_set: Vec<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+pub enum Restriction {
+    #[default]
+    None = 0,
+    #[strum(to_string = "Can't use magic")]
+    NoMagic = 1,
+    #[strum(to_string = "Always attack enemies")]
+    AttackEnemies = 2,
+    #[strum(to_string = "Always attack allies")]
+    AttackAllies = 3,
+    #[strum(to_string = "Can't move")]
+    NoMove = 4,
 }

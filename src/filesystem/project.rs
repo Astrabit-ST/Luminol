@@ -42,12 +42,36 @@ impl ProjectFS {
         alox_48::from_bytes(&data).map_err(|e| e.to_string())
     }
 
+    pub fn read_nil_padded<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<T>, String>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let data = self.read(path).map_err(|e| e.to_string())?;
+
+        alox_48::Deserializer::new(&data)
+            .and_then(|mut de| rmxp_types::nil_padded::deserialize(&mut de))
+            .map_err(|e| e.to_string())
+    }
+
     pub fn save_data<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &T) -> Result<(), String>
     where
         T: serde::ser::Serialize,
     {
         self.write(path, alox_48::to_bytes(data).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())
+    }
+
+    pub fn save_nil_padded<T>(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+        data: &[T],
+    ) -> Result<(), String>
+    where
+        T: serde::ser::Serialize,
+    {
+        let mut ser = alox_48::Serializer::new();
+        rmxp_types::nil_padded::serialize(data, &mut ser).map_err(|e| e.to_string())?;
+        self.write(path, ser.output).map_err(|e| e.to_string())
     }
 
     pub fn project_path(&self) -> Option<camino::Utf8PathBuf> {

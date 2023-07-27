@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, optional_path, rpg::MoveRoute, ParameterType, Path};
+use crate::{id, optional_id, optional_path, rpg::MoveRoute, ParameterType, Path};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename = "RPG::Event")]
@@ -92,8 +92,8 @@ impl Default for EventPage {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename = "RPG::Event::Page::Graphic")]
 pub struct Graphic {
-    #[serde(with = "id")]
-    pub tile_id: usize,
+    #[serde(with = "optional_id")]
+    pub tile_id: Option<usize>,
     #[serde(with = "optional_path")]
     pub character_name: Path,
     pub character_hue: i32,
@@ -106,7 +106,7 @@ pub struct Graphic {
 impl Default for Graphic {
     fn default() -> Self {
         Self {
-            tile_id: 0,
+            tile_id: None,
             character_name: None,
             character_hue: 0,
             direction: 2,

@@ -53,23 +53,23 @@ impl Event {
     // code smell, fix
     pub fn new(event: &rpg::Event, atlas: &Atlas) -> Result<Option<Self>, String> {
         let Some(page) = event.pages.first() else {
-            return Err("event does not have first page".to_string())
+            return Err("event does not have first page".to_string());
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {
             state!()
                 .image_cache
                 .load_wgpu_image("Graphics/Characters", filename)?
-        } else if page.graphic.tile_id > 0 {
+        } else if page.graphic.tile_id.is_some() {
             atlas.atlas_texture.clone()
         } else {
             return Ok(None);
         };
 
-        let quads = if page.graphic.tile_id > 0 {
+        let quads = if let Some(id) = page.graphic.tile_id {
             let mut tile_quads = vec![];
             atlas.calc_quads(
-                page.graphic.tile_id as i16,
+                id as i16,
                 event.x as usize,
                 event.y as usize,
                 &mut tile_quads,

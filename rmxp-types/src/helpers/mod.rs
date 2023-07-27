@@ -18,6 +18,7 @@
 pub mod id;
 pub mod id_vec;
 pub mod nil_padded;
+pub mod optional_id;
 pub mod optional_path;
 
 mod parameter_type;

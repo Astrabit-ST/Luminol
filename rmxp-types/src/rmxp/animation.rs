@@ -25,7 +25,7 @@ pub struct Animation {
     #[serde(with = "optional_path")]
     pub animation_name: Path,
     pub animation_hue: i32,
-    pub position: i32,
+    pub position: Position,
     pub frame_max: i32,
     pub frames: Vec<Frame>,
     pub timings: Vec<Timing>,
@@ -47,4 +47,23 @@ pub struct Timing {
 pub struct Frame {
     pub cell_max: i32,
     pub cell_data: Table2,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+pub enum Position {
+    Top = 0,
+    #[default]
+    Middle = 1,
+    Bottom = 2,
+    Screen = 3,
 }

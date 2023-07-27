@@ -102,7 +102,7 @@ impl Atlas {
         let rows_under;
         let rows_side;
         if TOTAL_AUTOTILE_HEIGHT + tileset_height < MAX_SIZE {
-            width = autotile_width.max(tileset_height); // in case we have less autotiles frames than the tileset is wide
+            width = autotile_width.max(tileset_width); // in case we have less autotiles frames than the tileset is wide
             height = TOTAL_AUTOTILE_HEIGHT + tileset_height; // we're sure that the tileset can fit into the atlas just fine
 
             rows_under = 1;

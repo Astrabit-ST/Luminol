@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{id, id_vec, optional_path, rpg::AudioFile, Path};
+pub use crate::{id, id_vec, optional_id, optional_path, rpg::AudioFile, Path};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Skill")]
@@ -26,14 +26,14 @@ pub struct Skill {
     pub icon_name: Path,
     pub description: String,
     pub scope: i32,
-    pub occasion: i32,
-    #[serde(with = "id")]
-    pub animation1_id: usize,
-    #[serde(with = "id")]
-    pub animation2_id: usize,
+    pub occasion: Occasion,
+    #[serde(with = "optional_id")]
+    pub animation1_id: Option<usize>,
+    #[serde(with = "optional_id")]
+    pub animation2_id: Option<usize>,
     pub menu_se: AudioFile,
-    #[serde(with = "id")]
-    pub common_event_id: usize,
+    #[serde(with = "optional_id")]
+    pub common_event_id: Option<usize>,
     pub sp_cost: i32,
     pub power: i32,
     pub atk_f: i32,
@@ -52,4 +52,25 @@ pub struct Skill {
     pub plus_state_set: Vec<usize>,
     #[serde(with = "id_vec")]
     pub minus_state_set: Vec<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+pub enum Occasion {
+    #[default]
+    Always = 0,
+    #[strum(to_string = "Only in battle")]
+    OnlyBattle = 1,
+    #[strum(to_string = "Only from the menu")]
+    OnlyMenu = 2,
+    Never = 3,
 }

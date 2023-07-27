@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{id, id_vec, optional_path, rpg::AudioFile, Path};
+pub use crate::{id, id_vec, optional_id, optional_path, rpg::AudioFile, Path};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Weapon")]
@@ -25,10 +25,10 @@ pub struct Weapon {
     #[serde(with = "optional_path")]
     pub icon_name: Path,
     pub description: String,
-    #[serde(with = "id")]
-    pub animation1_id: usize,
-    #[serde(with = "id")]
-    pub animation2_id: usize,
+    #[serde(with = "optional_id")]
+    pub animation1_id: Option<usize>,
+    #[serde(with = "optional_id")]
+    pub animation2_id: Option<usize>,
     pub price: i32,
     pub atk: i32,
     pub pdef: i32,

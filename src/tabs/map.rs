@@ -133,13 +133,13 @@ impl tab::Tab for Tab {
                 if ui.button("Save map preview").clicked() {
                     self.tilemap.save_to_disk();
                 }
-                */
 
                 if map.preview_move_route.is_some()
-                    && ui.button("Clear move route preview").clicked()
+                && ui.button("Clear move route preview").clicked()
                 {
                     map.preview_move_route = None;
                 }
+                */
             });
         });
 

@@ -50,14 +50,11 @@
 // You must provide a safety doc. DO NOT TURN OFF THESE LINTS.
 #![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
 // Okay, lemme run through *why* some of these are enabled
-// 1) drain filter
-// drain filter saves on code complexity and unecessary allocations
-// as far as i can tell, it is close to stabilization.
-// 2) min_specialization
+// 1) min_specialization
 // min_specialization is used in alox-48 to deserialize extra data types.
-// 3) int_roundings
+// 2) int_roundings
 // int_roundings is close to stabilization.
-#![feature(drain_filter, min_specialization, int_roundings)]
+#![feature(min_specialization, int_roundings)]
 
 pub use prelude::*;
 

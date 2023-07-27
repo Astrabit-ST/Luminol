@@ -88,37 +88,37 @@ impl Cache {
 
         let actors = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Actors.{ext}"))
+                .read_nil_padded(format!("Data/Actors.{ext}"))
                 .map_err(|e| format!("Failed to load Actors.{ext}: {e}"))?,
         );
         let animations = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Animations.{ext}"))
+                .read_nil_padded(format!("Data/Animations.{ext}"))
                 .map_err(|e| format!("Failed to load Animations.{ext}: {e}"))?,
         );
         let armors = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Armors.{ext}"))
+                .read_nil_padded(format!("Data/Armors.{ext}"))
                 .map_err(|e| format!("Failed to load Armors.{ext}: {e}"))?,
         );
         let classes = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Classes.{ext}"))
+                .read_nil_padded(format!("Data/Classes.{ext}"))
                 .map_err(|e| format!("Failed to load Classes.{ext}: {e}"))?,
         );
         let common_events = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/CommonEvents.{ext}"))
+                .read_nil_padded(format!("Data/CommonEvents.{ext}"))
                 .map_err(|e| format!("Failed to load CommonEvents.{ext}: {e}"))?,
         );
         let enemies = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Enemies.{ext}"))
+                .read_nil_padded(format!("Data/Enemies.{ext}"))
                 .map_err(|e| format!("Failed to load Enemies.{ext}: {e}"))?,
         );
         let items = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Items.{ext}"))
+                .read_nil_padded(format!("Data/Items.{ext}"))
                 .map_err(|e| format!("Failed to load Items.{ext}: {e}"))?,
         );
         let mapinfos = AtomicRefCell::new(
@@ -128,12 +128,12 @@ impl Cache {
         );
         let skills = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Skills.{ext}"))
+                .read_nil_padded(format!("Data/Skills.{ext}"))
                 .map_err(|e| format!("Failed to load Skills.{ext}: {e}"))?,
         );
         let states = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/States.{ext}"))
+                .read_nil_padded(format!("Data/States.{ext}"))
                 .map_err(|e| format!("Failed to load States.{ext}: {e}"))?,
         );
         let system = AtomicRefCell::new(
@@ -143,17 +143,17 @@ impl Cache {
         );
         let tilesets = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Tilesets.{ext}"))
+                .read_nil_padded(format!("Data/Tilesets.{ext}"))
                 .map_err(|e| format!("Failed to load Tilesets.{ext}: {e}"))?,
         );
         let troops = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Troops.{ext}"))
+                .read_nil_padded(format!("Data/Troops.{ext}"))
                 .map_err(|e| format!("Failed to load Troops.{ext}: {e}"))?,
         );
         let weapons = AtomicRefCell::new(
             filesystem
-                .read_data(format!("Data/Weapons.{ext}"))
+                .read_nil_padded(format!("Data/Weapons.{ext}"))
                 .map_err(|e| format!("Failed to load Weapons.{ext}: {e}"))?,
         );
 
@@ -213,27 +213,28 @@ impl Cache {
             troops,
             weapons,
             maps,
-        } = &*state else {
+        } = &*state
+        else {
             return Err("Project not loaded".to_string());
         };
 
         let ext = self.rxdata_ext();
 
-        filesystem.save_data(format!("Data/Actors.{ext}"), &*actors.borrow())?;
-        filesystem.save_data(format!("Data/Animations.{ext}"), &*animations.borrow())?;
-        filesystem.save_data(format!("Data/Armors.{ext}"), &*armors.borrow())?;
-        filesystem.save_data(format!("Data/Classes.{ext}"), &*classes.borrow())?;
-        filesystem.save_data(format!("Data/CommonEvents.{ext}"), &*common_events.borrow())?;
-        filesystem.save_data(format!("Data/Enemies.{ext}"), &*enemies.borrow())?;
-        filesystem.save_data(format!("Data/Items.{ext}"), &*items.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Actors.{ext}"), &actors.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Animations.{ext}"), &animations.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Armors.{ext}"), &armors.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Classes.{ext}"), &classes.borrow())?;
+        filesystem.save_nil_padded(format!("Data/CommonEvents.{ext}"), &common_events.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Enemies.{ext}"), &enemies.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Items.{ext}"), &items.borrow())?;
         filesystem.save_data(format!("Data/MapInfos.{ext}"), &*mapinfos.borrow())?;
-        filesystem.save_data(format!("Data/Scripts.{ext}"), &*scripts.borrow())?;
-        filesystem.save_data(format!("Data/Skills.{ext}"), &*skills.borrow())?;
-        filesystem.save_data(format!("Data/States.{ext}"), &*states.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Scripts.{ext}"), &scripts.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Skills.{ext}"), &skills.borrow())?;
+        filesystem.save_nil_padded(format!("Data/States.{ext}"), &states.borrow())?;
         filesystem.save_data(format!("Data/System.{ext}"), &*system.borrow())?;
-        filesystem.save_data(format!("Data/Tilesets.{ext}"), &*tilesets.borrow())?;
-        filesystem.save_data(format!("Data/Troops.{ext}"), &*troops.borrow())?;
-        filesystem.save_data(format!("Data/Weapons.{ext}"), &*weapons.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Tilesets.{ext}"), &tilesets.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Troops.{ext}"), &troops.borrow())?;
+        filesystem.save_nil_padded(format!("Data/Weapons.{ext}"), &weapons.borrow())?;
 
         for entry in maps.iter() {
             filesystem.save_data(format!("Data/Map{:0>3}.{ext}", entry.key()), entry.value())?
@@ -415,7 +416,7 @@ impl Cache {
         }
 
         let state = self.state.borrow();
-        let State::Loaded { ref maps, ..} = &*state else {
+        let State::Loaded { ref maps, .. } = &*state else {
             panic!("project not loaded")
         };
         //? # SAFETY

@@ -16,13 +16,13 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::{id, id_vec, Table1};
 
-#[derive(Default, Debug, serde:: Deserialize, serde::Serialize)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Class")]
 pub struct Class {
     #[serde(with = "id")]
     pub id: usize,
     pub name: String,
-    pub position: i32,
+    pub position: Position,
     #[serde(with = "id_vec")]
     pub weapon_set: Vec<usize>,
     #[serde(with = "id_vec")]
@@ -38,4 +38,22 @@ pub struct Learning {
     pub level: i32,
     #[serde(with = "id")]
     pub skill_id: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+pub enum Position {
+    #[default]
+    Front = 0,
+    Middle = 1,
+    Rear = 2,
 }

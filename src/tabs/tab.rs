@@ -25,12 +25,9 @@
 use parking_lot::Mutex;
 use std::hash::Hash;
 
-/// The tree type;
-type Tree<T> = egui_dock::Tree<T>;
-
 /// Helper struct for tabs.
 pub struct Tabs<T> {
-    tree: Mutex<Tree<T>>,
+    tree: Mutex<egui_dock::Tree<T>>,
     id: egui::Id,
 }
 
@@ -42,7 +39,7 @@ where
     pub fn new(id: impl Hash, tabs: Vec<T>) -> Self {
         Self {
             id: egui::Id::new(id),
-            tree: Tree::new(tabs).into(),
+            tree: egui_dock::Tree::new(tabs).into(),
         }
     }
 
@@ -71,12 +68,12 @@ where
         tree.push_to_focused_leaf(tab);
     }
 
-    /// Clean tabs by if they need the filesystem.
+    /// Removes tabs that the provided closure returns `false` when called.
     pub fn clean_tabs<F: FnMut(&mut T) -> bool>(&self, mut f: F) {
         let mut tree = self.tree.lock();
         for node in tree.iter_mut() {
             if let egui_dock::Node::Leaf { tabs, .. } = node {
-                tabs.drain_filter(&mut f);
+                tabs.retain_mut(&mut f)
             }
         }
     }

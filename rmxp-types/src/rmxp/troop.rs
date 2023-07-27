@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, rpg::EventCommand};
+use crate::{id, optional_id, rpg::EventCommand};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Troop")]
@@ -54,11 +54,11 @@ pub struct TroopCondition {
     pub switch_valid: bool,
     pub turn_a: i32,
     pub turn_b: i32,
-    pub enemy_index: i32,
+    pub enemy_index: usize,
     pub enemy_hp: i32,
-    #[serde(with = "id")]
-    pub actor_id: usize,
+    #[serde(with = "optional_id")]
+    pub actor_id: Option<usize>,
     pub actor_hp: i32,
-    #[serde(with = "id")]
-    pub switch_id: usize,
+    #[serde(with = "optional_id")]
+    pub switch_id: Option<usize>,
 }

@@ -14,16 +14,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{id, nil_padded, optional_path, rpg::AudioFile, Path};
+pub use crate::{id, id_vec, nil_padded, optional_id, optional_path, rpg::AudioFile, Path};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(default)] // ??? rmxp???
 #[serde(rename = "RPG::System")]
 pub struct System {
     pub magic_number: i32,
-    pub party_members: Vec<i32>,
-
-    #[serde(with = "nil_padded")]
+    #[serde(with = "id_vec")]
+    pub party_members: Vec<usize>,
     pub elements: Vec<String>,
     #[serde(with = "nil_padded")]
     pub switches: Vec<String>,
@@ -57,8 +56,8 @@ pub struct System {
     pub words: Words,
     // #[serde(skip_deserializing)]
     pub test_battlers: Vec<TestBattler>,
-    #[serde(with = "id")]
-    pub test_troop_id: usize,
+    #[serde(with = "optional_id")]
+    pub test_troop_id: Option<usize>,
     #[serde(with = "id")]
     pub start_map_id: usize,
     pub start_x: i32,
@@ -104,14 +103,14 @@ pub struct TestBattler {
 
     #[serde(with = "id")]
     actor_id: usize,
-    #[serde(with = "id")]
-    weapon_id: usize,
-    #[serde(with = "id")]
-    armor1_id: usize,
-    #[serde(with = "id")]
-    armor2_id: usize,
-    #[serde(with = "id")]
-    armor3_id: usize,
-    #[serde(with = "id")]
-    armor4_id: usize,
+    #[serde(with = "optional_id")]
+    weapon_id: Option<usize>,
+    #[serde(with = "optional_id")]
+    armor1_id: Option<usize>,
+    #[serde(with = "optional_id")]
+    armor2_id: Option<usize>,
+    #[serde(with = "optional_id")]
+    armor3_id: Option<usize>,
+    #[serde(with = "optional_id")]
+    armor4_id: Option<usize>,
 }

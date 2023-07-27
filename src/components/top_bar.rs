@@ -82,7 +82,7 @@ impl TopBar {
 
                 if ui.button("Close Project").clicked() {
                     state.windows.clean_windows();
-                    state.tabs.clean_tabs(|t| t.requires_filesystem());
+                    state.tabs.clean_tabs(|t| !t.requires_filesystem());
                     state.filesystem.unload_project();
                 }
 

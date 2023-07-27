@@ -1,4 +1,5 @@
 #![feature(min_specialization)]
+#![allow(non_upper_case_globals)]
 
 // Editor specific types
 pub mod rmxp;
