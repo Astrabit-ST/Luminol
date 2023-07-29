@@ -83,6 +83,7 @@ impl TopBar {
                 if ui.button("Close Project").clicked() {
                     state.windows.clean_windows();
                     state.tabs.clean_tabs(|t| !t.requires_filesystem());
+                    state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
                     state.filesystem.unload_project();
                 }
 

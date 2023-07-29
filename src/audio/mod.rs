@@ -125,6 +125,7 @@ impl Audio {
         // Add sink to hash, stop the current one if it's there.
         if let Some(s) = inner.sinks.insert(source, sink) {
             s.stop();
+            s.sleep_until_end(); // wait for the sink to stop, there is a ~5ms delay where it will not
         };
 
         Ok(())
@@ -144,6 +145,16 @@ impl Audio {
         if let Some(s) = inner.sinks.get_mut(source) {
             s.set_volume(f32::from(volume) / 100.);
         }
+    }
+
+    pub fn clear_sinks(&self) {
+        let mut inner = self.inner.lock();
+        for (_, sink) in inner.sinks.iter_mut() {
+            sink.stop();
+            // Sleeping ensures that the inner file is dropped. There is a delay of ~5ms where it is not dropped and this could lead to a panic
+            sink.sleep_until_end();
+        }
+        inner.sinks.clear();
     }
 
     /// Stop a source.
