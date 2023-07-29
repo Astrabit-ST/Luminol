@@ -34,8 +34,8 @@ image = { version = "0.24", features = ["jpeg", "png"] }
 
 strum = { version = "0.25", features = ["derive"] }
 enum-as-inner = "0.6"
-num-traits = "0.2"
-num-derive = "0.4"
+num_enum = "0.6"
+
 bitflags = "2.3"
 ouroboros = "0.17"
 

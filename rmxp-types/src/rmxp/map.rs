@@ -14,8 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::rpg::{id, AudioFile, Event};
-use crate::Table3;
+use crate::rpg::{AudioFile, Event};
+use crate::{id, Table3};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Map")]

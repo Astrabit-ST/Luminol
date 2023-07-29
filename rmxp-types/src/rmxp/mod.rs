@@ -15,30 +15,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-mod actor;
-mod animation;
-mod armor;
-mod class;
-mod enemy;
-mod item;
-mod map;
-mod skill;
-mod state;
-mod system;
-mod tileset;
-mod troop;
-mod weapon;
+pub mod actor;
+pub mod animation;
+pub mod armor;
+pub mod class;
+pub mod enemy;
+pub mod item;
+pub mod map;
+pub mod skill;
+pub mod state;
+pub mod system;
+pub mod tileset;
+pub mod troop;
+pub mod weapon;
 
-pub use actor::*;
-pub use animation::*;
-pub use armor::*;
-pub use class::*;
-pub use enemy::*;
-pub use item::*;
-pub use map::*;
-pub use skill::*;
-pub use state::*;
-pub use system::*;
-pub use tileset::*;
-pub use troop::*;
-pub use weapon::*;
+pub use actor::Actor;
+pub use animation::Animation;
+pub use armor::Armor;
+pub use class::Class;
+pub use enemy::Enemy;
+pub use item::Item;
+pub use map::Map;
+pub use skill::Skill;
+pub use state::State;
+pub use system::System;
+pub use tileset::Tileset;
+pub use troop::Troop;
+pub use weapon::Weapon;

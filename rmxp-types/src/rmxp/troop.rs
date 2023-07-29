@@ -23,7 +23,7 @@ pub struct Troop {
     pub id: usize,
     pub name: String,
     pub members: Vec<Member>,
-    pub pages: Vec<TroopPage>,
+    pub pages: Vec<Page>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
@@ -39,15 +39,15 @@ pub struct Member {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Troop::Page")]
-pub struct TroopPage {
-    pub condition: TroopCondition,
+pub struct Page {
+    pub condition: Condition,
     pub span: i32,
     pub list: Vec<EventCommand>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Troop::Page::Condition")]
-pub struct TroopCondition {
+pub struct Condition {
     pub turn_valid: bool,
     pub enemy_valid: bool,
     pub actor_valid: bool,
