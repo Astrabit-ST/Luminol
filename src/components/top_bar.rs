@@ -192,12 +192,14 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Help", |ui| {
+            ui.button("Contents").clicked();
+
             if ui.button("About...").clicked() {
                 state.windows.add_window(about::Window::default());
             };
+        });
 
-            ui.separator();
-
+        ui.menu_button("Debug", |ui| {
             if ui.button("Egui Inspection").clicked() {
                 state.windows.add_window(misc::EguiInspection::default());
             }
@@ -209,6 +211,12 @@ impl TopBar {
             let mut debug_on_hover = ui.ctx().debug_on_hover();
             ui.toggle_value(&mut debug_on_hover, "Debug on hover");
             ui.ctx().set_debug_on_hover(debug_on_hover);
+
+            ui.separator();
+
+            if ui.button("Filesystem Debug").clicked() {
+                state.windows.add_window(misc::FilesystemDebug::default());
+            }
         });
 
         ui.separator();

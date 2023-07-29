@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
+use itertools::Itertools;
 use std::io::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -200,7 +201,8 @@ where
         if self.secondary.exists(path)? {
             entries.extend(self.secondary.read_dir(path)?);
         }
-        entries.dedup();
+        // FIXME: remove duplicates in a more efficient manner
+        let entries = entries.into_iter().unique().collect_vec();
 
         Ok(entries)
     }

@@ -17,11 +17,9 @@
 use crate::prelude::*;
 
 use super::{
-    archiver::Archiver, host::HostFS, list::List, overlay::Overlay, path_cache::PathCache,
-    DirEntry, Error, FileSystem, Metadata, OpenFlags,
+    archiver::Archiver, host::HostFS, list::List, path_cache::PathCache, DirEntry, Error,
+    FileSystem, Metadata, OpenFlags,
 };
-
-type LoadedFS = PathCache<Overlay<HostFS, List>>;
 
 #[derive(Default)]
 pub struct ProjectFS {
@@ -76,12 +74,11 @@ impl ProjectFS {
 
     pub fn project_path(&self) -> Option<camino::Utf8PathBuf> {
         let state = self.state.borrow();
-        let fs = match &*state {
-            State::Unloaded => return None,
-            State::HostLoaded(h) => h,
-            State::Loaded(p) => p.fs().primary(),
-        };
-        Some(fs.root_path().to_path_buf())
+        match &*state {
+            State::Unloaded => None,
+            State::HostLoaded(h) => Some(h.root_path().to_path_buf()),
+            State::Loaded { project_path, .. } => Some(project_path.clone()),
+        }
     }
 
     pub fn project_loaded(&self) -> bool {
@@ -146,7 +143,7 @@ impl ProjectFS {
         // FIXME: handle vx ace?
         for rtp in ["RTP1", "RTP2", "RTP3"] {
             if let Some(rtp) = section.get(rtp) {
-                if seen_rtps.contains(&rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
                     continue;
                 }
                 seen_rtps.push(rtp);
@@ -242,14 +239,16 @@ impl ProjectFS {
     }
 
     pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
-        let path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
-        let path = path.parent().unwrap_or(path);
+        let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
+        let path = original_path.parent().unwrap_or(original_path);
 
         *self.state.borrow_mut() = State::HostLoaded(HostFS::new(path));
 
         config::Project::load()?;
 
         let mut list = List::new();
+
+        list.push(HostFS::new(path));
 
         for path in Self::find_rtp_paths() {
             list.push(HostFS::new(path))
@@ -261,12 +260,26 @@ impl ProjectFS {
             Err(e) => return Err(e.to_string()),
         }
 
-        let overlay = Overlay::new(HostFS::new(path), list);
-        let patch_cache = PathCache::new(overlay).map_err(|e| e.to_string())?;
+        let path_cache = PathCache::new(list).map_err(|e| e.to_string())?;
 
-        *self.state.borrow_mut() = State::Loaded(patch_cache);
+        *self.state.borrow_mut() = State::Loaded {
+            filesystem: path_cache,
+            project_path: path.to_path_buf(),
+        };
 
-        state!().data_cache.load()?;
+        let mut projects: std::collections::VecDeque<_> = global_config!()
+            .recent_projects
+            .iter()
+            .filter(|p| p.as_str() != original_path)
+            .cloned()
+            .collect();
+        projects.push_front(original_path.to_string());
+        global_config!().recent_projects = projects;
+
+        if let Err(e) = state!().data_cache.load() {
+            *self.state.borrow_mut() = State::Unloaded;
+            return Err(e);
+        }
 
         Ok(())
     }
@@ -284,9 +297,9 @@ impl ProjectFS {
                     ui.label(fs.root_path().as_str());
                 });
             }
-            State::Loaded(fs) => {
+            State::Loaded { filesystem, .. } => {
                 ui.label("Loaded");
-                fs.debug_ui(ui);
+                filesystem.debug_ui(ui);
             }
         }
     }
@@ -297,7 +310,10 @@ enum State {
     #[default]
     Unloaded,
     HostLoaded(HostFS),
-    Loaded(LoadedFS),
+    Loaded {
+        filesystem: PathCache<List>,
+        project_path: camino::Utf8PathBuf,
+    },
 }
 
 #[ouroboros::self_referencing]
@@ -310,7 +326,7 @@ pub struct File<'fs> {
 
 enum FileType<'fs> {
     Host(<HostFS as FileSystem>::File<'fs>),
-    Loaded(<LoadedFS as FileSystem>::File<'fs>),
+    Loaded(<PathCache<List> as FileSystem>::File<'fs>),
 }
 
 impl<'fs> std::io::Write for File<'fs> {
@@ -389,7 +405,9 @@ impl FileSystem for ProjectFS {
             match &**state {
                 State::Unloaded => Err(Error::NotLoaded),
                 State::HostLoaded(f) => f.open_file(path, flags).map(FileType::Host),
-                State::Loaded(f) => f.open_file(path, flags).map(FileType::Loaded),
+                State::Loaded { filesystem: f, .. } => {
+                    f.open_file(path, flags).map(FileType::Loaded)
+                }
             }
         })
     }
@@ -399,7 +417,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.metadata(path),
-            State::Loaded(f) => f.metadata(path),
+            State::Loaded { filesystem: f, .. } => f.metadata(path),
         }
     }
 
@@ -412,7 +430,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.rename(from, to),
-            State::Loaded(f) => f.rename(from, to),
+            State::Loaded { filesystem, .. } => filesystem.rename(from, to),
         }
     }
 
@@ -421,7 +439,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.exists(path),
-            State::Loaded(f) => f.exists(path),
+            State::Loaded { filesystem, .. } => filesystem.exists(path),
         }
     }
 
@@ -430,7 +448,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.create_dir(path),
-            State::Loaded(f) => f.create_dir(path),
+            State::Loaded { filesystem, .. } => filesystem.create_dir(path),
         }
     }
 
@@ -439,7 +457,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.remove_dir(path),
-            State::Loaded(f) => f.remove_dir(path),
+            State::Loaded { filesystem, .. } => filesystem.remove_dir(path),
         }
     }
 
@@ -448,7 +466,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.remove_file(path),
-            State::Loaded(f) => f.remove_file(path),
+            State::Loaded { filesystem, .. } => filesystem.remove_file(path),
         }
     }
 
@@ -457,7 +475,7 @@ impl FileSystem for ProjectFS {
         match &*state {
             State::Unloaded => Err(Error::NotLoaded),
             State::HostLoaded(f) => f.read_dir(path),
-            State::Loaded(f) => f.read_dir(path),
+            State::Loaded { filesystem, .. } => filesystem.read_dir(path),
         }
     }
 }

@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::erased::{ErasedFilesystem, File};
 use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
+use itertools::Itertools;
 
 #[derive(Default)]
 pub struct List {
@@ -112,7 +113,8 @@ impl FileSystem for List {
                 entries.extend(fs.read_dir(path)?)
             }
         }
-        entries.dedup();
+        // FIXME: remove duplicates in a more efficient manner
+        let entries = entries.into_iter().unique().collect_vec();
 
         Ok(entries)
     }

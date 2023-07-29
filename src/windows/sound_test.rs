@@ -39,16 +39,17 @@ pub struct SoundTab {
 impl SoundTab {
     /// Create a new SoundTab
     pub fn new(source: audio::Source, picker: bool) -> Self {
+        let folder_children = state!()
+            .filesystem
+            .read_dir(format!("Audio/{source}"))
+            .unwrap();
         Self {
             picker,
             source,
             volume: 100,
             pitch: 100,
             selected_track: String::new(),
-            folder_children: state!()
-                .filesystem
-                .read_dir(format!("Audio/{source}"))
-                .unwrap(),
+            folder_children,
         }
     }
 

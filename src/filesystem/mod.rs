@@ -20,7 +20,7 @@ mod archiver;
 mod erased;
 mod host;
 mod list;
-mod overlay;
+// mod overlay;
 mod path_cache;
 mod project;
 
