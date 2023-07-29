@@ -14,17 +14,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+#![allow(clippy::upper_case_acronyms)]
 use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
 use crate::prelude::*;
 
-mod rgss2a;
 mod rgss3a;
 mod rgssad;
 
 #[derive(Debug)]
 pub enum Archiver {
     RGSSAD(rgssad::Archiver),
-    // RGSS2A(rgss2a::Archiver),
     // RGSS3A(rgss3a::Archiver),
 }
 
@@ -34,7 +33,9 @@ impl Archiver {
         project_path: impl AsRef<camino::Utf8Path>,
     ) -> Result<Self, Error> {
         Ok(match editor_ver {
-            config::RMVer::XP => Archiver::RGSSAD(rgssad::Archiver::new(project_path)?),
+            config::RMVer::XP | config::RMVer::VX => {
+                Archiver::RGSSAD(rgssad::Archiver::new(project_path)?)
+            }
             _ => todo!(),
         })
     }
@@ -43,7 +44,6 @@ impl Archiver {
 #[derive(Debug)]
 pub enum File {
     RGSSAD(rgssad::File),
-    // RGSS2A(rgss2a::File),
     // RGSS3A(rgss3a::File),
 }
 

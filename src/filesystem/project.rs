@@ -122,7 +122,7 @@ impl ProjectFS {
 
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
-            .add_filter("project file", &["rxproj", "lumproj"])
+            .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
             .pick_file()
             .await
         {

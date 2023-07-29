@@ -42,7 +42,7 @@ impl Archiver {
             .read_dir_utf8()?
             .flatten()
             .map(camino::Utf8DirEntry::into_path)
-            .find(|entry| entry.extension() == Some("rgssad"));
+            .find(|entry| matches!(entry.extension(), Some("rgssad" | "rgss2a")));
         let Some(archive_path) = archive_path else {
             return Err(Error::NotExist);
         };
@@ -138,7 +138,7 @@ impl Archiver {
             return Err(Error::InvalidHeader);
         }
 
-        if header_buf[7] != 1 {
+        if !matches!(header_buf[7], 1 | 2) {
             return Err(Error::InvalidHeader);
         }
 
