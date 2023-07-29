@@ -193,15 +193,15 @@ where
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = path.as_ref();
 
-        let mut primary = vec![]; // FIXME: inefficient
+        let mut entries = vec![]; // FIXME: inefficient
         if self.primary.exists(path)? {
-            primary = self.primary.read_dir(path)?;
+            entries.extend(self.primary.read_dir(path)?);
         }
         if self.secondary.exists(path)? {
-            primary.extend(self.secondary.read_dir(path)?.into_iter());
+            entries.extend(self.secondary.read_dir(path)?);
         }
-        primary.dedup();
+        entries.dedup();
 
-        Ok(primary)
+        Ok(entries)
     }
 }

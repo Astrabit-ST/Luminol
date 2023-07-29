@@ -22,10 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use num_traits::FromPrimitive;
-use std::fmt::Display;
-use strum::IntoEnumIterator;
-
 /// Syntax highlighter
 pub mod syntax_highlighting;
 /// Toasts to be displayed for errors, information, etc.
@@ -45,42 +41,28 @@ pub use top_bar::TopBar;
 mod tilemap;
 pub use tilemap::{SelectedLayer, SelectedTile, Tilemap};
 
-// btw there's a buncha places this could be used
-// uhh in event edit there's an array of strings that gets itered over to do what this does lol
-// TODO: Replace dropbox mechanism in event edit with this method
-pub trait Enumeration: Display + FromPrimitive + IntoEnumIterator {}
-impl<T> Enumeration for T where T: Display + FromPrimitive + IntoEnumIterator {}
-pub struct EnumMenuButton<T, F>
-where
-    T: Enumeration,
-    F: FnMut(T),
-{
-    current_value: i32,
-    _enumeration: T,
-    on_select: F,
+pub struct EnumMenuButton<'e, T> {
+    current_value: &'e mut T,
+    id: egui::Id,
 }
 
-impl<T: Enumeration, F: FnMut(T)> EnumMenuButton<T, F> {
-    pub fn new(current_value: i32, enumeration: T, on_select: F) -> Self {
-        Self {
-            current_value,
-            _enumeration: enumeration,
-            on_select,
-        }
+impl<'e, T> EnumMenuButton<'e, T> {
+    pub fn new(current_value: &'e mut T, id: egui::Id) -> Self {
+        Self { current_value, id }
     }
 }
 
-impl<T: Enumeration, F: FnMut(T)> egui::Widget for EnumMenuButton<T, F> {
-    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
-        ui.menu_button(T::from_i32(self.current_value).unwrap().to_string(), |ui| {
-            for enumeration_item in T::iter() {
-                if ui.button(enumeration_item.to_string()).clicked() {
-                    (self.on_select)(enumeration_item);
-                    ui.close_menu();
+impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'e, T> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        egui::ComboBox::from_id_source(self.id)
+            .selected_text(self.current_value.to_string())
+            .show_ui(ui, |ui| {
+                for variant in T::iter() {
+                    let text = variant.to_string();
+                    ui.selectable_value(self.current_value, variant, text);
                 }
-            }
-        })
-        .response
+            })
+            .response
     }
 }
 

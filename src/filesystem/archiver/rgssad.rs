@@ -44,7 +44,7 @@ impl Archiver {
             .map(camino::Utf8DirEntry::into_path)
             .find(|entry| entry.extension() == Some("rgssad"));
         let Some(archive_path) = archive_path else {
-            return Ok(Default::default());
+            return Err(Error::NotExist);
         };
 
         let mut file = std::fs::OpenOptions::new()

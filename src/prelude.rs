@@ -46,6 +46,7 @@ pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 pub use crate::State;
 
 pub use crate::command_db;
+pub use crate::game_ini;
 pub use crate::global_config;
 pub use crate::project_config;
 pub use crate::state;

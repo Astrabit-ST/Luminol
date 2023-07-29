@@ -14,8 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
 use crate::prelude::*;
+use once_cell::sync::Lazy;
 
 mod command_db;
 pub mod global;
@@ -25,12 +25,14 @@ pub use command_db::CommandDB;
 pub use global::Config;
 
 #[derive(Default, Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum Project {
     #[default]
     Unloaded,
     Loaded {
         config: project::Config,
         command_db: CommandDB,
+        game_ini: ini::Ini,
     },
 }
 
@@ -45,9 +47,8 @@ impl Project {
         }
 
         let config = match filesystem
-            .read(".luminol/config")
+            .read_to_string(".luminol/config")
             .ok()
-            .and_then(|v| String::from_utf8(v).ok())
             .and_then(|s| ron::from_str(&s).ok())
         {
             Some(c) => c,
@@ -67,9 +68,8 @@ impl Project {
         };
 
         let command_db = match filesystem
-            .read(".luminol/commands")
+            .read_to_string(".luminol/commands")
             .ok()
-            .and_then(|v| String::from_utf8(v).ok())
             .and_then(|s| ron::from_str(&s).ok())
         {
             Some(c) => c,
@@ -82,7 +82,31 @@ impl Project {
             }
         };
 
-        *PROJECT.borrow_mut() = Project::Loaded { config, command_db };
+        let game_ini = match filesystem
+            .read_to_string("Game.ini")
+            .ok()
+            .and_then(|i| ini::Ini::load_from_str_noescape(&i).ok())
+        {
+            Some(i) => i,
+            None => {
+                let mut ini = ini::Ini::new();
+                ini.with_section(Some("Game"))
+                    .set("Library", "RGSS104E.dll")
+                    .set("Scripts", &config.scripts_path)
+                    .set("Title", &config.project_name)
+                    .set("RTP1", "")
+                    .set("RTP2", "")
+                    .set("RTP3", "");
+
+                ini
+            }
+        };
+
+        *PROJECT.borrow_mut() = Project::Loaded {
+            config,
+            command_db,
+            game_ini,
+        };
 
         Ok(())
     }
@@ -90,7 +114,11 @@ impl Project {
     pub fn save() -> Result<(), String> {
         match &*PROJECT.borrow() {
             Project::Unloaded => return Err("Project not loaded".to_string()),
-            Project::Loaded { config, command_db } => {
+            Project::Loaded {
+                config,
+                command_db,
+                game_ini,
+            } => {
                 state!()
                     .filesystem
                     .write(
@@ -105,6 +133,14 @@ impl Project {
                         ".luminol/config",
                         ron::to_string(config).map_err(|e| e.to_string())?,
                     )
+                    .map_err(|e| e.to_string())?;
+
+                let mut ini_file = state!()
+                    .filesystem
+                    .open_file("Game.ini", filesystem::OpenFlags::Create)
+                    .map_err(|e| e.to_string())?;
+                game_ini
+                    .write_to(&mut ini_file)
                     .map_err(|e| e.to_string())?;
             }
         }
@@ -135,7 +171,18 @@ macro_rules! command_db {
     };
 }
 
-pub static GLOBAL: AtomicRefCell<global::Config> = AtomicRefCell::new(global::Config::new());
+#[macro_export]
+macro_rules! game_ini {
+    () => {
+        AtomicRefMut::map($crate::config::PROJECT.borrow_mut(), |c| match c {
+            $crate::config::Project::Unloaded => panic!("Project not loaded"),
+            $crate::config::Project::Loaded { game_ini, .. } => game_ini,
+        })
+    };
+}
+
+pub static GLOBAL: Lazy<AtomicRefCell<global::Config>> =
+    Lazy::new(|| AtomicRefCell::new(global::Config::new()));
 
 #[macro_export]
 macro_rules! global_config {
@@ -154,7 +201,7 @@ macro_rules! global_config {
     serde::Deserialize,
     strum::EnumIter,
     strum::Display,
-    Debug,
+    Debug
 )]
 #[allow(missing_docs)]
 pub enum RGSSVer {
@@ -185,7 +232,7 @@ pub enum RGSSVer {
     strum::EnumIter,
     strum::Display,
     Default,
-    Debug,
+    Debug
 )]
 #[allow(missing_docs)]
 pub enum RMVer {

@@ -249,12 +249,22 @@ impl Cache {
             let path = path.path().join(&config.project_name);
             std::fs::create_dir(path).map_err(|e| e.to_string())?;
 
-            // let filesystem = &state!().filesystem;
-            // filesystem.start_loading(path); // FIXME: this is lazy, we're telling the filesystem that "hey the project is loaded now lol pls believe us"
+            let command_db = config::CommandDB::new(config.editor_ver);
+
+            let mut game_ini = ini::Ini::new();
+            game_ini
+                .with_section(Some("Game"))
+                .set("Library", "RGSS104E.dll")
+                .set("Scripts", &config.scripts_path)
+                .set("Title", &config.project_name)
+                .set("RTP1", "")
+                .set("RTP2", "")
+                .set("RTP3", "");
 
             *config::PROJECT.borrow_mut() = config::Project::Loaded {
-                command_db: config::CommandDB::new(config.editor_ver),
+                command_db,
                 config,
+                game_ini,
             };
 
             self.setup_defaults();

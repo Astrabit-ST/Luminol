@@ -17,13 +17,13 @@
 use crate::prelude::*;
 
 use super::{
-    archiver::Archiver, host::HostFS, overlay::Overlay, path_cache::PathCache, DirEntry, Error,
-    FileSystem, Metadata, OpenFlags,
+    archiver::Archiver, host::HostFS, list::List, overlay::Overlay, path_cache::PathCache,
+    DirEntry, Error, FileSystem, Metadata, OpenFlags,
 };
 
-type LoadedFS = PathCache<Overlay<HostFS, Archiver>>;
+type LoadedFS = PathCache<Overlay<HostFS, List>>;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct ProjectFS {
     state: AtomicRefCell<State>,
 }
@@ -135,6 +135,77 @@ impl ProjectFS {
         }
     }
 
+    #[cfg(windows)]
+    fn find_rtp_paths() -> Vec<camino::Utf8PathBuf> {
+        let ini = game_ini!();
+        let Some(section) = ini.section(Some("Game")) else {
+            return vec![];
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+                if let Ok(value) = hklm
+                    .open_subkey("SOFTWARE\\WOW6432Node\\Enterbrain\\RGSS\\RTP")
+                    .and_then(|key| key.get_value::<String, _>(rtp))
+                {
+                    let path = camino::Utf8PathBuf::from(value);
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                if let Ok(value) = hklm
+                    .open_subkey("SOFTWARE\\WOW6432Node\\Enterbrain\\RPGXP")
+                    .and_then(|key| key.get_value::<String, _>("ApplicationPath"))
+                {
+                    let path = camino::Utf8PathBuf::from(value).join("rtp");
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                if let Ok(value) = hklm
+                    .open_subkey(
+                        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 235900",
+                    )
+                    .and_then(|key| key.get_value::<String, _>("InstallLocation"))
+                {
+                    let path = camino::Utf8PathBuf::from(value).join("rtp");
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                if let Some(path) = global_config!().rtp_paths.get(rtp) {
+                    let path = camino::Utf8PathBuf::from(path);
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                state!()
+                    .toasts
+                    .warning(format!("Failed to find suitable path for rtp {rtp}"));
+                state!()
+                    .toasts
+                    .info(format!("You may want to set an rtp path for {rtp}"));
+            }
+        }
+        paths
+    }
+
     pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
         let path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = path.parent().unwrap_or(path);
@@ -143,10 +214,19 @@ impl ProjectFS {
 
         config::Project::load()?;
 
-        let overlay = Overlay::new(
-            HostFS::new(path),
-            Archiver::new(project_config!().editor_ver, path).map_err(|e| e.to_string())?,
-        );
+        let mut list = List::new();
+
+        for path in Self::find_rtp_paths() {
+            list.push(HostFS::new(path))
+        }
+
+        match Archiver::new(project_config!().editor_ver, path) {
+            Ok(a) => list.push(a),
+            Err(Error::NotExist) => (),
+            Err(e) => return Err(e.to_string()),
+        }
+
+        let overlay = Overlay::new(HostFS::new(path), list);
         let patch_cache = PathCache::new(overlay).map_err(|e| e.to_string())?;
 
         *self.state.borrow_mut() = State::Loaded(patch_cache);
@@ -177,7 +257,7 @@ impl ProjectFS {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 enum State {
     #[default]
     Unloaded,
@@ -186,7 +266,6 @@ enum State {
 }
 
 #[ouroboros::self_referencing]
-#[derive(Debug)]
 pub struct File<'fs> {
     state: AtomicRef<'fs, State>,
     #[borrows(state)]
@@ -194,7 +273,6 @@ pub struct File<'fs> {
     file: FileType<'this>,
 }
 
-#[derive(Debug)]
 enum FileType<'fs> {
     Host(<HostFS as FileSystem>::File<'fs>),
     Loaded(<LoadedFS as FileSystem>::File<'fs>),

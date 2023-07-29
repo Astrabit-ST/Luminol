@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::prelude::*;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 
 /// The state saved by Luminol between sessions.
@@ -33,6 +34,7 @@ pub struct Config {
     pub recent_projects: VecDeque<String>,
     /// The current code theme
     pub theme: syntax_highlighting::CodeTheme,
+    pub rtp_paths: HashMap<String, String>,
 }
 
 impl Default for Config {
@@ -42,10 +44,11 @@ impl Default for Config {
 }
 
 impl Config {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             recent_projects: VecDeque::new(),
             theme: syntax_highlighting::CodeTheme::dark(),
+            rtp_paths: HashMap::new(),
         }
     }
 }

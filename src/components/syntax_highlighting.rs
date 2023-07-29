@@ -63,7 +63,15 @@ pub fn highlight(ctx: &egui::Context, theme: CodeTheme, code: &str, language: &s
     })
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, serde::Deserialize, serde::Serialize, Debug)]
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    Debug
+)]
 enum SyntectTheme {
     Base16EightiesDark,
     Base16MochaDark,
@@ -125,7 +133,15 @@ impl SyntectTheme {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, serde::Serialize, serde::Deserialize, Debug)]
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug
+)]
 pub struct CodeTheme {
     dark_mode: bool,
 

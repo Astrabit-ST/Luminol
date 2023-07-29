@@ -218,7 +218,7 @@ fn parameter_label(
                 *i as i32
                     == match command.parameters.get_mut(index.as_usize()) {
                         Some(i) => *i.into_integer(),
-                        None => return false
+                        None => return false,
                     }
             }) else {
                 return write!(string, " invalid selection");

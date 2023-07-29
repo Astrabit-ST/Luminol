@@ -17,7 +17,9 @@
 use std::io::prelude::*;
 
 mod archiver;
+mod erased;
 mod host;
+mod list;
 mod overlay;
 mod path_cache;
 mod project;
@@ -38,6 +40,8 @@ pub enum Error {
     NotSupported,
     #[error("Archive header is incorrect")]
     InvalidHeader,
+    #[error("No filesystems are loaded to perform this operation")]
+    NoFilesystems,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -86,8 +90,8 @@ bitflags::bitflags! {
     }
 }
 
-pub trait FileSystem {
-    type File<'fs>: Read + Write + Seek + 'fs
+pub trait FileSystem: Send + Sync {
+    type File<'fs>: Read + Write + Seek + Send + Sync + 'fs
     where
         Self: 'fs;
 
