@@ -206,6 +206,41 @@ impl ProjectFS {
         paths
     }
 
+    #[cfg(not(windows))]
+    fn find_rtp_paths() -> Vec<camino::Utf8PathBuf> {
+        let ini = game_ini!();
+        let Some(section) = ini.section(Some("Game")) else {
+            return vec![];
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                if let Some(path) = global_config!().rtp_paths.get(rtp) {
+                    let path = camino::Utf8PathBuf::from(path);
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                state!()
+                    .toasts
+                    .warning(format!("Failed to find suitable path for rtp {rtp}"));
+                state!()
+                    .toasts
+                    .info(format!("You may want to set an rtp path for {rtp}"));
+            }
+        }
+        paths
+    }
+
     pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
         let path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = path.parent().unwrap_or(path);
