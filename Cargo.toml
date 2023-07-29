@@ -90,6 +90,7 @@ itertools = "0.11"
 static_assertions = "1.1.0"
 
 rodio = { version = "0.17.1" }
+rustysynth = "1.2"
 
 command-lib = { version = "*", path = "command-lib" }
 rmxp-types = { version = "*", path = "rmxp-types" }

@@ -22,10 +22,9 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use rodio::Decoder;
-use rodio::{OutputStream, OutputStreamHandle, Sink};
-
 use crate::prelude::*;
+
+mod midi;
 
 use strum::Display;
 use strum::EnumIter;
@@ -49,17 +48,20 @@ pub struct Audio {
 struct Inner {
     // OutputStream is lazily evaluated specifically for wasm. web prevents autoplay without user interaction, this is a way of dealing with that.
     // To actually play tracks the user will have needed to interact with the ui.
-    _output_stream: OutputStream,
-    output_stream_handle: OutputStreamHandle,
-    sinks: HashMap<Source, Sink>,
+    _output_stream: rodio::OutputStream,
+    output_stream_handle: rodio::OutputStreamHandle,
+    sinks: HashMap<Source, rodio::Sink>,
 }
 
+/// # Safety
+/// cpal claims that Stream (which is why Inner is not send) is not thread safe on android, which is why it is not Send anywhere else.
+/// We don't support android. The only other solution would be to use thread_local and... no.
 #[allow(unsafe_code)]
 unsafe impl Send for Inner {}
 
 impl Default for Audio {
     fn default() -> Self {
-        let (output_stream, output_stream_handle) = OutputStream::try_default().unwrap();
+        let (output_stream, output_stream_handle) = rodio::OutputStream::try_default().unwrap();
         Self {
             inner: Mutex::new(Inner {
                 _output_stream: output_stream,
@@ -81,8 +83,9 @@ impl Audio {
     ) -> Result<(), String> {
         let mut inner = self.inner.lock();
         // Create a sink
-        let sink = Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
+        let sink = rodio::Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
 
+        let path = path.as_ref();
         let file = state!()
             .filesystem
             .open_file(path, filesystem::OpenFlags::Read)
@@ -92,11 +95,25 @@ impl Audio {
         match source {
             Source::SE | Source::ME => {
                 // Non looping
-                sink.append(Decoder::new(file).map_err(|e| e.to_string())?);
+                if path
+                    .extension()
+                    .is_some_and(|e| matches!(e, "mid" | "midi"))
+                {
+                    sink.append(midi::MidiSource::new(file, false)?);
+                } else {
+                    sink.append(rodio::Decoder::new(file).map_err(|e| e.to_string())?);
+                }
             }
             _ => {
                 // Looping
-                sink.append(Decoder::new_looped(file).map_err(|e| e.to_string())?);
+                if path
+                    .extension()
+                    .is_some_and(|e| matches!(e, "mid" | "midi"))
+                {
+                    sink.append(midi::MidiSource::new(file, true)?);
+                } else {
+                    sink.append(rodio::Decoder::new_looped(file).map_err(|e| e.to_string())?);
+                }
             }
         }
 
