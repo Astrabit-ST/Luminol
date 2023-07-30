@@ -22,14 +22,23 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn load_atlas(&self, tileset_id: usize) -> Result<Atlas, String> {
-        let entry = self.atlases.entry(tileset_id).or_try_insert_with(|| {
-            let tilesets = state!().data_cache.tilesets();
-            // We subtract 1 because RMXP is stupid and pads arrays with nil to start at 1.
-            let tileset = &tilesets[tileset_id];
+    pub fn load_atlas(&self, tileset: &rpg::Tileset) -> Result<Atlas, String> {
+        Ok(self
+            .atlases
+            .entry(tileset.id)
+            .or_try_insert_with(|| Atlas::new(tileset))?
+            .clone())
+    }
 
-            Atlas::new(tileset)
-        })?;
-        Ok(entry.clone())
+    pub fn reload_atlas(&self, tileset: &rpg::Tileset) -> Result<Atlas, String> {
+        Ok(self
+            .atlases
+            .entry(tileset.id)
+            .insert(Atlas::new(tileset)?)
+            .clone())
+    }
+
+    pub fn clear(&self) {
+        self.atlases.clear()
     }
 }

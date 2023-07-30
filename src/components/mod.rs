@@ -38,8 +38,10 @@ pub use toasts::Toasts;
 pub use top_bar::TopBar;
 
 /// The tilemap.
-mod tilemap;
-pub use tilemap::{SelectedLayer, SelectedTile, Tilemap};
+mod map_view;
+pub use map_view::{MapView, SelectedLayer};
+mod tilepicker;
+pub use tilepicker::{SelectedTile, Tilepicker};
 
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,

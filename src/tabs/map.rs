@@ -32,7 +32,8 @@ pub struct Tab {
     /// ID of the map that is being edited.
     pub id: usize,
     /// The tilemap.
-    pub tilemap: Tilemap,
+    pub tilemap: MapView,
+    pub tilepicker: Tilepicker,
 
     dragged_event: usize,
     dragging_event: bool,
@@ -44,9 +45,13 @@ impl Tab {
     /// Create a new map editor.
     pub fn new(id: usize) -> Result<Self, String> {
         let map = state!().data_cache.map(id);
+        let tilesets = state!().data_cache.tilesets();
+        let tileset = &tilesets[map.tileset_id];
+
         Ok(Self {
             id,
-            tilemap: Tilemap::new(id, &map)?,
+            tilemap: MapView::new(id, &map, tileset)?,
+            tilepicker: Tilepicker::new(id, tileset)?,
             dragged_event: 0,
             dragging_event: false,
             event_windows: window::Windows::default(),
@@ -148,7 +153,7 @@ impl tab::Tab for Tab {
             .default_width(256.)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    self.tilemap.tilepicker(ui);
+                    self.tilepicker.ui(ui);
                 });
             });
 

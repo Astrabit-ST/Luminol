@@ -159,6 +159,7 @@ impl TopBar {
                 .clicked()
             {
                 state.image_cache.clear();
+                state.atlas_cache.clear();
             }
         });
 

@@ -30,8 +30,8 @@ use crate::prelude::*;
 #[derive(Default)]
 pub struct Cache {
     // FIXME: This may not handle reloading textures properly.
-    egui_imgs: dashmap::DashMap<String, Arc<RetainedImage>>,
-    glow_imgs: dashmap::DashMap<String, Arc<WgpuTexture>>,
+    retained_images: dashmap::DashMap<String, Arc<RetainedImage>>,
+    wgpu_textures: dashmap::DashMap<String, Arc<WgpuTexture>>,
 }
 
 #[derive(Debug)]
@@ -79,7 +79,7 @@ impl Cache {
         let filename = filename.as_ref();
 
         let entry = self
-            .egui_imgs
+            .retained_images
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| -> Result<_, String> {
                 let image = self.load_image(directory, filename)?.into_rgba8();
@@ -155,7 +155,7 @@ impl Cache {
         let filename = filename.as_ref();
 
         let entry = self
-            .glow_imgs
+            .wgpu_textures
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| -> Result<_, String> {
                 // We force the image to be rgba8 to avoid any weird texture errors.
@@ -200,8 +200,8 @@ impl Cache {
     }
 
     pub fn clear(&self) {
-        self.egui_imgs.clear();
-        self.glow_imgs.clear();
+        self.retained_images.clear();
+        self.wgpu_textures.clear();
     }
 
     pub fn bind_group_layout() -> &'static wgpu::BindGroupLayout {
