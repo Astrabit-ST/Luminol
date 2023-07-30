@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{id, optional_path, Path, Table1};
+use crate::{id, optional_path, BlendMode, Path, Table1};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Tileset")]
@@ -33,7 +33,7 @@ pub struct Tileset {
     pub fog_name: Path,
     pub fog_hue: i32,
     pub fog_opacity: i32,
-    pub fog_blend_type: i32,
+    pub fog_blend_type: BlendMode,
     pub fog_zoom: i32,
     pub fog_sx: i32,
     pub fog_sy: i32,

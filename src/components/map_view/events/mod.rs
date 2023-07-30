@@ -101,7 +101,7 @@ impl Event {
         let sprite = Sprite::new(
             &quads,
             texture,
-            page.graphic.blend_type.try_into()?,
+            page.graphic.blend_type,
             page.graphic.character_hue,
             page.graphic.opacity,
         );

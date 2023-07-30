@@ -33,4 +33,6 @@ pub mod rpg {
     pub type Weapons = Vec<Weapon>;
 }
 
+pub use shared::BlendMode;
+
 pub type Path = Option<camino::Utf8PathBuf>;

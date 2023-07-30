@@ -18,7 +18,7 @@
 use super::autotile_ids::AUTOTILES;
 use super::Quad;
 
-pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
+pub const MAX_SIZE: u32 = 2048; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
 pub const TILESET_COLUMNS: u32 = 8; // Tilesets are 8 tiles across
 pub const TILESET_WIDTH: u32 = TILE_SIZE * TILESET_COLUMNS; // self explanatory

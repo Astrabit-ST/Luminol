@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, optional_id, optional_path, rpg::MoveRoute, ParameterType, Path};
+use crate::{id, optional_id, optional_path, rpg::MoveRoute, BlendMode, ParameterType, Path};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename = "RPG::Event")]
@@ -100,7 +100,7 @@ pub struct Graphic {
     pub direction: i32,
     pub pattern: i32,
     pub opacity: i32,
-    pub blend_type: i32,
+    pub blend_type: BlendMode,
 }
 
 impl Default for Graphic {
@@ -112,7 +112,7 @@ impl Default for Graphic {
             direction: 2,
             pattern: 0,
             opacity: 255,
-            blend_type: 0,
+            blend_type: BlendMode::Normal,
         }
     }
 }

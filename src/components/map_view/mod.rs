@@ -96,7 +96,7 @@ impl MapView {
                     .load_wgpu_image("Graphics/Fogs", fog_name)?,
                 tileset.fog_hue,
                 tileset.fog_zoom,
-                tileset.fog_blend_type.try_into()?,
+                tileset.fog_blend_type,
                 tileset.fog_opacity,
                 map.width,
                 map.height,

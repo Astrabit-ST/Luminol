@@ -26,3 +26,21 @@ pub use event::*;
 pub use mapinfo::*;
 pub use move_route::*;
 pub use script::*;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Default, Hash)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+pub enum BlendMode {
+    #[default]
+    Normal = 0,
+    Add = 1,
+    Subtract = 2,
+}
