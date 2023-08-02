@@ -50,7 +50,7 @@ impl MidiSource {
 }
 
 pub static SOUND_FONT: Lazy<Arc<rustysynth::SoundFont>> = Lazy::new(|| {
-    let soundfont = include_bytes!("GMGSX.sf2");
+    let soundfont = include_bytes!("GMGSx.sf2");
     let mut cursor = Cursor::new(soundfont);
 
     rustysynth::SoundFont::new(&mut cursor)
