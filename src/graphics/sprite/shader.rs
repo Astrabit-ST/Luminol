@@ -19,7 +19,6 @@ use crate::prelude::*;
 use super::super::viewport::Viewport;
 use super::graphic::Graphic;
 use super::{BlendMode, Vertex};
-use once_cell::sync::Lazy;
 
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,

@@ -50,8 +50,8 @@ impl Tab {
 
         Ok(Self {
             id,
-            tilemap: MapView::new(id, &map, tileset)?,
-            tilepicker: Tilepicker::new(id, tileset)?,
+            tilemap: MapView::new(&map, tileset)?,
+            tilepicker: Tilepicker::new(tileset)?,
             dragged_event: 0,
             dragging_event: false,
             event_windows: window::Windows::default(),

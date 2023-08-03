@@ -31,8 +31,6 @@ pub struct MapView {
 
     pub pan: egui::Vec2,
 
-    map_id: usize,
-
     resources: Arc<Resources>,
     ani_instant: Instant,
 
@@ -63,10 +61,10 @@ struct Resources {
     atlas: Atlas,
 }
 
-type ResourcesHash = HashMap<usize, Arc<Resources>>;
+type ResourcesSlab = slab::Slab<Arc<Resources>>;
 
 impl MapView {
-    pub fn new(map_id: usize, map: &rpg::Map, tileset: &rpg::Tileset) -> Result<MapView, String> {
+    pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<MapView, String> {
         // Get tilesets.
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
@@ -129,7 +127,6 @@ impl MapView {
             }),
 
             ani_instant: Instant::now(),
-            map_id,
 
             selected_layer: SelectedLayer::default(),
             cursor_pos: egui::Pos2::ZERO,
@@ -228,7 +225,8 @@ impl MapView {
         };
 
         let resources = self.resources.clone();
-        let map_id = self.map_id;
+        let prepare_id = Arc::new(OnceCell::new());
+        let paint_id = prepare_id.clone();
 
         let fog_enabled = self.fog_enabled;
         let pano_enabled = self.pano_enabled;
@@ -237,16 +235,18 @@ impl MapView {
 
         let paint_callback = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, _queue, _, paint_callback_resources| {
-                let res_hash: &mut ResourcesHash = paint_callback_resources
+                let res_hash: &mut ResourcesSlab = paint_callback_resources
                     .entry()
                     .or_insert_with(Default::default);
-                res_hash.insert(map_id, resources.clone());
+                let id = res_hash.insert(resources.clone());
+                prepare_id.set(id).expect("resources id already set?");
 
                 vec![]
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
-                let res_hash: &ResourcesHash = paint_callback_resources.get().unwrap();
-                let resources = &res_hash[&map_id];
+                let res_hash: &ResourcesSlab = paint_callback_resources.get().unwrap();
+                let id = paint_id.get().copied().expect("resources id is unset");
+                let resources = &res_hash[id];
                 let Resources {
                     tiles: map_tiles,
                     viewport: map_viewport,

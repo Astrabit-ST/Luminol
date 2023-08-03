@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.

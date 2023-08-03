@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::prelude::*;
 
+use slab::Slab;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -23,7 +24,6 @@ use std::time::{Duration, Instant};
 pub struct Tilepicker {
     resources: Arc<Resources>,
     ani_instant: Instant,
-    map_id: usize,
     selected_tile: SelectedTile,
 }
 
@@ -45,10 +45,10 @@ impl Default for SelectedTile {
     }
 }
 
-type ResourcesHash = HashMap<usize, Arc<Resources>>;
+type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
-    pub fn new(map_id: usize, tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
+    pub fn new(tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
         let tilepicker_data = [0, 48, 96, 144, 192, 240, 288, 336]
@@ -79,7 +79,6 @@ impl Tilepicker {
                 viewport,
                 atlas,
             }),
-            map_id,
             ani_instant: Instant::now(),
             selected_tile: SelectedTile::default(),
         })
@@ -98,23 +97,27 @@ impl Tilepicker {
         );
 
         let resources = self.resources.clone();
-        let map_id = self.map_id;
+        let prepare_id = Arc::new(OnceCell::new());
+        let paint_id = prepare_id.clone();
+
         ui.painter().add(egui::PaintCallback {
             rect: canvas_rect,
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_, _, _encoder, paint_callback_resources| {
-                        let res_hash: &mut ResourcesHash = paint_callback_resources
+                        let res_hash: &mut ResourcesSlab = paint_callback_resources
                             .entry()
                             .or_insert_with(Default::default);
-                        res_hash.insert(map_id, resources.clone());
+                        let id = res_hash.insert(resources.clone());
+                        prepare_id.set(id).expect("resources id already set?");
 
                         vec![]
                     })
                     .paint(move |_info, render_pass, paint_callback_resources| {
                         //
-                        let res_hash: &ResourcesHash = paint_callback_resources.get().unwrap();
-                        let resources = &res_hash[&map_id];
+                        let res_hash: &ResourcesSlab = paint_callback_resources.get().unwrap();
+                        let id = paint_id.get().copied().expect("resources id is unset");
+                        let resources = &res_hash[id];
                         let Resources {
                             tiles, viewport, ..
                         } = resources.as_ref();

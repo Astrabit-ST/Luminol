@@ -14,13 +14,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::super::viewport::Viewport;
 use super::autotiles::Autotiles;
 use super::instance::Instances;
 use super::Vertex;
+use crate::graphics::Viewport;
 use crate::prelude::*;
-
-use once_cell::sync::Lazy;
 
 #[derive(Debug)]
 pub struct Shader {

@@ -17,7 +17,6 @@
 
 use crate::prelude::*;
 use crossbeam::atomic::AtomicCell;
-use once_cell::sync::Lazy;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
