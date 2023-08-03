@@ -17,6 +17,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2023-04-21
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
       - run: cargo check --all-features
 
   test:
@@ -32,6 +34,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2023-04-21
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
       - run: cargo test --lib
 
   fmt:
@@ -49,6 +53,8 @@ jobs:
         with:
           toolchain: nightly-2023-04-21
           components: rustfmt
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
 
   clippy:
@@ -66,4 +72,6 @@ jobs:
         with:
           toolchain: nightly-2023-04-21
           components: clippy
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
       - run: cargo clippy -- # -D warnings
