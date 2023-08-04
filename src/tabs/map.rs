@@ -32,7 +32,7 @@ pub struct Tab {
     /// ID of the map that is being edited.
     pub id: usize,
     /// The tilemap.
-    pub tilemap: MapView,
+    pub view: MapView,
     pub tilepicker: Tilepicker,
 
     dragged_event: usize,
@@ -50,7 +50,7 @@ impl Tab {
 
         Ok(Self {
             id,
-            tilemap: MapView::new(&map, tileset)?,
+            view: MapView::new(&map, tileset)?,
             tilepicker: Tilepicker::new(tileset)?,
             dragged_event: 0,
             dragging_event: false,
@@ -84,7 +84,7 @@ impl tab::Tab for Tab {
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.add(
-                    egui::Slider::new(&mut self.tilemap.scale, 15.0..=300.)
+                    egui::Slider::new(&mut self.view.scale, 15.0..=300.)
                         .text("Scale")
                         .fixed_decimals(0),
                 );
@@ -93,7 +93,7 @@ impl tab::Tab for Tab {
 
                 ui.menu_button(
                     // Format the text based on what layer is selected.
-                    match self.tilemap.selected_layer {
+                    match self.view.selected_layer {
                         SelectedLayer::Events => "Events ⏷".to_string(),
                         SelectedLayer::Tiles(layer) => format!("Layer {layer} ⏷"),
                     },
@@ -103,12 +103,13 @@ impl tab::Tab for Tab {
                         ui.columns(2, |columns| {
                             columns[1].visuals_mut().button_frame = true;
                             columns[0].label(egui::RichText::new("Panorama").underline());
-                            columns[1].checkbox(&mut self.tilemap.pano_enabled, "👁");
+                            columns[1].checkbox(&mut self.view.map.pano_enabled, "👁");
 
-                            for (index, layer) in self.tilemap.enabled_layers.iter_mut().enumerate()
+                            for (index, layer) in
+                                self.view.map.enabled_layers.iter_mut().enumerate()
                             {
                                 columns[0].selectable_value(
-                                    &mut self.tilemap.selected_layer,
+                                    &mut self.view.selected_layer,
                                     SelectedLayer::Tiles(index),
                                     format!("Layer {}", index + 1),
                                 );
@@ -117,22 +118,22 @@ impl tab::Tab for Tab {
 
                             // Display event layer.
                             columns[0].selectable_value(
-                                &mut self.tilemap.selected_layer,
+                                &mut self.view.selected_layer,
                                 SelectedLayer::Events,
                                 egui::RichText::new("Events").italics(),
                             );
-                            columns[1].checkbox(&mut self.tilemap.event_enabled, "👁");
+                            columns[1].checkbox(&mut self.view.event_enabled, "👁");
 
                             columns[0].label(egui::RichText::new("Fog").underline());
-                            columns[1].checkbox(&mut self.tilemap.fog_enabled, "👁");
+                            columns[1].checkbox(&mut self.view.map.fog_enabled, "👁");
                         });
                     },
                 );
 
                 ui.separator();
 
-                ui.checkbox(&mut self.tilemap.visible_display, "Display Visible Area");
-                ui.checkbox(&mut self.tilemap.move_preview, "Preview event move routes");
+                ui.checkbox(&mut self.view.visible_display, "Display Visible Area");
+                ui.checkbox(&mut self.view.move_preview, "Preview event move routes");
 
                 /*
                 if ui.button("Save map preview").clicked() {
@@ -159,11 +160,11 @@ impl tab::Tab for Tab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let response = self.tilemap.ui(ui, &map, self.dragging_event);
+                let response = self.view.ui(ui, &map, self.dragging_event);
 
                 let layers_max = map.data.zsize();
-                let map_x = self.tilemap.cursor_pos.x as i32;
-                let map_y = self.tilemap.cursor_pos.y as i32;
+                let map_x = self.view.cursor_pos.x as i32;
+                let map_y = self.view.cursor_pos.y as i32;
 
                 if ui.input(|i| {
                     i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)

@@ -14,10 +14,10 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use wgpu::util::DeviceExt;
-
-use super::Quad;
 use crate::prelude::*;
+use primitives::Quad;
+
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]

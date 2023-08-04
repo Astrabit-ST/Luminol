@@ -19,7 +19,7 @@ use crate::{id, optional_id, optional_path, rpg::MoveRoute, BlendMode, Parameter
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename = "RPG::Event")]
 pub struct Event {
-    #[serde(with = "id")]
+    // #[serde(with = "id")]
     pub id: usize,
     pub name: String,
     pub x: i32,

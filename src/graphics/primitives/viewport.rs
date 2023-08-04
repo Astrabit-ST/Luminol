@@ -41,10 +41,8 @@ unsafe impl bytemuck::Pod for Data {}
 unsafe impl bytemuck::Zeroable for Data {}
 
 impl Viewport {
-    pub fn new() -> Self {
-        let data = Data {
-            proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -1.0, 1.0),
-        };
+    pub fn new(proj: cgmath::Matrix4<f32>) -> Self {
+        let data = Data { proj };
         let render_state = &state!().render_state;
 
         let buffer = render_state

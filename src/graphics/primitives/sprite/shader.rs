@@ -14,34 +14,33 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::autotiles::Autotiles;
-use super::instance::Instances;
-use super::Vertex;
-use crate::graphics::Viewport;
 use crate::prelude::*;
 
-#[derive(Debug)]
+use super::graphic::Graphic;
+use super::{BlendMode, Vertex};
+use primitives::Viewport;
+
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
 }
 
 impl Shader {
-    fn new() -> Self {
+    pub fn new(target: wgpu::BlendState) -> Self {
         let render_state = &state!().render_state;
 
         let shader_module = render_state
             .device
-            .create_shader_module(wgpu::include_wgsl!("tilemap.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("sprite.wgsl"));
 
         let pipeline_layout =
             render_state
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Tilemap Render Pipeline Layout"),
+                    label: Some("Tilemap Sprite Pipeline Layout"),
                     bind_group_layouts: &[
                         image_cache::Cache::bind_group_layout(),
                         Viewport::layout(),
-                        Autotiles::layout(),
+                        Graphic::layout(),
                     ],
                     push_constant_ranges: &[],
                 });
@@ -49,18 +48,18 @@ impl Shader {
             render_state
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Tilemap Render Pipeline"),
+                    label: Some("Tilemap Sprite Render Pipeline"),
                     layout: Some(&pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &shader_module,
                         entry_point: "vs_main",
-                        buffers: &[Vertex::desc(), Instances::desc()],
+                        buffers: &[Vertex::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader_module,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            blend: Some(target),
                             ..render_state.target_format.into()
                         })],
                     }),
@@ -73,12 +72,49 @@ impl Shader {
                     multiview: None,
                 });
 
-        Self { pipeline }
+        Shader { pipeline }
     }
 
-    pub fn bind(render_pass: &mut wgpu::RenderPass<'_>) {
-        render_pass.set_pipeline(&TILEMAP_SHADER.pipeline)
+    pub fn bind(mode: BlendMode, render_pass: &mut wgpu::RenderPass<'_>) {
+        render_pass.set_pipeline(&EVENT_SHADERS[&mode].pipeline)
     }
 }
 
-static TILEMAP_SHADER: Lazy<Shader> = Lazy::new(Shader::new);
+static EVENT_SHADERS: Lazy<HashMap<BlendMode, Shader>> = Lazy::new(|| {
+    [
+        (BlendMode::Normal, wgpu::BlendState::ALPHA_BLENDING),
+        (
+            BlendMode::Add,
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+            },
+        ),
+        (
+            BlendMode::Subtract,
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::Zero,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+            },
+        ),
+    ]
+    .into_iter()
+    .map(|(mode, target)| (mode, Shader::new(target)))
+    .collect()
+});

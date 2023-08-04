@@ -18,7 +18,7 @@ use crate::prelude::*;
 
 #[derive(Debug)]
 pub struct Plane {
-    sprite: Sprite,
+    sprite: primitives::Sprite,
 }
 
 impl Plane {
@@ -40,13 +40,13 @@ impl Plane {
             egui::vec2(map_width / zoom, map_height / zoom),
         );
 
-        let quad = Quad::new(
+        let quad = primitives::Quad::new(
             egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(map_width, map_height)),
             tex_coords,
             0.0,
         );
 
-        let sprite = Sprite::new(&[quad], texture, blend_mode, hue, opacity);
+        let sprite = primitives::Sprite::new(quad, texture, blend_mode, hue, opacity);
 
         Self { sprite }
     }

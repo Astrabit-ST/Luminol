@@ -15,17 +15,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-mod atlas;
-mod autotile_ids;
-mod quad;
-mod sprite;
-mod tiles;
-mod vertex;
-mod viewport;
+pub mod primitives {
+    mod quad;
+    mod sprite;
+    mod tiles;
+    mod vertex;
+    mod viewport;
 
-pub use atlas::Atlas;
-pub use quad::Quad;
-pub use sprite::Sprite;
-pub use tiles::Tiles;
-pub use vertex::Vertex;
-pub use viewport::Viewport;
+    pub use quad::Quad;
+    pub use vertex::Vertex;
+    pub use viewport::Viewport;
+
+    pub use sprite::Sprite;
+    pub use tiles::Atlas;
+    pub use tiles::Tiles;
+}
+
+mod event;
+mod map;
+mod plane;
+
+pub use event::Event;
+pub use map::Map;
+pub use plane::Plane;

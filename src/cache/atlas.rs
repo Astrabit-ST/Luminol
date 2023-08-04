@@ -18,23 +18,23 @@ use crate::prelude::*;
 
 #[derive(Default, Debug)]
 pub struct Cache {
-    atlases: dashmap::DashMap<usize, Atlas>,
+    atlases: dashmap::DashMap<usize, primitives::Atlas>,
 }
 
 impl Cache {
-    pub fn load_atlas(&self, tileset: &rpg::Tileset) -> Result<Atlas, String> {
+    pub fn load_atlas(&self, tileset: &rpg::Tileset) -> Result<primitives::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .or_try_insert_with(|| Atlas::new(tileset))?
+            .or_try_insert_with(|| primitives::Atlas::new(tileset))?
             .clone())
     }
 
-    pub fn reload_atlas(&self, tileset: &rpg::Tileset) -> Result<Atlas, String> {
+    pub fn reload_atlas(&self, tileset: &rpg::Tileset) -> Result<primitives::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .insert(Atlas::new(tileset)?)
+            .insert(primitives::Atlas::new(tileset)?)
             .clone())
     }
 

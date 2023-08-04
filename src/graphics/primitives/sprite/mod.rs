@@ -19,9 +19,9 @@ mod graphic;
 mod shader;
 mod vertices;
 
-use super::quad::Quad;
-use super::vertex::Vertex;
 use crate::prelude::*;
+use primitives::Quad;
+use primitives::Vertex;
 
 #[derive(Debug)]
 pub struct Sprite {
@@ -33,13 +33,13 @@ pub struct Sprite {
 
 impl Sprite {
     pub fn new(
-        quads: &[Quad],
+        quad: Quad,
         texture: Arc<image_cache::WgpuTexture>,
         blend_mode: BlendMode,
         hue: i32,
         opacity: i32,
     ) -> Self {
-        let vertices = vertices::Vertices::from_quads(quads, texture.size());
+        let vertices = vertices::Vertices::from_quads(&[quad], texture.size());
         let graphic = graphic::Graphic::new(hue, opacity);
 
         Self {

@@ -14,20 +14,19 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
-mod autotiles;
-mod instance;
-mod shader;
-
 use crate::prelude::*;
 
-use super::Atlas;
-use super::Quad;
-use super::Vertex;
+pub use atlas::Atlas;
 
 use autotiles::Autotiles;
 use instance::Instances;
 use shader::Shader;
+
+mod atlas;
+mod autotile_ids;
+mod autotiles;
+mod instance;
+mod shader;
 
 #[derive(Debug)]
 pub struct Tiles {

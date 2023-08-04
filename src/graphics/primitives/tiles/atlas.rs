@@ -16,9 +16,9 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::autotile_ids::AUTOTILES;
-use super::Quad;
+use super::primitives::Quad;
 
-pub const MAX_SIZE: u32 = 2048; // Max texture size in one dimension
+pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
 pub const TILESET_COLUMNS: u32 = 8; // Tilesets are 8 tiles across
 pub const TILESET_WIDTH: u32 = TILE_SIZE * TILESET_COLUMNS; // self explanatory
@@ -243,12 +243,12 @@ impl Atlas {
         })
     }
 
-    pub fn calc_quads(&self, tile: i16, x: usize, y: usize, quads: &mut Vec<Quad>) {
-        quads.push(Quad::new(
+    pub fn calc_quad(&self, tile: i16, x: usize, y: usize) -> Quad {
+        Quad::new(
             egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
             egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
             0.0,
-        ));
+        )
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {

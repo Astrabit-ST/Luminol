@@ -29,9 +29,9 @@ pub struct Tilepicker {
 
 #[derive(Debug)]
 struct Resources {
-    tiles: Tiles,
-    viewport: Viewport,
-    atlas: Atlas,
+    tiles: primitives::Tiles,
+    viewport: primitives::Viewport,
+    atlas: primitives::Atlas,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -61,10 +61,9 @@ impl Tilepicker {
             1,
             tilepicker_data,
         );
-        let tiles = Tiles::new(atlas.clone(), &tilepicker_data);
+        let tiles = primitives::Tiles::new(atlas.clone(), &tilepicker_data);
 
-        let viewport = Viewport::new();
-        viewport.set_proj(cgmath::ortho(
+        let viewport = primitives::Viewport::new(cgmath::ortho(
             0.0,
             256.,
             atlas.tileset_height as f32,
