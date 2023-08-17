@@ -1,10 +1,12 @@
 # Luminol
 
-## LUMINOL IS LOOKING FOR CONTRIBUTORS! PLEASE CONTACT leelee.rs ON DISCORD OR EMAIL <lily@nowaffles.com> IF YOU WANT TO HELP
+## LUMINOL IS LOOKING FOR CONTRIBUTORS! PLEASE JOIN OUR DISCORD IF YOU WANT TO KNOW HOW YOU CAN HELP
 
 ![Crates.io](https://img.shields.io/crates/v/luminol)![Crates.io](https://img.shields.io/crates/l/luminol)![Crates.io](https://img.shields.io/crates/d/luminol)[![wakatime](https://wakatime.com/badge/user/5cff5352-cb55-44dc-819e-b47f231dcfa2/project/edee199a-95c3-4206-b23e-eb6f0a7e06ba.svg)](https://wakatime.com/badge/user/5cff5352-cb55-44dc-819e-b47f231dcfa2/project/edee199a-95c3-4206-b23e-eb6f0a7e06ba)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Astrabit-ST/Luminol)[![CI](https://github.com/Astrabit-ST/Luminol/actions/workflows/rust.yml/badge.svg)](https://github.com/Astrabit-ST/Luminol/actions/workflows/rust.yml)![GitHub issues](https://img.shields.io/github/issues/Astrabit-ST/Luminol)
 
 Luminol is an experimental remake of the RGSS RPG Maker editors in Rust with love ❤️.
+
+Join [our discord](https://discord.gg/8jZKmesKJy) if you're interested in the project!
 
 Luminol targets native builds with eframe. Luminol currently reads *only* rxdata (not rvdata or rvdata2, sorry VX and VX Ace users). In the past, Luminol used to exclusively read rusty object notation (ron) files made from [rmxp_extractor](https://github.com/Speak2Erase/rmxp-extractor). Now, it uses [alox-48](https://github.com/Speak2Erase/alox-48) to deserialize rxdata. It is not 100% perfect, if it does not open your project properly, [please file an issue](https://github.com/Astrabit-ST/Luminol/issues).
 
