@@ -30,10 +30,6 @@ pub struct Tab {
     load_project_promise: Option<poll_promise::Promise<()>>,
 }
 
-// FIXME
-#[allow(unsafe_code)]
-unsafe impl Send for Tab {}
-
 impl Tab {
     /// Create a new starting screen.
     #[must_use]
