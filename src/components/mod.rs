@@ -33,7 +33,6 @@ mod command_view;
 
 pub use command_view::CommandView;
 
-pub use tilemap::{Tilemap, TilemapDef};
 pub use toasts::Toasts;
 pub use top_bar::TopBar;
 

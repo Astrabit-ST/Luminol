@@ -24,7 +24,7 @@ eframe = { version = "0.22", features = [
     "wgpu",
 ], default-features = false }
 egui_extras = { version = "0.22", features = ["svg", "image"] }
-egui-notify = { version = "0.7" } # temporary patch
+egui-notify = { version = "0.8" } # temporary patch
 egui_dock = { version = "0.6" }
 catppuccin-egui = "3.0.0"
 
@@ -34,7 +34,7 @@ image = { version = "0.24", features = ["jpeg", "png"] }
 
 strum = { version = "0.25", features = ["derive"] }
 enum-as-inner = "0.6"
-num_enum = "0.6"
+num_enum = "0.7"
 
 bitflags = "2.3"
 ouroboros = "0.17"
@@ -47,7 +47,7 @@ parking_lot = { version = "0.12", features = [
     "hardware-lock-elision",
 ] }
 atomic_refcell = "0.1.9"
-dashmap = "5.4.0"
+dashmap = "5.5"
 crossbeam = "0.8"
 
 futures = "0.3"
