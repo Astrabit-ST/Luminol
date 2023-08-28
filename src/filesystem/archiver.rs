@@ -14,12 +14,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
-use crate::prelude::*;
+use super::FileSystem as FileSystemTrait;
+use super::{DirEntry, Error, Metadata, OpenFlags};
+
+use itertools::Itertools;
 use std::io::{prelude::*, Cursor, SeekFrom};
 
 #[derive(Debug, Default)]
-pub struct Archiver {
+pub struct FileSystem {
     files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
     directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
     archive_path: camino::Utf8PathBuf,
@@ -35,14 +37,14 @@ struct Entry {
 const MAGIC: u32 = 0xDEADCAFE;
 const HEADER: &[u8] = b"RGSSAD\0";
 
-impl Archiver {
+impl FileSystem {
     pub fn new(project_path: impl AsRef<camino::Utf8Path>) -> Result<Self, Error> {
         let project_path = project_path.as_ref();
         let archive_path = project_path
             .read_dir_utf8()?
             .flatten()
             .map(camino::Utf8DirEntry::into_path)
-            .find(|entry| matches!(entry.extension(), Some("rgssad" | "rgss2a")));
+            .find(|entry| matches!(entry.extension(), Some("rgssad" | "rgss2a" | "rgss3a")));
         let Some(archive_path) = archive_path else {
             return Err(Error::NotExist);
         };
@@ -51,44 +53,93 @@ impl Archiver {
             .read(true)
             .write(true)
             .open(&archive_path)?;
-        Self::verify_header(&mut file)?;
+        let version = Self::read_header(&mut file)?;
 
-        let mut magic = MAGIC;
         let files = dashmap::DashMap::new();
         let directories = dashmap::DashMap::new();
 
-        let mut len_buffer = [0; 4];
-        while let Ok(4) = file.read(&mut len_buffer) {
-            let name_len = u32::from_le_bytes(len_buffer);
-            let name_len = name_len ^ Self::advance_magic(&mut magic);
+        fn read_u32(file: &mut std::fs::File) -> Result<u32, Error> {
+            let mut buffer = [0; 4];
+            file.read_exact(&mut buffer)?;
+            Ok(u32::from_le_bytes(buffer))
+        }
 
-            let mut name = vec![0; name_len as usize];
-            file.read_exact(&mut name).unwrap();
-            for byte in name.iter_mut() {
-                let char = *byte ^ Self::advance_magic(&mut magic) as u8;
-                if char == b'\\' {
-                    *byte = b'/';
-                } else {
-                    *byte = char;
+        fn read_u32_xor(file: &mut std::fs::File, key: u32) -> Result<u32, Error> {
+            let result = read_u32(file)?;
+            Ok(result ^ key)
+        }
+
+        match version {
+            1 | 2 => {
+                let mut magic = MAGIC;
+
+                while let Ok(name_len) = read_u32_xor(&mut file, Self::advance_magic(&mut magic)) {
+                    let mut name = vec![0; name_len as usize];
+                    file.read_exact(&mut name).unwrap();
+                    for byte in name.iter_mut() {
+                        let char = *byte ^ Self::advance_magic(&mut magic) as u8;
+                        if char == b'\\' {
+                            *byte = b'/';
+                        } else {
+                            *byte = char;
+                        }
+                    }
+                    let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
+
+                    Self::process_path(&directories, &name);
+
+                    let entry_len = read_u32_xor(&mut file, Self::advance_magic(&mut magic))?;
+
+                    let entry = Entry {
+                        size: entry_len as u64,
+                        offset: file.stream_position()?,
+                        start_magic: magic,
+                    };
+
+                    files.insert(name, entry);
+
+                    file.seek(SeekFrom::Start(entry.offset + entry.size))?;
                 }
             }
-            let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
+            3 => {
+                let mut u32_buf = [0; 4];
+                file.read_exact(&mut u32_buf)?;
 
-            Self::process_path(&directories, &name);
+                let base_magic = u32::from_le_bytes(u32_buf);
+                let base_magic = (base_magic * 9) + 3;
 
-            file.read_exact(&mut len_buffer).unwrap();
-            let entry_len = u32::from_le_bytes(len_buffer);
-            let entry_len = entry_len ^ Self::advance_magic(&mut magic);
+                while let Ok(offset) = read_u32_xor(&mut file, base_magic) {
+                    if offset == 0 {
+                        break;
+                    }
 
-            let entry = Entry {
-                size: entry_len as u64,
-                offset: file.stream_position()?,
-                start_magic: magic,
-            };
+                    let entry_len = read_u32_xor(&mut file, base_magic)?;
+                    let magic = read_u32_xor(&mut file, base_magic)?;
+                    let name_len = read_u32_xor(&mut file, base_magic)?;
 
-            files.insert(name, entry);
+                    let mut name = vec![0; name_len as usize];
+                    file.read_exact(&mut name)?;
+                    for (i, byte) in name.iter_mut().enumerate() {
+                        let char = *byte ^ (base_magic >> (8 * (i % 4))) as u8;
+                        if char == b'\\' {
+                            *byte = b'/';
+                        } else {
+                            *byte = char;
+                        }
+                    }
+                    let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
 
-            file.seek(SeekFrom::Start(entry.offset + entry.size))?;
+                    Self::process_path(&directories, &name);
+
+                    let entry = Entry {
+                        size: entry_len as u64,
+                        offset: offset as u64,
+                        start_magic: magic,
+                    };
+                    files.insert(name, entry);
+                }
+            }
+            _ => return Err(Error::InvalidHeader),
         }
 
         /*
@@ -102,7 +153,7 @@ impl Archiver {
         }
         */
 
-        Ok(Archiver {
+        Ok(FileSystem {
             files,
             directories,
             archive_path,
@@ -129,7 +180,7 @@ impl Archiver {
         old
     }
 
-    fn verify_header(file: &mut std::fs::File) -> Result<(), Error> {
+    fn read_header(file: &mut std::fs::File) -> Result<u8, Error> {
         let mut header_buf = [0; 8];
 
         file.read_exact(&mut header_buf)?;
@@ -138,11 +189,7 @@ impl Archiver {
             return Err(Error::InvalidHeader);
         }
 
-        if !matches!(header_buf[7], 1 | 2) {
-            return Err(Error::InvalidHeader);
-        }
-
-        Ok(())
+        Ok(header_buf[7])
     }
 }
 
@@ -189,7 +236,7 @@ impl std::io::Seek for File {
     }
 }
 
-impl FileSystem for Archiver {
+impl FileSystemTrait for FileSystem {
     type File<'fs> = File where Self: 'fs;
 
     fn open_file(

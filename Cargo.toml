@@ -51,9 +51,7 @@ dashmap = "5.5"
 crossbeam = "0.8"
 
 futures = "0.3"
-poll-promise = { version = "0.2.0", features = [
-    "smol",
-], git = "https://github.com/EmbarkStudios/poll-promise" }
+poll-promise = { version = "0.3.0", features = ["smol"] }
 surf = "2.3.2"
 
 slab = { version = "0.4", features = ["serde"] }

@@ -16,15 +16,13 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::prelude::*;
 
-mod archiver;
 mod erased;
 mod host;
 mod list;
-// mod overlay;
 mod path_cache;
-mod project;
+pub mod project;
 
-pub use project::ProjectFS;
+mod archiver;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

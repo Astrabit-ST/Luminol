@@ -14,16 +14,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
+use super::{DirEntry, Error, Metadata, OpenFlags};
 use itertools::Itertools;
 use std::fs::File;
 
 #[derive(Debug, Clone)]
-pub struct HostFS {
+pub struct FileSystem {
     root_path: camino::Utf8PathBuf,
 }
 
-impl HostFS {
+impl FileSystem {
     pub fn new(root_path: impl AsRef<camino::Utf8Path>) -> Self {
         Self {
             root_path: root_path.as_ref().to_path_buf(),
@@ -35,7 +35,7 @@ impl HostFS {
     }
 }
 
-impl FileSystem for HostFS {
+impl super::FileSystem for FileSystem {
     type File<'fs> = File where Self: 'fs;
 
     fn open_file(

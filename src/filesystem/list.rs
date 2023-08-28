@@ -15,25 +15,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::erased::{ErasedFilesystem, File};
-use super::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
+use super::FileSystem as FileSystemTrait;
+use super::{DirEntry, Error, Metadata, OpenFlags};
 use itertools::Itertools;
 
 #[derive(Default)]
-pub struct List {
+pub struct FileSystem {
     filesystems: Vec<Box<dyn ErasedFilesystem>>,
 }
 
-impl List {
+impl FileSystem {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn push(&mut self, fs: impl FileSystem + 'static) {
+    pub fn push(&mut self, fs: impl FileSystemTrait + 'static) {
         self.filesystems.push(Box::new(fs))
     }
 }
 
-impl FileSystem for List {
+impl FileSystemTrait for FileSystem {
     type File<'fs> = Box<dyn File + 'fs> where Self: 'fs;
 
     fn open_file(

@@ -16,17 +16,39 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
 
-use super::{
-    archiver::Archiver, host::HostFS, list::List, path_cache::PathCache, DirEntry, Error,
-    FileSystem, Metadata, OpenFlags,
-};
+use super::FileSystem as FileSystemTrait;
+use super::{archiver, host, list, path_cache, DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Default)]
-pub struct ProjectFS {
+pub struct FileSystem {
     state: AtomicRefCell<State>,
 }
 
-impl ProjectFS {
+#[derive(Default)]
+enum State {
+    #[default]
+    Unloaded,
+    HostLoaded(host::FileSystem),
+    Loaded {
+        filesystem: path_cache::FileSystem<list::FileSystem>,
+        project_path: camino::Utf8PathBuf,
+    },
+}
+
+#[ouroboros::self_referencing]
+pub struct File<'fs> {
+    state: AtomicRef<'fs, State>,
+    #[borrows(state)]
+    #[not_covariant]
+    file: FileType<'this>,
+}
+
+enum FileType<'fs> {
+    Host(<host::FileSystem as FileSystemTrait>::File<'fs>),
+    Loaded(<path_cache::FileSystem<list::FileSystem> as FileSystemTrait>::File<'fs>),
+}
+
+impl FileSystem {
     pub fn new() -> Self {
         Self::default()
     }
@@ -242,25 +264,25 @@ impl ProjectFS {
         let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = original_path.parent().unwrap_or(original_path);
 
-        *self.state.borrow_mut() = State::HostLoaded(HostFS::new(path));
+        *self.state.borrow_mut() = State::HostLoaded(host::FileSystem::new(path));
 
         config::Project::load()?;
 
-        let mut list = List::new();
+        let mut list = list::FileSystem::new();
 
-        list.push(HostFS::new(path));
+        list.push(host::FileSystem::new(path));
 
         for path in Self::find_rtp_paths() {
-            list.push(HostFS::new(path))
+            list.push(host::FileSystem::new(path))
         }
 
-        match Archiver::new(project_config!().editor_ver, path) {
+        match archiver::FileSystem::new(path) {
             Ok(a) => list.push(a),
             Err(Error::NotExist) => (),
             Err(e) => return Err(e.to_string()),
         }
 
-        let path_cache = PathCache::new(list).map_err(|e| e.to_string())?;
+        let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
 
         *self.state.borrow_mut() = State::Loaded {
             filesystem: path_cache,
@@ -303,30 +325,6 @@ impl ProjectFS {
             }
         }
     }
-}
-
-#[derive(Default)]
-enum State {
-    #[default]
-    Unloaded,
-    HostLoaded(HostFS),
-    Loaded {
-        filesystem: PathCache<List>,
-        project_path: camino::Utf8PathBuf,
-    },
-}
-
-#[ouroboros::self_referencing]
-pub struct File<'fs> {
-    state: AtomicRef<'fs, State>,
-    #[borrows(state)]
-    #[not_covariant]
-    file: FileType<'this>,
-}
-
-enum FileType<'fs> {
-    Host(<HostFS as FileSystem>::File<'fs>),
-    Loaded(<PathCache<List> as FileSystem>::File<'fs>),
 }
 
 impl<'fs> std::io::Write for File<'fs> {
@@ -391,7 +389,7 @@ impl<'fs> std::io::Seek for File<'fs> {
     }
 }
 
-impl FileSystem for ProjectFS {
+impl FileSystemTrait for FileSystem {
     type File<'fs> = File<'fs> where Self: 'fs;
 
     fn open_file(
