@@ -16,7 +16,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-08-28
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - run: cargo check --all-features
@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev libasound2-dev -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-08-28
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - run: cargo test --lib
@@ -51,7 +51,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-08-28
           components: rustfmt
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -70,7 +70,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-08-28
           components: clippy
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
