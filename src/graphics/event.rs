@@ -97,7 +97,7 @@ impl Event {
         let resources = self.resources.clone();
         let resource_id = Arc::new(OnceCell::new());
 
-        let prepare_id = resource_id.clone();
+        let prepare_id = resource_id;
         let paint_id = prepare_id.clone();
         let callback = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, _queue, _encoder, paint_callback_resources| {

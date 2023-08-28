@@ -56,8 +56,8 @@ impl Atlas {
                 .ok()?;
             Some(tileset_img.to_rgba8())
         });
-        let tileset_width = tileset_img.as_ref().map(|i| i.width()).unwrap_or(0);
-        let tileset_height = tileset_img.as_ref().map(|i| i.height()).unwrap_or(0);
+
+        let tileset_height = tileset_img.as_ref().map(|i| i.height()).unwrap_or(256);
 
         let autotiles: Vec<_> = tileset
             .autotile_names
@@ -102,7 +102,7 @@ impl Atlas {
         let rows_under;
         let rows_side;
         if TOTAL_AUTOTILE_HEIGHT + tileset_height < MAX_SIZE {
-            width = autotile_width.max(tileset_width); // in case we have less autotiles frames than the tileset is wide
+            width = autotile_width.max(TILESET_WIDTH); // in case we have less autotiles frames than the tileset is wide
             height = TOTAL_AUTOTILE_HEIGHT + tileset_height; // we're sure that the tileset can fit into the atlas just fine
 
             rows_under = 1;

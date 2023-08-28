@@ -43,7 +43,7 @@ impl Map {
     pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<Self, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
-        let tiles = primitives::Tiles::new(atlas.clone(), &map.data);
+        let tiles = primitives::Tiles::new(atlas, &map.data);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
@@ -112,7 +112,7 @@ impl Map {
         let resources = self.resources.clone();
         let resource_id = Arc::new(OnceCell::new());
 
-        let prepare_id = resource_id.clone();
+        let prepare_id = resource_id;
         let paint_id = prepare_id.clone();
 
         let fog_enabled = self.fog_enabled;

@@ -32,6 +32,10 @@ var<storage, read> autotiles: Autotiles;
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
 
+    if instance.tile_id < 48 {
+        return out;
+    }
+
     let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * 32.), 0.0, 1.0);
     out.clip_position = vec4<f32>(position.xy, instance.tile_position.z, 1.0);
 
