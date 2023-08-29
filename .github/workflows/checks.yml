@@ -19,7 +19,7 @@ jobs:
           toolchain: nightly-2023-08-28
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features --jobs 2
+      - run: cargo check --all-features --jobs 1
 
   test:
     name: Test Suite
@@ -36,7 +36,7 @@ jobs:
           toolchain: nightly-2023-08-28
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo test --lib --jobs 2
+      - run: cargo test --lib --jobs 1
 
   fmt:
     name: Rustfmt
@@ -74,4 +74,4 @@ jobs:
           components: clippy
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --jobs 2 -- # -D warnings
+      - run: cargo clippy --jobs 1 -- # -D warnings
