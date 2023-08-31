@@ -158,8 +158,12 @@ impl Table1 {
         self.data.is_empty()
     }
 
-    /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn resize(&mut self, xsize: usize) {
+        self.data.resize(xsize, 0);
+        self.xsize = xsize;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }
 }
@@ -261,8 +265,22 @@ impl Table2 {
         self.data.is_empty()
     }
 
-    /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn resize(&mut self, xsize: usize, ysize: usize) {
+        let mut new_data = vec![0; xsize * ysize];
+
+        for y in 0..self.ysize.min(ysize) {
+            for x in 0..self.xsize.min(xsize) {
+                new_data[xsize * y + x] = self[(x, y)]
+            }
+        }
+
+        self.xsize = xsize;
+        self.ysize = ysize;
+
+        self.data = new_data;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }
 }
@@ -335,8 +353,6 @@ impl From<Table3> for alox_48::Userdata {
     }
 }
 
-use std::slice::Iter;
-
 impl Table3 {
     /// Create a new 3D table with a width of xsize, a height of ysize, and a depth of zsize.
     #[must_use]
@@ -390,46 +406,27 @@ impl Table3 {
         self.data.is_empty()
     }
 
-    /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn resize(&mut self, xsize: usize, ysize: usize, zsize: usize) {
+        let mut new_data = vec![0; xsize * ysize];
+
+        // A naive for loop like this is optimized to a handful of memcpys.
+        for z in 0..self.zsize.min(zsize) {
+            for y in 0..self.ysize.min(ysize) {
+                for x in 0..self.xsize.min(xsize) {
+                    new_data[(xsize * ysize * z) + (xsize * y) + x] = self[(x, y, z)]
+                }
+            }
+        }
+
+        self.xsize = xsize;
+        self.ysize = ysize;
+        self.zsize = zsize;
+
+        self.data = new_data;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
-    }
-
-    pub fn iter_layers(&self) -> LayersIter<'_> {
-        LayersIter {
-            table: self,
-            layer: 0,
-        }
-    }
-}
-
-pub struct LayersIter<'table> {
-    table: &'table Table3,
-    layer: usize,
-}
-
-impl<'table> Iterator for LayersIter<'table> {
-    type Item = &'table [i16];
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.layer < self.table.zsize {
-            self.layer += 1;
-            let start = self.table.xsize * self.table.ysize * (self.layer - 1);
-            let end = self.table.xsize * self.table.ysize * self.layer;
-            Some(&self.table.data[start..end])
-        } else {
-            None
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.table.zsize, Some(self.table.zsize))
-    }
-}
-
-impl ExactSizeIterator for LayersIter<'_> {
-    fn len(&self) -> usize {
-        self.table.zsize
     }
 }
 

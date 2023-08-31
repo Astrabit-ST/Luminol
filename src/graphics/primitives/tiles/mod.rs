@@ -47,6 +47,10 @@ impl Tiles {
         }
     }
 
+    pub fn set_tile(&self, tile_id: i16, position: (usize, usize, usize)) {
+        self.instances.set_tile(tile_id, position)
+    }
+
     pub fn draw<'rpass>(
         &'rpass self,
         render_pass: &mut wgpu::RenderPass<'rpass>,

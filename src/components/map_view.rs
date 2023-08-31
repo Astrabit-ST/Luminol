@@ -24,6 +24,7 @@ pub struct MapView {
     pub move_preview: bool,
 
     pub pan: egui::Vec2,
+    pub inter_tile_pan: egui::Vec2,
 
     pub events: HashMap<usize, Event>,
     pub map: Map,
@@ -31,6 +32,7 @@ pub struct MapView {
     pub selected_layer: SelectedLayer,
     pub cursor_pos: egui::Pos2,
     pub event_enabled: bool,
+    pub snap_to_grid: bool,
 
     pub scale: f32,
 }
@@ -58,7 +60,9 @@ impl MapView {
         Ok(Self {
             visible_display: false,
             move_preview: false,
+
             pan: egui::Vec2::ZERO,
+            inter_tile_pan: egui::Vec2::ZERO,
 
             events,
             map,
@@ -66,6 +70,7 @@ impl MapView {
             selected_layer: SelectedLayer::default(),
             cursor_pos: egui::Pos2::ZERO,
             event_enabled: true,
+            snap_to_grid: false,
 
             scale: 100.,
         })
@@ -88,32 +93,17 @@ impl MapView {
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
             let old_scale = self.scale;
-            let delta = ui.input(|i| i.scroll_delta.y * 5.0);
+            let delta = ui.input(|i| i.scroll_delta.y * 5.);
 
             // Apply scroll and cap max zoom to 15%
             self.scale += delta / 30.;
-            self.scale = 15.0_f32.max(self.scale);
+            self.scale = self.scale.max(15.).min(300.);
 
             // Get the normalized cursor position relative to pan
             let pos_norm = (pos - self.pan - canvas_center) / old_scale;
             // Offset the pan to the cursor remains in the same place
             // Still not sure how the math works out, if it ain't broke don't fix it
-            self.pan = pos - canvas_center - pos_norm * self.scale;
-
-            // Figure out the tile the cursor is hovering over
-            let tile_size = (self.scale / (ui.ctx().pixels_per_point() * 100.)) * 32.;
-            let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
-                + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
-            // Force the cursor to a tile instead of in-between
-            pos_tile.x = pos_tile.x.floor().clamp(0.0, map.width as f32 - 1.);
-            pos_tile.y = pos_tile.y.floor().clamp(0.0, map.height as f32 - 1.);
-            // Handle input
-            if matches!(self.selected_layer, SelectedLayer::Tiles(_))
-                || dragging_event
-                || response.clicked()
-            {
-                self.cursor_pos = pos_tile.to_pos2();
-            }
+            self.pan = pos - canvas_center - pos_norm * self.scale + self.inter_tile_pan;
         }
 
         // Handle pan
@@ -139,7 +129,29 @@ impl MapView {
         // its a *long* story
         let scale = self.scale / (ui.ctx().pixels_per_point() * 100.);
         let tile_size = 32. * scale;
+
+        if self.snap_to_grid {
+            self.inter_tile_pan = egui::vec2(self.pan.x % tile_size, self.pan.y % tile_size);
+            self.pan -= self.inter_tile_pan;
+        }
+
         let canvas_pos = canvas_center + self.pan;
+
+        // We check here after we calculate the scale and whatnot
+        if let Some(pos) = response.hover_pos() {
+            let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
+                + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
+            // Force the cursor to a tile instead of in-between
+            pos_tile.x = pos_tile.x.floor().clamp(0., map.width as f32 - 1.);
+            pos_tile.y = pos_tile.y.floor().clamp(0., map.height as f32 - 1.);
+            // Handle input
+            if matches!(self.selected_layer, SelectedLayer::Tiles(_))
+                || dragging_event
+                || response.clicked()
+            {
+                self.cursor_pos = pos_tile.to_pos2();
+            }
+        }
 
         let width2 = map.width as f32 / 2.;
         let height2 = map.height as f32 / 2.;
@@ -154,8 +166,8 @@ impl MapView {
 
         ui.painter().rect_stroke(
             map_rect,
-            5.0,
-            egui::Stroke::new(3.0, egui::Color32::DARK_GRAY),
+            5.,
+            egui::Stroke::new(3., egui::Color32::DARK_GRAY),
         );
 
         if self.event_enabled {
@@ -179,11 +191,8 @@ impl MapView {
                     sprite.paint(ui.painter(), box_rect);
                 }
 
-                ui.painter().rect_stroke(
-                    box_rect,
-                    5.0,
-                    egui::Stroke::new(1.0, egui::Color32::WHITE),
-                );
+                ui.painter()
+                    .rect_stroke(box_rect, 5., egui::Stroke::new(1., egui::Color32::WHITE));
 
                 if ui.rect_contains_pointer(box_rect) {
                     response = response.on_hover_ui_at_pointer(|ui| {
@@ -196,8 +205,8 @@ impl MapView {
                         }
                         ui.painter().rect_stroke(
                             response.rect,
-                            5.0,
-                            egui::Stroke::new(1.0, egui::Color32::WHITE),
+                            5.,
+                            egui::Stroke::new(1., egui::Color32::WHITE),
                         );
                     });
                 }
@@ -219,8 +228,8 @@ impl MapView {
             // Show the region.
             ui.painter().rect_stroke(
                 visible_rect,
-                5.0,
-                egui::Stroke::new(1.0, egui::Color32::YELLOW),
+                5.,
+                egui::Stroke::new(1., egui::Color32::YELLOW),
             );
         }
 
@@ -231,8 +240,8 @@ impl MapView {
         );
         ui.painter().rect_stroke(
             cursor_rect,
-            5.0,
-            egui::Stroke::new(1.0, egui::Color32::YELLOW),
+            5.,
+            egui::Stroke::new(1., egui::Color32::YELLOW),
         );
 
         response

@@ -35,7 +35,6 @@ pub struct Tab {
     pub view: MapView,
     pub tilepicker: Tilepicker,
 
-    dragged_event: usize,
     dragging_event: bool,
     event_windows: window::Windows,
     force_close: bool,
@@ -52,7 +51,7 @@ impl Tab {
             id,
             view: MapView::new(&map, tileset)?,
             tilepicker: Tilepicker::new(tileset)?,
-            dragged_event: 0,
+
             dragging_event: false,
             event_windows: window::Windows::default(),
             force_close: false,
@@ -132,8 +131,12 @@ impl tab::Tab for Tab {
 
                 ui.separator();
 
-                ui.checkbox(&mut self.view.visible_display, "Display Visible Area");
-                ui.checkbox(&mut self.view.move_preview, "Preview event move routes");
+                ui.checkbox(&mut self.view.visible_display, "Display Visible Area")
+                    .on_hover_text("Display the visible area in-game (640x480)");
+                ui.checkbox(&mut self.view.move_preview, "Preview event move routes")
+                    .on_hover_text("Preview event page move routes");
+                ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
+                    .on_hover_text("Snap's the viewport to the tile grid");
 
                 /*
                 if ui.button("Save map preview").clicked() {
