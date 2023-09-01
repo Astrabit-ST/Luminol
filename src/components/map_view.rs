@@ -198,8 +198,10 @@ impl MapView {
                     response = response.on_hover_ui_at_pointer(|ui| {
                         ui.label(format!("Event {:0>3}: {:?}", event.id, event.name));
 
-                        let (response, painter) =
-                            ui.allocate_painter(event_size, egui::Sense::click());
+                        let (response, painter) = ui.allocate_painter(
+                            event_size * ui.ctx().pixels_per_point(),
+                            egui::Sense::click(),
+                        );
                         if let Some(sprite) = sprite {
                             sprite.paint(&painter, response.rect);
                         }
