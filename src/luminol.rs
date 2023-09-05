@@ -28,7 +28,6 @@ use crate::prelude::*;
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
-    style: Arc<egui::Style>,
     lumi: Lumi,
 }
 
@@ -105,7 +104,6 @@ impl Luminol {
 
         Self {
             top_bar: TopBar::default(),
-            style,
             lumi,
         }
     }
@@ -115,7 +113,6 @@ impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, "SavedState", &*global_config!());
-        eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -146,7 +143,7 @@ impl eframe::App for Luminol {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(ui, &mut self.style, frame);
+                self.top_bar.ui(ui, frame);
             });
         });
 

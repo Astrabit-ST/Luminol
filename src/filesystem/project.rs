@@ -216,10 +216,10 @@ impl FileSystem {
 
                 state!()
                     .toasts
-                    .warning(format!("Failed to find suitable path for rtp {rtp}"));
+                    .warning(format!("Failed to find suitable path for the RTP {rtp}"));
                 state!()
                     .toasts
-                    .info(format!("You may want to set an rtp path for {rtp}"));
+                    .info(format!("You may want to set an RTP path for {rtp}"));
             }
         }
         paths
@@ -236,7 +236,7 @@ impl FileSystem {
         // FIXME: handle vx ace?
         for rtp in ["RTP1", "RTP2", "RTP3"] {
             if let Some(rtp) = section.get(rtp) {
-                if seen_rtps.contains(&rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
                     continue;
                 }
                 seen_rtps.push(rtp);
@@ -251,10 +251,10 @@ impl FileSystem {
 
                 state!()
                     .toasts
-                    .warning(format!("Failed to find suitable path for rtp {rtp}"));
+                    .warning(format!("Failed to find suitable path for  the RTP {rtp}"));
                 state!()
                     .toasts
-                    .info(format!("You may want to set an rtp path for {rtp}"));
+                    .info(format!("You may want to set an RTP path for {rtp}"));
             }
         }
         paths

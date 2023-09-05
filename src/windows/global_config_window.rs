@@ -22,33 +22,19 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-/// The about window.
-pub mod about;
-pub mod appearance;
-/// The common event editor.
-pub mod common_event_edit;
-/// Config window
-pub mod config_window;
-/// Playtest console
-pub mod console;
-/// The event editor.
-pub mod event_edit;
-pub mod global_config_window;
-/// The Graphic picker.
-pub mod graphic_picker;
-/// The item editor.
-pub mod items;
-/// The map picker.
-pub mod map_picker;
-/// Misc windows.
-pub mod misc;
-/// New project window
-pub mod new_project;
-/// The script editor
-pub mod script_edit;
-/// The sound test.
-pub mod sound_test;
-/// Traits and structs related to windows.
-pub mod window;
+#[derive(Default)]
+pub struct Window {}
 
-pub use window::Window;
+impl super::Window for Window {
+    fn name(&self) -> String {
+        "Luminol Preferences".to_string()
+    }
+
+    fn id(&self) -> egui::Id {
+        egui::Id::new("luminol_preferences_window")
+    }
+
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {});
+    }
+}

@@ -16,7 +16,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-//
+//cargo r
 //     Additional permission under GNU GPL version 3 section 7
 //
 // If you modify this Program, or any covered work, by linking or combining
