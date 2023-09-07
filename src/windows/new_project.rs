@@ -124,7 +124,7 @@ impl window::Window for Window {
 
                         if self.progress.zip_total.load(Ordering::Relaxed) != 0 {
                             ui.label(format!(
-                                "Downloadind & Unzipping {}/{}",
+                                "Downloading & Unzipping {}/{}",
                                 self.progress.zip_current.load(Ordering::Relaxed) + 1,
                                 self.progress.zip_total.load(Ordering::Relaxed)
                             ));

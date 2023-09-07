@@ -215,7 +215,7 @@ impl Filesystem {
             {
                 let projects = &mut state!().saved_state.borrow_mut().recent_projects;
 
-                let path = self.project_path().unwrap().display().to_string();
+                let path = self.project_path().unwrap().join(format!("{name}.lumproj")).display().to_string();
                 *projects = projects
                     .iter()
                     .filter_map(|p| if *p != path { Some(p.clone()) } else { None })
