@@ -244,9 +244,27 @@ impl Atlas {
     }
 
     pub fn calc_quad(&self, tile: i16, x: usize, y: usize) -> Quad {
+        // Why does this have to be + 1?
+        let tile_u32 = if tile < 0 { 0 } else { (tile + 1) as u32 };
+
+        let atlas_tile_position = if tile_u32 < AUTOTILE_ID_AMOUNT {
+            egui::pos2(0., 0.)
+        } else {
+            egui::pos2(
+                (((tile_u32 - AUTOTILE_ID_AMOUNT) % AUTOTILE_FRAME_COLS) * TILE_SIZE) as f32,
+                (((tile_u32 - AUTOTILE_ID_AMOUNT) / AUTOTILE_FRAME_COLS) * TILE_SIZE) as f32,
+            )
+        };
+
         Quad::new(
-            egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
-            egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
+            egui::Rect::from_min_size(
+                egui::pos2(0., 0.),
+                egui::vec2(TILE_SIZE as f32, TILE_SIZE as f32),
+            ),
+            egui::Rect::from_min_size(
+                atlas_tile_position,
+                egui::vec2(TILE_SIZE as f32, TILE_SIZE as f32),
+            ),
             0.0,
         )
     }
