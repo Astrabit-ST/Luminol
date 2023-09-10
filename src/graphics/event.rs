@@ -49,7 +49,8 @@ impl Event {
         };
 
         let (quads, viewport, sprite_size) = if let Some(id) = page.graphic.tile_id {
-            let quad = atlas.calc_quad(id as i16, event.x as usize, event.y as usize);
+            // Why does this have to be + 1?
+            let quad = atlas.calc_quad((id + 1) as i16, event.x as usize, event.y as usize);
 
             let viewport = primitives::Viewport::new(cgmath::ortho(0.0, 32., 32., 0., -1., 1.));
 

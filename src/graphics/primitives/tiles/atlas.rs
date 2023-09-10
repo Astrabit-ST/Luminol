@@ -244,8 +244,7 @@ impl Atlas {
     }
 
     pub fn calc_quad(&self, tile: i16, x: usize, y: usize) -> Quad {
-        // Why does this have to be + 1?
-        let tile_u32 = if tile < 0 { 0 } else { (tile + 1) as u32 };
+        let tile_u32 = if tile < 0 { 0 } else { tile as u32 };
 
         let atlas_tile_position = if tile_u32 < AUTOTILE_ID_AMOUNT {
             egui::pos2(0., 0.)
