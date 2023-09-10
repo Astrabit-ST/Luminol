@@ -37,7 +37,8 @@ struct Instance {
 
 const TILE_QUAD: Quad = Quad::new(
     egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
-    egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
+    // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
+    egui::Rect::from_min_max(egui::pos2(0.01, 0.01), egui::pos2(31.99, 31.99)),
     0.0,
 );
 
