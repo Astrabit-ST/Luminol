@@ -60,7 +60,12 @@ impl Tiles {
         Shader::bind(render_pass);
         self.autotiles.bind(render_pass);
         self.atlas.bind(render_pass);
-        for (layer, enabled) in enabled_layers.unwrap_or(&[true]).iter().copied().enumerate() {
+        for (layer, enabled) in enabled_layers
+            .unwrap_or(&[true])
+            .iter()
+            .copied()
+            .enumerate()
+        {
             if enabled {
                 self.instances.draw(render_pass, layer);
             }
