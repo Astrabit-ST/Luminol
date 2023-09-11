@@ -149,7 +149,7 @@ impl Map {
                     }
                 }
 
-                tiles.draw(render_pass, &enabled_layers);
+                tiles.draw(render_pass, Some(&enabled_layers));
                 if fog_enabled {
                     if let Some(fog) = fog {
                         fog.draw(render_pass);

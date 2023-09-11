@@ -54,13 +54,13 @@ impl Tiles {
     pub fn draw<'rpass>(
         &'rpass self,
         render_pass: &mut wgpu::RenderPass<'rpass>,
-        enabled_layers: &[bool],
+        enabled_layers: Option<&[bool]>,
     ) {
         render_pass.push_debug_group("tilemap tiles renderer");
         Shader::bind(render_pass);
         self.autotiles.bind(render_pass);
         self.atlas.bind(render_pass);
-        for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
+        for (layer, enabled) in enabled_layers.unwrap_or(&[true]).iter().copied().enumerate() {
             if enabled {
                 self.instances.draw(render_pass, layer);
             }

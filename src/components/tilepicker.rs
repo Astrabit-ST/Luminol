@@ -51,8 +51,8 @@ impl Tilepicker {
     pub fn new(tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
-        let tilepicker_data = [0, 48, 96, 144, 192, 240, 288, 336]
-            .into_iter()
+        let tilepicker_data = (0..384)
+            .step_by(48)
             .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
             .collect_vec();
         let tilepicker_data = Table3::new_data(
@@ -113,7 +113,6 @@ impl Tilepicker {
                         vec![]
                     })
                     .paint(move |_info, render_pass, paint_callback_resources| {
-                        //
                         let res_hash: &ResourcesSlab = paint_callback_resources.get().unwrap();
                         let id = paint_id.get().copied().expect("resources id is unset");
                         let resources = &res_hash[id];
@@ -122,7 +121,7 @@ impl Tilepicker {
                         } = resources.as_ref();
 
                         viewport.bind(render_pass);
-                        tiles.draw(render_pass, &[]);
+                        tiles.draw(render_pass, None);
                     }),
             ),
         });
