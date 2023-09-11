@@ -31,7 +31,6 @@ pub struct Tilepicker {
 struct Resources {
     tiles: primitives::Tiles,
     viewport: primitives::Viewport,
-    atlas: primitives::Atlas,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -61,7 +60,6 @@ impl Tilepicker {
             1,
             tilepicker_data,
         );
-        let tiles = primitives::Tiles::new(atlas.clone(), &tilepicker_data);
 
         let viewport = primitives::Viewport::new(cgmath::ortho(
             0.0,
@@ -72,12 +70,10 @@ impl Tilepicker {
             1.0,
         ));
 
+        let tiles = primitives::Tiles::new(atlas, &tilepicker_data);
+
         Ok(Self {
-            resources: Arc::new(Resources {
-                tiles,
-                viewport,
-                atlas,
-            }),
+            resources: Arc::new(Resources { tiles, viewport }),
             ani_instant: Instant::now(),
             selected_tile: SelectedTile::default(),
         })
@@ -91,7 +87,7 @@ impl Tilepicker {
         ui.ctx().request_repaint_after(Duration::from_millis(16));
 
         let (canvas_rect, response) = ui.allocate_exact_size(
-            egui::vec2(256., self.resources.atlas.tileset_height as f32),
+            egui::vec2(256., self.resources.tiles.atlas.tileset_height as f32),
             egui::Sense::click_and_drag(),
         );
 
