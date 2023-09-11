@@ -94,7 +94,7 @@ impl tab::Tab for Tab {
                     // Format the text based on what layer is selected.
                     match self.view.selected_layer {
                         SelectedLayer::Events => "Events ⏷".to_string(),
-                        SelectedLayer::Tiles(layer) => format!("Layer {layer} ⏷"),
+                        SelectedLayer::Tiles(layer) => format!("Layer {} ⏷", layer + 1),
                     },
                     |ui| {
                         // TODO: Add layer enable button
