@@ -39,11 +39,31 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * 32.), 0.0, 1.0);
     out.clip_position = vec4<f32>(position.xy, instance.tile_position.z, 1.0);
 
-    var atlas_tile_position = vec2<f32>(
-        f32((instance.tile_id - 48) % 8 * 32),
-        f32((instance.tile_id - 48) / 8 * 32)
+    let is_autotile = instance.tile_id < 384;
+
+    // 1712 is the number of non-autotile tiles that can fit under the autotiles without wrapping around
+    let max_tiles_under_autotiles = i32(autotiles.max_frame_count) * 1712;
+    let is_under_autotiles = !is_autotile && instance.tile_id - 384 < max_tiles_under_autotiles;
+
+    var atlas_tile_position = select(
+        select(
+            vec2<f32>(  // If the tile is not an autotile and is not located underneath the autotiles in the atlas
+                f32((instance.tile_id % 8 + ((instance.tile_id - max_tiles_under_autotiles) / 2048 + i32(autotiles.max_frame_count)) * 8) * 32),
+                f32((instance.tile_id - max_tiles_under_autotiles) / 8 % 256 * 32)
+            ),
+            vec2<f32>(  // If the tile is not an autotile but is located underneath the autotiles in the atlas
+                f32((instance.tile_id % 8 + (instance.tile_id - 384) / 1712 * 8) * 32),
+                f32(((instance.tile_id - 384) / 8 % 214 + 42) * 32)
+            ),
+            is_under_autotiles
+        ),
+        vec2<f32>(  // If the tile is an autotile
+            f32((instance.tile_id - 48) % 8 * 32),
+            f32((instance.tile_id - 48) / 8 * 32)
+        ),
+        is_autotile
     );
-    if instance.tile_id < 384 {
+    if is_autotile {
         let frame_count = autotiles.frame_counts[instance.tile_id / 48 - 1];
         let frame = autotiles.animation_index % frame_count;
         atlas_tile_position.x += f32(frame * 256u);

@@ -26,11 +26,15 @@ pub const TILESET_WIDTH: u32 = TILE_SIZE * TILESET_COLUMNS; // self explanatory
 pub const AUTOTILE_ID_AMOUNT: u32 = 48; // there are 48 tile ids per autotile
 pub const AUTOTILE_FRAME_COLS: u32 = TILESET_COLUMNS; // this is how many "columns" of autotiles there are per frame
 pub const AUTOTILE_AMOUNT: u32 = 7; // There are 7 autotiles per tileset
+pub const TOTAL_AUTOTILE_ID_AMOUNT: u32 = AUTOTILE_ID_AMOUNT * (AUTOTILE_AMOUNT + 1); // the first 384 tile ids are for autotiles (including empty tiles)
 
 pub const AUTOTILE_ROWS: u32 = AUTOTILE_ID_AMOUNT / AUTOTILE_FRAME_COLS; // split up the 48 tiles across each tileset row
+pub const TOTAL_AUTOTILE_ROWS: u32 = AUTOTILE_ROWS * AUTOTILE_AMOUNT; // total number of rows for all autotiles combined
 pub const AUTOTILE_ROW_HEIGHT: u32 = AUTOTILE_ROWS * TILE_SIZE; // This is how high one row of autotiles is
 pub const TOTAL_AUTOTILE_HEIGHT: u32 = AUTOTILE_ROW_HEIGHT * AUTOTILE_AMOUNT; // self explanatory
 pub const HEIGHT_UNDER_AUTOTILES: u32 = MAX_SIZE - TOTAL_AUTOTILE_HEIGHT; // this is the height under autotiles
+pub const ROWS_UNDER_AUTOTILES: u32 = MAX_SIZE / TILE_SIZE - TOTAL_AUTOTILE_ROWS; // number of rows under autotiles
+pub const ROWS_UNDER_AUTOTILES_TIMES_COLUMNS: u32 = ROWS_UNDER_AUTOTILES * TILESET_COLUMNS;
 
 pub const AUTOTILE_FRAME_WIDTH: u32 = AUTOTILE_FRAME_COLS * TILE_SIZE; // This is per frame!
 
@@ -246,12 +250,38 @@ impl Atlas {
     pub fn calc_quad(&self, tile: i16, x: usize, y: usize) -> Quad {
         let tile_u32 = if tile < 0 { 0 } else { tile as u32 };
 
+        let is_autotile = tile_u32 < TOTAL_AUTOTILE_ID_AMOUNT;
+        let max_frame_count = self.autotile_width / AUTOTILE_FRAME_WIDTH;
+        let max_tiles_under_autotiles = max_frame_count * ROWS_UNDER_AUTOTILES_TIMES_COLUMNS;
+        let is_under_autotiles = !is_autotile && tile_u32 - 384 < max_tiles_under_autotiles;
+
         let atlas_tile_position = if tile_u32 < AUTOTILE_ID_AMOUNT {
             egui::pos2(0., 0.)
+        } else if is_autotile {
+            egui::pos2(
+                ((tile_u32 - AUTOTILE_ID_AMOUNT) % AUTOTILE_FRAME_COLS * TILE_SIZE) as f32,
+                ((tile_u32 - AUTOTILE_ID_AMOUNT) / AUTOTILE_FRAME_COLS * TILE_SIZE) as f32,
+            )
+        } else if is_under_autotiles {
+            egui::pos2(
+                ((tile_u32 % TILESET_COLUMNS
+                    + (tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT) / ROWS_UNDER_AUTOTILES_TIMES_COLUMNS
+                        * TILESET_COLUMNS)
+                    * TILE_SIZE) as f32,
+                (((tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT) / TILESET_COLUMNS % ROWS_UNDER_AUTOTILES
+                    + TOTAL_AUTOTILE_ROWS)
+                    * 32) as f32,
+            )
         } else {
             egui::pos2(
-                (((tile_u32 - AUTOTILE_ID_AMOUNT) % AUTOTILE_FRAME_COLS) * TILE_SIZE) as f32,
-                (((tile_u32 - AUTOTILE_ID_AMOUNT) / AUTOTILE_FRAME_COLS) * TILE_SIZE) as f32,
+                ((tile_u32 % TILESET_COLUMNS
+                    + ((tile_u32 - max_tiles_under_autotiles)
+                        / (MAX_SIZE / TILE_SIZE * TILESET_COLUMNS)
+                        + max_frame_count)
+                        * TILESET_COLUMNS)
+                    * TILE_SIZE) as f32,
+                ((tile_u32 - max_tiles_under_autotiles) / TILESET_COLUMNS % (MAX_SIZE / TILE_SIZE)
+                    * TILE_SIZE) as f32,
             )
         };
 
