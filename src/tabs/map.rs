@@ -158,11 +158,19 @@ impl tab::Tab for Tab {
         });
 
         // Display the tilepicker.
+        let spacing = ui.spacing();
+        let tilepicker_default_width = 256.
+            + 3. * spacing.window_margin.left
+            + spacing.scroll_bar_inner_margin
+            + spacing.scroll_bar_width
+            + spacing.scroll_bar_outer_margin;
         egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
-            .default_width(256.)
+            .default_width(tilepicker_default_width)
+            .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
                     self.tilepicker.ui(ui);
+                    ui.separator();
                 });
             });
 
