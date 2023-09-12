@@ -255,7 +255,8 @@ impl Atlas {
         let is_autotile = tile_u32 < TOTAL_AUTOTILE_ID_AMOUNT;
         let max_frame_count = self.autotile_width / AUTOTILE_FRAME_WIDTH;
         let max_tiles_under_autotiles = max_frame_count * ROWS_UNDER_AUTOTILES_TIMES_COLUMNS;
-        let is_under_autotiles = !is_autotile && tile_u32 - 384 < max_tiles_under_autotiles;
+        let is_under_autotiles =
+            !is_autotile && tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT < max_tiles_under_autotiles;
 
         let atlas_tile_position = if tile_u32 < AUTOTILE_ID_AMOUNT {
             egui::pos2(0., 0.)
@@ -272,17 +273,19 @@ impl Atlas {
                     * TILE_SIZE) as f32,
                 (((tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT) / TILESET_COLUMNS % ROWS_UNDER_AUTOTILES
                     + TOTAL_AUTOTILE_ROWS)
-                    * 32) as f32,
+                    * TILE_SIZE) as f32,
             )
         } else {
             egui::pos2(
                 ((tile_u32 % TILESET_COLUMNS
-                    + ((tile_u32 - max_tiles_under_autotiles)
+                    + ((tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT - max_tiles_under_autotiles)
                         / (MAX_SIZE / TILE_SIZE * TILESET_COLUMNS)
                         + max_frame_count)
                         * TILESET_COLUMNS)
                     * TILE_SIZE) as f32,
-                ((tile_u32 - max_tiles_under_autotiles) / TILESET_COLUMNS % (MAX_SIZE / TILE_SIZE)
+                ((tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT - max_tiles_under_autotiles)
+                    / TILESET_COLUMNS
+                    % (MAX_SIZE / TILE_SIZE)
                     * TILE_SIZE) as f32,
             )
         };

@@ -48,8 +48,8 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var atlas_tile_position = select(
         select(
             vec2<f32>(  // If the tile is not an autotile and is not located underneath the autotiles in the atlas
-                f32((instance.tile_id % 8 + ((instance.tile_id - max_tiles_under_autotiles) / 2048 + i32(autotiles.max_frame_count)) * 8) * 32),
-                f32((instance.tile_id - max_tiles_under_autotiles) / 8 % 256 * 32)
+                f32((instance.tile_id % 8 + ((instance.tile_id - 384 - max_tiles_under_autotiles) / 2048 + i32(autotiles.max_frame_count)) * 8) * 32),
+                f32((instance.tile_id - 384 - max_tiles_under_autotiles) / 8 % 256 * 32)
             ),
             vec2<f32>(  // If the tile is not an autotile but is located underneath the autotiles in the atlas
                 f32((instance.tile_id % 8 + (instance.tile_id - 384) / 1712 * 8) * 32),
