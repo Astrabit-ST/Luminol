@@ -22,9 +22,10 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct Tilepicker {
+    pub selected_tile: SelectedTile,
+
     resources: Arc<Resources>,
     ani_instant: Instant,
-    selected_tile: SelectedTile,
 }
 
 #[derive(Debug)]

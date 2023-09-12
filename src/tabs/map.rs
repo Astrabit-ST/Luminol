@@ -57,6 +57,11 @@ impl Tab {
             force_close: false,
         })
     }
+
+    fn set_tile(&self, map: &mut rpg::Map, tile_id: i16, position: (usize, usize, usize)) {
+        map.data[position] = tile_id;
+        self.view.map.set_tile(tile_id, position);
+    }
 }
 
 impl tab::Tab for Tab {
@@ -168,6 +173,21 @@ impl tab::Tab for Tab {
                 let layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
                 let map_y = self.view.cursor_pos.y as i32;
+
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    if response.dragged_by(egui::PointerButton::Primary)
+                        && !ui.input(|i| i.modifiers.command)
+                    {
+                        self.set_tile(
+                            &mut map,
+                            match self.tilepicker.selected_tile {
+                                SelectedTile::Autotile(tile) => tile * 48,
+                                SelectedTile::Tile(tile) => tile,
+                            },
+                            (map_x as usize, map_y as usize, tile_layer),
+                        );
+                    }
+                }
 
                 if ui.input(|i| {
                     i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)

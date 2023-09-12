@@ -100,6 +100,10 @@ impl Map {
         })
     }
 
+    pub fn set_tile(&self, tile_id: i16, position: (usize, usize, usize)) {
+        self.resources.tiles.set_tile(tile_id, position);
+    }
+
     pub fn paint(&mut self, painter: &egui::Painter, rect: egui::Rect) {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
