@@ -82,7 +82,9 @@ impl Atlas {
             autotiles[i]
                 .as_deref()
                 .map(image_cache::WgpuTexture::width)
-                .unwrap_or(0)
+                // Why unwrap with a width of 96? Even though the autotile doesn't exist, it still has an effective width on the atlas of one frame.
+                // Further rendering code breaks down with an autotile width of 0, anyway.
+                .unwrap_or(96)
                 / 96
         });
 
@@ -90,7 +92,7 @@ impl Atlas {
             .iter()
             .map(|f| f * AUTOTILE_FRAME_WIDTH)
             .max()
-            .unwrap_or(0);
+            .unwrap_or(AUTOTILE_FRAME_WIDTH);
 
         let render_state = &state!().render_state;
         let mut encoder =
