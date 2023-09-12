@@ -24,11 +24,11 @@ eframe = { version = "0.22", features = [
     "wgpu",
 ], default-features = false }
 egui_extras = { version = "0.22", features = ["svg", "image"] }
-egui-notify = { version = "0.8" } # temporary patch
+egui-notify = { version = "0.9" } # temporary patch
 egui_dock = { version = "0.6" }
 catppuccin-egui = "3.0.0"
 
-cgmath = "0.18"
+cgmath = "0.18" # FIXME: switch to glam
 
 image = { version = "0.24", features = ["jpeg", "png"] }
 
@@ -37,7 +37,7 @@ enum-as-inner = "0.6"
 num_enum = "0.7"
 
 bitflags = "2.3"
-ouroboros = "0.17"
+ouroboros = "0.18"
 
 git-version = "0.3"
 
@@ -64,7 +64,7 @@ rand = "0.8.5"
 
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 notify = "6.0"
-rfd = "0.11"
+rfd = "0.12"
 camino = "1.1"
 
 bytemuck = "1"
@@ -102,8 +102,8 @@ steamworks = ["dep:steamworks", "crc"]
 
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.46.0", features = ["Win32_System_Registry"] }
-winreg = "0.50.0"
+windows = { version = "0.51.1", features = ["Win32_System_Registry"] }
+winreg = "0.51.0"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
@@ -122,8 +122,31 @@ debug = true
 [profile.dev]
 opt-level = 1
 
-# Enable max optimizations for dependencies, but not for our code:
-[profile.dev.package."*"]
+# Enable max optimizations for certain dependencies, but not for our code
+# These dependencies are "hot" in that they are used quite frequently
+
+# Ui
+[profile.dev.package.egui]
+opt-level = 3
+
+[profile.dev.package.eframe]
+opt-level = 3
+
+# Audio
+[profile.dev.package.rodio]
+opt-level = 3
+
+[profile.dev.package.rustysynth]
+opt-level = 3
+
+# Graphics
+[profile.dev.package.wgpu]
+opt-level = 3
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.cgmath]
 opt-level = 3
 
 # See why config is set up this way.
