@@ -434,12 +434,12 @@ impl Index<(usize, usize, usize)> for Table3 {
     type Output = i16;
 
     fn index(&self, index: (usize, usize, usize)) -> &Self::Output {
-        &self.data[index.0 + (index.1 * self.xsize) + (index.2 * self.ysize)]
+        &self.data[index.0 + self.xsize * (index.1 + self.ysize * index.2)]
     }
 }
 
 impl IndexMut<(usize, usize, usize)> for Table3 {
     fn index_mut(&mut self, index: (usize, usize, usize)) -> &mut Self::Output {
-        &mut self.data[index.0 + (index.1 * self.xsize) + (index.2 * self.ysize)]
+        &mut self.data[index.0 + self.xsize * (index.1 + self.ysize * index.2)]
     }
 }
