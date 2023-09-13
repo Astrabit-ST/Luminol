@@ -114,7 +114,7 @@ impl Instances {
 
         // Calculate the start and end index of the buffer, as well as the amount of instances.
         let start_index = layer * self.map_width * self.map_height;
-        let end_index = (layer + 1) * self.map_width * self.map_height - 1;
+        let end_index = (layer + 1) * self.map_width * self.map_height;
         let count = (end_index - start_index) as u32;
 
         // Convert the indexes into actual offsets.
