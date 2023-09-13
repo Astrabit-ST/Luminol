@@ -64,6 +64,10 @@ impl Tab {
         }
 
         let autotile = map.data[position] / 48;
+        if autotile == 0 {
+            return 0;
+        }
+
         let x_array: [i8; 8] = [-1, 0, 1, 1, 1, 0, -1, -1];
         let y_array: [i8; 8] = [-1, -1, -1, 0, 1, 1, 1, 0];
 
