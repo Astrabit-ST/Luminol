@@ -16,7 +16,8 @@ Luminol *may* use `Lua` for plugins in the future. It is something I am actively
 
 - [@Speak2Erase](https://github.com/Speak2Erase): Luminol's main contributor
 - [@somedevfox](https://github.com/somedevfox): Occasional contributor and creator of rsgss (a sister project of Luminol)
-- [@Lionmeow](https://github.com/Lionmeow) designer of Luminol's icon and Lumi
+- [@white-axe](https://github.com/white-axe): New contributor
+- [@Lionmeow](https://github.com/Lionmeow): Designer of Luminol's icon and Lumi
 
 ## RGSS version support
 
@@ -40,6 +41,9 @@ Compatibility:
 
 Native builds are the main focus at the moment, but no official releases will be made until Luminol is stable.
 Instead, you will have to compile luminol yourself, by grabbing your favorite nightly rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.
+
+If you are on Linux, you will also need to grab clang and mold from your package manager.
+
 Luminol has like a bajillion dependencies right now so it may take upwards of 15 minutes to compile.
 
 **You can not use one of the stable release channels.**
