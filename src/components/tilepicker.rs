@@ -22,9 +22,10 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct Tilepicker {
+    pub selected_tile: SelectedTile,
+
     resources: Arc<Resources>,
     ani_instant: Instant,
-    selected_tile: SelectedTile,
 }
 
 #[derive(Debug)]
@@ -50,7 +51,7 @@ impl Tilepicker {
     pub fn new(tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
-        let tilepicker_data = (0..384)
+        let tilepicker_data = (47..(384 + 47))
             .step_by(48)
             .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
             .collect_vec();
