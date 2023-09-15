@@ -97,6 +97,10 @@ impl Event {
         }))
     }
 
+    pub fn sprite(&self) -> &primitives::Sprite {
+        &self.resources.sprite
+    }
+
     pub fn paint(&self, painter: &egui::Painter, rect: egui::Rect) {
         let resources = self.resources.clone();
         let resource_id = Arc::new(OnceCell::new());

@@ -188,6 +188,10 @@ impl MapView {
             egui::Stroke::new(3., egui::Color32::DARK_GRAY),
         );
 
+        if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
+            self.selected_event_id = None;
+        }
+
         if self.event_enabled {
             let mut selected_event = None;
             let mut selected_event_rects = None;
@@ -198,6 +202,19 @@ impl MapView {
                     .map(|e| e.sprite_size)
                     .unwrap_or(egui::vec2(32., 32.));
                 let scaled_event_size = event_size * scale;
+
+                // Darken the graphic if required
+                if let Some(sprite) = sprite {
+                    sprite.sprite().graphic.set_opacity_multiplier(
+                        if self.darken_unselected_layers
+                            && !matches!(self.selected_layer, SelectedLayer::Events)
+                        {
+                            0.5
+                        } else {
+                            1.
+                        },
+                    );
+                }
 
                 let tile_rect = egui::Rect::from_min_size(
                     map_rect.min
@@ -217,10 +234,23 @@ impl MapView {
                     sprite.paint(ui.painter(), box_rect);
                 }
 
-                ui.painter()
-                    .rect_stroke(box_rect, 5., egui::Stroke::new(1., egui::Color32::WHITE));
+                if matches!(self.selected_layer, SelectedLayer::Events) {
+                    ui.painter().rect_stroke(
+                        box_rect,
+                        5.,
+                        egui::Stroke::new(1., egui::Color32::WHITE),
+                    );
+                } else {
+                    ui.painter().rect_stroke(
+                        box_rect,
+                        5.,
+                        egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                    );
+                }
 
-                if ui.rect_contains_pointer(box_rect) {
+                if matches!(self.selected_layer, SelectedLayer::Events)
+                    && ui.rect_contains_pointer(box_rect)
+                {
                     response = response.on_hover_ui_at_pointer(|ui| {
                         ui.label(format!("Event {:0>3}: {:?}", event.id, event.name));
 

@@ -20,7 +20,8 @@ struct Viewport {
 
 struct Graphic {
     hue: f32,
-    opacity: f32
+    opacity: f32,
+    opacity_multiplier: f32,
 }
 
 var<push_constant> push_constants: PushConstants;
@@ -68,7 +69,7 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    tex_sample.a *= push_constants.graphic.opacity;
+    tex_sample.a *= push_constants.graphic.opacity * push_constants.graphic.opacity_multiplier;
     if tex_sample.a <= 0. {
         discard;
     }
