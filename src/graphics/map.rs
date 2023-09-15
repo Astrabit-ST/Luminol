@@ -104,7 +104,12 @@ impl Map {
         self.resources.tiles.set_tile(tile_id, position);
     }
 
-    pub fn paint(&mut self, painter: &egui::Painter, rect: egui::Rect) {
+    pub fn paint(
+        &mut self,
+        painter: &egui::Painter,
+        selected_layer: Option<usize>,
+        rect: egui::Rect,
+    ) {
         if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
             self.ani_instant = Instant::now();
             self.resources.tiles.autotiles.inc_ani_index();
@@ -151,7 +156,7 @@ impl Map {
                     }
                 }
 
-                tiles.draw(viewport, &enabled_layers, render_pass);
+                tiles.draw(viewport, &enabled_layers, selected_layer, render_pass);
                 if fog_enabled {
                     if let Some(fog) = fog {
                         fog.draw(viewport, render_pass);

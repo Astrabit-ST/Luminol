@@ -17,7 +17,7 @@ struct VertexOutput {
 struct PushConstants {
     viewport: Viewport,
     autotiles: Autotiles,
-    opacity: u32,
+    opacity: f32,
 }
 
 struct Viewport {
@@ -92,6 +92,7 @@ var atlas_sampler: sampler;
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(atlas, atlas_sampler, input.tex_coords);
+    color.a *= push_constants.opacity;
 
     if color.a <= 0.0 {
         discard;

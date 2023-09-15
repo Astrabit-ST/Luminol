@@ -55,6 +55,7 @@ impl Tiles {
         &'rpass self,
         viewport: &primitives::Viewport,
         enabled_layers: &[bool],
+        selected_layer: Option<usize>,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
         #[repr(C)]
@@ -78,6 +79,16 @@ impl Tiles {
         self.atlas.bind(render_pass);
 
         for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
+            let opacity = match selected_layer {
+                Some(selected_layer) if selected_layer == layer => 1.0,
+                Some(_) => 0.5,
+                None => 1.0,
+            };
+            render_pass.set_push_constants(
+                wgpu::ShaderStages::FRAGMENT,
+                64 + 36,
+                bytemuck::bytes_of::<f32>(&opacity),
+            );
             if enabled {
                 self.instances.draw(render_pass, layer);
             }

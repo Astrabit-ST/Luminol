@@ -117,7 +117,7 @@ impl Tilepicker {
                             tiles, viewport, ..
                         } = resources.as_ref();
 
-                        tiles.draw(viewport, &[true], render_pass);
+                        tiles.draw(viewport, &[true], None, render_pass);
                     }),
             ),
         });

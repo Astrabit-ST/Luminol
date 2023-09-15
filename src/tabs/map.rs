@@ -82,13 +82,11 @@ impl Tab {
         for (x, y) in x_array.into_iter().zip(y_array.into_iter()) {
             bitfield <<= 1;
             // Out-of-bounds tiles always count as valid neighbors
-            if ((x == -1 && position.0 == 0) || (x == 1 && position.0 + 1 == map.data.xsize()))
-                || ((y == -1 && position.1 == 0) || (y == 1 && position.1 + 1 == map.data.ysize()))
-            {
-                bitfield |= 1;
-            }
+            let is_out_of_bounds = ((x == -1 && position.0 == 0)
+                || (x == 1 && position.0 + 1 == map.data.xsize()))
+                || ((y == -1 && position.1 == 0) || (y == 1 && position.1 + 1 == map.data.ysize()));
             // Otherwise, we only consider neighbors that are autotiles of the same type
-            else if map.data[(
+            let is_same_autotile = map.data[(
                 if x == -1 {
                     position.0 - 1
                 } else {
@@ -101,9 +99,10 @@ impl Tab {
                 },
                 position.2,
             )] / 48
-                == autotile
-            {
-                bitfield |= 1;
+                == autotile;
+
+            if is_out_of_bounds || is_same_autotile {
+                bitfield |= 1
             }
         }
 
@@ -287,6 +286,11 @@ impl tab::Tab for Tab {
                     .on_hover_text("Preview event page move routes");
                 ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
                     .on_hover_text("Snap's the viewport to the tile grid");
+                ui.checkbox(
+                    &mut self.view.darken_unselected_layers,
+                    "Darken unselected layers",
+                )
+                .on_disabled_hover_text("Toggles darkening unselected layers");
 
                 /*
                 if ui.button("Save map preview").clicked() {
