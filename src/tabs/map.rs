@@ -86,20 +86,21 @@ impl Tab {
                 || (x == 1 && position.0 + 1 == map.data.xsize()))
                 || ((y == -1 && position.1 == 0) || (y == 1 && position.1 + 1 == map.data.ysize()));
             // Otherwise, we only consider neighbors that are autotiles of the same type
-            let is_same_autotile = map.data[(
-                if x == -1 {
-                    position.0 - 1
-                } else {
-                    position.0 + x as usize
-                },
-                if y == -1 {
-                    position.1 - 1
-                } else {
-                    position.1 + y as usize
-                },
-                position.2,
-            )] / 48
-                == autotile;
+            let is_same_autotile = !is_out_of_bounds
+                && map.data[(
+                    if x == -1 {
+                        position.0 - 1
+                    } else {
+                        position.0 + x as usize
+                    },
+                    if y == -1 {
+                        position.1 - 1
+                    } else {
+                        position.1 + y as usize
+                    },
+                    position.2,
+                )] / 48
+                    == autotile;
 
             if is_out_of_bounds || is_same_autotile {
                 bitfield |= 1
