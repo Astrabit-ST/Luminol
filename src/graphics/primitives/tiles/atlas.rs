@@ -295,9 +295,10 @@ impl Atlas {
                 egui::pos2(0., 0.),
                 egui::vec2(TILE_SIZE as f32, TILE_SIZE as f32),
             ),
+            // Reduced by 0.01 px on all sides to decrease texture bleeding
             egui::Rect::from_min_size(
-                atlas_tile_position,
-                egui::vec2(TILE_SIZE as f32, TILE_SIZE as f32),
+                atlas_tile_position + egui::vec2(0.01, 0.01),
+                egui::vec2(TILE_SIZE as f32 - 0.02, TILE_SIZE as f32 - 0.02),
             ),
             0.0,
         )

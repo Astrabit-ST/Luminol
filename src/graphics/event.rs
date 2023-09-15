@@ -67,12 +67,13 @@ impl Event {
                 egui::vec2(cw, ch),
             );
 
+            // Reduced by 0.01 px on all sides to reduce texture bleeding
             let tex_coords = egui::Rect::from_min_size(
                 egui::pos2(
-                    page.graphic.pattern as f32 * cw,
-                    (page.graphic.direction as f32 - 2.) / 2. * ch,
+                    page.graphic.pattern as f32 * cw + 0.01,
+                    (page.graphic.direction as f32 - 2.) / 2. * ch + 0.01,
                 ),
-                egui::vec2(cw, ch),
+                egui::vec2(cw - 0.02, ch - 0.02),
             );
             let quad = primitives::Quad::new(pos, tex_coords, 0.0);
 
