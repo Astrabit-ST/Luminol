@@ -257,7 +257,6 @@ impl MapView {
                         }
                         // Otherwise if the cursor is hovering over at least one event's graphic,
                         // then the one out of those with the highest ID should be the selected event
-                        Some(e) if event.id <= e.id => selected_event,
                         _ => Some(event),
                     };
                     if let Some(e) = selected_event {
