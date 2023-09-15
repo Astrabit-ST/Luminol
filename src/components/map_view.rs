@@ -189,7 +189,7 @@ impl MapView {
         );
 
         if self.event_enabled {
-            let mut selected_event: Option<&rpg::Event> = None;
+            let mut selected_event = None;
             let mut selected_event_rects = None;
 
             for (_, event) in map.events.iter() {
