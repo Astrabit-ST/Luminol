@@ -231,11 +231,18 @@ impl MapView {
                         if let Some(sprite) = sprite {
                             sprite.paint(&painter, response.rect);
                         }
-                        ui.painter().rect_stroke(
-                            response.rect,
-                            5.,
-                            egui::Stroke::new(1., egui::Color32::WHITE),
-                        );
+                        match self.selected_event_id {
+                            Some(id) if id == event.id => ui.painter().rect_stroke(
+                                response.rect,
+                                5.,
+                                egui::Stroke::new(2., egui::Color32::from_rgb(255, 0, 255)),
+                            ),
+                            _ => ui.painter().rect_stroke(
+                                response.rect,
+                                5.,
+                                egui::Stroke::new(1., egui::Color32::WHITE),
+                            ),
+                        }
                     });
 
                     // Safe because rect_contains_pointer won't run unless cursor position is
