@@ -21,6 +21,7 @@ use crate::prelude::*;
 pub struct Event {
     resources: Arc<Resources>,
     pub sprite_size: egui::Vec2,
+    pub id: usize,
 }
 
 #[derive(Debug)]
@@ -91,6 +92,7 @@ impl Event {
         Ok(Some(Self {
             resources: Arc::new(Resources { sprite, viewport }),
             sprite_size,
+            id: event.id,
         }))
     }
 

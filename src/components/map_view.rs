@@ -26,7 +26,7 @@ pub struct MapView {
     pub pan: egui::Vec2,
     pub inter_tile_pan: egui::Vec2,
 
-    pub events: HashMap<usize, Event>,
+    pub events: slab::Slab<Event>,
     pub map: Map,
 
     pub selected_layer: SelectedLayer,
@@ -172,7 +172,7 @@ impl MapView {
 
         if self.event_enabled {
             for (_, event) in map.events.iter() {
-                let sprite = self.events.get(&event.id);
+                let sprite = self.events.get(event.id);
                 let event_size = sprite
                     .map(|e| e.sprite_size)
                     .unwrap_or(egui::vec2(32., 32.));
