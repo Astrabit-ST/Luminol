@@ -30,6 +30,7 @@ pub struct MapView {
     pub map: Map,
 
     pub selected_layer: SelectedLayer,
+    pub selected_event_id: Option<usize>,
     pub cursor_pos: egui::Pos2,
     pub event_enabled: bool,
     pub snap_to_grid: bool,
@@ -68,6 +69,7 @@ impl MapView {
             map,
 
             selected_layer: SelectedLayer::default(),
+            selected_event_id: None,
             cursor_pos: egui::Pos2::ZERO,
             event_enabled: true,
             snap_to_grid: false,
@@ -138,12 +140,14 @@ impl MapView {
         let canvas_pos = canvas_center + self.pan;
 
         // We check here after we calculate the scale and whatnot
+        let mut cursor_tile = None;
         if let Some(pos) = response.hover_pos() {
             let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
                 + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
             // Force the cursor to a tile instead of in-between
             pos_tile.x = pos_tile.x.floor().clamp(0., map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0., map.height as f32 - 1.);
+            cursor_tile = Some(pos_tile);
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
                 || dragging_event
@@ -171,6 +175,9 @@ impl MapView {
         );
 
         if self.event_enabled {
+            let mut selected_event: Option<&rpg::Event> = None;
+            let mut selected_event_rects = None;
+
             for (_, event) in map.events.iter() {
                 let sprite = self.events.get(event.id);
                 let event_size = sprite
@@ -178,6 +185,11 @@ impl MapView {
                     .unwrap_or(egui::vec2(32., 32.));
                 let scaled_event_size = event_size * scale;
 
+                let tile_rect = egui::Rect::from_min_size(
+                    map_rect.min
+                        + egui::vec2(event.x as f32 * tile_size, event.y as f32 * tile_size),
+                    egui::vec2(32., 32.) * scale,
+                );
                 let box_rect = egui::Rect::from_min_size(
                     map_rect.min
                         + egui::vec2(
@@ -211,7 +223,52 @@ impl MapView {
                             egui::Stroke::new(1., egui::Color32::WHITE),
                         );
                     });
+
+                    // Safe because rect_contains_pointer won't run unless cursor position is
+                    // detected successfully
+                    let cursor_tile = cursor_tile.unwrap();
+
+                    // Handle which event should be considered selected
+                    selected_event = match selected_event {
+                        // If the cursor is hovering over the exact tile of an event, then that is
+                        // the selected event
+                        Some(e)
+                            if cursor_tile.x == event.x as f32
+                                && cursor_tile.y == event.y as f32 =>
+                        {
+                            Some(event)
+                        }
+                        Some(e) if cursor_tile.x == e.x as f32 && cursor_tile.y == e.y as f32 => {
+                            selected_event
+                        }
+                        // Otherwise if the cursor is hovering over at least one event's graphic,
+                        // then the one out of those with the highest ID should be the selected event
+                        Some(e) if event.id <= e.id => selected_event,
+                        _ => Some(event),
+                    };
+                    if let Some(e) = selected_event {
+                        if e.id == event.id {
+                            selected_event_rects = Some((tile_rect, box_rect));
+                        }
+                    }
                 }
+            }
+
+            self.selected_event_id = selected_event.map(|e| e.id);
+
+            // Draw a magenta rectangle on the border of the selected event's graphic
+            // and a green rectangle on the border of the selected event's tile
+            if let Some((tile_rect, box_rect)) = selected_event_rects {
+                ui.painter().rect_stroke(
+                    tile_rect,
+                    12.,
+                    egui::Stroke::new(2., egui::Color32::GREEN),
+                );
+                ui.painter().rect_stroke(
+                    box_rect,
+                    5.,
+                    egui::Stroke::new(2., egui::Color32::from_rgb(255, 0, 255)),
+                );
             }
         }
 
