@@ -47,32 +47,32 @@ impl Quad {
             let position = pos.left_top();
             let tex_coords = tex_coords.left_top();
             Vertex {
-                position: [position.x, position.y, z],
-                tex_coords: [tex_coords.x, tex_coords.y],
+                position: glam::vec3(position.x, position.y, z),
+                tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
         let top_right = {
             let position = pos.right_top();
             let tex_coords = tex_coords.right_top();
             Vertex {
-                position: [position.x, position.y, z],
-                tex_coords: [tex_coords.x, tex_coords.y],
+                position: glam::vec3(position.x, position.y, z),
+                tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
         let bottom_right = {
             let position = pos.right_bottom();
             let tex_coords = tex_coords.right_bottom();
             Vertex {
-                position: [position.x, position.y, z],
-                tex_coords: [tex_coords.x, tex_coords.y],
+                position: glam::vec3(position.x, position.y, z),
+                tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
         let bottom_left = {
             let position = pos.left_bottom();
             let tex_coords = tex_coords.left_bottom();
             Vertex {
-                position: [position.x, position.y, z],
-                tex_coords: [tex_coords.x, tex_coords.y],
+                position: glam::vec3(position.x, position.y, z),
+                tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
         [top_left, top_right, bottom_right, bottom_left]

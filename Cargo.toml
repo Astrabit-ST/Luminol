@@ -28,7 +28,7 @@ egui-notify = { version = "0.9" } # temporary patch
 egui_dock = { version = "0.6" }
 catppuccin-egui = "3.0.0"
 
-cgmath = "0.18" # FIXME: switch to glam
+glam = { version = "0.24", features = ["bytemuck"] }
 
 image = { version = "0.24", features = ["jpeg", "png"] }
 
@@ -67,7 +67,7 @@ notify = "6.0"
 rfd = "0.12"
 camino = "1.1"
 
-bytemuck = "1"
+bytemuck = { version = "1.14", features = ["derive", "min_const_generics"] }
 
 color-eyre = "0.6"
 eyre = "0.6"
@@ -146,7 +146,7 @@ opt-level = 3
 [profile.dev.package.image]
 opt-level = 3
 
-[profile.dev.package.cgmath]
+[profile.dev.package.glam]
 opt-level = 3
 
 # See why config is set up this way.

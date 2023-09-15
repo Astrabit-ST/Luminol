@@ -15,17 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::prelude::*;
 use crossbeam::atomic::AtomicCell;
-use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 pub struct Autotiles {
     data: AtomicCell<Data>,
-
-    buffer: wgpu::Buffer,
-
-    bind_group: wgpu::BindGroup,
 }
 
 #[repr(C)]
@@ -44,34 +38,8 @@ impl Autotiles {
             ani_index: 0,
         };
 
-        let render_state = &state!().render_state;
-
-        let autotile_buffer =
-            render_state
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap autotile buffer"),
-                    contents: bytemuck::cast_slice(&[autotiles]),
-                    usage: wgpu::BufferUsages::STORAGE
-                        | wgpu::BufferUsages::COPY_DST
-                        | wgpu::BufferUsages::UNIFORM,
-                });
-
-        let bind_group = render_state
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("tilemap autotiles bind group"),
-                layout: &LAYOUT,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: autotile_buffer.as_entire_binding(),
-                }],
-            });
-
         Autotiles {
             data: AtomicCell::new(autotiles),
-            buffer: autotile_buffer,
-            bind_group,
         }
     }
 
@@ -81,41 +49,9 @@ impl Autotiles {
             ani_index: data.ani_index.wrapping_add(1),
             ..data
         });
-        self.regen_buffer();
     }
 
-    fn regen_buffer(&self) {
-        let render_state = &state!().render_state;
-        render_state
-            .queue
-            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data.load()]));
-    }
-
-    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_bind_group(2, &self.bind_group, &[]);
-    }
-
-    pub fn layout() -> &'static wgpu::BindGroupLayout {
-        &LAYOUT
+    pub fn as_bytes(&self) -> [u8; std::mem::size_of::<Data>()] {
+        bytemuck::cast(self.data.load())
     }
 }
-
-static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
-    let render_state = &state!().render_state;
-
-    render_state
-        .device
-        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("tilemap autotiles bind group layout"),
-        })
-});

@@ -35,6 +35,8 @@ pub struct MapView {
     pub event_enabled: bool,
     pub snap_to_grid: bool,
 
+    pub darken_unselected_layers: bool,
+
     pub scale: f32,
 }
 
@@ -73,6 +75,8 @@ impl MapView {
             cursor_pos: egui::Pos2::ZERO,
             event_enabled: true,
             snap_to_grid: false,
+
+            darken_unselected_layers: true,
 
             scale: 100.,
         })
@@ -166,7 +170,17 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
-        self.map.paint(ui.painter(), map_rect);
+        self.map.paint(
+            ui.painter(),
+            match self.selected_layer {
+                SelectedLayer::Events => None,
+                SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
+                    Some(selected_layer)
+                }
+                SelectedLayer::Tiles(_) => None,
+            },
+            map_rect,
+        );
 
         ui.painter().rect_stroke(
             map_rect,

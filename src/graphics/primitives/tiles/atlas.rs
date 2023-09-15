@@ -249,7 +249,7 @@ impl Atlas {
         })
     }
 
-    pub fn calc_quad(&self, tile: i16, x: usize, y: usize) -> Quad {
+    pub fn calc_quad(&self, tile: i16) -> Quad {
         let tile_u32 = if tile < 0 { 0 } else { tile as u32 };
 
         let is_autotile = tile_u32 < TOTAL_AUTOTILE_ID_AMOUNT;

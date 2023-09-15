@@ -62,7 +62,7 @@ impl Tilepicker {
             tilepicker_data,
         );
 
-        let viewport = primitives::Viewport::new(cgmath::ortho(
+        let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
             0.0,
             256.,
             atlas.tileset_height as f32,
@@ -117,8 +117,7 @@ impl Tilepicker {
                             tiles, viewport, ..
                         } = resources.as_ref();
 
-                        viewport.bind(render_pass);
-                        tiles.draw(render_pass, None);
+                        tiles.draw(viewport, &[true], None, render_pass);
                     }),
             ),
         });

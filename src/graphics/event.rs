@@ -50,9 +50,10 @@ impl Event {
 
         let (quads, viewport, sprite_size) = if let Some(id) = page.graphic.tile_id {
             // Why does this have to be + 1?
-            let quad = atlas.calc_quad((id + 1) as i16, event.x as usize, event.y as usize);
+            let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport = primitives::Viewport::new(cgmath::ortho(0.0, 32., 32., 0., -1., 1.));
+            let viewport =
+                primitives::Viewport::new(glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.));
 
             (quad, viewport, egui::vec2(32., 32.))
         } else {
@@ -75,7 +76,8 @@ impl Event {
             );
             let quad = primitives::Quad::new(pos, tex_coords, 0.0);
 
-            let viewport = primitives::Viewport::new(cgmath::ortho(0.0, cw, ch, 0., -1., 1.));
+            let viewport =
+                primitives::Viewport::new(glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.));
 
             (quad, viewport, egui::vec2(cw, ch))
         };
@@ -115,8 +117,7 @@ impl Event {
                 let resources = &res_hash[id];
                 let Resources { viewport, sprite } = resources.as_ref();
 
-                viewport.bind(render_pass);
-                sprite.draw(render_pass);
+                sprite.draw(viewport, render_pass);
             });
         painter.add(egui::PaintCallback {
             callback: Arc::new(callback),

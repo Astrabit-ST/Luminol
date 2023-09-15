@@ -16,9 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
 
-use super::autotiles::Autotiles;
 use super::instance::Instances;
-use primitives::{Vertex, Viewport};
+use primitives::Vertex;
 
 #[derive(Debug)]
 pub struct Shader {
@@ -38,12 +37,19 @@ impl Shader {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Render Pipeline Layout"),
-                    bind_group_layouts: &[
-                        image_cache::Cache::bind_group_layout(),
-                        Viewport::layout(),
-                        Autotiles::layout(),
+                    bind_group_layouts: &[image_cache::Cache::bind_group_layout()],
+                    push_constant_ranges: &[
+                        // Viewport + Autotiles
+                        wgpu::PushConstantRange {
+                            stages: wgpu::ShaderStages::VERTEX,
+                            range: 0..(64 + 36),
+                        },
+                        // Fragment
+                        wgpu::PushConstantRange {
+                            stages: wgpu::ShaderStages::FRAGMENT,
+                            range: (64 + 36)..(64 + 36 + 4),
+                        },
                     ],
-                    push_constant_ranges: &[],
                 });
         let pipeline =
             render_state
@@ -64,10 +70,7 @@ impl Shader {
                             ..render_state.target_format.into()
                         })],
                     }),
-                    primitive: wgpu::PrimitiveState {
-                        // polygon_mode: wgpu::PolygonMode::Line,
-                        ..Default::default()
-                    },
+                    primitive: wgpu::PrimitiveState::default(),
                     depth_stencil: None,
                     multisample: wgpu::MultisampleState::default(),
                     multiview: None,
