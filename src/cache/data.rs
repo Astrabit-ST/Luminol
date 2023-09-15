@@ -346,7 +346,7 @@ macro_rules! nested_ref_getter {
     );*) => {
         $(
             #[allow(unsafe_code, dead_code)]
-            pub fn $name<'a>(&'a self) -> impl core::ops::Deref<Target = $typ> + core::ops::DerefMut + 'a {
+            pub fn $name<'a>(&'a self) -> impl core::ops::DerefMut<Target = $typ> + 'a {
                 struct _Ref<'b> {
                     _this_ref: atomic_refcell::AtomicRef<'b, State>,
                     _other_ref: atomic_refcell::AtomicRefMut<'b, $typ>,
@@ -407,7 +407,7 @@ impl Cache {
     /// Load a map.
     #[allow(unsafe_code)]
     #[allow(clippy::panic)]
-    pub fn map<'a>(&'a self, id: usize) -> impl Deref<Target = rpg::Map> + DerefMut + 'a {
+    pub fn map<'a>(&'a self, id: usize) -> impl DerefMut<Target = rpg::Map> + 'a {
         struct Ref<'b> {
             _state: atomic_refcell::AtomicRef<'b, State>,
             map_ref: dashmap::mapref::one::RefMut<'b, usize, rpg::Map>,

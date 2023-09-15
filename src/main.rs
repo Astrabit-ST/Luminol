@@ -31,7 +31,7 @@ fn main() {
         rfd::MessageDialog::new()
             .set_title("Error")
             .set_level(rfd::MessageLevel::Error)
-            .set_description(&format!(
+            .set_description(format!(
                 "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
             ))
             .show();
@@ -96,15 +96,17 @@ fn main() {
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
             supported_backends: eframe::wgpu::util::backend_bits_from_env()
                 .unwrap_or(eframe::wgpu::Backends::PRIMARY),
-            device_descriptor: luminol::Arc::new(|_| {
-                eframe::wgpu::DeviceDescriptor {
-                    label: Some("luminol device descriptor"),
-                    // features: eframe::wgpu::Features::POLYGON_MODE_LINE,
-                    ..Default::default()
-                }
+            device_descriptor: luminol::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
+                label: Some("luminol device descriptor"),
+                features: eframe::wgpu::Features::PUSH_CONSTANTS,
+                limits: eframe::wgpu::Limits {
+                    max_push_constant_size: 128,
+                    ..eframe::wgpu::Limits::default()
+                },
             }),
             ..Default::default()
         },
+        app_id: Some("astrabit.luminol".to_string()),
         ..Default::default()
     };
 

@@ -20,8 +20,8 @@ use crate::prelude::*;
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
 pub struct Vertex {
-    pub position: [f32; 3],
-    pub tex_coords: [f32; 2],
+    pub position: glam::Vec3,
+    pub tex_coords: glam::Vec2,
 }
 
 impl Vertex {

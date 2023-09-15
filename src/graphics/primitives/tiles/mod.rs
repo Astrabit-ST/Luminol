@@ -53,19 +53,31 @@ impl Tiles {
 
     pub fn draw<'rpass>(
         &'rpass self,
+        viewport: &primitives::Viewport,
+        enabled_layers: &[bool],
         render_pass: &mut wgpu::RenderPass<'rpass>,
-        enabled_layers: Option<&[bool]>,
     ) {
+        #[repr(C)]
+        #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+        struct VertexPushConstant {
+            viewport: [u8; 64],
+            autotiles: [u8; 36],
+        }
+
         render_pass.push_debug_group("tilemap tiles renderer");
         Shader::bind(render_pass);
-        self.autotiles.bind(render_pass);
+        render_pass.set_push_constants(
+            wgpu::ShaderStages::VERTEX,
+            0,
+            bytemuck::bytes_of(&VertexPushConstant {
+                viewport: viewport.as_bytes(),
+                autotiles: self.autotiles.as_bytes(),
+            }),
+        );
+
         self.atlas.bind(render_pass);
-        for (layer, enabled) in enabled_layers
-            .unwrap_or(&[true])
-            .iter()
-            .copied()
-            .enumerate()
-        {
+
+        for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
             if enabled {
                 self.instances.draw(render_pass, layer);
             }

@@ -16,9 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
 
-use super::graphic::Graphic;
 use super::{BlendMode, Vertex};
-use primitives::Viewport;
 
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
@@ -37,12 +35,18 @@ impl Shader {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Sprite Pipeline Layout"),
-                    bind_group_layouts: &[
-                        image_cache::Cache::bind_group_layout(),
-                        Viewport::layout(),
-                        Graphic::layout(),
+                    bind_group_layouts: &[image_cache::Cache::bind_group_layout()],
+                    push_constant_ranges: &[
+                        // Viewport
+                        wgpu::PushConstantRange {
+                            stages: wgpu::ShaderStages::VERTEX,
+                            range: 0..64,
+                        },
+                        wgpu::PushConstantRange {
+                            stages: wgpu::ShaderStages::FRAGMENT,
+                            range: 64..(64 + 8),
+                        },
                     ],
-                    push_constant_ranges: &[],
                 });
         let pipeline =
             render_state

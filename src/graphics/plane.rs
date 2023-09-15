@@ -51,7 +51,11 @@ impl Plane {
         Self { sprite }
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        self.sprite.draw(render_pass);
+    pub fn draw<'rpass>(
+        &'rpass self,
+        viewport: &primitives::Viewport,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+    ) {
+        self.sprite.draw(viewport, render_pass);
     }
 }

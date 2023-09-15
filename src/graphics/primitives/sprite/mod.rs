@@ -61,10 +61,16 @@ impl Sprite {
         );
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw<'rpass>(
+        &'rpass self,
+        viewport: &primitives::Viewport,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+    ) {
         shader::Shader::bind(self.blend_mode, render_pass);
+        render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());
+        render_pass.set_push_constants(wgpu::ShaderStages::FRAGMENT, 64, &self.graphic.as_bytes());
+
         self.texture.bind(render_pass);
-        self.graphic.bind(render_pass);
         self.vertices.draw(render_pass);
     }
 }

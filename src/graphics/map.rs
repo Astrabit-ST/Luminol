@@ -75,7 +75,7 @@ impl Map {
         } else {
             None
         };
-        let viewport = primitives::Viewport::new(cgmath::ortho(
+        let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
             0.0,
             map.width as f32 * 32.,
             map.height as f32 * 32.,
@@ -145,18 +145,16 @@ impl Map {
                     ..
                 } = resources.as_ref();
 
-                viewport.bind(render_pass);
-
                 if pano_enabled {
                     if let Some(panorama) = panorama {
-                        panorama.draw(render_pass);
+                        panorama.draw(viewport, render_pass);
                     }
                 }
 
-                tiles.draw(render_pass, Some(&enabled_layers));
+                tiles.draw(viewport, &enabled_layers, render_pass);
                 if fog_enabled {
                     if let Some(fog) = fog {
-                        fog.draw(render_pass);
+                        fog.draw(viewport, render_pass);
                     }
                 }
             });
