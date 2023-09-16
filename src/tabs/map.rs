@@ -352,18 +352,6 @@ impl tab::Tab for Tab {
                         }
                     }
                 }
-
-                if ui.input(|i| {
-                    i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
-                }) {
-                    if let Some((id, _)) = map
-                        .events
-                        .iter()
-                        .find(|(_, event)| event.x == map_x && event.y == map_y)
-                    {
-                        map.events.remove(id);
-                    }
-                }
             })
         });
 

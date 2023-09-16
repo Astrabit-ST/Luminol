@@ -63,7 +63,7 @@ impl window::Window for Window {
             Some(e) => e,
             None => return,
         };
-        self.name = event.name.clone();
+        self.name.clone_from(&event.name);
 
         let mut win_open = true;
 
@@ -72,7 +72,7 @@ impl window::Window for Window {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut self.name);
+                    ui.text_edit_singleline(&mut event.name);
 
                     ui.button("New page").clicked();
                     ui.button("Copy page").clicked();
@@ -286,7 +286,9 @@ impl window::Window for Window {
                             });
                         });
                     }
+
                     1 => {}
+
                     2 => {
                         ui.vertical(|ui| {
                             ui.group(|ui| {
