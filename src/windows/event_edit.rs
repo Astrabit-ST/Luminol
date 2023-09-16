@@ -54,7 +54,9 @@ impl window::Window for Window {
     }
 
     fn id(&self) -> egui::Id {
-        egui::Id::new("Event Editor")
+        egui::Id::new("luminol_event_edit")
+            .with(self.map_id)
+            .with(self.id)
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
