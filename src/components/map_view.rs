@@ -275,30 +275,30 @@ impl MapView {
                         }
                     });
 
-                    // Safe because rect_contains_pointer won't run unless cursor position is
-                    // detected successfully
-                    let cursor_tile = cursor_tile.unwrap();
-
-                    // Handle which event should be considered selected
-                    selected_event = match selected_event {
-                        // If the cursor is hovering over the exact tile of an event, then that is
-                        // the selected event
-                        Some(e)
-                            if cursor_tile.x == event.x as f32
-                                && cursor_tile.y == event.y as f32 =>
-                        {
-                            Some(event)
-                        }
-                        Some(e) if cursor_tile.x == e.x as f32 && cursor_tile.y == e.y as f32 => {
-                            selected_event
-                        }
-                        // Otherwise if the cursor is hovering over at least one event's graphic,
-                        // then the one out of those with the highest ID should be the selected event
-                        _ => Some(event),
-                    };
-                    if let Some(e) = selected_event {
-                        if e.id == event.id {
-                            selected_event_rects = Some((tile_rect, box_rect));
+                    if let Some(cursor_tile) = cursor_tile {
+                        // Handle which event should be considered selected
+                        selected_event = match selected_event {
+                            // If the cursor is hovering over the exact tile of an event, then that is
+                            // the selected event
+                            Some(e)
+                                if cursor_tile.x == event.x as f32
+                                    && cursor_tile.y == event.y as f32 =>
+                            {
+                                Some(event)
+                            }
+                            Some(e)
+                                if cursor_tile.x == e.x as f32 && cursor_tile.y == e.y as f32 =>
+                            {
+                                selected_event
+                            }
+                            // Otherwise if the cursor is hovering over at least one event's graphic,
+                            // then the one out of those with the highest ID should be the selected event
+                            _ => Some(event),
+                        };
+                        if let Some(e) = selected_event {
+                            if e.id == event.id {
+                                selected_event_rects = Some((tile_rect, box_rect));
+                            }
                         }
                     }
                 }
