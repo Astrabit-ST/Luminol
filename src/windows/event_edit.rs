@@ -61,7 +61,10 @@ impl window::Window for Window {
         let mut map = state!().data_cache.map(self.map_id);
         let event = match map.events.get_mut(self.id) {
             Some(e) => e,
-            None => return,
+            None => {
+                *open = false;
+                return;
+            }
         };
         self.name.clone_from(&event.name);
 

@@ -343,11 +343,23 @@ impl tab::Tab for Tab {
                 } else {
                     if let Some(selected_event_id) = self.view.selected_event_id {
                         if let Some(selected_event) = map.events.get_mut(selected_event_id) {
+                            // Double-click on events to edit them
                             if response.double_clicked() {
                                 self.event_windows.add_window(event_edit::Window::new(
                                     selected_event_id,
                                     self.id,
                                 ));
+                            }
+                            // Press delete or backspace to delete the selected event
+                            else if response.hovered()
+                                && ui.memory(|m| m.focus().is_none())
+                                && ui.input(|i| {
+                                    i.key_pressed(egui::Key::Delete)
+                                        || i.key_pressed(egui::Key::Backspace)
+                                })
+                            {
+                                map.events.remove(selected_event_id);
+                                self.view.events.try_remove(selected_event_id);
                             }
                         }
                     }
