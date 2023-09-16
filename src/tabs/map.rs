@@ -224,11 +224,6 @@ impl tab::Tab for Tab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let state = state!();
-
-        // Get the map.
-        let mut map = state.data_cache.map(self.id);
-
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -326,6 +321,9 @@ impl tab::Tab for Tab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                // Get the map.
+                let mut map = state!().data_cache.map(self.id);
+
                 let response = self.view.ui(ui, &map, self.dragging_event);
 
                 let layers_max = map.data.zsize();
@@ -341,6 +339,17 @@ impl tab::Tab for Tab {
                             self.tilepicker.selected_tile,
                             (map_x as usize, map_y as usize, tile_layer),
                         );
+                    }
+                } else {
+                    if let Some(selected_event_id) = self.view.selected_event_id {
+                        if let Some(selected_event) = map.events.get_mut(selected_event_id) {
+                            if response.double_clicked() {
+                                self.event_windows.add_window(event_edit::Window::new(
+                                    selected_event_id,
+                                    self.id,
+                                ));
+                            }
+                        }
                     }
                 }
 
