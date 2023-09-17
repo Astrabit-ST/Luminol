@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::rpg::{AudioFile, Event};
-use crate::{id, Table3};
+use crate::{id, option_vec, Table3};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename = "RPG::Map")]
@@ -31,5 +31,5 @@ pub struct Map {
     pub encounter_list: Vec<i32>,
     pub encounter_step: i32,
     pub data: Table3,
-    pub events: slab::Slab<Event>,
+    pub events: option_vec::OptionVec<Event>,
 }

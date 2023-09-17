@@ -26,7 +26,7 @@ pub struct MapView {
     pub pan: egui::Vec2,
     pub inter_tile_pan: egui::Vec2,
 
-    pub events: slab::Slab<Event>,
+    pub events: rmxp_types::OptionVec<Event>,
     pub map: Map,
 
     pub selected_layer: SelectedLayer,

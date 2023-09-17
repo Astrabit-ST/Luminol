@@ -359,7 +359,7 @@ impl tab::Tab for Tab {
                                 })
                             {
                                 map.events.remove(selected_event_id);
-                                self.view.events.try_remove(selected_event_id);
+                                let _ = self.view.events.try_remove(selected_event_id);
                             }
                         }
                     }
