@@ -266,7 +266,7 @@ impl MapView {
                         selected_event = match selected_event {
                             // If the map cursor is on the exact tile of an event, then that is the
                             // selected event
-                            Some(e)
+                            Some(_)
                                 if self.cursor_pos.x == event.x as f32
                                     && self.cursor_pos.y == event.y as f32 =>
                             {
@@ -329,7 +329,7 @@ impl MapView {
                                 selected_event = match selected_event {
                                     // If the cursor is hovering over the exact tile of an event, then that is
                                     // the selected event
-                                    Some(e)
+                                    Some(_)
                                         if hover_tile.x == event.x as f32
                                             && hover_tile.y == event.y as f32 =>
                                     {
