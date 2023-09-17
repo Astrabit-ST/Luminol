@@ -207,6 +207,53 @@ impl Tab {
             }
         }
     }
+
+    fn add_event(&self, map: &mut rpg::Map) {
+        let mut first_vacant_id = 1;
+        let mut max_event_id = 0;
+
+        for (_, event) in map.events.iter() {
+            if event.id == first_vacant_id {
+                first_vacant_id += 1;
+            }
+            max_event_id = event.id;
+
+            if event.x == self.view.cursor_pos.x as i32 && event.y == self.view.cursor_pos.y as i32
+            {
+                state!()
+                    .toasts
+                    .error("Cannot create event on an existing event's tile");
+                return;
+            }
+        }
+
+        // Try first to allocate the event number directly after the current highest one.
+        // However, valid event number range in RPG Maker XP and VX is 1-999.
+        let new_event_id = if max_event_id < 999 {
+            max_event_id + 1
+        }
+        // Otherwise, we'll try to use a non-allocated event ID that isn't zero.
+        else if first_vacant_id <= 999 {
+            first_vacant_id
+        } else {
+            state!()
+                .toasts
+                .error("Event limit reached, please delete some events");
+            return;
+        };
+
+        map.events.insert(
+            new_event_id,
+            rpg::Event::new(
+                self.view.cursor_pos.x as i32,
+                self.view.cursor_pos.y as i32,
+                new_event_id,
+            ),
+        );
+
+        self.event_windows
+            .add_window(event_edit::Window::new(new_event_id, self.id));
+    }
 }
 
 impl tab::Tab for Tab {
@@ -342,25 +389,32 @@ impl tab::Tab for Tab {
                     }
                 } else {
                     if let Some(selected_event_id) = self.view.selected_event_id {
-                        if let Some(selected_event) = map.events.get_mut(selected_event_id) {
+                        if response.double_clicked() {
                             // Double-click on events to edit them
-                            if response.double_clicked() {
+                            if ui.input(|i| !i.modifiers.command) {
                                 self.event_windows.add_window(event_edit::Window::new(
                                     selected_event_id,
                                     self.id,
                                 ));
                             }
-                            // Press delete or backspace to delete the selected event
-                            else if response.hovered()
-                                && ui.memory(|m| m.focus().is_none())
-                                && ui.input(|i| {
-                                    i.key_pressed(egui::Key::Delete)
-                                        || i.key_pressed(egui::Key::Backspace)
-                                })
-                            {
-                                map.events.remove(selected_event_id);
-                                let _ = self.view.events.try_remove(selected_event_id);
-                            }
+                        }
+
+                        // Press delete or backspace to delete the selected event
+                        if response.hovered()
+                            && ui.memory(|m| m.focus().is_none())
+                            && ui.input(|i| {
+                                i.key_pressed(egui::Key::Delete)
+                                    || i.key_pressed(egui::Key::Backspace)
+                            })
+                        {
+                            map.events.remove(selected_event_id);
+                            let _ = self.view.events.try_remove(selected_event_id);
+                        }
+                    } else {
+                        // Double-click on an empty space to add an event
+                        // (hold shift to prevent events from being selected)
+                        if response.double_clicked() {
+                            self.add_event(&mut map);
                         }
                     }
                 }

@@ -242,7 +242,9 @@ impl MapView {
                     sprite.paint(ui.painter(), box_rect);
                 }
 
-                if matches!(self.selected_layer, SelectedLayer::Events) {
+                if matches!(self.selected_layer, SelectedLayer::Events)
+                    && ui.input(|i| !i.modifiers.shift)
+                {
                     ui.painter().rect_stroke(
                         box_rect,
                         5.,
