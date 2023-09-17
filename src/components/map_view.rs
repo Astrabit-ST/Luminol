@@ -38,6 +38,11 @@ pub struct MapView {
     /// The map coordinates of the tile being hovered over
     pub hover_tile: Option<egui::Pos2>,
 
+    /// True if selected_event_id is being hovered over by the mouse
+    /// (as opposed to the map cursor)
+    /// and false otherwise
+    pub selected_event_is_hovered: bool,
+
     pub darken_unselected_layers: bool,
 
     pub scale: f32,
@@ -82,6 +87,8 @@ impl MapView {
             darken_unselected_layers: true,
 
             hover_tile: None,
+
+            selected_event_is_hovered: false,
 
             scale: 100.,
         })
@@ -201,13 +208,11 @@ impl MapView {
         if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
             self.selected_event_id = None;
         }
+        self.selected_event_is_hovered = false;
 
         if self.event_enabled {
             let mut selected_event = None;
             let mut selected_event_rects = None;
-
-            // True if an event is being hovered over by the mouse, false otherwise
-            let mut selected_event_is_hovered = false;
 
             for (_, event) in map.events.iter() {
                 let sprite = self.events.get(event.id);
@@ -258,7 +263,7 @@ impl MapView {
 
                     // If the mouse is not hovering over an event, then we will handle the selected
                     // tile based on where the map cursor is
-                    if !selected_event_is_hovered && !dragging_event {
+                    if !self.selected_event_is_hovered && !dragging_event {
                         selected_event = match selected_event {
                             // If the map cursor is on the exact tile of an event, then that is the
                             // selected event
@@ -337,7 +342,7 @@ impl MapView {
                                 };
                                 if let Some(e) = selected_event {
                                     if e.id == event.id {
-                                        selected_event_is_hovered = true;
+                                        self.selected_event_is_hovered = true;
                                         selected_event_rects = Some((tile_rect, box_rect));
                                     }
                                 }

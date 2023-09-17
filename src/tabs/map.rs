@@ -412,6 +412,7 @@ impl tab::Tab for Tab {
                     }
                     // Allow drag and drop to move events
                     else if !self.dragging_event
+                        && self.view.selected_event_is_hovered
                         && response.drag_started_by(egui::PointerButton::Primary)
                     {
                         self.dragging_event = true;
