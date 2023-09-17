@@ -214,12 +214,7 @@ where
     where
         A: serde::de::MapAccess<'de>,
     {
-        std::iter::from_fn(|| match map.next_entry() {
-            Ok(Some(x)) => Some(Ok(x)),
-            Err(e) => Some(Err(e)),
-            Ok(None) => None,
-        })
-        .collect()
+        std::iter::from_fn(|| map.next_entry().transpose()).collect()
     }
 }
 
