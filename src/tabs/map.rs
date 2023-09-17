@@ -398,96 +398,90 @@ impl tab::Tab for Tab {
                             (map_x as usize, map_y as usize, tile_layer),
                         );
                     }
-                } else {
-                    if let Some(selected_event_id) = self.view.selected_event_id {
-                        if response.double_clicked()
-                            || (response.hovered()
-                                && ui.memory(|m| m.focus().is_none())
-                                && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                        {
-                            // Double-click/press enter on events to edit them
-                            if ui.input(|i| !i.modifiers.command) {
-                                self.event_windows.add_window(event_edit::Window::new(
-                                    selected_event_id,
-                                    self.id,
-                                ));
-                            }
-                        }
-                        // Allow drag and drop to move events
-                        else if !self.dragging_event
-                            && response.drag_started_by(egui::PointerButton::Primary)
-                        {
-                            self.dragging_event = true;
-                        } else if self.dragging_event
-                            && response.drag_released_by(egui::PointerButton::Primary)
-                        {
-                            self.dragging_event = false;
-                            self.event_drag_offset = None;
-                        }
-
-                        // Press delete or backspace to delete the selected event
-                        if response.hovered()
+                } else if let Some(selected_event_id) = self.view.selected_event_id {
+                    if response.double_clicked()
+                        || (response.hovered()
                             && ui.memory(|m| m.focus().is_none())
-                            && ui.input(|i| {
-                                i.key_pressed(egui::Key::Delete)
-                                    || i.key_pressed(egui::Key::Backspace)
-                            })
-                        {
-                            map.events.remove(selected_event_id);
-                            let _ = self.view.events.try_remove(selected_event_id);
+                            && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                    {
+                        // Double-click/press enter on events to edit them
+                        if ui.input(|i| !i.modifiers.command) {
+                            self.event_windows
+                                .add_window(event_edit::Window::new(selected_event_id, self.id));
                         }
+                    }
+                    // Allow drag and drop to move events
+                    else if !self.dragging_event
+                        && response.drag_started_by(egui::PointerButton::Primary)
+                    {
+                        self.dragging_event = true;
+                    } else if self.dragging_event
+                        && response.drag_released_by(egui::PointerButton::Primary)
+                    {
+                        self.dragging_event = false;
+                        self.event_drag_offset = None;
+                    }
 
-                        if let Some(hover_tile) = self.view.hover_tile {
-                            if self.dragging_event {
-                                if let Some(selected_event) = map.events.get(selected_event_id) {
-                                    // If we just started dragging an event, save the offset between the
-                                    // cursor and the event's tile so that the event will be dragged
-                                    // with that offset from the cursor
-                                    if self.event_drag_offset.is_none() {
-                                        self.event_drag_offset = Some(
-                                            egui::Pos2::new(
-                                                selected_event.x as f32,
-                                                selected_event.y as f32,
-                                            ) - hover_tile,
-                                        );
-                                    };
-                                }
+                    // Press delete or backspace to delete the selected event
+                    if response.hovered()
+                        && ui.memory(|m| m.focus().is_none())
+                        && ui.input(|i| {
+                            i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
+                        })
+                    {
+                        map.events.remove(selected_event_id);
+                        let _ = self.view.events.try_remove(selected_event_id);
+                    }
 
-                                if let Some(offset) = self.event_drag_offset {
-                                    // If dragging an event and the cursor is not hovering over the tile of
-                                    // a different event, move the dragged event's tile to the cursor
-                                    let adjusted_hover_tile = hover_tile + offset;
-                                    if map
-                                        .events
-                                        .iter()
-                                        .filter(|(_, e)| {
-                                            adjusted_hover_tile.x == e.x as f32
-                                                && adjusted_hover_tile.y == e.y as f32
-                                        })
-                                        .map(|(_, e)| e.id)
-                                        .next()
-                                        .is_none()
+                    if let Some(hover_tile) = self.view.hover_tile {
+                        if self.dragging_event {
+                            if let Some(selected_event) = map.events.get(selected_event_id) {
+                                // If we just started dragging an event, save the offset between the
+                                // cursor and the event's tile so that the event will be dragged
+                                // with that offset from the cursor
+                                if self.event_drag_offset.is_none() {
+                                    self.event_drag_offset = Some(
+                                        egui::Pos2::new(
+                                            selected_event.x as f32,
+                                            selected_event.y as f32,
+                                        ) - hover_tile,
+                                    );
+                                };
+                            }
+
+                            if let Some(offset) = self.event_drag_offset {
+                                // If dragging an event and the cursor is not hovering over the tile of
+                                // a different event, move the dragged event's tile to the cursor
+                                let adjusted_hover_tile = hover_tile + offset;
+                                if map
+                                    .events
+                                    .iter()
+                                    .filter(|(_, e)| {
+                                        adjusted_hover_tile.x == e.x as f32
+                                            && adjusted_hover_tile.y == e.y as f32
+                                    })
+                                    .next()
+                                    .is_none()
+                                {
+                                    if let Some(selected_event) =
+                                        map.events.get_mut(selected_event_id)
                                     {
-                                        if let Some(selected_event) =
-                                            map.events.get_mut(selected_event_id)
-                                        {
-                                            selected_event.x = adjusted_hover_tile.x as i32;
-                                            selected_event.y = adjusted_hover_tile.y as i32;
-                                        }
+                                        selected_event.x = adjusted_hover_tile.x as i32;
+                                        selected_event.y = adjusted_hover_tile.y as i32;
                                     }
                                 }
                             }
                         }
-                    } else {
-                        // Double-click/press enter on an empty space to add an event
-                        // (hold shift to prevent events from being selected)
-                        if response.double_clicked()
-                            || (response.hovered()
-                                && ui.memory(|m| m.focus().is_none())
-                                && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                        {
-                            self.add_event(&mut map);
-                        }
+                    }
+                } else {
+                    // Double-click/press enter on an empty space to add an event
+                    // (hold shift to prevent events from being selected)
+                    if response.double_clicked()
+                        || (response.hovered()
+                            && ui.memory(|m| m.focus().is_none())
+                            && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                    {
+                        self.add_event(&mut map);
                     }
                 }
             })

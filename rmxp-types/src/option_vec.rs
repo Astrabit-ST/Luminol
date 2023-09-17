@@ -58,11 +58,11 @@ impl<T> OptionVec<T> {
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.vec.get(index).map_or(None, |x| x.as_ref())
+        self.vec.get(index).and_then(|x| x.as_ref())
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.vec.get_mut(index).map_or(None, |x| x.as_mut())
+        self.vec.get_mut(index).and_then(|x| x.as_mut())
     }
 
     pub fn capacity(&self) -> usize {
