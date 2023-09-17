@@ -389,8 +389,12 @@ impl tab::Tab for Tab {
                     }
                 } else {
                     if let Some(selected_event_id) = self.view.selected_event_id {
-                        if response.double_clicked() {
-                            // Double-click on events to edit them
+                        if response.double_clicked()
+                            || (response.hovered()
+                                && ui.memory(|m| m.focus().is_none())
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                        {
+                            // Double-click/press enter on events to edit them
                             if ui.input(|i| !i.modifiers.command) {
                                 self.event_windows.add_window(event_edit::Window::new(
                                     selected_event_id,
@@ -411,9 +415,13 @@ impl tab::Tab for Tab {
                             let _ = self.view.events.try_remove(selected_event_id);
                         }
                     } else {
-                        // Double-click on an empty space to add an event
+                        // Double-click/press enter on an empty space to add an event
                         // (hold shift to prevent events from being selected)
-                        if response.double_clicked() {
+                        if response.double_clicked()
+                            || (response.hovered()
+                                && ui.memory(|m| m.focus().is_none())
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                        {
                             self.add_event(&mut map);
                         }
                     }
