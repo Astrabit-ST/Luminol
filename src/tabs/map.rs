@@ -377,6 +377,10 @@ impl tab::Tab for Tab {
                 let map_x = self.view.cursor_pos.x as i32;
                 let map_y = self.view.cursor_pos.y as i32;
 
+                if self.dragging_event && self.view.selected_event_id.is_none() {
+                    self.dragging_event = false;
+                }
+
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
                     if response.dragged_by(egui::PointerButton::Primary)
                         && !ui.input(|i| i.modifiers.command)
@@ -402,6 +406,16 @@ impl tab::Tab for Tab {
                                 ));
                             }
                         }
+                        // Allow drag and drop to move events
+                        else if !self.dragging_event
+                            && response.drag_started_by(egui::PointerButton::Primary)
+                        {
+                            self.dragging_event = true;
+                        } else if self.dragging_event
+                            && response.drag_released_by(egui::PointerButton::Primary)
+                        {
+                            self.dragging_event = false;
+                        }
 
                         // Press delete or backspace to delete the selected event
                         if response.hovered()
@@ -413,6 +427,22 @@ impl tab::Tab for Tab {
                         {
                             map.events.remove(selected_event_id);
                             let _ = self.view.events.try_remove(selected_event_id);
+                        }
+
+                        if let Some(selected_event) = map.events.get_mut(selected_event_id) {
+                            if let Some(hover_tile) = self.view.hover_tile {
+                                // If dragging an event and the cursor is not hovering over the tile of
+                                // a different event, move the dragged event's tile to the cursor
+                                if self.dragging_event
+                                    && match self.view.hover_tile_event_id {
+                                        Some(id) => id == selected_event_id,
+                                        None => true,
+                                    }
+                                {
+                                    selected_event.x = hover_tile.x as i32;
+                                    selected_event.y = hover_tile.y as i32;
+                                }
+                            }
                         }
                     } else {
                         // Double-click/press enter on an empty space to add an event

@@ -35,6 +35,11 @@ pub struct MapView {
     pub event_enabled: bool,
     pub snap_to_grid: bool,
 
+    /// The map coordinates of the tile being hovered over
+    pub hover_tile: Option<egui::Pos2>,
+    /// If hovering over the exact tile of an event, this is that event's ID
+    pub hover_tile_event_id: Option<usize>,
+
     pub darken_unselected_layers: bool,
 
     pub scale: f32,
@@ -77,6 +82,9 @@ impl MapView {
             snap_to_grid: false,
 
             darken_unselected_layers: true,
+
+            hover_tile: None,
+            hover_tile_event_id: None,
 
             scale: 100.,
         })
@@ -144,14 +152,14 @@ impl MapView {
         let canvas_pos = canvas_center + self.pan;
 
         // We check here after we calculate the scale and whatnot
-        let mut hover_tile = None;
+        self.hover_tile = None;
         if let Some(pos) = response.hover_pos() {
             let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
                 + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
             // Force the cursor to a tile instead of in-between
             pos_tile.x = pos_tile.x.floor().clamp(0., map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0., map.height as f32 - 1.);
-            hover_tile = Some(pos_tile);
+            self.hover_tile = Some(pos_tile.to_pos2());
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
                 || dragging_event
@@ -196,6 +204,7 @@ impl MapView {
         if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
             self.selected_event_id = None;
         }
+        self.hover_tile_event_id = None;
 
         if self.event_enabled {
             let mut selected_event = None;
@@ -253,7 +262,7 @@ impl MapView {
 
                     // If the mouse is not hovering over an event, then we will handle the selected
                     // tile based on where the map cursor is
-                    if !selected_event_is_hovered {
+                    if !selected_event_is_hovered && !dragging_event {
                         selected_event = match selected_event {
                             // If the map cursor is on the exact tile of an event, then that is the
                             // selected event
@@ -307,33 +316,50 @@ impl MapView {
                             }
                         });
 
-                        if let Some(hover_tile) = hover_tile {
-                            // Handle which event should be considered selected based on the
-                            // hovered tile
-                            selected_event = match selected_event {
-                                // If the cursor is hovering over the exact tile of an event, then that is
-                                // the selected event
-                                Some(e)
-                                    if hover_tile.x == event.x as f32
-                                        && hover_tile.y == event.y as f32 =>
-                                {
-                                    Some(event)
-                                }
-                                Some(e)
-                                    if hover_tile.x == e.x as f32 && hover_tile.y == e.y as f32 =>
-                                {
-                                    selected_event
-                                }
-                                // Otherwise if the cursor is hovering over at least one event's graphic,
-                                // then the one out of those with the highest ID should be the selected event
-                                _ => Some(event),
-                            };
-                            if let Some(e) = selected_event {
-                                if e.id == event.id {
-                                    selected_event_is_hovered = true;
-                                    selected_event_rects = Some((tile_rect, box_rect));
+                        if let Some(hover_tile) = self.hover_tile {
+                            // If the cursor is hovering over this event's tile,
+                            // set hover_tile_event_id to its event ID
+                            if hover_tile.x == event.x as f32 && hover_tile.y == event.y as f32 {
+                                self.hover_tile_event_id = Some(event.id);
+                            }
+
+                            if !dragging_event {
+                                // Handle which event should be considered selected based on the
+                                // hovered tile
+                                selected_event = match selected_event {
+                                    // If the cursor is hovering over the exact tile of an event, then that is
+                                    // the selected event
+                                    Some(e)
+                                        if hover_tile.x == event.x as f32
+                                            && hover_tile.y == event.y as f32 =>
+                                    {
+                                        Some(event)
+                                    }
+                                    Some(e)
+                                        if hover_tile.x == e.x as f32
+                                            && hover_tile.y == e.y as f32 =>
+                                    {
+                                        selected_event
+                                    }
+                                    // Otherwise if the cursor is hovering over at least one event's graphic,
+                                    // then the one out of those with the highest ID should be the selected event
+                                    _ => Some(event),
+                                };
+                                if let Some(e) = selected_event {
+                                    if e.id == event.id {
+                                        selected_event_is_hovered = true;
+                                        selected_event_rects = Some((tile_rect, box_rect));
+                                    }
                                 }
                             }
+                        }
+                    }
+
+                    // If an event is being dragged, that should always be the selected event
+                    if let Some(id) = self.selected_event_id {
+                        if dragging_event && id == event.id {
+                            selected_event = Some(event);
+                            selected_event_rects = Some((tile_rect, box_rect));
                         }
                     }
                 } else {
