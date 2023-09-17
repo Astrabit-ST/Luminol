@@ -450,8 +450,9 @@ impl tab::Tab for Tab {
                             }
 
                             if let Some(offset) = self.event_drag_offset {
-                                // If dragging an event and the cursor is not hovering over the tile of
-                                // a different event, move the dragged event's tile to the cursor
+                                // If moving an event, move the dragged event's tile to the cursor
+                                // after adjusting for drag offset, unless that would put the event
+                                // on the same tile as an existing event
                                 let adjusted_hover_tile = hover_tile + offset;
                                 if !map.events.iter().any(|(_, e)| {
                                     adjusted_hover_tile.x == e.x as f32
