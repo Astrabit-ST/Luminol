@@ -19,10 +19,11 @@ use std::ops::{Index, IndexMut};
 
 use serde::ser::SerializeMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// A vector that can contain unused indices.
 pub struct OptionVec<T> {
     vec: Vec<Option<T>>,
+    num_values: usize,
 }
 
 pub struct Iter<'a, T> {
@@ -38,11 +39,18 @@ pub struct Visitor<T>(std::marker::PhantomData<T>);
 impl<T> OptionVec<T> {
     /// Create a new OptionVec with no elements.
     pub fn new() -> Self {
-        Self { vec: Vec::new() }
+        Self {
+            vec: Vec::new(),
+            num_values: 0,
+        }
     }
 
     pub fn len(&self) -> usize {
         self.vec.len()
+    }
+
+    pub fn size(&self) -> usize {
+        self.num_values
     }
 
     pub fn is_empty(&self) -> bool {
@@ -83,6 +91,9 @@ impl<T> OptionVec<T> {
             self.vec
                 .extend(std::iter::repeat_with(|| None).take(additional));
         }
+        if self.vec[index].is_none() {
+            self.num_values += 1;
+        }
         self.vec[index] = Some(element);
     }
 
@@ -95,6 +106,7 @@ impl<T> OptionVec<T> {
         } else if self.vec[index].is_none() {
             Err(String::from("index not found"))
         } else {
+            self.num_values -= 1;
             self.vec[index] = None;
             Ok(())
         }
@@ -117,6 +129,7 @@ impl<T> Default for OptionVec<T> {
 impl<T> FromIterator<(usize, T)> for OptionVec<T> {
     fn from_iter<I: IntoIterator<Item = (usize, T)>>(iterable: I) -> Self {
         let mut vec = Vec::new();
+        let mut num_values = 0;
         for (i, v) in iterable.into_iter() {
             if i >= vec.len() {
                 let additional = i - vec.len() + 1;
@@ -124,8 +137,9 @@ impl<T> FromIterator<(usize, T)> for OptionVec<T> {
                 vec.extend(std::iter::repeat_with(|| None).take(additional));
             }
             vec[i] = Some(v);
+            num_values += 1;
         }
-        Self { vec }
+        Self { vec, num_values }
     }
 }
 
@@ -229,7 +243,7 @@ where
     where
         S: serde::Serializer,
     {
-        let mut ser = serializer.serialize_map(Some(self.len()))?;
+        let mut ser = serializer.serialize_map(Some(self.size()))?;
         for (index, element) in self {
             ser.serialize_key(&index)?;
             ser.serialize_value(element)?;
