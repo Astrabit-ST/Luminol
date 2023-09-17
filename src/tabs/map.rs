@@ -38,6 +38,10 @@ pub struct Tab {
     dragging_event: bool,
     event_windows: window::Windows,
     force_close: bool,
+
+    /// When event dragging starts, this is set to the difference between
+    /// the dragged event's tile and the cursor position
+    pub event_drag_offset: Option<egui::Vec2>,
 }
 
 impl Tab {
@@ -55,6 +59,8 @@ impl Tab {
             dragging_event: false,
             event_windows: window::Windows::default(),
             force_close: false,
+
+            event_drag_offset: None,
         })
     }
 
@@ -379,6 +385,7 @@ impl tab::Tab for Tab {
 
                 if self.dragging_event && self.view.selected_event_id.is_none() {
                     self.dragging_event = false;
+                    self.event_drag_offset = None;
                 }
 
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
@@ -415,6 +422,7 @@ impl tab::Tab for Tab {
                             && response.drag_released_by(egui::PointerButton::Primary)
                         {
                             self.dragging_event = false;
+                            self.event_drag_offset = None;
                         }
 
                         // Press delete or backspace to delete the selected event
@@ -429,18 +437,44 @@ impl tab::Tab for Tab {
                             let _ = self.view.events.try_remove(selected_event_id);
                         }
 
-                        if let Some(selected_event) = map.events.get_mut(selected_event_id) {
-                            if let Some(hover_tile) = self.view.hover_tile {
-                                // If dragging an event and the cursor is not hovering over the tile of
-                                // a different event, move the dragged event's tile to the cursor
-                                if self.dragging_event
-                                    && match self.view.hover_tile_event_id {
-                                        Some(id) => id == selected_event_id,
-                                        None => true,
+                        if let Some(hover_tile) = self.view.hover_tile {
+                            if self.dragging_event {
+                                if let Some(selected_event) = map.events.get(selected_event_id) {
+                                    // If we just started dragging an event, save the offset between the
+                                    // cursor and the event's tile so that the event will be dragged
+                                    // with that offset from the cursor
+                                    if self.event_drag_offset.is_none() {
+                                        self.event_drag_offset = Some(
+                                            egui::Pos2::new(
+                                                selected_event.x as f32,
+                                                selected_event.y as f32,
+                                            ) - hover_tile,
+                                        );
+                                    };
+                                }
+
+                                if let Some(offset) = self.event_drag_offset {
+                                    // If dragging an event and the cursor is not hovering over the tile of
+                                    // a different event, move the dragged event's tile to the cursor
+                                    let adjusted_hover_tile = hover_tile + offset;
+                                    if map
+                                        .events
+                                        .iter()
+                                        .filter(|(_, e)| {
+                                            adjusted_hover_tile.x == e.x as f32
+                                                && adjusted_hover_tile.y == e.y as f32
+                                        })
+                                        .map(|(_, e)| e.id)
+                                        .next()
+                                        .is_none()
+                                    {
+                                        if let Some(selected_event) =
+                                            map.events.get_mut(selected_event_id)
+                                        {
+                                            selected_event.x = adjusted_hover_tile.x as i32;
+                                            selected_event.y = adjusted_hover_tile.y as i32;
+                                        }
                                     }
-                                {
-                                    selected_event.x = hover_tile.x as i32;
-                                    selected_event.y = hover_tile.y as i32;
                                 }
                             }
                         }

@@ -37,8 +37,6 @@ pub struct MapView {
 
     /// The map coordinates of the tile being hovered over
     pub hover_tile: Option<egui::Pos2>,
-    /// If hovering over the exact tile of an event, this is that event's ID
-    pub hover_tile_event_id: Option<usize>,
 
     pub darken_unselected_layers: bool,
 
@@ -84,7 +82,6 @@ impl MapView {
             darken_unselected_layers: true,
 
             hover_tile: None,
-            hover_tile_event_id: None,
 
             scale: 100.,
         })
@@ -204,7 +201,6 @@ impl MapView {
         if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
             self.selected_event_id = None;
         }
-        self.hover_tile_event_id = None;
 
         if self.event_enabled {
             let mut selected_event = None;
@@ -317,12 +313,6 @@ impl MapView {
                         });
 
                         if let Some(hover_tile) = self.hover_tile {
-                            // If the cursor is hovering over this event's tile,
-                            // set hover_tile_event_id to its event ID
-                            if hover_tile.x == event.x as f32 && hover_tile.y == event.y as f32 {
-                                self.hover_tile_event_id = Some(event.id);
-                            }
-
                             if !dragging_event {
                                 // Handle which event should be considered selected based on the
                                 // hovered tile
