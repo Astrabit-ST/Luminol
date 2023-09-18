@@ -7,11 +7,14 @@ pub mod rmxp;
 // Shared structs with the same layout
 mod shared;
 
+mod option_vec;
+
 mod rgss_structs;
 
 mod helpers;
 
 pub use helpers::*;
+pub use option_vec::OptionVec;
 pub use rgss_structs::{Color, Table1, Table2, Table3, Tone};
 
 pub mod rpg {

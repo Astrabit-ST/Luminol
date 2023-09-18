@@ -29,19 +29,19 @@ pub struct Window {
     id: usize,
     map_id: usize,
     selected_page: usize,
-    event: rpg::Event,
+    name: String,
     viewed_tab: u8,
     modals: (bool, bool, bool),
 }
 
 impl Window {
     /// Create a new event editor.
-    pub fn new(id: usize, map_id: usize, event: rpg::Event, tileset_name: String) -> Self {
+    pub fn new(id: usize, map_id: usize) -> Self {
         Self {
             id,
             map_id,
             selected_page: 0,
-            event,
+            name: String::from("(unknown)"),
             viewed_tab: 2,
             modals: (false, false, false),
         }
@@ -50,17 +50,27 @@ impl Window {
 
 impl window::Window for Window {
     fn name(&self) -> String {
-        format!(
-            "Event: {}, {} in Map {}",
-            self.event.name, self.id, self.map_id
-        )
+        format!("Event: {}, {} in Map {}", self.name, self.id, self.map_id)
     }
 
     fn id(&self) -> egui::Id {
-        egui::Id::new("Event Editor")
+        egui::Id::new("luminol_event_edit")
+            .with(self.map_id)
+            .with(self.id)
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        let mut map = state!().data_cache.map(self.map_id);
+        let event = match map.events.get_mut(self.id) {
+            Some(e) => e,
+            None => {
+                *open = false;
+                return;
+            }
+        };
+        event.extra_data.is_editor_open = true;
+        self.name.clone_from(&event.name);
+
         let mut win_open = true;
 
         egui::Window::new(self.name())
@@ -68,7 +78,7 @@ impl window::Window for Window {
             .open(&mut win_open)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut self.event.name);
+                    ui.text_edit_singleline(&mut event.name);
 
                     ui.button("New page").clicked();
                     ui.button("Copy page").clicked();
@@ -79,7 +89,7 @@ impl window::Window for Window {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    for (page, _) in self.event.pages.iter().enumerate() {
+                    for (page, _) in event.pages.iter().enumerate() {
                         if ui
                             .selectable_value(&mut self.selected_page, page, page.to_string())
                             .clicked()
@@ -99,7 +109,7 @@ impl window::Window for Window {
 
                 ui.separator();
 
-                let page = self.event.pages.get_mut(self.selected_page).unwrap();
+                let page = event.pages.get_mut(self.selected_page).unwrap();
 
                 match self.viewed_tab {
                     0 => {
@@ -282,7 +292,9 @@ impl window::Window for Window {
                             });
                         });
                     }
+
                     1 => {}
+
                     2 => {
                         ui.vertical(|ui| {
                             ui.group(|ui| {
@@ -307,8 +319,8 @@ impl window::Window for Window {
                     let cancel_clicked = ui.button("Cancel").clicked();
 
                     if apply_clicked || ok_clicked {
-                        let mut map = state!().data_cache.map(self.map_id);
-                        map.events[self.id] = self.event.clone();
+                        //let mut map = state!().data_cache.map(self.map_id);
+                        //map.events[self.id] = event.clone();
                     }
 
                     if cancel_clicked || ok_clicked {

@@ -27,13 +27,18 @@ pub struct Graphic {
 struct Data {
     hue: f32,
     opacity: f32,
+    opacity_multiplier: f32,
 }
 
 impl Graphic {
     pub fn new(hue: i32, opacity: i32) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
         let opacity = opacity as f32 / 255.;
-        let data = Data { hue, opacity };
+        let data = Data {
+            hue,
+            opacity,
+            opacity_multiplier: 1.,
+        };
 
         Self {
             data: AtomicCell::new(data),
@@ -60,6 +65,19 @@ impl Graphic {
         let data = self.data.load();
 
         self.data.store(Data { opacity, ..data });
+    }
+
+    pub fn opacity_multiplier(&self) -> f32 {
+        self.data.load().opacity_multiplier
+    }
+
+    pub fn set_opacity_multiplier(&self, opacity_multiplier: f32) {
+        let data = self.data.load();
+
+        self.data.store(Data {
+            opacity_multiplier,
+            ..data
+        });
     }
 
     pub fn as_bytes(&self) -> [u8; std::mem::size_of::<Data>()] {

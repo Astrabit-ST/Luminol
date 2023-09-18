@@ -38,6 +38,10 @@ pub struct Tab {
     dragging_event: bool,
     event_windows: window::Windows,
     force_close: bool,
+
+    /// When event dragging starts, this is set to the difference between
+    /// the dragged event's tile and the cursor position
+    event_drag_offset: Option<egui::Vec2>,
 }
 
 impl Tab {
@@ -55,6 +59,8 @@ impl Tab {
             dragging_event: false,
             event_windows: window::Windows::default(),
             force_close: false,
+
+            event_drag_offset: None,
         })
     }
 
@@ -207,6 +213,53 @@ impl Tab {
             }
         }
     }
+
+    fn add_event(&self, map: &mut rpg::Map) {
+        let mut first_vacant_id = 1;
+        let mut max_event_id = 0;
+
+        for (_, event) in map.events.iter() {
+            if event.id == first_vacant_id {
+                first_vacant_id += 1;
+            }
+            max_event_id = event.id;
+
+            if event.x == self.view.cursor_pos.x as i32 && event.y == self.view.cursor_pos.y as i32
+            {
+                state!()
+                    .toasts
+                    .error("Cannot create event on an existing event's tile");
+                return;
+            }
+        }
+
+        // Try first to allocate the event number directly after the current highest one.
+        // However, valid event number range in RPG Maker XP and VX is 1-999.
+        let new_event_id = if max_event_id < 999 {
+            max_event_id + 1
+        }
+        // Otherwise, we'll try to use a non-allocated event ID that isn't zero.
+        else if first_vacant_id <= 999 {
+            first_vacant_id
+        } else {
+            state!()
+                .toasts
+                .error("Event limit reached, please delete some events");
+            return;
+        };
+
+        map.events.insert(
+            new_event_id,
+            rpg::Event::new(
+                self.view.cursor_pos.x as i32,
+                self.view.cursor_pos.y as i32,
+                new_event_id,
+            ),
+        );
+
+        self.event_windows
+            .add_window(event_edit::Window::new(new_event_id, self.id));
+    }
 }
 
 impl tab::Tab for Tab {
@@ -224,11 +277,6 @@ impl tab::Tab for Tab {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        let state = state!();
-
-        // Get the map.
-        let mut map = state.data_cache.map(self.id);
-
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -326,11 +374,19 @@ impl tab::Tab for Tab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                // Get the map.
+                let mut map = state!().data_cache.map(self.id);
+
                 let response = self.view.ui(ui, &map, self.dragging_event);
 
                 let layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
                 let map_y = self.view.cursor_pos.y as i32;
+
+                if self.dragging_event && self.view.selected_event_id.is_none() {
+                    self.dragging_event = false;
+                    self.event_drag_offset = None;
+                }
 
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
                     if response.dragged_by(egui::PointerButton::Primary)
@@ -342,18 +398,95 @@ impl tab::Tab for Tab {
                             (map_x as usize, map_y as usize, tile_layer),
                         );
                     }
+                } else if let Some(selected_event_id) = self.view.selected_event_id {
+                    if response.double_clicked()
+                        || (response.hovered()
+                            && ui.memory(|m| m.focus().is_none())
+                            && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                    {
+                        // Double-click/press enter on events to edit them
+                        if ui.input(|i| !i.modifiers.command) {
+                            self.dragging_event = false;
+                            self.event_drag_offset = None;
+                            self.event_windows
+                                .add_window(event_edit::Window::new(selected_event_id, self.id));
+                        }
+                    }
+                    // Allow drag and drop to move events
+                    else if !self.dragging_event
+                        && self.view.selected_event_is_hovered
+                        && response.drag_started_by(egui::PointerButton::Primary)
+                    {
+                        self.dragging_event = true;
+                    } else if self.dragging_event
+                        && !response.dragged_by(egui::PointerButton::Primary)
+                    {
+                        self.dragging_event = false;
+                        self.event_drag_offset = None;
+                    }
+
+                    // Press delete or backspace to delete the selected event
+                    if response.hovered()
+                        && ui.memory(|m| m.focus().is_none())
+                        && ui.input(|i| {
+                            i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
+                        })
+                    {
+                        map.events.remove(selected_event_id);
+                        let _ = self.view.events.try_remove(selected_event_id);
+                    }
+
+                    if let Some(hover_tile) = self.view.hover_tile {
+                        if self.dragging_event {
+                            if let Some(selected_event) = map.events.get(selected_event_id) {
+                                // If we just started dragging an event, save the offset between the
+                                // cursor and the event's tile so that the event will be dragged
+                                // with that offset from the cursor
+                                if self.event_drag_offset.is_none() {
+                                    self.event_drag_offset = Some(
+                                        egui::Pos2::new(
+                                            selected_event.x as f32,
+                                            selected_event.y as f32,
+                                        ) - hover_tile,
+                                    );
+                                };
+                            }
+
+                            if let Some(offset) = self.event_drag_offset {
+                                // If moving an event, move the dragged event's tile to the cursor
+                                // after adjusting for drag offset, unless that would put the event
+                                // on the same tile as an existing event
+                                let adjusted_hover_tile = hover_tile + offset;
+                                if !map.events.iter().any(|(_, e)| {
+                                    adjusted_hover_tile.x == e.x as f32
+                                        && adjusted_hover_tile.y == e.y as f32
+                                }) {
+                                    if let Some(selected_event) =
+                                        map.events.get_mut(selected_event_id)
+                                    {
+                                        selected_event.x = adjusted_hover_tile.x as i32;
+                                        selected_event.y = adjusted_hover_tile.y as i32;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Double-click/press enter on an empty space to add an event
+                    // (hold shift to prevent events from being selected)
+                    if response.double_clicked()
+                        || (response.hovered()
+                            && ui.memory(|m| m.focus().is_none())
+                            && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                    {
+                        self.dragging_event = false;
+                        self.event_drag_offset = None;
+                        self.add_event(&mut map);
+                    }
                 }
 
-                if ui.input(|i| {
-                    i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
-                }) {
-                    if let Some((id, _)) = map
-                        .events
-                        .iter()
-                        .find(|(_, event)| event.x == map_x && event.y == map_y)
-                    {
-                        map.events.remove(id);
-                    }
+                for (_, event) in map.events.iter_mut() {
+                    event.extra_data.is_editor_open = false;
                 }
             })
         });

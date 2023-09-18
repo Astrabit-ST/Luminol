@@ -44,7 +44,7 @@ impl Shader {
                         },
                         wgpu::PushConstantRange {
                             stages: wgpu::ShaderStages::FRAGMENT,
-                            range: 64..(64 + 8),
+                            range: 64..(64 + 4 + 4 + 4),
                         },
                     ],
                 });

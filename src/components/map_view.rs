@@ -26,13 +26,22 @@ pub struct MapView {
     pub pan: egui::Vec2,
     pub inter_tile_pan: egui::Vec2,
 
-    pub events: HashMap<usize, Event>,
+    pub events: rmxp_types::OptionVec<Event>,
     pub map: Map,
 
     pub selected_layer: SelectedLayer,
+    pub selected_event_id: Option<usize>,
     pub cursor_pos: egui::Pos2,
     pub event_enabled: bool,
     pub snap_to_grid: bool,
+
+    /// The map coordinates of the tile being hovered over
+    pub hover_tile: Option<egui::Pos2>,
+
+    /// True if selected_event_id is being hovered over by the mouse
+    /// (as opposed to the map cursor)
+    /// and false otherwise
+    pub selected_event_is_hovered: bool,
 
     pub darken_unselected_layers: bool,
 
@@ -70,11 +79,16 @@ impl MapView {
             map,
 
             selected_layer: SelectedLayer::default(),
+            selected_event_id: None,
             cursor_pos: egui::Pos2::ZERO,
             event_enabled: true,
             snap_to_grid: false,
 
             darken_unselected_layers: true,
+
+            hover_tile: None,
+
+            selected_event_is_hovered: false,
 
             scale: 100.,
         })
@@ -142,12 +156,14 @@ impl MapView {
         let canvas_pos = canvas_center + self.pan;
 
         // We check here after we calculate the scale and whatnot
+        self.hover_tile = None;
         if let Some(pos) = response.hover_pos() {
             let mut pos_tile = (pos - self.pan - canvas_center) / tile_size
                 + egui::Vec2::new(map.width as f32 / 2., map.height as f32 / 2.);
             // Force the cursor to a tile instead of in-between
             pos_tile.x = pos_tile.x.floor().clamp(0., map.width as f32 - 1.);
             pos_tile.y = pos_tile.y.floor().clamp(0., map.height as f32 - 1.);
+            self.hover_tile = Some(pos_tile.to_pos2());
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
                 || dragging_event
@@ -184,14 +200,45 @@ impl MapView {
             egui::Stroke::new(3., egui::Color32::DARK_GRAY),
         );
 
+        let cursor_rect = egui::Rect::from_min_size(
+            map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
+            egui::Vec2::splat(tile_size),
+        );
+
+        if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
+            self.selected_event_id = None;
+        }
+        self.selected_event_is_hovered = false;
+
         if self.event_enabled {
+            let mut selected_event = None;
+            let mut selected_event_rects = None;
+
             for (_, event) in map.events.iter() {
-                let sprite = self.events.get(&event.id);
+                let sprite = self.events.get(event.id);
                 let event_size = sprite
                     .map(|e| e.sprite_size)
                     .unwrap_or(egui::vec2(32., 32.));
                 let scaled_event_size = event_size * scale;
 
+                // Darken the graphic if required
+                if let Some(sprite) = sprite {
+                    sprite.sprite().graphic.set_opacity_multiplier(
+                        if self.darken_unselected_layers
+                            && !matches!(self.selected_layer, SelectedLayer::Events)
+                        {
+                            0.5
+                        } else {
+                            1.
+                        },
+                    );
+                }
+
+                let tile_rect = egui::Rect::from_min_size(
+                    map_rect.min
+                        + egui::vec2(event.x as f32 * tile_size, event.y as f32 * tile_size),
+                    egui::vec2(32., 32.) * scale,
+                );
                 let box_rect = egui::Rect::from_min_size(
                     map_rect.min
                         + egui::vec2(
@@ -205,26 +252,143 @@ impl MapView {
                     sprite.paint(ui.painter(), box_rect);
                 }
 
-                ui.painter()
-                    .rect_stroke(box_rect, 5., egui::Stroke::new(1., egui::Color32::WHITE));
+                if matches!(self.selected_layer, SelectedLayer::Events)
+                    && ui.input(|i| !i.modifiers.shift)
+                {
+                    ui.painter().rect_stroke(
+                        box_rect,
+                        5.,
+                        egui::Stroke::new(1., egui::Color32::WHITE),
+                    );
 
-                if ui.rect_contains_pointer(box_rect) {
-                    response = response.on_hover_ui_at_pointer(|ui| {
-                        ui.label(format!("Event {:0>3}: {:?}", event.id, event.name));
-
-                        let (response, painter) = ui.allocate_painter(
-                            event_size * ui.ctx().pixels_per_point(),
-                            egui::Sense::click(),
-                        );
-                        if let Some(sprite) = sprite {
-                            sprite.paint(&painter, response.rect);
+                    // If the mouse is not hovering over an event, then we will handle the selected
+                    // tile based on where the map cursor is
+                    if !self.selected_event_is_hovered && !dragging_event {
+                        selected_event = match selected_event {
+                            // If the map cursor is on the exact tile of an event, then that is the
+                            // selected event
+                            Some(_)
+                                if self.cursor_pos.x == event.x as f32
+                                    && self.cursor_pos.y == event.y as f32 =>
+                            {
+                                Some(event)
+                            }
+                            Some(e)
+                                if self.cursor_pos.x == e.x as f32
+                                    && self.cursor_pos.y == e.y as f32 =>
+                            {
+                                selected_event
+                            }
+                            // Otherwise if the map cursor intersects at least one event's graphic,
+                            // then the one out of those with the highest ID should be the selected
+                            // event
+                            _ if box_rect.contains(cursor_rect.center()) => Some(event),
+                            _ => selected_event,
+                        };
+                        if let Some(e) = selected_event {
+                            if e.id == event.id {
+                                selected_event_rects = Some((tile_rect, box_rect));
+                            }
                         }
+                    }
+
+                    if ui.rect_contains_pointer(box_rect) {
+                        response = response.on_hover_ui_at_pointer(|ui| {
+                            ui.label(format!("Event {:0>3}: {:?}", event.id, event.name));
+
+                            let (response, painter) = ui.allocate_painter(
+                                event_size * ui.ctx().pixels_per_point(),
+                                egui::Sense::click(),
+                            );
+                            if let Some(sprite) = sprite {
+                                sprite.paint(&painter, response.rect);
+                            }
+                            match self.selected_event_id {
+                                Some(id) if id == event.id => ui.painter().rect_stroke(
+                                    response.rect,
+                                    5.,
+                                    egui::Stroke::new(2., egui::Color32::YELLOW),
+                                ),
+                                _ => ui.painter().rect_stroke(
+                                    response.rect,
+                                    5.,
+                                    egui::Stroke::new(1., egui::Color32::WHITE),
+                                ),
+                            }
+                        });
+
+                        if let Some(hover_tile) = self.hover_tile {
+                            if !dragging_event {
+                                // Handle which event should be considered selected based on the
+                                // hovered tile
+                                selected_event = match selected_event {
+                                    // If the cursor is hovering over the exact tile of an event, then that is
+                                    // the selected event
+                                    Some(_)
+                                        if hover_tile.x == event.x as f32
+                                            && hover_tile.y == event.y as f32 =>
+                                    {
+                                        Some(event)
+                                    }
+                                    Some(e)
+                                        if hover_tile.x == e.x as f32
+                                            && hover_tile.y == e.y as f32 =>
+                                    {
+                                        selected_event
+                                    }
+                                    // Otherwise if the cursor is hovering over at least one event's graphic,
+                                    // then the one out of those with the highest ID should be the selected event
+                                    _ => Some(event),
+                                };
+                                if let Some(e) = selected_event {
+                                    if e.id == event.id {
+                                        self.selected_event_is_hovered = true;
+                                        selected_event_rects = Some((tile_rect, box_rect));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // If an event is being dragged, that should always be the selected event
+                    if let Some(id) = self.selected_event_id {
+                        if dragging_event && id == event.id {
+                            selected_event = Some(event);
+                            selected_event_rects = Some((tile_rect, box_rect));
+                        }
+                    }
+                } else {
+                    ui.painter().rect_stroke(
+                        box_rect,
+                        5.,
+                        egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                    );
+                }
+
+                // Draw a magenta rectangle on the border of events that are being edited
+                if event.extra_data.is_editor_open {
+                    ui.painter().rect_stroke(
+                        box_rect,
+                        5.,
+                        egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
+                    );
+                }
+            }
+
+            self.selected_event_id = selected_event.map(|e| e.id);
+
+            // Draw a yellow rectangle on the border of the selected event's graphic
+            if let Some(selected_event) = selected_event {
+                // Make sure the event editor isn't open so we don't draw over the
+                // magenta rectangle
+                if !selected_event.extra_data.is_editor_open {
+                    if let Some((tile_rect, box_rect)) = selected_event_rects {
                         ui.painter().rect_stroke(
-                            response.rect,
+                            box_rect,
                             5.,
-                            egui::Stroke::new(1., egui::Color32::WHITE),
+                            egui::Stroke::new(3., egui::Color32::YELLOW),
                         );
-                    });
+                    }
                 }
             }
         }
@@ -250,10 +414,6 @@ impl MapView {
         }
 
         // Display cursor.
-        let cursor_rect = egui::Rect::from_min_size(
-            map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
-            egui::Vec2::splat(tile_size),
-        );
         ui.painter().rect_stroke(
             cursor_rect,
             5.,
