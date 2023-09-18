@@ -124,11 +124,26 @@ impl MapView {
             self.pan = pos - canvas_center - pos_norm * self.scale + self.inter_tile_pan;
         }
 
-        // Handle pan
-        let panning_map_view = response.dragged_by(egui::PointerButton::Middle)
-            || (ui.input(|i| {
-                i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
-            }));
+        let ctrl_drag = ui.input(|i| {
+            // Handle pan
+            if i.key_pressed(egui::Key::ArrowUp) {
+                self.cursor_pos.y -= 1.0;
+            }
+            if i.key_pressed(egui::Key::ArrowDown) {
+                self.cursor_pos.y += 1.0;
+            }
+            if i.key_pressed(egui::Key::ArrowLeft) {
+                self.cursor_pos.x -= 1.0;
+            }
+            if i.key_pressed(egui::Key::ArrowRight) {
+                self.cursor_pos.x += 1.0;
+            }
+
+            i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
+        });
+
+        let panning_map_view = response.dragged_by(egui::PointerButton::Middle) || ctrl_drag;
+
         if panning_map_view {
             self.pan += response.drag_delta();
             ui.ctx().request_repaint();
