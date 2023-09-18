@@ -41,7 +41,7 @@ pub struct Tab {
 
     /// When event dragging starts, this is set to the difference between
     /// the dragged event's tile and the cursor position
-    pub event_drag_offset: Option<egui::Vec2>,
+    event_drag_offset: Option<egui::Vec2>,
 }
 
 impl Tab {
