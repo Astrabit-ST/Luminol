@@ -25,6 +25,15 @@ pub struct Event {
     pub x: i32,
     pub y: i32,
     pub pages: Vec<EventPage>,
+
+    #[serde(skip)]
+    pub extra_data: EventExtraData,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct EventExtraData {
+    /// Whether or not the event editor for this event is open
+    pub is_editor_open: bool,
 }
 
 impl Event {
@@ -36,6 +45,8 @@ impl Event {
             x,
             y,
             pages: vec![EventPage::default()],
+
+            extra_data: EventExtraData::default(),
         }
     }
 }

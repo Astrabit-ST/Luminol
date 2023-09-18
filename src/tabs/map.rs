@@ -484,6 +484,10 @@ impl tab::Tab for Tab {
                         self.add_event(&mut map);
                     }
                 }
+
+                for (_, event) in map.events.iter_mut() {
+                    event.extra_data.is_editor_open = false;
+                }
             })
         });
 

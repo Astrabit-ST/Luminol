@@ -68,6 +68,7 @@ impl window::Window for Window {
                 return;
             }
         };
+        event.extra_data.is_editor_open = true;
         self.name.clone_from(&event.name);
 
         let mut win_open = true;

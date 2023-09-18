@@ -364,17 +364,32 @@ impl MapView {
                         egui::Stroke::new(1., egui::Color32::DARK_GRAY),
                     );
                 }
+
+                // Draw a magenta rectangle on the border of events that are being edited
+                if event.extra_data.is_editor_open {
+                    ui.painter().rect_stroke(
+                        box_rect,
+                        5.,
+                        egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
+                    );
+                }
             }
 
             self.selected_event_id = selected_event.map(|e| e.id);
 
             // Draw a yellow rectangle on the border of the selected event's graphic
-            if let Some((tile_rect, box_rect)) = selected_event_rects {
-                ui.painter().rect_stroke(
-                    box_rect,
-                    5.,
-                    egui::Stroke::new(2., egui::Color32::YELLOW),
-                );
+            if let Some(selected_event) = selected_event {
+                // Make sure the event editor isn't open so we don't draw over the
+                // magenta rectangle
+                if !selected_event.extra_data.is_editor_open {
+                    if let Some((tile_rect, box_rect)) = selected_event_rects {
+                        ui.painter().rect_stroke(
+                            box_rect,
+                            5.,
+                            egui::Stroke::new(3., egui::Color32::YELLOW),
+                        );
+                    }
+                }
             }
         }
 
