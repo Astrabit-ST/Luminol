@@ -307,7 +307,7 @@ impl MapView {
                                 Some(id) if id == event.id => ui.painter().rect_stroke(
                                     response.rect,
                                     5.,
-                                    egui::Stroke::new(2., egui::Color32::from_rgb(255, 0, 255)),
+                                    egui::Stroke::new(2., egui::Color32::YELLOW),
                                 ),
                                 _ => ui.painter().rect_stroke(
                                     response.rect,
@@ -368,18 +368,12 @@ impl MapView {
 
             self.selected_event_id = selected_event.map(|e| e.id);
 
-            // Draw a magenta rectangle on the border of the selected event's graphic
-            // and a green rectangle on the border of the selected event's tile
+            // Draw a yellow rectangle on the border of the selected event's graphic
             if let Some((tile_rect, box_rect)) = selected_event_rects {
-                ui.painter().rect_stroke(
-                    tile_rect,
-                    12.,
-                    egui::Stroke::new(2., egui::Color32::GREEN),
-                );
                 ui.painter().rect_stroke(
                     box_rect,
                     5.,
-                    egui::Stroke::new(2., egui::Color32::from_rgb(255, 0, 255)),
+                    egui::Stroke::new(2., egui::Color32::YELLOW),
                 );
             }
         }
