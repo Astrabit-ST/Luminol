@@ -86,7 +86,7 @@ impl<T> OptionVec<T> {
     /// If there isn't, a new element will be added at that index.
     pub fn insert(&mut self, index: usize, element: T) {
         if index >= self.len() {
-            let additional = self.len() - index + 1;
+            let additional = index - self.len() + 1;
             self.reserve(additional);
             self.vec
                 .extend(std::iter::repeat_with(|| None).take(additional));
