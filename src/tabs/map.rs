@@ -406,6 +406,8 @@ impl tab::Tab for Tab {
                     {
                         // Double-click/press enter on events to edit them
                         if ui.input(|i| !i.modifiers.command) {
+                            self.dragging_event = false;
+                            self.event_drag_offset = None;
                             self.event_windows
                                 .add_window(event_edit::Window::new(selected_event_id, self.id));
                         }
@@ -417,7 +419,7 @@ impl tab::Tab for Tab {
                     {
                         self.dragging_event = true;
                     } else if self.dragging_event
-                        && response.drag_released_by(egui::PointerButton::Primary)
+                        && !response.dragged_by(egui::PointerButton::Primary)
                     {
                         self.dragging_event = false;
                         self.event_drag_offset = None;
@@ -477,6 +479,8 @@ impl tab::Tab for Tab {
                             && ui.memory(|m| m.focus().is_none())
                             && ui.input(|i| i.key_pressed(egui::Key::Enter)))
                     {
+                        self.dragging_event = false;
+                        self.event_drag_offset = None;
                         self.add_event(&mut map);
                     }
                 }
