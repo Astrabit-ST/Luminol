@@ -127,16 +127,20 @@ impl MapView {
 
         let ctrl_drag = ui.input(|i| {
             // Handle pan
-            if i.key_pressed(egui::Key::ArrowUp) {
+            if i.key_pressed(egui::Key::ArrowUp) && self.cursor_pos.y > 0. {
                 self.cursor_pos.y -= 1.0;
             }
-            if i.key_pressed(egui::Key::ArrowDown) {
+            if i.key_pressed(egui::Key::ArrowDown)
+                && self.cursor_pos.y < map.data.ysize() as f32 - 1.
+            {
                 self.cursor_pos.y += 1.0;
             }
-            if i.key_pressed(egui::Key::ArrowLeft) {
+            if i.key_pressed(egui::Key::ArrowLeft) && self.cursor_pos.x > 0. {
                 self.cursor_pos.x -= 1.0;
             }
-            if i.key_pressed(egui::Key::ArrowRight) {
+            if i.key_pressed(egui::Key::ArrowRight)
+                && self.cursor_pos.x < map.data.xsize() as f32 - 1.
+            {
                 self.cursor_pos.x += 1.0;
             }
 
