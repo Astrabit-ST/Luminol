@@ -27,6 +27,7 @@ use egui::Pos2;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::prelude::*;
+use crate::Pencil;
 
 pub struct Tab {
     /// ID of the map that is being edited.
@@ -42,6 +43,9 @@ pub struct Tab {
     /// When event dragging starts, this is set to the difference between
     /// the dragged event's tile and the cursor position
     event_drag_offset: Option<egui::Vec2>,
+
+    /// This cache is used by the depth-first search when using the fill brush
+    dfs_cache: Vec<bool>,
 }
 
 impl Tab {
@@ -61,6 +65,8 @@ impl Tab {
             force_close: false,
 
             event_drag_offset: None,
+
+            dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
         })
     }
 
@@ -180,10 +186,7 @@ impl Tab {
     }
 
     fn set_tile(&self, map: &mut rpg::Map, tile: SelectedTile, position: (usize, usize, usize)) {
-        map.data[position] = match tile {
-            SelectedTile::Autotile(i) => i * 48,
-            SelectedTile::Tile(i) => i,
-        };
+        map.data[position] = tile.to_id();
 
         for y in -1i8..=1i8 {
             for x in -1i8..=1i8 {
@@ -388,15 +391,80 @@ impl tab::Tab for Tab {
                     self.event_drag_offset = None;
                 }
 
+                // Tile drawing
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    let position = (map_x as usize, map_y as usize, tile_layer);
+                    let initial_tile = SelectedTile::from_id(map.data[position]);
                     if response.dragged_by(egui::PointerButton::Primary)
                         && !ui.input(|i| i.modifiers.command)
                     {
-                        self.set_tile(
-                            &mut map,
-                            self.tilepicker.selected_tile,
-                            (map_x as usize, map_y as usize, tile_layer),
-                        );
+                        match state!().toolbar.borrow().pencil {
+                            Pencil::Pen => {
+                                self.set_tile(&mut map, self.tilepicker.selected_tile, position)
+                            }
+
+                            Pencil::Fill if initial_tile == self.tilepicker.selected_tile => (),
+                            Pencil::Fill => {
+                                // Use depth-first search to find all of the orthogonally
+                                // contiguous matching tiles
+                                let mut stack = vec![position; 1];
+                                while let Some(position) = stack.pop() {
+                                    self.set_tile(
+                                        &mut map,
+                                        self.tilepicker.selected_tile,
+                                        position,
+                                    );
+                                    self.dfs_cache[position.0 + position.1 * map.data.xsize()] =
+                                        true;
+
+                                    let x_array: [i8; 4] = [-1, 1, 0, 0];
+                                    let y_array: [i8; 4] = [0, 0, -1, 1];
+                                    for (x, y) in x_array.into_iter().zip(y_array.into_iter()) {
+                                        // Don't search tiles that are out of bounds
+                                        if ((x == -1 && position.0 == 0)
+                                            || (x == 1 && position.0 + 1 == map.data.xsize()))
+                                            || ((y == -1 && position.1 == 0)
+                                                || (y == 1 && position.1 + 1 == map.data.ysize()))
+                                        {
+                                            continue;
+                                        }
+
+                                        let position = (
+                                            if x == -1 {
+                                                position.0 - 1
+                                            } else {
+                                                position.0 + x as usize
+                                            },
+                                            if y == -1 {
+                                                position.1 - 1
+                                            } else {
+                                                position.1 + y as usize
+                                            },
+                                            position.2,
+                                        );
+
+                                        // Don't search tiles that we've already searched before
+                                        // because that would cause an infinite loop
+                                        if self.dfs_cache
+                                            [position.0 + position.1 * map.data.xsize()]
+                                        {
+                                            continue;
+                                        }
+
+                                        if SelectedTile::from_id(map.data[position]) == initial_tile
+                                        {
+                                            stack.push(position);
+                                        }
+                                    }
+                                }
+
+                                for x in self.dfs_cache.iter_mut() {
+                                    *x = false;
+                                }
+                            }
+
+                            _ => todo!(),
+                        };
                     }
                 } else if let Some(selected_event_id) = self.view.selected_event_id {
                     if response.double_clicked()
