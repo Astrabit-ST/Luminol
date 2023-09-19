@@ -99,6 +99,7 @@ impl MapView {
         ui: &mut egui::Ui,
         map: &rpg::Map,
         dragging_event: bool,
+        drawing_shape_pos: Option<egui::Pos2>,
     ) -> egui::Response {
         // Allocate the largest size we can for the tilemap
         let canvas_rect = ui.max_rect();
@@ -425,6 +426,19 @@ impl MapView {
                 visible_rect,
                 5.,
                 egui::Stroke::new(1., egui::Color32::YELLOW),
+            );
+        }
+
+        // Draw the origin tile for the rectangle and circle brushes
+        if let Some(drawing_shape_pos) = drawing_shape_pos {
+            let drawing_shape_rect = egui::Rect::from_min_size(
+                map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
+                egui::Vec2::splat(tile_size),
+            );
+            ui.painter().rect_stroke(
+                drawing_shape_rect,
+                5.,
+                egui::Stroke::new(1., egui::Color32::WHITE),
             );
         }
 

@@ -37,6 +37,7 @@ pub struct Tab {
     pub tilepicker: Tilepicker,
 
     dragging_event: bool,
+    drawing_shape: bool,
     event_windows: window::Windows,
     force_close: bool,
 
@@ -46,6 +47,12 @@ pub struct Tab {
 
     /// This cache is used by the depth-first search when using the fill brush
     dfs_cache: Vec<bool>,
+    /// This is used to save a copy of the current layer when using the
+    /// rectangle or circle brush
+    layer_cache: Vec<i16>,
+    /// When drawing using the rectangle or circle brush starts,
+    /// this is set to the position of the original tile we began drawing on
+    drawing_shape_pos: Option<egui::Pos2>,
 }
 
 impl Tab {
@@ -61,12 +68,15 @@ impl Tab {
             tilepicker: Tilepicker::new(tileset)?,
 
             dragging_event: false,
+            drawing_shape: false,
             event_windows: window::Windows::default(),
             force_close: false,
 
             event_drag_offset: None,
 
             dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
+            layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
+            drawing_shape_pos: None,
         })
     }
 
@@ -380,7 +390,9 @@ impl tab::Tab for Tab {
                 // Get the map.
                 let mut map = state!().data_cache.map(self.id);
 
-                let response = self.view.ui(ui, &map, self.dragging_event);
+                let response = self
+                    .view
+                    .ui(ui, &map, self.dragging_event, self.drawing_shape_pos);
 
                 let layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
@@ -389,6 +401,11 @@ impl tab::Tab for Tab {
                 if self.dragging_event && self.view.selected_event_id.is_none() {
                     self.dragging_event = false;
                     self.event_drag_offset = None;
+                }
+
+                if self.drawing_shape && !response.dragged_by(egui::PointerButton::Primary) {
+                    self.drawing_shape = false;
+                    self.drawing_shape_pos = None;
                 }
 
                 // Tile drawing
@@ -460,6 +477,57 @@ impl tab::Tab for Tab {
 
                                 for x in self.dfs_cache.iter_mut() {
                                     *x = false;
+                                }
+                            }
+
+                            Pencil::Rectangle => {
+                                if !self.drawing_shape {
+                                    // Save the current layer
+                                    for x in 0..map.data.xsize() {
+                                        for y in 0..map.data.ysize() {
+                                            self.layer_cache[x + y * map.data.xsize()] =
+                                                map.data[(x, y, tile_layer)];
+                                        }
+                                    }
+                                    self.drawing_shape = true;
+                                } else {
+                                    // Restore the previously stored state of the current layer
+                                    for y in 0..map.data.ysize() {
+                                        for x in 0..map.data.xsize() {
+                                            let cached_id =
+                                                &mut self.layer_cache[x + y * map.data.xsize()];
+                                            let id = &mut map.data[(x, y, tile_layer)];
+                                            if cached_id != id {
+                                                self.view
+                                                    .map
+                                                    .set_tile(*cached_id, (x, y, tile_layer));
+                                            }
+                                            *id = *cached_id;
+                                        }
+                                    }
+                                }
+
+                                if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                                    let bounding_rect = egui::Rect::from_two_pos(
+                                        drawing_shape_pos,
+                                        self.view.cursor_pos,
+                                    );
+                                    for y in (bounding_rect.min.y as usize)
+                                        ..=(bounding_rect.max.y as usize)
+                                    {
+                                        for x in (bounding_rect.min.x as usize)
+                                            ..=(bounding_rect.max.x) as usize
+                                        {
+                                            let position = (x, y, tile_layer);
+                                            self.set_tile(
+                                                &mut map,
+                                                self.tilepicker.selected_tile,
+                                                position,
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    self.drawing_shape_pos = Some(self.view.cursor_pos);
                                 }
                             }
 
