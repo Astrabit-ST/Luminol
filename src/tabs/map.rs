@@ -531,7 +531,177 @@ impl tab::Tab for Tab {
                                 }
                             }
 
-                            _ => todo!(),
+                            Pencil::Circle => {
+                                if !self.drawing_shape {
+                                    // Save the current layer
+                                    for x in 0..map.data.xsize() {
+                                        for y in 0..map.data.ysize() {
+                                            self.layer_cache[x + y * map.data.xsize()] =
+                                                map.data[(x, y, tile_layer)];
+                                        }
+                                    }
+                                    self.drawing_shape = true;
+                                } else {
+                                    // Restore the previously stored state of the current layer
+                                    for y in 0..map.data.ysize() {
+                                        for x in 0..map.data.xsize() {
+                                            let cached_id =
+                                                &mut self.layer_cache[x + y * map.data.xsize()];
+                                            let id = &mut map.data[(x, y, tile_layer)];
+                                            if cached_id != id {
+                                                self.view
+                                                    .map
+                                                    .set_tile(*cached_id, (x, y, tile_layer));
+                                            }
+                                            *id = *cached_id;
+                                        }
+                                    }
+                                }
+
+                                // Use Bresenham's algorithm to draw the ellipse.
+                                // We consider (x, y) to be the top-left corner of the tile at
+                                // (x, y).
+                                if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                                    let bounding_rect = egui::Rect::from_two_pos(
+                                        drawing_shape_pos,
+                                        self.view.cursor_pos,
+                                    );
+                                    // Edge case: Bresenham's algorithm breaks down when drawing a
+                                    // 1x1 ellipse.
+                                    if drawing_shape_pos == self.view.cursor_pos {
+                                        self.set_tile(
+                                            &mut map,
+                                            self.tilepicker.selected_tile,
+                                            (map_x as usize, map_y as usize, tile_layer),
+                                        );
+                                    } else {
+                                        let bounding_rect =
+                                            bounding_rect.translate(egui::vec2(0.5, 0.5));
+
+                                        // Calculate where the center of the ellipse should be.
+                                        let x0 = bounding_rect.center().x;
+                                        let y0 = bounding_rect.center().y;
+
+                                        // Calculate the radii of the ellipse along the
+                                        // x and y directions.
+                                        let rx = bounding_rect.width() / 2.;
+                                        let ry = bounding_rect.height() / 2.;
+                                        let rx2 = rx * rx;
+                                        let ry2 = ry * ry;
+
+                                        // Let the "ellipse function" be defined as
+                                        // f(x, y) = b^2 x^2 + a^2 y^2 - a^2 b^2
+                                        // where a is the x-radius of an ellipse centered at (0, 0)
+                                        // and b is the y-radius.
+                                        // This function is positive when (x, y) is outside the
+                                        // ellipse, negative when it's inside the ellipse and zero when
+                                        // it's exactly on the edge.
+
+                                        // We'll start by drawing the part of the outer edge of the
+                                        // bottom-right quadrant of the ellipse where dy/dx >= -1,
+                                        // starting from the bottom of the ellipse and going to the
+                                        // right.
+                                        let mut x = if rx.floor() == rx { 0. } else { 0.5 };
+                                        let mut y = ry;
+
+                                        // Keep looping until dy/dx < -1.
+                                        while rx2 * y >= ry2 * x {
+                                            for i in ((-y).floor() as i32)..=(y.floor() as i32) {
+                                                let i = if y.floor() == y {
+                                                    i as f32
+                                                } else {
+                                                    i as f32 + 0.5
+                                                };
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 + x).floor() as usize,
+                                                        (y0 + i).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 - x).floor() as usize,
+                                                        (y0 + i).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                            }
+
+                                            // The next tile will either be at (x + 1, y) or
+                                            // (x + 1, y - 1), whichever is closest to the actual edge
+                                            // of the ellipse.
+                                            // To determine which is closer, we evaluate the ellipse
+                                            // function at (x + 1, y - 0.5).
+                                            // If it's positive, then (x + 1, y - 1) is closer.
+                                            // If it's negative, then (x + 1, y) is closer.
+                                            let f = ry2 * (x + 1.).powi(2)
+                                                + rx2 * (y - 0.5).powi(2)
+                                                - rx2 * ry2;
+                                            if f > 0. {
+                                                y -= 1.;
+                                            }
+                                            x += 1.;
+                                        }
+
+                                        // Now we draw the part of the outer edge of the
+                                        // bottom-right quadrant of the ellipse where dy/dx <= -1,
+                                        // starting from the right of the ellipse and going down.
+                                        let mut x = rx;
+                                        let mut y = if ry.floor() == ry { 0. } else { 0.5 };
+
+                                        // Keep looping until dy/dx > -1.
+                                        while rx2 * y <= ry2 * x {
+                                            for i in ((-x).floor() as i32)..=(x.floor() as i32) {
+                                                let i = if x.floor() == x {
+                                                    i as f32
+                                                } else {
+                                                    i as f32 + 0.5
+                                                };
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 + i).floor() as usize,
+                                                        (y0 + y).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 + i).floor() as usize,
+                                                        (y0 - y).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                            }
+
+                                            // The next tile will either be at (x, y + 1) or
+                                            // (x - 1, y + 1), whichever is closest to the actual edge
+                                            // of the ellipse.
+                                            // To determine which is closer, we evaluate the ellipse
+                                            // function at (x - 0.5, y + 1).
+                                            // If it's positive, then (x - 1, y + 1) is closer.
+                                            // If it's negative, then (x, y + 1) is closer.
+                                            let f = ry2 * (x - 0.5).powi(2)
+                                                + rx2 * (y + 1.).powi(2)
+                                                - rx2 * ry2;
+                                            if f > 0. {
+                                                x -= 1.;
+                                            }
+                                            y += 1.;
+                                        }
+                                    }
+                                } else {
+                                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                                }
+                            }
                         };
                     }
                 } else if let Some(selected_event_id) = self.view.selected_event_id {
