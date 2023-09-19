@@ -45,11 +45,13 @@ pub struct Tab {
     /// the dragged event's tile and the cursor position
     event_drag_offset: Option<egui::Vec2>,
 
+    layer_cache: Vec<i16>,
+
     /// This cache is used by the depth-first search when using the fill brush
     dfs_cache: Vec<bool>,
     /// This is used to save a copy of the current layer when using the
     /// rectangle or circle brush
-    layer_cache: Vec<i16>,
+    brush_layer_cache: Vec<i16>,
     /// When drawing using the rectangle or circle brush starts,
     /// this is set to the position of the original tile we began drawing on
     drawing_shape_pos: Option<egui::Pos2>,
@@ -74,8 +76,10 @@ impl Tab {
 
             event_drag_offset: None,
 
-            dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
             layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
+
+            dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
+            brush_layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
             drawing_shape_pos: None,
         })
     }
@@ -222,7 +226,6 @@ impl Tab {
                 );
                 let tile_id = self.recompute_autotile(map, position);
                 map.data[position] = tile_id;
-                self.view.map.set_tile(tile_id, position);
             }
         }
     }
@@ -390,6 +393,16 @@ impl tab::Tab for Tab {
                 // Get the map.
                 let mut map = state!().data_cache.map(self.id);
 
+                // Save the state of the selected layer into the cache
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    for x in 0..map.data.xsize() {
+                        for y in 0..map.data.ysize() {
+                            self.layer_cache[x + y * map.data.xsize()] =
+                                map.data[(x, y, tile_layer)];
+                        }
+                    }
+                }
+
                 let response = self
                     .view
                     .ui(ui, &map, self.dragging_event, self.drawing_shape_pos);
@@ -408,8 +421,8 @@ impl tab::Tab for Tab {
                     self.drawing_shape_pos = None;
                 }
 
-                // Tile drawing
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    // Tile drawing
                     let position = (map_x as usize, map_y as usize, tile_layer);
                     let initial_tile = SelectedTile::from_id(map.data[position]);
                     if response.dragged_by(egui::PointerButton::Primary)
@@ -485,7 +498,7 @@ impl tab::Tab for Tab {
                                     // Save the current layer
                                     for x in 0..map.data.xsize() {
                                         for y in 0..map.data.ysize() {
-                                            self.layer_cache[x + y * map.data.xsize()] =
+                                            self.brush_layer_cache[x + y * map.data.xsize()] =
                                                 map.data[(x, y, tile_layer)];
                                         }
                                     }
@@ -494,15 +507,8 @@ impl tab::Tab for Tab {
                                     // Restore the previously stored state of the current layer
                                     for y in 0..map.data.ysize() {
                                         for x in 0..map.data.xsize() {
-                                            let cached_id =
-                                                &mut self.layer_cache[x + y * map.data.xsize()];
-                                            let id = &mut map.data[(x, y, tile_layer)];
-                                            if cached_id != id {
-                                                self.view
-                                                    .map
-                                                    .set_tile(*cached_id, (x, y, tile_layer));
-                                            }
-                                            *id = *cached_id;
+                                            map.data[(x, y, tile_layer)] =
+                                                self.brush_layer_cache[x + y * map.data.xsize()];
                                         }
                                     }
                                 }
@@ -536,7 +542,7 @@ impl tab::Tab for Tab {
                                     // Save the current layer
                                     for x in 0..map.data.xsize() {
                                         for y in 0..map.data.ysize() {
-                                            self.layer_cache[x + y * map.data.xsize()] =
+                                            self.brush_layer_cache[x + y * map.data.xsize()] =
                                                 map.data[(x, y, tile_layer)];
                                         }
                                     }
@@ -545,15 +551,8 @@ impl tab::Tab for Tab {
                                     // Restore the previously stored state of the current layer
                                     for y in 0..map.data.ysize() {
                                         for x in 0..map.data.xsize() {
-                                            let cached_id =
-                                                &mut self.layer_cache[x + y * map.data.xsize()];
-                                            let id = &mut map.data[(x, y, tile_layer)];
-                                            if cached_id != id {
-                                                self.view
-                                                    .map
-                                                    .set_tile(*cached_id, (x, y, tile_layer));
-                                            }
-                                            *id = *cached_id;
+                                            map.data[(x, y, tile_layer)] =
+                                                self.brush_layer_cache[x + y * map.data.xsize()];
                                         }
                                     }
                                 }
@@ -793,6 +792,19 @@ impl tab::Tab for Tab {
 
                 for (_, event) in map.events.iter_mut() {
                     event.extra_data.is_editor_open = false;
+                }
+
+                // Write the buffered tile changes to the tilemap
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    for x in 0..map.data.xsize() {
+                        for y in 0..map.data.ysize() {
+                            let position = (x, y, tile_layer);
+                            let new_tile_id = map.data[(x, y, tile_layer)];
+                            if new_tile_id != self.layer_cache[x + y * map.data.xsize()] {
+                                self.view.map.set_tile(new_tile_id, position);
+                            }
+                        }
+                    }
                 }
             })
         });
