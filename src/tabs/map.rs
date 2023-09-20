@@ -27,6 +27,7 @@ use egui::Pos2;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::prelude::*;
+use crate::Pencil;
 
 pub struct Tab {
     /// ID of the map that is being edited.
@@ -36,12 +37,24 @@ pub struct Tab {
     pub tilepicker: Tilepicker,
 
     dragging_event: bool,
+    drawing_shape: bool,
     event_windows: window::Windows,
     force_close: bool,
 
     /// When event dragging starts, this is set to the difference between
     /// the dragged event's tile and the cursor position
     event_drag_offset: Option<egui::Vec2>,
+
+    layer_cache: Vec<i16>,
+
+    /// This cache is used by the depth-first search when using the fill brush
+    dfs_cache: Vec<bool>,
+    /// This is used to save a copy of the current layer when using the
+    /// rectangle or circle brush
+    brush_layer_cache: Vec<i16>,
+    /// When drawing using the rectangle or circle brush starts,
+    /// this is set to the position of the original tile we began drawing on
+    drawing_shape_pos: Option<egui::Pos2>,
 }
 
 impl Tab {
@@ -57,10 +70,17 @@ impl Tab {
             tilepicker: Tilepicker::new(tileset)?,
 
             dragging_event: false,
+            drawing_shape: false,
             event_windows: window::Windows::default(),
             force_close: false,
 
             event_drag_offset: None,
+
+            layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
+
+            dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
+            brush_layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
+            drawing_shape_pos: None,
         })
     }
 
@@ -180,10 +200,7 @@ impl Tab {
     }
 
     fn set_tile(&self, map: &mut rpg::Map, tile: SelectedTile, position: (usize, usize, usize)) {
-        map.data[position] = match tile {
-            SelectedTile::Autotile(i) => i * 48,
-            SelectedTile::Tile(i) => i,
-        };
+        map.data[position] = tile.to_id();
 
         for y in -1i8..=1i8 {
             for x in -1i8..=1i8 {
@@ -209,7 +226,6 @@ impl Tab {
                 );
                 let tile_id = self.recompute_autotile(map, position);
                 map.data[position] = tile_id;
-                self.view.map.set_tile(tile_id, position);
             }
         }
     }
@@ -377,7 +393,19 @@ impl tab::Tab for Tab {
                 // Get the map.
                 let mut map = state!().data_cache.map(self.id);
 
-                let response = self.view.ui(ui, &map, self.dragging_event);
+                // Save the state of the selected layer into the cache
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    for x in 0..map.data.xsize() {
+                        for y in 0..map.data.ysize() {
+                            self.layer_cache[x + y * map.data.xsize()] =
+                                map.data[(x, y, tile_layer)];
+                        }
+                    }
+                }
+
+                let response = self
+                    .view
+                    .ui(ui, &map, self.dragging_event, self.drawing_shape_pos);
 
                 let layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
@@ -388,15 +416,292 @@ impl tab::Tab for Tab {
                     self.event_drag_offset = None;
                 }
 
+                if self.drawing_shape && !response.dragged_by(egui::PointerButton::Primary) {
+                    self.drawing_shape = false;
+                    self.drawing_shape_pos = None;
+                }
+
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    // Tile drawing
+                    let position = (map_x as usize, map_y as usize, tile_layer);
+                    let initial_tile = SelectedTile::from_id(map.data[position]);
                     if response.dragged_by(egui::PointerButton::Primary)
                         && !ui.input(|i| i.modifiers.command)
                     {
-                        self.set_tile(
-                            &mut map,
-                            self.tilepicker.selected_tile,
-                            (map_x as usize, map_y as usize, tile_layer),
-                        );
+                        match state!().toolbar.borrow().pencil {
+                            Pencil::Pen => {
+                                self.set_tile(&mut map, self.tilepicker.selected_tile, position)
+                            }
+
+                            Pencil::Fill if initial_tile == self.tilepicker.selected_tile => (),
+                            Pencil::Fill => {
+                                // Use depth-first search to find all of the orthogonally
+                                // contiguous matching tiles
+                                let mut stack = vec![position; 1];
+                                while let Some(position) = stack.pop() {
+                                    self.set_tile(
+                                        &mut map,
+                                        self.tilepicker.selected_tile,
+                                        position,
+                                    );
+                                    self.dfs_cache[position.0 + position.1 * map.data.xsize()] =
+                                        true;
+
+                                    let x_array: [i8; 4] = [-1, 1, 0, 0];
+                                    let y_array: [i8; 4] = [0, 0, -1, 1];
+                                    for (x, y) in x_array.into_iter().zip(y_array.into_iter()) {
+                                        // Don't search tiles that are out of bounds
+                                        if ((x == -1 && position.0 == 0)
+                                            || (x == 1 && position.0 + 1 == map.data.xsize()))
+                                            || ((y == -1 && position.1 == 0)
+                                                || (y == 1 && position.1 + 1 == map.data.ysize()))
+                                        {
+                                            continue;
+                                        }
+
+                                        let position = (
+                                            if x == -1 {
+                                                position.0 - 1
+                                            } else {
+                                                position.0 + x as usize
+                                            },
+                                            if y == -1 {
+                                                position.1 - 1
+                                            } else {
+                                                position.1 + y as usize
+                                            },
+                                            position.2,
+                                        );
+
+                                        // Don't search tiles that we've already searched before
+                                        // because that would cause an infinite loop
+                                        if self.dfs_cache
+                                            [position.0 + position.1 * map.data.xsize()]
+                                        {
+                                            continue;
+                                        }
+
+                                        if SelectedTile::from_id(map.data[position]) == initial_tile
+                                        {
+                                            stack.push(position);
+                                        }
+                                    }
+                                }
+
+                                for x in self.dfs_cache.iter_mut() {
+                                    *x = false;
+                                }
+                            }
+
+                            Pencil::Rectangle => {
+                                if !self.drawing_shape {
+                                    // Save the current layer
+                                    for x in 0..map.data.xsize() {
+                                        for y in 0..map.data.ysize() {
+                                            self.brush_layer_cache[x + y * map.data.xsize()] =
+                                                map.data[(x, y, tile_layer)];
+                                        }
+                                    }
+                                    self.drawing_shape = true;
+                                } else {
+                                    // Restore the previously stored state of the current layer
+                                    for y in 0..map.data.ysize() {
+                                        for x in 0..map.data.xsize() {
+                                            map.data[(x, y, tile_layer)] =
+                                                self.brush_layer_cache[x + y * map.data.xsize()];
+                                        }
+                                    }
+                                }
+
+                                if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                                    let bounding_rect = egui::Rect::from_two_pos(
+                                        drawing_shape_pos,
+                                        self.view.cursor_pos,
+                                    );
+                                    for y in (bounding_rect.min.y as usize)
+                                        ..=(bounding_rect.max.y as usize)
+                                    {
+                                        for x in (bounding_rect.min.x as usize)
+                                            ..=(bounding_rect.max.x) as usize
+                                        {
+                                            let position = (x, y, tile_layer);
+                                            self.set_tile(
+                                                &mut map,
+                                                self.tilepicker.selected_tile,
+                                                position,
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                                }
+                            }
+
+                            Pencil::Circle => {
+                                if !self.drawing_shape {
+                                    // Save the current layer
+                                    for x in 0..map.data.xsize() {
+                                        for y in 0..map.data.ysize() {
+                                            self.brush_layer_cache[x + y * map.data.xsize()] =
+                                                map.data[(x, y, tile_layer)];
+                                        }
+                                    }
+                                    self.drawing_shape = true;
+                                } else {
+                                    // Restore the previously stored state of the current layer
+                                    for y in 0..map.data.ysize() {
+                                        for x in 0..map.data.xsize() {
+                                            map.data[(x, y, tile_layer)] =
+                                                self.brush_layer_cache[x + y * map.data.xsize()];
+                                        }
+                                    }
+                                }
+
+                                // Use Bresenham's algorithm to draw the ellipse.
+                                // We consider (x, y) to be the top-left corner of the tile at
+                                // (x, y).
+                                if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                                    let bounding_rect = egui::Rect::from_two_pos(
+                                        drawing_shape_pos,
+                                        self.view.cursor_pos,
+                                    );
+                                    // Edge case: Bresenham's algorithm breaks down when drawing a
+                                    // 1x1 ellipse.
+                                    if drawing_shape_pos == self.view.cursor_pos {
+                                        self.set_tile(
+                                            &mut map,
+                                            self.tilepicker.selected_tile,
+                                            (map_x as usize, map_y as usize, tile_layer),
+                                        );
+                                    } else {
+                                        let bounding_rect =
+                                            bounding_rect.translate(egui::vec2(0.5, 0.5));
+
+                                        // Calculate where the center of the ellipse should be.
+                                        let x0 = bounding_rect.center().x;
+                                        let y0 = bounding_rect.center().y;
+
+                                        // Calculate the radii of the ellipse along the
+                                        // x and y directions.
+                                        let rx = bounding_rect.width() / 2.;
+                                        let ry = bounding_rect.height() / 2.;
+                                        let rx2 = rx * rx;
+                                        let ry2 = ry * ry;
+
+                                        // Let the "ellipse function" be defined as
+                                        // f(x, y) = b^2 x^2 + a^2 y^2 - a^2 b^2
+                                        // where a is the x-radius of an ellipse centered at (0, 0)
+                                        // and b is the y-radius.
+                                        // This function is positive when (x, y) is outside the
+                                        // ellipse, negative when it's inside the ellipse and zero when
+                                        // it's exactly on the edge.
+
+                                        // We'll start by drawing the part of the outer edge of the
+                                        // bottom-right quadrant of the ellipse where dy/dx >= -1,
+                                        // starting from the bottom of the ellipse and going to the
+                                        // right.
+                                        let mut x = if rx.floor() == rx { 0. } else { 0.5 };
+                                        let mut y = ry;
+
+                                        // Keep looping until dy/dx < -1.
+                                        while rx2 * y >= ry2 * x {
+                                            for i in ((-y).floor() as i32)..=(y.floor() as i32) {
+                                                let i = if y.floor() == y {
+                                                    i as f32
+                                                } else {
+                                                    i as f32 + 0.5
+                                                };
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 + x).floor() as usize,
+                                                        (y0 + i).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 - x).floor() as usize,
+                                                        (y0 + i).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                            }
+
+                                            // The next tile will either be at (x + 1, y) or
+                                            // (x + 1, y - 1), whichever is closest to the actual edge
+                                            // of the ellipse.
+                                            // To determine which is closer, we evaluate the ellipse
+                                            // function at (x + 1, y - 0.5).
+                                            // If it's positive, then (x + 1, y - 1) is closer.
+                                            // If it's negative, then (x + 1, y) is closer.
+                                            let f = ry2 * (x + 1.).powi(2)
+                                                + rx2 * (y - 0.5).powi(2)
+                                                - rx2 * ry2;
+                                            if f > 0. {
+                                                y -= 1.;
+                                            }
+                                            x += 1.;
+                                        }
+
+                                        // Now we draw the part of the outer edge of the
+                                        // bottom-right quadrant of the ellipse where dy/dx <= -1,
+                                        // starting from the right of the ellipse and going down.
+                                        let mut x = rx;
+                                        let mut y = if ry.floor() == ry { 0. } else { 0.5 };
+
+                                        // Keep looping until dy/dx > -1.
+                                        while rx2 * y <= ry2 * x {
+                                            for i in ((-x).floor() as i32)..=(x.floor() as i32) {
+                                                let i = if x.floor() == x {
+                                                    i as f32
+                                                } else {
+                                                    i as f32 + 0.5
+                                                };
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 + i).floor() as usize,
+                                                        (y0 + y).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                                self.set_tile(
+                                                    &mut map,
+                                                    self.tilepicker.selected_tile,
+                                                    (
+                                                        (x0 + i).floor() as usize,
+                                                        (y0 - y).floor() as usize,
+                                                        tile_layer,
+                                                    ),
+                                                );
+                                            }
+
+                                            // The next tile will either be at (x, y + 1) or
+                                            // (x - 1, y + 1), whichever is closest to the actual edge
+                                            // of the ellipse.
+                                            // To determine which is closer, we evaluate the ellipse
+                                            // function at (x - 0.5, y + 1).
+                                            // If it's positive, then (x - 1, y + 1) is closer.
+                                            // If it's negative, then (x, y + 1) is closer.
+                                            let f = ry2 * (x - 0.5).powi(2)
+                                                + rx2 * (y + 1.).powi(2)
+                                                - rx2 * ry2;
+                                            if f > 0. {
+                                                x -= 1.;
+                                            }
+                                            y += 1.;
+                                        }
+                                    }
+                                } else {
+                                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                                }
+                            }
+                        };
                     }
                 } else if let Some(selected_event_id) = self.view.selected_event_id {
                     if response.double_clicked()
@@ -487,6 +792,19 @@ impl tab::Tab for Tab {
 
                 for (_, event) in map.events.iter_mut() {
                     event.extra_data.is_editor_open = false;
+                }
+
+                // Write the buffered tile changes to the tilemap
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    for x in 0..map.data.xsize() {
+                        for y in 0..map.data.ysize() {
+                            let position = (x, y, tile_layer);
+                            let new_tile_id = map.data[(x, y, tile_layer)];
+                            if new_tile_id != self.layer_cache[x + y * map.data.xsize()] {
+                                self.view.map.set_tile(new_tile_id, position);
+                            }
+                        }
+                    }
                 }
             })
         });

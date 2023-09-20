@@ -39,6 +39,24 @@ pub enum SelectedTile {
     Autotile(i16),
     Tile(i16),
 }
+
+impl SelectedTile {
+    pub fn from_id(id: i16) -> Self {
+        if id < 384 {
+            SelectedTile::Autotile(id / 48)
+        } else {
+            SelectedTile::Tile(id)
+        }
+    }
+
+    pub fn to_id(&self) -> i16 {
+        match *self {
+            Self::Autotile(tile) => tile * 48,
+            Self::Tile(tile) => tile,
+        }
+    }
+}
+
 impl Default for SelectedTile {
     fn default() -> Self {
         SelectedTile::Autotile(0)

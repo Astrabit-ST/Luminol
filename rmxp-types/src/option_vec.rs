@@ -136,8 +136,10 @@ impl<T> FromIterator<(usize, T)> for OptionVec<T> {
                 vec.reserve(additional);
                 vec.extend(std::iter::repeat_with(|| None).take(additional));
             }
+            if vec[i].is_none() {
+                num_values += 1;
+            }
             vec[i] = Some(v);
-            num_values += 1;
         }
         Self { vec, num_values }
     }
