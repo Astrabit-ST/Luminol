@@ -25,7 +25,18 @@
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+#[cfg(target_arch = "wasm32")]
+use eframe::web_sys;
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
+    //let runtime = tokio::runtime::Builder::new_current_thread()
+    //    .worker_threads(1)
+    //    .enable_io()
+    //    .build()
+    //    .expect("failed to create tokio runtime");
+    //let _guard = runtime.enter();
+
     #[cfg(feature = "steamworks")]
     if let Err(e) = luminol::steam::Steamworks::setup() {
         rfd::MessageDialog::new()
@@ -116,6 +127,31 @@ fn main() {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
+    std::panic::set_hook(Box::new(move |info| {
+        let report = panic.panic_report(info);
+
+        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+    }));
+
+    // Redirect tracing to console.log and friends:
+    tracing_wasm::set_as_global_default();
+
+    let web_options = eframe::WebOptions::default();
+
+    wasm_bindgen_futures::spawn_local(async {
+        eframe::WebRunner::new().start(
+            "the_canvas_id", // hardcode it
+            web_options,
+            Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
+        )
+        .await
+        .expect("failed to start eframe");
+    });
 }
 
 #[cfg(windows)]

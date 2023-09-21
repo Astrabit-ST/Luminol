@@ -41,10 +41,6 @@ impl TopBar {
         let state = state!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
-        ui.checkbox(&mut self.fullscreen, "Fullscreen");
-
-        frame.set_fullscreen(self.fullscreen);
-
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
             && state.filesystem.project_loaded();
         let mut save_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S))
@@ -98,7 +94,7 @@ impl TopBar {
             ui.separator();
 
             if ui.button("Quit").clicked() {
-                frame.close();
+                todo!("this feature is temporarily unavailable while we test WebAssembly builds");
             }
         });
 
@@ -179,22 +175,7 @@ impl TopBar {
 
         ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
             if ui.button("Playtest").clicked() {
-                let mut cmd = luminol_term::CommandBuilder::new("steamshim");
-                cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
-
-                let result = crate::windows::console::Console::new(cmd).or_else(|_| {
-                    let mut cmd = luminol_term::CommandBuilder::new("game");
-                    cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
-
-                    crate::windows::console::Console::new(cmd)
-                });
-
-                match result {
-                    Ok(w) => state.windows.add_window(w),
-                    Err(e) => state.toasts.error(format!(
-                        "error starting game (tried steamshim.exe and then game.exe): {e}"
-                    )),
-                }
+                todo!("this feature is temporarily unavailable while we test WebAssembly builds");
             }
 
             if ui.button("Terminal").clicked() {
@@ -202,13 +183,7 @@ impl TopBar {
                 let shell = "powershell";
                 #[cfg(unix)]
                 let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
-                let mut cmd = luminol_term::CommandBuilder::new(shell);
-                cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
-
-                match crate::windows::console::Console::new(cmd) {
-                    Ok(w) => state.windows.add_window(w),
-                    Err(e) => state.toasts.error(format!("error starting shell: {e}")),
-                }
+                todo!("this feature is temporarily unavailable while we test WebAssembly builds");
             }
         });
 

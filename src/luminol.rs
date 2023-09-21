@@ -160,8 +160,6 @@ impl eframe::App for Luminol {
         // Show toasts.
         state!().toasts.show(ctx);
 
-        poll_promise::tick_local();
-
         self.lumi.ui(ctx);
 
         #[cfg(feature = "steamworks")]

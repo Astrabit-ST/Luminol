@@ -148,7 +148,8 @@ impl FileSystem {
             .pick_file()
             .await
         {
-            self.load_project(path.path())
+            todo!("this feature is temporarily unavailable while we test WebAssembly builds");
+            //self.load_project(path.path())
         } else {
             Err("Cancelled loading project".to_string())
         }
