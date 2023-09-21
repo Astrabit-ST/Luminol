@@ -22,13 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct Console {
-}
+pub struct Console {}
 
 impl Console {
     pub fn new() -> Result<Self, ()> {
-        Ok(Self {
-        })
+        Ok(Self {})
     }
 }
 

@@ -25,9 +25,6 @@
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-#[cfg(target_arch = "wasm32")]
-use eframe::web_sys;
-
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     //let runtime = tokio::runtime::Builder::new_current_thread()
@@ -135,7 +132,7 @@ fn main() {
     std::panic::set_hook(Box::new(move |info| {
         let report = panic.panic_report(info);
 
-        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+        eframe::web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
     }));
 
     // Redirect tracing to console.log and friends:
@@ -144,13 +141,14 @@ fn main() {
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
-        eframe::WebRunner::new().start(
-            "the_canvas_id", // hardcode it
-            web_options,
-            Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
-        )
-        .await
-        .expect("failed to start eframe");
+        eframe::WebRunner::new()
+            .start(
+                "the_canvas_id", // hardcode it
+                web_options,
+                Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
+            )
+            .await
+            .expect("failed to start eframe");
     });
 }
 
