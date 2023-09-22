@@ -841,7 +841,7 @@ impl tab::Tab for Tab {
                     for x in 0..map.data.xsize() {
                         for y in 0..map.data.ysize() {
                             let position = (x, y, tile_layer);
-                            let new_tile_id = map.data[(x, y, tile_layer)];
+                            let new_tile_id = map.data[position];
                             if new_tile_id != self.layer_cache[x + y * map.data.xsize()] {
                                 self.view.map.set_tile(new_tile_id, position);
                             }
