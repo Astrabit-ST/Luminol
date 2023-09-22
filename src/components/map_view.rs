@@ -469,11 +469,13 @@ impl MapView {
         }
 
         // Display cursor.
-        ui.painter().rect_stroke(
-            pattern_rect,
-            5.,
-            egui::Stroke::new(1., egui::Color32::WHITE),
-        );
+        if matches!(self.selected_layer, SelectedLayer::Tiles(_)) {
+            ui.painter().rect_stroke(
+                pattern_rect,
+                5.,
+                egui::Stroke::new(1., egui::Color32::WHITE),
+            );
+        }
         ui.painter().rect_stroke(
             cursor_rect,
             5.,
