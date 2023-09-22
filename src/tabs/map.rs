@@ -457,6 +457,15 @@ impl tab::Tab for Tab {
                                     };
                                 for y in 0..height {
                                     for x in 0..width {
+                                        // Skip out-of-bounds tiles
+                                        if ((x == -1 && position.0 == 0)
+                                            || (x == 1 && position.0 + 1 == map.data.xsize()))
+                                            || ((y == -1 && position.1 == 0)
+                                                || (y == 1 && position.1 + 1 == map.data.ysize()))
+                                        {
+                                            continue;
+                                        }
+
                                         self.set_tile(
                                             &mut map,
                                             self.tilepicker.get_tile_from_offset(
@@ -466,8 +475,8 @@ impl tab::Tab for Tab {
                                                     as i16,
                                             ),
                                             (
-                                                map_x as usize + x as usize,
-                                                map_y as usize + y as usize,
+                                                position.0 + x as usize,
+                                                position.1 + y as usize,
                                                 tile_layer,
                                             ),
                                         );
