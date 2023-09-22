@@ -16,6 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::prelude::*;
 
+use super::tilepicker;
+
 #[derive(Debug)]
 pub struct MapView {
     /// Toggle to display the visible region in-game.
@@ -98,8 +100,11 @@ impl MapView {
         &mut self,
         ui: &mut egui::Ui,
         map: &rpg::Map,
+        tilepicker: &Tilepicker,
         dragging_event: bool,
+        drawing_shape: bool,
         drawing_shape_pos: Option<egui::Pos2>,
+        force_show_pattern_rect: bool,
     ) -> egui::Response {
         // Allocate the largest size we can for the tilemap
         let canvas_rect = ui.max_rect();
@@ -224,6 +229,22 @@ impl MapView {
             map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
             egui::Vec2::splat(tile_size),
         );
+        let pattern_rect = egui::Rect::from_min_size(
+            map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
+            if !force_show_pattern_rect && drawing_shape_pos.is_some() {
+                egui::Vec2::splat(tile_size)
+            } else {
+                egui::vec2(
+                    tile_size
+                        * (tilepicker.selected_tiles_right - tilepicker.selected_tiles_left + 1)
+                            as f32,
+                    tile_size
+                        * (tilepicker.selected_tiles_bottom - tilepicker.selected_tiles_top + 1)
+                            as f32,
+                )
+            },
+        )
+        .intersect(map_rect);
 
         if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
             self.selected_event_id = None;
@@ -434,19 +455,28 @@ impl MapView {
         }
 
         // Draw the origin tile for the rectangle and circle brushes
-        if let Some(drawing_shape_pos) = drawing_shape_pos {
-            let drawing_shape_rect = egui::Rect::from_min_size(
-                map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
-                egui::Vec2::splat(tile_size),
-            );
+        if drawing_shape {
+            if let Some(drawing_shape_pos) = drawing_shape_pos {
+                let drawing_shape_rect = egui::Rect::from_min_size(
+                    map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
+                    egui::Vec2::splat(tile_size),
+                );
+                ui.painter().rect_stroke(
+                    drawing_shape_rect,
+                    5.,
+                    egui::Stroke::new(1., egui::Color32::WHITE),
+                );
+            }
+        }
+
+        // Display cursor.
+        if matches!(self.selected_layer, SelectedLayer::Tiles(_)) {
             ui.painter().rect_stroke(
-                drawing_shape_rect,
+                pattern_rect,
                 5.,
                 egui::Stroke::new(1., egui::Color32::WHITE),
             );
         }
-
-        // Display cursor.
         ui.painter().rect_stroke(
             cursor_rect,
             5.,

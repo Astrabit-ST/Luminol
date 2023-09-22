@@ -52,7 +52,7 @@ pub struct Tab {
     /// This is used to save a copy of the current layer when using the
     /// rectangle or circle brush
     brush_layer_cache: Vec<i16>,
-    /// When drawing using the rectangle or circle brush starts,
+    /// When drawing with any brush,
     /// this is set to the position of the original tile we began drawing on
     drawing_shape_pos: Option<egui::Pos2>,
 }
@@ -403,9 +403,15 @@ impl tab::Tab for Tab {
                     }
                 }
 
-                let response = self
-                    .view
-                    .ui(ui, &map, self.dragging_event, self.drawing_shape_pos);
+                let response = self.view.ui(
+                    ui,
+                    &map,
+                    &self.tilepicker,
+                    self.dragging_event,
+                    self.drawing_shape,
+                    self.drawing_shape_pos,
+                    matches!(state!().toolbar.borrow().pencil, Pencil::Pen),
+                );
 
                 let layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
@@ -421,27 +427,78 @@ impl tab::Tab for Tab {
                     self.drawing_shape_pos = None;
                 }
 
+                if self.drawing_shape_pos.is_some()
+                    && !response.dragged_by(egui::PointerButton::Primary)
+                {
+                    self.drawing_shape_pos = None;
+                }
+
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
                     // Tile drawing
                     let position = (map_x as usize, map_y as usize, tile_layer);
                     let initial_tile = SelectedTile::from_id(map.data[position]);
+                    let left = self.tilepicker.selected_tiles_left;
+                    let right = self.tilepicker.selected_tiles_right;
+                    let top = self.tilepicker.selected_tiles_top;
+                    let bottom = self.tilepicker.selected_tiles_bottom;
+                    let width = right - left + 1;
+                    let height = bottom - top + 1;
                     if response.dragged_by(egui::PointerButton::Primary)
                         && !ui.input(|i| i.modifiers.command)
                     {
                         match state!().toolbar.borrow().pencil {
                             Pencil::Pen => {
-                                self.set_tile(&mut map, self.tilepicker.selected_tile, position)
+                                let drawing_shape_pos =
+                                    if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                                        drawing_shape_pos
+                                    } else {
+                                        self.drawing_shape_pos = Some(self.view.cursor_pos);
+                                        self.view.cursor_pos
+                                    };
+                                for y in 0..height {
+                                    for x in 0..width {
+                                        // Skip out-of-bounds tiles
+                                        if ((x == -1 && position.0 == 0)
+                                            || (x == 1 && position.0 + 1 == map.data.xsize()))
+                                            || ((y == -1 && position.1 == 0)
+                                                || (y == 1 && position.1 + 1 == map.data.ysize()))
+                                        {
+                                            continue;
+                                        }
+
+                                        self.set_tile(
+                                            &mut map,
+                                            self.tilepicker.get_tile_from_offset(
+                                                x + (self.view.cursor_pos.x - drawing_shape_pos.x)
+                                                    as i16,
+                                                y + (self.view.cursor_pos.y - drawing_shape_pos.y)
+                                                    as i16,
+                                            ),
+                                            (
+                                                position.0 + x as usize,
+                                                position.1 + y as usize,
+                                                tile_layer,
+                                            ),
+                                        );
+                                    }
+                                }
                             }
 
-                            Pencil::Fill if initial_tile == self.tilepicker.selected_tile => (),
+                            Pencil::Fill
+                                if initial_tile == self.tilepicker.get_tile_from_offset(0, 0) => {}
                             Pencil::Fill => {
                                 // Use depth-first search to find all of the orthogonally
                                 // contiguous matching tiles
                                 let mut stack = vec![position; 1];
+                                let initial_x = position.0;
+                                let initial_y = position.1;
                                 while let Some(position) = stack.pop() {
                                     self.set_tile(
                                         &mut map,
-                                        self.tilepicker.selected_tile,
+                                        self.tilepicker.get_tile_from_offset(
+                                            position.0 as i16 - initial_x as i16,
+                                            position.1 as i16 - initial_y as i16,
+                                        ),
                                         position,
                                     );
                                     self.dfs_cache[position.0 + position.1 * map.data.xsize()] =
@@ -527,7 +584,10 @@ impl tab::Tab for Tab {
                                             let position = (x, y, tile_layer);
                                             self.set_tile(
                                                 &mut map,
-                                                self.tilepicker.selected_tile,
+                                                self.tilepicker.get_tile_from_offset(
+                                                    x as i16 - drawing_shape_pos.x as i16,
+                                                    y as i16 - drawing_shape_pos.y as i16,
+                                                ),
                                                 position,
                                             );
                                         }
@@ -570,7 +630,10 @@ impl tab::Tab for Tab {
                                     if drawing_shape_pos == self.view.cursor_pos {
                                         self.set_tile(
                                             &mut map,
-                                            self.tilepicker.selected_tile,
+                                            self.tilepicker.get_tile_from_offset(
+                                                map_x as i16 - drawing_shape_pos.x as i16,
+                                                map_y as i16 - drawing_shape_pos.y as i16,
+                                            ),
                                             (map_x as usize, map_y as usize, tile_layer),
                                         );
                                     } else {
@@ -611,24 +674,18 @@ impl tab::Tab for Tab {
                                                 } else {
                                                     i as f32 + 0.5
                                                 };
-                                                self.set_tile(
-                                                    &mut map,
-                                                    self.tilepicker.selected_tile,
-                                                    (
-                                                        (x0 + x).floor() as usize,
-                                                        (y0 + i).floor() as usize,
-                                                        tile_layer,
-                                                    ),
-                                                );
-                                                self.set_tile(
-                                                    &mut map,
-                                                    self.tilepicker.selected_tile,
-                                                    (
-                                                        (x0 - x).floor() as usize,
-                                                        (y0 + i).floor() as usize,
-                                                        tile_layer,
-                                                    ),
-                                                );
+                                                for j in [x, -x] {
+                                                    let x = (x0 + j).floor();
+                                                    let y = (y0 + i).floor();
+                                                    self.set_tile(
+                                                        &mut map,
+                                                        self.tilepicker.get_tile_from_offset(
+                                                            x as i16 - drawing_shape_pos.x as i16,
+                                                            y as i16 - drawing_shape_pos.y as i16,
+                                                        ),
+                                                        (x as usize, y as usize, tile_layer),
+                                                    );
+                                                }
                                             }
 
                                             // The next tile will either be at (x + 1, y) or
@@ -661,24 +718,18 @@ impl tab::Tab for Tab {
                                                 } else {
                                                     i as f32 + 0.5
                                                 };
-                                                self.set_tile(
-                                                    &mut map,
-                                                    self.tilepicker.selected_tile,
-                                                    (
-                                                        (x0 + i).floor() as usize,
-                                                        (y0 + y).floor() as usize,
-                                                        tile_layer,
-                                                    ),
-                                                );
-                                                self.set_tile(
-                                                    &mut map,
-                                                    self.tilepicker.selected_tile,
-                                                    (
-                                                        (x0 + i).floor() as usize,
-                                                        (y0 - y).floor() as usize,
-                                                        tile_layer,
-                                                    ),
-                                                );
+                                                for j in [y, -y] {
+                                                    let x = (x0 + i).floor();
+                                                    let y = (y0 + j).floor();
+                                                    self.set_tile(
+                                                        &mut map,
+                                                        self.tilepicker.get_tile_from_offset(
+                                                            x as i16 - drawing_shape_pos.x as i16,
+                                                            y as i16 - drawing_shape_pos.y as i16,
+                                                        ),
+                                                        (x as usize, y as usize, tile_layer),
+                                                    );
+                                                }
                                             }
 
                                             // The next tile will either be at (x, y + 1) or
@@ -799,7 +850,7 @@ impl tab::Tab for Tab {
                     for x in 0..map.data.xsize() {
                         for y in 0..map.data.ysize() {
                             let position = (x, y, tile_layer);
-                            let new_tile_id = map.data[(x, y, tile_layer)];
+                            let new_tile_id = map.data[position];
                             if new_tile_id != self.layer_cache[x + y * map.data.xsize()] {
                                 self.view.map.set_tile(new_tile_id, position);
                             }

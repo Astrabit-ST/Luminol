@@ -61,7 +61,10 @@ impl Atlas {
             Some(tileset_img.to_rgba8())
         });
 
-        let tileset_height = tileset_img.as_ref().map(|i| i.height()).unwrap_or(256);
+        let tileset_height = tileset_img
+            .as_ref()
+            .map(|i| i.height() / TILE_SIZE * TILE_SIZE)
+            .unwrap_or(256);
 
         let autotiles: Vec<_> = tileset
             .autotile_names
