@@ -64,10 +64,10 @@ Basic functionality:
 - [ ] Edit event commands
 - [x] View event commands
 - [x] Change tiles on map
-- [ ] Multiple brush types
-- [ ] Change autotiles on map
-- [ ] Hardware accelerated tilemap
-- [ ] Properly render blend modes and opacity
+- [x] Multiple brush types
+- [x] Change autotiles on map
+- [x] Hardware accelerated tilemap
+- [x] Properly render blend modes and opacity
 - [x] Sound test
 - [ ] Actor editor
 - [ ] Class editor
