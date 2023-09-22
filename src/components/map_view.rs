@@ -243,7 +243,8 @@ impl MapView {
                             as f32,
                 )
             },
-        );
+        )
+        .intersect(map_rect);
 
         if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
             self.selected_event_id = None;
