@@ -107,7 +107,11 @@ impl Tilepicker {
         })
     }
 
-    pub fn get_tile_from_pos(&self, x: i16, y: i16) -> SelectedTile {
+    pub fn get_tile_from_offset(&self, x: i16, y: i16) -> SelectedTile {
+        let width = self.selected_tiles_right - self.selected_tiles_left + 1;
+        let height = self.selected_tiles_bottom - self.selected_tiles_top + 1;
+        let x = self.selected_tiles_left + x.rem_euclid(width);
+        let y = self.selected_tiles_top + y.rem_euclid(height);
         match y {
             ..=0 => SelectedTile::Autotile(x),
             _ => SelectedTile::Tile(x + (y - 1) * 8 + 384),
