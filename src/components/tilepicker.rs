@@ -22,7 +22,12 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct Tilepicker {
-    pub selected_tile: SelectedTile,
+    pub selected_tiles_left: i16,
+    pub selected_tiles_top: i16,
+    pub selected_tiles_right: i16,
+    pub selected_tiles_bottom: i16,
+
+    drag_origin: Option<egui::Pos2>,
 
     resources: Arc<Resources>,
     ani_instant: Instant,
@@ -94,8 +99,19 @@ impl Tilepicker {
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),
             ani_instant: Instant::now(),
-            selected_tile: SelectedTile::default(),
+            selected_tiles_left: 0,
+            selected_tiles_top: 0,
+            selected_tiles_right: 0,
+            selected_tiles_bottom: 0,
+            drag_origin: None,
         })
+    }
+
+    pub fn get_tile_from_pos(&self, x: i16, y: i16) -> SelectedTile {
+        match y {
+            ..=0 => SelectedTile::Autotile(x),
+            _ => SelectedTile::Tile(x + (y - 1) * 8 + 384),
+        }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
@@ -140,30 +156,33 @@ impl Tilepicker {
             ),
         });
 
-        let pos = match self.selected_tile {
-            SelectedTile::Autotile(t) => egui::vec2(t as f32 * 32., 0.),
-            SelectedTile::Tile(t) => {
-                let tile_x = t % 8 * 32;
-                let tile_y = (t / 8) * 32 - 1_504;
-                egui::vec2(tile_x as f32, tile_y as f32)
-            }
-        };
-        let rect = egui::Rect::from_min_size(canvas_rect.min + pos, egui::Vec2::splat(32.));
+        let rect = egui::Rect::from_x_y_ranges(
+            (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,
+            (self.selected_tiles_top * 32) as f32..=((self.selected_tiles_bottom + 1) * 32) as f32,
+        )
+        .translate(canvas_rect.min.to_vec2());
         ui.painter()
             .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
 
         let Some(pos) = response.interact_pointer_pos() else {
             return response;
         };
-        let pos = (pos - canvas_rect.min) / 32.;
-        let cursor_x = pos.x as i16;
-        let cursor_y = pos.y as i16;
+        let pos = ((pos - canvas_rect.min) / 32.).to_pos2();
 
-        if response.clicked() {
-            self.selected_tile = match cursor_y {
-                ..=0 => SelectedTile::Autotile(cursor_x),
-                _ => SelectedTile::Tile(cursor_x + (cursor_y - 1) * 8 + 384),
+        if response.dragged_by(egui::PointerButton::Primary) {
+            let drag_origin = if let Some(drag_origin) = self.drag_origin {
+                drag_origin
+            } else {
+                self.drag_origin = Some(pos);
+                pos
             };
+            let rect = egui::Rect::from_two_pos(drag_origin, pos);
+            self.selected_tiles_left = rect.left() as i16;
+            self.selected_tiles_right = rect.right() as i16;
+            self.selected_tiles_top = rect.top() as i16;
+            self.selected_tiles_bottom = rect.bottom() as i16;
+        } else {
+            self.drag_origin = None;
         }
 
         response

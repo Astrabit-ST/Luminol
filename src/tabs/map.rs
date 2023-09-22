@@ -429,6 +429,8 @@ impl tab::Tab for Tab {
                         && !ui.input(|i| i.modifiers.command)
                     {
                         match state!().toolbar.borrow().pencil {
+                            _ => todo!("this brush is temporarily disabled"),
+                            /*
                             Pencil::Pen => {
                                 self.set_tile(&mut map, self.tilepicker.selected_tile, position)
                             }
@@ -701,6 +703,7 @@ impl tab::Tab for Tab {
                                     self.drawing_shape_pos = Some(self.view.cursor_pos);
                                 }
                             }
+                            */
                         };
                     }
                 } else if let Some(selected_event_id) = self.view.selected_event_id {
