@@ -88,7 +88,7 @@ impl Tilepicker {
         let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
             0.0,
             256.,
-            atlas.tileset_height as f32,
+            atlas.tileset_height as f32 + 32.,
             0.0,
             -1.0,
             1.0,
@@ -126,7 +126,7 @@ impl Tilepicker {
         ui.ctx().request_repaint_after(Duration::from_millis(16));
 
         let (canvas_rect, response) = ui.allocate_exact_size(
-            egui::vec2(256., self.resources.tiles.atlas.tileset_height as f32),
+            egui::vec2(256., self.resources.tiles.atlas.tileset_height as f32 + 32.),
             egui::Sense::click_and_drag(),
         );
 
@@ -184,8 +184,8 @@ impl Tilepicker {
             self.selected_tiles_left = (rect.left() as i16).max(0);
             self.selected_tiles_right = (rect.right() as i16).min(7);
             self.selected_tiles_top = (rect.top() as i16).max(0);
-            self.selected_tiles_bottom = (rect.bottom() as i16)
-                .min((self.resources.tiles.atlas.tileset_height as i16 / 32).saturating_sub(1));
+            self.selected_tiles_bottom =
+                (rect.bottom() as i16).min(self.resources.tiles.atlas.tileset_height as i16 / 32);
         } else {
             self.drag_origin = None;
         }
