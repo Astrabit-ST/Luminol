@@ -25,6 +25,8 @@
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use luminol::fl;
+
 fn main() {
     #[cfg(feature = "steamworks")]
     if let Err(e) = luminol::steam::Steamworks::setup() {

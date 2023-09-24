@@ -24,7 +24,6 @@
 
 use crate::prelude::*;
 use core::ops::{Deref, DerefMut};
-use dashmap::DashMap;
 
 #[derive(Default, Debug)]
 pub struct Cache {
