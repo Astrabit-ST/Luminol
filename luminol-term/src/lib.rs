@@ -71,12 +71,10 @@ impl Terminal {
 
             loop {
                 let Ok(len) = reader.read(&mut buf) else {
-                    return
+                    return;
                 };
                 let actions = parser.parse_as_vec(&buf[0..len]);
-                let Ok(_) = sender.send(actions) else {
-                    return
-                };
+                let Ok(_) = sender.send(actions) else { return };
             }
         });
 

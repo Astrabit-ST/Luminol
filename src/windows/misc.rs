@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use super::window::Window;
-
+use crate::prelude::*;
 /// Egui inspection window.
 #[derive(Default)]
 pub struct EguiInspection {}
@@ -61,5 +61,24 @@ impl Window for EguiMemory {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.memory_ui(ui));
+    }
+}
+
+#[derive(Default)]
+pub struct FilesystemDebug {}
+
+impl Window for FilesystemDebug {
+    fn name(&self) -> String {
+        "Filesystem Debug".to_string()
+    }
+
+    fn id(&self) -> egui::Id {
+        egui::Id::new("Filesystem Debug Window")
+    }
+
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .show(ctx, |ui| state!().filesystem.debug_ui(ui));
     }
 }

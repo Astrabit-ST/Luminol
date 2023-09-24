@@ -24,14 +24,16 @@
 
 /// The about window.
 pub mod about;
+pub mod appearance;
 /// The common event editor.
 pub mod common_event_edit;
 /// Config window
-pub mod config;
+pub mod config_window;
 /// Playtest console
 pub mod console;
 /// The event editor.
 pub mod event_edit;
+pub mod global_config_window;
 /// The Graphic picker.
 pub mod graphic_picker;
 /// The item editor.

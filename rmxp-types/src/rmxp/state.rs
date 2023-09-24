@@ -1,0 +1,79 @@
+// Copyright (C) 2023 Lily Lyons
+//
+// This file is part of Luminol.
+//
+// Luminol is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Luminol is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::{id, id_vec, optional_id};
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename = "RPG::State")]
+pub struct State {
+    #[serde(with = "id")]
+    pub id: usize,
+    pub name: String,
+    #[serde(with = "optional_id")]
+    pub animation_id: Option<usize>,
+    pub restriction: Restriction,
+    pub nonresistance: bool,
+    pub zero_hp: bool,
+    pub cant_get_exp: bool,
+    pub cant_evade: bool,
+    pub slip_damage: bool,
+    pub rating: i32,
+    pub hit_rate: i32,
+    pub maxhp_rate: i32,
+    pub maxsp_rate: i32,
+    pub str_rate: i32,
+    pub dex_rate: i32,
+    pub agi_rate: i32,
+    pub int_rate: i32,
+    pub atk_rate: i32,
+    pub pdef_rate: i32,
+    pub mdef_rate: i32,
+    pub eva: i32,
+    pub battle_only: bool,
+    pub hold_turn: i32,
+    pub auto_release_prob: i32,
+    pub shock_release_prob: i32,
+    #[serde(with = "id_vec")]
+    pub guard_element_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub plus_state_set: Vec<usize>,
+    #[serde(with = "id_vec")]
+    pub minus_state_set: Vec<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+pub enum Restriction {
+    #[default]
+    None = 0,
+    #[strum(to_string = "Can't use magic")]
+    NoMagic = 1,
+    #[strum(to_string = "Always attack enemies")]
+    AttackEnemies = 2,
+    #[strum(to_string = "Always attack allies")]
+    AttackAllies = 3,
+    #[strum(to_string = "Can't move")]
+    NoMove = 4,
+}

@@ -158,8 +158,12 @@ impl Table1 {
         self.data.is_empty()
     }
 
-    /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn resize(&mut self, xsize: usize) {
+        self.data.resize(xsize, 0);
+        self.xsize = xsize;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }
 }
@@ -261,8 +265,22 @@ impl Table2 {
         self.data.is_empty()
     }
 
-    /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn resize(&mut self, xsize: usize, ysize: usize) {
+        let mut new_data = vec![0; xsize * ysize];
+
+        for y in 0..self.ysize.min(ysize) {
+            for x in 0..self.xsize.min(xsize) {
+                new_data[xsize * y + x] = self[(x, y)]
+            }
+        }
+
+        self.xsize = xsize;
+        self.ysize = ysize;
+
+        self.data = new_data;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }
 }
@@ -335,8 +353,6 @@ impl From<Table3> for alox_48::Userdata {
     }
 }
 
-use std::slice::Iter;
-
 impl Table3 {
     /// Create a new 3D table with a width of xsize, a height of ysize, and a depth of zsize.
     #[must_use]
@@ -346,6 +362,17 @@ impl Table3 {
             ysize,
             zsize,
             data: vec![0; xsize * ysize * zsize],
+        }
+    }
+
+    #[must_use]
+    pub fn new_data(xsize: usize, ysize: usize, zsize: usize, data: Vec<i16>) -> Self {
+        assert_eq!(xsize * ysize * zsize, data.len());
+        Self {
+            xsize,
+            ysize,
+            zsize,
+            data,
         }
     }
 
@@ -379,8 +406,26 @@ impl Table3 {
         self.data.is_empty()
     }
 
-    /// Return an iterator over all the elements in the table.
-    pub fn iter(&self) -> Iter<'_, i16> {
+    pub fn resize(&mut self, xsize: usize, ysize: usize, zsize: usize) {
+        let mut new_data = vec![0; xsize * ysize];
+
+        // A naive for loop like this is optimized to a handful of memcpys.
+        for z in 0..self.zsize.min(zsize) {
+            for y in 0..self.ysize.min(ysize) {
+                for x in 0..self.xsize.min(xsize) {
+                    new_data[(xsize * ysize * z) + (xsize * y) + x] = self[(x, y, z)]
+                }
+            }
+        }
+
+        self.xsize = xsize;
+        self.ysize = ysize;
+        self.zsize = zsize;
+
+        self.data = new_data;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }
 }
@@ -389,12 +434,12 @@ impl Index<(usize, usize, usize)> for Table3 {
     type Output = i16;
 
     fn index(&self, index: (usize, usize, usize)) -> &Self::Output {
-        &self.data[index.0 + (index.1 * self.xsize) + (index.2 * self.ysize)]
+        &self.data[index.0 + self.xsize * (index.1 + self.ysize * index.2)]
     }
 }
 
 impl IndexMut<(usize, usize, usize)> for Table3 {
     fn index_mut(&mut self, index: (usize, usize, usize)) -> &mut Self::Output {
-        &mut self.data[index.0 + (index.1 * self.xsize) + (index.2 * self.ysize)]
+        &mut self.data[index.0 + self.xsize * (index.1 + self.ysize * index.2)]
     }
 }

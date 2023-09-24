@@ -22,13 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use num_traits::FromPrimitive;
-use std::fmt::Display;
-use strum::IntoEnumIterator;
-
-use rmxp_types::rpg;
-use rmxp_types::NilPadded;
-
 /// Syntax highlighter
 pub mod syntax_highlighting;
 /// Toasts to be displayed for errors, information, etc.
@@ -40,216 +33,37 @@ mod command_view;
 
 pub use command_view::CommandView;
 
-pub use tilemap::{Tilemap, TilemapDef};
 pub use toasts::Toasts;
 pub use top_bar::TopBar;
 
 /// The tilemap.
-mod tilemap {
-    use rmxp_types::rpg;
+mod map_view;
+pub use map_view::{MapView, SelectedLayer};
+mod tilepicker;
+pub use tilepicker::{SelectedTile, Tilepicker};
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "generic-tilemap")] {
-            mod generic_tilemap;
-            pub use generic_tilemap::Tilemap;
-        } else {
-            mod hardware_tilemap;
-            pub use hardware_tilemap::Tilemap;
-        }
-    }
+pub struct EnumMenuButton<'e, T> {
+    current_value: &'e mut T,
+    id: egui::Id,
+}
 
-    /// A trait defining how a tilemap should function.
-    pub trait TilemapDef: Sized {
-        /// Create a new tilemap.
-        fn new(id: i32) -> Result<Self, String>;
-
-        /// Display the tilemap.
-        fn ui(
-            &mut self,
-            ui: &mut egui::Ui,
-            map: &rpg::Map,
-            cursor_pos: &mut egui::Pos2,
-            toggled_layers: &[bool],
-            selected_layer: usize,
-            dragging_event: bool,
-        ) -> egui::Response;
-
-        /// Display the tile picker.
-        fn tilepicker(&self, ui: &mut egui::Ui, selected_tile: &mut i16);
+impl<'e, T> EnumMenuButton<'e, T> {
+    pub fn new(current_value: &'e mut T, id: egui::Id) -> Self {
+        Self { current_value, id }
     }
 }
 
-// btw there's a buncha places this could be used
-// uhh in event edit there's an array of strings that gets itered over to do what this does lol
-// TODO: Replace dropbox mechanism in event edit with this method
-pub trait Enumeration: Display + FromPrimitive + IntoEnumIterator {}
-impl<T> Enumeration for T where T: Display + FromPrimitive + IntoEnumIterator {}
-pub struct EnumMenuButton<T, F>
-where
-    T: Enumeration,
-    F: FnMut(T),
-{
-    current_value: i32,
-    _enumeration: T,
-    on_select: F,
-}
-impl<T: Enumeration, F: FnMut(T)> EnumMenuButton<T, F> {
-    pub fn new(current_value: i32, enumeration: T, on_select: F) -> Self {
-        Self {
-            current_value,
-            _enumeration: enumeration,
-            on_select,
-        }
-    }
-}
-impl<T: Enumeration, F: FnMut(T)> egui::Widget for EnumMenuButton<T, F> {
-    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
-        ui.menu_button(T::from_i32(self.current_value).unwrap().to_string(), |ui| {
-            for enumeration_item in T::iter() {
-                if ui.button(enumeration_item.to_string()).clicked() {
-                    (self.on_select)(enumeration_item);
-                    ui.close_menu();
+impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'e, T> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        egui::ComboBox::from_id_source(self.id)
+            .selected_text(self.current_value.to_string())
+            .show_ui(ui, |ui| {
+                for variant in T::iter() {
+                    let text = variant.to_string();
+                    ui.selectable_value(self.current_value, variant, text);
                 }
-            }
-        })
-        .response
-    }
-}
-
-pub trait NilPaddedStructure: Default {
-    fn name(&self) -> String;
-    fn id(&self) -> i32;
-
-    fn set_name(&mut self, new_name: impl Into<String>);
-}
-impl NilPaddedStructure for rpg::Animation {
-    fn id(&self) -> i32 {
-        self.id
-    }
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn set_name(&mut self, new_name: impl Into<String>) {
-        self.name = new_name.into();
-    }
-}
-impl NilPaddedStructure for rpg::CommonEvent {
-    fn id(&self) -> i32 {
-        self.id as i32
-    }
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn set_name(&mut self, new_name: impl Into<String>) {
-        self.name = new_name.into();
-    }
-}
-
-pub struct NilPaddedMenu<'nil, T>
-where
-    T: NilPaddedStructure,
-{
-    pub id: &'nil mut i32,
-    pub structure_list: &'nil NilPadded<T>,
-
-    default_structure: T,
-}
-impl<'nil, T> NilPaddedMenu<'nil, T>
-where
-    T: NilPaddedStructure,
-{
-    pub fn new(id: &'nil mut i32, structure_list: &'nil NilPadded<T>) -> Self {
-        let mut structure = T::default();
-        structure.set_name("(None)");
-        Self {
-            id,
-            structure_list,
-
-            default_structure: structure,
-        }
-    }
-}
-impl<'nil, T> egui::Widget for NilPaddedMenu<'nil, T>
-where
-    T: NilPaddedStructure,
-{
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        #[allow(clippy::cast_sign_loss)]
-        let id = *self.id as usize;
-        ui.menu_button(
-            if id == 0 {
-                String::from("(None)")
-            } else {
-                self.structure_list
-                    .get(id.checked_sub(1).unwrap_or(id))
-                    .unwrap_or(&self.default_structure)
-                    .name()
-            },
-            |ui| {
-                egui::ScrollArea::both().max_height(600.).show_rows(
-                    ui,
-                    ui.text_style_height(&egui::TextStyle::Body),
-                    self.structure_list.len(),
-                    |ui, rows| {
-                        ui.selectable_value(self.id, -1, "000: (None)");
-                        for (item_id, item) in self
-                            .structure_list
-                            .iter()
-                            .enumerate()
-                            .filter(|(element, _)| rows.contains(element))
-                        {
-                            let item_id = item_id as i32 + 1;
-                            if ui
-                                .selectable_value(
-                                    self.id,
-                                    item_id,
-                                    format!("{:0>3}: {}", item_id, item.name()),
-                                )
-                                .clicked()
-                            {
-                                ui.close_menu();
-                            }
-                        }
-                    },
-                )
-            },
-        )
-        .response
-    }
-}
-
-/// Wrapper for an `egui` button with callback support.
-pub struct CallbackButton<'callback> {
-    btn: egui::Button,
-    on_click: Option<Box<dyn FnOnce() + 'callback>>,
-}
-impl<'callback> CallbackButton<'callback> {
-    pub fn new(text: impl Into<egui::WidgetText>) -> Self {
-        Self {
-            btn: egui::Button::new(text),
-            on_click: None,
-        }
-    }
-
-    #[must_use]
-    pub fn on_click(mut self, new_on_click_callback: impl FnOnce() + 'callback) -> Self {
-        self.on_click = Some(Box::new(new_on_click_callback));
-        self
-    }
-}
-impl<'callback> egui::Widget for CallbackButton<'callback> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let response = self.btn.ui(ui);
-
-        if let Some(on_click) = self.on_click {
-            if response.clicked() {
-                on_click();
-            }
-        }
-
-        response
+            })
+            .response
     }
 }
 

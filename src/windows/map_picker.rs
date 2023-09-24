@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::prelude::*;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// The map picker window.
 /// Displays a list of maps in a tree.
@@ -33,9 +33,9 @@ pub struct Window {}
 
 impl Window {
     fn render_submap(
-        id: i32,
-        children_data: &HashMap<i32, Vec<i32>>,
-        mapinfos: &mut HashMap<i32, rpg::MapInfo>,
+        id: usize,
+        children_data: &BTreeMap<usize, BTreeSet<usize>>,
+        mapinfos: &mut rpg::MapInfos,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
@@ -77,9 +77,10 @@ impl Window {
         }
     }
 
-    fn create_map_tab(id: i32) {
-        if let Some(m) = map::Tab::new(id) {
-            state!().tabs.add_tab(Box::new(m));
+    fn create_map_tab(id: usize) {
+        match map::Tab::new(id) {
+            Ok(m) => state!().tabs.add_tab(Box::new(m)),
+            Err(e) => state!().toasts.error(e),
         }
     }
 }
@@ -100,18 +101,14 @@ impl window::Window for Window {
                         // Aquire the data cache.
                         let mut mapinfos = state!().data_cache.mapinfos();
 
-                        // We sort maps by their order.
-                        let mut sorted_maps = mapinfos.iter().collect::<Vec<_>>();
-                        sorted_maps.sort_unstable();
-
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.
-                        let mut children_data: HashMap<i32, Vec<i32>> = HashMap::new();
-                        for (id, map) in sorted_maps {
+                        let mut children_data: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
+                        for (&id, map) in mapinfos.iter() {
                             // Is there an entry for our parent?
                             // If not, then just add a blank vector to it.
-                            let children = children_data.entry(map.parent_id).or_default();
-                            children.push(*id);
+                            let children = children_data.entry(map.parent_id).or_default(); // FIXME: this doesn't handle sorting properly
+                            children.insert(id);
                         }
                         children_data.entry(0).or_default(); // If there is no `0` entry (i.e. there are no maps) then add one.
 
@@ -121,8 +118,8 @@ impl window::Window for Window {
                             .show(ui, |ui| {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
-                                for id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(*id, &children_data, &mut mapinfos, ui);
+                                for &id in children_data.get(&0).unwrap() {
+                                    Self::render_submap(id, &children_data, &mut mapinfos, ui);
                                 }
                             });
                     })

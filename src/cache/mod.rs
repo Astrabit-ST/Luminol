@@ -22,5 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+pub mod atlas;
 pub mod data;
 pub mod image_cache;

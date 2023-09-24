@@ -19,13 +19,17 @@
 		"playtest",
 		"wasm",
 		"filesystem",
-		"image cache"
+		"image cache",
+		"tilemap",
+		"config",
+		"audio"
 	],
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"rust-analyzer.cargo.extraEnv": {
 		"CARGO_PROFILE_RUST_ANALYZER_INHERITS": "dev"
 	},
-	"rust-analyzer.cargo.extraArgs": [
+	"rust-analyzer.cargo.extraArgs": [],
+	"rust-analyzer.check.extraArgs": [
 		"--profile",
 		"rust-analyzer"
 	],

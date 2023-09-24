@@ -18,19 +18,26 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "0.21"
-eframe = { version = "0.21", features = ["persistence"] }
-egui_extras = { version = "0.21", features = ["svg", "image"] }
-egui-notify = "0.6"
-egui_dock = "0.4"
-catppuccin-egui = "2.0.1"
+egui = "0.22"
+eframe = { version = "0.22", features = [
+    "persistence",
+    "wgpu",
+], default-features = false }
+egui_extras = { version = "0.22", features = ["svg", "image"] }
+egui-notify = { version = "0.9" } # temporary patch
+egui_dock = { version = "0.6" }
+catppuccin-egui = "3.0.0"
+
+glam = { version = "0.24", features = ["bytemuck"] }
 
 image = { version = "0.24", features = ["jpeg", "png"] }
 
-strum = { version = "0.24.1", features = ["derive"] }
-enum-as-inner = "0.5.1"
-num-traits = "0.2"
-num-derive = "0.3"
+strum = { version = "0.25", features = ["derive"] }
+enum-as-inner = "0.6"
+num_enum = "0.7"
+
+bitflags = "2.3"
+ouroboros = "0.18"
 
 git-version = "0.3"
 
@@ -40,10 +47,11 @@ parking_lot = { version = "0.12", features = [
     "hardware-lock-elision",
 ] }
 atomic_refcell = "0.1.9"
-dashmap = "5.4.0"
+dashmap = "5.5"
+crossbeam = "0.8"
 
 futures = "0.3"
-poll-promise = { version = "0.2.0", features = ["smol"] }
+poll-promise = { version = "0.3.0", features = ["smol"] }
 surf = "2.3.2"
 
 slab = { version = "0.4", features = ["serde"] }
@@ -55,46 +63,47 @@ syntect = { version = "5.0", features = [
 rand = "0.8.5"
 
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
+notify = "6.0"
+rfd = "0.12"
+camino = "1.1"
 
-bytemuck = "1"
+bytemuck = { version = "1.14", features = ["derive", "min_const_generics"] }
 
 color-eyre = "0.6"
 eyre = "0.6"
+thiserror = "1.0"
 
 paste = "1.0"
 cfg-if = "1.0.0"
 
 serde = { version = "1.0", features = ["derive"] }
-alox-48 = { version = "*", path = "alox-48" }
+alox-48 = { version = "0.4.1", default-features = false }
 ron = "0.8.0"
+rust-ini = "0.19.0"
 
 tracing = "0.1.37"
 tracing-subscriber = "0.3"
 
-itertools = "0.10"
+itertools = "0.11"
 static_assertions = "1.1.0"
 
-rodio = { version = "0.17.0", features = [
-    "symphonia-all",
-], default-features = false }
+rodio = { version = "0.17.1" }
+rustysynth = "1.2"
 
 command-lib = { version = "*", path = "command-lib" }
 rmxp-types = { version = "*", path = "rmxp-types" }
 luminol-term = { version = "*", path = "luminol-term" }
 
-rfd = "0.11"
-
 steamworks = { version = "0.10.0", optional = true }
+crc = { version = "3.0", optional = true }
 
 [features]
-default = ["generic-tilemap"]
-generic-tilemap = []
-steamworks = ["dep:steamworks"]
+steamworks = ["dep:steamworks", "crc"]
 
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.46.0", features = ["Win32_System_Registry"] }
-winreg = "0.11.0"
+windows = { version = "0.51.1", features = ["Win32_System_Registry"] }
+winreg = "0.51.0"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
@@ -107,29 +116,46 @@ ProductName = "Luminol"
 [profile.release]
 opt-level = 3
 lto = "fat"
+debug = true
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
 
-# Enable max optimizations for dependencies, but not for our code:
-[profile.dev.package."*"]
+# Enable max optimizations for certain dependencies, but not for our code
+# These dependencies are "hot" in that they are used quite frequently
+
+# Ui
+[profile.dev.package.egui]
+opt-level = 3
+
+[profile.dev.package.eframe]
+opt-level = 3
+
+# Audio
+[profile.dev.package.rodio]
+opt-level = 3
+
+[profile.dev.package.rustysynth]
+opt-level = 3
+
+# Graphics
+[profile.dev.package.wgpu]
+opt-level = 3
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.glam]
 opt-level = 3
 
 # See why config is set up this way.
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
 
 [workspace]
-members = ["alox-48", "command-lib", "rmxp-types", "luminol-term"]
+members = ["command-lib", "rmxp-types", "luminol-term"]
 
 [patch.crates-io]
-poll-promise = { git = "https://github.com/EmbarkStudios/poll-promise", rev = "8c4d0d6e4d693cf54e9306950cb2f6d271c77080" }
-egui_dock = { git = "https://github.com/Adanos020/egui_dock" }
-# js-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-# web-sys = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-# wasm-bindgen = { git = "https://github.com/Speak2Erase/wasm-bindgen-filesystem-access-api" }
-
-
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
 # eframe = { git = "https://github.com/emilk/egui", branch = "master" }

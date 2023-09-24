@@ -13,13 +13,13 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt update
-          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features
+      - run: cargo check --all-features --jobs 1
 
   test:
     name: Test Suite
@@ -30,13 +30,13 @@ jobs:
           submodules: true
       - run: |
           sudo apt update
-          sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev libasound2-dev -y
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo test --lib
+      - run: cargo test --lib --jobs 1
 
   fmt:
     name: Rustfmt
@@ -48,10 +48,10 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt update
-          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
           components: rustfmt
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -67,11 +67,11 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt update
-          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
           components: clippy
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo clippy -- # -D warnings
+      - run: cargo clippy --jobs 1 -- # -D warnings

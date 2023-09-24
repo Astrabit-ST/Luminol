@@ -28,7 +28,6 @@ use crate::prelude::*;
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
-    style: Arc<egui::Style>,
     lumi: Lumi,
 }
 
@@ -41,18 +40,63 @@ impl Luminol {
     ) -> Self {
         let storage = cc.storage.unwrap();
 
-        let state = eframe::get_value(storage, "SavedState").unwrap_or_default();
+        if let Some(global_config) = eframe::get_value(storage, "SavedState") {
+            *global_config!() = global_config;
+        }
         let style =
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = State::new(cc.gl.as_ref().unwrap().clone(), state);
+        let info = State::new(cc.wgpu_render_state.clone().unwrap());
         crate::set_state(info);
+
+        #[cfg(not(debug_assertions))]
+        state!()
+            .render_state
+            .device
+            .on_uncaptured_error(Box::new(|e| {
+                use std::fmt::Write;
+
+                let mut message_description = String::new();
+                match e {
+                    wgpu::Error::OutOfMemory { source } => {
+                        message_description.push_str("wgpu error: Out of memory\n");
+                        writeln!(message_description, "{source:#?}").unwrap();
+                    }
+                    wgpu::Error::Validation {
+                        source,
+                        description,
+                    } => {
+                        message_description.push_str("wgpu error: Validation error\n");
+                        writeln!(message_description, "{source}").unwrap();
+                        writeln!(message_description, "---------").unwrap();
+                        writeln!(message_description, "{}", source.source().unwrap()).unwrap();
+                        writeln!(message_description, "---------").unwrap();
+                        writeln!(message_description, "{source:#?}").unwrap();
+                        writeln!(message_description, "---------").unwrap();
+                        message_description.push_str(&description);
+                    }
+                }
+                rfd::MessageDialog::new()
+                    .set_title("Luminol has crashed!")
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_description(&message_description)
+                    .show();
+
+                let backtrace = std::backtrace::Backtrace::force_capture();
+                rfd::MessageDialog::new()
+                    .set_title("Backtrace")
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_description(&backtrace.to_string())
+                    .show();
+
+                std::process::abort();
+            }));
 
         if let Some(path) = try_load_path {
             state!()
                 .filesystem
-                .try_open_project(path)
+                .load_project(path)
                 .expect("failed to load project");
         }
 
@@ -60,7 +104,6 @@ impl Luminol {
 
         Self {
             top_bar: TopBar::default(),
-            style,
             lumi,
         }
     }
@@ -69,12 +112,7 @@ impl Luminol {
 impl eframe::App for Luminol {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value::<crate::SavedState>(
-            storage,
-            "SavedState",
-            &state!().saved_state.borrow(),
-        );
-        eframe::set_value::<Arc<egui::Style>>(storage, "EguiStyle", &self.style);
+        eframe::set_value(storage, "SavedState", &*global_config!());
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -83,10 +121,18 @@ impl eframe::App for Luminol {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
-                if let Err(e) = state!().filesystem.try_open_project(path) {
+                if let Err(e) = state!().filesystem.load_project(path) {
                     state!()
                         .toasts
                         .error(format!("Error opening dropped project: {e}"))
+                } else {
+                    state!().toasts.info(format!(
+                        "Successfully opened {:?}",
+                        state!()
+                            .filesystem
+                            .project_path()
+                            .expect("project not open")
+                    ));
                 }
             }
         });
@@ -97,14 +143,16 @@ impl eframe::App for Luminol {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(ui, &mut self.style, frame);
+                self.top_bar.ui(ui, frame);
             });
         });
 
         // Central panel with tabs.
-        egui::CentralPanel::default().show(ctx, |ui| {
-            state!().tabs.ui(ui);
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.))
+            .show(ctx, |ui| {
+                ui.group(|ui| state!().tabs.ui(ui));
+            });
 
         // Update all windows.
         state!().windows.update(ctx);

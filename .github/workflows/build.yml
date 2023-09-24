@@ -15,14 +15,14 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt update
-          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev -y
+          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
-        run: cargo build --release
+        run: cargo build --release --jobs 1
       - name: Setup artifact
         run: |
           mkdir -p ${{ github.workspace }}/artifact
@@ -42,11 +42,11 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
-        run: cargo build --release
+        run: cargo build --release --jobs 1
       - name: Setup artifact
         run: |
           mkdir -p ${{ github.workspace }}/artifact
@@ -66,11 +66,11 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-04-21
+          toolchain: nightly-2023-09-12
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
-        run: cargo build --release
+        run: cargo build --release --jobs 1
       - name: Setup artifact
         run: |
           mkdir -p ${{ github.workspace }}/artifact
