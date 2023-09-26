@@ -97,25 +97,24 @@ impl<T> OptionVec<T> {
         self.vec[index] = Some(element);
     }
 
-    /// Remove the element at the given index.
+    /// Remove the element at the given index and return it.
     /// If the OptionVec is not big enough to contain this index, this will throw an error.
     /// If there isn't an element at that index, this will throw an error.
-    pub fn try_remove(&mut self, index: usize) -> Result<(), String> {
+    pub fn try_remove(&mut self, index: usize) -> Result<T, String> {
         if index >= self.len() {
             Err(String::from("index out of bounds"))
         } else if self.vec[index].is_none() {
             Err(String::from("index not found"))
         } else {
             self.num_values -= 1;
-            self.vec[index] = None;
-            Ok(())
+            Ok(std::mem::replace(&mut self.vec[index], None).unwrap())
         }
     }
 
-    /// Remove the element at the given index.
+    /// Remove the element at the given index and return it.
     /// If the OptionVec is not big enough to contain this index, this will panic.
     /// If there isn't an element at that index, this will panic.
-    pub fn remove(&mut self, index: usize) {
+    pub fn remove(&mut self, index: usize) -> T {
         self.try_remove(index).unwrap()
     }
 }

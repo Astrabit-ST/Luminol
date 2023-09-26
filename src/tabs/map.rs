@@ -72,6 +72,13 @@ enum HistoryEntry {
     Tiles(usize),
     /// Contains the original map coordinates of a moved event and the ID of the event.
     EventMoved { id: usize, x: i32, y: i32 },
+    /// Contains the ID of a created event.
+    EventCreated(usize),
+    /// Contains a deleted event and its corresponding graphic.
+    EventDeleted {
+        event: rpg::Event,
+        sprite: Option<Event>,
+    },
 }
 
 impl Tab {
@@ -255,7 +262,7 @@ impl Tab {
         }
     }
 
-    fn add_event(&self, map: &mut rpg::Map) {
+    fn add_event(&self, map: &mut rpg::Map) -> Option<usize> {
         let mut first_vacant_id = 1;
         let mut max_event_id = 0;
 
@@ -270,7 +277,7 @@ impl Tab {
                 state!()
                     .toasts
                     .error("Cannot create event on an existing event's tile");
-                return;
+                return None;
             }
         }
 
@@ -286,7 +293,7 @@ impl Tab {
             state!()
                 .toasts
                 .error("Event limit reached, please delete some events");
-            return;
+            return None;
         };
 
         map.events.insert(
@@ -300,6 +307,7 @@ impl Tab {
 
         self.event_windows
             .add_window(event_edit::Window::new(new_event_id, self.id));
+        Some(new_event_id)
     }
 }
 
@@ -832,8 +840,10 @@ impl tab::Tab for Tab {
                             i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
                         })
                     {
-                        map.events.remove(selected_event_id);
-                        let _ = self.view.events.try_remove(selected_event_id);
+                        let event = map.events.remove(selected_event_id);
+                        let sprite = self.view.events.try_remove(selected_event_id).ok();
+                        self.history
+                            .push_back(HistoryEntry::EventDeleted { event, sprite });
                     }
 
                     if let Some(hover_tile) = self.view.hover_tile {
@@ -888,7 +898,9 @@ impl tab::Tab for Tab {
                     {
                         self.dragging_event = false;
                         self.event_drag_offset = None;
-                        self.add_event(&mut map);
+                        if let Some(id) = self.add_event(&mut map) {
+                            self.history.push_back(HistoryEntry::EventCreated(id));
+                        }
                     }
                 }
 
@@ -918,9 +930,21 @@ impl tab::Tab for Tab {
                         }
 
                         Some(HistoryEntry::EventMoved { id, x, y }) => {
-                            if let Some(event) = map.events.get_mut(id) {
-                                event.x = x;
-                                event.y = y;
+                            let event = map.events.get_mut(id).unwrap();
+                            event.x = x;
+                            event.y = y;
+                        }
+
+                        Some(HistoryEntry::EventCreated(id)) => {
+                            map.events.remove(id);
+                            let _ = self.view.events.try_remove(id);
+                        }
+
+                        Some(HistoryEntry::EventDeleted { event, sprite }) => {
+                            let id = event.id;
+                            map.events.insert(id, event);
+                            if let Some(sprite) = sprite {
+                                self.view.events.insert(id, sprite);
                             }
                         }
                     }
