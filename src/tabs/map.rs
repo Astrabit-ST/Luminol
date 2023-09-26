@@ -24,8 +24,7 @@
 
 #![allow(unused_imports)]
 use egui::Pos2;
-use std::collections::VecDeque;
-use std::{cell::RefMut, collections::HashMap};
+use std::{cell::RefMut, collections::HashMap, collections::VecDeque};
 
 use crate::prelude::*;
 use crate::Pencil;
@@ -61,6 +60,8 @@ pub struct Tab {
 
     /// Undo history
     history: VecDeque<HistoryEntry>,
+    /// When operations are undone, they are put here so that they can be redone
+    redo_history: Vec<HistoryEntry>,
     /// This is the buffer for the tilemap states for the undo history
     tilemap_history: Table3,
     /// Z index where the next element of `tilemap_history` will be inserted
@@ -90,6 +91,8 @@ impl Tab {
 
         let mut history = VecDeque::new();
         history.reserve(HISTORY_SIZE);
+        let mut redo_history = Vec::new();
+        redo_history.reserve(HISTORY_SIZE);
         let tilemap_history = Table3::new(map.data.xsize(), map.data.ysize(), HISTORY_SIZE);
 
         Ok(Self {
@@ -111,6 +114,7 @@ impl Tab {
             drawing_shape_pos: None,
 
             history,
+            redo_history,
             tilemap_history,
             tilemap_history_index: 0,
         })
@@ -478,6 +482,7 @@ impl tab::Tab for Tab {
                                     self.layer_cache[x + y * map.data.xsize()];
                             }
                         }
+                        self.redo_history.clear();
                         if self.history.len() == HISTORY_SIZE {
                             self.history.pop_front();
                         }
@@ -842,6 +847,7 @@ impl tab::Tab for Tab {
                     {
                         let event = map.events.remove(selected_event_id);
                         let sprite = self.view.events.try_remove(selected_event_id).ok();
+                        self.redo_history.clear();
                         if self.history.len() == HISTORY_SIZE {
                             self.history.pop_front();
                         }
@@ -864,6 +870,7 @@ impl tab::Tab for Tab {
                                     );
 
                                     // Also save the original position of the event to the history
+                                    self.redo_history.clear();
                                     if self.history.len() == HISTORY_SIZE {
                                         self.history.pop_front();
                                     }
@@ -905,6 +912,7 @@ impl tab::Tab for Tab {
                         self.dragging_event = false;
                         self.event_drag_offset = None;
                         if let Some(id) = self.add_event(&mut map) {
+                            self.redo_history.clear();
                             if self.history.len() == HISTORY_SIZE {
                                 self.history.pop_front();
                             }
@@ -913,41 +921,66 @@ impl tab::Tab for Tab {
                     }
                 }
 
-                // Handle undo keypresses
-                if !response.dragged_by(egui::PointerButton::Primary)
-                    && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z))
-                {
-                    match self.history.pop_back() {
-                        None => (),
+                // Handle undo/redo keypresses
+                let is_dragged_by_primary = response.dragged_by(egui::PointerButton::Primary);
+                let is_undo_pressed = ui.input(|i| {
+                    i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
+                });
+                let is_redo_pressed = ui.input(|i| {
+                    (i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Y))
+                        || (i.modifiers.command && i.modifiers.shift && i.key_pressed(egui::Key::Z))
+                });
+                if !is_dragged_by_primary && (is_undo_pressed || is_redo_pressed) {
+                    let new_entry = match if is_undo_pressed {
+                        self.history.pop_back()
+                    } else {
+                        self.redo_history.pop()
+                    } {
+                        None => None,
 
                         Some(HistoryEntry::Tiles(layer)) => {
-                            self.tilemap_history_index = if self.tilemap_history_index == 0 {
-                                HISTORY_SIZE.saturating_sub(1)
-                            } else {
-                                self.tilemap_history_index - 1
-                            };
+                            if is_undo_pressed {
+                                self.tilemap_history_index = if self.tilemap_history_index == 0 {
+                                    HISTORY_SIZE.saturating_sub(1)
+                                } else {
+                                    self.tilemap_history_index - 1
+                                };
+                            }
                             for y in 0..map.data.ysize() {
                                 for x in 0..map.data.xsize() {
                                     let position = (x, y, layer);
-                                    let new_tile_id =
-                                        self.tilemap_history[(x, y, self.tilemap_history_index)];
+                                    let history_position = (x, y, self.tilemap_history_index);
+                                    let new_tile_id = self.tilemap_history[history_position];
                                     if new_tile_id != map.data[position] {
+                                        self.tilemap_history[history_position] = map.data[position];
                                         map.data[position] = new_tile_id;
                                         self.view.map.set_tile(new_tile_id, position);
                                     }
                                 }
                             }
+                            if is_redo_pressed {
+                                self.tilemap_history_index += 1;
+                                self.tilemap_history_index %= HISTORY_SIZE;
+                            }
+                            Some(HistoryEntry::Tiles(layer))
                         }
 
                         Some(HistoryEntry::EventMoved { id, x, y }) => {
                             let event = map.events.get_mut(id).unwrap();
+                            let new_entry = Some(HistoryEntry::EventMoved {
+                                id,
+                                x: event.x,
+                                y: event.y,
+                            });
                             event.x = x;
                             event.y = y;
+                            new_entry
                         }
 
                         Some(HistoryEntry::EventCreated(id)) => {
-                            map.events.remove(id);
-                            let _ = self.view.events.try_remove(id);
+                            let event = map.events.remove(id);
+                            let sprite = self.view.events.try_remove(id).ok();
+                            Some(HistoryEntry::EventDeleted { event, sprite })
                         }
 
                         Some(HistoryEntry::EventDeleted { event, sprite }) => {
@@ -956,6 +989,15 @@ impl tab::Tab for Tab {
                             if let Some(sprite) = sprite {
                                 self.view.events.insert(id, sprite);
                             }
+                            Some(HistoryEntry::EventCreated(id))
+                        }
+                    };
+
+                    if let Some(new_entry) = new_entry {
+                        if is_undo_pressed {
+                            self.redo_history.push(new_entry);
+                        } else {
+                            self.history.push_back(new_entry);
                         }
                     }
                 }
