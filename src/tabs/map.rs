@@ -842,6 +842,9 @@ impl tab::Tab for Tab {
                     {
                         let event = map.events.remove(selected_event_id);
                         let sprite = self.view.events.try_remove(selected_event_id).ok();
+                        if self.history.len() == HISTORY_SIZE {
+                            self.history.pop_front();
+                        }
                         self.history
                             .push_back(HistoryEntry::EventDeleted { event, sprite });
                     }
@@ -861,6 +864,9 @@ impl tab::Tab for Tab {
                                     );
 
                                     // Also save the original position of the event to the history
+                                    if self.history.len() == HISTORY_SIZE {
+                                        self.history.pop_front();
+                                    }
                                     self.history.push_back(HistoryEntry::EventMoved {
                                         id: selected_event_id,
                                         x: selected_event.x,
@@ -899,6 +905,9 @@ impl tab::Tab for Tab {
                         self.dragging_event = false;
                         self.event_drag_offset = None;
                         if let Some(id) = self.add_event(&mut map) {
+                            if self.history.len() == HISTORY_SIZE {
+                                self.history.pop_front();
+                            }
                             self.history.push_back(HistoryEntry::EventCreated(id));
                         }
                     }
