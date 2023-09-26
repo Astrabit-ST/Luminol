@@ -70,6 +70,8 @@ pub struct Tab {
 enum HistoryEntry {
     /// Contains the index within `Tab::tilemap_history` of the previous state of a map layer.
     Tiles(usize),
+    /// Contains the original map coordinates of a moved event and the ID of the event.
+    EventMoved { id: usize, x: i32, y: i32 },
 }
 
 impl Tab {
@@ -847,6 +849,13 @@ impl tab::Tab for Tab {
                                             selected_event.y as f32,
                                         ) - hover_tile,
                                     );
+
+                                    // Also save the original position of the event to the history
+                                    self.history.push_back(HistoryEntry::EventMoved {
+                                        id: selected_event_id,
+                                        x: selected_event.x,
+                                        y: selected_event.y,
+                                    });
                                 };
                             }
 
@@ -905,6 +914,13 @@ impl tab::Tab for Tab {
                                         self.view.map.set_tile(new_tile_id, position);
                                     }
                                 }
+                            }
+                        }
+
+                        Some(HistoryEntry::EventMoved { id, x, y }) => {
+                            if let Some(event) = map.events.get_mut(id) {
+                                event.x = x;
+                                event.y = y;
                             }
                         }
                     }
