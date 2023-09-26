@@ -22,7 +22,9 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use crate::audio;
+
 pub use crate::cache::*;
 pub use crate::components::*;
 pub use crate::config;

@@ -104,10 +104,6 @@ wasm-bindgen = "0.2.84"
 poll-promise = { version = "0.3.0", features = ["web"] }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-rodio = { version = "0.17.1", features = [
-    "wasm-bindgen",
-    "symphonia-all",
-], default-features = false }
 
 [features]
 steamworks = ["dep:steamworks", "crc"]

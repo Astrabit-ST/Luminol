@@ -64,6 +64,7 @@ pub mod luminol;
 pub mod prelude;
 
 /// Audio related structs and funtions.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod audio;
 
 pub mod config;
@@ -131,6 +132,7 @@ pub struct State {
     /// Tabs that are displayed.
     pub tabs: tabs::tab::Tabs<Box<dyn Tab + Send>>,
     /// Audio that's played.
+    #[cfg(not(target_arch = "wasm32"))]
     pub audio: audio::Audio,
     /// Toasts to be displayed.
     pub toasts: Toasts,
@@ -151,6 +153,7 @@ impl State {
             atlas_cache: atlas::Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
+            #[cfg(not(target_arch = "wasm32"))]
             audio: audio::Audio::default(),
             toasts: Toasts::default(),
             render_state,

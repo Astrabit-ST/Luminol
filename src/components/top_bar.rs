@@ -74,6 +74,7 @@ impl TopBar {
                 if ui.button("Close Project").clicked() {
                     state.windows.clean_windows();
                     state.tabs.clean_tabs(|t| !t.requires_filesystem());
+                    #[cfg(not(target_arch = "wasm32"))]
                     state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
                     state.filesystem.unload_project();
                 }
@@ -135,6 +136,7 @@ impl TopBar {
                     state.windows.add_window(script_edit::Window::default());
                 }
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if ui.button("Sound Test").clicked() {
                     state.windows.add_window(sound_test::Window::default());
                 }

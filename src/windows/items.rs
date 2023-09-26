@@ -34,6 +34,7 @@ pub struct Window {
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
+    #[cfg(not(target_arch = "wasm32"))]
     menu_se_picker: sound_test::SoundTab,
     menu_se_picker_open: bool,
 }
@@ -48,6 +49,7 @@ impl Default for Window {
 
             icon_picker_open: false,
 
+            #[cfg(not(target_arch = "wasm32"))]
             menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, true),
             menu_se_picker_open: false,
         }
@@ -129,6 +131,7 @@ impl window::Window for Window {
                     egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if self.menu_se_picker_open {
                     egui::Window::new("Menu Sound Effect Picker")
                         .id(egui::Id::new("menu_se_picker"))
