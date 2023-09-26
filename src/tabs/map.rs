@@ -69,7 +69,7 @@ pub struct Tab {
 }
 
 enum HistoryEntry {
-    /// Contains the index within `Tab::tilemap_history` of the previous state of a map layer.
+    /// Contains the layer that was changed.
     Tiles(usize),
     /// Contains the original map coordinates of a moved event and the ID of the event.
     EventMoved { id: usize, x: i32, y: i32 },
