@@ -24,10 +24,13 @@
 
 #![allow(unused_imports)]
 use egui::Pos2;
+use std::collections::VecDeque;
 use std::{cell::RefMut, collections::HashMap};
 
 use crate::prelude::*;
 use crate::Pencil;
+
+const HISTORY_SIZE: usize = 50;
 
 pub struct Tab {
     /// ID of the map that is being edited.
@@ -55,6 +58,18 @@ pub struct Tab {
     /// When drawing with any brush,
     /// this is set to the position of the original tile we began drawing on
     drawing_shape_pos: Option<egui::Pos2>,
+
+    /// Undo history
+    history: VecDeque<HistoryEntry>,
+    /// This is the buffer for the tilemap states for the undo history
+    tilemap_history: Table3,
+    /// Z index where the next element of `tilemap_history` will be inserted
+    tilemap_history_index: usize,
+}
+
+enum HistoryEntry {
+    /// Contains the index within `Tab::tilemap_history` of the previous state of a map layer.
+    Tiles(usize),
 }
 
 impl Tab {
@@ -63,6 +78,10 @@ impl Tab {
         let map = state!().data_cache.map(id);
         let tilesets = state!().data_cache.tilesets();
         let tileset = &tilesets[map.tileset_id];
+
+        let mut history = VecDeque::new();
+        history.reserve(HISTORY_SIZE);
+        let tilemap_history = Table3::new(map.data.xsize(), map.data.ysize(), HISTORY_SIZE);
 
         Ok(Self {
             id,
@@ -81,6 +100,10 @@ impl Tab {
             dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
             brush_layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
             drawing_shape_pos: None,
+
+            history,
+            tilemap_history,
+            tilemap_history_index: 0,
         })
     }
 
@@ -434,6 +457,25 @@ impl tab::Tab for Tab {
                 }
 
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                    // Before drawing tiles, save the state of the current layer so we can undo it
+                    // later if we need to
+                    if response.drag_started_by(egui::PointerButton::Primary)
+                        && !ui.input(|i| i.modifiers.command)
+                    {
+                        for y in 0..map.data.ysize() {
+                            for x in 0..map.data.xsize() {
+                                self.tilemap_history[(x, y, self.tilemap_history_index)] =
+                                    self.layer_cache[x + y * map.data.xsize()];
+                            }
+                        }
+                        if self.history.len() == HISTORY_SIZE {
+                            self.history.pop_front();
+                        }
+                        self.history.push_back(HistoryEntry::Tiles(tile_layer));
+                        self.tilemap_history_index += 1;
+                        self.tilemap_history_index %= HISTORY_SIZE;
+                    }
+
                     // Tile drawing
                     let position = (map_x as usize, map_y as usize, tile_layer);
                     let initial_tile = SelectedTile::from_id(map.data[position]);
@@ -841,14 +883,41 @@ impl tab::Tab for Tab {
                     }
                 }
 
+                // Handle undo keypresses
+                let undo_pressed = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z));
+                if undo_pressed {
+                    match self.history.pop_back() {
+                        None => (),
+
+                        Some(HistoryEntry::Tiles(layer)) => {
+                            self.tilemap_history_index = if self.tilemap_history_index == 0 {
+                                HISTORY_SIZE.saturating_sub(1)
+                            } else {
+                                self.tilemap_history_index - 1
+                            };
+                            for y in 0..map.data.ysize() {
+                                for x in 0..map.data.xsize() {
+                                    let position = (x, y, layer);
+                                    let new_tile_id =
+                                        self.tilemap_history[(x, y, self.tilemap_history_index)];
+                                    if new_tile_id != map.data[position] {
+                                        map.data[position] = new_tile_id;
+                                        self.view.map.set_tile(new_tile_id, position);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 for (_, event) in map.events.iter_mut() {
                     event.extra_data.is_editor_open = false;
                 }
 
-                // Write the buffered tile changes to the tilemap
                 if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
-                    for x in 0..map.data.xsize() {
-                        for y in 0..map.data.ysize() {
+                    // Write the buffered tile changes to the tilemap
+                    for y in 0..map.data.ysize() {
+                        for x in 0..map.data.xsize() {
                             let position = (x, y, tile_layer);
                             let new_tile_id = map.data[position];
                             if new_tile_id != self.layer_cache[x + y * map.data.xsize()] {
