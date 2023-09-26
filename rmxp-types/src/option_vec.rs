@@ -107,7 +107,7 @@ impl<T> OptionVec<T> {
             Err(String::from("index not found"))
         } else {
             self.num_values -= 1;
-            Ok(std::mem::replace(&mut self.vec[index], None).unwrap())
+            Ok(self.vec[index].take().unwrap())
         }
     }
 

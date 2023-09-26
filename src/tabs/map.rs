@@ -89,12 +89,6 @@ impl Tab {
         let tilesets = state!().data_cache.tilesets();
         let tileset = &tilesets[map.tileset_id];
 
-        let mut history = VecDeque::new();
-        history.reserve(HISTORY_SIZE);
-        let mut redo_history = Vec::new();
-        redo_history.reserve(HISTORY_SIZE);
-        let tilemap_history = Table3::new(map.data.xsize(), map.data.ysize(), HISTORY_SIZE);
-
         Ok(Self {
             id,
             view: MapView::new(&map, tileset)?,
@@ -113,9 +107,9 @@ impl Tab {
             brush_layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
             drawing_shape_pos: None,
 
-            history,
-            redo_history,
-            tilemap_history,
+            history: VecDeque::with_capacity(HISTORY_SIZE),
+            redo_history: Vec::with_capacity(HISTORY_SIZE),
+            tilemap_history: Table3::new(map.data.xsize(), map.data.ysize(), HISTORY_SIZE),
             tilemap_history_index: 0,
         })
     }
@@ -927,8 +921,9 @@ impl tab::Tab for Tab {
                     i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
                 });
                 let is_redo_pressed = ui.input(|i| {
-                    (i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Y))
-                        || (i.modifiers.command && i.modifiers.shift && i.key_pressed(egui::Key::Z))
+                    i.modifiers.command
+                        && (i.modifiers.shift || i.key_pressed(egui::Key::Y))
+                        && (!i.modifiers.shift || i.key_pressed(egui::Key::Z))
                 });
                 if !is_dragged_by_primary && (is_undo_pressed || is_redo_pressed) {
                     let new_entry = match if is_undo_pressed {
