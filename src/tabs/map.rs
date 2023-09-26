@@ -905,8 +905,9 @@ impl tab::Tab for Tab {
                 }
 
                 // Handle undo keypresses
-                let undo_pressed = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z));
-                if undo_pressed {
+                if !response.dragged_by(egui::PointerButton::Primary)
+                    && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z))
+                {
                     match self.history.pop_back() {
                         None => (),
 
