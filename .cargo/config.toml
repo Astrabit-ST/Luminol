@@ -5,7 +5,10 @@ linker = "rust-lld"
 rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=mold"]
 
 [target.'cfg(target_arch = "wasm32")']
-rustflags = ["--cfg=web_sys_unstable_apis"]
+rustflags = ["--cfg=web_sys_unstable_apis", "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
 
 [build]
 target = "wasm32-unknown-unknown"
