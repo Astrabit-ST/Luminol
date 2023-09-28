@@ -37,7 +37,7 @@ pub struct TopBar {
 impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
         let state = state!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
