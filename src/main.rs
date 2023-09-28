@@ -1,5 +1,3 @@
-#![warn(clippy::all, rust_2018_idioms)]
-#![allow(clippy::uninlined_format_args)]
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -23,17 +21,46 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![warn(rust_2018_idioms)]
+#![warn(
+    clippy::all,
+    clippy::panic,
+    clippy::panic_in_result_fn,
+    clippy::panicking_unwrap,
+    clippy::unnecessary_wraps,
+    // unsafe code is sometimes fine but in general we don't want to use it.
+    unsafe_code,
+)]
+// These may be turned on in the future.
+// #![warn(clippy::unwrap, clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::doc_markdown,
+    clippy::missing_panics_doc,
+    clippy::too_many_lines
+)]
+// You must provide a safety doc. DO NOT TURN OFF THESE LINTS.
+#![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
+// Okay, lemme run through *why* some of these are enabled
+// 1) min_specialization
+// min_specialization is used in alox-48 to deserialize extra data types.
+// 2) int_roundings
+// int_roundings is close to stabilization.
+#![feature(min_specialization, int_roundings)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use luminol::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+mod app;
+mod lumi;
+mod steam;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     #[cfg(feature = "steamworks")]
-    if let Err(e) = luminol::steam::Steamworks::setup() {
+    if let Err(e) = steam::Steamworks::setup() {
         rfd::MessageDialog::new()
             .set_title("Error")
             .set_level(rfd::MessageLevel::Error)
@@ -119,7 +146,7 @@ fn main() {
     eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
+        Box::new(|cc| Box::new(app::App::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
 }

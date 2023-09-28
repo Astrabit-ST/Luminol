@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::lumi::Lumi;
-use crate::prelude::*;
+mod top_bar;
 
 /// Custom implementation of `eframe::Frame` for Luminol.
 /// We need this because the normal `eframe::App` uses a struct with private fields in its
@@ -69,12 +69,12 @@ macro_rules! app_use_custom_update {
 }
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
-pub struct Luminol {
-    top_bar: TopBar,
+pub struct App {
+    top_bar: top_bar::TopBar,
     lumi: Lumi,
 }
 
-impl Luminol {
+impl App {
     /// Called once before the first frame.
     #[must_use]
     pub fn new(
@@ -152,7 +152,7 @@ impl Luminol {
         let lumi = Lumi::new().expect("failed to load lumi images");
 
         Self {
-            top_bar: TopBar::default(),
+            top_bar: top_bar::TopBar::default(),
             lumi,
         }
     }

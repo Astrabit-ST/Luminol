@@ -29,33 +29,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-#![warn(rust_2018_idioms)]
-#![warn(
-    clippy::all,
-    clippy::panic,
-    clippy::panic_in_result_fn,
-    clippy::panicking_unwrap,
-    clippy::unnecessary_wraps,
-    // unsafe code is sometimes fine but in general we don't want to use it.
-    unsafe_code,
-)]
-// These may be turned on in the future.
-// #![warn(clippy::unwrap, clippy::pedantic)]
-#![allow(
-    clippy::missing_errors_doc,
-    clippy::doc_markdown,
-    clippy::missing_panics_doc,
-    clippy::too_many_lines
-)]
-// You must provide a safety doc. DO NOT TURN OFF THESE LINTS.
-#![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
-// Okay, lemme run through *why* some of these are enabled
-// 1) min_specialization
-// min_specialization is used in alox-48 to deserialize extra data types.
-// 2) int_roundings
-// int_roundings is close to stabilization.
-#![feature(min_specialization, int_roundings)]
-
 pub use prelude::*;
 
 /// The main Luminol application.
