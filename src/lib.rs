@@ -91,6 +91,10 @@ pub mod filesystem;
 /// The code for handling lumi, the friendly world machine!
 pub mod lumi;
 
+/// Utilities specific to WebAssembly builds of Luminol.
+#[cfg(target_arch = "wasm32")]
+pub mod web;
+
 #[cfg(feature = "steamworks")]
 pub mod steam;
 

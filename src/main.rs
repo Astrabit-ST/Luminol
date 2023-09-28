@@ -25,6 +25,9 @@
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     //let runtime = tokio::runtime::Builder::new_current_thread()
@@ -127,12 +130,20 @@ fn main() {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn main() {
+fn main() {}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub async fn luminol_start(
+    canvas: web_sys::OffscreenCanvas,
+    device_pixel_ratio: f32,
+    prefers_color_scheme_dark: Option<bool>,
+) {
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
     std::panic::set_hook(Box::new(move |info| {
         let report = panic.panic_report(info);
 
-        eframe::web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
     }));
 
     // Redirect tracing to console.log and friends:
@@ -140,16 +151,15 @@ fn main() {
 
     let web_options = eframe::WebOptions::default();
 
-    wasm_bindgen_futures::spawn_local(async {
-        eframe::WebRunner::new()
-            .start(
-                "the_canvas_id", // hardcode it
-                web_options,
-                Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
-            )
-            .await
-            .expect("failed to start eframe");
-    });
+    let runner = luminol::web::WebWorkerRunner::new(
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
+        canvas,
+        web_options,
+        device_pixel_ratio,
+        prefers_color_scheme_dark,
+    )
+    .await;
+    runner.setup_render_hook();
 }
 
 #[cfg(windows)]

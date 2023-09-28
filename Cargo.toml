@@ -43,6 +43,7 @@ git-version = "0.3"
 
 once_cell = "1.17"
 parking_lot = { version = "0.12", features = [
+    "nightly", # This is required for parking_lot to work properly in WebAssembly builds with atomics support
     "deadlock_detection",
     "hardware-lock-elision",
 ] }
@@ -104,6 +105,23 @@ wasm-bindgen = "0.2.84"
 poll-promise = { version = "0.3.0", features = ["web"] }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "console",
+    "Window",
+
+    "DedicatedWorkerGlobalScope",
+    "WorkerGlobalScope",
+
+    "Performance",
+
+    "OffscreenCanvas",
+    "OffscreenCanvasRenderingContext2d",
+
+    "WorkerLocation",
+    "Location",
+    "WorkerNavigator",
+    "Navigator",
+]}
 
 [features]
 steamworks = ["dep:steamworks", "crc"]

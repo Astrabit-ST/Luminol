@@ -2679,6 +2679,7 @@ dependencies = [
  "tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
  "windows 0.51.1",
  "winreg 0.51.0",
  "winres",
