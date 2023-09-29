@@ -56,6 +56,7 @@ struct WebWorkerRunnerState {
     native_pixels_per_point: Option<f32>,
 
     screen_resize_rx: Option<mpsc::Receiver<(u32, u32)>>,
+    event_rx: Option<mpsc::Receiver<egui::Event>>,
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
@@ -83,6 +84,7 @@ impl WebWorkerRunner {
         device_pixel_ratio: f32,
         prefers_color_scheme_dark: Option<bool>,
         screen_resize_rx: Option<mpsc::Receiver<(u32, u32)>>,
+        event_rx: Option<mpsc::Receiver<egui::Event>>,
     ) -> Self {
         if !is_worker() {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
@@ -193,6 +195,7 @@ impl WebWorkerRunner {
                 native_pixels_per_point,
                 canvas,
                 screen_resize_rx,
+                event_rx,
             })),
             integration_info,
             context,
@@ -208,7 +211,7 @@ impl WebWorkerRunner {
 
             // Resize the canvas if the screen size has changed
             if let Some(screen_resize_rx) = &state.screen_resize_rx {
-                if let Ok((width, height)) = screen_resize_rx.try_recv() {
+                if let Some((width, height)) = screen_resize_rx.try_iter().last() {
                     if width != state.surface_configuration.width
                         || height != state.surface_configuration.height
                     {
@@ -226,6 +229,16 @@ impl WebWorkerRunner {
                 }
             }
 
+            let events = if let Some(event_rx) = &state.event_rx {
+                event_rx.try_iter().collect_vec()
+            } else {
+                Default::default()
+            };
+            if !events.is_empty() {
+                // Render immediately if there are any pending events
+                *self.time_lock.write() = 0.;
+            }
+
             // Render only if sufficient time has passed since the last render
             if performance(&worker).unwrap().now() / 1000. >= *self.time_lock.read() {
                 // Ask the app to paint the next frame
@@ -239,6 +252,7 @@ impl WebWorkerRunner {
                     )),
                     pixels_per_point: state.native_pixels_per_point,
                     time: Some(performance(&worker).unwrap().now() / 1000.),
+                    events,
                     ..Default::default()
                 };
                 let output = self.context.run(input, |_| {

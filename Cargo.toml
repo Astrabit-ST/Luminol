@@ -115,6 +115,9 @@ web-sys = { version = "0.3", features = [
     "EventListener",
     "AddEventListenerOptions",
 
+    "Event",
+    "MouseEvent",
+
     "DedicatedWorkerGlobalScope",
     "WorkerGlobalScope",
 
