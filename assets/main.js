@@ -14,13 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+import wasm_bindgen, { luminol_main_start } from '/luminol.js';
 
-// NOTE: Firefox support for `type: 'module'` in Web Workers was added in early June 2023.
-const canvas = document.getElementById('luminol-canvas').transferControlToOffscreen();
-const worker = new Worker('worker.js', { name: 'luminol-main', type: 'module' });
-worker.postMessage({
-    type: 'init',
-    canvas,
-    devicePixelRatio: window.devicePixelRatio,
-    prefersColorSchemeDark: window.matchMedia('(prefers-color-scheme: dark)')?.matches,
-}, [canvas]);
+await wasm_bindgen();
+luminol_main_start();

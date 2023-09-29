@@ -133,12 +133,18 @@ fn main() {
 fn main() {}
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-pub async fn luminol_start(
-    canvas: web_sys::OffscreenCanvas,
+struct GlobalState {
     device_pixel_ratio: f32,
     prefers_color_scheme_dark: Option<bool>,
-) {
+}
+
+// The main thread and worker thread share the same global variables
+#[cfg(target_arch = "wasm32")]
+static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::sync::OnceCell::new();
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn luminol_main_start() {
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
     std::panic::set_hook(Box::new(move |info| {
         let report = panic.panic_report(info);
@@ -149,14 +155,63 @@ pub async fn luminol_start(
     // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();
 
+    let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
+    let device_pixel_ratio = window.device_pixel_ratio() as f32;
+    let prefers_color_scheme_dark = window
+        .match_media("(prefers-color-scheme: dark)")
+        .unwrap()
+        .map(|x| x.matches());
+
+    if GLOBAL_STATE
+        .set(GlobalState {
+            device_pixel_ratio,
+            prefers_color_scheme_dark,
+        })
+        .is_err()
+    {
+        panic!("failed to initialize global variables");
+    }
+
+    let canvas_id = "luminol-canvas";
+    let canvas = window
+        .document()
+        .expect("could not get `window.document` object (make sure you're running this in a web browser)")
+        .get_element_by_id(canvas_id)
+        .expect(format!("could not find HTML element with ID '{canvas_id}'").as_str())
+        .unchecked_into::<web_sys::HtmlCanvasElement>();
+    let offscreen_canvas = canvas
+        .transfer_control_to_offscreen()
+        .expect("could not transfer canvas control to offscreen");
+
+    let mut worker_options = web_sys::WorkerOptions::new();
+    worker_options.name("luminol-main");
+    worker_options.type_(web_sys::WorkerType::Module);
+    let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
+        .expect("failed to spawn web worker");
+
+    let message = js_sys::Array::new();
+    message.push(&JsValue::from("init"));
+    message.push(&wasm_bindgen::memory());
+    message.push(&offscreen_canvas);
+    let transfer = js_sys::Array::new();
+    transfer.push(&offscreen_canvas);
+    worker
+        .post_message_with_transfer(&message, &transfer)
+        .expect("failed to post message to web worker");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let web_options = eframe::WebOptions::default();
 
+    let state = GLOBAL_STATE.get().unwrap();
     let runner = luminol::web::WebWorkerRunner::new(
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
         canvas,
         web_options,
-        device_pixel_ratio,
-        prefers_color_scheme_dark,
+        state.device_pixel_ratio,
+        state.prefers_color_scheme_dark,
     )
     .await;
     runner.setup_render_hook();

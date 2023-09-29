@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
 use eframe::{egui_wgpu, wgpu};
-use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(
@@ -65,7 +64,7 @@ struct WebWorkerRunnerState {
 /// Currently only targets WebGPU, not WebGL.
 #[derive(Clone)]
 pub struct WebWorkerRunner {
-    state: Rc<RefCell<WebWorkerRunnerState>>,
+    state: Arc<Mutex<WebWorkerRunnerState>>,
     integration_info: eframe::IntegrationInfo,
     context: egui::Context,
     time_lock: Arc<RwLock<f64>>,
@@ -182,7 +181,7 @@ impl WebWorkerRunner {
         }
 
         Self {
-            state: Rc::new(RefCell::new(WebWorkerRunnerState {
+            state: Arc::new(Mutex::new(WebWorkerRunnerState {
                 app: app_creator(&eframe::CreationContext {
                     egui_ctx: context.clone(),
                     integration_info: integration_info.clone(),
@@ -208,7 +207,7 @@ impl WebWorkerRunner {
 
             // Render only if sufficient time has passed since the last render
             if performance(&worker).unwrap().now() / 1000. >= *self.time_lock.read() {
-                let mut state = self.state.borrow_mut();
+                let mut state = self.state.lock();
 
                 // Ask the app to paint the next frame
                 let input = egui::RawInput {

@@ -14,19 +14,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-
-// When moving or renaming this file, please update web_worker_runner.rs
-// with the new absolute path of this file
-
-import wasm_bindgen, { luminol_start } from '/luminol.js';
+import wasm_bindgen, { luminol_worker_start } from '/luminol.js';
 
 onmessage = async function (e) {
-    if (e.data?.type === 'init') {
-        await wasm_bindgen();
-        await luminol_start(
-            e.data.canvas,
-            e.data.devicePixelRatio,
-            e.data.prefersColorSchemeDark,
-        );
+    if (e.data[0] === 'init') {
+        await wasm_bindgen(undefined, e.data[1]);
+        await luminol_worker_start(e.data[2]);
     }
 };
