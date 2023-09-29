@@ -155,6 +155,9 @@ static GLOBAL_CALLBACK_STATE: once_cell::sync::OnceCell<GlobalCallbackState> =
     once_cell::sync::OnceCell::new();
 
 #[cfg(target_arch = "wasm32")]
+const CANVAS_ID: &str = "luminol-canvas";
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start() {
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
@@ -184,12 +187,11 @@ pub fn luminol_main_start() {
         panic!("failed to initialize global variables");
     }
 
-    let canvas_id = "luminol-canvas";
     let canvas = window
         .document()
         .expect("could not get `window.document` object (make sure you're running this in a web browser)")
-        .get_element_by_id(canvas_id)
-        .expect(format!("could not find HTML element with ID '{canvas_id}'").as_str())
+        .get_element_by_id(CANVAS_ID)
+        .expect(format!("could not find HTML element with ID '{CANVAS_ID}'").as_str())
         .unchecked_into::<web_sys::HtmlCanvasElement>();
     let offscreen_canvas = canvas
         .transfer_control_to_offscreen()
@@ -256,113 +258,18 @@ fn luminol_main_callback() {
     let state = GLOBAL_CALLBACK_STATE.get().unwrap();
     let window = web_sys::window().unwrap();
 
-    let canvas_id = "luminol-canvas";
     let canvas = window
         .document()
         .unwrap()
-        .get_element_by_id(canvas_id)
+        .get_element_by_id(CANVAS_ID)
         .unwrap()
         .unchecked_into::<web_sys::HtmlCanvasElement>();
 
-    let is_mac = matches!(
-        egui::os::OperatingSystem::from_user_agent(
-            window.navigator().user_agent().unwrap_or_default().as_str()
-        ),
-        egui::os::OperatingSystem::Mac | egui::os::OperatingSystem::IOS
+    luminol::web::web_worker_runner::setup_main_thread_hooks(
+        canvas,
+        &state.screen_resize_tx,
+        &state.event_tx,
     );
-
-    let tx = &state.screen_resize_tx;
-    let f = move || {
-        let window = web_sys::window().unwrap();
-        let _ = tx.send((
-            window.inner_width().unwrap().as_f64().unwrap() as u32,
-            window.inner_height().unwrap().as_f64().unwrap() as u32,
-        ));
-    };
-    f();
-    let callback: Closure<dyn Fn()> = Closure::new(f);
-    window
-        .add_event_listener_with_callback("resize", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for screen resizing");
-    callback.forget();
-
-    let tx = &state.event_tx;
-    let f = |pressed| {
-        move |e: web_sys::MouseEvent| {
-            if let Some(button) = match e.button() {
-                0 => Some(egui::PointerButton::Primary),
-                1 => Some(egui::PointerButton::Middle),
-                2 => Some(egui::PointerButton::Secondary),
-                3 => Some(egui::PointerButton::Extra1),
-                4 => Some(egui::PointerButton::Extra2),
-                _ => None,
-            } {
-                let ctrl = e.ctrl_key();
-                let _ = tx.send(egui::Event::PointerButton {
-                    pos: egui::pos2(e.client_x() as f32, e.client_y() as f32),
-                    button,
-                    pressed,
-                    modifiers: egui::Modifiers {
-                        alt: e.alt_key(),
-                        ctrl: !is_mac && ctrl,
-                        shift: e.shift_key(),
-                        mac_cmd: is_mac && ctrl,
-                        command: ctrl,
-                    },
-                });
-            }
-            e.stop_propagation();
-            if !pressed {
-                e.prevent_default();
-            }
-        }
-    };
-
-    let callback: Closure<dyn Fn(_)> = Closure::new(f(true));
-    canvas
-        .add_event_listener_with_callback("mousedown", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for mouse button presses");
-    callback.forget();
-
-    let callback: Closure<dyn Fn(_)> = Closure::new(f(false));
-    canvas
-        .add_event_listener_with_callback("mouseup", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for mouse button releases");
-    callback.forget();
-
-    let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::MouseEvent| {
-        let _ = tx.send(egui::Event::PointerMoved(egui::pos2(
-            e.client_x() as f32,
-            e.client_y() as f32,
-        )));
-        e.stop_propagation();
-        e.prevent_default();
-    });
-    canvas
-        .add_event_listener_with_callback("mousemove", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for mouse movement");
-    callback.forget();
-
-    let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::MouseEvent| {
-        let _ = tx.send(egui::Event::PointerGone);
-        e.stop_propagation();
-        e.prevent_default();
-    });
-    canvas
-        .add_event_listener_with_callback("mouseleave", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for mouse leaving");
-    callback.forget();
-
-    let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::Event| {
-        e.prevent_default();
-    });
-    canvas
-        .add_event_listener_with_callback("contextmenu", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for context menu");
-    canvas
-        .add_event_listener_with_callback("afterprint", callback.as_ref().unchecked_ref())
-        .expect("failed to register event listener for print shortcut keypress");
-    callback.forget();
 }
 
 #[cfg(windows)]
