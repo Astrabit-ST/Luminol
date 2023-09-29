@@ -377,7 +377,6 @@ pub fn setup_main_thread_hooks(
     let f = {
         let window = window.clone();
         move || {
-            let window = web_sys::window().unwrap();
             let _ = screen_resize_tx.send((
                 window.inner_width().unwrap().as_f64().unwrap() as u32,
                 window.inner_height().unwrap().as_f64().unwrap() as u32,
