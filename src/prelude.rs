@@ -43,6 +43,7 @@ pub use crate::luminol::CustomFrame;
 pub use std::collections::HashMap;
 pub use std::num::NonZeroUsize;
 pub use std::path::{Path, PathBuf};
+pub use std::sync::mpsc;
 pub use std::sync::Arc;
 
 pub use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};

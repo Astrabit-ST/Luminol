@@ -16,3 +16,10 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub mod web_worker_runner;
 pub use web_worker_runner::WebWorkerRunner;
+
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen(inline_js = "export function get_worker() { return self; }")]
+extern "C" {
+    pub fn get_worker() -> web_sys::DedicatedWorkerGlobalScope;
+}

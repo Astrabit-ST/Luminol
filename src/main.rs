@@ -143,6 +143,15 @@ struct GlobalState {
 static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::sync::OnceCell::new();
 
 #[cfg(target_arch = "wasm32")]
+struct GlobalCallbackState {
+    screen_resize_tx: std::sync::mpsc::Sender<(u32, u32)>,
+}
+
+#[cfg(target_arch = "wasm32")]
+static GLOBAL_CALLBACK_STATE: once_cell::sync::OnceCell<GlobalCallbackState> =
+    once_cell::sync::OnceCell::new();
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start() {
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
@@ -184,10 +193,14 @@ pub fn luminol_main_start() {
         .expect("could not transfer canvas control to offscreen");
 
     let mut worker_options = web_sys::WorkerOptions::new();
-    worker_options.name("luminol-main");
+    worker_options.name("luminol-primary");
     worker_options.type_(web_sys::WorkerType::Module);
     let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
         .expect("failed to spawn web worker");
+
+    let callback = Closure::once(luminol_main_callback);
+    worker.set_onmessage(Some(callback.as_ref().unchecked_ref()));
+    callback.forget();
 
     let message = js_sys::Array::new();
     message.push(&JsValue::from("init"));
@@ -203,6 +216,18 @@ pub fn luminol_main_start() {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
+    let (screen_resize_tx, screen_resize_rx) = std::sync::mpsc::channel();
+    if GLOBAL_CALLBACK_STATE
+        .set(GlobalCallbackState { screen_resize_tx })
+        .is_err()
+    {
+        panic!("failed to initialize global callback variables");
+    }
+
+    luminol::web::get_worker()
+        .post_message(&JsValue::null())
+        .expect("failed to post callback message from web worker to main thread");
+
     let web_options = eframe::WebOptions::default();
 
     let state = GLOBAL_STATE.get().unwrap();
@@ -212,9 +237,33 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         web_options,
         state.device_pixel_ratio,
         state.prefers_color_scheme_dark,
+        Some(screen_resize_rx),
     )
     .await;
     runner.setup_render_hook();
+}
+
+#[cfg(target_arch = "wasm32")]
+fn luminol_main_callback() {
+    let state = GLOBAL_CALLBACK_STATE.get().unwrap();
+    let window = web_sys::window().unwrap();
+
+    {
+        let tx = &state.screen_resize_tx;
+        let f = move || {
+            let window = web_sys::window().unwrap();
+            let _ = tx.send((
+                window.inner_width().unwrap().as_f64().unwrap() as u32,
+                window.inner_height().unwrap().as_f64().unwrap() as u32,
+            ));
+        };
+        f();
+        let callback: Closure<dyn Fn()> = Closure::new(f);
+        window
+            .add_event_listener_with_callback("resize", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for screen resizing");
+        callback.forget();
+    }
 }
 
 #[cfg(windows)]
