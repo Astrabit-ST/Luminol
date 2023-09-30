@@ -136,6 +136,16 @@ web-sys = { version = "0.3", features = [
     "Location",
     "WorkerNavigator",
     "Navigator",
+
+    "Blob",
+    "File",
+    "FileSystem",
+    "FileSystemDirectoryHandle",
+    "FileSystemFileHandle",
+    "FileSystemGetDirectoryOptions",
+    "FileSystemGetFileOptions",
+    "FileSystemRemoveOptions",
+    "FileSystemWritableFileStream",
 ]}
 
 [features]

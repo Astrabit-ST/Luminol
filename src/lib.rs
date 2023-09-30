@@ -103,6 +103,26 @@ pub mod graphics;
 pub use luminol::Luminol;
 use tabs::tab::Tab;
 
+#[cfg(target_arch = "wasm32")]
+pub struct GlobalState {
+    pub device_pixel_ratio: f32,
+    pub prefers_color_scheme_dark: Option<bool>,
+    pub filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::sync::OnceCell::new();
+
+#[cfg(target_arch = "wasm32")]
+pub struct GlobalCallbackState {
+    pub screen_resize_tx: mpsc::UnboundedSender<(u32, u32)>,
+    pub event_tx: mpsc::UnboundedSender<egui::Event>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub static GLOBAL_CALLBACK_STATE: once_cell::sync::OnceCell<GlobalCallbackState> =
+    once_cell::sync::OnceCell::new();
+
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 

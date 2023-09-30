@@ -19,6 +19,9 @@ use crate::prelude::*;
 use super::FileSystem as FileSystemTrait;
 use super::{archiver, host, list, path_cache, DirEntry, Error, Metadata, OpenFlags};
 
+#[cfg(target_arch = "wasm32")]
+use super::web;
+
 #[derive(Default)]
 pub struct FileSystem {
     state: AtomicRefCell<State>,
@@ -143,16 +146,19 @@ impl FileSystem {
     }
 
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
-        if let Some(path) = rfd::AsyncFileDialog::default()
-            .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
-            .pick_file()
-            .await
-        {
-            todo!("this feature is temporarily unavailable while we test WebAssembly builds");
-            //self.load_project(path.path())
-        } else {
-            Err("Cancelled loading project".to_string())
-        }
+        web::FileSystem::from_directory_picker(&crate::GLOBAL_STATE.get().unwrap().filesystem_tx)
+            .await;
+        Err("Not implemented".to_string())
+        //if let Some(path) = rfd::AsyncFileDialog::default()
+        //    .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
+        //    .pick_file()
+        //    .await
+        //{
+        //    todo!("this feature is temporarily unavailable while we test WebAssembly builds");
+        //    //self.load_project(path.path())
+        //} else {
+        //    Err("Cancelled loading project".to_string())
+        //}
     }
 
     #[cfg(windows)]

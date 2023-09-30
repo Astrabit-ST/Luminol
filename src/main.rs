@@ -135,26 +135,6 @@ fn main() {
 fn main() {}
 
 #[cfg(target_arch = "wasm32")]
-struct GlobalState {
-    device_pixel_ratio: f32,
-    prefers_color_scheme_dark: Option<bool>,
-}
-
-// The main thread and worker thread share the same global variables
-#[cfg(target_arch = "wasm32")]
-static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::sync::OnceCell::new();
-
-#[cfg(target_arch = "wasm32")]
-struct GlobalCallbackState {
-    screen_resize_tx: mpsc::UnboundedSender<(u32, u32)>,
-    event_tx: mpsc::UnboundedSender<egui::Event>,
-}
-
-#[cfg(target_arch = "wasm32")]
-static GLOBAL_CALLBACK_STATE: once_cell::sync::OnceCell<GlobalCallbackState> =
-    once_cell::sync::OnceCell::new();
-
-#[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
@@ -177,10 +157,14 @@ pub fn luminol_main_start() {
         .unwrap()
         .map(|x| x.matches());
 
-    if GLOBAL_STATE
-        .set(GlobalState {
+    let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
+    filesystem::web::setup_main_thread_hooks(filesystem_rx);
+
+    if luminol::GLOBAL_STATE
+        .set(luminol::GlobalState {
             device_pixel_ratio,
             prefers_color_scheme_dark,
+            filesystem_tx,
         })
         .is_err()
     {
@@ -223,8 +207,8 @@ pub fn luminol_main_start() {
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let (screen_resize_tx, screen_resize_rx) = mpsc::unbounded_channel();
     let (event_tx, event_rx) = mpsc::unbounded_channel();
-    if GLOBAL_CALLBACK_STATE
-        .set(GlobalCallbackState {
+    if luminol::GLOBAL_CALLBACK_STATE
+        .set(luminol::GlobalCallbackState {
             screen_resize_tx,
             event_tx,
         })
@@ -239,7 +223,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
 
     let web_options = eframe::WebOptions::default();
 
-    let state = GLOBAL_STATE.get().unwrap();
+    let state = luminol::GLOBAL_STATE.get().unwrap();
     let runner = luminol::web::WebWorkerRunner::new(
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
         canvas,
@@ -255,7 +239,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
 
 #[cfg(target_arch = "wasm32")]
 fn luminol_main_callback() {
-    let state = GLOBAL_CALLBACK_STATE.get().unwrap();
+    let state = luminol::GLOBAL_CALLBACK_STATE.get().unwrap();
     let window = web_sys::window().unwrap();
 
     let canvas = window
