@@ -21,14 +21,14 @@ use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug)]
-pub struct FileSystem<'tx> {
-    tx: &'tx mpsc::UnboundedSender<FileSystemCommand>,
+pub struct FileSystem {
+    tx: mpsc::UnboundedSender<FileSystemCommand>,
     key: usize,
 }
 
 #[derive(Debug)]
-pub struct File<'tx> {
-    tx: &'tx mpsc::UnboundedSender<FileSystemCommand>,
+pub struct File {
+    tx: mpsc::UnboundedSender<FileSystemCommand>,
     key: usize,
 }
 
@@ -37,7 +37,7 @@ pub enum FileSystemCommand {
     DropDir(usize, oneshot::Sender<bool>),
 }
 
-impl FileSystem<'_> {
+impl FileSystem {
     /// Returns whether or not the user's browser supports the JavaScript File System API.
     pub fn filesystem_supported() -> bool {
         todo!();
@@ -49,8 +49,8 @@ impl FileSystem<'_> {
     /// successfully.
     /// If the File System API is not supported, this always returns `None` without doing anything.
     pub async fn from_directory_picker(
-        filesystem_tx: &mpsc::UnboundedSender<FileSystemCommand>,
-    ) -> Option<FileSystem<'_>> {
+        filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>,
+    ) -> Option<FileSystem> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx
             .send(FileSystemCommand::DirPicker(oneshot_tx))
@@ -66,7 +66,7 @@ impl FileSystem<'_> {
     }
 }
 
-impl Drop for FileSystem<'_> {
+impl Drop for FileSystem {
     fn drop(&mut self) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
@@ -76,8 +76,8 @@ impl Drop for FileSystem<'_> {
     }
 }
 
-impl<'tx> FileSystemTrait for FileSystem<'tx> {
-    type File<'fs> = File<'tx> where Self: 'fs;
+impl FileSystemTrait for FileSystem {
+    type File<'fs> = File where Self: 'fs;
 
     fn open_file(
         &self,
@@ -120,19 +120,19 @@ impl<'tx> FileSystemTrait for FileSystem<'tx> {
     }
 }
 
-impl Drop for File<'_> {
+impl Drop for File {
     fn drop(&mut self) {
         todo!();
     }
 }
 
-impl std::io::Read for File<'_> {
+impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         todo!();
     }
 }
 
-impl std::io::Write for File<'_> {
+impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         todo!();
     }
@@ -142,7 +142,7 @@ impl std::io::Write for File<'_> {
     }
 }
 
-impl std::io::Seek for File<'_> {
+impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         todo!();
     }

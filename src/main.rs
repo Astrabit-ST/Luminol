@@ -251,8 +251,8 @@ fn luminol_main_callback() {
 
     luminol::web::web_worker_runner::setup_main_thread_hooks(
         canvas,
-        &state.screen_resize_tx,
-        &state.event_tx,
+        state.screen_resize_tx.clone(),
+        state.event_tx.clone(),
     );
 }
 

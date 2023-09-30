@@ -146,8 +146,10 @@ impl FileSystem {
     }
 
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
-        web::FileSystem::from_directory_picker(&crate::GLOBAL_STATE.get().unwrap().filesystem_tx)
-            .await;
+        web::FileSystem::from_directory_picker(
+            crate::GLOBAL_STATE.get().unwrap().filesystem_tx.clone(),
+        )
+        .await;
         Err("Not implemented".to_string())
         //if let Some(path) = rfd::AsyncFileDialog::default()
         //    .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
