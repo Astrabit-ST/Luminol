@@ -63,8 +63,7 @@ struct WebWorkerRunnerState {
 /// Currently only targets WebGPU, not WebGL.
 #[derive(Clone)]
 pub struct WebWorkerRunner {
-    state: std::rc::Rc<Mutex<WebWorkerRunnerState>>,
-    integration_info: eframe::IntegrationInfo,
+    state: std::rc::Rc<std::cell::RefCell<WebWorkerRunnerState>>,
     context: egui::Context,
     time_lock: Arc<RwLock<f64>>,
 }
@@ -182,7 +181,7 @@ impl WebWorkerRunner {
         }
 
         Self {
-            state: std::rc::Rc::new(Mutex::new(WebWorkerRunnerState {
+            state: std::rc::Rc::new(std::cell::RefCell::new(WebWorkerRunnerState {
                 app: app_creator(&eframe::CreationContext {
                     egui_ctx: context.clone(),
                     integration_info: integration_info.clone(),
@@ -190,23 +189,22 @@ impl WebWorkerRunner {
                     wgpu_render_state: Some(render_state.clone()),
                 }),
                 render_state,
+                canvas,
                 surface,
                 surface_configuration,
                 native_pixels_per_point,
-                canvas,
                 screen_resize_rx,
                 event_rx,
             })),
-            integration_info,
             context,
             time_lock,
         }
     }
 
     /// Sets up the hook to render the app to the canvas.
-    pub fn setup_render_hook(self) {
+    pub fn setup_render_hooks(self) {
         let callback = Closure::once(move || {
-            let mut state = self.state.lock();
+            let mut state = self.state.borrow_mut();
             let worker = get_worker();
 
             // Resize the canvas if the screen size has changed
@@ -257,15 +255,9 @@ impl WebWorkerRunner {
                     events,
                     ..Default::default()
                 };
-                let output = self.context.run(input, |_| {
-                    state.app.custom_update(
-                        &self.context,
-                        &mut CustomFrame {
-                            info: &self.integration_info,
-                            storage: None,
-                        },
-                    )
-                });
+                let output = self
+                    .context
+                    .run(input, |_| state.app.custom_update(&self.context));
                 let clear_color = state.app.clear_color(&self.context.style().visuals);
                 let paint_jobs = self.context.tessellate(output.shapes);
 
@@ -351,7 +343,7 @@ impl WebWorkerRunner {
                     + output.repaint_after.as_secs_f64();
             }
 
-            self.clone().setup_render_hook();
+            self.clone().setup_render_hooks();
         });
 
         let _ = get_worker().request_animation_frame(callback.as_ref().unchecked_ref());

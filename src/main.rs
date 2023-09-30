@@ -250,7 +250,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         Some(event_rx),
     )
     .await;
-    runner.setup_render_hook();
+    runner.setup_render_hooks();
 }
 
 #[cfg(target_arch = "wasm32")]

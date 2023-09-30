@@ -38,7 +38,6 @@ pub use crate::filesystem::FileSystem;
 
 pub use crate::app_use_custom_update;
 pub use crate::luminol::CustomApp;
-pub use crate::luminol::CustomFrame;
 
 pub use std::collections::HashMap;
 pub use std::num::NonZeroUsize;

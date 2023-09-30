@@ -25,28 +25,6 @@
 use crate::lumi::Lumi;
 use crate::prelude::*;
 
-/// Custom implementation of `eframe::Frame` for Luminol.
-/// We need this because the normal `eframe::App` uses a struct with private fields in its
-/// definition of `update()`, and that prevents us from implementing custom app runners.
-pub struct CustomFrame<'a> {
-    pub info: &'a eframe::IntegrationInfo,
-    pub storage: Option<&'a dyn eframe::Storage>,
-}
-
-impl CustomFrame<'_> {
-    pub fn is_web(&self) -> bool {
-        cfg!(target_arch = "wasm32")
-    }
-
-    pub fn info(&self) -> &eframe::IntegrationInfo {
-        self.info
-    }
-
-    pub fn storage(&self) -> Option<&dyn eframe::Storage> {
-        self.storage
-    }
-}
-
 /// Custom implementation of `eframe::App` for Luminol.
 /// We need this because the normal `eframe::App` uses a struct with private fields in its
 /// definition of `update()`, and that prevents us from implementing custom app runners.
@@ -54,20 +32,14 @@ pub trait CustomApp
 where
     Self: eframe::App,
 {
-    fn custom_update(&mut self, ctx: &egui::Context, frame: &mut CustomFrame<'_>);
+    fn custom_update(&mut self, ctx: &egui::Context);
 }
 
 #[macro_export]
 macro_rules! app_use_custom_update {
     () => {
-        fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-            self.custom_update(
-                ctx,
-                &mut CustomFrame {
-                    info: &frame.info(),
-                    storage: frame.storage(),
-                },
-            )
+        fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+            self.custom_update(ctx)
         }
     };
 }
@@ -158,7 +130,7 @@ impl Luminol {
 
 impl CustomApp for Luminol {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn custom_update(&mut self, ctx: &eframe::egui::Context, _frame: &mut CustomFrame<'_>) {
+    fn custom_update(&mut self, ctx: &eframe::egui::Context) {
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
