@@ -146,8 +146,8 @@ static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::sync::O
 
 #[cfg(target_arch = "wasm32")]
 struct GlobalCallbackState {
-    screen_resize_tx: mpsc::Sender<(u32, u32)>,
-    event_tx: mpsc::Sender<egui::Event>,
+    screen_resize_tx: mpsc::UnboundedSender<(u32, u32)>,
+    event_tx: mpsc::UnboundedSender<egui::Event>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -221,8 +221,8 @@ pub fn luminol_main_start() {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
-    let (screen_resize_tx, screen_resize_rx) = mpsc::channel();
-    let (event_tx, event_rx) = mpsc::channel();
+    let (screen_resize_tx, screen_resize_rx) = mpsc::unbounded_channel();
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
     if GLOBAL_CALLBACK_STATE
         .set(GlobalCallbackState {
             screen_resize_tx,

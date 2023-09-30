@@ -55,8 +55,8 @@ struct WebWorkerRunnerState {
     surface_configuration: wgpu::SurfaceConfiguration,
     native_pixels_per_point: Option<f32>,
 
-    screen_resize_rx: Option<mpsc::Receiver<(u32, u32)>>,
-    event_rx: Option<mpsc::Receiver<egui::Event>>,
+    screen_resize_rx: Option<mpsc::UnboundedReceiver<(u32, u32)>>,
+    event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
@@ -83,8 +83,8 @@ impl WebWorkerRunner {
         web_options: eframe::WebOptions,
         device_pixel_ratio: f32,
         prefers_color_scheme_dark: Option<bool>,
-        screen_resize_rx: Option<mpsc::Receiver<(u32, u32)>>,
-        event_rx: Option<mpsc::Receiver<egui::Event>>,
+        screen_resize_rx: Option<mpsc::UnboundedReceiver<(u32, u32)>>,
+        event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
     ) -> Self {
         if !is_worker() {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
@@ -210,8 +210,10 @@ impl WebWorkerRunner {
             let worker = get_worker();
 
             // Resize the canvas if the screen size has changed
-            if let Some(screen_resize_rx) = &state.screen_resize_rx {
-                if let Some((width, height)) = screen_resize_rx.try_iter().last() {
+            if let Some(screen_resize_rx) = &mut state.screen_resize_rx {
+                if let Some((width, height)) =
+                    std::iter::from_fn(|| screen_resize_rx.try_recv().ok()).last()
+                {
                     if width != state.surface_configuration.width
                         || height != state.surface_configuration.height
                     {
@@ -229,8 +231,8 @@ impl WebWorkerRunner {
                 }
             }
 
-            let events = if let Some(event_rx) = &state.event_rx {
-                event_rx.try_iter().collect_vec()
+            let events = if let Some(event_rx) = &mut state.event_rx {
+                std::iter::from_fn(|| event_rx.try_recv().ok()).collect_vec()
             } else {
                 Default::default()
             };
@@ -361,8 +363,8 @@ impl WebWorkerRunner {
 /// mouse events and resize the canvas to fill the screen.
 pub fn setup_main_thread_hooks(
     canvas: web_sys::HtmlCanvasElement,
-    screen_resize_tx: &'static mpsc::Sender<(u32, u32)>,
-    event_tx: &'static mpsc::Sender<egui::Event>,
+    screen_resize_tx: &'static mpsc::UnboundedSender<(u32, u32)>,
+    event_tx: &'static mpsc::UnboundedSender<egui::Event>,
 ) {
     let window =
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");

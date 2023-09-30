@@ -43,13 +43,15 @@ pub use crate::luminol::CustomFrame;
 pub use std::collections::HashMap;
 pub use std::num::NonZeroUsize;
 pub use std::path::{Path, PathBuf};
-pub use std::sync::mpsc;
 pub use std::sync::Arc;
 
 pub use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 pub use once_cell::sync::{Lazy, OnceCell};
 pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
+
+pub use tokio::sync::mpsc;
+pub use tokio::sync::oneshot;
 
 pub use crate::State;
 
