@@ -252,6 +252,9 @@ impl WebWorkerRunner {
                     )),
                     pixels_per_point: state.native_pixels_per_point,
                     time: Some(performance(&worker).unwrap().now() / 1000.),
+                    max_texture_side: Some(
+                        state.render_state.device.limits().max_texture_dimension_2d as usize,
+                    ),
                     events,
                     ..Default::default()
                 };
