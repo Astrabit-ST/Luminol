@@ -21,6 +21,9 @@ mod event;
 mod map;
 mod plane;
 
+pub mod atlas_cache;
+pub mod image_cache;
+
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;

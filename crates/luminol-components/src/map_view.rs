@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::prelude::*;
 
 use super::tilepicker;
 
@@ -30,7 +29,7 @@ pub struct MapView {
 
     /// The first sprite is for drawing on the tilemap,
     /// and the second sprite is for the hover preview.
-    pub events: rmxp_types::OptionVec<(Event, Event)>,
+    pub events: luminol_data::OptionVec<(Event, Event)>,
     pub map: Map,
 
     pub selected_layer: SelectedLayer,

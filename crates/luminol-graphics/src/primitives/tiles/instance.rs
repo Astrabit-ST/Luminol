@@ -14,9 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
-use primitives::Quad;
 
+use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
@@ -36,7 +35,7 @@ struct Instance {
     layer: u32,
 }
 
-const TILE_QUAD: Quad = Quad::new(
+const TILE_QUAD: crate::primitives::Quad = crate::primitives::Quad::new(
     egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
     // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
     egui::Rect::from_min_max(egui::pos2(0.01, 0.01), egui::pos2(31.99, 31.99)),
@@ -44,7 +43,7 @@ const TILE_QUAD: Quad = Quad::new(
 );
 
 impl Instances {
-    pub fn new(map_data: &Table3, atlas_size: wgpu::Extent3d) -> Self {
+    pub fn new(map_data: &luminol_data::Table3, atlas_size: wgpu::Extent3d) -> Self {
         let instances = Self::calculate_instances(map_data);
         let instance_buffer =
             state!()
@@ -56,7 +55,7 @@ impl Instances {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let (vertex_buffer, _) = Quad::into_buffer(&[TILE_QUAD], atlas_size);
+        let (vertex_buffer, _) = crate::primitives::Quad::into_buffer(&[TILE_QUAD], atlas_size);
 
         Self {
             instance_buffer,
@@ -84,7 +83,7 @@ impl Instances {
         )
     }
 
-    fn calculate_instances(map_data: &Table3) -> Vec<Instance> {
+    fn calculate_instances(map_data: &luminol_data::Table3) -> Vec<Instance> {
         map_data
             .iter()
             .copied()

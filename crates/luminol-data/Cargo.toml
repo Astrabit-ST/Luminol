@@ -1,21 +1,21 @@
 [package]
-name = "rmxp-types"
+name = "luminol-data"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-alox-48 = { version = "0.4.1", default-features = false }
-bytemuck = { version = "1.13.1", features = ["extern_crate_alloc"] }
-num-traits = "0.2"
-num-derive = "0.3"
-slab = { version = "0.4", features = ["serde"] }
-strum = { version = "0.25", features = ["derive"] }
-paste = "1.0"
-camino = "1.1"
-num_enum = "0.6"
+num-derive = "0.4.0"
+num_enum = "0.7.0"
 
 rand = "0.8.5"
 flate2 = "1.0"
+
+serde.workspace = true
+alox-48.workspace = true
+bytemuck.workspace = true
+slab.workspace = true
+strum.workspace = true
+paste.workspace = true
+camino.workspace = true

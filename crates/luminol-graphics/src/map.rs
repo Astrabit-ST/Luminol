@@ -15,13 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use crate::prelude::*;
+use crate::primitives;
+use crate::Plane;
 
 use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Map {
-    resources: Arc<Resources>,
+    resources: std::sync::Arc<Resources>,
     ani_time: Option<f64>,
 
     pub fog_enabled: bool,
@@ -37,12 +38,12 @@ struct Resources {
     fog: Option<Plane>,
 }
 
-type ResourcesSlab = slab::Slab<Arc<Resources>>;
+type ResourcesSlab = slab::Slab<std::sync::Arc<Resources>>;
 
 impl Map {
     pub fn new(
-        map: &rpg::Map,
-        tileset: &rpg::Tileset,
+        map: &luminol_data::rpg::Map,
+        tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
     ) -> Result<Self, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
@@ -94,7 +95,7 @@ impl Map {
         );
 
         Ok(Self {
-            resources: Arc::new(Resources {
+            resources: std::sync::Arc::new(Resources {
                 tiles,
                 viewport,
                 panorama,
@@ -138,7 +139,7 @@ impl Map {
             .request_repaint_after(Duration::from_millis(16));
 
         let resources = self.resources.clone();
-        let resource_id = Arc::new(OnceCell::new());
+        let resource_id = std::sync::Arc::new(once_cell::sync::OnceCell::new());
 
         let prepare_id = resource_id;
         let paint_id = prepare_id.clone();
@@ -187,7 +188,7 @@ impl Map {
 
         painter.add(egui::PaintCallback {
             rect,
-            callback: Arc::new(paint_callback),
+            callback: std::sync::Arc::new(paint_callback),
         });
     }
 }

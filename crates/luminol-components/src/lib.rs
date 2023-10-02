@@ -26,15 +26,8 @@
 pub mod syntax_highlighting;
 /// Toasts to be displayed for errors, information, etc.
 mod toasts;
-/// The toolbar for managing the project.
-mod top_bar;
-
-mod command_view;
-
-pub use command_view::CommandView;
 
 pub use toasts::Toasts;
-pub use top_bar::TopBar;
 
 /// The tilemap.
 mod map_view;

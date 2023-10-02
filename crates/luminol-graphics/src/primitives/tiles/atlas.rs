@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::autotile_ids::AUTOTILES;
-use super::primitives::Quad;
+use crate::primitives::Quad;
 
 pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
@@ -38,21 +38,19 @@ pub const ROWS_UNDER_AUTOTILES_TIMES_COLUMNS: u32 = ROWS_UNDER_AUTOTILES * TILES
 
 pub const AUTOTILE_FRAME_WIDTH: u32 = AUTOTILE_FRAME_COLS * TILE_SIZE; // This is per frame!
 
-use crate::prelude::*;
-
 use image::GenericImageView;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Atlas {
-    pub atlas_texture: Arc<image_cache::WgpuTexture>,
+    pub atlas_texture: Arc<crate::image_cache::WgpuTexture>,
     pub autotile_width: u32,
     pub tileset_height: u32,
     pub autotile_frames: [u32; AUTOTILE_AMOUNT as usize],
 }
 
 impl Atlas {
-    pub fn new(tileset: &rpg::Tileset) -> Result<Atlas, String> {
+    pub fn new(tileset: &luminol_data::rpg::Tileset) -> Result<Atlas, String> {
         let tileset_img = tileset.tileset_name.as_ref().and_then(|tileset_name| {
             let tileset_img = state!()
                 .image_cache
@@ -84,7 +82,7 @@ impl Atlas {
         let autotile_frames = std::array::from_fn(|i| {
             autotiles[i]
                 .as_deref()
-                .map(image_cache::WgpuTexture::width)
+                .map(crate::image_cache::WgpuTexture::width)
                 // Why unwrap with a width of 96? Even though the autotile doesn't exist, it still has an effective width on the atlas of one frame.
                 // Further rendering code breaks down with an autotile width of 0, anyway.
                 .unwrap_or(96)
@@ -240,8 +238,11 @@ impl Atlas {
             }
         }
 
-        let bind_group = image_cache::Cache::create_texture_bind_group(&atlas_texture);
-        let atlas_texture = Arc::new(image_cache::WgpuTexture::new(atlas_texture, bind_group));
+        let bind_group = crate::image_cache::Cache::create_texture_bind_group(&atlas_texture);
+        let atlas_texture = Arc::new(crate::image_cache::WgpuTexture::new(
+            atlas_texture,
+            bind_group,
+        ));
 
         Ok(Atlas {
             atlas_texture,

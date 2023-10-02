@@ -22,8 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
 mod midi;
 
 #[cfg(target_arch = "wasm32")]
@@ -48,7 +46,7 @@ pub enum Source {
 
 /// A struct for playing Audio.
 pub struct Audio {
-    inner: Mutex<Inner>,
+    inner: parking_lot::Mutex<Inner>,
 }
 
 struct Inner {
@@ -56,7 +54,7 @@ struct Inner {
     // To actually play tracks the user will have needed to interact with the ui.
     _output_stream: rodio::OutputStream,
     output_stream_handle: rodio::OutputStreamHandle,
-    sinks: HashMap<Source, rodio::Sink>,
+    sinks: std::collections::HashMap<Source, rodio::Sink>,
 }
 
 #[cfg(not(target_arch = "wasm32"))] // Audio can't be shared between threads in wasm either
@@ -75,10 +73,10 @@ impl Default for Audio {
 
         let (output_stream, output_stream_handle) = rodio::OutputStream::try_default().unwrap();
         Self {
-            inner: Mutex::new(Inner {
+            inner: parking_lot::Mutex::new(Inner {
                 _output_stream: output_stream,
                 output_stream_handle,
-                sinks: HashMap::default(),
+                sinks: std::collections::HashMap::default(),
             }),
         }
     }
