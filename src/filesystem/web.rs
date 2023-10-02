@@ -32,7 +32,9 @@ pub struct File {
     tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
-pub enum FileSystemCommand {
+pub struct FileSystemCommand(FileSystemCommandInner);
+
+enum FileSystemCommandInner {
     Supported(oneshot::Sender<bool>),
     Metadata(
         usize,
@@ -75,7 +77,9 @@ impl FileSystem {
     pub fn filesystem_supported(filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>) -> bool {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx
-            .send(FileSystemCommand::Supported(oneshot_tx))
+            .send(FileSystemCommand(FileSystemCommandInner::Supported(
+                oneshot_tx,
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap()
     }
@@ -93,7 +97,9 @@ impl FileSystem {
         }
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx
-            .send(FileSystemCommand::DirPicker(oneshot_tx))
+            .send(FileSystemCommand(FileSystemCommandInner::DirPicker(
+                oneshot_tx,
+            )))
             .unwrap();
         oneshot_rx.await.unwrap().map(|key| FileSystem {
             key,
@@ -106,7 +112,9 @@ impl Drop for FileSystem {
     fn drop(&mut self) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirDrop(self.key, oneshot_tx))
+            .send(FileSystemCommand(FileSystemCommandInner::DirDrop(
+                self.key, oneshot_tx,
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap();
     }
@@ -122,11 +130,11 @@ impl FileSystemTrait for FileSystem {
     ) -> Result<Self::File<'_>, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirOpenFile(
+            .send(FileSystemCommand(FileSystemCommandInner::DirOpenFile(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap().map(|key| File {
             key,
@@ -137,11 +145,11 @@ impl FileSystemTrait for FileSystem {
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::Metadata(
+            .send(FileSystemCommand(FileSystemCommandInner::Metadata(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap()
     }
@@ -157,11 +165,11 @@ impl FileSystemTrait for FileSystem {
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirExists(
+            .send(FileSystemCommand(FileSystemCommandInner::DirExists(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         Ok(oneshot_rx.blocking_recv().unwrap())
     }
@@ -169,11 +177,11 @@ impl FileSystemTrait for FileSystem {
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirCreateDir(
+            .send(FileSystemCommand(FileSystemCommandInner::DirCreateDir(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap()
     }
@@ -181,11 +189,11 @@ impl FileSystemTrait for FileSystem {
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirRemoveDir(
+            .send(FileSystemCommand(FileSystemCommandInner::DirRemoveDir(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap()
     }
@@ -193,11 +201,11 @@ impl FileSystemTrait for FileSystem {
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirRemoveFile(
+            .send(FileSystemCommand(FileSystemCommandInner::DirRemoveFile(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap()
     }
@@ -205,11 +213,11 @@ impl FileSystemTrait for FileSystem {
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DirReadDir(
+            .send(FileSystemCommand(FileSystemCommandInner::DirReadDir(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
-            ))
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap()
     }
@@ -219,7 +227,9 @@ impl Drop for File {
     fn drop(&mut self) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::FileDrop(self.key, oneshot_tx))
+            .send(FileSystemCommand(FileSystemCommandInner::FileDrop(
+                self.key, oneshot_tx,
+            )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap();
     }
@@ -299,8 +309,7 @@ extern "C" {
 
 pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSystemCommand>) {
     wasm_bindgen_futures::spawn_local(async move {
-        let window = web_sys::window()
-            .expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
 
         let mut dirs: slab::Slab<web_sys::FileSystemDirectoryHandle> = slab::Slab::new();
         let mut files: slab::Slab<web_sys::FileSystemFileHandle> = slab::Slab::new();
@@ -337,12 +346,12 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                 return;
             };
 
-            match command {
-                FileSystemCommand::Supported(oneshot_tx) => {
+            match command.0 {
+                FileSystemCommandInner::Supported(oneshot_tx) => {
                     oneshot_tx.send(filesystem_supported()).unwrap();
                 }
 
-                FileSystemCommand::Metadata(key, path, oneshot_tx) => {
+                FileSystemCommandInner::Metadata(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(name) = iter.next_back() else {
                         oneshot_tx
@@ -392,7 +401,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirPicker(oneshot_tx) => {
+                FileSystemCommandInner::DirPicker(oneshot_tx) => {
                     if let Ok(dir) = show_directory_picker().await {
                         oneshot_tx.send(Some(dirs.insert(dir.into()))).unwrap();
                     } else {
@@ -400,7 +409,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirOpenFile(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirOpenFile(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(filename) = iter.next_back() else {
                         oneshot_tx
@@ -432,7 +441,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirExists(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirExists(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(name) = iter.next_back() else {
                         oneshot_tx.send(true).unwrap();
@@ -457,7 +466,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirCreateDir(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirCreateDir(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(dirname) = iter.next_back() else {
                         oneshot_tx
@@ -505,7 +514,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirRemoveDir(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirRemoveDir(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(dirname) = iter.next_back() else {
                         oneshot_tx
@@ -547,7 +556,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirRemoveFile(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirRemoveFile(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(filename) = iter.next_back() else {
                         oneshot_tx
@@ -590,7 +599,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::DirReadDir(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirReadDir(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
                         oneshot_tx.send(Err(Error::NotExist)).unwrap();
@@ -635,7 +644,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     oneshot_tx.send(Ok(vec)).unwrap();
                 }
 
-                FileSystemCommand::DirDrop(key, oneshot_tx) => {
+                FileSystemCommandInner::DirDrop(key, oneshot_tx) => {
                     if dirs.contains(key) {
                         dirs.remove(key);
                         oneshot_tx.send(true).unwrap();
@@ -644,7 +653,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommand::FileDrop(key, oneshot_tx) => {
+                FileSystemCommandInner::FileDrop(key, oneshot_tx) => {
                     if files.contains(key) {
                         files.remove(key);
                         oneshot_tx.send(true).unwrap();
