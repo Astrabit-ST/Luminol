@@ -22,25 +22,62 @@ use super::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug)]
 pub struct FileSystem {
-    tx: mpsc::UnboundedSender<FileSystemCommand>,
     key: usize,
+    tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
 #[derive(Debug)]
 pub struct File {
-    tx: mpsc::UnboundedSender<FileSystemCommand>,
     key: usize,
+    tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
 pub enum FileSystemCommand {
+    Supported(oneshot::Sender<bool>),
+    Metadata(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<Metadata, Error>>,
+    ),
     DirPicker(oneshot::Sender<Option<usize>>),
-    DropDir(usize, oneshot::Sender<bool>),
+    DirOpenFile(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<usize, Error>>,
+    ),
+    DirExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
+    DirCreateDir(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<(), Error>>,
+    ),
+    DirRemoveDir(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<(), Error>>,
+    ),
+    DirRemoveFile(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<(), Error>>,
+    ),
+    DirReadDir(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<Vec<DirEntry>, Error>>,
+    ),
+    DirDrop(usize, oneshot::Sender<bool>),
+    FileDrop(usize, oneshot::Sender<bool>),
 }
 
 impl FileSystem {
     /// Returns whether or not the user's browser supports the JavaScript File System API.
-    pub fn filesystem_supported() -> bool {
-        todo!();
+    pub fn filesystem_supported(filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>) -> bool {
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        filesystem_tx
+            .send(FileSystemCommand::Supported(oneshot_tx))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 
     /// Attempts to prompt the user to choose a directory from their local machine using the
@@ -51,18 +88,17 @@ impl FileSystem {
     pub async fn from_directory_picker(
         filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>,
     ) -> Option<FileSystem> {
+        if !Self::filesystem_supported(filesystem_tx.clone()) {
+            return None;
+        }
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx
             .send(FileSystemCommand::DirPicker(oneshot_tx))
             .unwrap();
-        if let Ok(Some(key)) = oneshot_rx.await {
-            Some(FileSystem {
-                tx: filesystem_tx,
-                key,
-            })
-        } else {
-            None
-        }
+        oneshot_rx.await.unwrap().map(|key| FileSystem {
+            key,
+            tx: filesystem_tx,
+        })
     }
 }
 
@@ -70,7 +106,7 @@ impl Drop for FileSystem {
     fn drop(&mut self) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(FileSystemCommand::DropDir(self.key, oneshot_tx))
+            .send(FileSystemCommand::DirDrop(self.key, oneshot_tx))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap();
     }
@@ -84,11 +120,30 @@ impl FileSystemTrait for FileSystem {
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::DirOpenFile(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap().map(|key| File {
+            key,
+            tx: self.tx.clone(),
+        })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::Metadata(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 
     fn rename(
@@ -96,33 +151,77 @@ impl FileSystemTrait for FileSystem {
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
     ) -> Result<(), Error> {
-        todo!();
+        Err(Error::NotSupported)
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::DirExists(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        Ok(oneshot_rx.blocking_recv().unwrap())
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::DirCreateDir(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::DirRemoveDir(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::DirRemoveFile(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::DirReadDir(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            ))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 }
 
 impl Drop for File {
     fn drop(&mut self) {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand::FileDrop(self.key, oneshot_tx))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap();
     }
 }
 
@@ -148,6 +247,19 @@ impl std::io::Seek for File {
     }
 }
 
+#[wasm_bindgen(inline_js = "
+export function filesystem_supported() {
+    return typeof window?.showOpenFilePicker === 'function'
+        && typeof window?.showDirectoryPicker === 'function'
+        && typeof FileSystemFileHandle === 'function'
+        && typeof FileSystemWritableFileStream === 'function'
+        && typeof FileSystemFileHandle?.prototype?.remove === 'function'
+        && typeof FileSystemDirectoryHandle?.prototype?.remove === 'function';
+}")]
+extern "C" {
+    fn filesystem_supported() -> bool;
+}
+
 #[wasm_bindgen(
     inline_js = "export async function show_directory_picker() { return await showDirectoryPicker({ mode: 'readwrite' }); }"
 )]
@@ -156,12 +268,69 @@ extern "C" {
     async fn show_directory_picker() -> Result<JsValue, JsValue>;
 }
 
+#[wasm_bindgen(
+    inline_js = "export async function move_file(file, dir, filename) { await file.move(dir, filename); }"
+)]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    async fn move_file(
+        file: &web_sys::FileSystemFileHandle,
+        dir: &web_sys::FileSystemDirectoryHandle,
+        filename: &str,
+    ) -> Result<JsValue, JsValue>;
+}
+
+#[wasm_bindgen(inline_js = "export async function remove_file(file) { await file.remove(); }")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    async fn remove_file(file: &web_sys::FileSystemFileHandle) -> Result<JsValue, JsValue>;
+}
+
+#[wasm_bindgen(inline_js = "export async function remove_dir(dir) { await dir.remove(); }")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    async fn remove_dir(dir: &web_sys::FileSystemDirectoryHandle) -> Result<JsValue, JsValue>;
+}
+
+#[wasm_bindgen(inline_js = "export function dir_values(dir) { return dir.values(); }")]
+extern "C" {
+    fn dir_values(dir: &web_sys::FileSystemDirectoryHandle) -> js_sys::AsyncIterator;
+}
+
 pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSystemCommand>) {
     wasm_bindgen_futures::spawn_local(async move {
         let window = web_sys::window()
             .expect("cannot run `setup_main_thread_hooks()` outside of main thread");
 
-        let mut dirs = slab::Slab::new();
+        let mut dirs: slab::Slab<web_sys::FileSystemDirectoryHandle> = slab::Slab::new();
+        let mut files: slab::Slab<web_sys::FileSystemFileHandle> = slab::Slab::new();
+
+        async fn to_future<T>(promise: js_sys::Promise) -> Result<T, js_sys::Error>
+        where
+            T: JsCast,
+        {
+            wasm_bindgen_futures::JsFuture::from(promise)
+                .await
+                .map(|t| t.unchecked_into())
+                .map_err(|e| e.unchecked_into())
+        }
+
+        async fn get_subdir(
+            dir: &web_sys::FileSystemDirectoryHandle,
+            path_iter: &mut camino::Iter<'_>,
+        ) -> Option<web_sys::FileSystemDirectoryHandle> {
+            let mut dir = dir.clone();
+            loop {
+                let Some(path_element) = path_iter.next() else {
+                    return Some(dir);
+                };
+                if let Ok(subdir) = to_future(dir.get_directory_handle(path_element)).await {
+                    dir = subdir;
+                } else {
+                    return None;
+                }
+            }
+        }
 
         loop {
             let Some(command) = filesystem_rx.recv().await else {
@@ -169,16 +338,304 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
             };
 
             match command {
+                FileSystemCommand::Supported(oneshot_tx) => {
+                    oneshot_tx.send(filesystem_supported()).unwrap();
+                }
+
+                FileSystemCommand::Metadata(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(name) = iter.next_back() else {
+                        oneshot_tx
+                            .send(Ok(Metadata {
+                                is_file: false,
+                                size: 0,
+                            }))
+                            .unwrap();
+                        continue;
+                    };
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+                    if let Ok(file) =
+                        to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(name))
+                            .await
+                    {
+                        if let Ok(blob) = to_future::<web_sys::File>(file.get_file()).await {
+                            oneshot_tx
+                                .send(Ok(Metadata {
+                                    is_file: true,
+                                    size: blob.size() as u64,
+                                }))
+                                .unwrap();
+                        } else {
+                            oneshot_tx
+                                .send(Err(Error::IoError(
+                                    std::io::ErrorKind::PermissionDenied.into(),
+                                )))
+                                .unwrap();
+                        }
+                    } else if to_future::<web_sys::FileSystemDirectoryHandle>(
+                        subdir.get_directory_handle(name),
+                    )
+                    .await
+                    .is_ok()
+                    {
+                        oneshot_tx
+                            .send(Ok(Metadata {
+                                is_file: false,
+                                size: 0,
+                            }))
+                            .unwrap();
+                    } else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                    }
+                }
+
                 FileSystemCommand::DirPicker(oneshot_tx) => {
                     if let Ok(dir) = show_directory_picker().await {
-                        let dir = dir.unchecked_into::<web_sys::FileSystemDirectoryHandle>();
-                        oneshot_tx.send(Some(dirs.insert(dir))).unwrap();
+                        oneshot_tx.send(Some(dirs.insert(dir.into()))).unwrap();
                     } else {
                         oneshot_tx.send(None).unwrap();
                     }
                 }
 
-                FileSystemCommand::DropDir(key, oneshot_tx) => {
+                FileSystemCommand::DirOpenFile(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(filename) = iter.next_back() else {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                        continue;
+                    };
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+                    if let Ok(file) = to_future(subdir.get_file_handle(filename)).await {
+                        oneshot_tx.send(Ok(files.insert(file))).unwrap();
+                    } else if to_future::<web_sys::FileSystemDirectoryHandle>(
+                        subdir.get_directory_handle(filename),
+                    )
+                    .await
+                    .is_ok()
+                    {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                    } else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                    }
+                }
+
+                FileSystemCommand::DirExists(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(name) = iter.next_back() else {
+                        oneshot_tx.send(true).unwrap();
+                        continue;
+                    };
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(false).unwrap();
+                        continue;
+                    };
+                    if to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(name))
+                        .await
+                        .is_ok()
+                        || to_future::<web_sys::FileSystemDirectoryHandle>(
+                            subdir.get_directory_handle(name),
+                        )
+                        .await
+                        .is_ok()
+                    {
+                        oneshot_tx.send(true).unwrap();
+                    } else {
+                        oneshot_tx.send(false).unwrap();
+                    }
+                }
+
+                FileSystemCommand::DirCreateDir(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(dirname) = iter.next_back() else {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::AlreadyExists.into(),
+                            )))
+                            .unwrap();
+                        continue;
+                    };
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+                    if to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(dirname))
+                        .await
+                        .is_ok()
+                        || to_future::<web_sys::FileSystemDirectoryHandle>(
+                            subdir.get_directory_handle(dirname),
+                        )
+                        .await
+                        .is_ok()
+                    {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                    } else {
+                        let mut options = web_sys::FileSystemGetDirectoryOptions::new();
+                        options.create(true);
+                        if to_future::<web_sys::FileSystemDirectoryHandle>(
+                            subdir.get_directory_handle_with_options(dirname, &options),
+                        )
+                        .await
+                        .is_ok()
+                        {
+                            oneshot_tx.send(Ok(())).unwrap();
+                        } else {
+                            oneshot_tx
+                                .send(Err(Error::IoError(
+                                    std::io::ErrorKind::PermissionDenied.into(),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                }
+
+                FileSystemCommand::DirRemoveDir(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(dirname) = iter.next_back() else {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                        continue;
+                    };
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+                    if to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(dirname))
+                        .await
+                        .is_ok()
+                    {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                    } else if let Ok(dir) = to_future::<web_sys::FileSystemDirectoryHandle>(
+                        subdir.get_directory_handle(dirname),
+                    )
+                    .await
+                    {
+                        if remove_dir(&dir).await.is_ok() {
+                            oneshot_tx.send(Ok(())).unwrap();
+                        } else {
+                            oneshot_tx
+                                .send(Err(Error::IoError(
+                                    std::io::ErrorKind::PermissionDenied.into(),
+                                )))
+                                .unwrap();
+                        }
+                    } else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                    }
+                }
+
+                FileSystemCommand::DirRemoveFile(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(filename) = iter.next_back() else {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                        continue;
+                    };
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+                    if let Ok(file) =
+                        to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(filename))
+                            .await
+                    {
+                        if remove_file(&file).await.is_ok() {
+                            oneshot_tx.send(Ok(())).unwrap();
+                        } else {
+                            oneshot_tx
+                                .send(Err(Error::IoError(
+                                    std::io::ErrorKind::PermissionDenied.into(),
+                                )))
+                                .unwrap();
+                        }
+                    } else if to_future::<web_sys::FileSystemDirectoryHandle>(
+                        subdir.get_directory_handle(filename),
+                    )
+                    .await
+                    .is_ok()
+                    {
+                        oneshot_tx
+                            .send(Err(Error::IoError(
+                                std::io::ErrorKind::PermissionDenied.into(),
+                            )))
+                            .unwrap();
+                    } else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                    }
+                }
+
+                FileSystemCommand::DirReadDir(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(subdir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+                    let entry_iter = dir_values(&subdir);
+                    let mut vec = Vec::new();
+                    loop {
+                        let entry = to_future::<js_sys::IteratorNext>(entry_iter.next().unwrap())
+                            .await
+                            .unwrap();
+                        if entry.done() {
+                            break;
+                        }
+                        let entry = entry.value().unchecked_into::<web_sys::FileSystemHandle>();
+                        match entry.kind() {
+                            web_sys::FileSystemHandleKind::File => {
+                                let entry = entry.unchecked_into::<web_sys::FileSystemFileHandle>();
+                                if let Ok(blob) = to_future::<web_sys::File>(entry.get_file()).await
+                                {
+                                    vec.push(DirEntry::new(
+                                        path.join(entry.name()),
+                                        Metadata {
+                                            is_file: true,
+                                            size: blob.size() as u64,
+                                        },
+                                    ));
+                                }
+                            }
+                            web_sys::FileSystemHandleKind::Directory => {
+                                vec.push(DirEntry::new(
+                                    path.join(entry.name()),
+                                    Metadata {
+                                        is_file: false,
+                                        size: 0,
+                                    },
+                                ));
+                            }
+                            _ => (),
+                        }
+                    }
+                    oneshot_tx.send(Ok(vec)).unwrap();
+                }
+
+                FileSystemCommand::DirDrop(key, oneshot_tx) => {
                     if dirs.contains(key) {
                         dirs.remove(key);
                         oneshot_tx.send(true).unwrap();
@@ -187,7 +644,14 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                _ => todo!(),
+                FileSystemCommand::FileDrop(key, oneshot_tx) => {
+                    if files.contains(key) {
+                        files.remove(key);
+                        oneshot_tx.send(true).unwrap();
+                    } else {
+                        oneshot_tx.send(false).unwrap();
+                    }
+                }
             }
         }
     });
