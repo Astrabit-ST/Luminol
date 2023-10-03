@@ -23,6 +23,7 @@ use super::{DirEntry, Error, Metadata, OpenFlags};
 #[derive(Debug)]
 pub struct FileSystem {
     key: usize,
+    name: String,
     tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
@@ -32,8 +33,10 @@ pub struct File {
     tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
+#[derive(Debug)]
 pub struct FileSystemCommand(FileSystemCommandInner);
 
+#[derive(Debug)]
 enum FileSystemCommandInner {
     Supported(oneshot::Sender<bool>),
     Metadata(
@@ -41,7 +44,7 @@ enum FileSystemCommandInner {
         camino::Utf8PathBuf,
         oneshot::Sender<Result<Metadata, Error>>,
     ),
-    DirPicker(oneshot::Sender<Option<usize>>),
+    DirPicker(oneshot::Sender<Option<(usize, String)>>),
     DirOpenFile(
         usize,
         camino::Utf8PathBuf,
@@ -100,7 +103,7 @@ impl FileSystem {
     /// If the File System API is not supported, this always returns `None` without doing anything.
     pub async fn from_directory_picker(
         filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>,
-    ) -> Option<FileSystem> {
+    ) -> Option<Self> {
         if !Self::filesystem_supported(filesystem_tx.clone()) {
             return None;
         }
@@ -110,10 +113,17 @@ impl FileSystem {
                 oneshot_tx,
             )))
             .unwrap();
-        oneshot_rx.await.unwrap().map(|key| FileSystem {
+        oneshot_rx.await.unwrap().map(|(key, name)| FileSystem {
             key,
+            name,
             tx: filesystem_tx,
         })
+    }
+
+    /// Returns a path consisting of a single element: the name of the root directory of this
+    /// filesystem.
+    pub fn root_path(&self) -> &camino::Utf8Path {
+        self.name.as_str().into()
     }
 }
 
@@ -394,6 +404,10 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
             let Some(command) = filesystem_rx.recv().await else {
                 return;
             };
+            web_sys::console::debug_1(&JsValue::from(format!(
+                "Main thread received FS command: {:?}",
+                command
+            )));
 
             match command.0 {
                 FileSystemCommandInner::Supported(oneshot_tx) => {
@@ -451,8 +465,12 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                 }
 
                 FileSystemCommandInner::DirPicker(oneshot_tx) => {
-                    if let Ok(dir) = show_directory_picker().await {
-                        oneshot_tx.send(Some(dirs.insert(dir.into()))).unwrap();
+                    if let Ok(dir) = show_directory_picker()
+                        .await
+                        .map(|x| x.unchecked_into::<web_sys::FileSystemDirectoryHandle>())
+                    {
+                        let name = dir.name();
+                        oneshot_tx.send(Some((dirs.insert(dir), name))).unwrap();
                     } else {
                         oneshot_tx.send(None).unwrap();
                     }

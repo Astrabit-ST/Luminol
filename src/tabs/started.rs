@@ -100,6 +100,7 @@ impl tab::Tab for Tab {
                     let path = path.clone();
 
                     self.load_project_promise = Some(Promise::spawn_local(async move {
+                        #[cfg(not(target_arch = "wasm32"))]
                         if let Err(why) = state.filesystem.load_project(path) {
                             state
                                 .toasts

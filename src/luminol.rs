@@ -112,6 +112,7 @@ impl Luminol {
                 std::process::abort();
             }));
 
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
             state!()
                 .filesystem
@@ -135,6 +136,7 @@ impl CustomApp for Luminol {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if let Err(e) = state!().filesystem.load_project(path) {
                     state!()
                         .toasts

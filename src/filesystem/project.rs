@@ -31,7 +31,10 @@ pub struct FileSystem {
 enum State {
     #[default]
     Unloaded,
+    #[cfg(not(target_arch = "wasm32"))]
     HostLoaded(host::FileSystem),
+    #[cfg(target_arch = "wasm32")]
+    HostLoaded(web::FileSystem),
     Loaded {
         filesystem: path_cache::FileSystem<list::FileSystem>,
         project_path: camino::Utf8PathBuf,
@@ -47,7 +50,10 @@ pub struct File<'fs> {
 }
 
 enum FileType<'fs> {
+    #[cfg(not(target_arch = "wasm32"))]
     Host(<host::FileSystem as FileSystemTrait>::File<'fs>),
+    #[cfg(target_arch = "wasm32")]
+    Host(<web::FileSystem as FileSystemTrait>::File<'fs>),
     Loaded(<path_cache::FileSystem<list::FileSystem> as FileSystemTrait>::File<'fs>),
 }
 
@@ -145,22 +151,30 @@ impl FileSystem {
         None
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
-        web::FileSystem::from_directory_picker(
-            crate::GLOBAL_STATE.get().unwrap().filesystem_tx.clone(),
-        )
-        .await;
-        Err("Not implemented".to_string())
-        //if let Some(path) = rfd::AsyncFileDialog::default()
-        //    .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
-        //    .pick_file()
-        //    .await
-        //{
-        //    todo!("this feature is temporarily unavailable while we test WebAssembly builds");
-        //    //self.load_project(path.path())
-        //} else {
-        //    Err("Cancelled loading project".to_string())
-        //}
+        if let Some(path) = rfd::AsyncFileDialog::default()
+            .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
+            .pick_file()
+            .await
+        {
+            self.load_project(path.path())
+        } else {
+            Err("Cancelled loading project".to_string())
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
+        let tx = crate::GLOBAL_STATE.get().unwrap().filesystem_tx.clone();
+        if !web::FileSystem::filesystem_supported(tx.clone()) {
+            return Err("Your browser does not support File System API".to_string());
+        }
+        if let Some(dir) = web::FileSystem::from_directory_picker(tx).await {
+            self.load_project(dir)
+        } else {
+            Err("Cancelled loading project".to_string())
+        }
     }
 
     #[cfg(windows)]
@@ -269,6 +283,7 @@ impl FileSystem {
         paths
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
         let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = original_path.parent().unwrap_or(original_path);
@@ -306,6 +321,54 @@ impl FileSystem {
             .collect();
         projects.push_front(original_path.to_string());
         global_config!().recent_projects = projects;
+
+        if let Err(e) = state!().data_cache.load() {
+            *self.state.borrow_mut() = State::Unloaded;
+            return Err(e);
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn load_project(&self, dir: web::FileSystem) -> Result<(), String> {
+        let entries = dir.read_dir("").map_err(|e| e.to_string())?;
+        let Some(entry) = entries.iter().find(|e| {
+            if let Some(extension) = e.path.extension() {
+                e.metadata.is_file
+                    && (extension == "rxproj"
+                        || extension == "rvproj"
+                        || extension == "rvproj2"
+                        || extension == "lumproj")
+            } else {
+                false
+            }
+        }) else {
+            return Err("Invalid project folder".to_string());
+        };
+
+        *self.state.borrow_mut() = State::HostLoaded(dir);
+        config::Project::load()?;
+        let State::HostLoaded(dir) =
+            std::mem::replace(&mut *self.state.borrow_mut(), State::Unloaded)
+        else {
+            unreachable!();
+        };
+
+        let mut list = list::FileSystem::new();
+
+        list.push(dir);
+
+        // TODO: handle RTPs
+
+        // TODO: handle reading from archives
+
+        let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
+
+        *self.state.borrow_mut() = State::Loaded {
+            filesystem: path_cache,
+            project_path: entry.path.clone(),
+        };
 
         if let Err(e) = state!().data_cache.load() {
             *self.state.borrow_mut() = State::Unloaded;
