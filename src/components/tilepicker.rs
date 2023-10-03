@@ -18,7 +18,7 @@ pub use crate::prelude::*;
 
 use slab::Slab;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Tilepicker {
@@ -30,7 +30,7 @@ pub struct Tilepicker {
     drag_origin: Option<egui::Pos2>,
 
     resources: Arc<Resources>,
-    ani_instant: Instant,
+    ani_time: Option<f64>,
 }
 
 #[derive(Debug)]
@@ -98,7 +98,7 @@ impl Tilepicker {
 
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),
-            ani_instant: Instant::now(),
+            ani_time: None,
             selected_tiles_left: 0,
             selected_tiles_top: 0,
             selected_tiles_right: 0,
@@ -119,10 +119,16 @@ impl Tilepicker {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
-            self.ani_instant = Instant::now();
-            self.resources.tiles.autotiles.inc_ani_index();
+        let time = ui.ctx().input(|i| i.time);
+        if let Some(ani_time) = self.ani_time {
+            if time - ani_time >= 16. / 60. {
+                self.ani_time = Some(time);
+                self.resources.tiles.autotiles.inc_ani_index();
+            }
+        } else {
+            self.ani_time = Some(time);
         }
+
         ui.ctx().request_repaint_after(Duration::from_millis(16));
 
         let (canvas_rect, response) = ui.allocate_exact_size(
