@@ -45,6 +45,7 @@ enum FileSystemCommandInner {
     DirOpenFile(
         usize,
         camino::Utf8PathBuf,
+        OpenFlags,
         oneshot::Sender<Result<usize, Error>>,
     ),
     DirExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
@@ -69,6 +70,14 @@ enum FileSystemCommandInner {
         oneshot::Sender<Result<Vec<DirEntry>, Error>>,
     ),
     DirDrop(usize, oneshot::Sender<bool>),
+    FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
+    FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
+    FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
+    FileSeek(
+        usize,
+        std::io::SeekFrom,
+        oneshot::Sender<std::io::Result<u64>>,
+    ),
     FileDrop(usize, oneshot::Sender<bool>),
 }
 
@@ -133,6 +142,7 @@ impl FileSystemTrait for FileSystem {
             .send(FileSystemCommand(FileSystemCommandInner::DirOpenFile(
                 self.key,
                 path.as_ref().to_path_buf(),
+                flags,
                 oneshot_tx,
             )))
             .unwrap();
@@ -237,23 +247,55 @@ impl Drop for File {
 
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand(FileSystemCommandInner::FileRead(
+                self.key,
+                buf.len(),
+                oneshot_tx,
+            )))
+            .unwrap();
+        let vec = oneshot_rx.blocking_recv().unwrap()?;
+        let length = vec.len();
+        buf[..length].copy_from_slice(&vec[..]);
+        Ok(length)
     }
 }
 
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand(FileSystemCommandInner::FileWrite(
+                self.key,
+                buf.to_vec(),
+                oneshot_tx,
+            )))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()?;
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand(FileSystemCommandInner::FileFlush(
+                self.key, oneshot_tx,
+            )))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 }
 
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        todo!();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(FileSystemCommand(FileSystemCommandInner::FileSeek(
+                self.key, pos, oneshot_tx,
+            )))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 }
 
@@ -311,8 +353,15 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
     wasm_bindgen_futures::spawn_local(async move {
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
 
+        struct FileHandle {
+            offset: usize,
+            file_handle: web_sys::FileSystemFileHandle,
+            read_allowed: bool,
+            write_handle: Option<web_sys::FileSystemWritableFileStream>,
+        }
+
         let mut dirs: slab::Slab<web_sys::FileSystemDirectoryHandle> = slab::Slab::new();
-        let mut files: slab::Slab<web_sys::FileSystemFileHandle> = slab::Slab::new();
+        let mut files: slab::Slab<FileHandle> = slab::Slab::new();
 
         async fn to_future<T>(promise: js_sys::Promise) -> Result<T, js_sys::Error>
         where
@@ -409,7 +458,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommandInner::DirOpenFile(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirOpenFile(key, path, flags, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(filename) = iter.next_back() else {
                         oneshot_tx
@@ -423,8 +472,63 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                         oneshot_tx.send(Err(Error::NotExist)).unwrap();
                         continue;
                     };
-                    if let Ok(file) = to_future(subdir.get_file_handle(filename)).await {
-                        oneshot_tx.send(Ok(files.insert(file))).unwrap();
+                    // If write and create permissions were both requested, then the file should be
+                    // created if the file does not exist but all the parent directories do
+                    let mut options = web_sys::FileSystemGetFileOptions::new();
+                    if flags.contains(OpenFlags::Write) && flags.contains(OpenFlags::Create) {
+                        options.create(true);
+                    }
+                    if let Ok(file_handle) = to_future::<web_sys::FileSystemFileHandle>(
+                        subdir.get_file_handle_with_options(filename, &options),
+                    )
+                    .await
+                    {
+                        let mut handle = FileHandle {
+                            offset: 0,
+                            file_handle,
+                            read_allowed: flags.contains(OpenFlags::Read),
+                            write_handle: None,
+                        };
+                        // If write permissions were requested, try to get a write handle on the
+                        // file, with truncation if requested
+                        let mut options = web_sys::FileSystemCreateWritableOptions::new();
+                        options.keep_existing_data(!flags.contains(OpenFlags::Truncate));
+                        handle.write_handle = if flags.contains(OpenFlags::Write) {
+                            to_future(handle.file_handle.create_writable_with_options(&options))
+                                .await
+                                .ok()
+                        } else {
+                            None
+                        };
+                        // If write and truncate permissions were both requested, try to flush the
+                        // write handle (by closing and reopening) to perform the truncation
+                        // immediately
+                        let close_result = !flags.contains(OpenFlags::Truncate)
+                            || if let Some(write_handle) = &handle.write_handle {
+                                to_future::<JsValue>(write_handle.close()).await.is_ok()
+                            } else {
+                                true
+                            };
+                        let mut options = web_sys::FileSystemCreateWritableOptions::new();
+                        options.keep_existing_data(true);
+                        if flags.contains(OpenFlags::Truncate) && handle.write_handle.is_some() {
+                            handle.write_handle =
+                                to_future(handle.file_handle.create_writable_with_options(&options))
+                                    .await
+                                    .ok()
+                        }
+
+                        if (flags.contains(OpenFlags::Write) && handle.write_handle.is_none())
+                            || !close_result
+                        {
+                            oneshot_tx
+                                .send(Err(Error::IoError(
+                                    std::io::ErrorKind::PermissionDenied.into(),
+                                )))
+                                .unwrap();
+                        } else {
+                            oneshot_tx.send(Ok(files.insert(handle))).unwrap();
+                        }
                     } else if to_future::<web_sys::FileSystemDirectoryHandle>(
                         subdir.get_directory_handle(filename),
                     )
@@ -653,9 +757,143 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
+                FileSystemCommandInner::FileRead(key, max_length, oneshot_tx) => {
+                    let file = files.get_mut(key).unwrap();
+                    let Some(read_handle) = (if file.read_allowed {
+                        to_future::<web_sys::File>(file.file_handle.get_file())
+                            .await
+                            .ok()
+                    } else {
+                        None
+                    }) else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                        continue;
+                    };
+                    let blob = read_handle
+                        .slice_with_f64_and_f64(
+                            file.offset as f64,
+                            (file.offset + max_length) as f64,
+                        )
+                        .unwrap();
+                    let Ok(buffer) = to_future::<js_sys::ArrayBuffer>(blob.array_buffer()).await
+                    else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                        continue;
+                    };
+                    let u8_array = js_sys::Uint8Array::new(&buffer);
+                    let vec = u8_array.to_vec();
+                    file.offset += vec.len();
+                    oneshot_tx.send(Ok(vec)).unwrap();
+                }
+
+                FileSystemCommandInner::FileWrite(key, mut vec, oneshot_tx) => {
+                    let file = files.get_mut(key).unwrap();
+                    let Some(write_handle) = &file.write_handle else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                        continue;
+                    };
+                    // TODO: `write_handle.write_with_u8_array()` will not work here when
+                    // theading is enabled. Possible wasm_bindgen bug?
+                    // We are using `write_handle.write_with_buffer_source()` here as a workaround
+                    // that does the same thing but with an extra memory allocation.
+                    // Check if this is fixed in newer versions of wasm_bindgen.
+                    let mut u8_array =
+                        js_sys::Uint8Array::new(&JsValue::from_f64(vec.len() as f64));
+                    u8_array.copy_from(&vec[..]);
+                    if to_future::<JsValue>(write_handle.seek_with_f64(file.offset as f64).unwrap())
+                        .await
+                        .is_ok()
+                        && to_future::<JsValue>(
+                            write_handle.write_with_buffer_source(&u8_array).unwrap(),
+                        )
+                        .await
+                        .is_ok()
+                    {
+                        file.offset += vec.len();
+                        oneshot_tx.send(Ok(())).unwrap();
+                    } else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                    }
+                }
+
+                FileSystemCommandInner::FileFlush(key, oneshot_tx) => {
+                    let file = files.get_mut(key).unwrap();
+                    if file.write_handle.is_none() {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                        continue;
+                    }
+                    // Closing and reopening the handle is the only way to flush
+                    if to_future::<JsValue>(file.write_handle.as_ref().unwrap().close())
+                        .await
+                        .is_err()
+                    {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                        continue;
+                    }
+                    let mut options = web_sys::FileSystemCreateWritableOptions::new();
+                    options.keep_existing_data(true);
+                    if let Ok(write_handle) =
+                        to_future(file.file_handle.create_writable_with_options(&options)).await
+                    {
+                        file.write_handle = Some(write_handle);
+                        oneshot_tx.send(Ok(())).unwrap();
+                    } else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                    }
+                }
+
+                FileSystemCommandInner::FileSeek(key, seek_from, oneshot_tx) => {
+                    let file = files.get_mut(key).unwrap();
+                    let Some(read_handle) = (if file.read_allowed {
+                        to_future::<web_sys::File>(file.file_handle.get_file())
+                            .await
+                            .ok()
+                    } else {
+                        None
+                    }) else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::PermissionDenied.into()))
+                            .unwrap();
+                        continue;
+                    };
+                    let size = read_handle.size();
+                    let new_offset = match seek_from {
+                        std::io::SeekFrom::Start(i) => i as i64,
+                        std::io::SeekFrom::End(i) => i + size as i64,
+                        std::io::SeekFrom::Current(i) => i + file.offset as i64,
+                    };
+                    if new_offset >= 0 {
+                        file.offset = new_offset as usize;
+                        oneshot_tx.send(Ok(new_offset as u64)).unwrap();
+                    } else {
+                        oneshot_tx
+                            .send(Err(std::io::ErrorKind::InvalidInput.into()))
+                            .unwrap();
+                    }
+                }
+
                 FileSystemCommandInner::FileDrop(key, oneshot_tx) => {
                     if files.contains(key) {
-                        files.remove(key);
+                        let file = files.remove(key);
+                        // We need to close the write handle to flush any changes that the user
+                        // made to the file
+                        if let Some(write_handle) = &file.write_handle {
+                            let _ = to_future::<JsValue>(write_handle.close()).await;
+                        }
                         oneshot_tx.send(true).unwrap();
                     } else {
                         oneshot_tx.send(false).unwrap();

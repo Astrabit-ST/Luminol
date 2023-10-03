@@ -139,6 +139,7 @@ web-sys = { version = "0.3", features = [
 
     "Blob",
     "File",
+    "FileSystemCreateWritableOptions",
     "FileSystemDirectoryHandle",
     "FileSystemFileHandle",
     "FileSystemGetDirectoryOptions",
@@ -147,6 +148,7 @@ web-sys = { version = "0.3", features = [
     "FileSystemHandleKind",
     "FileSystemRemoveOptions",
     "FileSystemWritableFileStream",
+    "WritableStream",
 ]}
 
 [features]
