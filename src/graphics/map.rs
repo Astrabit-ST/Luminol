@@ -17,12 +17,12 @@
 
 pub use crate::prelude::*;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Map {
     resources: Arc<Resources>,
-    ani_instant: Instant,
+    ani_time: Option<f64>,
 
     pub fog_enabled: bool,
     pub pano_enabled: bool,
@@ -92,7 +92,7 @@ impl Map {
                 fog,
             }),
 
-            ani_instant: Instant::now(),
+            ani_time: None,
 
             fog_enabled: true,
             pano_enabled: true,
@@ -110,10 +110,16 @@ impl Map {
         selected_layer: Option<usize>,
         rect: egui::Rect,
     ) {
-        if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
-            self.ani_instant = Instant::now();
-            self.resources.tiles.autotiles.inc_ani_index();
+        let time = painter.ctx().input(|i| i.time);
+        if let Some(ani_time) = self.ani_time {
+            if time - ani_time >= 16. / 60. {
+                self.ani_time = Some(time);
+                self.resources.tiles.autotiles.inc_ani_index();
+            }
+        } else {
+            self.ani_time = Some(time);
         }
+
         painter
             .ctx()
             .request_repaint_after(Duration::from_millis(16));
