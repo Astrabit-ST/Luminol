@@ -9,11 +9,6 @@ struct VertexOutput {
     @location(0) tex_coords: vec2<f32>,
 }
 
-struct PushConstants {
-    viewport: Viewport,
-    graphic: Graphic,
-}
-
 struct Viewport {
     proj: mat4x4<f32>,
 }
@@ -23,8 +18,6 @@ struct Graphic {
     opacity: f32,
     opacity_multiplier: f32,
 }
-
-var<push_constant> push_constants: PushConstants;
 
 @group(0) @binding(0)
 var t_diffuse: texture_2d<f32>;
@@ -39,8 +32,8 @@ fn rgb_to_hsv(c: vec3<f32>) -> vec3<f32> {
     let d = q.x - min(q.w, q.y);
 
     // Avoid divide - by - zero situations by adding a very tiny delta.
-	// Since we always deal with underlying 8 - Bit color values, this 
-    // should never mask a real value 
+    // Since we always deal with underlying 8 - Bit color values, this
+    // should never mask a real value
     let eps = 1.0e-10;
 
     return vec3<f32>(abs(q.z + (q.w - q.y) / (6.0 * d + eps)), d / (q.x + eps), q.x);

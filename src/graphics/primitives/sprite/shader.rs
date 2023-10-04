@@ -26,9 +26,19 @@ impl Shader {
     pub fn new(target: wgpu::BlendState) -> Self {
         let render_state = &state!().render_state;
 
-        let shader_module = render_state
-            .device
-            .create_shader_module(wgpu::include_wgsl!("sprite.wgsl"));
+        let shader_module =
+            render_state
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("sprite.wgsl"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        concat!(
+                            include_str!("sprite_header_push_constants.wgsl"),
+                            include_str!("sprite.wgsl"),
+                        )
+                        .into(),
+                    ),
+                });
 
         let pipeline_layout =
             render_state

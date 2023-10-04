@@ -14,12 +14,6 @@ struct VertexOutput {
     // todo: look into using multiple textures?
 }
 
-struct PushConstants {
-    viewport: Viewport,
-    autotiles: Autotiles,
-    opacity: f32,
-}
-
 struct Viewport {
     proj: mat4x4<f32>,
 }
@@ -29,9 +23,6 @@ struct Autotiles {
     max_frame_count: u32,
     frame_counts: array<u32, 7>
 }
-
-var<push_constant> push_constants: PushConstants;
-
 
 @vertex
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
@@ -52,20 +43,20 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
 
     var atlas_tile_position: vec2<f32>;
     if is_autotile {
-        atlas_tile_position = vec2<f32>(  
+        atlas_tile_position = vec2<f32>(
             // If the tile is an autotile
             f32((instance.tile_id - 48) % 8 * 32),
             f32((instance.tile_id - 48) / 8 * 32)
         );
     } else {
         if is_under_autotiles {
-            atlas_tile_position = vec2<f32>(  
+            atlas_tile_position = vec2<f32>(
             // If the tile is not an autotile but is located underneath the autotiles in the atlas
                 f32((instance.tile_id % 8 + (instance.tile_id - 384) / 1712 * 8) * 32),
                 f32(((instance.tile_id - 384) / 8 % 214 + 42) * 32)
             );
         } else {
-            atlas_tile_position = vec2<f32>(  
+            atlas_tile_position = vec2<f32>(
             // If the tile is not an autotile and is not located underneath the autotiles in the atlas
                 f32((instance.tile_id % 8 + ((instance.tile_id - 384 - max_tiles_under_autotiles) / 2048 + i32(push_constants.autotiles.max_frame_count)) * 8) * 32),
                 f32((instance.tile_id - 384 - max_tiles_under_autotiles) / 8 % 256 * 32)

@@ -28,9 +28,19 @@ impl Shader {
     fn new() -> Self {
         let render_state = &state!().render_state;
 
-        let shader_module = render_state
-            .device
-            .create_shader_module(wgpu::include_wgsl!("tilemap.wgsl"));
+        let shader_module =
+            render_state
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("tilemap.wgsl"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        concat!(
+                            include_str!("tilemap_header_push_constants.wgsl"),
+                            include_str!("tilemap.wgsl"),
+                        )
+                        .into(),
+                    ),
+                });
 
         let pipeline_layout =
             render_state
