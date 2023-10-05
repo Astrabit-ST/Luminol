@@ -60,16 +60,19 @@ mod steam;
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     #[cfg(feature = "steamworks")]
-    if let Err(e) = steam::Steamworks::setup() {
-        rfd::MessageDialog::new()
-            .set_title("Error")
-            .set_level(rfd::MessageLevel::Error)
-            .set_description(format!(
-                "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
-            ))
-            .show();
-        return;
-    }
+    let steamworks = match steam::Steamworks::new() {
+        Ok(s) => s,
+        Err(e) => {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_level(rfd::MessageLevel::Error)
+                .set_description(format!(
+                    "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
+                ))
+                .show();
+            return;
+        }
+    };
 
     #[cfg(debug_assertions)]
     std::thread::spawn(|| loop {
@@ -111,11 +114,6 @@ fn main() {
 
     color_eyre::install().expect("failed to setup eyre hooks");
 
-    #[cfg(windows)]
-    if let Err(e) = setup_file_assocs() {
-        eprintln!("error setting up registry {e}")
-    }
-
     let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");
 
     let native_options = eframe::NativeOptions {
@@ -129,7 +127,7 @@ fn main() {
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
             supported_backends: eframe::wgpu::util::backend_bits_from_env()
                 .unwrap_or(eframe::wgpu::Backends::PRIMARY),
-            device_descriptor: luminol::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
+            device_descriptor: std::sync::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
                 features: eframe::wgpu::Features::PUSH_CONSTANTS,
                 limits: eframe::wgpu::Limits {
@@ -286,55 +284,4 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     )
     .await;
     runner.setup_render_hooks();
-}
-
-#[cfg(windows)]
-fn setup_file_assocs() -> std::io::Result<()> {
-    /*
-       use winreg::enums::*;
-       use winreg::RegKey;
-
-       let path = std::env::current_exe().expect("failed to get current executable path");
-       let path = path.to_string_lossy();
-       let command = format!("\"{path}\" \"%1\"");
-
-       let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-
-       // RXPROJ
-       let (key, _) = hkcu.create_subkey("Software\\Classes\\.rxproj")?;
-       key.set_value("", &"Luminol.rxproj")?;
-       let (rxproj_key, _) = hkcu.create_subkey("Software\\Classes\\Luminol.rxproj")?;
-       rxproj_key.set_value("", &"RPG Maker XP Project")?;
-       let (open_key, _) = rxproj_key.create_subkey("shell\\open\\command")?;
-       open_key.set_value("", &command)?;
-       let (icon_key, _) = rxproj_key.create_subkey("DefaultIcon")?;
-       icon_key.set_value("", &format!("\"{path}\",2"))?;
-
-       // RXDATA
-       let (key, _) = hkcu.create_subkey("Software\\Classes\\.rxdata")?;
-       key.set_value("", &"Luminol.rxdata")?;
-       let (rxdata_key, _) = hkcu.create_subkey("Software\\Classes\\Luminol.rxdata")?;
-       rxdata_key.set_value("", &"RPG Maker XP Data")?;
-       let (icon_key, _) = rxdata_key.create_subkey("DefaultIcon")?;
-       icon_key.set_value("", &format!("\"{path}\",3"))?;
-
-       // LUMPROJ
-       let (key, _) = hkcu.create_subkey("Software\\Classes\\.lumproj")?;
-       key.set_value("", &"Luminol.lumproj")?;
-       let (lumproj_key, _) = hkcu.create_subkey("Software\\Classes\\Luminol.lumproj")?;
-       lumproj_key.set_value("", &"Luminol project")?;
-       let (open_key, _) = lumproj_key.create_subkey("shell\\open\\command")?;
-       open_key.set_value("", &command)?;
-       let (icon_key, _) = lumproj_key.create_subkey("DefaultIcon")?;
-       icon_key.set_value("", &format!("\"{path}\",4"))?;
-
-       let (app_key, _) = hkcu.create_subkey("Software\\Classes\\Applications\\luminol.exe")?;
-       app_key.set_value("FriendlyAppName", &"Luminol")?;
-       let (supported_key, _) = app_key.create_subkey("SupportedTypes")?;
-       supported_key.set_value(".rxproj", &"")?;
-       supported_key.set_value(".lumproj", &"")?;
-       let (open_key, _) = app_key.create_subkey("shell\\open\\command")?;
-       open_key.set_value("", &command)?;
-    */
-    Ok(())
 }

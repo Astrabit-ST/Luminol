@@ -106,9 +106,11 @@ impl Quad {
         vertices
     }
 
-    pub fn into_buffer(this: &[Self], extents: wgpu::Extent3d) -> (wgpu::Buffer, usize) {
-        let render_state = &state!().render_state;
-
+    pub fn into_buffer(
+        render_state: &egui_wgpu::RenderState,
+        this: &[Self],
+        extents: wgpu::Extent3d,
+    ) -> (wgpu::Buffer, usize) {
         let vertices = Self::into_vertices(this, extents);
 
         let buffer = render_state

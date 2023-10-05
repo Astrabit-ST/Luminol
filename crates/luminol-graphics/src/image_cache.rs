@@ -25,7 +25,6 @@
 use std::sync::Arc;
 
 use egui_extras::RetainedImage;
-use once_cell::sync::Lazy;
 use wgpu::util::DeviceExt;
 
 #[derive(Default)]
@@ -73,6 +72,7 @@ impl WgpuTexture {
 impl Cache {
     pub fn load_egui_image(
         &self,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
     ) -> Result<Arc<RetainedImage>, String> {
@@ -83,7 +83,9 @@ impl Cache {
             .retained_images
             .entry(format!("{directory}/{filename}"))
             .or_try_insert_with(|| -> Result<_, String> {
-                let image = self.load_image(directory, filename)?.into_rgba8();
+                let image = self
+                    .load_image(filesystem, directory, filename)?
+                    .into_rgba8();
                 let image = egui_extras::RetainedImage::from_color_image(
                     format!("{directory}/{filename}"),
                     egui::ColorImage::from_rgba_unmultiplied(
@@ -99,23 +101,26 @@ impl Cache {
 
     pub fn load_image(
         &self,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
         directory: impl AsRef<camino::Utf8Path>,
         filename: impl AsRef<camino::Utf8Path>,
     ) -> Result<image::DynamicImage, String> {
         let path = directory.as_ref().join(filename);
-        let image =
-            image::load_from_memory(&state!().filesystem.read(path).map_err(|e| e.to_string())?)
-                .map_err(|e| e.to_string())?;
+        let image = image::load_from_memory(&filesystem.read(path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
         Ok(image)
     }
 
-    pub fn create_texture_bind_group(texture: &wgpu::Texture) -> wgpu::BindGroup {
-        let render_state = &state!().render_state;
+    pub fn create_texture_bind_group(
+        graphics_state: &crate::GraphicsState,
+        texture: &wgpu::Texture,
+    ) -> wgpu::BindGroup {
         // We *really* don't care about the fields here.
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         // We want our texture to use Nearest filtering and repeat.
         // The only time our texture should be repeating is for fogs and panoramas.
-        let sampler = render_state
+        let sampler = graphics_state
+            .render_state
             .device
             .create_sampler(&wgpu::SamplerDescriptor {
                 address_mode_u: wgpu::AddressMode::Repeat,
@@ -129,11 +134,12 @@ impl Cache {
 
         // Create the bind group
         // Again, I have no idea why its setup this way
-        render_state
+        graphics_state
+            .render_state
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
-                layout: Self::bind_group_layout(),
+                layout: &graphics_state.bind_group_layouts.image_cache_texture,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -149,6 +155,8 @@ impl Cache {
 
     pub fn load_wgpu_image(
         &self,
+        graphics_state: &crate::GraphicsState,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
     ) -> Result<Arc<WgpuTexture>, String> {
@@ -161,15 +169,17 @@ impl Cache {
             .or_try_insert_with(|| -> Result<_, String> {
                 // We force the image to be rgba8 to avoid any weird texture errors.
                 // If the image was not rgba8 (say it was rgb8) we would get weird texture errors
-                let image = self.load_image(directory, filename)?.into_rgba8();
+                let image = self
+                    .load_image(filesystem, directory, filename)?
+                    .into_rgba8();
                 // Check that the image will fit into the texture
                 // If we dont perform this check, we may get a segfault (dont ask me how i know this)
                 assert_eq!(image.len() as u32, image.width() * image.height() * 4);
-                let render_state = &state!().render_state;
+
                 // Create the texture and upload the data at the same time.
                 // This is just a utility function to avoid boilerplate
-                let texture = render_state.device.create_texture_with_data(
-                    &render_state.queue,
+                let texture = graphics_state.render_state.device.create_texture_with_data(
+                    &graphics_state.render_state.queue,
                     &wgpu::TextureDescriptor {
                         label: Some(&format!("{directory}/{filename}")),
                         size: wgpu::Extent3d {
@@ -188,7 +198,7 @@ impl Cache {
                     },
                     &image,
                 );
-                let bind_group = Self::create_texture_bind_group(&texture);
+                let bind_group = Self::create_texture_bind_group(graphics_state, &texture);
 
                 let texture = WgpuTexture {
                     texture,
@@ -204,15 +214,9 @@ impl Cache {
         self.retained_images.clear();
         self.wgpu_textures.clear();
     }
-
-    pub fn bind_group_layout() -> &'static wgpu::BindGroupLayout {
-        &LAYOUT
-    }
 }
 
-static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
-    let render_state = &state!().render_state;
-
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     render_state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -240,4 +244,4 @@ static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
                 },
             ],
         })
-});
+}

@@ -17,8 +17,6 @@
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
-use crate::primitives;
-
 #[derive(Debug)]
 pub struct Event {
     resources: Arc<Resources>,
@@ -27,8 +25,8 @@ pub struct Event {
 
 #[derive(Debug)]
 struct Resources {
-    sprite: primitives::Sprite,
-    viewport: primitives::Viewport,
+    sprite: crate::sprite::Sprite,
+    viewport: crate::viewport::Viewport,
 }
 
 type ResourcesSlab = slab::Slab<Arc<Resources>>;
@@ -36,8 +34,10 @@ type ResourcesSlab = slab::Slab<Arc<Resources>>;
 impl Event {
     // code smell, fix
     pub fn new(
+        graphics_state: &crate::GraphicsState,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
         event: &luminol_data::rpg::Event,
-        atlas: &primitives::Atlas,
+        atlas: &crate::tiles::Atlas,
         use_push_constants: bool,
     ) -> Result<Option<Self>, String> {
         let Some(page) = event.pages.first() else {
@@ -45,9 +45,12 @@ impl Event {
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {
-            state!()
-                .image_cache
-                .load_wgpu_image("Graphics/Characters", filename)?
+            graphics_state.image_cache.load_wgpu_image(
+                graphics_state,
+                filesystem,
+                "Graphics/Characters",
+                filename,
+            )?
         } else if page.graphic.tile_id.is_some() {
             atlas.atlas_texture.clone()
         } else {
@@ -58,9 +61,9 @@ impl Event {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport = primitives::Viewport::new(
+            let viewport = crate::viewport::Viewport::new(
                 glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.),
-                use_push_constants,
+                use_push_constants
             );
 
             (quad, viewport, egui::vec2(32., 32.))
@@ -83,9 +86,9 @@ impl Event {
                 ),
                 egui::vec2(cw - 0.02, ch - 0.02),
             );
-            let quad = primitives::Quad::new(pos, tex_coords, 0.0);
+            let quad = crate::quad::Quad::new(pos, tex_coords, 0.0);
 
-            let viewport = primitives::Viewport::new(
+            let viewport = crate::viewport::Viewport::new(
                 glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.),
                 use_push_constants,
             );
@@ -93,7 +96,8 @@ impl Event {
             (quad, viewport, egui::vec2(cw, ch))
         };
 
-        let sprite = primitives::Sprite::new(
+        let sprite = crate::sprite::Sprite::new(
+            graphics_state,
             quads,
             texture,
             page.graphic.blend_type,
@@ -108,7 +112,7 @@ impl Event {
         }))
     }
 
-    pub fn sprite(&self) -> &primitives::Sprite {
+    pub fn sprite(&self) -> &crate::sprite::Sprite {
         &self.resources.sprite
     }
 
@@ -116,7 +120,12 @@ impl Event {
         self.resources.viewport.set_proj(proj);
     }
 
-    pub fn paint(&self, painter: &egui::Painter, rect: egui::Rect) {
+    pub fn paint(
+        &self,
+        graphics_state: &crate::GraphicsState,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+    ) {
         let resources = self.resources.clone();
         let resource_id = Arc::new(OnceCell::new());
 
@@ -138,7 +147,7 @@ impl Event {
                 let Resources { viewport, sprite } = resources.as_ref();
 
                 viewport.bind(render_pass);
-                sprite.draw(viewport, render_pass);
+                sprite.draw(graphics_state, viewport, render_pass);
             });
         painter.add(egui::PaintCallback {
             callback: Arc::new(callback),

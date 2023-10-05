@@ -14,9 +14,10 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use itertools::Itertools;
 
 use super::autotile_ids::AUTOTILES;
-use crate::primitives::Quad;
+use crate::quad::Quad;
 
 pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
@@ -50,11 +51,15 @@ pub struct Atlas {
 }
 
 impl Atlas {
-    pub fn new(tileset: &luminol_data::rpg::Tileset) -> Result<Atlas, String> {
+    pub fn new(
+        render_state: &egui_wgpu::RenderState,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
+        image_cache: &crate::image_cache::Cache,
+        tileset: &luminol_data::rpg::Tileset,
+    ) -> Result<Atlas, String> {
         let tileset_img = tileset.tileset_name.as_ref().and_then(|tileset_name| {
-            let tileset_img = state!()
-                .image_cache
-                .load_image("Graphics/Tilesets", tileset_name)
+            let tileset_img = image_cache
+                .load_image(filesystem, "Graphics/Tilesets", tileset_name)
                 .ok()?;
             Some(tileset_img.to_rgba8())
         });
@@ -71,9 +76,8 @@ impl Atlas {
                 if s.is_empty() {
                     Ok(None)
                 } else {
-                    state!()
-                        .image_cache
-                        .load_wgpu_image("Graphics/Autotiles", s)
+                    image_cache
+                        .load_wgpu_image(render_state, filesystem, "Graphics/Autotiles", s)
                         .map(Some)
                 }
             })
@@ -95,7 +99,6 @@ impl Atlas {
             .max()
             .unwrap_or(AUTOTILE_FRAME_WIDTH);
 
-        let render_state = &state!().render_state;
         let mut encoder =
             render_state
                 .device
@@ -204,6 +207,7 @@ impl Atlas {
         if let Some(tileset_img) = tileset_img {
             if TOTAL_AUTOTILE_HEIGHT + tileset_height < MAX_SIZE {
                 write_texture_region(
+                    render_state,
                     &atlas_texture,
                     tileset_img.view(0, 0, TILESET_WIDTH, tileset_height),
                     (0, TOTAL_AUTOTILE_HEIGHT),
@@ -217,6 +221,7 @@ impl Atlas {
                         HEIGHT_UNDER_AUTOTILES
                     };
                     write_texture_region(
+                        render_state,
                         &atlas_texture,
                         tileset_img.view(0, y, TILESET_WIDTH, height),
                         (TILESET_WIDTH * i, TOTAL_AUTOTILE_HEIGHT),
@@ -230,6 +235,7 @@ impl Atlas {
                         MAX_SIZE
                     };
                     write_texture_region(
+                        render_state,
                         &atlas_texture,
                         tileset_img.view(0, y, TILESET_WIDTH, height),
                         (TILESET_WIDTH * (rows_under + i), 0),
@@ -238,7 +244,8 @@ impl Atlas {
             }
         }
 
-        let bind_group = crate::image_cache::Cache::create_texture_bind_group(&atlas_texture);
+        let bind_group =
+            crate::image_cache::Cache::create_texture_bind_group(render_state, &atlas_texture);
         let atlas_texture = Arc::new(crate::image_cache::WgpuTexture::new(
             atlas_texture,
             bind_group,
@@ -314,6 +321,7 @@ impl Atlas {
 }
 
 fn write_texture_region<P>(
+    render_state: &egui_wgpu::RenderState,
     texture: &wgpu::Texture,
     image: image::SubImage<&image::ImageBuffer<P, Vec<P::Subpixel>>>,
     (dest_x, dest_y): (u32, u32),
@@ -329,7 +337,7 @@ fn write_texture_region<P>(
     let stride = inner_width * std::mem::size_of::<P>() as u32;
     let offset = (y * inner_width + x) * std::mem::size_of::<P>() as u32;
 
-    state!().render_state.queue.write_texture(
+    render_state.queue.write_texture(
         wgpu::ImageCopyTexture {
             texture,
             mip_level: 0,

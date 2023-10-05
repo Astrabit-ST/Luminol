@@ -14,33 +14,45 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::primitives;
 
 #[derive(Default, Debug)]
 pub struct Cache {
-    atlases: dashmap::DashMap<usize, primitives::Atlas>,
+    atlases: dashmap::DashMap<usize, crate::tiles::Atlas>,
 }
 
 impl Cache {
     pub fn load_atlas(
         &self,
+        render_state: &egui_wgpu::RenderState,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
+        image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> Result<primitives::Atlas, String> {
+    ) -> Result<crate::tiles::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .or_try_insert_with(|| primitives::Atlas::new(tileset))?
+            .or_try_insert_with(|| {
+                crate::tiles::Atlas::new(render_state, filesystem, image_cache, tileset)
+            })?
             .clone())
     }
 
     pub fn reload_atlas(
         &self,
+        render_state: &egui_wgpu::RenderState,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
+        image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> Result<primitives::Atlas, String> {
+    ) -> Result<crate::tiles::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .insert(primitives::Atlas::new(tileset)?)
+            .insert(crate::tiles::Atlas::new(
+                render_state,
+                filesystem,
+                image_cache,
+                tileset,
+            )?)
             .clone())
     }
 

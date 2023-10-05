@@ -22,11 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-/// Traits related to modals.
-pub mod modal;
 /// The switch picker.
 pub mod switch;
 /// The variable picker.
 pub mod variable;
-
-pub use modal::Modal;

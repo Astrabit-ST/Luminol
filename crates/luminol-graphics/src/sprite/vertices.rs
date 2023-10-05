@@ -14,24 +14,24 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-//
-//     Additional permission under GNU GPL version 3 section 7
-//
-// If you modify this Program, or any covered work, by linking or combining
-// it with Steamworks API by Valve Corporation, containing parts covered by
-// terms of the Steamworks API by Valve Corporation, the licensors of this
-// Program grant you additional permission to convey the resulting work.
 
-mod quad;
-mod sprite;
-mod tiles;
-mod vertex;
-mod viewport;
+#[derive(Debug)]
+pub struct Vertices {
+    pub vertex_buffer: wgpu::Buffer,
+}
 
-pub use quad::Quad;
-pub use vertex::Vertex;
-pub use viewport::Viewport;
+impl Vertices {
+    pub fn from_quads(
+        render_state: &egui_wgpu::RenderState,
+        quads: &[crate::quad::Quad],
+        extents: wgpu::Extent3d,
+    ) -> Self {
+        let (vertex_buffer, _) = crate::quad::Quad::into_buffer(render_state, quads, extents);
+        Self { vertex_buffer }
+    }
 
-pub use sprite::Sprite;
-pub use tiles::Atlas;
-pub use tiles::Tiles;
+    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.draw(0..6, 0..1)
+    }
+}

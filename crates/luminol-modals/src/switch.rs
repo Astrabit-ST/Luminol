@@ -22,8 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
 /// The switch picker modal.
 pub struct Modal {
     id: egui::Id,

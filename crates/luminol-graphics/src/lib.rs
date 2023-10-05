@@ -15,7 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod primitives;
+mod quad;
+mod sprite;
+mod tiles;
+mod vertex;
+mod viewport;
 
 mod event;
 mod map;
@@ -27,3 +31,21 @@ pub mod image_cache;
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;
+
+pub struct GraphicsState {
+    image_cache: image_cache::Cache,
+    atlas_cache: atlas_cache::Cache,
+    render_state: egui_wgpu::RenderState,
+
+    pipelines: Pipelines,
+    bind_group_layouts: BindGroupLayouts,
+}
+
+pub struct BindGroupLayouts {
+    image_cache_texture: wgpu::BindGroupLayout,
+}
+
+pub struct Pipelines {
+    sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
+    tiles: wgpu::RenderPipeline,
+}

@@ -39,10 +39,15 @@ pub struct Tiles {
 }
 
 impl Tiles {
-    pub fn new(atlas: Atlas, tiles: &luminol_data::Table3, use_push_constants: bool) -> Self {
+    pub fn new(
+        render_state: &egui_wgpu::RenderState,
+        atlas: Atlas,
+        tiles: &luminol_data::Table3, use_push_constants: bool
+    ) -> Self {
         let autotiles = Autotiles::new(&atlas);
-        let instances = Instances::new(tiles, atlas.atlas_texture.size());
+        let instances = Instances::new(render_state, tiles, atlas.atlas_texture.size());
         let opacity = Opacity::new(use_push_constants);
+
 
         Self {
             autotiles,
@@ -53,13 +58,18 @@ impl Tiles {
         }
     }
 
-    pub fn set_tile(&self, tile_id: i16, position: (usize, usize, usize)) {
-        self.instances.set_tile(tile_id, position)
+    pub fn set_tile(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        tile_id: i16,
+        position: (usize, usize, usize),
+    ) {
+        self.instances.set_tile(render_state, tile_id, position)
     }
 
     pub fn draw<'rpass>(
         &'rpass self,
-        viewport: &crate::primitives::Viewport,
+        viewport: &crate::viewport::Viewport,
         enabled_layers: &[bool],
         selected_layer: Option<usize>,
         render_pass: &mut wgpu::RenderPass<'rpass>,

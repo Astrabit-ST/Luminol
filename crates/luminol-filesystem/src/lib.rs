@@ -14,12 +14,12 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use std::io::prelude::*;
 
+mod archiver;
 mod erased;
 mod host;
 mod list;
 mod path_cache;
-pub mod project;
 
-mod archiver;
+pub mod project;
+pub use project::FileSystem;

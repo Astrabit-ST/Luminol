@@ -23,7 +23,7 @@ use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
 use super::web;
 
 #[derive(Default)]
-enum FileSystem {
+pub enum FileSystem {
     #[default]
     Unloaded,
     #[cfg(not(target_arch = "wasm32"))]
@@ -36,8 +36,7 @@ enum FileSystem {
     },
 }
 
-
-enum File<'fs> {
+pub enum File<'fs> {
     #[cfg(not(target_arch = "wasm32"))]
     Host(<host::FileSystem as luminol_core::filesystem::FileSystem>::File<'fs>),
     #[cfg(target_arch = "wasm32")]
@@ -152,12 +151,13 @@ impl FileSystem {
     fn find_rtp_paths(
         config: &luminol_config::project::Config,
         global_config: &luminol_config::global::Config,
-    ) -> Vec<camino::Utf8PathBuf> {
+    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
         let Some(section) = config.game_ini.section(Some("Game")) else {
-            return vec![];
+            return (vec![], vec![]);
         };
         let mut paths = vec![];
         let mut seen_rtps = vec![];
+        let mut missing_rtps = vec![];
         // FIXME: handle vx ace?
         for rtp in ["RTP1", "RTP2", "RTP3"] {
             if let Some(rtp) = section.get(rtp) {
@@ -210,15 +210,10 @@ impl FileSystem {
                     }
                 }
 
-                state!()
-                    .toasts
-                    .warning(format!("Failed to find suitable path for the RTP {rtp}"));
-                state!()
-                    .toasts
-                    .info(format!("You may want to set an RTP path for {rtp}"));
+                missing_rtps.push(rtp.to_string());
             }
         }
-        paths
+        (paths, missing_rtps)
     }
 
     #[cfg(not(any(windows, target_arch = "wasm32")))]
@@ -324,7 +319,9 @@ impl FileSystem {
             .map_err(|e| e.to_string())?;
 
         list.push(dir);
-        for path in Self::find_rtp_paths(&config, &global_config) {
+        // FIXME: handle missing rtps
+        let (found_rtps, missing_rtps) = Self::find_rtp_paths(&config, &global_config);
+        for path in found_rtps {
             list.push(host::FileSystem::new(path))
         }
         if let Some(archive) = archive {
@@ -338,10 +335,11 @@ impl FileSystem {
             project_path: path.to_path_buf(),
         };
 
-        if let Err(e) = state!().data_cache.load() {
-            *self = FileSystem::Unloaded;
-            return Err(e);
-        }
+        // FIXME: handle
+        // if let Err(e) = state!().data_cache.load() {
+        //     *self = FileSystem::Unloaded;
+        //     return Err(e);
+        // }
 
         let mut projects: std::collections::VecDeque<_> = global_config
             .recent_projects

@@ -25,5 +25,3 @@
 pub mod map;
 /// The getting started screen.
 pub mod started;
-/// Traits and structs related to tabs.
-pub mod tab;

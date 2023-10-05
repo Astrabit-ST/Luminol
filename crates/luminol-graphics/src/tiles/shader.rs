@@ -20,7 +20,7 @@ use super::autotiles::Autotiles;
 use super::instance::Instances;
 use super::opacity::Opacity;
 use const_format::str_replace;
-use crate::primitives::Vertex;
+use crate::vertex::Vertex;
 
 #[derive(Debug)]
 pub struct Shader {
@@ -28,7 +28,7 @@ pub struct Shader {
 }
 
 impl Shader {
-    fn new(use_push_constants: bool) -> Self {
+    fn new(render_state: &egui_wgpu::RenderState, use_push_constants: bool) -> Self {
         let render_state = &state!().render_state;
 
         let shader_module = if use_push_constants {

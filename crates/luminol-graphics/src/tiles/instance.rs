@@ -35,7 +35,7 @@ struct Instance {
     layer: u32,
 }
 
-const TILE_QUAD: crate::primitives::Quad = crate::primitives::Quad::new(
+const TILE_QUAD: crate::quad::Quad = crate::quad::Quad::new(
     egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
     // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
     egui::Rect::from_min_max(egui::pos2(0.01, 0.01), egui::pos2(31.99, 31.99)),
@@ -43,11 +43,14 @@ const TILE_QUAD: crate::primitives::Quad = crate::primitives::Quad::new(
 );
 
 impl Instances {
-    pub fn new(map_data: &luminol_data::Table3, atlas_size: wgpu::Extent3d) -> Self {
+    pub fn new(
+        render_state: &egui_wgpu::RenderState,
+        map_data: &luminol_data::Table3,
+        atlas_size: wgpu::Extent3d,
+    ) -> Self {
         let instances = Self::calculate_instances(map_data);
         let instance_buffer =
-            state!()
-                .render_state
+            render_state
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("tilemap tiles instance buffer"),
@@ -55,7 +58,8 @@ impl Instances {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let (vertex_buffer, _) = crate::primitives::Quad::into_buffer(&[TILE_QUAD], atlas_size);
+        let (vertex_buffer, _) =
+            crate::quad::Quad::into_buffer(render_state, &[TILE_QUAD], atlas_size);
 
         Self {
             instance_buffer,
@@ -67,12 +71,17 @@ impl Instances {
     }
 
     // I thought we didn't need the z? Well.. we do! To calculate the offset into the instance buffer.
-    pub fn set_tile(&self, tile_id: i16, position: (usize, usize, usize)) {
+    pub fn set_tile(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        tile_id: i16,
+        position: (usize, usize, usize),
+    ) {
         let offset = position.0
             + (position.1 * self.map_width)
             + (position.2 * self.map_width * self.map_height);
         let offset = offset * std::mem::size_of::<Instance>();
-        state!().render_state.queue.write_buffer(
+        render_state.queue.write_buffer(
             &self.instance_buffer,
             offset as wgpu::BufferAddress,
             bytemuck::bytes_of(&Instance {

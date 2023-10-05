@@ -14,34 +14,32 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use std::sync::Arc;
 
 mod graphic;
 mod shader;
 mod vertices;
 
-use crate::prelude::*;
-use primitives::Quad;
-use primitives::Vertex;
-
 #[derive(Debug)]
 pub struct Sprite {
-    pub texture: Arc<image_cache::WgpuTexture>,
+    pub texture: Arc<crate::image_cache::WgpuTexture>,
     pub graphic: graphic::Graphic,
     pub vertices: vertices::Vertices,
-    pub blend_mode: BlendMode,
+    pub blend_mode: luminol_data::BlendMode,,
     pub use_push_constants: bool,
 }
 
 impl Sprite {
     pub fn new(
-        quad: Quad,
-        texture: Arc<image_cache::WgpuTexture>,
-        blend_mode: BlendMode,
+        render_state: &egui_wgpu::RenderState,
+        quad: crate::quad::Quad,
+        texture: Arc<crate::image_cache::WgpuTexture>,
+        blend_mode: luminol_data::BlendMode,
         hue: i32,
         opacity: i32,
         use_push_constants: bool,
     ) -> Self {
-        let vertices = vertices::Vertices::from_quads(&[quad], texture.size());
+        let vertices = vertices::Vertices::from_quads(render_state, &[quad], texture.size());
         let graphic = graphic::Graphic::new(hue, opacity, use_push_constants);
 
         Self {
@@ -53,10 +51,12 @@ impl Sprite {
         }
     }
 
-    pub fn reupload_verts(&self, quads: &[Quad]) {
-        let render_state = &state!().render_state;
-
-        let vertices = Quad::into_vertices(quads, self.texture.size());
+    pub fn reupload_verts(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        quads: &[crate::quad::Quad],
+    ) {
+        let vertices = crate::quad::Quad::into_vertices(quads, self.texture.size());
         render_state.queue.write_buffer(
             &self.vertices.vertex_buffer,
             0,
@@ -66,10 +66,11 @@ impl Sprite {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        viewport: &primitives::Viewport,
+        render_state: &crate::GraphicsState,
+        viewport: &crate::viewport::Viewport,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        shader::Shader::bind(self.blend_mode, self.use_push_constants, render_pass);
+        render_pass.set_pipeline(&render_state.pipelines.sprites[&self.blend_mode]);
 
         if self.use_push_constants {
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());

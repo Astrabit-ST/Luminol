@@ -6,8 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-luminol-data = { version = "*", path = "../luminol-data/" }
-
 image = "0.24.7"
 
 glam = { version = "0.24.2", features = ["bytemuck"] }
@@ -28,3 +26,6 @@ bytemuck.workspace = true
 itertools.workspace = true
 
 camino.workspace = true
+
+luminol-data = { version = "0.1.0", path = "../luminol-data/" }
+luminol-core = { version = "0.1.0", path = "../luminol-core/" }

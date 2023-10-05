@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::primitives;
 use crate::Plane;
 
 use std::time::Duration;
@@ -32,8 +31,8 @@ pub struct Map {
 
 #[derive(Debug)]
 struct Resources {
-    tiles: primitives::Tiles,
-    viewport: primitives::Viewport,
+    tiles: crate::tiles::Tiles,
+    viewport: crate::viewport::Viewport,
     panorama: Option<Plane>,
     fog: Option<Plane>,
 }
@@ -42,22 +41,29 @@ type ResourcesSlab = slab::Slab<std::sync::Arc<Resources>>;
 
 impl Map {
     pub fn new(
+        render_state: &egui_wgpu::RenderState,
+        filesystem: &impl luminol_core::filesystem::FileSystem,
+        image_cache: &crate::image_cache::Cache,
+        atlas_cache: &crate::atlas_cache::Cache,
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
     ) -> Result<Self, String> {
-        let atlas = state!().atlas_cache.load_atlas(tileset)?;
+        let atlas = atlas_cache.load_atlas(render_state, filesystem, image_cache, tileset)?;
 
-        let tiles = primitives::Tiles::new(atlas, &map.data, use_push_constants);
+        let tiles = crate::tiles::Tiles::new(render_state, atlas, &map.data, use_push_constants);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
-                state!()
-                    .image_cache
-                    .load_wgpu_image("Graphics/Panoramas", panorama_name)?,
+                image_cache.load_wgpu_image(
+                    render_state,
+                    filesystem,
+                    "Graphics/Panoramas",
+                    panorama_name,
+                )?,
                 tileset.panorama_hue,
                 100,
-                BlendMode::Normal,
+                luminol_data::BlendMode::Normal,
                 255,
                 map.width,
                 map.height,
@@ -68,9 +74,7 @@ impl Map {
         };
         let fog = if let Some(ref fog_name) = tileset.fog_name {
             Some(Plane::new(
-                state!()
-                    .image_cache
-                    .load_wgpu_image("Graphics/Fogs", fog_name)?,
+                image_cache.load_wgpu_image(render_state, filesystem, "Graphics/Fogs", fog_name)?,
                 tileset.fog_hue,
                 tileset.fog_zoom,
                 tileset.fog_blend_type,
@@ -82,7 +86,7 @@ impl Map {
         } else {
             None
         };
-        let viewport = primitives::Viewport::new(
+        let viewport = crate::viewport::Viewport::new(
             glam::Mat4::orthographic_rh(
                 0.0,
                 map.width as f32 * 32.,
@@ -110,8 +114,15 @@ impl Map {
         })
     }
 
-    pub fn set_tile(&self, tile_id: i16, position: (usize, usize, usize)) {
-        self.resources.tiles.set_tile(tile_id, position);
+    pub fn set_tile(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        tile_id: i16,
+        position: (usize, usize, usize),
+    ) {
+        self.resources
+            .tiles
+            .set_tile(render_state, tile_id, position);
     }
 
     pub fn set_proj(&self, proj: glam::Mat4) {
