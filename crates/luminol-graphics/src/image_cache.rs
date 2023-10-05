@@ -22,10 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use eframe::wgpu::util::DeviceExt;
-use once_cell::sync::Lazy;
+use std::sync::Arc;
 
-use crate::prelude::*;
+use egui_extras::RetainedImage;
+use once_cell::sync::Lazy;
+use wgpu::util::DeviceExt;
 
 #[derive(Default)]
 pub struct Cache {

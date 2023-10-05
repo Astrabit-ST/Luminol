@@ -14,8 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::FileSystem as FileSystemTrait;
-use super::{DirEntry, Error, Metadata, OpenFlags};
+
+use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Clone)]
 pub struct FileSystem<F> {
@@ -25,7 +25,7 @@ pub struct FileSystem<F> {
 
 impl<F> FileSystem<F>
 where
-    F: FileSystemTrait,
+    F: luminol_core::filesystem::FileSystem,
 {
     pub fn new(fs: F) -> Result<Self, Error> {
         let this = FileSystem {
@@ -42,12 +42,12 @@ where
 
     pub fn regen_cache(&self) -> Result<(), Error> {
         fn read_dir_recursive(
-            fs: &(impl FileSystemTrait + ?Sized),
+            fs: &(impl luminol_core::filesystem::FileSystem + ?Sized),
             path: impl AsRef<camino::Utf8Path>,
             mut f: impl FnMut(&camino::Utf8Path),
         ) -> Result<(), Error> {
             fn internal(
-                fs: &(impl FileSystemTrait + ?Sized),
+                fs: &(impl luminol_core::filesystem::FileSystem + ?Sized),
                 path: impl AsRef<camino::Utf8Path>,
                 f: &mut impl FnMut(&camino::Utf8Path),
             ) -> Result<(), Error> {
@@ -112,9 +112,9 @@ pub fn to_lowercase(p: impl AsRef<camino::Utf8Path>) -> camino::Utf8PathBuf {
     p.as_ref().as_str().to_lowercase().into()
 }
 
-impl<F> FileSystemTrait for FileSystem<F>
+impl<F> luminol_core::filesystem::FileSystem for FileSystem<F>
 where
-    F: FileSystemTrait,
+    F: luminol_core::filesystem::FileSystem,
 {
     type File<'fs> = F::File<'fs> where Self: 'fs;
 

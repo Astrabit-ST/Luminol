@@ -14,12 +14,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::FileSystem as FileSystemTrait;
-use super::{DirEntry, Error, Metadata, OpenFlags};
-use crate::prelude::*;
 
 use itertools::Itertools;
 use std::io::{prelude::*, Cursor, SeekFrom};
+
+use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Default)]
 pub struct FileSystem<T>
@@ -235,7 +234,7 @@ impl std::io::Seek for File {
     }
 }
 
-impl<T> FileSystemTrait for FileSystem<T>
+impl<T> luminol_core::filesystem::FileSystem for FileSystem<T>
 where
     T: Read + Write + Seek + Send + Sync,
 {
@@ -267,7 +266,7 @@ where
                 magic = magic.wrapping_mul(7).wrapping_add(3);
             }
 
-            *byte ^= bytemuck::cast::<_, [u8; 4]>(magic)[j];
+            *byte ^= magic.to_le_bytes()[j];
 
             j += 1;
         }

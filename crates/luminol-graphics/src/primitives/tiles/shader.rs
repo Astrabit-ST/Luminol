@@ -14,13 +14,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
+use once_cell::sync::Lazy;
 
 use super::autotiles::Autotiles;
 use super::instance::Instances;
 use super::opacity::Opacity;
 use const_format::str_replace;
-use primitives::{Vertex, Viewport};
+use crate::primitives::Vertex;
 
 #[derive(Debug)]
 pub struct Shader {
@@ -80,7 +80,7 @@ impl Shader {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Tilemap Render Pipeline Layout (push constants)"),
-                    bind_group_layouts: &[image_cache::Cache::bind_group_layout()],
+                    bind_group_layouts: &[crate::image_cache::Cache::bind_group_layout()],
                     push_constant_ranges: &[
                         // Viewport + Autotiles
                         wgpu::PushConstantRange {

@@ -14,9 +14,10 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::{DirEntry, Error, Metadata, OpenFlags};
 use itertools::Itertools;
 use std::fs::File;
+
+use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Clone)]
 pub struct FileSystem {
@@ -35,7 +36,7 @@ impl FileSystem {
     }
 }
 
-impl super::FileSystem for FileSystem {
+impl luminol_core::filesystem::FileSystem for FileSystem {
     type File<'fs> = File where Self: 'fs;
 
     fn open_file(

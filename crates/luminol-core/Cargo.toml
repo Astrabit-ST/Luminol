@@ -2,7 +2,19 @@
 name = "luminol-core"
 version = "0.1.0"
 edition = "2021"
+description = "Core luminol traits and data types"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+egui.workspace = true
+egui_dock = "0.7.3"
+
+parking_lot.workspace = true
+
+thiserror.workspace = true
+camino.workspace = true
+bitflags.workspace = true
+
+strum.workspace = true
+serde.workspace = true

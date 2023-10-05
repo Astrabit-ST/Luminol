@@ -14,8 +14,10 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use once_cell::sync::OnceCell;
+use std::sync::Arc;
 
-use crate::prelude::*;
+use crate::primitives;
 
 #[derive(Debug)]
 pub struct Event {
@@ -34,7 +36,7 @@ type ResourcesSlab = slab::Slab<Arc<Resources>>;
 impl Event {
     // code smell, fix
     pub fn new(
-        event: &rpg::Event,
+        event: &luminol_data::rpg::Event,
         atlas: &primitives::Atlas,
         use_push_constants: bool,
     ) -> Result<Option<Self>, String> {

@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
+use crate::primitives;
 
 #[derive(Default, Debug)]
 pub struct Cache {
@@ -22,7 +22,10 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn load_atlas(&self, tileset: &rpg::Tileset) -> Result<primitives::Atlas, String> {
+    pub fn load_atlas(
+        &self,
+        tileset: &luminol_data::rpg::Tileset,
+    ) -> Result<primitives::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)
@@ -30,7 +33,10 @@ impl Cache {
             .clone())
     }
 
-    pub fn reload_atlas(&self, tileset: &rpg::Tileset) -> Result<primitives::Atlas, String> {
+    pub fn reload_atlas(
+        &self,
+        tileset: &luminol_data::rpg::Tileset,
+    ) -> Result<primitives::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)

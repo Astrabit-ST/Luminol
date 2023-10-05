@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
 
 pub use atlas::Atlas;
 
@@ -40,8 +39,8 @@ pub struct Tiles {
 }
 
 impl Tiles {
-    pub fn new(atlas: Atlas, tiles: &Table3, use_push_constants: bool) -> Self {
-        let autotiles = Autotiles::new(&atlas, use_push_constants);
+    pub fn new(atlas: Atlas, tiles: &luminol_data::Table3, use_push_constants: bool) -> Self {
+        let autotiles = Autotiles::new(&atlas);
         let instances = Instances::new(tiles, atlas.atlas_texture.size());
         let opacity = Opacity::new(use_push_constants);
 
@@ -60,7 +59,7 @@ impl Tiles {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        viewport: &primitives::Viewport,
+        viewport: &crate::primitives::Viewport,
         enabled_layers: &[bool],
         selected_layer: Option<usize>,
         render_pass: &mut wgpu::RenderPass<'rpass>,

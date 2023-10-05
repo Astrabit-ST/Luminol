@@ -14,11 +14,9 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use command_lib::{CommandDescription, CommandKind, Index, Parameter};
+use super::{CommandDescription, CommandKind, Index, Parameter};
 
 use ui_example::UiExample;
-
-use crate::prelude::*;
 
 pub mod parameter_ui;
 pub mod ui_example;
@@ -26,15 +24,6 @@ pub mod ui_example;
 pub struct CommandGeneratorWindow {
     commands: Vec<CommandDescription>,
     ui_examples: Vec<UiExample>,
-}
-
-impl Default for CommandGeneratorWindow {
-    fn default() -> Self {
-        Self {
-            commands: command_db!().user.clone(),
-            ui_examples: vec![],
-        }
-    }
 }
 
 impl CommandGeneratorWindow {
@@ -80,7 +69,7 @@ impl CommandGeneratorWindow {
     }
 }
 
-impl window::Window for CommandGeneratorWindow {
+impl luminol_core::window::Window for CommandGeneratorWindow {
     fn name(&self) -> String {
         String::from("Luminol Command Maker")
     }

@@ -22,9 +22,9 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use super::CommandView;
 
-use command_lib::{Parameter, ParameterKind};
+use crate::{Parameter, ParameterKind};
 
 impl CommandView {
     #[allow(clippy::only_used_in_recursion)]
@@ -32,7 +32,7 @@ impl CommandView {
         &mut self,
         ui: &mut egui::Ui,
         parameter: &Parameter,
-        command: &mut rpg::EventCommand,
+        command: &mut luminol_data::rpg::EventCommand,
     ) {
         match parameter {
             Parameter::Selection {

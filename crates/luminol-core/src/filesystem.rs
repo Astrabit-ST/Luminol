@@ -14,15 +14,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use std::io::prelude::*;
-
-mod erased;
-mod host;
-mod list;
-mod path_cache;
-pub mod project;
-
-mod archiver;
+//
+//     Additional permission under GNU GPL version 3 section 7
+//
+// If you modify this Program, or any covered work, by linking or combining
+// it with Steamworks API by Valve Corporation, containing parts covered by
+// terms of the Steamworks API by Valve Corporation, the licensors of this
+// Program grant you additional permission to convey the resulting work.
 
 #[cfg(target_arch = "wasm32")]
 pub mod web;
@@ -53,12 +51,12 @@ pub struct Metadata {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DirEntry {
-    path: camino::Utf8PathBuf,
-    metadata: Metadata,
+    pub path: camino::Utf8PathBuf,
+    pub metadata: Metadata,
 }
 
 impl DirEntry {
-    fn new(path: camino::Utf8PathBuf, metadata: Metadata) -> Self {
+    pub fn new(path: camino::Utf8PathBuf, metadata: Metadata) -> Self {
         Self { path, metadata }
     }
 
@@ -92,7 +90,7 @@ bitflags::bitflags! {
 }
 
 pub trait FileSystem: Send + Sync {
-    type File<'fs>: Read + Write + Seek + Send + Sync + 'fs
+    type File<'fs>: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + 'fs
     where
         Self: 'fs;
 
@@ -133,6 +131,8 @@ pub trait FileSystem: Send + Sync {
     /// Corresponds to [`std::fs::read()`].
     /// Will open a file at the path and read the entire file into a buffer.
     fn read(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<u8>, Error> {
+        use std::io::Read;
+
         let path = path.as_ref();
 
         let mut buf = Vec::with_capacity(self.metadata(path)?.size as usize);
@@ -154,6 +154,8 @@ pub trait FileSystem: Send + Sync {
         path: impl AsRef<camino::Utf8Path>,
         data: impl AsRef<[u8]>,
     ) -> Result<(), Error> {
+        use std::io::Write;
+
         let mut file = self.open_file(
             path,
             OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,

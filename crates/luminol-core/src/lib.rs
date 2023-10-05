@@ -1,10 +1,3 @@
-//! Luminol is a supercharged FOSS version of the RPG Maker XP editor.
-//!
-//! Authors:
-//!     Lily Madeline Lyons <lily@nowaffles.com>
-//!
-// #![warn(missing_docs)]
-
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -29,54 +22,21 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub use prelude::*;
-
-/// The main Luminol application.
-pub mod luminol;
-
-pub mod prelude;
-
-/// Audio related structs and funtions.
-pub mod audio;
-
-pub mod config;
-
-pub mod cache;
-
-pub mod components;
-
-pub mod command_gen;
-
 /// Floating windows to be displayed anywhere.
-pub mod windows;
+pub mod window;
 
 /// Stack defined windows that edit values.
-pub mod modals;
+pub mod modal;
 
 /// Tabs to be displayed in the center of Luminol.
-pub mod tabs;
+pub mod tab;
 
 /// Filesystem related structs.
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem;
 
-/// The code for handling lumi, the friendly world machine!
-pub mod lumi;
-
-/// Utilities specific to WebAssembly builds of Luminol.
-#[cfg(target_arch = "wasm32")]
-pub mod web;
-
-#[cfg(feature = "steamworks")]
-pub mod steam;
-
-pub mod graphics;
-
-pub use luminol::Luminol;
-use tabs::tab::Tab;
-
 /// Embedded icon 256x256 in size.
-pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
+pub const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
 
 #[allow(missing_docs)]
 #[derive(Default)]
@@ -93,71 +53,4 @@ pub enum Pencil {
     Circle,
     Rectangle,
     Fill,
-}
-
-/// Passed to windows and widgets when updating.
-pub struct State {
-    /// Filesystem to be passed around.
-    pub filesystem: filesystem::project::FileSystem,
-    /// The data cache.
-    pub data_cache: data::Cache,
-    pub image_cache: image_cache::Cache,
-    pub atlas_cache: atlas::Cache,
-    /// Windows that are displayed.
-    pub windows: window::Windows,
-    /// Tabs that are displayed.
-    pub tabs: tabs::tab::Tabs<Box<dyn Tab + Send>>,
-    #[cfg(not(target_arch = "wasm32"))]
-    /// Audio that's played.
-    pub audio: audio::Audio,
-    #[cfg(target_arch = "wasm32")]
-    /// Audio that's played.
-    pub audio: audio::AudioWrapper,
-    /// Toasts to be displayed.
-    pub toasts: Toasts,
-    pub render_state: egui_wgpu::RenderState,
-    /// Toolbar state
-    pub toolbar: AtomicRefCell<ToolbarState>,
-}
-
-static_assertions::assert_impl_all!(State: Send, Sync);
-
-impl State {
-    /// Create a new UpdateInfo.
-    pub fn new(
-        render_state: egui_wgpu::RenderState,
-        #[cfg(target_arch = "wasm32")] audio_wrapper: audio::AudioWrapper,
-    ) -> Self {
-        Self {
-            filesystem: filesystem::project::FileSystem::default(),
-            data_cache: data::Cache::default(),
-            image_cache: image_cache::Cache::default(),
-            atlas_cache: atlas::Cache::default(),
-            windows: windows::window::Windows::default(),
-            tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
-            #[cfg(not(target_arch = "wasm32"))]
-            audio: audio::Audio::default(),
-            #[cfg(target_arch = "wasm32")]
-            audio: audio_wrapper,
-            toasts: Toasts::default(),
-            render_state,
-            toolbar: AtomicRefCell::default(),
-        }
-    }
-}
-
-static STATE: once_cell::sync::OnceCell<State> = once_cell::sync::OnceCell::new();
-
-#[allow(clippy::panic)]
-fn set_state(info: State) {
-    if STATE.set(info).is_err() {
-        panic!("failed to set updateinfo")
-    }
-}
-
-#[macro_export]
-macro_rules! state {
-    () => {
-        $crate::STATE.get().expect("failed to get updateinfo")
-    };
 }

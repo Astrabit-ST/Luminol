@@ -1,0 +1,30 @@
+[package]
+name = "luminol-filesystem"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rfd = "0.12.0"
+
+thiserror.workspace = true
+bitflags.workspace = true
+
+camino.workspace = true
+
+itertools.workspace = true
+
+dashmap.workspace = true
+
+egui.workspace = true
+
+serde.workspace = true
+alox-48.workspace = true
+
+luminol-core = { version = "0.1.0", path = "../luminol-core/" }
+luminol-data = { version = "0.1.0", path = "../luminol-data/" }
+luminol-config = { version = "0.1.0", path = "../luminol-config/" }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.51.0"

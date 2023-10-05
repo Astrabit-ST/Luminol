@@ -13,6 +13,10 @@ mod rgss_structs;
 
 mod helpers;
 
+pub mod data_cache;
+
+pub mod commands;
+
 pub use helpers::*;
 pub use option_vec::OptionVec;
 pub use rgss_structs::{Color, Table1, Table2, Table3, Tone};

@@ -14,21 +14,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
 
-use super::FileSystem as FileSystemTrait;
-use super::{archiver, host, list, path_cache, DirEntry, Error, Metadata, OpenFlags};
+use super::{archiver, host, list, path_cache};
+use luminol_core::filesystem::FileSystem as _;
+use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
 
 #[cfg(target_arch = "wasm32")]
 use super::web;
 
 #[derive(Default)]
-pub struct FileSystem {
-    state: AtomicRefCell<State>,
-}
-
-#[derive(Default)]
-enum State {
+enum FileSystem {
     #[default]
     Unloaded,
     #[cfg(not(target_arch = "wasm32"))]
@@ -41,20 +36,17 @@ enum State {
     },
 }
 
-#[ouroboros::self_referencing]
-pub struct File<'fs> {
-    state: AtomicRef<'fs, State>,
-    #[borrows(state)]
-    #[not_covariant]
-    file: FileType<'this>,
-}
 
-enum FileType<'fs> {
+enum File<'fs> {
     #[cfg(not(target_arch = "wasm32"))]
-    Host(<host::FileSystem as FileSystemTrait>::File<'fs>),
+    Host(<host::FileSystem as luminol_core::filesystem::FileSystem>::File<'fs>),
     #[cfg(target_arch = "wasm32")]
-    Host(<web::FileSystem as FileSystemTrait>::File<'fs>),
-    Loaded(<path_cache::FileSystem<list::FileSystem> as FileSystemTrait>::File<'fs>),
+    Host(<web::FileSystem as luminol_core::filesystem::FileSystem>::File<'fs>),
+    Loaded(
+        <path_cache::FileSystem<list::FileSystem> as luminol_core::filesystem::FileSystem>::File<
+            'fs,
+        >,
+    ),
 }
 
 impl FileSystem {
@@ -78,7 +70,7 @@ impl FileSystem {
         let data = self.read(path).map_err(|e| e.to_string())?;
 
         alox_48::Deserializer::new(&data)
-            .and_then(|mut de| rmxp_types::nil_padded::deserialize(&mut de))
+            .and_then(|mut de| luminol_data::nil_padded::deserialize(&mut de))
             .map_err(|e| e.to_string())
     }
 
@@ -99,66 +91,38 @@ impl FileSystem {
         T: serde::ser::Serialize,
     {
         let mut ser = alox_48::Serializer::new();
-        rmxp_types::nil_padded::serialize(data, &mut ser).map_err(|e| e.to_string())?;
+        luminol_data::nil_padded::serialize(data, &mut ser).map_err(|e| e.to_string())?;
         self.write(path, ser.output).map_err(|e| e.to_string())
     }
 
     pub fn project_path(&self) -> Option<camino::Utf8PathBuf> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => None,
-            State::HostLoaded(h) => Some(h.root_path().to_path_buf()),
-            State::Loaded { project_path, .. } => Some(project_path.clone()),
+        match self {
+            FileSystem::Unloaded => None,
+            FileSystem::HostLoaded(h) => Some(h.root_path().to_path_buf()),
+            FileSystem::Loaded { project_path, .. } => Some(project_path.clone()),
         }
     }
 
     pub fn project_loaded(&self) -> bool {
-        !matches!(&*self.state.borrow(), State::Unloaded)
+        !matches!(self, FileSystem::Unloaded)
     }
 
-    pub fn unload_project(&self) {
-        *self.state.borrow_mut() = State::Unloaded;
-    }
-
-    pub fn detect_rm_ver(&self) -> Option<config::RMVer> {
-        if self.exists("Data/Actors.rxdata").ok()? {
-            return Some(config::RMVer::XP);
-        }
-
-        if self.exists("Data/Actors.rvdata").ok()? {
-            return Some(config::RMVer::VX);
-        }
-
-        if self.exists("Data/Actors.rvdata2").ok()? {
-            return Some(config::RMVer::Ace);
-        }
-
-        for path in self.read_dir("").ok()? {
-            let path = path.path();
-            if path.extension() == Some("rgssad") {
-                return Some(config::RMVer::XP);
-            }
-
-            if path.extension() == Some("rgss2a") {
-                return Some(config::RMVer::VX);
-            }
-
-            if path.extension() == Some("rgss3a") {
-                return Some(config::RMVer::Ace);
-            }
-        }
-
-        None
+    pub fn unload_project(&mut self) {
+        *self = FileSystem::Unloaded;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
+    pub async fn spawn_project_file_picker(
+        &mut self,
+        project_config: &mut Option<luminol_config::project::Config>,
+        global_config: &mut luminol_config::global::Config,
+    ) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
             .pick_file()
             .await
         {
-            self.load_project(path.path())
+            self.load_project(project_config, global_config, path.path())
         } else {
             Err("Cancelled loading project".to_string())
         }
@@ -185,9 +149,11 @@ impl FileSystem {
     }
 
     #[cfg(windows)]
-    fn find_rtp_paths() -> Vec<camino::Utf8PathBuf> {
-        let ini = game_ini!();
-        let Some(section) = ini.section(Some("Game")) else {
+    fn find_rtp_paths(
+        config: &luminol_config::project::Config,
+        global_config: &luminol_config::global::Config,
+    ) -> Vec<camino::Utf8PathBuf> {
+        let Some(section) = config.game_ini.section(Some("Game")) else {
             return vec![];
         };
         let mut paths = vec![];
@@ -236,7 +202,7 @@ impl FileSystem {
                     }
                 }
 
-                if let Some(path) = global_config!().rtp_paths.get(rtp) {
+                if let Some(path) = global_config.rtp_paths.get(rtp) {
                     let path = camino::Utf8PathBuf::from(path);
                     if path.exists() {
                         paths.push(path);
@@ -256,7 +222,7 @@ impl FileSystem {
     }
 
     #[cfg(not(any(windows, target_arch = "wasm32")))]
-    fn find_rtp_paths() -> Vec<camino::Utf8PathBuf> {
+    fn find_rtp_paths(config: &luminol_config::project::Config) -> Vec<camino::Utf8PathBuf> {
         let ini = game_ini!();
         let Some(section) = ini.section(Some("Game")) else {
             return vec![];
@@ -326,13 +292,18 @@ impl FileSystem {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
+    pub fn load_project(
+        &mut self,
+        project_config: &mut Option<luminol_config::project::Config>,
+        global_config: &mut luminol_config::global::Config,
+        project_path: impl AsRef<std::path::Path>,
+    ) -> Result<(), String> {
         let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = original_path.parent().unwrap_or(original_path);
 
-        *self.state.borrow_mut() = State::HostLoaded(host::FileSystem::new(path));
+        *self = FileSystem::HostLoaded(host::FileSystem::new(path));
 
-        config::Project::load()?;
+        let config = luminol_config::project::Config::load(self)?;
 
         let mut list = list::FileSystem::new();
 
@@ -353,7 +324,7 @@ impl FileSystem {
             .map_err(|e| e.to_string())?;
 
         list.push(dir);
-        for path in Self::find_rtp_paths() {
+        for path in Self::find_rtp_paths(&config, &global_config) {
             list.push(host::FileSystem::new(path))
         }
         if let Some(archive) = archive {
@@ -362,24 +333,26 @@ impl FileSystem {
 
         let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
 
-        *self.state.borrow_mut() = State::Loaded {
+        *self = FileSystem::Loaded {
             filesystem: path_cache,
             project_path: path.to_path_buf(),
         };
 
-        let mut projects: std::collections::VecDeque<_> = global_config!()
+        if let Err(e) = state!().data_cache.load() {
+            *self = FileSystem::Unloaded;
+            return Err(e);
+        }
+
+        let mut projects: std::collections::VecDeque<_> = global_config
             .recent_projects
             .iter()
             .filter(|p| p.as_str() != original_path)
             .cloned()
             .collect();
         projects.push_front(original_path.to_string());
-        global_config!().recent_projects = projects;
+        global_config.recent_projects = projects;
 
-        if let Err(e) = state!().data_cache.load() {
-            *self.state.borrow_mut() = State::Unloaded;
-            return Err(e);
-        }
+        *project_config = Some(config);
 
         Ok(())
     }
@@ -466,19 +439,18 @@ impl FileSystem {
     }
 
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => {
+        match self {
+            FileSystem::Unloaded => {
                 ui.label("Unloaded");
             }
-            State::HostLoaded(fs) => {
+            FileSystem::HostLoaded(fs) => {
                 ui.label("Host Filesystem Loaded");
                 ui.horizontal(|ui| {
                     ui.label("Project path: ");
                     ui.label(fs.root_path().as_str());
                 });
             }
-            State::Loaded { filesystem, .. } => {
+            FileSystem::Loaded { filesystem, .. } => {
                 ui.label("Loaded");
                 filesystem.debug_ui(ui);
             }
@@ -488,67 +460,67 @@ impl FileSystem {
 
 impl<'fs> std::io::Write for File<'fs> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.write(buf),
-            FileType::Loaded(f) => f.write(buf),
-        })
+        match self {
+            File::Host(f) => f.write(buf),
+            File::Loaded(f) => f.write(buf),
+        }
     }
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.write_vectored(bufs),
-            FileType::Loaded(f) => f.write_vectored(bufs),
-        })
+        match self {
+            File::Host(f) => f.write_vectored(bufs),
+            File::Loaded(f) => f.write_vectored(bufs),
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.flush(),
-            FileType::Loaded(f) => f.flush(),
-        })
+        match self {
+            File::Host(f) => f.flush(),
+            File::Loaded(f) => f.flush(),
+        }
     }
 }
 
 impl<'fs> std::io::Read for File<'fs> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.read(buf),
-            FileType::Loaded(f) => f.read(buf),
-        })
+        match self {
+            File::Host(f) => f.read(buf),
+            File::Loaded(f) => f.read(buf),
+        }
     }
 
     fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.read_vectored(bufs),
-            FileType::Loaded(f) => f.read_vectored(bufs),
-        })
+        match self {
+            File::Host(f) => f.read_vectored(bufs),
+            File::Loaded(f) => f.read_vectored(bufs),
+        }
     }
 
     fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.read_exact(buf),
-            FileType::Loaded(f) => f.read_exact(buf),
-        })
+        match self {
+            File::Host(f) => f.read_exact(buf),
+            File::Loaded(f) => f.read_exact(buf),
+        }
     }
 }
 
 impl<'fs> std::io::Seek for File<'fs> {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.seek(pos),
-            FileType::Loaded(f) => f.seek(pos),
-        })
+        match self {
+            File::Host(f) => f.seek(pos),
+            File::Loaded(f) => f.seek(pos),
+        }
     }
 
     fn stream_position(&mut self) -> std::io::Result<u64> {
-        self.with_file_mut(|f| match f {
-            FileType::Host(f) => f.stream_position(),
-            FileType::Loaded(f) => f.stream_position(),
-        })
+        match self {
+            File::Host(f) => f.stream_position(),
+            File::Loaded(f) => f.stream_position(),
+        }
     }
 }
 
-impl FileSystemTrait for FileSystem {
+impl luminol_core::filesystem::FileSystem for FileSystem {
     type File<'fs> = File<'fs> where Self: 'fs;
 
     fn open_file(
@@ -556,25 +528,18 @@ impl FileSystemTrait for FileSystem {
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
-        let state = self.state.borrow();
-        File::try_new(state, |state| {
-            //
-            match &**state {
-                State::Unloaded => Err(Error::NotLoaded),
-                State::HostLoaded(f) => f.open_file(path, flags).map(FileType::Host),
-                State::Loaded { filesystem: f, .. } => {
-                    f.open_file(path, flags).map(FileType::Loaded)
-                }
-            }
-        })
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.open_file(path, flags).map(File::Host),
+            FileSystem::Loaded { filesystem: f, .. } => f.open_file(path, flags).map(File::Loaded),
+        }
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.metadata(path),
-            State::Loaded { filesystem: f, .. } => f.metadata(path),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.metadata(path),
+            FileSystem::Loaded { filesystem: f, .. } => f.metadata(path),
         }
     }
 
@@ -583,56 +548,50 @@ impl FileSystemTrait for FileSystem {
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
     ) -> Result<(), Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.rename(from, to),
-            State::Loaded { filesystem, .. } => filesystem.rename(from, to),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.rename(from, to),
+            FileSystem::Loaded { filesystem, .. } => filesystem.rename(from, to),
         }
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.exists(path),
-            State::Loaded { filesystem, .. } => filesystem.exists(path),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.exists(path),
+            FileSystem::Loaded { filesystem, .. } => filesystem.exists(path),
         }
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.create_dir(path),
-            State::Loaded { filesystem, .. } => filesystem.create_dir(path),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.create_dir(path),
+            FileSystem::Loaded { filesystem, .. } => filesystem.create_dir(path),
         }
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.remove_dir(path),
-            State::Loaded { filesystem, .. } => filesystem.remove_dir(path),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.remove_dir(path),
+            FileSystem::Loaded { filesystem, .. } => filesystem.remove_dir(path),
         }
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.remove_file(path),
-            State::Loaded { filesystem, .. } => filesystem.remove_file(path),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.remove_file(path),
+            FileSystem::Loaded { filesystem, .. } => filesystem.remove_file(path),
         }
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
-        let state = self.state.borrow();
-        match &*state {
-            State::Unloaded => Err(Error::NotLoaded),
-            State::HostLoaded(f) => f.read_dir(path),
-            State::Loaded { filesystem, .. } => filesystem.read_dir(path),
+        match self {
+            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::HostLoaded(f) => f.read_dir(path),
+            FileSystem::Loaded { filesystem, .. } => filesystem.read_dir(path),
         }
     }
 }

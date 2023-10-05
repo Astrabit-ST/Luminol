@@ -22,8 +22,9 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use command_lib::CommandDescription;
+use luminol_data::commands::CommandDescription;
 use once_cell::sync::Lazy;
+
 use serde::{Deserialize, Serialize};
 
 use super::RMVer;
@@ -51,6 +52,7 @@ pub struct CommandDB {
     /// Default commands
     default: Vec<CommandDescription>,
     /// User defined commands
+    // FIXME: visible to user?
     pub user: Vec<CommandDescription>,
 }
 

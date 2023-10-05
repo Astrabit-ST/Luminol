@@ -13,6 +13,7 @@ image = "0.24.7"
 glam = { version = "0.24.2", features = ["bytemuck"] }
 
 egui.workspace = true
+egui_extras.workspace = true
 egui-wgpu.workspace = true
 wgpu.workspace = true
 
@@ -25,3 +26,5 @@ slab.workspace = true
 bytemuck.workspace = true
 
 itertools.workspace = true
+
+camino.workspace = true

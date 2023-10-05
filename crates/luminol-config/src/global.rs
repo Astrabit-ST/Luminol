@@ -22,44 +22,37 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-#[macro_use]
-mod macros;
-mod command_ui;
-mod parameter_ui;
-mod ui;
-
-pub use crate::prelude::*;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 
-pub struct CommandView {
-    selected_index: usize,
-    window_state: WindowState,
-    id: egui::Id,
-    modals: HashMap<u64, bool>, // todo find a better way to handle modals
+/// The state saved by Luminol between sessions.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct Config {
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Recently open projects.
+    pub recent_projects: VecDeque<String>,
+    #[cfg(target_arch = "wasm32")]
+    /// Recently open projects.
+    pub recent_projects: VecDeque<(String, String)>,
+
+    /// The current code theme
+    // pub theme: syntax_highlighting::CodeTheme,
+    pub rtp_paths: HashMap<String, String>,
 }
 
-enum WindowState {
-    Insert { index: usize, tab: usize },
-    Edit { index: usize },
-    None,
-}
-
-impl Default for CommandView {
+impl Default for Config {
     fn default() -> Self {
-        Self {
-            selected_index: 0,
-            window_state: WindowState::None,
-            id: egui::Id::new("command_view"),
-            modals: HashMap::new(),
-        }
+        Self::new()
     }
 }
 
-impl CommandView {
-    pub fn new(id: impl std::hash::Hash) -> Self {
+impl Config {
+    pub fn new() -> Self {
         Self {
-            id: egui::Id::new(id),
-            ..Default::default()
+            recent_projects: VecDeque::new(),
+            // theme: syntax_highlighting::CodeTheme::dark(),
+            rtp_paths: HashMap::new(),
         }
     }
 }
