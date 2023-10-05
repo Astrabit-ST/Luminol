@@ -33,6 +33,7 @@ pub struct Instances {
 struct Instance {
     position: [f32; 3],
     tile_id: i32, // force this to be an i32 to avoid padding issues
+    layer: u32,
 }
 
 const TILE_QUAD: Quad = Quad::new(
@@ -78,6 +79,7 @@ impl Instances {
             bytemuck::bytes_of(&Instance {
                 position: [position.0 as f32, position.1 as f32, 0.0],
                 tile_id: tile_id as i32,
+                layer: position.2 as u32,
             }),
         )
     }
@@ -95,7 +97,8 @@ impl Instances {
                 let map_x = index % map_data.xsize();
                 // We reset the y every ysize elements, but only increment it every xsize elements.
                 let map_y = (index / map_data.xsize()) % map_data.ysize();
-                // We don't need the z.
+                // We increment the z every xsize * ysize elements.
+                let map_z = index / (map_data.xsize() * map_data.ysize());
 
                 Instance {
                     position: [
@@ -104,6 +107,7 @@ impl Instances {
                         0., // We don't do a depth buffer. z doesn't matter
                     ],
                     tile_id: tile_id as i32,
+                    layer: map_z as u32,
                 }
             })
             .collect_vec()
@@ -128,7 +132,7 @@ impl Instances {
 
     pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ARRAY: &[wgpu::VertexAttribute] =
-            &wgpu::vertex_attr_array![2 => Float32x3, 3 => Sint32];
+            &wgpu::vertex_attr_array![2 => Float32x3, 3 => Sint32, 4 => Uint32];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,

@@ -20,12 +20,14 @@ pub use atlas::Atlas;
 
 use autotiles::Autotiles;
 use instance::Instances;
+use opacity::Opacity;
 use shader::Shader;
 
 mod atlas;
 mod autotile_ids;
 mod autotiles;
 mod instance;
+mod opacity;
 mod shader;
 
 #[derive(Debug)]
@@ -33,17 +35,22 @@ pub struct Tiles {
     pub autotiles: Autotiles,
     pub atlas: Atlas,
     pub instances: Instances,
+    pub opacity: Opacity,
+    pub use_push_constants: bool,
 }
 
 impl Tiles {
-    pub fn new(atlas: Atlas, tiles: &Table3) -> Self {
-        let autotiles = Autotiles::new(&atlas);
+    pub fn new(atlas: Atlas, tiles: &Table3, use_push_constants: bool) -> Self {
+        let autotiles = Autotiles::new(&atlas, use_push_constants);
         let instances = Instances::new(tiles, atlas.atlas_texture.size());
+        let opacity = Opacity::new(use_push_constants);
 
         Self {
             autotiles,
             atlas,
             instances,
+            opacity,
+            use_push_constants,
         }
     }
 
@@ -66,17 +73,21 @@ impl Tiles {
         }
 
         render_pass.push_debug_group("tilemap tiles renderer");
-        Shader::bind(render_pass);
-        render_pass.set_push_constants(
-            wgpu::ShaderStages::VERTEX,
-            0,
-            bytemuck::bytes_of(&VertexPushConstant {
-                viewport: viewport.as_bytes(),
-                autotiles: self.autotiles.as_bytes(),
-            }),
-        );
+        Shader::bind(self.use_push_constants, render_pass);
+        self.autotiles.bind(render_pass);
+        if self.use_push_constants {
+            render_pass.set_push_constants(
+                wgpu::ShaderStages::VERTEX,
+                0,
+                bytemuck::bytes_of(&VertexPushConstant {
+                    viewport: viewport.as_bytes(),
+                    autotiles: self.autotiles.as_bytes(),
+                }),
+            );
+        }
 
         self.atlas.bind(render_pass);
+        self.opacity.bind(render_pass);
 
         for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
             let opacity = match selected_layer {
@@ -84,11 +95,14 @@ impl Tiles {
                 Some(_) => 0.5,
                 None => 1.0,
             };
-            render_pass.set_push_constants(
-                wgpu::ShaderStages::FRAGMENT,
-                64 + 36,
-                bytemuck::bytes_of::<f32>(&opacity),
-            );
+            self.opacity.set_opacity(layer, opacity);
+            if self.use_push_constants {
+                render_pass.set_push_constants(
+                    wgpu::ShaderStages::FRAGMENT,
+                    64 + 36,
+                    bytemuck::bytes_of::<f32>(&opacity),
+                );
+            }
             if enabled {
                 self.instances.draw(render_pass, layer);
             }

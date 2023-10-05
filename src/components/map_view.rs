@@ -65,10 +65,12 @@ impl MapView {
         let events = map
             .events
             .iter()
-            .map(|(id, e)| Event::new(e, &atlas).map(|o| o.map(|e| (id, e))))
+            .map(|(id, e)| {
+                Event::new(e, &atlas, crate::USE_PUSH_CONSTANTS).map(|o| o.map(|e| (id, e)))
+            })
             .flatten_ok()
             .try_collect()?;
-        let map = Map::new(map, tileset)?;
+        let map = Map::new(map, tileset, crate::USE_PUSH_CONSTANTS)?;
 
         Ok(Self {
             visible_display: false,

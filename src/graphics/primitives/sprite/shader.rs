@@ -16,35 +16,60 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
 
+use super::graphic::Graphic;
 use super::{BlendMode, Vertex};
+use const_format::str_replace;
+use primitives::Viewport;
 
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
 }
 
 impl Shader {
-    pub fn new(target: wgpu::BlendState) -> Self {
+    pub fn new(target: wgpu::BlendState, use_push_constants: bool) -> Self {
         let render_state = &state!().render_state;
 
-        let shader_module =
+        let shader_module = if use_push_constants {
             render_state
                 .device
                 .create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("sprite.wgsl"),
+                    label: Some("sprite.wgsl (push constants)"),
                     source: wgpu::ShaderSource::Wgsl(
-                        concat!(
-                            include_str!("sprite_header_push_constants.wgsl"),
-                            include_str!("sprite.wgsl"),
+                        str_replace!(
+                            concat!(
+                                include_str!("sprite_header_push_constants.wgsl"),
+                                include_str!("sprite.wgsl"),
+                            ),
+                            "HOST.",
+                            "push_constants."
                         )
                         .into(),
                     ),
-                });
+                })
+        } else {
+            render_state
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("sprite.wgsl (uniforms)"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        str_replace!(
+                            concat!(
+                                include_str!("sprite_header_uniforms.wgsl"),
+                                include_str!("sprite.wgsl"),
+                            ),
+                            "HOST.",
+                            ""
+                        )
+                        .into(),
+                    ),
+                })
+        };
 
-        let pipeline_layout =
+        let pipeline_layout = if use_push_constants {
             render_state
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Tilemap Sprite Pipeline Layout"),
+                    label: Some("Tilemap Sprite Pipeline Layout (push constants)"),
                     bind_group_layouts: &[image_cache::Cache::bind_group_layout()],
                     push_constant_ranges: &[
                         // Viewport
@@ -57,7 +82,21 @@ impl Shader {
                             range: 64..(64 + 4 + 4 + 4),
                         },
                     ],
-                });
+                })
+        } else {
+            render_state
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Tilemap Sprite Pipeline Layout (uniforms)"),
+                    bind_group_layouts: &[
+                        image_cache::Cache::bind_group_layout(),
+                        Viewport::layout(),
+                        Graphic::layout(),
+                    ],
+                    push_constant_ranges: &[],
+                })
+        };
+
         let pipeline =
             render_state
                 .device
@@ -89,12 +128,16 @@ impl Shader {
         Shader { pipeline }
     }
 
-    pub fn bind(mode: BlendMode, render_pass: &mut wgpu::RenderPass<'_>) {
-        render_pass.set_pipeline(&EVENT_SHADERS[&mode].pipeline)
+    pub fn bind(mode: BlendMode, use_push_constants: bool, render_pass: &mut wgpu::RenderPass<'_>) {
+        if use_push_constants {
+            render_pass.set_pipeline(&EVENT_SHADERS_PUSH_CONSTANTS[&mode].pipeline)
+        } else {
+            render_pass.set_pipeline(&EVENT_SHADERS_UNIFORMS[&mode].pipeline)
+        }
     }
 }
 
-static EVENT_SHADERS: Lazy<HashMap<BlendMode, Shader>> = Lazy::new(|| {
+static EVENT_SHADERS_PUSH_CONSTANTS: Lazy<HashMap<BlendMode, Shader>> = Lazy::new(|| {
     [
         (BlendMode::Normal, wgpu::BlendState::ALPHA_BLENDING),
         (
@@ -129,6 +172,45 @@ static EVENT_SHADERS: Lazy<HashMap<BlendMode, Shader>> = Lazy::new(|| {
         ),
     ]
     .into_iter()
-    .map(|(mode, target)| (mode, Shader::new(target)))
+    .map(|(mode, target)| (mode, Shader::new(target, true)))
+    .collect()
+});
+
+static EVENT_SHADERS_UNIFORMS: Lazy<HashMap<BlendMode, Shader>> = Lazy::new(|| {
+    [
+        (BlendMode::Normal, wgpu::BlendState::ALPHA_BLENDING),
+        (
+            BlendMode::Add,
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+            },
+        ),
+        (
+            BlendMode::Subtract,
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::Zero,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+            },
+        ),
+    ]
+    .into_iter()
+    .map(|(mode, target)| (mode, Shader::new(target, false)))
     .collect()
 });

@@ -85,16 +85,19 @@ impl Tilepicker {
             tilepicker_data,
         );
 
-        let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
-            0.0,
-            256.,
-            atlas.tileset_height as f32 + 32.,
-            0.0,
-            -1.0,
-            1.0,
-        ));
+        let viewport = primitives::Viewport::new(
+            glam::Mat4::orthographic_rh(
+                0.0,
+                256.,
+                atlas.tileset_height as f32 + 32.,
+                0.0,
+                -1.0,
+                1.0,
+            ),
+            crate::USE_PUSH_CONSTANTS,
+        );
 
-        let tiles = primitives::Tiles::new(atlas, &tilepicker_data);
+        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, crate::USE_PUSH_CONSTANTS);
 
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),
@@ -161,6 +164,7 @@ impl Tilepicker {
                             tiles, viewport, ..
                         } = resources.as_ref();
 
+                        viewport.bind(render_pass);
                         tiles.draw(viewport, &[true], None, render_pass);
                     }),
             ),

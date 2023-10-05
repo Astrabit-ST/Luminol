@@ -30,6 +30,7 @@ impl Plane {
         opacity: i32,
         map_width: usize,
         map_height: usize,
+        use_push_constants: bool,
     ) -> Self {
         let zoom = zoom as f32 / 100.;
         let map_width = map_width as f32 * 32.;
@@ -46,7 +47,8 @@ impl Plane {
             0.0,
         );
 
-        let sprite = primitives::Sprite::new(quad, texture, blend_mode, hue, opacity);
+        let sprite =
+            primitives::Sprite::new(quad, texture, blend_mode, hue, opacity, use_push_constants);
 
         Self { sprite }
     }

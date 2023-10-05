@@ -33,7 +33,11 @@ type ResourcesSlab = slab::Slab<Arc<Resources>>;
 
 impl Event {
     // code smell, fix
-    pub fn new(event: &rpg::Event, atlas: &primitives::Atlas) -> Result<Option<Self>, String> {
+    pub fn new(
+        event: &rpg::Event,
+        atlas: &primitives::Atlas,
+        use_push_constants: bool,
+    ) -> Result<Option<Self>, String> {
         let Some(page) = event.pages.first() else {
             return Err("event does not have first page".to_string());
         };
@@ -52,8 +56,10 @@ impl Event {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport =
-                primitives::Viewport::new(glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.));
+            let viewport = primitives::Viewport::new(
+                glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.),
+                use_push_constants,
+            );
 
             (quad, viewport, egui::vec2(32., 32.))
         } else {
@@ -77,8 +83,10 @@ impl Event {
             );
             let quad = primitives::Quad::new(pos, tex_coords, 0.0);
 
-            let viewport =
-                primitives::Viewport::new(glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.));
+            let viewport = primitives::Viewport::new(
+                glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.),
+                use_push_constants,
+            );
 
             (quad, viewport, egui::vec2(cw, ch))
         };
@@ -89,6 +97,7 @@ impl Event {
             page.graphic.blend_type,
             page.graphic.character_hue,
             page.graphic.opacity,
+            use_push_constants,
         );
 
         Ok(Some(Self {
@@ -122,6 +131,7 @@ impl Event {
                 let resources = &res_hash[id];
                 let Resources { viewport, sprite } = resources.as_ref();
 
+                viewport.bind(render_pass);
                 sprite.draw(viewport, render_pass);
             });
         painter.add(egui::PaintCallback {

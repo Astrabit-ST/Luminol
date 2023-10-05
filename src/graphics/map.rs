@@ -40,10 +40,14 @@ struct Resources {
 type ResourcesSlab = slab::Slab<Arc<Resources>>;
 
 impl Map {
-    pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<Self, String> {
+    pub fn new(
+        map: &rpg::Map,
+        tileset: &rpg::Tileset,
+        use_push_constants: bool,
+    ) -> Result<Self, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
-        let tiles = primitives::Tiles::new(atlas, &map.data);
+        let tiles = primitives::Tiles::new(atlas, &map.data, use_push_constants);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
@@ -56,6 +60,7 @@ impl Map {
                 255,
                 map.width,
                 map.height,
+                use_push_constants,
             ))
         } else {
             None
@@ -71,18 +76,22 @@ impl Map {
                 tileset.fog_opacity,
                 map.width,
                 map.height,
+                use_push_constants,
             ))
         } else {
             None
         };
-        let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
-            0.0,
-            map.width as f32 * 32.,
-            map.height as f32 * 32.,
-            0.0,
-            -1.0,
-            1.0,
-        ));
+        let viewport = primitives::Viewport::new(
+            glam::Mat4::orthographic_rh(
+                0.0,
+                map.width as f32 * 32.,
+                map.height as f32 * 32.,
+                0.0,
+                -1.0,
+                1.0,
+            ),
+            use_push_constants,
+        );
 
         Ok(Self {
             resources: Arc::new(Resources {
@@ -155,6 +164,8 @@ impl Map {
                     fog,
                     ..
                 } = resources.as_ref();
+
+                viewport.bind(render_pass);
 
                 if pano_enabled {
                     if let Some(panorama) = panorama {

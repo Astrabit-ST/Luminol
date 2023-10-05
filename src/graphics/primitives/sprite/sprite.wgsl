@@ -53,7 +53,7 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    var position = push_constants.viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
+    var position = HOST.viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
 
     out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;
@@ -62,15 +62,15 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    tex_sample.a *= push_constants.graphic.opacity * push_constants.graphic.opacity_multiplier;
+    tex_sample.a *= HOST.graphic.opacity * HOST.graphic.opacity_multiplier;
     if tex_sample.a <= 0. {
         discard;
     }
 
-    if push_constants.graphic.hue > 0.0 {
+    if HOST.graphic.hue > 0.0 {
         var hsv = rgb_to_hsv(tex_sample.rgb);
 
-        hsv.x += push_constants.graphic.hue;
+        hsv.x += HOST.graphic.hue;
         tex_sample = vec4<f32>(hsv_to_rgb(hsv), tex_sample.a);
     }
 
