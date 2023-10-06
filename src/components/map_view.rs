@@ -209,6 +209,18 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
+        let x_center = width2 * 32. - self.pan.x / scale;
+        let y_center = height2 * 32. - self.pan.y / scale;
+        let proj_width2 = canvas_rect.width() / scale / 2.;
+        let proj_height2 = canvas_rect.height() / scale / 2.;
+        self.map.set_proj(glam::Mat4::orthographic_rh(
+            x_center - proj_width2,
+            x_center + proj_width2,
+            y_center + proj_height2,
+            y_center - proj_height2,
+            -1.,
+            1.,
+        ));
         self.map.paint(
             ui.painter(),
             match self.selected_layer {
@@ -218,7 +230,7 @@ impl MapView {
                 }
                 SelectedLayer::Tiles(_) => None,
             },
-            map_rect,
+            canvas_rect,
         );
 
         ui.painter().rect_stroke(

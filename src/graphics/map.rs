@@ -113,6 +113,10 @@ impl Map {
         self.resources.tiles.set_tile(tile_id, position);
     }
 
+    pub fn set_proj(&self, proj: glam::Mat4) {
+        self.resources.viewport.set_proj(proj);
+    }
+
     pub fn paint(
         &mut self,
         painter: &egui::Painter,
