@@ -419,8 +419,8 @@ impl tab::Tab for Tab {
             .default_width(tilepicker_default_width)
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
-                egui::ScrollArea::both().show(ui, |ui| {
-                    self.tilepicker.ui(ui);
+                egui::ScrollArea::both().show_viewport(ui, |ui, rect| {
+                    self.tilepicker.ui(ui, rect);
                     ui.separator();
                 });
             });

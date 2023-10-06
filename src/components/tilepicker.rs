@@ -121,7 +121,7 @@ impl Tilepicker {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    pub fn ui(&mut self, ui: &mut egui::Ui, scroll_rect: egui::Rect) -> egui::Response {
         let time = ui.ctx().input(|i| i.time);
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. {
@@ -143,8 +143,16 @@ impl Tilepicker {
         let prepare_id = Arc::new(OnceCell::new());
         let paint_id = prepare_id.clone();
 
+        resources.viewport.set_proj(glam::Mat4::orthographic_rh(
+            scroll_rect.left(),
+            scroll_rect.right(),
+            scroll_rect.bottom(),
+            scroll_rect.top(),
+            -1.,
+            1.,
+        ));
         ui.painter().add(egui::PaintCallback {
-            rect: canvas_rect,
+            rect: scroll_rect.translate(canvas_rect.min.to_vec2()),
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_, _, _encoder, paint_callback_resources| {
