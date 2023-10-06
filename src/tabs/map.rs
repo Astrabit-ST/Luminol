@@ -84,7 +84,7 @@ enum HistoryEntry {
     /// Contains a deleted event and its corresponding graphic.
     EventDeleted {
         event: rpg::Event,
-        sprite: Option<Event>,
+        sprites: Option<(Event, Event)>,
     },
 }
 
@@ -854,13 +854,13 @@ impl tab::Tab for Tab {
                         })
                     {
                         let event = map.events.remove(selected_event_id);
-                        let sprite = self.view.events.try_remove(selected_event_id).ok();
+                        let sprites = self.view.events.try_remove(selected_event_id).ok();
                         self.redo_history.clear();
                         if self.history.len() == HISTORY_SIZE {
                             self.history.pop_front();
                         }
                         self.history
-                            .push_back(HistoryEntry::EventDeleted { event, sprite });
+                            .push_back(HistoryEntry::EventDeleted { event, sprites });
                     }
 
                     if let Some(hover_tile) = self.view.hover_tile {
@@ -972,15 +972,15 @@ impl tab::Tab for Tab {
 
                         Some(HistoryEntry::EventCreated(id)) => {
                             let event = map.events.remove(id);
-                            let sprite = self.view.events.try_remove(id).ok();
-                            Some(HistoryEntry::EventDeleted { event, sprite })
+                            let sprites = self.view.events.try_remove(id).ok();
+                            Some(HistoryEntry::EventDeleted { event, sprites })
                         }
 
-                        Some(HistoryEntry::EventDeleted { event, sprite }) => {
+                        Some(HistoryEntry::EventDeleted { event, sprites }) => {
                             let id = event.id;
                             map.events.insert(id, event);
-                            if let Some(sprite) = sprite {
-                                self.view.events.insert(id, sprite);
+                            if let Some(sprites) = sprites {
+                                self.view.events.insert(id, sprites);
                             }
                             Some(HistoryEntry::EventCreated(id))
                         }

@@ -110,6 +110,10 @@ impl Event {
         &self.resources.sprite
     }
 
+    pub fn set_proj(&self, proj: glam::Mat4) {
+        self.resources.viewport.set_proj(proj);
+    }
+
     pub fn paint(&self, painter: &egui::Painter, rect: egui::Rect) {
         let resources = self.resources.clone();
         let resource_id = Arc::new(OnceCell::new());
