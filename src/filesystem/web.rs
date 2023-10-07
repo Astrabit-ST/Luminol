@@ -356,10 +356,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
             let Some(command) = filesystem_rx.recv().await else {
                 return;
             };
-            web_sys::console::debug_1(&JsValue::from(format!(
-                "Main thread received FS command: {:?}",
-                command
-            )));
+            tracing::debug!("Main thread received FS command: {:?}", command,);
 
             match command.0 {
                 FileSystemCommandInner::Supported(oneshot_tx) => {

@@ -143,6 +143,9 @@ pub fn luminol_main_start() {
     // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();
 
+    // Redirect log (currently used by egui) to tracing
+    tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
+
     let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
     let device_pixel_ratio = window.device_pixel_ratio() as f32;
     let prefers_color_scheme_dark = window
