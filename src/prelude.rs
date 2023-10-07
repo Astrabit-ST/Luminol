@@ -49,7 +49,9 @@ pub use once_cell::sync::{Lazy, OnceCell};
 pub use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 pub use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
+#[cfg(target_arch = "wasm32")]
 pub use tokio::sync::mpsc;
+#[cfg(target_arch = "wasm32")]
 pub use tokio::sync::oneshot;
 
 pub use crate::State;

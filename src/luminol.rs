@@ -176,6 +176,9 @@ impl CustomApp for Luminol {
         // Show toasts.
         state!().toasts.show(ctx);
 
+        #[cfg(not(target_arch = "wasm32"))]
+        poll_promise::tick_local();
+
         self.lumi.ui(ctx);
 
         #[cfg(feature = "steamworks")]
