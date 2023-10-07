@@ -77,11 +77,7 @@ impl MapView {
                     return Err(preview_sprite.unwrap_err());
                 };
                 Ok(if let Some(sprite) = sprite {
-                    if let Some(preview_sprite) = preview_sprite {
-                        Some((id, (sprite, preview_sprite)))
-                    } else {
-                        None
-                    }
+                    preview_sprite.map(|preview_sprite| (id, (sprite, preview_sprite)))
                 } else {
                     None
                 })
