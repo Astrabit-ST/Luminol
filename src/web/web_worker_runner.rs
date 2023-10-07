@@ -351,6 +351,7 @@ pub fn setup_main_thread_hooks(
 ) {
     let window =
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+    let document = window.document().unwrap();
 
     let is_mac = matches!(
         egui::os::OperatingSystem::from_user_agent(
@@ -463,6 +464,142 @@ pub fn setup_main_thread_hooks(
         canvas
             .add_event_listener_with_callback("afterprint", callback.as_ref().unchecked_ref())
             .expect("failed to register event listener for print shortcut keypress");
+        callback.forget();
+    }
+
+    {
+        let f = |pressed| {
+            let event_tx = event_tx.clone();
+            move |e: web_sys::KeyboardEvent| {
+                if e.is_composing() || e.key_code() == 229 {
+                    return;
+                }
+                if let Some(key) = match e.key().as_str() {
+                    // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+                    "Enter" => Some(egui::Key::Enter),
+                    "Tab" => Some(egui::Key::Tab),
+                    " " => Some(egui::Key::Space),
+
+                    "ArrowDown" => Some(egui::Key::ArrowDown),
+                    "ArrowLeft" => Some(egui::Key::ArrowLeft),
+                    "ArrowRight" => Some(egui::Key::ArrowRight),
+                    "ArrowUp" => Some(egui::Key::ArrowUp),
+                    "End" => Some(egui::Key::End),
+                    "Home" => Some(egui::Key::Home),
+                    "PageDown" => Some(egui::Key::PageDown),
+                    "PageUp" => Some(egui::Key::PageUp),
+
+                    "Backspace" => Some(egui::Key::Backspace),
+                    "Delete" => Some(egui::Key::Delete),
+                    "Insert" => Some(egui::Key::Insert),
+
+                    "Escape" => Some(egui::Key::Escape),
+
+                    "F1" => Some(egui::Key::F1),
+                    "F2" => Some(egui::Key::F2),
+                    "F3" => Some(egui::Key::F3),
+                    "F4" => Some(egui::Key::F4),
+                    "F5" => Some(egui::Key::F5),
+                    "F6" => Some(egui::Key::F6),
+                    "F7" => Some(egui::Key::F7),
+                    "F8" => Some(egui::Key::F8),
+                    "F9" => Some(egui::Key::F9),
+                    "F10" => Some(egui::Key::F10),
+                    "F11" => Some(egui::Key::F11),
+                    "F12" => Some(egui::Key::F12),
+                    "F13" => Some(egui::Key::F13),
+                    "F14" => Some(egui::Key::F14),
+                    "F15" => Some(egui::Key::F15),
+                    "F16" => Some(egui::Key::F16),
+                    "F17" => Some(egui::Key::F17),
+                    "F18" => Some(egui::Key::F18),
+                    "F19" => Some(egui::Key::F19),
+                    "F20" => Some(egui::Key::F20),
+
+                    "-" => Some(egui::Key::Minus),
+                    "+" | "=" => Some(egui::Key::PlusEquals),
+
+                    "0" => Some(egui::Key::Num0),
+                    "1" => Some(egui::Key::Num1),
+                    "2" => Some(egui::Key::Num2),
+                    "3" => Some(egui::Key::Num3),
+                    "4" => Some(egui::Key::Num4),
+                    "5" => Some(egui::Key::Num5),
+                    "6" => Some(egui::Key::Num6),
+                    "7" => Some(egui::Key::Num7),
+                    "8" => Some(egui::Key::Num8),
+                    "9" => Some(egui::Key::Num9),
+
+                    "A" | "a" => Some(egui::Key::A),
+                    "B" | "b" => Some(egui::Key::B),
+                    "C" | "c" => Some(egui::Key::C),
+                    "D" | "d" => Some(egui::Key::D),
+                    "E" | "e" => Some(egui::Key::E),
+                    "F" | "f" => Some(egui::Key::F),
+                    "G" | "g" => Some(egui::Key::G),
+                    "H" | "h" => Some(egui::Key::H),
+                    "I" | "i" => Some(egui::Key::I),
+                    "J" | "j" => Some(egui::Key::J),
+                    "K" | "k" => Some(egui::Key::K),
+                    "L" | "l" => Some(egui::Key::L),
+                    "M" | "m" => Some(egui::Key::M),
+                    "N" | "n" => Some(egui::Key::N),
+                    "O" | "o" => Some(egui::Key::O),
+                    "P" | "p" => Some(egui::Key::P),
+                    "Q" | "q" => Some(egui::Key::Q),
+                    "R" | "r" => Some(egui::Key::R),
+                    "S" | "s" => Some(egui::Key::S),
+                    "T" | "t" => Some(egui::Key::T),
+                    "U" | "u" => Some(egui::Key::U),
+                    "V" | "v" => Some(egui::Key::V),
+                    "W" | "w" => Some(egui::Key::W),
+                    "X" | "x" => Some(egui::Key::X),
+                    "Y" | "y" => Some(egui::Key::Y),
+                    "Z" | "z" => Some(egui::Key::Z),
+
+                    _ => None,
+                } {
+                    let ctrl = e.ctrl_key();
+                    let _ = event_tx.send(egui::Event::Key {
+                        key,
+                        pressed,
+                        repeat: pressed,
+                        modifiers: egui::Modifiers {
+                            alt: e.alt_key(),
+                            ctrl: !is_mac && ctrl,
+                            shift: e.shift_key(),
+                            mac_cmd: is_mac && ctrl,
+                            command: ctrl,
+                        },
+                    });
+                    if pressed {
+                        if match key {
+                            egui::Key::Tab => true,
+                            egui::Key::P if ctrl => true,
+                            egui::Key::Backspace => true,
+                            egui::Key::ArrowDown => true,
+                            egui::Key::ArrowLeft => true,
+                            egui::Key::ArrowRight => true,
+                            egui::Key::ArrowUp => true,
+                            _ => false,
+                        } {
+                            e.prevent_default();
+                        }
+                    }
+                }
+            }
+        };
+
+        let callback: Closure<dyn Fn(_)> = Closure::new(f(true));
+        document
+            .add_event_listener_with_callback("keydown", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for keyboard key presses");
+        callback.forget();
+
+        let callback: Closure<dyn Fn(_)> = Closure::new(f(false));
+        document
+            .add_event_listener_with_callback("keyup", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for keyboard key releases");
         callback.forget();
     }
 }
