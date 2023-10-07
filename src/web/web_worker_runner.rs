@@ -488,6 +488,60 @@ pub fn setup_main_thread_hooks(
     }
 
     {
+        let window = window.clone();
+        let event_tx = event_tx.clone();
+        let custom_event_tx = custom_event_tx.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::WheelEvent| {
+            let ctrl = e.ctrl_key();
+            let modifiers = egui::Modifiers {
+                alt: e.alt_key(),
+                ctrl: !is_mac && ctrl,
+                shift: e.shift_key(),
+                mac_cmd: is_mac && ctrl,
+                command: ctrl,
+            };
+            let _ = custom_event_tx.send(WebWorkerRunnerEvent(
+                WebWorkerRunnerEventInner::Modifiers(modifiers),
+            ));
+
+            let unit = match e.delta_mode() {
+                web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
+                web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
+                _ => egui::MouseWheelUnit::Point,
+            };
+            let delta = -egui::vec2(e.delta_x() as f32, e.delta_y() as f32);
+            let _ = event_tx.send(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+
+            let delta = delta
+                * match unit {
+                    egui::MouseWheelUnit::Point => 1.,
+                    egui::MouseWheelUnit::Line => 8.,
+                    egui::MouseWheelUnit::Page => {
+                        window.inner_height().unwrap().as_f64().unwrap() as f32
+                    }
+                };
+            let _ = if ctrl {
+                event_tx.send(egui::Event::Zoom((delta.y / 200.).exp()))
+            } else if modifiers.shift {
+                event_tx.send(egui::Event::Scroll(egui::vec2(delta.x + delta.y, 0.)))
+            } else {
+                event_tx.send(egui::Event::Scroll(delta))
+            };
+
+            e.stop_propagation();
+            e.prevent_default();
+        });
+        canvas
+            .add_event_listener_with_callback("wheel", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for mouse scrolling");
+        callback.forget();
+    }
+
+    {
         let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::Event| {
             e.prevent_default();
         });
