@@ -519,7 +519,8 @@ pub fn setup_main_thread_hooks(
                 if e.is_composing() || e.key_code() == 229 {
                     return;
                 }
-                if let Some(key) = match e.key().as_str() {
+                let key = e.key();
+                let matched_key = match key.as_str() {
                     // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
                     "Enter" => Some(egui::Key::Enter),
                     "Tab" => Some(egui::Key::Tab),
@@ -603,7 +604,11 @@ pub fn setup_main_thread_hooks(
                     "Z" | "z" => Some(egui::Key::Z),
 
                     _ => None,
-                } {
+                };
+                if pressed && !ctrl && key.len() == 1 {
+                    let _ = event_tx.send(egui::Event::Text(key));
+                }
+                if let Some(key) = matched_key {
                     let _ = event_tx.send(egui::Event::Key {
                         key,
                         pressed,
