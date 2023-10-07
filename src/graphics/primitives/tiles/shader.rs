@@ -25,7 +25,6 @@ use primitives::{Vertex, Viewport};
 #[derive(Debug)]
 pub struct Shader {
     pub pipeline: wgpu::RenderPipeline,
-    pub use_push_constants: bool,
 }
 
 impl Shader {
@@ -135,10 +134,7 @@ impl Shader {
                     multiview: None,
                 });
 
-        Self {
-            pipeline,
-            use_push_constants,
-        }
+        Self { pipeline }
     }
 
     pub fn bind(use_push_constants: bool, render_pass: &mut wgpu::RenderPass<'_>) {
