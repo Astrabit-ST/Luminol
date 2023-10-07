@@ -33,16 +33,24 @@ impl eframe::Storage for Storage {
     fn flush(&mut self) {}
 }
 
+pub struct WebWorkerRunnerEvent(WebWorkerRunnerEventInner);
+
+enum WebWorkerRunnerEventInner {
+    ScreenResize(u32, u32),
+    Modifiers(egui::Modifiers),
+}
+
 struct WebWorkerRunnerState {
     app: Box<dyn CustomApp>,
     render_state: egui_wgpu::RenderState,
     canvas: web_sys::OffscreenCanvas,
     surface: wgpu::Surface,
     surface_configuration: wgpu::SurfaceConfiguration,
+    modifiers: egui::Modifiers,
     native_pixels_per_point: Option<f32>,
 
-    screen_resize_rx: Option<mpsc::UnboundedReceiver<(u32, u32)>>,
     event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
+    custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
@@ -59,17 +67,14 @@ impl WebWorkerRunner {
     /// given configuration options.
     ///
     /// This function MUST be run in a web worker.
-    ///
-    /// `screen_resize_rx` should receive the new (x, y) inner size of the screen whenever
-    /// the screen inner size changes.
     pub async fn new(
         app_creator: Box<dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn CustomApp>>,
         canvas: web_sys::OffscreenCanvas,
         web_options: eframe::WebOptions,
         device_pixel_ratio: f32,
         prefers_color_scheme_dark: Option<bool>,
-        screen_resize_rx: Option<mpsc::UnboundedReceiver<(u32, u32)>>,
         event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
+        custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
     ) -> Self {
         let Some(worker) = bindings::worker() else {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
@@ -178,9 +183,10 @@ impl WebWorkerRunner {
                 canvas,
                 surface,
                 surface_configuration,
+                modifiers: Default::default(),
                 native_pixels_per_point,
-                screen_resize_rx,
                 event_rx,
+                custom_event_rx,
             })),
             context,
             time_lock,
@@ -193,26 +199,45 @@ impl WebWorkerRunner {
             let mut state = self.state.borrow_mut();
             let worker = bindings::worker().unwrap();
 
-            // Resize the canvas if the screen size has changed
-            if let Some(screen_resize_rx) = &mut state.screen_resize_rx {
-                if let Some((width, height)) =
-                    std::iter::from_fn(|| screen_resize_rx.try_recv().ok()).last()
-                {
-                    if width != state.surface_configuration.width
-                        || height != state.surface_configuration.height
-                    {
-                        state.canvas.set_width(width);
-                        state.canvas.set_height(height);
-                        state.surface_configuration.width = width;
-                        state.surface_configuration.height = height;
-                        state
-                            .surface
-                            .configure(&state.render_state.device, &state.surface_configuration);
+            let mut width = state.surface_configuration.width;
+            let mut height = state.surface_configuration.height;
+            let mut modifiers = state.modifiers;
 
-                        // Also trigger a rerender immediately
-                        *self.time_lock.write() = 0.;
+            if let Some(custom_event_rx) = &mut state.custom_event_rx {
+                for event in std::iter::from_fn(|| custom_event_rx.try_recv().ok()) {
+                    match event.0 {
+                        WebWorkerRunnerEventInner::ScreenResize(new_width, new_height) => {
+                            width = new_width;
+                            height = new_height;
+                        }
+
+                        WebWorkerRunnerEventInner::Modifiers(new_modifiers) => {
+                            modifiers = new_modifiers;
+                        }
                     }
                 }
+            }
+
+            // Resize the canvas if the screen size has changed
+            if width != state.surface_configuration.width
+                || height != state.surface_configuration.height
+            {
+                state.canvas.set_width(state.surface_configuration.width);
+                state.canvas.set_height(state.surface_configuration.height);
+                state.surface_configuration.width = width;
+                state.surface_configuration.height = height;
+                state
+                    .surface
+                    .configure(&state.render_state.device, &state.surface_configuration);
+
+                // Also trigger a rerender immediately
+                *self.time_lock.write() = 0.;
+            }
+
+            // If the modifiers have changed, trigger a rerender
+            if modifiers != state.modifiers {
+                state.modifiers = modifiers;
+                *self.time_lock.write() = 0.;
             }
 
             let events = if let Some(event_rx) = &mut state.event_rx {
@@ -242,6 +267,7 @@ impl WebWorkerRunner {
                         state.render_state.device.limits().max_texture_dimension_2d as usize,
                     ),
                     events,
+                    modifiers,
                     ..Default::default()
                 };
                 let output = self
@@ -346,8 +372,8 @@ impl WebWorkerRunner {
 /// mouse events and resize the canvas to fill the screen.
 pub fn setup_main_thread_hooks(
     canvas: web_sys::HtmlCanvasElement,
-    screen_resize_tx: mpsc::UnboundedSender<(u32, u32)>,
     event_tx: mpsc::UnboundedSender<egui::Event>,
+    custom_event_tx: mpsc::UnboundedSender<WebWorkerRunnerEvent>,
 ) {
     let window =
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
@@ -361,13 +387,15 @@ pub fn setup_main_thread_hooks(
     );
 
     {
-        let screen_resize_tx = screen_resize_tx.clone();
+        let custom_event_tx = custom_event_tx.clone();
         let f = {
             let window = window.clone();
             move || {
-                let _ = screen_resize_tx.send((
-                    window.inner_width().unwrap().as_f64().unwrap() as u32,
-                    window.inner_height().unwrap().as_f64().unwrap() as u32,
+                let _ = custom_event_tx.send(WebWorkerRunnerEvent(
+                    WebWorkerRunnerEventInner::ScreenResize(
+                        window.inner_width().unwrap().as_f64().unwrap() as u32,
+                        window.inner_height().unwrap().as_f64().unwrap() as u32,
+                    ),
                 ));
             }
         };
@@ -382,7 +410,19 @@ pub fn setup_main_thread_hooks(
     {
         let f = |pressed| {
             let event_tx = event_tx.clone();
+            let custom_event_tx = custom_event_tx.clone();
             move |e: web_sys::MouseEvent| {
+                let ctrl = e.ctrl_key();
+                let modifiers = egui::Modifiers {
+                    alt: e.alt_key(),
+                    ctrl: !is_mac && ctrl,
+                    shift: e.shift_key(),
+                    mac_cmd: is_mac && ctrl,
+                    command: ctrl,
+                };
+                let _ = custom_event_tx.send(WebWorkerRunnerEvent(
+                    WebWorkerRunnerEventInner::Modifiers(modifiers),
+                ));
                 if let Some(button) = match e.button() {
                     0 => Some(egui::PointerButton::Primary),
                     1 => Some(egui::PointerButton::Middle),
@@ -391,18 +431,11 @@ pub fn setup_main_thread_hooks(
                     4 => Some(egui::PointerButton::Extra2),
                     _ => None,
                 } {
-                    let ctrl = e.ctrl_key();
                     let _ = event_tx.send(egui::Event::PointerButton {
                         pos: egui::pos2(e.client_x() as f32, e.client_y() as f32),
                         button,
                         pressed,
-                        modifiers: egui::Modifiers {
-                            alt: e.alt_key(),
-                            ctrl: !is_mac && ctrl,
-                            shift: e.shift_key(),
-                            mac_cmd: is_mac && ctrl,
-                            command: ctrl,
-                        },
+                        modifiers,
                     });
                 }
                 e.stop_propagation();
@@ -470,7 +503,19 @@ pub fn setup_main_thread_hooks(
     {
         let f = |pressed| {
             let event_tx = event_tx.clone();
+            let custom_event_tx = custom_event_tx.clone();
             move |e: web_sys::KeyboardEvent| {
+                let ctrl = e.ctrl_key();
+                let modifiers = egui::Modifiers {
+                    alt: e.alt_key(),
+                    ctrl: !is_mac && ctrl,
+                    shift: e.shift_key(),
+                    mac_cmd: is_mac && ctrl,
+                    command: ctrl,
+                };
+                let _ = custom_event_tx.send(WebWorkerRunnerEvent(
+                    WebWorkerRunnerEventInner::Modifiers(modifiers),
+                ));
                 if e.is_composing() || e.key_code() == 229 {
                     return;
                 }

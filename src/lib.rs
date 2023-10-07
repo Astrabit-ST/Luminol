@@ -126,8 +126,8 @@ pub static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::syn
 
 #[cfg(target_arch = "wasm32")]
 pub struct GlobalCallbackState {
-    pub screen_resize_tx: mpsc::UnboundedSender<(u32, u32)>,
     pub event_tx: mpsc::UnboundedSender<egui::Event>,
+    pub custom_event_tx: mpsc::UnboundedSender<web::WebWorkerRunnerEvent>,
 }
 
 #[cfg(target_arch = "wasm32")]

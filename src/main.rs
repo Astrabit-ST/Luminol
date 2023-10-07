@@ -180,9 +180,19 @@ pub fn luminol_main_start() {
     let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
         .expect("failed to spawn web worker");
 
-    let callback = Closure::once(luminol_main_callback);
-    worker.set_onmessage(Some(callback.as_ref().unchecked_ref()));
-    callback.forget();
+    {
+        let canvas = canvas.clone();
+        let callback = Closure::once(move || {
+            let state = luminol::GLOBAL_CALLBACK_STATE.get().unwrap();
+            luminol::web::web_worker_runner::setup_main_thread_hooks(
+                canvas,
+                state.event_tx.clone(),
+                state.custom_event_tx.clone(),
+            );
+        });
+        worker.set_onmessage(Some(callback.as_ref().unchecked_ref()));
+        callback.forget();
+    }
 
     let message = js_sys::Array::new();
     message.push(&JsValue::from("init"));
@@ -198,12 +208,12 @@ pub fn luminol_main_start() {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
-    let (screen_resize_tx, screen_resize_rx) = mpsc::unbounded_channel();
     let (event_tx, event_rx) = mpsc::unbounded_channel();
+    let (custom_event_tx, custom_event_rx) = mpsc::unbounded_channel();
     if luminol::GLOBAL_CALLBACK_STATE
         .set(luminol::GlobalCallbackState {
-            screen_resize_tx,
             event_tx,
+            custom_event_tx,
         })
         .is_err()
     {
@@ -224,30 +234,11 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         web_options,
         state.device_pixel_ratio,
         state.prefers_color_scheme_dark,
-        Some(screen_resize_rx),
         Some(event_rx),
+        Some(custom_event_rx),
     )
     .await;
     runner.setup_render_hooks();
-}
-
-#[cfg(target_arch = "wasm32")]
-fn luminol_main_callback() {
-    let state = luminol::GLOBAL_CALLBACK_STATE.get().unwrap();
-    let window = web_sys::window().unwrap();
-
-    let canvas = window
-        .document()
-        .unwrap()
-        .get_element_by_id(CANVAS_ID)
-        .unwrap()
-        .unchecked_into::<web_sys::HtmlCanvasElement>();
-
-    luminol::web::web_worker_runner::setup_main_thread_hooks(
-        canvas,
-        state.screen_resize_tx.clone(),
-        state.event_tx.clone(),
-    );
 }
 
 #[cfg(windows)]
