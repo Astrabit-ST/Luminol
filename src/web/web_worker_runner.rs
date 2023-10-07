@@ -604,32 +604,24 @@ pub fn setup_main_thread_hooks(
 
                     _ => None,
                 } {
-                    let ctrl = e.ctrl_key();
                     let _ = event_tx.send(egui::Event::Key {
                         key,
                         pressed,
                         repeat: pressed,
-                        modifiers: egui::Modifiers {
-                            alt: e.alt_key(),
-                            ctrl: !is_mac && ctrl,
-                            shift: e.shift_key(),
-                            mac_cmd: is_mac && ctrl,
-                            command: ctrl,
-                        },
+                        modifiers,
                     });
-                    if pressed {
-                        if match key {
-                            egui::Key::Tab => true,
-                            egui::Key::P if ctrl => true,
-                            egui::Key::Backspace => true,
-                            egui::Key::ArrowDown => true,
-                            egui::Key::ArrowLeft => true,
-                            egui::Key::ArrowRight => true,
-                            egui::Key::ArrowUp => true,
-                            _ => false,
-                        } {
-                            e.prevent_default();
-                        }
+                    if pressed
+                        && (matches!(
+                            key,
+                            egui::Key::Tab
+                                | egui::Key::Backspace
+                                | egui::Key::ArrowDown
+                                | egui::Key::ArrowLeft
+                                | egui::Key::ArrowRight
+                                | egui::Key::ArrowUp
+                        ) || (ctrl && matches!(key, egui::Key::P | egui::Key::S)))
+                    {
+                        e.prevent_default();
                     }
                 }
             }
