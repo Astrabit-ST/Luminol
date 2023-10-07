@@ -17,6 +17,8 @@
 use crate::prelude::*;
 use wasm_bindgen::prelude::*;
 
+use crate::web::bindings;
+
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags};
 
@@ -309,56 +311,6 @@ impl std::io::Seek for File {
     }
 }
 
-#[wasm_bindgen(inline_js = "
-export function filesystem_supported() {
-    return typeof window?.showOpenFilePicker === 'function'
-        && typeof window?.showDirectoryPicker === 'function'
-        && typeof FileSystemFileHandle === 'function'
-        && typeof FileSystemWritableFileStream === 'function'
-        && typeof FileSystemFileHandle?.prototype?.remove === 'function'
-        && typeof FileSystemDirectoryHandle?.prototype?.remove === 'function';
-}")]
-extern "C" {
-    fn filesystem_supported() -> bool;
-}
-
-#[wasm_bindgen(
-    inline_js = "export async function show_directory_picker() { return await showDirectoryPicker({ mode: 'readwrite' }); }"
-)]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn show_directory_picker() -> Result<JsValue, JsValue>;
-}
-
-#[wasm_bindgen(
-    inline_js = "export async function move_file(file, dir, filename) { await file.move(dir, filename); }"
-)]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn move_file(
-        file: &web_sys::FileSystemFileHandle,
-        dir: &web_sys::FileSystemDirectoryHandle,
-        filename: &str,
-    ) -> Result<JsValue, JsValue>;
-}
-
-#[wasm_bindgen(inline_js = "export async function remove_file(file) { await file.remove(); }")]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn remove_file(file: &web_sys::FileSystemFileHandle) -> Result<JsValue, JsValue>;
-}
-
-#[wasm_bindgen(inline_js = "export async function remove_dir(dir) { await dir.remove(); }")]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn remove_dir(dir: &web_sys::FileSystemDirectoryHandle) -> Result<JsValue, JsValue>;
-}
-
-#[wasm_bindgen(inline_js = "export function dir_values(dir) { return dir.values(); }")]
-extern "C" {
-    fn dir_values(dir: &web_sys::FileSystemDirectoryHandle) -> js_sys::AsyncIterator;
-}
-
 pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSystemCommand>) {
     wasm_bindgen_futures::spawn_local(async move {
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
@@ -411,7 +363,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
 
             match command.0 {
                 FileSystemCommandInner::Supported(oneshot_tx) => {
-                    oneshot_tx.send(filesystem_supported()).unwrap();
+                    oneshot_tx.send(bindings::filesystem_supported()).unwrap();
                 }
 
                 FileSystemCommandInner::Metadata(key, path, oneshot_tx) => {
@@ -465,10 +417,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                 }
 
                 FileSystemCommandInner::DirPicker(oneshot_tx) => {
-                    if let Ok(dir) = show_directory_picker()
-                        .await
-                        .map(|x| x.unchecked_into::<web_sys::FileSystemDirectoryHandle>())
-                    {
+                    if let Ok(dir) = bindings::show_directory_picker().await {
                         let name = dir.name();
                         oneshot_tx.send(Some((dirs.insert(dir), name))).unwrap();
                     } else {
@@ -664,7 +613,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     )
                     .await
                     {
-                        if remove_dir(&dir).await.is_ok() {
+                        if bindings::remove_dir(&dir).await.is_ok() {
                             oneshot_tx.send(Ok(())).unwrap();
                         } else {
                             oneshot_tx
@@ -696,7 +645,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                         to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(filename))
                             .await
                     {
-                        if remove_file(&file).await.is_ok() {
+                        if bindings::remove_file(&file).await.is_ok() {
                             oneshot_tx.send(Ok(())).unwrap();
                         } else {
                             oneshot_tx
@@ -727,7 +676,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                         oneshot_tx.send(Err(Error::NotExist)).unwrap();
                         continue;
                     };
-                    let entry_iter = dir_values(&subdir);
+                    let entry_iter = bindings::dir_values(&subdir);
                     let mut vec = Vec::new();
                     loop {
                         let entry = to_future::<js_sys::IteratorNext>(entry_iter.next().unwrap())

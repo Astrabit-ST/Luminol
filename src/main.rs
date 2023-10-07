@@ -217,7 +217,8 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         panic!("failed to initialize global callback variables");
     }
 
-    luminol::web::get_worker()
+    luminol::web::bindings::worker()
+        .unwrap()
         .post_message(&JsValue::null())
         .expect("failed to post callback message from web worker to main thread");
 

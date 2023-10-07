@@ -14,24 +14,10 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::get_worker;
+use super::bindings;
 use crate::prelude::*;
 use eframe::{egui_wgpu, wgpu};
 use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen(
-    inline_js = "export function is_worker() { return self instanceof DedicatedWorkerGlobalScope; }"
-)]
-extern "C" {
-    fn is_worker() -> bool;
-}
-
-// A binding for this attribute was added in July 2023 but hasn't made its way into a release of
-// web-sys as of September 2023
-#[wasm_bindgen(inline_js = "export function performance(w) { return w.performance; }")]
-extern "C" {
-    fn performance(worker: &web_sys::DedicatedWorkerGlobalScope) -> Option<web_sys::Performance>;
-}
 
 #[derive(Debug, Default)]
 struct Storage {}
@@ -85,12 +71,11 @@ impl WebWorkerRunner {
         screen_resize_rx: Option<mpsc::UnboundedReceiver<(u32, u32)>>,
         event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
     ) -> Self {
-        if !is_worker() {
+        let Some(worker) = bindings::worker() else {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
-        }
+        };
 
         let time_lock = Arc::new(RwLock::new(0.));
-        let worker = get_worker();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: web_options.wgpu_options.supported_backends,
@@ -175,8 +160,9 @@ impl WebWorkerRunner {
         {
             let time_lock = time_lock.clone();
             context.set_request_repaint_callback(move |i| {
-                *time_lock.write() =
-                    performance(&get_worker()).unwrap().now() / 1000. + i.after.as_secs_f64();
+                *time_lock.write() = bindings::performance(&bindings::worker().unwrap()).now()
+                    / 1000.
+                    + i.after.as_secs_f64();
             });
         }
 
@@ -205,7 +191,7 @@ impl WebWorkerRunner {
     pub fn setup_render_hooks(self) {
         let callback = Closure::once(move || {
             let mut state = self.state.borrow_mut();
-            let worker = get_worker();
+            let worker = bindings::worker().unwrap();
 
             // Resize the canvas if the screen size has changed
             if let Some(screen_resize_rx) = &mut state.screen_resize_rx {
@@ -240,7 +226,7 @@ impl WebWorkerRunner {
             }
 
             // Render only if sufficient time has passed since the last render
-            if performance(&worker).unwrap().now() / 1000. >= *self.time_lock.read() {
+            if bindings::performance(&worker).now() / 1000. >= *self.time_lock.read() {
                 // Ask the app to paint the next frame
                 let input = egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_max(
@@ -251,7 +237,7 @@ impl WebWorkerRunner {
                         ),
                     )),
                     pixels_per_point: state.native_pixels_per_point,
-                    time: Some(performance(&worker).unwrap().now() / 1000.),
+                    time: Some(bindings::performance(&worker).now() / 1000.),
                     max_texture_side: Some(
                         state.render_state.device.limits().max_texture_dimension_2d as usize,
                     ),
@@ -342,14 +328,16 @@ impl WebWorkerRunner {
                 );
                 state.surface.get_current_texture().unwrap().present();
 
-                *self.time_lock.write() = performance(&worker).unwrap().now() / 1000.
+                *self.time_lock.write() = bindings::performance(&worker).now() / 1000.
                     + output.repaint_after.as_secs_f64();
             }
 
             self.clone().setup_render_hooks();
         });
 
-        let _ = get_worker().request_animation_frame(callback.as_ref().unchecked_ref());
+        let _ = bindings::worker()
+            .unwrap()
+            .request_animation_frame(callback.as_ref().unchecked_ref());
         callback.forget();
     }
 }
