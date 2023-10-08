@@ -155,10 +155,13 @@ pub fn luminol_main_start() {
     let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
     filesystem::web::setup_main_thread_hooks(filesystem_rx);
 
+    let (output_tx, output_rx) = mpsc::unbounded_channel();
+
     if luminol::GLOBAL_STATE
         .set(luminol::GlobalState {
             prefers_color_scheme_dark,
             filesystem_tx,
+            output_tx,
         })
         .is_err()
     {
@@ -189,6 +192,7 @@ pub fn luminol_main_start() {
                 canvas,
                 state.event_tx.clone(),
                 state.custom_event_tx.clone(),
+                output_rx,
             );
         });
         worker.set_onmessage(Some(callback.as_ref().unchecked_ref()));
@@ -236,6 +240,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         state.prefers_color_scheme_dark,
         Some(event_rx),
         Some(custom_event_rx),
+        Some(state.output_tx.clone()),
     )
     .await;
     runner.setup_render_hooks();

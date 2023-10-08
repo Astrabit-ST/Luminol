@@ -118,6 +118,7 @@ use tabs::tab::Tab;
 pub struct GlobalState {
     pub prefers_color_scheme_dark: Option<bool>,
     pub filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
+    pub output_tx: mpsc::UnboundedSender<egui::PlatformOutput>,
 }
 
 #[cfg(target_arch = "wasm32")]

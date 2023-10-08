@@ -354,6 +354,9 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
 
         loop {
             let Some(command) = filesystem_rx.recv().await else {
+                tracing::warn!(
+                    "FileSystem main thread loop is stopping! This is not supposed to happen."
+                );
                 return;
             };
             tracing::debug!("Main thread received FS command: {:?}", command,);

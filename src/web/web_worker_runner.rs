@@ -59,6 +59,7 @@ struct WebWorkerRunnerState {
 
     event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
     custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
+    output_tx: Option<mpsc::UnboundedSender<egui::PlatformOutput>>,
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
@@ -82,6 +83,7 @@ impl WebWorkerRunner {
         prefers_color_scheme_dark: Option<bool>,
         event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
         custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
+        output_tx: Option<mpsc::UnboundedSender<egui::PlatformOutput>>,
     ) -> Self {
         let Some(worker) = bindings::worker() else {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
@@ -193,6 +195,7 @@ impl WebWorkerRunner {
                 pixel_ratio: 1.,
                 event_rx,
                 custom_event_rx,
+                output_tx,
             })),
             context,
             time_lock,
@@ -283,6 +286,9 @@ impl WebWorkerRunner {
                 let output = self
                     .context
                     .run(input, |_| state.app.custom_update(&self.context));
+                if let Some(output_tx) = &state.output_tx {
+                    let _ = output_tx.send(output.platform_output);
+                }
                 let clear_color = state.app.clear_color(&self.context.style().visuals);
                 let paint_jobs = self.context.tessellate(output.shapes);
 
@@ -384,6 +390,7 @@ pub fn setup_main_thread_hooks(
     canvas: web_sys::HtmlCanvasElement,
     event_tx: mpsc::UnboundedSender<egui::Event>,
     custom_event_tx: mpsc::UnboundedSender<WebWorkerRunnerEvent>,
+    mut output_rx: mpsc::UnboundedReceiver<egui::PlatformOutput>,
 ) {
     let window =
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
@@ -748,4 +755,62 @@ pub fn setup_main_thread_hooks(
             .expect("failed to register canvas mutation observer");
         callback.forget();
     }
+
+    wasm_bindgen_futures::spawn_local(async move {
+        let body_style = window.document().unwrap().body().unwrap().style();
+        loop {
+            let Some(output) = output_rx.recv().await else {
+                tracing::warn!(
+                    "WebWorkerRunner main thread loop is stopping! This is not supposed to happen."
+                );
+                return;
+            };
+
+            let _ = body_style.set_property(
+                "cursor",
+                match output.cursor_icon {
+                    egui::CursorIcon::Default => "default",
+                    egui::CursorIcon::None => "none",
+
+                    egui::CursorIcon::ContextMenu => "context-menu",
+                    egui::CursorIcon::Help => "help",
+                    egui::CursorIcon::PointingHand => "pointer",
+                    egui::CursorIcon::Progress => "progress",
+                    egui::CursorIcon::Wait => "wait",
+
+                    egui::CursorIcon::Cell => "cell",
+                    egui::CursorIcon::Crosshair => "crosshair",
+                    egui::CursorIcon::Text => "text",
+                    egui::CursorIcon::VerticalText => "vertical-text",
+
+                    egui::CursorIcon::Alias => "alias",
+                    egui::CursorIcon::Copy => "copy",
+                    egui::CursorIcon::Move => "move",
+                    egui::CursorIcon::NoDrop => "no-drop",
+                    egui::CursorIcon::NotAllowed => "not-allowed",
+                    egui::CursorIcon::Grab => "grab",
+                    egui::CursorIcon::Grabbing => "grabbing",
+
+                    egui::CursorIcon::AllScroll => "all-scroll",
+                    egui::CursorIcon::ResizeColumn => "col-resize",
+                    egui::CursorIcon::ResizeRow => "row-resize",
+                    egui::CursorIcon::ResizeNorth => "n-resize",
+                    egui::CursorIcon::ResizeEast => "e-resize",
+                    egui::CursorIcon::ResizeSouth => "s-resize",
+                    egui::CursorIcon::ResizeWest => "w-resize",
+                    egui::CursorIcon::ResizeNorthEast => "ne-resize",
+                    egui::CursorIcon::ResizeNorthWest => "nw-resize",
+                    egui::CursorIcon::ResizeSouthEast => "se-resize",
+                    egui::CursorIcon::ResizeSouthWest => "sw-resize",
+                    egui::CursorIcon::ResizeHorizontal => "ew-resize",
+                    egui::CursorIcon::ResizeVertical => "ns-resize",
+                    egui::CursorIcon::ResizeNwSe => "nwse-resize",
+                    egui::CursorIcon::ResizeNeSw => "nesw-resize",
+
+                    egui::CursorIcon::ZoomIn => "zoom-in",
+                    egui::CursorIcon::ZoomOut => "zoom-out",
+                },
+            );
+        }
+    });
 }
