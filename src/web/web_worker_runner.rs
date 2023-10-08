@@ -725,6 +725,47 @@ pub fn setup_main_thread_hooks(
     }
 
     {
+        let event_tx = event_tx.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::ClipboardEvent| {
+            if let Some(data) = e.clipboard_data() {
+                if let Ok(text) = data.get_data("text") {
+                    if !text.is_empty() {
+                        let _ = event_tx.send(egui::Event::Paste(text.replace("\r\n", "\n")));
+                    }
+                }
+            }
+            e.stop_propagation();
+            e.prevent_default();
+        });
+        document
+            .add_event_listener_with_callback("paste", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for clipboard pasting");
+        callback.forget();
+    }
+
+    {
+        let event_tx = event_tx.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |_: web_sys::ClipboardEvent| {
+            let _ = event_tx.send(egui::Event::Copy);
+        });
+        document
+            .add_event_listener_with_callback("copy", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for clipboard copying");
+        callback.forget();
+    }
+
+    {
+        let event_tx = event_tx.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |_: web_sys::ClipboardEvent| {
+            let _ = event_tx.send(egui::Event::Cut);
+        });
+        document
+            .add_event_listener_with_callback("cut", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for clipboard cutting");
+        callback.forget();
+    }
+
+    {
         // The canvas automatically resizes itself whenever a frame is drawn.
         // The resizing does not take window.devicePixelRatio into account,
         // so this mutation observer is to detect canvas resizes and correct them.
@@ -811,6 +852,35 @@ pub fn setup_main_thread_hooks(
                     egui::CursorIcon::ZoomOut => "zoom-out",
                 },
             );
+
+            if !output.copied_text.is_empty() {
+                if let Err(e) = wasm_bindgen_futures::JsFuture::from(
+                    window
+                        .navigator()
+                        .clipboard()
+                        .unwrap()
+                        .write_text(&output.copied_text),
+                )
+                .await
+                {
+                    tracing::warn!(
+                        "Failed to copy to clipboard: {}",
+                        e.unchecked_into::<js_sys::Error>().to_string()
+                    );
+                }
+            }
+
+            if let Some(url) = output.open_url {
+                if let Err(e) = window.open_with_url_and_target(
+                    &url.url,
+                    if url.new_tab { "_blank" } else { "_self" },
+                ) {
+                    tracing::warn!(
+                        "Failed to open URL: {}",
+                        e.unchecked_into::<js_sys::Error>().to_string()
+                    );
+                }
+            }
         }
     });
 }
