@@ -763,7 +763,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     oneshot_tx.send(Ok(vec)).unwrap();
                 }
 
-                FileSystemCommandInner::FileWrite(key, mut vec, oneshot_tx) => {
+                FileSystemCommandInner::FileWrite(key, vec, oneshot_tx) => {
                     let file = files.get_mut(key).unwrap();
                     let Some(write_handle) = &file.write_handle else {
                         oneshot_tx
