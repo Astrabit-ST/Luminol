@@ -776,8 +776,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     // We are using `write_handle.write_with_buffer_source()` here as a workaround
                     // that does the same thing but with an extra memory allocation.
                     // Check if this is fixed in newer versions of wasm_bindgen.
-                    let mut u8_array =
-                        js_sys::Uint8Array::new(&JsValue::from_f64(vec.len() as f64));
+                    let u8_array = js_sys::Uint8Array::new(&JsValue::from_f64(vec.len() as f64));
                     u8_array.copy_from(&vec[..]);
                     if to_future::<JsValue>(write_handle.seek_with_f64(file.offset as f64).unwrap())
                         .await
