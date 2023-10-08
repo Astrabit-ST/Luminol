@@ -131,6 +131,19 @@ fn main() {}
 const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
+struct WorkerData {
+    prefers_color_scheme_dark: Option<bool>,
+    filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
+    output_tx: mpsc::UnboundedSender<egui::PlatformOutput>,
+    event_rx: mpsc::UnboundedReceiver<egui::Event>,
+    custom_event_rx: mpsc::UnboundedReceiver<luminol::web::WebWorkerRunnerEvent>,
+}
+
+#[cfg(target_arch = "wasm32")]
+static WORKER_DATA: Lazy<AtomicRefCell<Option<WorkerData>>> =
+    Lazy::new(|| AtomicRefCell::new(None));
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start() {
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
@@ -152,22 +165,6 @@ pub fn luminol_main_start() {
         .unwrap()
         .map(|x| x.matches());
 
-    let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
-    filesystem::web::setup_main_thread_hooks(filesystem_rx);
-
-    let (output_tx, output_rx) = mpsc::unbounded_channel();
-
-    if luminol::GLOBAL_STATE
-        .set(luminol::GlobalState {
-            prefers_color_scheme_dark,
-            filesystem_tx,
-            output_tx,
-        })
-        .is_err()
-    {
-        panic!("failed to initialize global variables");
-    }
-
     let canvas = window
         .document()
         .expect("could not get `window.document` object (make sure you're running this in a web browser)")
@@ -178,26 +175,32 @@ pub fn luminol_main_start() {
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
 
+    let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
+    let (output_tx, output_rx) = mpsc::unbounded_channel();
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
+    let (custom_event_tx, custom_event_rx) = mpsc::unbounded_channel();
+
+    filesystem::web::setup_main_thread_hooks(filesystem_rx);
+    luminol::web::web_worker_runner::setup_main_thread_hooks(
+        canvas,
+        event_tx.clone(),
+        custom_event_tx.clone(),
+        output_rx,
+    );
+
+    *WORKER_DATA.borrow_mut() = Some(WorkerData {
+        prefers_color_scheme_dark,
+        filesystem_tx,
+        output_tx,
+        event_rx,
+        custom_event_rx,
+    });
+
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
     worker_options.type_(web_sys::WorkerType::Module);
     let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
         .expect("failed to spawn web worker");
-
-    {
-        let canvas = canvas.clone();
-        let callback = Closure::once(move || {
-            let state = luminol::GLOBAL_CALLBACK_STATE.get().unwrap();
-            luminol::web::web_worker_runner::setup_main_thread_hooks(
-                canvas,
-                state.event_tx.clone(),
-                state.custom_event_tx.clone(),
-                output_rx,
-            );
-        });
-        worker.set_onmessage(Some(callback.as_ref().unchecked_ref()));
-        callback.forget();
-    }
 
     let message = js_sys::Array::new();
     message.push(&JsValue::from("init"));
@@ -213,34 +216,26 @@ pub fn luminol_main_start() {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
-    let (event_tx, event_rx) = mpsc::unbounded_channel();
-    let (custom_event_tx, custom_event_rx) = mpsc::unbounded_channel();
-    if luminol::GLOBAL_CALLBACK_STATE
-        .set(luminol::GlobalCallbackState {
-            event_tx,
-            custom_event_tx,
-        })
-        .is_err()
-    {
-        panic!("failed to initialize global callback variables");
-    }
+    let WorkerData {
+        prefers_color_scheme_dark,
+        filesystem_tx,
+        output_tx,
+        event_rx,
+        custom_event_rx,
+    } = WORKER_DATA.borrow_mut().take().unwrap();
 
-    luminol::web::bindings::worker()
-        .unwrap()
-        .post_message(&JsValue::null())
-        .expect("failed to post callback message from web worker to main thread");
+    filesystem::web::FileSystem::setup_filesystem_sender(filesystem_tx);
 
     let web_options = eframe::WebOptions::default();
 
-    let state = luminol::GLOBAL_STATE.get().unwrap();
     let runner = luminol::web::WebWorkerRunner::new(
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc, None))),
         canvas,
         web_options,
-        state.prefers_color_scheme_dark,
+        prefers_color_scheme_dark,
         Some(event_rx),
         Some(custom_event_rx),
-        Some(state.output_tx.clone()),
+        Some(output_tx.clone()),
     )
     .await;
     runner.setup_render_hooks();

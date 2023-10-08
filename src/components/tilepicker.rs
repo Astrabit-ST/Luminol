@@ -94,10 +94,10 @@ impl Tilepicker {
                 -1.0,
                 1.0,
             ),
-            crate::USE_PUSH_CONSTANTS,
+            super::USE_PUSH_CONSTANTS,
         );
 
-        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, crate::USE_PUSH_CONSTANTS);
+        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, super::USE_PUSH_CONSTANTS);
 
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),

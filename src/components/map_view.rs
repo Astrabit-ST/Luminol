@@ -68,8 +68,8 @@ impl MapView {
             .events
             .iter()
             .map(|(id, e)| {
-                let sprite = Event::new(e, &atlas, crate::USE_PUSH_CONSTANTS);
-                let preview_sprite = Event::new(e, &atlas, crate::USE_PUSH_CONSTANTS);
+                let sprite = Event::new(e, &atlas, super::USE_PUSH_CONSTANTS);
+                let preview_sprite = Event::new(e, &atlas, super::USE_PUSH_CONSTANTS);
                 let Ok(sprite) = sprite else {
                     return Err(sprite.unwrap_err());
                 };
@@ -84,7 +84,7 @@ impl MapView {
             })
             .flatten_ok()
             .try_collect()?;
-        let map = Map::new(map, tileset, crate::USE_PUSH_CONSTANTS)?;
+        let map = Map::new(map, tileset, super::USE_PUSH_CONSTANTS)?;
 
         Ok(Self {
             visible_display: false,

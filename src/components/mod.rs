@@ -22,6 +22,17 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+#[cfg(not(target_arch = "wasm32"))]
+/// Whether or not to use push constants when rendering the map editor. Disabling this will switch
+/// to fallback rendering using uniforms, which is slightly slower but is required for Luminol to
+/// work in web browsers until push constants are standardized in WebGPU.
+pub const USE_PUSH_CONSTANTS: bool = true;
+#[cfg(target_arch = "wasm32")]
+/// Whether or not to use push constants when rendering the map editor. Disabling this will switch
+/// to fallback rendering using uniforms, which is slightly slower but is required for Luminol to
+/// work in web browsers until push constants are standardized in WebGPU.
+pub const USE_PUSH_CONSTANTS: bool = false;
+
 /// Syntax highlighter
 pub mod syntax_highlighting;
 /// Toasts to be displayed for errors, information, etc.

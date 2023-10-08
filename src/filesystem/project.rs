@@ -166,11 +166,10 @@ impl FileSystem {
 
     #[cfg(target_arch = "wasm32")]
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
-        let tx = crate::GLOBAL_STATE.get().unwrap().filesystem_tx.clone();
-        if !web::FileSystem::filesystem_supported(tx.clone()) {
+        if !web::FileSystem::filesystem_supported() {
             return Err("Your browser does not support File System API".to_string());
         }
-        if let Some(dir) = web::FileSystem::from_directory_picker(tx).await {
+        if let Some(dir) = web::FileSystem::from_directory_picker().await {
             self.load_project(dir)
         } else {
             Err("Cancelled loading project".to_string())

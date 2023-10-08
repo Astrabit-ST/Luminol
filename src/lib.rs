@@ -56,17 +56,6 @@
 // int_roundings is close to stabilization.
 #![feature(min_specialization, int_roundings)]
 
-#[cfg(not(target_arch = "wasm32"))]
-/// Whether or not to use push constants when rendering the map editor. Disabling this will switch
-/// to fallback rendering using uniforms, which is slightly slower but is required for Luminol to
-/// work in web browsers until push constants are standardized in WebGPU.
-pub const USE_PUSH_CONSTANTS: bool = true;
-#[cfg(target_arch = "wasm32")]
-/// Whether or not to use push constants when rendering the map editor. Disabling this will switch
-/// to fallback rendering using uniforms, which is slightly slower but is required for Luminol to
-/// work in web browsers until push constants are standardized in WebGPU.
-pub const USE_PUSH_CONSTANTS: bool = false;
-
 pub use prelude::*;
 
 /// The main Luminol application.
@@ -113,26 +102,6 @@ pub mod graphics;
 
 pub use luminol::Luminol;
 use tabs::tab::Tab;
-
-#[cfg(target_arch = "wasm32")]
-pub struct GlobalState {
-    pub prefers_color_scheme_dark: Option<bool>,
-    pub filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
-    pub output_tx: mpsc::UnboundedSender<egui::PlatformOutput>,
-}
-
-#[cfg(target_arch = "wasm32")]
-pub static GLOBAL_STATE: once_cell::sync::OnceCell<GlobalState> = once_cell::sync::OnceCell::new();
-
-#[cfg(target_arch = "wasm32")]
-pub struct GlobalCallbackState {
-    pub event_tx: mpsc::UnboundedSender<egui::Event>,
-    pub custom_event_tx: mpsc::UnboundedSender<web::WebWorkerRunnerEvent>,
-}
-
-#[cfg(target_arch = "wasm32")]
-pub static GLOBAL_CALLBACK_STATE: once_cell::sync::OnceCell<GlobalCallbackState> =
-    once_cell::sync::OnceCell::new();
 
 /// Embedded icon 256x256 in size.
 pub const ICON: &[u8] = include_bytes!("../assets/icon-256.png");

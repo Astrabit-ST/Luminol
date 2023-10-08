@@ -22,17 +22,17 @@ use crate::web::bindings;
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags};
 
+static FILESYSTEM_TX: OnceCell<mpsc::UnboundedSender<FileSystemCommand>> = OnceCell::new();
+
 #[derive(Debug)]
 pub struct FileSystem {
     key: usize,
     name: String,
-    tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
 #[derive(Debug)]
 pub struct File {
     key: usize,
-    tx: mpsc::UnboundedSender<FileSystemCommand>,
 }
 
 #[derive(Debug)]
@@ -86,11 +86,23 @@ enum FileSystemCommandInner {
     FileDrop(usize, oneshot::Sender<bool>),
 }
 
+fn filesystem_tx_or_die() -> &'static mpsc::UnboundedSender<FileSystemCommand> {
+    FILESYSTEM_TX.get().expect("FileSystem sender has not been initialized! Please call `FileSystem::initialize_sender` before calling this function.")
+}
+
 impl FileSystem {
+    /// Initializes the sender that we use to send filesystem commands to the main thread.
+    /// This must be called before performing any filesystem operations.
+    pub fn setup_filesystem_sender(filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>) {
+        FILESYSTEM_TX
+            .set(filesystem_tx)
+            .expect("FileSystem sender cannot be initialized twice");
+    }
+
     /// Returns whether or not the user's browser supports the JavaScript File System API.
-    pub fn filesystem_supported(filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>) -> bool {
+    pub fn filesystem_supported() -> bool {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::Supported(
                 oneshot_tx,
             )))
@@ -103,23 +115,20 @@ impl FileSystem {
     /// Then creates a `FileSystem` allowing read-write access to that directory if they chose one
     /// successfully.
     /// If the File System API is not supported, this always returns `None` without doing anything.
-    pub async fn from_directory_picker(
-        filesystem_tx: mpsc::UnboundedSender<FileSystemCommand>,
-    ) -> Option<Self> {
-        if !Self::filesystem_supported(filesystem_tx.clone()) {
+    pub async fn from_directory_picker() -> Option<Self> {
+        if !Self::filesystem_supported() {
             return None;
         }
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirPicker(
                 oneshot_tx,
             )))
             .unwrap();
-        oneshot_rx.await.unwrap().map(|(key, name)| FileSystem {
-            key,
-            name,
-            tx: filesystem_tx,
-        })
+        oneshot_rx
+            .await
+            .unwrap()
+            .map(|(key, name)| FileSystem { key, name })
     }
 
     /// Returns a path consisting of a single element: the name of the root directory of this
@@ -132,7 +141,7 @@ impl FileSystem {
 impl Drop for FileSystem {
     fn drop(&mut self) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirDrop(
                 self.key, oneshot_tx,
             )))
@@ -150,7 +159,7 @@ impl FileSystemTrait for FileSystem {
         flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirOpenFile(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -158,15 +167,12 @@ impl FileSystemTrait for FileSystem {
                 oneshot_tx,
             )))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap().map(|key| File {
-            key,
-            tx: self.tx.clone(),
-        })
+        oneshot_rx.blocking_recv().unwrap().map(|key| File { key })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::Metadata(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -186,7 +192,7 @@ impl FileSystemTrait for FileSystem {
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirExists(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -198,7 +204,7 @@ impl FileSystemTrait for FileSystem {
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirCreateDir(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -210,7 +216,7 @@ impl FileSystemTrait for FileSystem {
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirRemoveDir(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -222,7 +228,7 @@ impl FileSystemTrait for FileSystem {
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirRemoveFile(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -234,7 +240,7 @@ impl FileSystemTrait for FileSystem {
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirReadDir(
                 self.key,
                 path.as_ref().to_path_buf(),
@@ -248,7 +254,7 @@ impl FileSystemTrait for FileSystem {
 impl Drop for File {
     fn drop(&mut self) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::FileDrop(
                 self.key, oneshot_tx,
             )))
@@ -260,7 +266,7 @@ impl Drop for File {
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::FileRead(
                 self.key,
                 buf.len(),
@@ -277,7 +283,7 @@ impl std::io::Read for File {
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::FileWrite(
                 self.key,
                 buf.to_vec(),
@@ -290,7 +296,7 @@ impl std::io::Write for File {
 
     fn flush(&mut self) -> std::io::Result<()> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::FileFlush(
                 self.key, oneshot_tx,
             )))
@@ -302,7 +308,7 @@ impl std::io::Write for File {
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
+        filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::FileSeek(
                 self.key, pos, oneshot_tx,
             )))
