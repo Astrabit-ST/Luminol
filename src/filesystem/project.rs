@@ -247,7 +247,7 @@ impl FileSystem {
         paths
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_arch = "wasm32")))]
     fn find_rtp_paths() -> Vec<camino::Utf8PathBuf> {
         let ini = game_ini!();
         let Some(section) = ini.section(Some("Game")) else {
@@ -277,6 +277,40 @@ impl FileSystem {
                 state!()
                     .toasts
                     .info(format!("You may want to set an RTP path for {rtp}"));
+            }
+        }
+        paths
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn find_rtp_paths(dir: &web::FileSystem) -> Vec<camino::Utf8PathBuf> {
+        let ini = game_ini!();
+        let Some(section) = ini.section(Some("Game")) else {
+            return vec![];
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                if let Ok(exists) = dir.exists(&path) {
+                    if exists {
+                        paths.push(path);
+                    }
+                }
+
+                state!()
+                    .toasts
+                    .warning(format!("Failed to find suitable path for the RTP {rtp}"));
+                state!()
+                    .toasts
+                    .info(format!("Please place the {rtp} RTP in the 'RTP/{rtp}' subdirectory in your project directory"));
             }
         }
         paths
@@ -356,9 +390,11 @@ impl FileSystem {
 
         let mut list = list::FileSystem::new();
 
+        let paths = Self::find_rtp_paths(&dir);
         list.push(dir);
-
-        // TODO: handle RTPs
+        for path in paths {
+            list.push(host::FileSystem::new(path))
+        }
 
         // TODO: handle reading from archives
 
