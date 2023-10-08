@@ -235,7 +235,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         prefers_color_scheme_dark,
         Some(event_rx),
         Some(custom_event_rx),
-        Some(output_tx.clone()),
+        Some(output_tx),
     )
     .await;
     runner.setup_render_hooks();
