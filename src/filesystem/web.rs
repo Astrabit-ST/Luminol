@@ -75,6 +75,7 @@ enum FileSystemCommandInner {
         oneshot::Sender<Result<Vec<DirEntry>, Error>>,
     ),
     DirDrop(usize, oneshot::Sender<bool>),
+    DirClone(usize, oneshot::Sender<usize>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -147,6 +148,21 @@ impl Drop for FileSystem {
             )))
             .unwrap();
         oneshot_rx.blocking_recv().unwrap();
+    }
+}
+
+impl Clone for FileSystem {
+    fn clone(&self) -> Self {
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        filesystem_tx_or_die()
+            .send(FileSystemCommand(FileSystemCommandInner::DirClone(
+                self.key, oneshot_tx,
+            )))
+            .unwrap();
+        Self {
+            key: oneshot_rx.blocking_recv().unwrap(),
+            name: self.name.clone(),
+        }
     }
 }
 
@@ -728,6 +744,12 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     } else {
                         oneshot_tx.send(false).unwrap();
                     }
+                }
+
+                FileSystemCommandInner::DirClone(key, oneshot_tx) => {
+                    oneshot_tx
+                        .send(dirs.insert(dirs.get(key).unwrap().clone()))
+                        .unwrap();
                 }
 
                 FileSystemCommandInner::FileRead(key, max_length, oneshot_tx) => {

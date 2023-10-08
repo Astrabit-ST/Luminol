@@ -333,7 +333,7 @@ impl FileSystem {
             list.push(host::FileSystem::new(path))
         }
 
-        match archiver::FileSystem::new(path) {
+        match archiver::FileSystem::new(host::FileSystem::new(path)) {
             Ok(a) => list.push(a),
             Err(Error::NotExist) => (),
             Err(e) => return Err(e.to_string()),
@@ -391,12 +391,20 @@ impl FileSystem {
         let mut list = list::FileSystem::new();
 
         let paths = Self::find_rtp_paths(&dir);
+
+        let archive = match archiver::FileSystem::new(dir.clone()) {
+            Ok(a) => Some(a),
+            Err(Error::NotExist) => None,
+            Err(e) => return Err(e.to_string()),
+        };
+
         list.push(dir);
         for path in paths {
             list.push(host::FileSystem::new(path))
         }
-
-        // TODO: handle reading from archives
+        if let Some(archive) = archive {
+            list.push(archive);
+        }
 
         let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
 

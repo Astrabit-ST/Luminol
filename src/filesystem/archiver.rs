@@ -21,10 +21,14 @@ use itertools::Itertools;
 use std::io::{prelude::*, Cursor, SeekFrom};
 
 #[derive(Debug, Default)]
-pub struct FileSystem {
+pub struct FileSystem<T>
+where
+    T: FileSystemTrait,
+{
     files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
     directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
     archive_path: camino::Utf8PathBuf,
+    root: T,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,34 +41,42 @@ struct Entry {
 const MAGIC: u32 = 0xDEADCAFE;
 const HEADER: &[u8] = b"RGSSAD\0";
 
-impl FileSystem {
-    pub fn new(project_path: impl AsRef<camino::Utf8Path>) -> Result<Self, Error> {
-        let project_path = project_path.as_ref();
-        let archive_path = project_path
-            .read_dir_utf8()?
-            .flatten()
-            .map(camino::Utf8DirEntry::into_path)
-            .find(|entry| matches!(entry.extension(), Some("rgssad" | "rgss2a" | "rgss3a")));
-        let Some(archive_path) = archive_path else {
+impl<T> FileSystem<T>
+where
+    T: FileSystemTrait,
+{
+    pub fn new(dir: T) -> Result<Self, Error> {
+        let Some(archive_path) = dir
+            .read_dir("")?
+            .into_iter()
+            .find(|entry| {
+                entry.metadata.is_file
+                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+            })
+            .map(|entry| entry.path)
+        else {
             return Err(Error::NotExist);
         };
 
-        let mut file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&archive_path)?;
+        let mut file = dir.open_file(&archive_path, OpenFlags::Read | OpenFlags::Write)?;
         let version = Self::read_header(&mut file)?;
 
         let files = dashmap::DashMap::new();
         let directories = dashmap::DashMap::new();
 
-        fn read_u32(file: &mut std::fs::File) -> Result<u32, Error> {
+        fn read_u32<F>(file: &mut F) -> Result<u32, Error>
+        where
+            F: Read + Write + Seek + Send + Sync,
+        {
             let mut buffer = [0; 4];
             file.read_exact(&mut buffer)?;
             Ok(u32::from_le_bytes(buffer))
         }
 
-        fn read_u32_xor(file: &mut std::fs::File, key: u32) -> Result<u32, Error> {
+        fn read_u32_xor<F>(file: &mut F, key: u32) -> Result<u32, Error>
+        where
+            F: Read + Write + Seek + Send + Sync,
+        {
             let result = read_u32(file)?;
             Ok(result ^ key)
         }
@@ -153,10 +165,12 @@ impl FileSystem {
         }
         */
 
+        drop(file);
         Ok(FileSystem {
             files,
             directories,
             archive_path,
+            root: dir,
         })
     }
 
@@ -180,7 +194,7 @@ impl FileSystem {
         old
     }
 
-    fn read_header(file: &mut std::fs::File) -> Result<u8, Error> {
+    fn read_header(file: &mut T::File<'_>) -> Result<u8, Error> {
         let mut header_buf = [0; 8];
 
         file.read_exact(&mut header_buf)?;
@@ -236,7 +250,10 @@ impl std::io::Seek for File {
     }
 }
 
-impl FileSystemTrait for FileSystem {
+impl<T> FileSystemTrait for FileSystem<T>
+where
+    T: FileSystemTrait,
+{
     type File<'fs> = File where Self: 'fs;
 
     fn open_file(
@@ -251,7 +268,14 @@ impl FileSystemTrait for FileSystem {
         let entry = self.files.get(path.as_ref()).ok_or(Error::NotExist)?;
         let mut buf = vec![0; entry.size as usize];
 
-        let mut archive = std::fs::File::open(&self.archive_path)?;
+        let mut archive = self.root.open_file(
+            &self.archive_path,
+            if flags.contains(OpenFlags::Write) {
+                OpenFlags::Read | OpenFlags::Write
+            } else {
+                OpenFlags::Read
+            },
+        )?;
         archive.seek(SeekFrom::Start(entry.offset))?;
         archive.read_exact(&mut buf)?;
 
