@@ -18,3 +18,4 @@ pub mod bindings;
 pub mod web_worker_runner;
 pub use web_worker_runner::WebWorkerRunner;
 pub use web_worker_runner::WebWorkerRunnerEvent;
+pub use web_worker_runner::WebWorkerRunnerOutput;

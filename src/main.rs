@@ -134,7 +134,7 @@ const CANVAS_ID: &str = "luminol-canvas";
 struct WorkerData {
     prefers_color_scheme_dark: Option<bool>,
     filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
-    output_tx: mpsc::UnboundedSender<egui::PlatformOutput>,
+    output_tx: mpsc::UnboundedSender<luminol::web::WebWorkerRunnerOutput>,
     event_rx: mpsc::UnboundedReceiver<egui::Event>,
     custom_event_rx: mpsc::UnboundedReceiver<luminol::web::WebWorkerRunnerEvent>,
 }
@@ -232,6 +232,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, None))),
         canvas,
         web_options,
+        "astrabit.luminol",
         prefers_color_scheme_dark,
         Some(event_rx),
         Some(custom_event_rx),

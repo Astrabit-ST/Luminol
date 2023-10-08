@@ -20,15 +20,42 @@ use eframe::{egui_wgpu, wgpu};
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Default)]
-struct Storage {}
+struct Storage {
+    output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
+}
 
-// TODO: Implement saving and loading egui data
 impl eframe::Storage for Storage {
     fn get_string(&self, key: &str) -> Option<String> {
-        None
+        if let Some(output_tx) = &self.output_tx {
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            output_tx
+                .send(WebWorkerRunnerOutput(
+                    WebWorkerRunnerOutputInner::StorageGet(key.to_string(), oneshot_tx),
+                ))
+                .unwrap();
+            oneshot_rx.blocking_recv().unwrap()
+        } else {
+            None
+        }
     }
 
-    fn set_string(&mut self, key: &str, value: String) {}
+    fn set_string(&mut self, key: &str, value: String) {
+        if let Some(output_tx) = &self.output_tx {
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            output_tx
+                .send(WebWorkerRunnerOutput(
+                    WebWorkerRunnerOutputInner::StorageSet(
+                        key.to_string(),
+                        value.to_string(),
+                        oneshot_tx,
+                    ),
+                ))
+                .unwrap();
+            if !oneshot_rx.blocking_recv().unwrap() {
+                tracing::warn!("Failed to save to local storage key {key}");
+            }
+        }
+    }
 
     fn flush(&mut self) {}
 }
@@ -40,10 +67,22 @@ enum WebWorkerRunnerEventInner {
     ScreenResize(u32, u32, f32),
     /// This should be sent whenever the modifiers change
     Modifiers(egui::Modifiers),
+    /// This should be sent whenever the app needs to save immediately
+    Save,
+}
+
+pub struct WebWorkerRunnerOutput(WebWorkerRunnerOutputInner);
+
+enum WebWorkerRunnerOutputInner {
+    PlatformOutput(egui::PlatformOutput),
+    StorageGet(String, oneshot::Sender<Option<String>>),
+    StorageSet(String, String, oneshot::Sender<bool>),
 }
 
 struct WebWorkerRunnerState {
     app: Box<dyn CustomApp>,
+    app_id: String,
+    save_time: f64,
     render_state: egui_wgpu::RenderState,
     canvas: web_sys::OffscreenCanvas,
     surface: wgpu::Surface,
@@ -59,7 +98,7 @@ struct WebWorkerRunnerState {
 
     event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
     custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
-    output_tx: Option<mpsc::UnboundedSender<egui::PlatformOutput>>,
+    output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
@@ -67,6 +106,7 @@ struct WebWorkerRunnerState {
 #[derive(Clone)]
 pub struct WebWorkerRunner {
     state: std::rc::Rc<std::cell::RefCell<WebWorkerRunnerState>>,
+    storage: std::rc::Rc<std::cell::RefCell<Storage>>,
     context: egui::Context,
     time_lock: Arc<RwLock<f64>>,
 }
@@ -80,10 +120,11 @@ impl WebWorkerRunner {
         app_creator: Box<dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn CustomApp>>,
         canvas: web_sys::OffscreenCanvas,
         web_options: eframe::WebOptions,
+        app_id: &str,
         prefers_color_scheme_dark: Option<bool>,
         event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
         custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
-        output_tx: Option<mpsc::UnboundedSender<egui::PlatformOutput>>,
+        output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
     ) -> Self {
         let Some(worker) = bindings::worker() else {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
@@ -177,14 +218,40 @@ impl WebWorkerRunner {
             });
         }
 
+        if let Some(output_tx) = &output_tx {
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            output_tx
+                .send(WebWorkerRunnerOutput(
+                    WebWorkerRunnerOutputInner::StorageGet(app_id.to_string(), oneshot_tx),
+                ))
+                .unwrap();
+            if let Some(memory) = oneshot_rx.await.ok().flatten() {
+                match ron::from_str(&memory) {
+                    Ok(memory) => {
+                        context.memory_mut(|m| *m = memory);
+                        tracing::info!("Successfully restored memory for {app_id}");
+                    }
+                    Err(e) => tracing::warn!("Failed to restore memory for {app_id}: {e}"),
+                }
+            } else {
+                tracing::warn!("No memory found for {app_id}");
+            }
+        }
+
+        let storage = Storage {
+            output_tx: output_tx.clone(),
+        };
+
         Self {
             state: std::rc::Rc::new(std::cell::RefCell::new(WebWorkerRunnerState {
                 app: app_creator(&eframe::CreationContext {
                     egui_ctx: context.clone(),
                     integration_info: integration_info.clone(),
-                    storage: Some(&Storage::default()),
                     wgpu_render_state: Some(render_state.clone()),
+                    storage: Some(&storage),
                 }),
+                app_id: app_id.to_string(),
+                save_time: 0.,
                 render_state,
                 canvas,
                 surface,
@@ -197,6 +264,7 @@ impl WebWorkerRunner {
                 custom_event_rx,
                 output_tx,
             })),
+            storage: std::rc::Rc::new(std::cell::RefCell::new(storage)),
             context,
             time_lock,
         }
@@ -212,6 +280,9 @@ impl WebWorkerRunner {
             let mut height = state.height;
             let mut pixel_ratio = state.pixel_ratio;
             let mut modifiers = state.modifiers;
+            let mut should_save = false;
+
+            let now = bindings::performance(&worker).now() / 1000.;
 
             if let Some(custom_event_rx) = &mut state.custom_event_rx {
                 for event in std::iter::from_fn(|| custom_event_rx.try_recv().ok()) {
@@ -228,6 +299,38 @@ impl WebWorkerRunner {
 
                         WebWorkerRunnerEventInner::Modifiers(new_modifiers) => {
                             modifiers = new_modifiers;
+                        }
+
+                        WebWorkerRunnerEventInner::Save => {
+                            should_save = true;
+                        }
+                    }
+                }
+            }
+
+            if should_save || now >= state.save_time + state.app.auto_save_interval().as_secs_f64()
+            {
+                state.save_time = now;
+                state.app.save(&mut *self.storage.borrow_mut());
+                if let Some(output_tx) = &state.output_tx {
+                    match self.context.memory(|memory| ron::to_string(memory)) {
+                        Ok(ron) => {
+                            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+                            output_tx
+                                .send(WebWorkerRunnerOutput(
+                                    WebWorkerRunnerOutputInner::StorageSet(
+                                        state.app_id.clone(),
+                                        ron,
+                                        oneshot_tx,
+                                    ),
+                                ))
+                                .unwrap();
+                            if !oneshot_rx.blocking_recv().unwrap() {
+                                tracing::warn!("Failed to save memory for {}", state.app_id);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to serialize memory for {}: {e}", state.app_id)
                         }
                     }
                 }
@@ -267,7 +370,7 @@ impl WebWorkerRunner {
             }
 
             // Render only if sufficient time has passed since the last render
-            if bindings::performance(&worker).now() / 1000. >= *self.time_lock.read() {
+            if now >= *self.time_lock.read() {
                 // Ask the app to paint the next frame
                 let input = egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_max(
@@ -287,7 +390,9 @@ impl WebWorkerRunner {
                     .context
                     .run(input, |_| state.app.custom_update(&self.context));
                 if let Some(output_tx) = &state.output_tx {
-                    let _ = output_tx.send(output.platform_output);
+                    let _ = output_tx.send(WebWorkerRunnerOutput(
+                        WebWorkerRunnerOutputInner::PlatformOutput(output.platform_output),
+                    ));
                 }
                 let clear_color = state.app.clear_color(&self.context.style().visuals);
                 let paint_jobs = self.context.tessellate(output.shapes);
@@ -390,7 +495,7 @@ pub fn setup_main_thread_hooks(
     canvas: web_sys::HtmlCanvasElement,
     event_tx: mpsc::UnboundedSender<egui::Event>,
     custom_event_tx: mpsc::UnboundedSender<WebWorkerRunnerEvent>,
-    mut output_rx: mpsc::UnboundedReceiver<egui::PlatformOutput>,
+    mut output_rx: mpsc::UnboundedReceiver<WebWorkerRunnerOutput>,
 ) {
     let window =
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
@@ -766,6 +871,20 @@ pub fn setup_main_thread_hooks(
     }
 
     {
+        let custom_event_tx = custom_event_tx.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |_: web_sys::Event| {
+            let _ = custom_event_tx.send(WebWorkerRunnerEvent(WebWorkerRunnerEventInner::Save));
+        });
+        document
+            .add_event_listener_with_callback("onbeforeunload", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for window unloading");
+        document
+            .add_event_listener_with_callback("blur", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for window blur");
+        callback.forget();
+    }
+
+    {
         // The canvas automatically resizes itself whenever a frame is drawn.
         // The resizing does not take window.devicePixelRatio into account,
         // so this mutation observer is to detect canvas resizes and correct them.
@@ -799,86 +918,99 @@ pub fn setup_main_thread_hooks(
 
     wasm_bindgen_futures::spawn_local(async move {
         let body_style = window.document().unwrap().body().unwrap().style();
+        let local_storage = window.local_storage().unwrap().unwrap();
         loop {
-            let Some(output) = output_rx.recv().await else {
+            let Some(command) = output_rx.recv().await else {
                 tracing::warn!(
                     "WebWorkerRunner main thread loop is stopping! This is not supposed to happen."
                 );
                 return;
             };
 
-            let _ = body_style.set_property(
-                "cursor",
-                match output.cursor_icon {
-                    egui::CursorIcon::Default => "default",
-                    egui::CursorIcon::None => "none",
+            match command.0 {
+                WebWorkerRunnerOutputInner::PlatformOutput(output) => {
+                    let _ = body_style.set_property(
+                        "cursor",
+                        match output.cursor_icon {
+                            egui::CursorIcon::Default => "default",
+                            egui::CursorIcon::None => "none",
 
-                    egui::CursorIcon::ContextMenu => "context-menu",
-                    egui::CursorIcon::Help => "help",
-                    egui::CursorIcon::PointingHand => "pointer",
-                    egui::CursorIcon::Progress => "progress",
-                    egui::CursorIcon::Wait => "wait",
+                            egui::CursorIcon::ContextMenu => "context-menu",
+                            egui::CursorIcon::Help => "help",
+                            egui::CursorIcon::PointingHand => "pointer",
+                            egui::CursorIcon::Progress => "progress",
+                            egui::CursorIcon::Wait => "wait",
 
-                    egui::CursorIcon::Cell => "cell",
-                    egui::CursorIcon::Crosshair => "crosshair",
-                    egui::CursorIcon::Text => "text",
-                    egui::CursorIcon::VerticalText => "vertical-text",
+                            egui::CursorIcon::Cell => "cell",
+                            egui::CursorIcon::Crosshair => "crosshair",
+                            egui::CursorIcon::Text => "text",
+                            egui::CursorIcon::VerticalText => "vertical-text",
 
-                    egui::CursorIcon::Alias => "alias",
-                    egui::CursorIcon::Copy => "copy",
-                    egui::CursorIcon::Move => "move",
-                    egui::CursorIcon::NoDrop => "no-drop",
-                    egui::CursorIcon::NotAllowed => "not-allowed",
-                    egui::CursorIcon::Grab => "grab",
-                    egui::CursorIcon::Grabbing => "grabbing",
+                            egui::CursorIcon::Alias => "alias",
+                            egui::CursorIcon::Copy => "copy",
+                            egui::CursorIcon::Move => "move",
+                            egui::CursorIcon::NoDrop => "no-drop",
+                            egui::CursorIcon::NotAllowed => "not-allowed",
+                            egui::CursorIcon::Grab => "grab",
+                            egui::CursorIcon::Grabbing => "grabbing",
 
-                    egui::CursorIcon::AllScroll => "all-scroll",
-                    egui::CursorIcon::ResizeColumn => "col-resize",
-                    egui::CursorIcon::ResizeRow => "row-resize",
-                    egui::CursorIcon::ResizeNorth => "n-resize",
-                    egui::CursorIcon::ResizeEast => "e-resize",
-                    egui::CursorIcon::ResizeSouth => "s-resize",
-                    egui::CursorIcon::ResizeWest => "w-resize",
-                    egui::CursorIcon::ResizeNorthEast => "ne-resize",
-                    egui::CursorIcon::ResizeNorthWest => "nw-resize",
-                    egui::CursorIcon::ResizeSouthEast => "se-resize",
-                    egui::CursorIcon::ResizeSouthWest => "sw-resize",
-                    egui::CursorIcon::ResizeHorizontal => "ew-resize",
-                    egui::CursorIcon::ResizeVertical => "ns-resize",
-                    egui::CursorIcon::ResizeNwSe => "nwse-resize",
-                    egui::CursorIcon::ResizeNeSw => "nesw-resize",
+                            egui::CursorIcon::AllScroll => "all-scroll",
+                            egui::CursorIcon::ResizeColumn => "col-resize",
+                            egui::CursorIcon::ResizeRow => "row-resize",
+                            egui::CursorIcon::ResizeNorth => "n-resize",
+                            egui::CursorIcon::ResizeEast => "e-resize",
+                            egui::CursorIcon::ResizeSouth => "s-resize",
+                            egui::CursorIcon::ResizeWest => "w-resize",
+                            egui::CursorIcon::ResizeNorthEast => "ne-resize",
+                            egui::CursorIcon::ResizeNorthWest => "nw-resize",
+                            egui::CursorIcon::ResizeSouthEast => "se-resize",
+                            egui::CursorIcon::ResizeSouthWest => "sw-resize",
+                            egui::CursorIcon::ResizeHorizontal => "ew-resize",
+                            egui::CursorIcon::ResizeVertical => "ns-resize",
+                            egui::CursorIcon::ResizeNwSe => "nwse-resize",
+                            egui::CursorIcon::ResizeNeSw => "nesw-resize",
 
-                    egui::CursorIcon::ZoomIn => "zoom-in",
-                    egui::CursorIcon::ZoomOut => "zoom-out",
-                },
-            );
-
-            if !output.copied_text.is_empty() {
-                if let Err(e) = wasm_bindgen_futures::JsFuture::from(
-                    window
-                        .navigator()
-                        .clipboard()
-                        .unwrap()
-                        .write_text(&output.copied_text),
-                )
-                .await
-                {
-                    tracing::warn!(
-                        "Failed to copy to clipboard: {}",
-                        e.unchecked_into::<js_sys::Error>().to_string()
+                            egui::CursorIcon::ZoomIn => "zoom-in",
+                            egui::CursorIcon::ZoomOut => "zoom-out",
+                        },
                     );
+
+                    if !output.copied_text.is_empty() {
+                        if let Err(e) = wasm_bindgen_futures::JsFuture::from(
+                            window
+                                .navigator()
+                                .clipboard()
+                                .unwrap()
+                                .write_text(&output.copied_text),
+                        )
+                        .await
+                        {
+                            tracing::warn!(
+                                "Failed to copy to clipboard: {}",
+                                e.unchecked_into::<js_sys::Error>().to_string()
+                            );
+                        }
+                    }
+
+                    if let Some(url) = output.open_url {
+                        if let Err(e) = window.open_with_url_and_target(
+                            &url.url,
+                            if url.new_tab { "_blank" } else { "_self" },
+                        ) {
+                            tracing::warn!(
+                                "Failed to open URL: {}",
+                                e.unchecked_into::<js_sys::Error>().to_string()
+                            );
+                        }
+                    }
                 }
-            }
 
-            if let Some(url) = output.open_url {
-                if let Err(e) = window.open_with_url_and_target(
-                    &url.url,
-                    if url.new_tab { "_blank" } else { "_self" },
-                ) {
-                    tracing::warn!(
-                        "Failed to open URL: {}",
-                        e.unchecked_into::<js_sys::Error>().to_string()
-                    );
+                WebWorkerRunnerOutputInner::StorageGet(key, oneshot_tx) => {
+                    let _ = oneshot_tx.send(local_storage.get(&key).ok().flatten());
+                }
+
+                WebWorkerRunnerOutputInner::StorageSet(key, value, oneshot_tx) => {
+                    let _ = oneshot_tx.send(local_storage.set(&key, &value).is_ok());
                 }
             }
         }
