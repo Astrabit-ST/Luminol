@@ -135,6 +135,11 @@ web-sys = { version = "0.3", features = [
     "OffscreenCanvas",
     "OffscreenCanvasRenderingContext2d",
 
+    "MutationObserver",
+    "MutationObserverInit",
+    "MutationRecord",
+    "Node",
+
     "WorkerLocation",
     "Location",
     "WorkerNavigator",

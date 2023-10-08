@@ -147,7 +147,6 @@ pub fn luminol_main_start() {
     tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
 
     let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
-    let device_pixel_ratio = window.device_pixel_ratio() as f32;
     let prefers_color_scheme_dark = window
         .match_media("(prefers-color-scheme: dark)")
         .unwrap()
@@ -158,7 +157,6 @@ pub fn luminol_main_start() {
 
     if luminol::GLOBAL_STATE
         .set(luminol::GlobalState {
-            device_pixel_ratio,
             prefers_color_scheme_dark,
             filesystem_tx,
         })
@@ -235,7 +233,6 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
         canvas,
         web_options,
-        state.device_pixel_ratio,
         state.prefers_color_scheme_dark,
         Some(event_rx),
         Some(custom_event_rx),

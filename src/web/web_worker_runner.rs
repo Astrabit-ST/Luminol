@@ -36,7 +36,9 @@ impl eframe::Storage for Storage {
 pub struct WebWorkerRunnerEvent(WebWorkerRunnerEventInner);
 
 enum WebWorkerRunnerEventInner {
-    ScreenResize(u32, u32),
+    /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
+    ScreenResize(u32, u32, f32),
+    /// This should be sent whenever the modifiers change
     Modifiers(egui::Modifiers),
 }
 
@@ -47,7 +49,13 @@ struct WebWorkerRunnerState {
     surface: wgpu::Surface,
     surface_configuration: wgpu::SurfaceConfiguration,
     modifiers: egui::Modifiers,
-    native_pixels_per_point: Option<f32>,
+
+    /// Width of the canvas in points. `surface_configuration.width` is the width in pixels.
+    width: u32,
+    /// Height of the canvas in points. `surface_configuration.height` is the height in pixels.
+    height: u32,
+    /// Length of a pixel divided by length of a point.
+    pixel_ratio: f32,
 
     event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
     custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
@@ -71,7 +79,6 @@ impl WebWorkerRunner {
         app_creator: Box<dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn CustomApp>>,
         canvas: web_sys::OffscreenCanvas,
         web_options: eframe::WebOptions,
-        device_pixel_ratio: f32,
         prefers_color_scheme_dark: Option<bool>,
         event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
         custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
@@ -101,23 +108,20 @@ impl WebWorkerRunner {
         .await
         .unwrap_or_else(|e| panic!("failed to initialize renderer: {e}"));
 
+        let width = canvas.width();
+        let height = canvas.height();
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
             present_mode: web_options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
-            width: canvas.width(),
-            height: canvas.height(),
+            width,
+            height,
         };
         surface.configure(&render_state.device, &surface_configuration);
 
         let location = worker.location();
-        let native_pixels_per_point = if device_pixel_ratio > 0. && device_pixel_ratio.is_finite() {
-            Some(device_pixel_ratio)
-        } else {
-            None
-        };
         let integration_info = eframe::IntegrationInfo {
             system_theme: if web_options.follow_system_theme {
                 prefers_color_scheme_dark.map(|x| {
@@ -148,7 +152,7 @@ impl WebWorkerRunner {
                     origin: location.origin(),
                 },
             },
-            native_pixels_per_point,
+            native_pixels_per_point: Some(1.),
             cpu_usage: None,
         };
 
@@ -184,7 +188,9 @@ impl WebWorkerRunner {
                 surface,
                 surface_configuration,
                 modifiers: Default::default(),
-                native_pixels_per_point,
+                width,
+                height,
+                pixel_ratio: 1.,
                 event_rx,
                 custom_event_rx,
             })),
@@ -199,16 +205,22 @@ impl WebWorkerRunner {
             let mut state = self.state.borrow_mut();
             let worker = bindings::worker().unwrap();
 
-            let mut width = state.surface_configuration.width;
-            let mut height = state.surface_configuration.height;
+            let mut width = state.width;
+            let mut height = state.height;
+            let mut pixel_ratio = state.pixel_ratio;
             let mut modifiers = state.modifiers;
 
             if let Some(custom_event_rx) = &mut state.custom_event_rx {
                 for event in std::iter::from_fn(|| custom_event_rx.try_recv().ok()) {
                     match event.0 {
-                        WebWorkerRunnerEventInner::ScreenResize(new_width, new_height) => {
+                        WebWorkerRunnerEventInner::ScreenResize(
+                            new_width,
+                            new_height,
+                            new_pixel_ratio,
+                        ) => {
                             width = new_width;
                             height = new_height;
+                            pixel_ratio = new_pixel_ratio;
                         }
 
                         WebWorkerRunnerEventInner::Modifiers(new_modifiers) => {
@@ -219,13 +231,14 @@ impl WebWorkerRunner {
             }
 
             // Resize the canvas if the screen size has changed
-            if width != state.surface_configuration.width
-                || height != state.surface_configuration.height
-            {
+            if width != state.width || height != state.height {
+                state.pixel_ratio = pixel_ratio;
+                state.width = width;
+                state.height = height;
+                state.surface_configuration.width = (width as f32 * pixel_ratio).round() as u32;
+                state.surface_configuration.height = (height as f32 * pixel_ratio).round() as u32;
                 state.canvas.set_width(state.surface_configuration.width);
                 state.canvas.set_height(state.surface_configuration.height);
-                state.surface_configuration.width = width;
-                state.surface_configuration.height = height;
                 state
                     .surface
                     .configure(&state.render_state.device, &state.surface_configuration);
@@ -256,12 +269,9 @@ impl WebWorkerRunner {
                 let input = egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_max(
                         egui::pos2(0., 0.),
-                        egui::pos2(
-                            state.surface_configuration.width as f32,
-                            state.surface_configuration.height as f32,
-                        ),
+                        egui::pos2(state.width as f32, state.height as f32),
                     )),
-                    pixels_per_point: state.native_pixels_per_point,
+                    pixels_per_point: Some(state.pixel_ratio),
                     time: Some(bindings::performance(&worker).now() / 1000.),
                     max_texture_side: Some(
                         state.render_state.device.limits().max_texture_dimension_2d as usize,
@@ -286,7 +296,7 @@ impl WebWorkerRunner {
                         state.surface_configuration.width,
                         state.surface_configuration.height,
                     ],
-                    pixels_per_point: state.native_pixels_per_point.unwrap_or(1.),
+                    pixels_per_point: state.pixel_ratio,
                 };
 
                 // Upload textures to GPU that are newly created in the current frame
@@ -387,14 +397,22 @@ pub fn setup_main_thread_hooks(
     );
 
     {
-        let custom_event_tx = custom_event_tx.clone();
         let f = {
+            let custom_event_tx = custom_event_tx.clone();
             let window = window.clone();
+            let canvas_id = canvas.id();
             move || {
+                let pixel_ratio = window.device_pixel_ratio();
+                let pixel_ratio = if pixel_ratio > 0. && pixel_ratio.is_finite() {
+                    pixel_ratio as f32
+                } else {
+                    1.
+                };
                 let _ = custom_event_tx.send(WebWorkerRunnerEvent(
                     WebWorkerRunnerEventInner::ScreenResize(
                         window.inner_width().unwrap().as_f64().unwrap() as u32,
                         window.inner_height().unwrap().as_f64().unwrap() as u32,
+                        pixel_ratio,
                     ),
                 ));
             }
@@ -696,6 +714,38 @@ pub fn setup_main_thread_hooks(
         document
             .add_event_listener_with_callback("keyup", callback.as_ref().unchecked_ref())
             .expect("failed to register event listener for keyboard key releases");
+        callback.forget();
+    }
+
+    {
+        // The canvas automatically resizes itself whenever a frame is drawn.
+        // The resizing does not take window.devicePixelRatio into account,
+        // so this mutation observer is to detect canvas resizes and correct them.
+        let window = window.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |mutations: js_sys::Array| {
+            let width = window.inner_width().unwrap().as_f64().unwrap() as u32;
+            let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
+            mutations.for_each(&mut |mutation, _, _| {
+                let mutation = mutation.unchecked_into::<web_sys::MutationRecord>();
+                if mutation.type_().as_str() == "attributes" {
+                    let canvas = mutation
+                        .target()
+                        .unwrap()
+                        .unchecked_into::<web_sys::HtmlCanvasElement>();
+                    if canvas.width() != width || canvas.height() != height {
+                        let _ = canvas.set_attribute("width", width.to_string().as_str());
+                        let _ = canvas.set_attribute("height", height.to_string().as_str());
+                    }
+                }
+            });
+        });
+        let observer = web_sys::MutationObserver::new(callback.as_ref().unchecked_ref())
+            .expect("failed to create canvas mutation observer");
+        let mut options = web_sys::MutationObserverInit::new();
+        options.attributes(true);
+        observer
+            .observe_with_options(&canvas, &options)
+            .expect("failed to register canvas mutation observer");
         callback.forget();
     }
 }

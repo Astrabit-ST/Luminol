@@ -116,7 +116,6 @@ use tabs::tab::Tab;
 
 #[cfg(target_arch = "wasm32")]
 pub struct GlobalState {
-    pub device_pixel_ratio: f32,
     pub prefers_color_scheme_dark: Option<bool>,
     pub filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
 }
