@@ -2688,6 +2688,7 @@ dependencies = [
  "indexed_db_futures",
  "itertools",
  "js-sys",
+ "luminol-term",
  "notify",
  "num_enum 0.7.0",
  "once_cell",

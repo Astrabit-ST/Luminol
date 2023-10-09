@@ -22,17 +22,21 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct Console {}
+pub struct Console {
+    term: luminol_term::Terminal,
+}
 
 impl Console {
-    pub fn new() -> Result<Self, ()> {
-        Ok(Self {})
+    pub fn new(command: luminol_term::CommandBuilder) -> Result<Self, luminol_term::Error> {
+        Ok(Self {
+            term: luminol_term::Terminal::new(command)?,
+        })
     }
 }
 
 impl super::window::Window for Console {
     fn name(&self) -> String {
-        todo!("this feature is temporarily unavailable while we test WebAssembly builds");
+        self.term.title()
     }
 
     fn id(&self) -> egui::Id {
@@ -44,6 +48,16 @@ impl super::window::Window for Console {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        todo!("this feature is temporarily unavailable while we test WebAssembly builds");
+        egui::Window::new(self.name())
+            .id(self.term.id())
+            .open(open)
+            .resizable(false)
+            .show(ctx, |ui| {
+                if let Err(e) = self.term.ui(ui) {
+                    crate::state!()
+                        .toasts
+                        .error(format!("error displaying terminal: {e:?}"));
+                }
+            });
     }
 }
