@@ -25,6 +25,21 @@
 use crate::lumi::Lumi;
 use crate::prelude::*;
 
+/// Custom implementation of `eframe::Frame` for Luminol.
+/// We need this because the normal `eframe::App` uses a struct with private fields in its
+/// definition of `update()`, and that prevents us from implementing custom app runners.
+pub struct CustomFrame<'a>(
+    #[cfg(not(target_arch = "wasm32"))] pub &'a mut eframe::Frame,
+    #[cfg(target_arch = "wasm32")] pub std::marker::PhantomData<&'a ()>,
+);
+
+impl CustomFrame<'_> {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.0.set_fullscreen(fullscreen);
+    }
+}
+
 /// Custom implementation of `eframe::App` for Luminol.
 /// We need this because the normal `eframe::App` uses a struct with private fields in its
 /// definition of `update()`, and that prevents us from implementing custom app runners.
@@ -32,14 +47,15 @@ pub trait CustomApp
 where
     Self: eframe::App,
 {
-    fn custom_update(&mut self, ctx: &egui::Context);
+    fn custom_update(&mut self, ctx: &egui::Context, frame: &mut CustomFrame<'_>);
 }
 
 #[macro_export]
 macro_rules! app_use_custom_update {
     () => {
-        fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-            self.custom_update(ctx)
+        fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+            #[cfg(not(target_arch = "wasm32"))]
+            self.custom_update(ctx, &mut CustomFrame(frame))
         }
     };
 }
@@ -131,7 +147,7 @@ impl Luminol {
 
 impl CustomApp for Luminol {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn custom_update(&mut self, ctx: &eframe::egui::Context) {
+    fn custom_update(&mut self, ctx: &eframe::egui::Context, frame: &mut CustomFrame<'_>) {
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
@@ -159,7 +175,7 @@ impl CustomApp for Luminol {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(ui);
+                self.top_bar.ui(ui, frame);
             });
         });
 

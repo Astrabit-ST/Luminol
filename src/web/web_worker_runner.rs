@@ -391,9 +391,12 @@ impl WebWorkerRunner {
                     modifiers,
                     ..Default::default()
                 };
-                let output = self
-                    .context
-                    .run(input, |_| state.app.custom_update(&self.context));
+                let output = self.context.run(input, |_| {
+                    state.app.custom_update(
+                        &self.context,
+                        &mut crate::luminol::CustomFrame(std::marker::PhantomData),
+                    )
+                });
                 if let Some(output_tx) = &state.output_tx {
                     let _ = output_tx.send(WebWorkerRunnerOutput(
                         WebWorkerRunnerOutputInner::PlatformOutput(output.platform_output),
@@ -915,6 +918,19 @@ pub fn setup_main_thread_hooks(
         document
             .add_event_listener_with_callback("blur", callback.as_ref().unchecked_ref())
             .expect("failed to register event listener for window blur");
+        callback.forget();
+    }
+
+    {
+        let custom_event_tx = custom_event_tx.clone();
+        let callback: Closure<dyn Fn(_)> = Closure::new(move |_: web_sys::Event| {
+            // Currently we just save on fullscreen change, the application doesn't need the
+            // fullscreen state
+            let _ = custom_event_tx.send(WebWorkerRunnerEvent(WebWorkerRunnerEventInner::Save));
+        });
+        document
+            .add_event_listener_with_callback("fullscreenchange", callback.as_ref().unchecked_ref())
+            .expect("failed to register event listener for fullscreen");
         callback.forget();
     }
 
