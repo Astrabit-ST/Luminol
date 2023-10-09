@@ -620,10 +620,12 @@ pub fn setup_main_thread_hooks(
 
     {
         let event_tx = event_tx.clone();
+        let custom_event_tx = custom_event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::MouseEvent| {
             if PANIC_LOCK.get().is_some() {
                 return;
             }
+            let _ = custom_event_tx.send(WebWorkerRunnerEvent(WebWorkerRunnerEventInner::Save));
             let _ = event_tx.send(egui::Event::PointerGone);
             e.stop_propagation();
             e.prevent_default();
