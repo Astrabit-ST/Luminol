@@ -109,6 +109,10 @@ poll-promise = { version = "0.3.0", features = ["web"] }
 tokio = { version = "1.32", features = ["sync"] }
 wasm-bindgen-futures = "0.4"
 indexed_db_futures = "0.3.0"
+rodio = { version = "0.17.1", features = [
+    "wasm-bindgen",
+    "symphonia-all",
+], default-features = false }
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
     "console",
@@ -224,6 +228,11 @@ opt-level = 3
 members = ["command-lib", "rmxp-types", "luminol-term"]
 
 [patch.crates-io]
+# We need this for rodio to work in WebAssembly until
+# https://github.com/RustAudio/cpal/pull/774
+# is merged.
+cpal = { git = "https://github.com/DouglasDwyer/cpal.git", rev = "91aeb4d6b02c25791f636fdf92a73637597c077a" }
+
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
 # eframe = { git = "https://github.com/emilk/egui", branch = "master" }
