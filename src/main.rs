@@ -148,8 +148,9 @@ static WORKER_DATA: Lazy<AtomicRefCell<Option<WorkerData>>> =
 pub fn luminol_main_start() {
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
     std::panic::set_hook(Box::new(move |info| {
-        let report = panic.panic_report(info);
+        luminol::web::web_worker_runner::panic_hook();
 
+        let report = panic.panic_report(info);
         web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
     }));
 

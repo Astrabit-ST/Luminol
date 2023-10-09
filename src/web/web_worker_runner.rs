@@ -19,6 +19,8 @@ use crate::prelude::*;
 use eframe::{egui_wgpu, wgpu};
 use wasm_bindgen::prelude::*;
 
+static PANIC_LOCK: OnceCell<()> = OnceCell::new();
+
 #[derive(Debug, Default)]
 struct Storage {
     output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
@@ -273,6 +275,9 @@ impl WebWorkerRunner {
     /// Sets up the hook to render the app to the canvas.
     pub fn setup_render_hooks(self) {
         let callback = Closure::once(move || {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let mut state = self.state.borrow_mut();
             let worker = bindings::worker().unwrap();
 
@@ -514,6 +519,9 @@ pub fn setup_main_thread_hooks(
             let window = window.clone();
             let canvas_id = canvas.id();
             move || {
+                if PANIC_LOCK.get().is_some() {
+                    return;
+                }
                 let pixel_ratio = window.device_pixel_ratio();
                 let pixel_ratio = if pixel_ratio > 0. && pixel_ratio.is_finite() {
                     pixel_ratio as f32
@@ -542,6 +550,9 @@ pub fn setup_main_thread_hooks(
             let event_tx = event_tx.clone();
             let custom_event_tx = custom_event_tx.clone();
             move |e: web_sys::MouseEvent| {
+                if PANIC_LOCK.get().is_some() {
+                    return;
+                }
                 let ctrl = e.ctrl_key();
                 let modifiers = egui::Modifiers {
                     alt: e.alt_key(),
@@ -591,6 +602,9 @@ pub fn setup_main_thread_hooks(
     {
         let event_tx = event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::MouseEvent| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let _ = event_tx.send(egui::Event::PointerMoved(egui::pos2(
                 e.client_x() as f32,
                 e.client_y() as f32,
@@ -607,6 +621,9 @@ pub fn setup_main_thread_hooks(
     {
         let event_tx = event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::MouseEvent| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let _ = event_tx.send(egui::Event::PointerGone);
             e.stop_propagation();
             e.prevent_default();
@@ -622,6 +639,9 @@ pub fn setup_main_thread_hooks(
         let event_tx = event_tx.clone();
         let custom_event_tx = custom_event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::WheelEvent| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let ctrl = e.ctrl_key();
             let modifiers = egui::Modifiers {
                 alt: e.alt_key(),
@@ -689,6 +709,9 @@ pub fn setup_main_thread_hooks(
             let event_tx = event_tx.clone();
             let custom_event_tx = custom_event_tx.clone();
             move |e: web_sys::KeyboardEvent| {
+                if PANIC_LOCK.get().is_some() {
+                    return;
+                }
                 let ctrl = e.ctrl_key();
                 let modifiers = egui::Modifiers {
                     alt: e.alt_key(),
@@ -832,6 +855,9 @@ pub fn setup_main_thread_hooks(
     {
         let event_tx = event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::ClipboardEvent| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             if let Some(data) = e.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     if !text.is_empty() {
@@ -851,6 +877,9 @@ pub fn setup_main_thread_hooks(
     {
         let event_tx = event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |_: web_sys::ClipboardEvent| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let _ = event_tx.send(egui::Event::Copy);
         });
         document
@@ -862,6 +891,9 @@ pub fn setup_main_thread_hooks(
     {
         let event_tx = event_tx.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |_: web_sys::ClipboardEvent| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let _ = event_tx.send(egui::Event::Cut);
         });
         document
@@ -890,6 +922,9 @@ pub fn setup_main_thread_hooks(
         // so this mutation observer is to detect canvas resizes and correct them.
         let window = window.clone();
         let callback: Closure<dyn Fn(_)> = Closure::new(move |mutations: js_sys::Array| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
             let width = window.inner_width().unwrap().as_f64().unwrap() as u32;
             let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
             mutations.for_each(&mut |mutation, _, _| {
@@ -1015,4 +1050,9 @@ pub fn setup_main_thread_hooks(
             }
         }
     });
+}
+
+/// This should be called when the application panics to stop the renderer and event listeners.
+pub fn panic_hook() {
+    let _ = PANIC_LOCK.set(());
 }
