@@ -33,10 +33,18 @@ pub struct CustomFrame<'a>(
     #[cfg(target_arch = "wasm32")] pub std::marker::PhantomData<&'a ()>,
 );
 
-impl CustomFrame<'_> {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_fullscreen(&mut self, fullscreen: bool) {
-        self.0.set_fullscreen(fullscreen);
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::Deref for CustomFrame<'_> {
+    type Target = eframe::Frame;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::DerefMut for CustomFrame<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
     }
 }
 

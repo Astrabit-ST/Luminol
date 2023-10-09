@@ -98,10 +98,13 @@ impl TopBar {
                 }
             });
 
-            ui.separator();
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                ui.separator();
 
-            if ui.button("Quit").clicked() {
-                todo!("this feature is temporarily unavailable while we test WebAssembly builds");
+                if ui.button("Quit").clicked() {
+                    frame.close();
+                }
             }
         });
 
