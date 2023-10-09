@@ -28,6 +28,7 @@ extern "C" {
     #[wasm_bindgen(catch)]
     async fn _remove_dir(dir: &web_sys::FileSystemDirectoryHandle) -> Result<JsValue, JsValue>;
     pub fn dir_values(dir: &web_sys::FileSystemDirectoryHandle) -> js_sys::AsyncIterator;
+    async fn _request_permission(handle: &web_sys::FileSystemHandle) -> JsValue;
 }
 
 pub async fn show_directory_picker() -> Result<web_sys::FileSystemDirectoryHandle, js_sys::Error> {
@@ -51,4 +52,8 @@ pub async fn remove_dir(
         .await
         .map(|o| o.unchecked_into())
         .map_err(|e| e.unchecked_into())
+}
+
+pub async fn request_permission(handle: &web_sys::FileSystemHandle) -> bool {
+    _request_permission(handle).await.is_truthy()
 }

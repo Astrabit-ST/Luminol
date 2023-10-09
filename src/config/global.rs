@@ -30,8 +30,13 @@ use std::collections::VecDeque;
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct Config {
+    #[cfg(not(target_arch = "wasm32"))]
     /// Recently open projects.
     pub recent_projects: VecDeque<String>,
+    #[cfg(target_arch = "wasm32")]
+    /// Recently open projects.
+    pub recent_projects: VecDeque<(String, String)>,
+
     /// The current code theme
     pub theme: syntax_highlighting::CodeTheme,
     pub rtp_paths: HashMap<String, String>,

@@ -388,6 +388,9 @@ impl FileSystem {
             unreachable!();
         };
 
+        let root_path = dir.root_path().to_path_buf();
+        let idb_key = dir.idb_key().map(|k| k.to_string());
+
         let mut list = list::FileSystem::new();
 
         let paths = Self::find_rtp_paths(&dir);
@@ -412,6 +415,17 @@ impl FileSystem {
             filesystem: path_cache,
             project_path: entry.path.clone(),
         };
+
+        if let Some(idb_key) = idb_key {
+            let mut projects: std::collections::VecDeque<_> = global_config!()
+                .recent_projects
+                .iter()
+                .filter(|(_, k)| k.as_str() != idb_key.as_str())
+                .cloned()
+                .collect();
+            projects.push_front((root_path.join(&entry.path).to_string(), idb_key));
+            global_config!().recent_projects = projects;
+        }
 
         if let Err(e) = state!().data_cache.load() {
             *self.state.borrow_mut() = State::Unloaded;

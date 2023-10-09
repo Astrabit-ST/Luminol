@@ -54,3 +54,7 @@ export async function _remove_dir(dir) {
 export function dir_values(dir) {
     return dir.values();
 }
+
+export async function _request_permission(handle) {
+    return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted'
+}

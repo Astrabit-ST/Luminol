@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
+use indexed_db_futures::prelude::*;
+use rand::Rng;
 use wasm_bindgen::prelude::*;
 
 use crate::web::bindings;
@@ -28,6 +30,7 @@ static FILESYSTEM_TX: OnceCell<mpsc::UnboundedSender<FileSystemCommand>> = OnceC
 pub struct FileSystem {
     key: usize,
     name: String,
+    idb_key: Option<String>,
 }
 
 #[derive(Debug)]
@@ -46,7 +49,9 @@ enum FileSystemCommandInner {
         camino::Utf8PathBuf,
         oneshot::Sender<Result<Metadata, Error>>,
     ),
-    DirPicker(oneshot::Sender<Option<(usize, String)>>),
+    DirPicker(oneshot::Sender<Option<(usize, String, Option<String>)>>),
+    DirFromIdb(String, oneshot::Sender<Option<(usize, String)>>),
+    DirIdbDrop(String, oneshot::Sender<bool>),
     DirOpenFile(
         usize,
         camino::Utf8PathBuf,
@@ -129,13 +134,48 @@ impl FileSystem {
         oneshot_rx
             .await
             .unwrap()
-            .map(|(key, name)| FileSystem { key, name })
+            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+    }
+
+    /// Attempts to restore a previously created `FileSystem` using its `.idb_key()`.
+    pub async fn from_idb_key(idb_key: String) -> Option<Self> {
+        if !Self::filesystem_supported() {
+            return None;
+        }
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        filesystem_tx_or_die()
+            .send(FileSystemCommand(FileSystemCommandInner::DirFromIdb(
+                idb_key.clone(),
+                oneshot_tx,
+            )))
+            .unwrap();
+        oneshot_rx.await.unwrap().map(|(key, name)| FileSystem {
+            key,
+            name,
+            idb_key: Some(idb_key),
+        })
+    }
+
+    /// Drops the directory with the given key from IndexedDB if it exists in there.
+    pub fn idb_drop(idb_key: String) -> bool {
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        filesystem_tx_or_die()
+            .send(FileSystemCommand(FileSystemCommandInner::DirIdbDrop(
+                idb_key, oneshot_tx,
+            )))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap()
     }
 
     /// Returns a path consisting of a single element: the name of the root directory of this
     /// filesystem.
     pub fn root_path(&self) -> &camino::Utf8Path {
         self.name.as_str().into()
+    }
+
+    /// Returns the key needed to restore this `FileSystem` using `FileSystem::from_idb()`.
+    pub fn idb_key(&self) -> Option<&str> {
+        self.idb_key.as_deref()
     }
 }
 
@@ -162,6 +202,7 @@ impl Clone for FileSystem {
         Self {
             key: oneshot_rx.blocking_recv().unwrap(),
             name: self.name.clone(),
+            idb_key: self.idb_key.clone(),
         }
     }
 }
@@ -374,6 +415,32 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
             }
         }
 
+        async fn idb<R>(
+            mode: IdbTransactionMode,
+            f: impl Fn(IdbObjectStore<'_>) -> Result<R, web_sys::DomException>,
+        ) -> Result<R, web_sys::DomException> {
+            let mut db_req = IdbDatabase::open_u32("astrabit.luminol", 1)?;
+
+            // Create store for our directory handles if it doesn't exist
+            db_req.set_on_upgrade_needed(Some(|e: &IdbVersionChangeEvent| {
+                if e.db()
+                    .object_store_names()
+                    .find(|n| n == "filesystem.dir_handles")
+                    .is_none()
+                {
+                    e.db().create_object_store("filesystem.dir_handles")?;
+                }
+                Ok(())
+            }));
+
+            let db = db_req.into_future().await?;
+            let tx = db.transaction_on_one_with_mode("filesystem.dir_handles", mode)?;
+            let store = tx.object_store("filesystem.dir_handles")?;
+            let r = f(store);
+            tx.await.into_result()?;
+            r
+        }
+
         loop {
             let Some(command) = filesystem_rx.recv().await else {
                 tracing::warn!(
@@ -440,11 +507,68 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
 
                 FileSystemCommandInner::DirPicker(oneshot_tx) => {
                     if let Ok(dir) = bindings::show_directory_picker().await {
+                        // Try to insert the handle into IndexedDB
+                        let idb_key = rand::thread_rng()
+                            .sample_iter(rand::distributions::Alphanumeric)
+                            .take(42) // This should be enough to avoid collisions
+                            .map(char::from)
+                            .collect::<String>();
+                        let idb_ok = {
+                            let idb_key = idb_key.as_str();
+                            idb(IdbTransactionMode::Readwrite, |store| {
+                                store.put_key_val_owned(idb_key, &dir)
+                            })
+                            .await
+                            .is_ok()
+                        };
+
                         let name = dir.name();
-                        oneshot_tx.send(Some((dirs.insert(dir), name))).unwrap();
+                        oneshot_tx
+                            .send(Some((
+                                dirs.insert(dir),
+                                name,
+                                if idb_ok { Some(idb_key) } else { None },
+                            )))
+                            .unwrap();
                     } else {
                         oneshot_tx.send(None).unwrap();
                     }
+                }
+
+                FileSystemCommandInner::DirFromIdb(idb_key, oneshot_tx) => {
+                    let idb_key = idb_key.as_str();
+                    if let Ok(future) = idb(IdbTransactionMode::Readonly, |store| {
+                        store.get_owned(idb_key)
+                    })
+                    .await
+                    {
+                        if let Some(dir) = future.await.ok().flatten() {
+                            let dir = dir.unchecked_into::<web_sys::FileSystemDirectoryHandle>();
+                            if bindings::request_permission(&dir).await {
+                                let name = dir.name();
+                                oneshot_tx.send(Some((dirs.insert(dir), name))).unwrap();
+                            } else {
+                                oneshot_tx.send(None).unwrap();
+                            }
+                        } else {
+                            oneshot_tx.send(None).unwrap();
+                        }
+                    } else {
+                        oneshot_tx.send(None).unwrap();
+                    }
+                }
+
+                FileSystemCommandInner::DirIdbDrop(idb_key, oneshot_tx) => {
+                    let idb_key = idb_key.as_str();
+                    oneshot_tx
+                        .send(
+                            idb(IdbTransactionMode::Readwrite, |store| {
+                                store.delete_owned(idb_key)
+                            })
+                            .await
+                            .is_ok(),
+                        )
+                        .unwrap();
                 }
 
                 FileSystemCommandInner::DirOpenFile(key, path, flags, oneshot_tx) => {
