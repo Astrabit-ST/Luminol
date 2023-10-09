@@ -51,6 +51,11 @@ enum FileSystemCommandInner {
     ),
     DirPicker(oneshot::Sender<Option<(usize, String, Option<String>)>>),
     DirFromIdb(String, oneshot::Sender<Option<(usize, String)>>),
+    DirSubdir(
+        usize,
+        camino::Utf8PathBuf,
+        oneshot::Sender<Result<(usize, String, Option<String>), Error>>,
+    ),
     DirIdbDrop(String, oneshot::Sender<bool>),
     DirOpenFile(
         usize,
@@ -154,6 +159,22 @@ impl FileSystem {
             name,
             idb_key: Some(idb_key),
         })
+    }
+
+    /// Creates a new `FileSystem` from a subdirectory of this one.
+    pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self, Error> {
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        filesystem_tx_or_die()
+            .send(FileSystemCommand(FileSystemCommandInner::DirSubdir(
+                self.key,
+                path.as_ref().to_path_buf(),
+                oneshot_tx,
+            )))
+            .unwrap();
+        oneshot_rx
+            .blocking_recv()
+            .unwrap()
+            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
     }
 
     /// Drops the directory with the given key from IndexedDB if it exists in there.
@@ -556,6 +577,38 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     } else {
                         oneshot_tx.send(None).unwrap();
                     }
+                }
+
+                FileSystemCommandInner::DirSubdir(key, path, oneshot_tx) => {
+                    let mut iter = path.iter();
+                    let Some(dir) = get_subdir(dirs.get(key).unwrap(), &mut iter).await else {
+                        oneshot_tx.send(Err(Error::NotExist)).unwrap();
+                        continue;
+                    };
+
+                    // Try to insert the handle into IndexedDB
+                    let idb_key = rand::thread_rng()
+                        .sample_iter(rand::distributions::Alphanumeric)
+                        .take(42) // This should be enough to avoid collisions
+                        .map(char::from)
+                        .collect::<String>();
+                    let idb_ok = {
+                        let idb_key = idb_key.as_str();
+                        idb(IdbTransactionMode::Readwrite, |store| {
+                            store.put_key_val_owned(idb_key, &dir)
+                        })
+                        .await
+                        .is_ok()
+                    };
+
+                    let name = dir.name();
+                    oneshot_tx
+                        .send(Ok((
+                            dirs.insert(dir),
+                            name,
+                            if idb_ok { Some(idb_key) } else { None },
+                        )))
+                        .unwrap();
                 }
 
                 FileSystemCommandInner::DirIdbDrop(idb_key, oneshot_tx) => {

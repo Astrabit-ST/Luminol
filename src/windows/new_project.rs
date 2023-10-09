@@ -239,6 +239,70 @@ impl Window {
 
         progress.zip_total.store(zip_url.len(), Ordering::Relaxed);
 
-        todo!("this feature is temporarily unavailable while we investigate WebAssembly builds");
+        let zips = futures::future::join_all(zip_url.iter().map(|url| reqwest::get(*url))).await;
+
+        for (index, zip_response) in zips.into_iter().enumerate() {
+            progress.zip_current.store(index, Ordering::Relaxed);
+
+            progress.total_progress.store(0, Ordering::Relaxed);
+            let response =
+                zip_response.map_err(|e| format!("Error downloading {rgss_ver}: {e}"))?;
+
+            let bytes = response
+                .bytes()
+                .await
+                .map_err(|e| format!("Error getting response body for {rgss_ver}: {e}"))?;
+
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+                .map_err(|e| format!("Failed to read zip archive for {rgss_ver}: {e}"))?;
+            progress
+                .total_progress
+                .store(archive.len(), Ordering::Relaxed);
+
+            let state = state!();
+            for index in 0..archive.len() {
+                let mut file = archive.by_index(index).unwrap();
+                progress.current_progress.store(index, Ordering::Relaxed);
+
+                let file_path = match file.enclosed_name() {
+                    Some(p) => p.to_owned(),
+                    None => continue,
+                };
+
+                let file_path = file_path
+                    .strip_prefix("mkxp-z_2.4.0/")
+                    .unwrap_or(&file_path);
+                let file_path = file_path
+                    .to_str()
+                    .ok_or(format!("Invalid file path {file_path:#?}"))?;
+
+                if file_path.is_empty()
+                    || state
+                        .filesystem
+                        .exists(file_path)
+                        .map_err(|e| e.to_string())?
+                {
+                    continue;
+                }
+
+                if file.is_dir() {
+                    state
+                        .filesystem
+                        .create_dir(file_path)
+                        .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
+                } else {
+                    let mut bytes = Vec::new();
+                    file.read_to_end(&mut bytes)
+                        .map_err(|e| e.to_string())
+                        .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
+                    state
+                        .filesystem
+                        .write(file_path, bytes)
+                        .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }

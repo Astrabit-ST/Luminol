@@ -244,8 +244,83 @@ impl Cache {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn create_project(&self, config: config::project::Config) -> Result<(), String> {
-        todo!("this feature is temporarily unavailable while we test WebAssembly builds");
+        if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
+            let path = path.path().join(&config.project_name);
+            std::fs::create_dir(path).map_err(|e| e.to_string())?;
+
+            let command_db = config::CommandDB::new(config.editor_ver);
+
+            let mut game_ini = ini::Ini::new();
+            game_ini
+                .with_section(Some("Game"))
+                .set("Library", "RGSS104E.dll")
+                .set("Scripts", &config.scripts_path)
+                .set("Title", &config.project_name)
+                .set("RTP1", "")
+                .set("RTP2", "")
+                .set("RTP3", "");
+
+            *config::PROJECT.borrow_mut() = config::Project::Loaded {
+                command_db,
+                config,
+                game_ini,
+            };
+
+            self.setup_defaults();
+            self.save()?;
+        } else {
+            return Err("Cancelled picking a project directory".to_string());
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn create_project(&self, config: config::project::Config) -> Result<(), String> {
+        if !filesystem::web::FileSystem::filesystem_supported() {
+            return Err("Your browser does not support File System Access API".to_string());
+        }
+
+        if let Some(dir) = filesystem::web::FileSystem::from_directory_picker().await {
+            if let Some(idb_key) = dir.idb_key() {
+                filesystem::web::FileSystem::idb_drop(idb_key.to_string());
+            }
+
+            dir.create_dir(&config.project_name)
+                .map_err(|e| e.to_string())?;
+
+            // TODO: Save the project in here
+            let _subdir = dir
+                .subdir(&config.project_name)
+                .map_err(|e| e.to_string())?;
+
+            let command_db = config::CommandDB::new(config.editor_ver);
+
+            let mut game_ini = ini::Ini::new();
+            game_ini
+                .with_section(Some("Game"))
+                .set("Library", "RGSS104E.dll")
+                .set("Scripts", &config.scripts_path)
+                .set("Title", &config.project_name)
+                .set("RTP1", "")
+                .set("RTP2", "")
+                .set("RTP3", "");
+
+            *config::PROJECT.borrow_mut() = config::Project::Loaded {
+                command_db,
+                config,
+                game_ini,
+            };
+
+            self.setup_defaults();
+            self.save()?;
+        } else {
+            return Err("Cancelled picking a project directory".to_string());
+        }
+
+        Ok(())
     }
 
     /// Setup default values

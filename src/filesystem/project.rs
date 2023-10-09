@@ -167,7 +167,7 @@ impl FileSystem {
     #[cfg(target_arch = "wasm32")]
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
         if !web::FileSystem::filesystem_supported() {
-            return Err("Your browser does not support File System API".to_string());
+            return Err("Your browser does not support File System Access API".to_string());
         }
         if let Some(dir) = web::FileSystem::from_directory_picker().await {
             self.load_project(dir)
