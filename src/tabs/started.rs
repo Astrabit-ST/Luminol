@@ -114,7 +114,17 @@ impl tab::Tab for Tab {
                                 match filesystem::web::FileSystem::from_idb_key(idb_key.clone())
                                     .await
                                 {
-                                    Some(dir) => state.filesystem.load_project(dir),
+                                    Some(dir) => {
+                                        let idb_key = dir.idb_key().map(|k| k.to_string());
+                                        if let Err(e) = state.filesystem.load_project(dir) {
+                                            if let Some(idb_key) = idb_key {
+                                                filesystem::web::FileSystem::idb_drop(idb_key);
+                                            }
+                                            Err(e)
+                                        } else {
+                                            Ok(())
+                                        }
+                                    }
                                     None => Err("Could not restore project handle from IndexedDB"
                                         .to_string()),
                                 };

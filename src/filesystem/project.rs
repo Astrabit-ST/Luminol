@@ -170,7 +170,15 @@ impl FileSystem {
             return Err("Your browser does not support File System Access API".to_string());
         }
         if let Some(dir) = web::FileSystem::from_directory_picker().await {
-            self.load_project(dir)
+            let idb_key = dir.idb_key().map(|k| k.to_string());
+            if let Err(e) = self.load_project(dir) {
+                if let Some(idb_key) = idb_key {
+                    web::FileSystem::idb_drop(idb_key);
+                }
+                Err(e)
+            } else {
+                Ok(())
+            }
         } else {
             Err("Cancelled loading project".to_string())
         }
