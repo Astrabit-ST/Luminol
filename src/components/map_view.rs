@@ -63,13 +63,18 @@ impl MapView {
     pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<MapView, String> {
         // Get tilesets.
 
+        let use_push_constants = state!()
+            .render_state
+            .device
+            .features()
+            .contains(wgpu::Features::PUSH_CONSTANTS);
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
         let events = map
             .events
             .iter()
             .map(|(id, e)| {
-                let sprite = Event::new(e, &atlas, super::USE_PUSH_CONSTANTS);
-                let preview_sprite = Event::new(e, &atlas, super::USE_PUSH_CONSTANTS);
+                let sprite = Event::new(e, &atlas, use_push_constants);
+                let preview_sprite = Event::new(e, &atlas, use_push_constants);
                 let Ok(sprite) = sprite else {
                     return Err(sprite.unwrap_err());
                 };
@@ -84,7 +89,7 @@ impl MapView {
             })
             .flatten_ok()
             .try_collect()?;
-        let map = Map::new(map, tileset, super::USE_PUSH_CONSTANTS)?;
+        let map = Map::new(map, tileset, use_push_constants)?;
 
         Ok(Self {
             visible_display: false,

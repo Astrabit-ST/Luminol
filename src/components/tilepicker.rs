@@ -72,6 +72,11 @@ type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
     pub fn new(tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
+        let use_push_constants = state!()
+            .render_state
+            .device
+            .features()
+            .contains(wgpu::Features::PUSH_CONSTANTS);
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
         let tilepicker_data = (47..(384 + 47))
@@ -94,10 +99,10 @@ impl Tilepicker {
                 -1.0,
                 1.0,
             ),
-            super::USE_PUSH_CONSTANTS,
+            use_push_constants,
         );
 
-        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, super::USE_PUSH_CONSTANTS);
+        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, use_push_constants);
 
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),
