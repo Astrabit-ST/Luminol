@@ -9,4 +9,4 @@ tasklist | find trunk.exe >nul
 if errorlevel 1 goto end
 goto loop
 :end
-mv %TRUNK_SOURCE_DIR%\.cargo\config.toml.bak %TRUNK_SOURCE_DIR%\.cargo\config.toml
+move %TRUNK_SOURCE_DIR%\.cargo\config.toml.bak %TRUNK_SOURCE_DIR%\.cargo\config.toml
