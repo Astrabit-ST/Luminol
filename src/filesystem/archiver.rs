@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags};
+use crate::prelude::*;
 
 use itertools::Itertools;
 use std::io::{prelude::*, Cursor, SeekFrom};
@@ -23,12 +24,11 @@ use std::io::{prelude::*, Cursor, SeekFrom};
 #[derive(Debug, Default)]
 pub struct FileSystem<T>
 where
-    T: FileSystemTrait,
+    T: Read + Write + Seek + Send + Sync,
 {
     files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
     directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
-    archive_path: camino::Utf8PathBuf,
-    root: T,
+    archive: Mutex<T>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,22 +43,9 @@ const HEADER: &[u8] = b"RGSSAD\0";
 
 impl<T> FileSystem<T>
 where
-    T: FileSystemTrait,
+    T: Read + Write + Seek + Send + Sync,
 {
-    pub fn new(dir: T) -> Result<Self, Error> {
-        let Some(archive_path) = dir
-            .read_dir("")?
-            .into_iter()
-            .find(|entry| {
-                entry.metadata.is_file
-                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
-            })
-            .map(|entry| entry.path)
-        else {
-            return Err(Error::NotExist);
-        };
-
-        let mut file = dir.open_file(&archive_path, OpenFlags::Read | OpenFlags::Write)?;
+    pub fn new(mut file: T) -> Result<Self, Error> {
         let version = Self::read_header(&mut file)?;
 
         let files = dashmap::DashMap::new();
@@ -165,12 +152,10 @@ where
         }
         */
 
-        drop(file);
         Ok(FileSystem {
             files,
             directories,
-            archive_path,
-            root: dir,
+            archive: Mutex::new(file),
         })
     }
 
@@ -194,7 +179,7 @@ where
         old
     }
 
-    fn read_header(file: &mut T::File<'_>) -> Result<u8, Error> {
+    fn read_header(file: &mut T) -> Result<u8, Error> {
         let mut header_buf = [0; 8];
 
         file.read_exact(&mut header_buf)?;
@@ -252,7 +237,7 @@ impl std::io::Seek for File {
 
 impl<T> FileSystemTrait for FileSystem<T>
 where
-    T: FileSystemTrait,
+    T: Read + Write + Seek + Send + Sync,
 {
     type File<'fs> = File where Self: 'fs;
 
@@ -268,16 +253,11 @@ where
         let entry = self.files.get(path.as_ref()).ok_or(Error::NotExist)?;
         let mut buf = vec![0; entry.size as usize];
 
-        let mut archive = self.root.open_file(
-            &self.archive_path,
-            if flags.contains(OpenFlags::Write) {
-                OpenFlags::Read | OpenFlags::Write
-            } else {
-                OpenFlags::Read
-            },
-        )?;
-        archive.seek(SeekFrom::Start(entry.offset))?;
-        archive.read_exact(&mut buf)?;
+        {
+            let mut archive = self.archive.lock();
+            archive.seek(SeekFrom::Start(entry.offset))?;
+            archive.read_exact(&mut buf)?;
+        }
 
         let mut magic = entry.start_magic;
         let mut j = 0;

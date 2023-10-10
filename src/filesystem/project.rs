@@ -335,16 +335,28 @@ impl FileSystem {
 
         let mut list = list::FileSystem::new();
 
-        list.push(host::FileSystem::new(path));
+        let dir = host::FileSystem::new(path);
+        let archive = dir
+            .read_dir("")
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .find(|entry| {
+                entry.metadata.is_file
+                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+            })
+            .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .map(|file| archiver::FileSystem::new(file))
+            .transpose()
+            .map_err(|e| e.to_string())?;
 
+        list.push(dir);
         for path in Self::find_rtp_paths() {
             list.push(host::FileSystem::new(path))
         }
-
-        match archiver::FileSystem::new(host::FileSystem::new(path)) {
-            Ok(a) => list.push(a),
-            Err(Error::NotExist) => (),
-            Err(e) => return Err(e.to_string()),
+        if let Some(archive) = archive {
+            list.push(archive);
         }
 
         let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
@@ -403,11 +415,20 @@ impl FileSystem {
 
         let paths = Self::find_rtp_paths(&dir);
 
-        let archive = match archiver::FileSystem::new(dir.clone()) {
-            Ok(a) => Some(a),
-            Err(Error::NotExist) => None,
-            Err(e) => return Err(e.to_string()),
-        };
+        let archive = dir
+            .read_dir("")
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .find(|entry| {
+                entry.metadata.is_file
+                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+            })
+            .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .map(|file| archiver::FileSystem::new(file))
+            .transpose()
+            .map_err(|e| e.to_string())?;
 
         list.push(dir);
         for path in paths {
