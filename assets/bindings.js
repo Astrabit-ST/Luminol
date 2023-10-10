@@ -48,3 +48,7 @@ export function dir_values(dir) {
 export async function _request_permission(handle) {
     return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted'
 }
+
+export function cross_origin_isolated() {
+    return crossOriginIsolated === true;
+}

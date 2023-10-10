@@ -25,6 +25,7 @@ extern "C" {
     async fn _show_directory_picker() -> Result<JsValue, JsValue>;
     pub fn dir_values(dir: &web_sys::FileSystemDirectoryHandle) -> js_sys::AsyncIterator;
     async fn _request_permission(handle: &web_sys::FileSystemHandle) -> JsValue;
+    pub fn cross_origin_isolated() -> bool;
 }
 
 pub async fn show_directory_picker() -> Result<web_sys::FileSystemDirectoryHandle, js_sys::Error> {

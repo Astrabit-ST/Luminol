@@ -187,6 +187,11 @@ pub fn luminol_main_start() {
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
 
+    if !luminol::web::bindings::cross_origin_isolated() {
+        tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");
+        return;
+    }
+
     let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
     let (output_tx, output_rx) = mpsc::unbounded_channel();
     let (event_tx, event_rx) = mpsc::unbounded_channel();
