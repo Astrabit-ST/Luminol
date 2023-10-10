@@ -147,12 +147,22 @@ static WORKER_DATA: Lazy<AtomicRefCell<Option<WorkerData>>> =
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start() {
+    let (panic_tx, mut panic_rx) = mpsc::unbounded_channel::<()>();
+
+    wasm_bindgen_futures::spawn_local(async move {
+        if panic_rx.recv().await.is_some() {
+            let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
+        }
+    });
+
     let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
     std::panic::set_hook(Box::new(move |info| {
         luminol::web::web_worker_runner::panic_hook();
 
         let report = panic.panic_report(info);
         web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+
+        let _ = panic_tx.send(());
     }));
 
     // Redirect tracing to console.log and friends:
