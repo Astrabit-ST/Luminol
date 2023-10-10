@@ -812,7 +812,10 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     )
                     .await
                     {
-                        if bindings::remove_dir(&dir).await.is_ok() {
+                        if to_future::<JsValue>(subdir.remove_entry(dirname))
+                            .await
+                            .is_ok()
+                        {
                             oneshot_tx.send(Ok(())).unwrap();
                         } else {
                             oneshot_tx
@@ -844,7 +847,10 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                         to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(filename))
                             .await
                     {
-                        if bindings::remove_file(&file).await.is_ok() {
+                        if to_future::<JsValue>(subdir.remove_entry(filename))
+                            .await
+                            .is_ok()
+                        {
                             oneshot_tx.send(Ok(())).unwrap();
                         } else {
                             oneshot_tx

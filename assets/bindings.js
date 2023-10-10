@@ -34,21 +34,11 @@ export function filesystem_supported() {
     return typeof window?.showOpenFilePicker === 'function'
         && typeof window?.showDirectoryPicker === 'function'
         && typeof FileSystemFileHandle === 'function'
-        && typeof FileSystemWritableFileStream === 'function'
-        && typeof FileSystemFileHandle?.prototype?.remove === 'function'
-        && typeof FileSystemDirectoryHandle?.prototype?.remove === 'function';
+        && typeof FileSystemWritableFileStream === 'function';
 }
 
 export async function _show_directory_picker() {
     return await window.showDirectoryPicker({ mode: 'readwrite' });
-}
-
-export async function _remove_file(file) {
-    await file.remove();
-}
-
-export async function _remove_dir(dir) {
-    await dir.remove();
 }
 
 export function dir_values(dir) {

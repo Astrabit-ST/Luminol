@@ -23,32 +23,12 @@ extern "C" {
     pub fn filesystem_supported() -> bool;
     #[wasm_bindgen(catch)]
     async fn _show_directory_picker() -> Result<JsValue, JsValue>;
-    #[wasm_bindgen(catch)]
-    async fn _remove_file(file: &web_sys::FileSystemFileHandle) -> Result<JsValue, JsValue>;
-    #[wasm_bindgen(catch)]
-    async fn _remove_dir(dir: &web_sys::FileSystemDirectoryHandle) -> Result<JsValue, JsValue>;
     pub fn dir_values(dir: &web_sys::FileSystemDirectoryHandle) -> js_sys::AsyncIterator;
     async fn _request_permission(handle: &web_sys::FileSystemHandle) -> JsValue;
 }
 
 pub async fn show_directory_picker() -> Result<web_sys::FileSystemDirectoryHandle, js_sys::Error> {
     _show_directory_picker()
-        .await
-        .map(|o| o.unchecked_into())
-        .map_err(|e| e.unchecked_into())
-}
-
-pub async fn remove_file(file: &web_sys::FileSystemFileHandle) -> Result<JsValue, js_sys::Error> {
-    _remove_file(file)
-        .await
-        .map(|o| o.unchecked_into())
-        .map_err(|e| e.unchecked_into())
-}
-
-pub async fn remove_dir(
-    dir: &web_sys::FileSystemDirectoryHandle,
-) -> Result<JsValue, js_sys::Error> {
-    _remove_dir(dir)
         .await
         .map(|o| o.unchecked_into())
         .map_err(|e| e.unchecked_into())
