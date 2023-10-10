@@ -25,7 +25,10 @@
 use crate::prelude::*;
 
 mod midi;
+mod wrapper;
+pub use wrapper::*;
 
+use std::io::{Read, Seek};
 use strum::Display;
 use strum::EnumIter;
 
@@ -53,6 +56,7 @@ struct Inner {
     sinks: HashMap<Source, rodio::Sink>,
 }
 
+#[cfg(not(target_arch = "wasm32"))] // Audio can't be shared between threads in wasm either
 /// # Safety
 /// cpal claims that Stream (which is why Inner is not send) is not thread safe on android, which is why it is not Send anywhere else.
 /// We don't support android. The only other solution would be to use thread_local and... no.
@@ -61,6 +65,11 @@ unsafe impl Send for Inner {}
 
 impl Default for Audio {
     fn default() -> Self {
+        #[cfg(target_arch = "wasm32")]
+        if web_sys::window().is_none() {
+            panic!("in web builds, `Audio` can only be created on the main thread");
+        }
+
         let (output_stream, output_stream_handle) = rodio::OutputStream::try_default().unwrap();
         Self {
             inner: Mutex::new(Inner {
@@ -81,24 +90,36 @@ impl Audio {
         pitch: u8,
         source: Source,
     ) -> Result<(), String> {
-        let mut inner = self.inner.lock();
-        // Create a sink
-        let sink = rodio::Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
-
         let path = path.as_ref();
         let file = state!()
             .filesystem
             .open_file(path, filesystem::OpenFlags::Read)
             .map_err(|e| e.to_string())?;
 
+        let is_midi = path
+            .extension()
+            .is_some_and(|e| matches!(e, "mid" | "midi"));
+
+        self.play_from_file(file, is_midi, volume, pitch, source)
+    }
+
+    fn play_from_file(
+        &self,
+        mut file: impl Read + Seek + Send + Sync + 'static,
+        is_midi: bool,
+        volume: u8,
+        pitch: u8,
+        source: Source,
+    ) -> Result<(), String> {
+        let mut inner = self.inner.lock();
+        // Create a sink
+        let sink = rodio::Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
+
         // Select decoder type based on sound source
         match source {
             Source::SE | Source::ME => {
                 // Non looping
-                if path
-                    .extension()
-                    .is_some_and(|e| matches!(e, "mid" | "midi"))
-                {
+                if is_midi {
                     sink.append(midi::MidiSource::new(file, false)?);
                 } else {
                     sink.append(rodio::Decoder::new(file).map_err(|e| e.to_string())?);
@@ -106,10 +127,7 @@ impl Audio {
             }
             _ => {
                 // Looping
-                if path
-                    .extension()
-                    .is_some_and(|e| matches!(e, "mid" | "midi"))
-                {
+                if is_midi {
                     sink.append(midi::MidiSource::new(file, true)?);
                 } else {
                     sink.append(rodio::Decoder::new_looped(file).map_err(|e| e.to_string())?);
@@ -125,6 +143,7 @@ impl Audio {
         // Add sink to hash, stop the current one if it's there.
         if let Some(s) = inner.sinks.insert(source, sink) {
             s.stop();
+            #[cfg(not(target_arch = "wasm32"))]
             s.sleep_until_end(); // wait for the sink to stop, there is a ~5ms delay where it will not
         };
 
@@ -151,6 +170,7 @@ impl Audio {
         let mut inner = self.inner.lock();
         for (_, sink) in inner.sinks.iter_mut() {
             sink.stop();
+            #[cfg(not(target_arch = "wasm32"))]
             // Sleeping ensures that the inner file is dropped. There is a delay of ~5ms where it is not dropped and this could lead to a panic
             sink.sleep_until_end();
         }

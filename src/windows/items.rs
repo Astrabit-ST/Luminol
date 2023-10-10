@@ -34,7 +34,6 @@ pub struct Window {
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
-    #[cfg(not(target_arch = "wasm32"))]
     menu_se_picker: sound_test::SoundTab,
     menu_se_picker_open: bool,
 }
@@ -49,7 +48,6 @@ impl Default for Window {
 
             icon_picker_open: false,
 
-            #[cfg(not(target_arch = "wasm32"))]
             menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, true),
             menu_se_picker_open: false,
         }

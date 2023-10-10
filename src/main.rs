@@ -132,6 +132,7 @@ const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
+    audio: luminol::audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
     filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
     output_tx: mpsc::UnboundedSender<luminol::web::WebWorkerRunnerOutput>,
@@ -190,6 +191,7 @@ pub fn luminol_main_start() {
     );
 
     *WORKER_DATA.borrow_mut() = Some(WorkerData {
+        audio: luminol::audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
         output_tx,
@@ -218,6 +220,7 @@ pub fn luminol_main_start() {
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let WorkerData {
+        audio,
         prefers_color_scheme_dark,
         filesystem_tx,
         output_tx,
@@ -230,7 +233,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let web_options = eframe::WebOptions::default();
 
     let runner = luminol::web::WebWorkerRunner::new(
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, None))),
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc, None, audio))),
         canvas,
         web_options,
         "astrabit.luminol",

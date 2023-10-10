@@ -48,7 +48,6 @@ pub mod new_project;
 /// The script editor
 pub mod script_edit;
 /// The sound test.
-#[cfg(not(target_arch = "wasm32"))]
 pub mod sound_test;
 /// Traits and structs related to windows.
 pub mod window;

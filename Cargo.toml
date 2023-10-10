@@ -112,10 +112,7 @@ poll-promise = { version = "0.3.0", features = ["web"] }
 tokio = { version = "1.32", features = ["sync"] }
 wasm-bindgen-futures = "0.4"
 indexed_db_futures = "0.3.0"
-rodio = { version = "0.17.1", features = [
-    "wasm-bindgen",
-    "symphonia-all",
-], default-features = false }
+rodio = { version = "0.17.1", features = ["wasm-bindgen"] }
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
     "console",
@@ -170,7 +167,7 @@ web-sys = { version = "0.3", features = [
     "FileSystemRemoveOptions",
     "FileSystemWritableFileStream",
     "WritableStream",
-]}
+] }
 
 [features]
 steamworks = ["dep:steamworks", "crc"]

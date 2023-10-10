@@ -80,6 +80,7 @@ impl Luminol {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         try_load_path: Option<std::ffi::OsString>,
+        #[cfg(target_arch = "wasm32")] audio_wrapper: crate::audio::AudioWrapper,
     ) -> Self {
         let storage = cc.storage.unwrap();
 
@@ -90,7 +91,11 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = State::new(cc.wgpu_render_state.clone().unwrap());
+        let info = State::new(
+            cc.wgpu_render_state.clone().unwrap(),
+            #[cfg(target_arch = "wasm32")]
+            audio_wrapper,
+        );
         crate::set_state(info);
 
         #[cfg(not(debug_assertions))]
