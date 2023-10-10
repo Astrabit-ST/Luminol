@@ -25,7 +25,10 @@
 use crate::prelude::*;
 
 mod midi;
+
+#[cfg(target_arch = "wasm32")]
 mod wrapper;
+#[cfg(target_arch = "wasm32")]
 pub use wrapper::*;
 
 use std::io::{Read, Seek};
