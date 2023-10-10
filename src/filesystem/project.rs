@@ -347,7 +347,7 @@ impl FileSystem {
             .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
             .transpose()
             .map_err(|e| e.to_string())?
-            .map(|file| archiver::FileSystem::new(file))
+            .map(archiver::FileSystem::new)
             .transpose()
             .map_err(|e| e.to_string())?;
 
@@ -426,7 +426,7 @@ impl FileSystem {
             .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
             .transpose()
             .map_err(|e| e.to_string())?
-            .map(|file| archiver::FileSystem::new(file))
+            .map(archiver::FileSystem::new)
             .transpose()
             .map_err(|e| e.to_string())?;
 

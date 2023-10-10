@@ -108,7 +108,7 @@ impl Audio {
 
     fn play_from_file(
         &self,
-        mut file: impl Read + Seek + Send + Sync + 'static,
+        file: impl Read + Seek + Send + Sync + 'static,
         is_midi: bool,
         volume: u8,
         pitch: u8,
