@@ -68,6 +68,10 @@ enum AudioWrapperCommandInner {
         source: Source,
         oneshot_tx: oneshot::Sender<()>,
     },
+    Drop {
+        key: usize,
+        oneshot_tx: oneshot::Sender<bool>,
+    },
 }
 
 impl AudioWrapper {
@@ -215,6 +219,12 @@ impl From<Audio> for AudioWrapper {
                     AudioWrapperCommandInner::Stop { source, oneshot_tx } => {
                         oneshot_tx.send(audio.stop(&source)).unwrap();
                     }
+
+                    AudioWrapperCommandInner::Drop { key, oneshot_tx } => {
+                        let promise = SLAB.with(|slab| slab.lock().try_remove(key));
+                        oneshot_tx.send(promise.is_some()).unwrap();
+                        return;
+                    }
                 }
             }
         });
@@ -228,6 +238,13 @@ impl From<Audio> for AudioWrapper {
 
 impl Drop for AudioWrapper {
     fn drop(&mut self) {
-        let _ = SLAB.with(|slab| slab.lock().remove(self.key));
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.tx
+            .send(AudioWrapperCommand(AudioWrapperCommandInner::Drop {
+                key: self.key,
+                oneshot_tx,
+            }))
+            .unwrap();
+        oneshot_rx.blocking_recv().unwrap();
     }
 }
