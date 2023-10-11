@@ -815,7 +815,9 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     )
                     .await
                     {
-                        if to_future::<JsValue>(subdir.remove_entry(dirname))
+                        let mut options = web_sys::FileSystemRemoveOptions::new();
+                        options.recursive(true);
+                        if to_future::<JsValue>(subdir.remove_entry_with_options(dirname, &options))
                             .await
                             .is_ok()
                         {
