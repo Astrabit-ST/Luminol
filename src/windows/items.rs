@@ -129,7 +129,6 @@ impl window::Window for Window {
                     egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
 
-                #[cfg(not(target_arch = "wasm32"))]
                 if self.menu_se_picker_open {
                     egui::Window::new("Menu Sound Effect Picker")
                         .id(egui::Id::new("menu_se_picker"))
