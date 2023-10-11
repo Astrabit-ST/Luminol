@@ -53,7 +53,13 @@ where
             ) -> Result<(), Error> {
                 for entry in fs.read_dir(path)? {
                     f(entry.path());
-                    if !entry.metadata().is_file {
+
+                    // In web builds, RTPs are currently to be placed in the "RTP" subdirectory of
+                    // the project root directory, so this is to avoid loading the contents of
+                    // those directories twice
+                    let skip = matches!(entry.path().iter().nth_back(1), Some("RTP"));
+
+                    if !skip && !entry.metadata().is_file {
                         internal(fs, entry.path(), f)?;
                     }
                 }
