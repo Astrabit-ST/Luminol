@@ -234,8 +234,11 @@ impl FileSystemTrait for FileSystem {
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-        flags: OpenFlags,
+        mut flags: OpenFlags,
     ) -> Result<Self::File<'_>, Error> {
+        if flags.contains(OpenFlags::Truncate) || flags.contains(OpenFlags::Create) {
+            flags |= OpenFlags::Write;
+        }
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirOpenFile(
