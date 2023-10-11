@@ -44,7 +44,7 @@ pub struct FileSystemCommand(FileSystemCommandInner);
 #[derive(Debug)]
 enum FileSystemCommandInner {
     Supported(oneshot::Sender<bool>),
-    Metadata(
+    DirEntryMetadata(
         usize,
         camino::Utf8PathBuf,
         oneshot::Sender<Result<Metadata, Error>>,
@@ -63,7 +63,7 @@ enum FileSystemCommandInner {
         OpenFlags,
         oneshot::Sender<Result<usize, Error>>,
     ),
-    DirExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
+    DirEntryExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
     DirCreateDir(
         usize,
         camino::Utf8PathBuf,
@@ -251,7 +251,7 @@ impl FileSystemTrait for FileSystem {
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::Metadata(
+            .send(FileSystemCommand(FileSystemCommandInner::DirEntryMetadata(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
@@ -271,7 +271,7 @@ impl FileSystemTrait for FileSystem {
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirExists(
+            .send(FileSystemCommand(FileSystemCommandInner::DirEntryExists(
                 self.key,
                 path.as_ref().to_path_buf(),
                 oneshot_tx,
@@ -469,14 +469,14 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                 );
                 return;
             };
-            tracing::debug!("Main thread received FS command: {:?}", command,);
+            tracing::debug!("Main thread received FS command: {:?}", command.0);
 
             match command.0 {
                 FileSystemCommandInner::Supported(oneshot_tx) => {
                     oneshot_tx.send(bindings::filesystem_supported()).unwrap();
                 }
 
-                FileSystemCommandInner::Metadata(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirEntryMetadata(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(name) = iter.next_back() else {
                         oneshot_tx
@@ -711,7 +711,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     }
                 }
 
-                FileSystemCommandInner::DirExists(key, path, oneshot_tx) => {
+                FileSystemCommandInner::DirEntryExists(key, path, oneshot_tx) => {
                     let mut iter = path.iter();
                     let Some(name) = iter.next_back() else {
                         oneshot_tx.send(true).unwrap();
