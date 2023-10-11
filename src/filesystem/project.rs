@@ -310,6 +310,7 @@ impl FileSystem {
                 if let Ok(exists) = dir.exists(&path) {
                     if exists {
                         paths.push(path);
+                        continue;
                     }
                 }
 
