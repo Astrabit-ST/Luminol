@@ -889,9 +889,11 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: mpsc::UnboundedReceiver<FileSy
                     let entry_iter = bindings::dir_values(&subdir);
                     let mut vec = Vec::new();
                     loop {
-                        let entry = to_future::<js_sys::IteratorNext>(entry_iter.next().unwrap())
-                            .await
-                            .unwrap();
+                        let Ok(entry) =
+                            to_future::<js_sys::IteratorNext>(entry_iter.next().unwrap()).await
+                        else {
+                            break;
+                        };
                         if entry.done() {
                             break;
                         }
