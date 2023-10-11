@@ -53,6 +53,9 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+/// Embedded icon 256x256 in size.
+const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
+
 mod app;
 mod lumi;
 mod steam;
@@ -112,9 +115,11 @@ fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    color_eyre::install().expect("failed to setup eyre hooks");
+    color_backtrace::BacktracePrinter::new()
+        .verbosity(color_backtrace::Verbosity::Full)
+        .install(color_backtrace::default_output_stream());
 
-    let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");
+    let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
     let native_options = eframe::NativeOptions {
         drag_and_drop_support: true,
@@ -122,7 +127,7 @@ fn main() {
         icon_data: Some(eframe::IconData {
             width: image.width(),
             height: image.height(),
-            rgba: image.into_bytes(),
+            rgba: image.to_rgba8().into_vec(),
         }),
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
             supported_backends: eframe::wgpu::util::backend_bits_from_env()

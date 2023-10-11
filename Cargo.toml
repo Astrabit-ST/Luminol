@@ -1,36 +1,6 @@
-[package]
-name = "luminol"
-version = "0.4.0"
-authors = [
-    "Lily Lyons <lily@nowaffles.com>",
-    "Egor Poleshko <somedevfox@gmail.com>",
-]
-edition = "2021"
-rust-version = "1.62"
-description = "Luminol is a FOSS recreation of RPG Maker XP in Rust with love ❤️"
-license = "GPL-3.0"
-readme = "README.md"
-repository = "https://github.com/Speak2Erase/Luminol"
-keywords = ["gamedev", "rpg", "rpg-maker"]
-categories = ["games"]
-build = "build.rs"
-
-
 [workspace]
-members = [
-    "crates/luminol-audio",
-    "crates/luminol-components",
-    "crates/luminol-config",
-    "crates/luminol-core",
-    "crates/luminol-data",
-    "crates/luminol-filesystem",
-    "crates/luminol-graphics",
-    "crates/luminol-modals",
-    "crates/luminol-macros",
-    "crates/luminol-tabs",
-    "crates/luminol-term",
-    "crates/luminol-windows",
-]
+members = ["crates/*"]
+resolver = "2"
 
 [workspace.dependencies]
 egui = "0.22.0"
@@ -45,6 +15,8 @@ eframe = { version = "0.22.0", features = [
 egui-wgpu = "0.22.0"
 
 wgpu = "0.16.3"
+
+image = "0.24.7"
 
 serde = { version = "1.0", features = ["derive"] }
 alox-48 = "0.4.1"
@@ -76,30 +48,6 @@ slab = { version = "0.4.9", features = ["serde"] }
 itertools = "0.11.0"
 
 rfd = "0.12.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-eframe.workspace = true
-egui.workspace = true
-
-rfd.workspace = true
-
-parking_lot.workspace = true
-once_cell.workspace = true
-
-steamworks = { version = "0.10.0", optional = true }
-crc = { version = "3.0.1", optional = true }
-
-[features]
-steamworks = ["dep:steamworks", "crc"]
-
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
-
-[package.metadata.winres]
-OriginalFilename = "Luminol.exe"
-ProductName = "Luminol"
 
 # Fast and performant.
 [profile.release]
@@ -140,7 +88,6 @@ opt-level = 3
 
 # See why config is set up this way.
 # https://bevy-cheatbook.github.io/pitfalls/performance.html#why-not-use---release
-
 
 [patch.crates-io]
 # We need this for rodio to work in WebAssembly until

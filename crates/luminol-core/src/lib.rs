@@ -35,9 +35,6 @@ pub mod tab;
 /// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
 pub mod filesystem;
 
-/// Embedded icon 256x256 in size.
-pub const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
-
 #[allow(missing_docs)]
 #[derive(Default)]
 pub struct ToolbarState {
