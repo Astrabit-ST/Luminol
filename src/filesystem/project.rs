@@ -443,7 +443,7 @@ impl FileSystem {
 
         *self.state.borrow_mut() = State::Loaded {
             filesystem: path_cache,
-            project_path: entry.path.clone(),
+            project_path: root_path.clone(),
         };
 
         if let Some(idb_key) = idb_key {
