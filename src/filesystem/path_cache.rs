@@ -51,14 +51,13 @@ where
                 path: impl AsRef<camino::Utf8Path>,
                 f: &mut impl FnMut(&camino::Utf8Path),
             ) -> Result<(), Error> {
+                // In web builds, RTPs are currently to be placed in the "RTP" subdirectory of
+                // the project root directory, so this is to avoid loading the contents of
+                // those directories twice
+                let skip = matches!(path.as_ref().iter().next_back(), Some("RTP"));
+
                 for entry in fs.read_dir(path)? {
                     f(entry.path());
-
-                    // In web builds, RTPs are currently to be placed in the "RTP" subdirectory of
-                    // the project root directory, so this is to avoid loading the contents of
-                    // those directories twice
-                    let skip = matches!(entry.path().iter().nth_back(1), Some("RTP"));
-
                     if !skip && !entry.metadata().is_file {
                         internal(fs, entry.path(), f)?;
                     }
