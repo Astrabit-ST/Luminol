@@ -37,13 +37,15 @@ pub struct TopBar {
 impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut crate::luminol::CustomFrame<'_>) {
         let state = state!();
         egui::widgets::global_dark_light_mode_switch(ui);
 
-        ui.checkbox(&mut self.fullscreen, "Fullscreen");
-
-        frame.set_fullscreen(self.fullscreen);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            ui.checkbox(&mut self.fullscreen, "Fullscreen");
+            frame.set_fullscreen(self.fullscreen);
+        }
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
             && state.filesystem.project_loaded();
@@ -95,10 +97,13 @@ impl TopBar {
                 }
             });
 
-            ui.separator();
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                ui.separator();
 
-            if ui.button("Quit").clicked() {
-                frame.close();
+                if ui.button("Quit").clicked() {
+                    frame.close();
+                }
             }
         });
 
@@ -175,42 +180,45 @@ impl TopBar {
             }
         });
 
-        ui.separator();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            ui.separator();
 
-        ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
-            if ui.button("Playtest").clicked() {
-                let mut cmd = luminol_term::CommandBuilder::new("steamshim");
-                cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
-
-                let result = crate::windows::console::Console::new(cmd).or_else(|_| {
-                    let mut cmd = luminol_term::CommandBuilder::new("game");
+            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
+                if ui.button("Playtest").clicked() {
+                    let mut cmd = luminol_term::CommandBuilder::new("steamshim");
                     cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
 
-                    crate::windows::console::Console::new(cmd)
-                });
+                    let result = crate::windows::console::Console::new(cmd).or_else(|_| {
+                        let mut cmd = luminol_term::CommandBuilder::new("game");
+                        cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
 
-                match result {
-                    Ok(w) => state.windows.add_window(w),
-                    Err(e) => state.toasts.error(format!(
-                        "error starting game (tried steamshim.exe and then game.exe): {e}"
-                    )),
+                        crate::windows::console::Console::new(cmd)
+                    });
+
+                    match result {
+                        Ok(w) => state.windows.add_window(w),
+                        Err(e) => state.toasts.error(format!(
+                            "error starting game (tried steamshim.exe and then game.exe): {e}"
+                        )),
+                    }
                 }
-            }
 
-            if ui.button("Terminal").clicked() {
-                #[cfg(windows)]
-                let shell = "powershell";
-                #[cfg(unix)]
-                let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
-                let mut cmd = luminol_term::CommandBuilder::new(shell);
-                cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
+                if ui.button("Terminal").clicked() {
+                    #[cfg(windows)]
+                    let shell = "powershell";
+                    #[cfg(unix)]
+                    let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
+                    let mut cmd = luminol_term::CommandBuilder::new(shell);
+                    cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
 
-                match crate::windows::console::Console::new(cmd) {
-                    Ok(w) => state.windows.add_window(w),
-                    Err(e) => state.toasts.error(format!("error starting shell: {e}")),
+                    match crate::windows::console::Console::new(cmd) {
+                        Ok(w) => state.windows.add_window(w),
+                        Err(e) => state.toasts.error(format!("error starting shell: {e}")),
+                    }
                 }
-            }
-        });
+            });
+        }
 
         ui.separator();
 

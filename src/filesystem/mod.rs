@@ -24,6 +24,9 @@ pub mod project;
 
 mod archiver;
 
+#[cfg(target_arch = "wasm32")]
+pub mod web;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("File or directory does not exist")]

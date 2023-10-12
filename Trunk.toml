@@ -1,0 +1,14 @@
+[build]
+filehash = false
+inject_scripts = false
+
+[watch]
+ignore = [".cargo"]
+
+[[hooks]]
+stage = "pre_build"
+command = "./hooks/trunk_enable_build_std_pre.sh"
+
+[[hooks]]
+stage = "build"
+command = "./hooks/trunk_enable_build_std.sh"

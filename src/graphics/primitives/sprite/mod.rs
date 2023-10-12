@@ -29,6 +29,7 @@ pub struct Sprite {
     pub graphic: graphic::Graphic,
     pub vertices: vertices::Vertices,
     pub blend_mode: BlendMode,
+    pub use_push_constants: bool,
 }
 
 impl Sprite {
@@ -38,15 +39,17 @@ impl Sprite {
         blend_mode: BlendMode,
         hue: i32,
         opacity: i32,
+        use_push_constants: bool,
     ) -> Self {
         let vertices = vertices::Vertices::from_quads(&[quad], texture.size());
-        let graphic = graphic::Graphic::new(hue, opacity);
+        let graphic = graphic::Graphic::new(hue, opacity, use_push_constants);
 
         Self {
             texture,
             graphic,
             vertices,
             blend_mode,
+            use_push_constants,
         }
     }
 
@@ -66,11 +69,19 @@ impl Sprite {
         viewport: &primitives::Viewport,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        shader::Shader::bind(self.blend_mode, render_pass);
-        render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());
-        render_pass.set_push_constants(wgpu::ShaderStages::FRAGMENT, 64, &self.graphic.as_bytes());
+        shader::Shader::bind(self.blend_mode, self.use_push_constants, render_pass);
+
+        if self.use_push_constants {
+            render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());
+            render_pass.set_push_constants(
+                wgpu::ShaderStages::FRAGMENT,
+                64,
+                &self.graphic.as_bytes(),
+            );
+        }
 
         self.texture.bind(render_pass);
+        self.graphic.bind(render_pass);
         self.vertices.draw(render_pass);
     }
 }

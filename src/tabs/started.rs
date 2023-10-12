@@ -96,24 +96,53 @@ impl tab::Tab for Tab {
             ui.heading("Recent");
 
             for path in &global_config!().recent_projects {
+                #[cfg(target_arch = "wasm32")]
+                let (path, idb_key) = path;
+
                 if ui.button(path).clicked() {
                     let path = path.clone();
+                    #[cfg(target_arch = "wasm32")]
+                    let idb_key = idb_key.clone();
 
-                    self.load_project_promise = Some(Promise::spawn_local(async move {
-                        if let Err(why) = state.filesystem.load_project(path) {
-                            state
-                                .toasts
-                                .error(format!("Error loading the project: {why}"));
-                        } else {
-                            state!().toasts.info(format!(
-                                "Successfully opened {:?}",
-                                state!()
-                                    .filesystem
-                                    .project_path()
-                                    .expect("project not open")
-                            ));
-                        }
-                    }));
+                    self.load_project_promise =
+                        Some(Promise::spawn_local(async move {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            let result = state.filesystem.load_project(path);
+
+                            #[cfg(target_arch = "wasm32")]
+                            let result =
+                                match filesystem::web::FileSystem::from_idb_key(idb_key.clone())
+                                    .await
+                                {
+                                    Some(dir) => {
+                                        let idb_key = dir.idb_key().map(|k| k.to_string());
+                                        if let Err(e) = state.filesystem.load_project(dir) {
+                                            if let Some(idb_key) = idb_key {
+                                                filesystem::web::FileSystem::idb_drop(idb_key);
+                                            }
+                                            Err(e)
+                                        } else {
+                                            Ok(())
+                                        }
+                                    }
+                                    None => Err("Could not restore project handle from IndexedDB"
+                                        .to_string()),
+                                };
+
+                            if let Err(why) = result {
+                                state
+                                    .toasts
+                                    .error(format!("Error loading the project: {why}"));
+                            } else {
+                                state!().toasts.info(format!(
+                                    "Successfully opened {:?}",
+                                    state!()
+                                        .filesystem
+                                        .project_path()
+                                        .expect("project not open")
+                                ));
+                            }
+                        }));
                 }
             }
         }

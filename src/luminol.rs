@@ -25,6 +25,49 @@
 use crate::lumi::Lumi;
 use crate::prelude::*;
 
+/// Custom implementation of `eframe::Frame` for Luminol.
+/// We need this because the normal `eframe::App` uses a struct with private fields in its
+/// definition of `update()`, and that prevents us from implementing custom app runners.
+pub struct CustomFrame<'a>(
+    #[cfg(not(target_arch = "wasm32"))] pub &'a mut eframe::Frame,
+    #[cfg(target_arch = "wasm32")] pub std::marker::PhantomData<&'a ()>,
+);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::Deref for CustomFrame<'_> {
+    type Target = eframe::Frame;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::DerefMut for CustomFrame<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
+/// Custom implementation of `eframe::App` for Luminol.
+/// We need this because the normal `eframe::App` uses a struct with private fields in its
+/// definition of `update()`, and that prevents us from implementing custom app runners.
+pub trait CustomApp
+where
+    Self: eframe::App,
+{
+    fn custom_update(&mut self, ctx: &egui::Context, frame: &mut CustomFrame<'_>);
+}
+
+#[macro_export]
+macro_rules! app_use_custom_update {
+    () => {
+        fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+            #[cfg(not(target_arch = "wasm32"))]
+            self.custom_update(ctx, &mut CustomFrame(frame))
+        }
+    };
+}
+
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct Luminol {
     top_bar: TopBar,
@@ -37,6 +80,7 @@ impl Luminol {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         try_load_path: Option<std::ffi::OsString>,
+        #[cfg(target_arch = "wasm32")] audio_wrapper: crate::audio::AudioWrapper,
     ) -> Self {
         let storage = cc.storage.unwrap();
 
@@ -47,7 +91,11 @@ impl Luminol {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
-        let info = State::new(cc.wgpu_render_state.clone().unwrap());
+        let info = State::new(
+            cc.wgpu_render_state.clone().unwrap(),
+            #[cfg(target_arch = "wasm32")]
+            audio_wrapper,
+        );
         crate::set_state(info);
 
         #[cfg(not(debug_assertions))]
@@ -93,6 +141,7 @@ impl Luminol {
                 std::process::abort();
             }));
 
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
             state!()
                 .filesystem
@@ -109,18 +158,14 @@ impl Luminol {
     }
 }
 
-impl eframe::App for Luminol {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, "SavedState", &*global_config!());
-    }
-
+impl CustomApp for Luminol {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn custom_update(&mut self, ctx: &eframe::egui::Context, frame: &mut CustomFrame<'_>) {
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if let Err(e) = state!().filesystem.load_project(path) {
                     state!()
                         .toasts
@@ -160,12 +205,22 @@ impl eframe::App for Luminol {
         // Show toasts.
         state!().toasts.show(ctx);
 
+        #[cfg(not(target_arch = "wasm32"))]
         poll_promise::tick_local();
 
         self.lumi.ui(ctx);
 
         #[cfg(feature = "steamworks")]
         Steamworks::update()
+    }
+}
+
+impl eframe::App for Luminol {
+    app_use_custom_update!();
+
+    /// Called by the frame work to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, "SavedState", &*global_config!());
     }
 
     fn persist_egui_memory(&self) -> bool {

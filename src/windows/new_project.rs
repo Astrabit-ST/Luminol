@@ -239,21 +239,17 @@ impl Window {
 
         progress.zip_total.store(zip_url.len(), Ordering::Relaxed);
 
-        let zips = futures::future::join_all(zip_url.iter().map(|url|
-            // surf::get(format!("https://api.allorigins.win/raw?url={url}"))  FIXME: phishing scam, apparently
-            surf::get(url)
-            .middleware(surf::middleware::Redirect::new(10))))
-        .await;
+        let zips = futures::future::join_all(zip_url.iter().map(|url| reqwest::get(*url))).await;
 
         for (index, zip_response) in zips.into_iter().enumerate() {
             progress.zip_current.store(index, Ordering::Relaxed);
 
             progress.total_progress.store(0, Ordering::Relaxed);
-            let mut response =
+            let response =
                 zip_response.map_err(|e| format!("Error downloading {rgss_ver}: {e}"))?;
 
             let bytes = response
-                .body_bytes()
+                .bytes()
                 .await
                 .map_err(|e| format!("Error getting response body for {rgss_ver}: {e}"))?;
 

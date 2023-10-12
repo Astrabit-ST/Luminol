@@ -17,12 +17,12 @@
 
 pub use crate::prelude::*;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Map {
     resources: Arc<Resources>,
-    ani_instant: Instant,
+    ani_time: Option<f64>,
 
     pub fog_enabled: bool,
     pub pano_enabled: bool,
@@ -40,10 +40,14 @@ struct Resources {
 type ResourcesSlab = slab::Slab<Arc<Resources>>;
 
 impl Map {
-    pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<Self, String> {
+    pub fn new(
+        map: &rpg::Map,
+        tileset: &rpg::Tileset,
+        use_push_constants: bool,
+    ) -> Result<Self, String> {
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
-        let tiles = primitives::Tiles::new(atlas, &map.data);
+        let tiles = primitives::Tiles::new(atlas, &map.data, use_push_constants);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
@@ -56,6 +60,7 @@ impl Map {
                 255,
                 map.width,
                 map.height,
+                use_push_constants,
             ))
         } else {
             None
@@ -71,18 +76,22 @@ impl Map {
                 tileset.fog_opacity,
                 map.width,
                 map.height,
+                use_push_constants,
             ))
         } else {
             None
         };
-        let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
-            0.0,
-            map.width as f32 * 32.,
-            map.height as f32 * 32.,
-            0.0,
-            -1.0,
-            1.0,
-        ));
+        let viewport = primitives::Viewport::new(
+            glam::Mat4::orthographic_rh(
+                0.0,
+                map.width as f32 * 32.,
+                map.height as f32 * 32.,
+                0.0,
+                -1.0,
+                1.0,
+            ),
+            use_push_constants,
+        );
 
         Ok(Self {
             resources: Arc::new(Resources {
@@ -92,7 +101,7 @@ impl Map {
                 fog,
             }),
 
-            ani_instant: Instant::now(),
+            ani_time: None,
 
             fog_enabled: true,
             pano_enabled: true,
@@ -104,16 +113,26 @@ impl Map {
         self.resources.tiles.set_tile(tile_id, position);
     }
 
+    pub fn set_proj(&self, proj: glam::Mat4) {
+        self.resources.viewport.set_proj(proj);
+    }
+
     pub fn paint(
         &mut self,
         painter: &egui::Painter,
         selected_layer: Option<usize>,
         rect: egui::Rect,
     ) {
-        if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
-            self.ani_instant = Instant::now();
-            self.resources.tiles.autotiles.inc_ani_index();
+        let time = painter.ctx().input(|i| i.time);
+        if let Some(ani_time) = self.ani_time {
+            if time - ani_time >= 16. / 60. {
+                self.ani_time = Some(time);
+                self.resources.tiles.autotiles.inc_ani_index();
+            }
+        } else {
+            self.ani_time = Some(time);
         }
+
         painter
             .ctx()
             .request_repaint_after(Duration::from_millis(16));
@@ -149,6 +168,8 @@ impl Map {
                     fog,
                     ..
                 } = resources.as_ref();
+
+                viewport.bind(render_pass);
 
                 if pano_enabled {
                     if let Some(panorama) = panorama {

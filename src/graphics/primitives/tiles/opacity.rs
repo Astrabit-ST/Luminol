@@ -20,34 +20,20 @@ use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
-pub struct Graphic {
-    data: AtomicCell<Data>,
-    uniform: Option<GraphicUniform>,
+pub struct Opacity {
+    data: AtomicCell<[f32; 4]>, // length has to be a multiple of 4
+    uniform: Option<OpacityUniform>,
 }
 
 #[derive(Debug)]
-struct GraphicUniform {
+struct OpacityUniform {
     buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Data {
-    hue: f32,
-    opacity: f32,
-    opacity_multiplier: f32,
-}
-
-impl Graphic {
-    pub fn new(hue: i32, opacity: i32, use_push_constants: bool) -> Self {
-        let hue = (hue % 360) as f32 / 360.0;
-        let opacity = opacity as f32 / 255.;
-        let data = Data {
-            hue,
-            opacity,
-            opacity_multiplier: 1.,
-        };
+impl Opacity {
+    pub fn new(use_push_constants: bool) -> Self {
+        let opacity = [1.; 4];
 
         let uniform = if !use_push_constants {
             let render_state = &state!().render_state;
@@ -55,77 +41,42 @@ impl Graphic {
                 render_state
                     .device
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("tilemap sprite graphic buffer"),
-                        contents: bytemuck::cast_slice(&[data]),
-                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                        label: Some("tilemap opacity buffer"),
+                        contents: bytemuck::cast_slice(&[opacity]),
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                     });
             let bind_group = render_state
                 .device
                 .create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("tilemap sprite graphic bind group"),
+                    label: Some("tilemap opacity bind group"),
                     layout: &LAYOUT,
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: buffer.as_entire_binding(),
                     }],
                 });
-            Some(GraphicUniform { buffer, bind_group })
+            Some(OpacityUniform { buffer, bind_group })
         } else {
             None
         };
 
         Self {
-            data: AtomicCell::new(data),
+            data: AtomicCell::new(opacity),
             uniform,
         }
     }
 
-    pub fn hue(&self) -> i32 {
-        (self.data.load().hue * 360.) as i32
+    pub fn opacity(&self, layer: usize) -> f32 {
+        self.data.load()[layer]
     }
 
-    pub fn set_hue(&self, hue: i32) {
-        let hue = (hue % 360) as f32 / 360.0;
-        let data = self.data.load();
-
-        if data.hue != hue {
-            self.data.store(Data { hue, ..data });
+    pub fn set_opacity(&self, layer: usize, opacity: f32) {
+        let mut data = self.data.load();
+        if data[layer] != opacity {
+            data[layer] = opacity;
+            self.data.store(data);
             self.regen_buffer();
         }
-    }
-
-    pub fn opacity(&self) -> i32 {
-        (self.data.load().opacity * 255.) as i32
-    }
-
-    pub fn set_opacity(&self, opacity: i32) {
-        let opacity = opacity as f32 / 255.0;
-        let data = self.data.load();
-
-        if data.opacity != opacity {
-            self.data.store(Data { opacity, ..data });
-            self.regen_buffer();
-        }
-    }
-
-    pub fn opacity_multiplier(&self) -> f32 {
-        self.data.load().opacity_multiplier
-    }
-
-    pub fn set_opacity_multiplier(&self, opacity_multiplier: f32) {
-        let data = self.data.load();
-
-        if data.opacity_multiplier != opacity_multiplier {
-            self.data.store(Data {
-                opacity_multiplier,
-                ..data
-            });
-            self.regen_buffer();
-        }
-    }
-
-    pub fn as_bytes(&self) -> [u8; std::mem::size_of::<Data>()] {
-        bytemuck::cast(self.data.load())
     }
 
     fn regen_buffer(&self) {
@@ -141,7 +92,7 @@ impl Graphic {
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
         if let Some(uniform) = &self.uniform {
-            render_pass.set_bind_group(2, &uniform.bind_group, &[]);
+            render_pass.set_bind_group(3, &uniform.bind_group, &[]);
         }
     }
 
@@ -166,6 +117,6 @@ static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
                 },
                 count: None,
             }],
-            label: Some("tilemap sprite graphic bind group layout"),
+            label: Some("tilemap opacity bind group layout"),
         })
 });

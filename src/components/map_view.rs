@@ -28,7 +28,9 @@ pub struct MapView {
     pub pan: egui::Vec2,
     pub inter_tile_pan: egui::Vec2,
 
-    pub events: rmxp_types::OptionVec<Event>,
+    /// The first sprite is for drawing on the tilemap,
+    /// and the second sprite is for the hover preview.
+    pub events: rmxp_types::OptionVec<(Event, Event)>,
     pub map: Map,
 
     pub selected_layer: SelectedLayer,
@@ -61,14 +63,33 @@ impl MapView {
     pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<MapView, String> {
         // Get tilesets.
 
+        let use_push_constants = state!()
+            .render_state
+            .device
+            .features()
+            .contains(wgpu::Features::PUSH_CONSTANTS);
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
         let events = map
             .events
             .iter()
-            .map(|(id, e)| Event::new(e, &atlas).map(|o| o.map(|e| (id, e))))
+            .map(|(id, e)| {
+                let sprite = Event::new(e, &atlas, use_push_constants);
+                let preview_sprite = Event::new(e, &atlas, use_push_constants);
+                let Ok(sprite) = sprite else {
+                    return Err(sprite.unwrap_err());
+                };
+                let Ok(preview_sprite) = preview_sprite else {
+                    return Err(preview_sprite.unwrap_err());
+                };
+                Ok(if let Some(sprite) = sprite {
+                    preview_sprite.map(|preview_sprite| (id, (sprite, preview_sprite)))
+                } else {
+                    None
+                })
+            })
             .flatten_ok()
             .try_collect()?;
-        let map = Map::new(map, tileset)?;
+        let map = Map::new(map, tileset, use_push_constants)?;
 
         Ok(Self {
             visible_display: false,
@@ -207,6 +228,18 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
+        let proj_center_x = width2 * 32. - self.pan.x / scale;
+        let proj_center_y = height2 * 32. - self.pan.y / scale;
+        let proj_width2 = canvas_rect.width() / scale / 2.;
+        let proj_height2 = canvas_rect.height() / scale / 2.;
+        self.map.set_proj(glam::Mat4::orthographic_rh(
+            proj_center_x - proj_width2,
+            proj_center_x + proj_width2,
+            proj_center_y + proj_height2,
+            proj_center_y - proj_height2,
+            -1.,
+            1.,
+        ));
         self.map.paint(
             ui.painter(),
             match self.selected_layer {
@@ -216,7 +249,7 @@ impl MapView {
                 }
                 SelectedLayer::Tiles(_) => None,
             },
-            map_rect,
+            canvas_rect,
         );
 
         ui.painter().rect_stroke(
@@ -256,14 +289,14 @@ impl MapView {
             let mut selected_event_rects = None;
 
             for (_, event) in map.events.iter() {
-                let sprite = self.events.get(event.id);
-                let event_size = sprite
-                    .map(|e| e.sprite_size)
+                let sprites = self.events.get(event.id);
+                let event_size = sprites
+                    .map(|e| e.0.sprite_size)
                     .unwrap_or(egui::vec2(32., 32.));
                 let scaled_event_size = event_size * scale;
 
                 // Darken the graphic if required
-                if let Some(sprite) = sprite {
+                if let Some((sprite, _)) = sprites {
                     sprite.sprite().graphic.set_opacity_multiplier(
                         if self.darken_unselected_layers
                             && !matches!(self.selected_layer, SelectedLayer::Events)
@@ -289,8 +322,18 @@ impl MapView {
                     scaled_event_size,
                 );
 
-                if let Some(sprite) = sprite {
-                    sprite.paint(ui.painter(), box_rect);
+                if let Some((sprite, _)) = sprites {
+                    let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
+                    let y = event.y as f32 * 32. + (32. - event_size.y);
+                    sprite.set_proj(glam::Mat4::orthographic_rh(
+                        proj_center_x - proj_width2 - x,
+                        proj_center_x + proj_width2 - x,
+                        proj_center_y + proj_height2 - y,
+                        proj_center_y - proj_height2 - y,
+                        -1.,
+                        1.,
+                    ));
+                    sprite.paint(ui.painter(), canvas_rect);
                 }
 
                 if matches!(self.selected_layer, SelectedLayer::Events)
@@ -341,8 +384,10 @@ impl MapView {
                                 event_size * ui.ctx().pixels_per_point(),
                                 egui::Sense::click(),
                             );
-                            if let Some(sprite) = sprite {
-                                sprite.paint(&painter, response.rect);
+                            if let Some((_, preview_sprite)) = sprites {
+                                if ui.ctx().screen_rect().contains_rect(response.rect) {
+                                    preview_sprite.paint(&painter, response.rect);
+                                }
                             }
                             match self.selected_event_id {
                                 Some(id) if id == event.id => ui.painter().rect_stroke(

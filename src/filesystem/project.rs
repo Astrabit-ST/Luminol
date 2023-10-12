@@ -19,6 +19,9 @@ use crate::prelude::*;
 use super::FileSystem as FileSystemTrait;
 use super::{archiver, host, list, path_cache, DirEntry, Error, Metadata, OpenFlags};
 
+#[cfg(target_arch = "wasm32")]
+use super::web;
+
 #[derive(Default)]
 pub struct FileSystem {
     state: AtomicRefCell<State>,
@@ -28,7 +31,10 @@ pub struct FileSystem {
 enum State {
     #[default]
     Unloaded,
+    #[cfg(not(target_arch = "wasm32"))]
     HostLoaded(host::FileSystem),
+    #[cfg(target_arch = "wasm32")]
+    HostLoaded(web::FileSystem),
     Loaded {
         filesystem: path_cache::FileSystem<list::FileSystem>,
         project_path: camino::Utf8PathBuf,
@@ -44,7 +50,10 @@ pub struct File<'fs> {
 }
 
 enum FileType<'fs> {
+    #[cfg(not(target_arch = "wasm32"))]
     Host(<host::FileSystem as FileSystemTrait>::File<'fs>),
+    #[cfg(target_arch = "wasm32")]
+    Host(<web::FileSystem as FileSystemTrait>::File<'fs>),
     Loaded(<path_cache::FileSystem<list::FileSystem> as FileSystemTrait>::File<'fs>),
 }
 
@@ -142,6 +151,7 @@ impl FileSystem {
         None
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
@@ -149,6 +159,26 @@ impl FileSystem {
             .await
         {
             self.load_project(path.path())
+        } else {
+            Err("Cancelled loading project".to_string())
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
+        if !web::FileSystem::filesystem_supported() {
+            return Err("Your browser does not support File System Access API".to_string());
+        }
+        if let Some(dir) = web::FileSystem::from_directory_picker().await {
+            let idb_key = dir.idb_key().map(|k| k.to_string());
+            if let Err(e) = self.load_project(dir) {
+                if let Some(idb_key) = idb_key {
+                    web::FileSystem::idb_drop(idb_key);
+                }
+                Err(e)
+            } else {
+                Ok(())
+            }
         } else {
             Err("Cancelled loading project".to_string())
         }
@@ -225,7 +255,7 @@ impl FileSystem {
         paths
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_arch = "wasm32")))]
     fn find_rtp_paths() -> Vec<camino::Utf8PathBuf> {
         let ini = game_ini!();
         let Some(section) = ini.section(Some("Game")) else {
@@ -260,6 +290,42 @@ impl FileSystem {
         paths
     }
 
+    #[cfg(target_arch = "wasm32")]
+    fn find_rtp_paths(dir: &web::FileSystem) -> Vec<camino::Utf8PathBuf> {
+        let ini = game_ini!();
+        let Some(section) = ini.section(Some("Game")) else {
+            return vec![];
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                if let Ok(exists) = dir.exists(&path) {
+                    if exists {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                state!()
+                    .toasts
+                    .warning(format!("Failed to find suitable path for the RTP {rtp}"));
+                state!()
+                    .toasts
+                    .info(format!("Please place the {rtp} RTP in the 'RTP/{rtp}' subdirectory in your project directory"));
+            }
+        }
+        paths
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_project(&self, project_path: impl AsRef<Path>) -> Result<(), String> {
         let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = original_path.parent().unwrap_or(original_path);
@@ -270,16 +336,28 @@ impl FileSystem {
 
         let mut list = list::FileSystem::new();
 
-        list.push(host::FileSystem::new(path));
+        let dir = host::FileSystem::new(path);
+        let archive = dir
+            .read_dir("")
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .find(|entry| {
+                entry.metadata.is_file
+                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+            })
+            .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .map(archiver::FileSystem::new)
+            .transpose()
+            .map_err(|e| e.to_string())?;
 
+        list.push(dir);
         for path in Self::find_rtp_paths() {
             list.push(host::FileSystem::new(path))
         }
-
-        match archiver::FileSystem::new(path) {
-            Ok(a) => list.push(a),
-            Err(Error::NotExist) => (),
-            Err(e) => return Err(e.to_string()),
+        if let Some(archive) = archive {
+            list.push(archive);
         }
 
         let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
@@ -297,6 +375,87 @@ impl FileSystem {
             .collect();
         projects.push_front(original_path.to_string());
         global_config!().recent_projects = projects;
+
+        if let Err(e) = state!().data_cache.load() {
+            *self.state.borrow_mut() = State::Unloaded;
+            return Err(e);
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn load_project(&self, dir: web::FileSystem) -> Result<(), String> {
+        let entries = dir.read_dir("").map_err(|e| e.to_string())?;
+        let Some(entry) = entries.iter().find(|e| {
+            if let Some(extension) = e.path.extension() {
+                e.metadata.is_file
+                    && (extension == "rxproj"
+                        || extension == "rvproj"
+                        || extension == "rvproj2"
+                        || extension == "lumproj")
+            } else {
+                false
+            }
+        }) else {
+            return Err("Invalid project folder".to_string());
+        };
+
+        *self.state.borrow_mut() = State::HostLoaded(dir);
+        config::Project::load()?;
+        let State::HostLoaded(dir) =
+            std::mem::replace(&mut *self.state.borrow_mut(), State::Unloaded)
+        else {
+            unreachable!();
+        };
+
+        let root_path = dir.root_path().to_path_buf();
+        let idb_key = dir.idb_key().map(|k| k.to_string());
+
+        let mut list = list::FileSystem::new();
+
+        let paths = Self::find_rtp_paths(&dir);
+
+        let archive = dir
+            .read_dir("")
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .find(|entry| {
+                entry.metadata.is_file
+                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+            })
+            .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .map(archiver::FileSystem::new)
+            .transpose()
+            .map_err(|e| e.to_string())?;
+
+        list.push(dir);
+        for path in paths {
+            list.push(host::FileSystem::new(path))
+        }
+        if let Some(archive) = archive {
+            list.push(archive);
+        }
+
+        let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
+
+        *self.state.borrow_mut() = State::Loaded {
+            filesystem: path_cache,
+            project_path: root_path.clone(),
+        };
+
+        if let Some(idb_key) = idb_key {
+            let mut projects: std::collections::VecDeque<_> = global_config!()
+                .recent_projects
+                .iter()
+                .filter(|(_, k)| k.as_str() != idb_key.as_str())
+                .cloned()
+                .collect();
+            projects.push_front((root_path.join(&entry.path).to_string(), idb_key));
+            global_config!().recent_projects = projects;
+        }
 
         if let Err(e) = state!().data_cache.load() {
             *self.state.borrow_mut() = State::Unloaded;

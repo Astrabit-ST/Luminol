@@ -16,8 +16,11 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::prelude::*;
 
+use super::autotiles::Autotiles;
 use super::instance::Instances;
-use primitives::Vertex;
+use super::opacity::Opacity;
+use const_format::str_replace;
+use primitives::{Vertex, Viewport};
 
 #[derive(Debug)]
 pub struct Shader {
@@ -25,18 +28,58 @@ pub struct Shader {
 }
 
 impl Shader {
-    fn new() -> Self {
+    fn new(use_push_constants: bool) -> Self {
         let render_state = &state!().render_state;
 
-        let shader_module = render_state
-            .device
-            .create_shader_module(wgpu::include_wgsl!("tilemap.wgsl"));
+        let shader_module = if use_push_constants {
+            render_state
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("tilemap.wgsl (push constants)"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        str_replace!(
+                            str_replace!(
+                                concat!(
+                                    include_str!("tilemap_header_push_constants.wgsl"),
+                                    include_str!("tilemap.wgsl"),
+                                ),
+                                "FRAGMENT_OPACITY",
+                                "HOST.opacity"
+                            ),
+                            "HOST.",
+                            "push_constants."
+                        )
+                        .into(),
+                    ),
+                })
+        } else {
+            render_state
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("tilemap.wgsl (uniforms)"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        str_replace!(
+                            str_replace!(
+                                concat!(
+                                    include_str!("tilemap_header_uniforms.wgsl"),
+                                    include_str!("tilemap.wgsl"),
+                                ),
+                                "FRAGMENT_OPACITY",
+                                "HOST.opacity[input.layer / 4u][input.layer % 4u]"
+                            ),
+                            "HOST.",
+                            ""
+                        )
+                        .into(),
+                    ),
+                })
+        };
 
-        let pipeline_layout =
+        let pipeline_layout = if use_push_constants {
             render_state
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Tilemap Render Pipeline Layout"),
+                    label: Some("Tilemap Render Pipeline Layout (push constants)"),
                     bind_group_layouts: &[image_cache::Cache::bind_group_layout()],
                     push_constant_ranges: &[
                         // Viewport + Autotiles
@@ -50,7 +93,22 @@ impl Shader {
                             range: (64 + 36)..(64 + 36 + 4),
                         },
                     ],
-                });
+                })
+        } else {
+            render_state
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Tilemap Render Pipeline Layout (uniforms)"),
+                    bind_group_layouts: &[
+                        image_cache::Cache::bind_group_layout(),
+                        Viewport::layout(),
+                        Autotiles::layout(),
+                        Opacity::layout(),
+                    ],
+                    push_constant_ranges: &[],
+                })
+        };
+
         let pipeline =
             render_state
                 .device
@@ -79,9 +137,14 @@ impl Shader {
         Self { pipeline }
     }
 
-    pub fn bind(render_pass: &mut wgpu::RenderPass<'_>) {
-        render_pass.set_pipeline(&TILEMAP_SHADER.pipeline)
+    pub fn bind(use_push_constants: bool, render_pass: &mut wgpu::RenderPass<'_>) {
+        if use_push_constants {
+            render_pass.set_pipeline(&TILEMAP_SHADER_PUSH_CONSTANTS.pipeline)
+        } else {
+            render_pass.set_pipeline(&TILEMAP_SHADER_UNIFORMS.pipeline)
+        }
     }
 }
 
-static TILEMAP_SHADER: Lazy<Shader> = Lazy::new(Shader::new);
+static TILEMAP_SHADER_PUSH_CONSTANTS: Lazy<Shader> = Lazy::new(|| Shader::new(true));
+static TILEMAP_SHADER_UNIFORMS: Lazy<Shader> = Lazy::new(|| Shader::new(false));

@@ -90,6 +90,10 @@ pub mod filesystem;
 /// The code for handling lumi, the friendly world machine!
 pub mod lumi;
 
+/// Utilities specific to WebAssembly builds of Luminol.
+#[cfg(target_arch = "wasm32")]
+pub mod web;
+
 #[cfg(feature = "steamworks")]
 pub mod steam;
 
@@ -130,8 +134,12 @@ pub struct State {
     pub windows: window::Windows,
     /// Tabs that are displayed.
     pub tabs: tabs::tab::Tabs<Box<dyn Tab + Send>>,
+    #[cfg(not(target_arch = "wasm32"))]
     /// Audio that's played.
     pub audio: audio::Audio,
+    #[cfg(target_arch = "wasm32")]
+    /// Audio that's played.
+    pub audio: audio::AudioWrapper,
     /// Toasts to be displayed.
     pub toasts: Toasts,
     pub render_state: egui_wgpu::RenderState,
@@ -143,7 +151,10 @@ static_assertions::assert_impl_all!(State: Send, Sync);
 
 impl State {
     /// Create a new UpdateInfo.
-    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
+    pub fn new(
+        render_state: egui_wgpu::RenderState,
+        #[cfg(target_arch = "wasm32")] audio_wrapper: audio::AudioWrapper,
+    ) -> Self {
         Self {
             filesystem: filesystem::project::FileSystem::default(),
             data_cache: data::Cache::default(),
@@ -151,7 +162,10 @@ impl State {
             atlas_cache: atlas::Cache::default(),
             windows: windows::window::Windows::default(),
             tabs: tab::Tabs::new("global_tabs", vec![Box::new(started::Tab::new())]),
+            #[cfg(not(target_arch = "wasm32"))]
             audio: audio::Audio::default(),
+            #[cfg(target_arch = "wasm32")]
+            audio: audio_wrapper,
             toasts: Toasts::default(),
             render_state,
             toolbar: AtomicRefCell::default(),

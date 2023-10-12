@@ -9,11 +9,6 @@ struct VertexOutput {
     @location(0) tex_coords: vec2<f32>,
 }
 
-struct PushConstants {
-    viewport: Viewport,
-    graphic: Graphic,
-}
-
 struct Viewport {
     proj: mat4x4<f32>,
 }
@@ -23,8 +18,6 @@ struct Graphic {
     opacity: f32,
     opacity_multiplier: f32,
 }
-
-var<push_constant> push_constants: PushConstants;
 
 @group(0) @binding(0)
 var t_diffuse: texture_2d<f32>;
@@ -39,8 +32,8 @@ fn rgb_to_hsv(c: vec3<f32>) -> vec3<f32> {
     let d = q.x - min(q.w, q.y);
 
     // Avoid divide - by - zero situations by adding a very tiny delta.
-	// Since we always deal with underlying 8 - Bit color values, this 
-    // should never mask a real value 
+    // Since we always deal with underlying 8 - Bit color values, this
+    // should never mask a real value
     let eps = 1.0e-10;
 
     return vec3<f32>(abs(q.z + (q.w - q.y) / (6.0 * d + eps)), d / (q.x + eps), q.x);
@@ -60,7 +53,7 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    var position = push_constants.viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
+    var position = HOST.viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
 
     out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;
@@ -69,15 +62,15 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    tex_sample.a *= push_constants.graphic.opacity * push_constants.graphic.opacity_multiplier;
+    tex_sample.a *= HOST.graphic.opacity * HOST.graphic.opacity_multiplier;
     if tex_sample.a <= 0. {
         discard;
     }
 
-    if push_constants.graphic.hue > 0.0 {
+    if HOST.graphic.hue > 0.0 {
         var hsv = rgb_to_hsv(tex_sample.rgb);
 
-        hsv.x += push_constants.graphic.hue;
+        hsv.x += HOST.graphic.hue;
         tex_sample = vec4<f32>(hsv_to_rgb(hsv), tex_sample.a);
     }
 

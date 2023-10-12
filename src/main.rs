@@ -25,6 +25,12 @@
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use luminol::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     #[cfg(feature = "steamworks")]
     if let Err(e) = luminol::steam::Steamworks::setup() {
@@ -116,6 +122,143 @@ fn main() {
         Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
     )
     .expect("failed to start luminol");
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {}
+
+#[cfg(target_arch = "wasm32")]
+const CANVAS_ID: &str = "luminol-canvas";
+
+#[cfg(target_arch = "wasm32")]
+struct WorkerData {
+    audio: luminol::audio::AudioWrapper,
+    prefers_color_scheme_dark: Option<bool>,
+    filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
+    output_tx: mpsc::UnboundedSender<luminol::web::WebWorkerRunnerOutput>,
+    event_rx: mpsc::UnboundedReceiver<egui::Event>,
+    custom_event_rx: mpsc::UnboundedReceiver<luminol::web::WebWorkerRunnerEvent>,
+}
+
+#[cfg(target_arch = "wasm32")]
+static WORKER_DATA: Lazy<AtomicRefCell<Option<WorkerData>>> =
+    Lazy::new(|| AtomicRefCell::new(None));
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn luminol_main_start() {
+    let (panic_tx, mut panic_rx) = mpsc::unbounded_channel::<()>();
+
+    wasm_bindgen_futures::spawn_local(async move {
+        if panic_rx.recv().await.is_some() {
+            let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
+        }
+    });
+
+    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
+    std::panic::set_hook(Box::new(move |info| {
+        luminol::web::web_worker_runner::panic_hook();
+
+        let report = panic.panic_report(info);
+        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+
+        let _ = panic_tx.send(());
+    }));
+
+    // Redirect tracing to console.log and friends:
+    tracing_wasm::set_as_global_default();
+
+    // Redirect log (currently used by egui) to tracing
+    tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
+
+    let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
+    let prefers_color_scheme_dark = window
+        .match_media("(prefers-color-scheme: dark)")
+        .unwrap()
+        .map(|x| x.matches());
+
+    let canvas = window
+        .document()
+        .expect("could not get `window.document` object (make sure you're running this in a web browser)")
+        .get_element_by_id(CANVAS_ID)
+        .expect(format!("could not find HTML element with ID '{CANVAS_ID}'").as_str())
+        .unchecked_into::<web_sys::HtmlCanvasElement>();
+    let offscreen_canvas = canvas
+        .transfer_control_to_offscreen()
+        .expect("could not transfer canvas control to offscreen");
+
+    if !luminol::web::bindings::cross_origin_isolated() {
+        tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");
+        return;
+    }
+
+    let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
+    let (output_tx, output_rx) = mpsc::unbounded_channel();
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
+    let (custom_event_tx, custom_event_rx) = mpsc::unbounded_channel();
+
+    filesystem::web::setup_main_thread_hooks(filesystem_rx);
+    luminol::web::web_worker_runner::setup_main_thread_hooks(
+        canvas,
+        event_tx.clone(),
+        custom_event_tx.clone(),
+        output_rx,
+    );
+
+    *WORKER_DATA.borrow_mut() = Some(WorkerData {
+        audio: luminol::audio::Audio::default().into(),
+        prefers_color_scheme_dark,
+        filesystem_tx,
+        output_tx,
+        event_rx,
+        custom_event_rx,
+    });
+
+    let mut worker_options = web_sys::WorkerOptions::new();
+    worker_options.name("luminol-primary");
+    worker_options.type_(web_sys::WorkerType::Module);
+    let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
+        .expect("failed to spawn web worker");
+
+    let message = js_sys::Array::new();
+    message.push(&JsValue::from("init"));
+    message.push(&wasm_bindgen::memory());
+    message.push(&offscreen_canvas);
+    let transfer = js_sys::Array::new();
+    transfer.push(&offscreen_canvas);
+    worker
+        .post_message_with_transfer(&message, &transfer)
+        .expect("failed to post message to web worker");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
+    let WorkerData {
+        audio,
+        prefers_color_scheme_dark,
+        filesystem_tx,
+        output_tx,
+        event_rx,
+        custom_event_rx,
+    } = WORKER_DATA.borrow_mut().take().unwrap();
+
+    filesystem::web::FileSystem::setup_filesystem_sender(filesystem_tx);
+
+    let web_options = eframe::WebOptions::default();
+
+    let runner = luminol::web::WebWorkerRunner::new(
+        Box::new(|cc| Box::new(luminol::Luminol::new(cc, None, audio))),
+        canvas,
+        web_options,
+        "astrabit.luminol",
+        prefers_color_scheme_dark,
+        Some(event_rx),
+        Some(custom_event_rx),
+        Some(output_tx),
+    )
+    .await;
+    runner.setup_render_hooks();
 }
 
 #[cfg(windows)]

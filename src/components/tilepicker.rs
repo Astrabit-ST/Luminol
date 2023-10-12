@@ -18,7 +18,7 @@ pub use crate::prelude::*;
 
 use slab::Slab;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Tilepicker {
@@ -30,7 +30,7 @@ pub struct Tilepicker {
     drag_origin: Option<egui::Pos2>,
 
     resources: Arc<Resources>,
-    ani_instant: Instant,
+    ani_time: Option<f64>,
 }
 
 #[derive(Debug)]
@@ -72,6 +72,11 @@ type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
     pub fn new(tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
+        let use_push_constants = state!()
+            .render_state
+            .device
+            .features()
+            .contains(wgpu::Features::PUSH_CONSTANTS);
         let atlas = state!().atlas_cache.load_atlas(tileset)?;
 
         let tilepicker_data = (47..(384 + 47))
@@ -85,20 +90,23 @@ impl Tilepicker {
             tilepicker_data,
         );
 
-        let viewport = primitives::Viewport::new(glam::Mat4::orthographic_rh(
-            0.0,
-            256.,
-            atlas.tileset_height as f32 + 32.,
-            0.0,
-            -1.0,
-            1.0,
-        ));
+        let viewport = primitives::Viewport::new(
+            glam::Mat4::orthographic_rh(
+                0.0,
+                256.,
+                atlas.tileset_height as f32 + 32.,
+                0.0,
+                -1.0,
+                1.0,
+            ),
+            use_push_constants,
+        );
 
-        let tiles = primitives::Tiles::new(atlas, &tilepicker_data);
+        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, use_push_constants);
 
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),
-            ani_instant: Instant::now(),
+            ani_time: None,
             selected_tiles_left: 0,
             selected_tiles_top: 0,
             selected_tiles_right: 0,
@@ -118,11 +126,17 @@ impl Tilepicker {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        if self.ani_instant.elapsed() >= Duration::from_secs_f32((1. / 60.) * 16.) {
-            self.ani_instant = Instant::now();
-            self.resources.tiles.autotiles.inc_ani_index();
+    pub fn ui(&mut self, ui: &mut egui::Ui, scroll_rect: egui::Rect) -> egui::Response {
+        let time = ui.ctx().input(|i| i.time);
+        if let Some(ani_time) = self.ani_time {
+            if time - ani_time >= 16. / 60. {
+                self.ani_time = Some(time);
+                self.resources.tiles.autotiles.inc_ani_index();
+            }
+        } else {
+            self.ani_time = Some(time);
         }
+
         ui.ctx().request_repaint_after(Duration::from_millis(16));
 
         let (canvas_rect, response) = ui.allocate_exact_size(
@@ -134,8 +148,16 @@ impl Tilepicker {
         let prepare_id = Arc::new(OnceCell::new());
         let paint_id = prepare_id.clone();
 
+        resources.viewport.set_proj(glam::Mat4::orthographic_rh(
+            scroll_rect.left(),
+            scroll_rect.right(),
+            scroll_rect.bottom(),
+            scroll_rect.top(),
+            -1.,
+            1.,
+        ));
         ui.painter().add(egui::PaintCallback {
-            rect: canvas_rect,
+            rect: scroll_rect.translate(canvas_rect.min.to_vec2()),
             callback: Arc::new(
                 egui_wgpu::CallbackFn::new()
                     .prepare(move |_, _, _encoder, paint_callback_resources| {
@@ -155,6 +177,7 @@ impl Tilepicker {
                             tiles, viewport, ..
                         } = resources.as_ref();
 
+                        viewport.bind(render_pass);
                         tiles.draw(viewport, &[true], None, render_pass);
                     }),
             ),
