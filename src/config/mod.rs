@@ -136,7 +136,10 @@ impl Project {
 
                 let mut ini_file = state!()
                     .filesystem
-                    .open_file("Game.ini", filesystem::OpenFlags::Create)
+                    .open_file(
+                        "Game.ini",
+                        filesystem::OpenFlags::Write | filesystem::OpenFlags::Create,
+                    )
                     .map_err(|e| e.to_string())?;
                 game_ini
                     .write_to(&mut ini_file)
