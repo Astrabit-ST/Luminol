@@ -187,8 +187,8 @@ ProductName = "Luminol"
 # Fast and performant.
 [profile.release]
 opt-level = 3
-lto = "fat"
-debug = true
+# lto = "fat"
+# debug = true
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]
