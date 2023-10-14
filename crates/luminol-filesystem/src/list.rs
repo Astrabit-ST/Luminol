@@ -16,8 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::erased::{ErasedFilesystem, File};
 
+use crate::{DirEntry, Error, Metadata, OpenFlags};
 use itertools::Itertools;
-use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Default)]
 pub struct FileSystem {
@@ -29,12 +29,12 @@ impl FileSystem {
         Self::default()
     }
 
-    pub fn push(&mut self, fs: impl luminol_core::filesystem::FileSystem + 'static) {
+    pub fn push(&mut self, fs: impl crate::FileSystem + 'static) {
         self.filesystems.push(Box::new(fs))
     }
 }
 
-impl luminol_core::filesystem::FileSystem for FileSystem {
+impl crate::FileSystem for FileSystem {
     type File<'fs> = Box<dyn File + 'fs> where Self: 'fs;
 
     fn open_file(

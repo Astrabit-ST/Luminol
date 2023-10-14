@@ -22,19 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-/// Floating windows to be displayed anywhere.
-pub mod window;
-
-/// Stack defined windows that edit values.
-pub mod modal;
-
-/// Tabs to be displayed in the center of Luminol.
-pub mod tab;
-
-/// Filesystem related structs.
-/// Swaps between filesystem_native and filesystem_wasm depending on the target arch.
-pub mod filesystem;
-
 #[allow(missing_docs)]
 #[derive(Default)]
 pub struct ToolbarState {

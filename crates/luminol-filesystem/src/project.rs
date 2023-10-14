@@ -15,9 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{archiver, host, list, path_cache};
-use luminol_core::filesystem::FileSystem as _;
-use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
+use crate::FileSystem as _;
+use crate::{archiver, host, list, path_cache};
+use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
 #[cfg(target_arch = "wasm32")]
 use super::web;
@@ -38,14 +38,10 @@ pub enum FileSystem {
 
 pub enum File<'fs> {
     #[cfg(not(target_arch = "wasm32"))]
-    Host(<host::FileSystem as luminol_core::filesystem::FileSystem>::File<'fs>),
+    Host(<host::FileSystem as crate::FileSystem>::File<'fs>),
     #[cfg(target_arch = "wasm32")]
-    Host(<web::FileSystem as luminol_core::filesystem::FileSystem>::File<'fs>),
-    Loaded(
-        <path_cache::FileSystem<list::FileSystem> as luminol_core::filesystem::FileSystem>::File<
-            'fs,
-        >,
-    ),
+    Host(<web::FileSystem as crate::FileSystem>::File<'fs>),
+    Loaded(<path_cache::FileSystem<list::FileSystem> as crate::FileSystem>::File<'fs>),
 }
 
 impl FileSystem {
@@ -53,45 +49,39 @@ impl FileSystem {
         Self::default()
     }
 
-    pub fn read_data<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<T, String>
+    pub fn read_data<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
     {
-        let data = self.read(path).map_err(|e| e.to_string())?;
+        let data = self.read(path)?;
 
-        alox_48::from_bytes(&data).map_err(|e| e.to_string())
+        Ok(alox_48::from_bytes(&data)?)
     }
 
-    pub fn read_nil_padded<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<T>, String>
+    pub fn read_nil_padded<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<T>>
     where
         T: serde::de::DeserializeOwned,
     {
-        let data = self.read(path).map_err(|e| e.to_string())?;
+        let data = self.read(path)?;
 
-        alox_48::Deserializer::new(&data)
-            .and_then(|mut de| luminol_data::nil_padded::deserialize(&mut de))
-            .map_err(|e| e.to_string())
+        Ok(alox_48::Deserializer::new(&data)
+            .and_then(|mut de| luminol_data::nil_padded::deserialize(&mut de))?)
     }
 
-    pub fn save_data<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &T) -> Result<(), String>
+    pub fn save_data<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &T) -> Result<()>
     where
         T: serde::ser::Serialize,
     {
-        self.write(path, alox_48::to_bytes(data).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())
+        self.write(path, alox_48::to_bytes(data)?)
     }
 
-    pub fn save_nil_padded<T>(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-        data: &[T],
-    ) -> Result<(), String>
+    pub fn save_nil_padded<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &[T]) -> Result<()>
     where
         T: serde::ser::Serialize,
     {
         let mut ser = alox_48::Serializer::new();
-        luminol_data::nil_padded::serialize(data, &mut ser).map_err(|e| e.to_string())?;
-        self.write(path, ser.output).map_err(|e| e.to_string())
+        luminol_data::nil_padded::serialize(data, &mut ser)?;
+        self.write(path, ser.output)
     }
 
     pub fn project_path(&self) -> Option<camino::Utf8PathBuf> {
@@ -115,7 +105,7 @@ impl FileSystem {
         &mut self,
         project_config: &mut Option<luminol_config::project::Config>,
         global_config: &mut luminol_config::global::Config,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
             .pick_file()
@@ -123,7 +113,7 @@ impl FileSystem {
         {
             self.load_project(project_config, global_config, path.path())
         } else {
-            Err("Cancelled loading project".to_string())
+            Err(Error::CancelledLoading)
         }
     }
 
@@ -286,41 +276,133 @@ impl FileSystem {
         paths
     }
 
+    fn detect_rm_ver(&self) -> Option<luminol_config::RMVer> {
+        if self.exists("Data/Actors.rxdata").ok()? {
+            return Some(luminol_config::RMVer::XP);
+        }
+
+        if self.exists("Data/Actors.rvdata").ok()? {
+            return Some(luminol_config::RMVer::VX);
+        }
+
+        if self.exists("Data/Actors.rvdata2").ok()? {
+            return Some(luminol_config::RMVer::Ace);
+        }
+
+        for path in self.read_dir("").ok()? {
+            let path = path.path();
+            if path.extension() == Some("rgssad") {
+                return Some(luminol_config::RMVer::XP);
+            }
+
+            if path.extension() == Some("rgss2a") {
+                return Some(luminol_config::RMVer::VX);
+            }
+
+            if path.extension() == Some("rgss3a") {
+                return Some(luminol_config::RMVer::Ace);
+            }
+        }
+
+        None
+    }
+
+    fn load_project_config(&self) -> Result<luminol_config::project::Config> {
+        if !self.exists(".luminol")? {
+            self.create_dir(".luminol")?;
+        }
+
+        let project = match self
+            .read_to_string(".luminol/config")
+            .ok()
+            .and_then(|s| ron::from_str(&s).ok())
+        {
+            Some(c) => c,
+            None => {
+                let Some(editor_ver) = self.detect_rm_ver() else {
+                    return Err(Error::UnableToDetectRMVer);
+                };
+                let config = luminol_config::project::Project {
+                    editor_ver,
+                    ..Default::default()
+                };
+                self.write(".luminol/config", ron::to_string(&config).unwrap())?;
+                config
+            }
+        };
+
+        let command_db = match self
+            .read_to_string(".luminol/commands")
+            .ok()
+            .and_then(|s| ron::from_str(&s).ok())
+        {
+            Some(c) => c,
+            None => {
+                let command_db = luminol_config::command_db::CommandDB::new(project.editor_ver);
+                self.write(".luminol/commands", ron::to_string(&command_db).unwrap())?;
+                command_db
+            }
+        };
+
+        let game_ini = match self
+            .read_to_string("Game.ini")
+            .ok()
+            .and_then(|i| ini::Ini::load_from_str_noescape(&i).ok())
+        {
+            Some(i) => i,
+            None => {
+                let mut ini = ini::Ini::new();
+                ini.with_section(Some("Game"))
+                    .set("Library", "RGSS104E.dll")
+                    .set("Scripts", &project.scripts_path)
+                    .set("Title", &project.project_name)
+                    .set("RTP1", "")
+                    .set("RTP2", "")
+                    .set("RTP3", "");
+
+                ini
+            }
+        };
+
+        Ok(luminol_config::project::Config {
+            project,
+            command_db,
+            game_ini,
+        })
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load_project(
         &mut self,
         project_config: &mut Option<luminol_config::project::Config>,
         global_config: &mut luminol_config::global::Config,
         project_path: impl AsRef<std::path::Path>,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
         let path = original_path.parent().unwrap_or(original_path);
 
         *self = FileSystem::HostLoaded(host::FileSystem::new(path));
 
-        let config = luminol_config::project::Config::load(self)?;
+        let config = self.load_project_config()?;
 
         let mut list = list::FileSystem::new();
 
         let dir = host::FileSystem::new(path);
         let archive = dir
-            .read_dir("")
-            .map_err(|e| e.to_string())?
+            .read_dir("")?
             .into_iter()
             .find(|entry| {
                 entry.metadata.is_file
                     && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
             })
             .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
-            .transpose()
-            .map_err(|e| e.to_string())?
+            .transpose()?
             .map(archiver::FileSystem::new)
-            .transpose()
-            .map_err(|e| e.to_string())?;
+            .transpose()?;
 
         list.push(dir);
         // FIXME: handle missing rtps
-        let (found_rtps, missing_rtps) = Self::find_rtp_paths(&config, &global_config);
+        let (found_rtps, missing_rtps) = Self::find_rtp_paths(&config, global_config);
         for path in found_rtps {
             list.push(host::FileSystem::new(path))
         }
@@ -328,7 +410,7 @@ impl FileSystem {
             list.push(archive);
         }
 
-        let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
+        let path_cache = path_cache::FileSystem::new(list)?;
 
         *self = FileSystem::Loaded {
             filesystem: path_cache,
@@ -518,14 +600,14 @@ impl<'fs> std::io::Seek for File<'fs> {
     }
 }
 
-impl luminol_core::filesystem::FileSystem for FileSystem {
+impl crate::FileSystem for FileSystem {
     type File<'fs> = File<'fs> where Self: 'fs;
 
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File<'_>, Error> {
+    ) -> Result<Self::File<'_>> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.open_file(path, flags).map(File::Host),
@@ -533,7 +615,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         }
     }
 
-    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.metadata(path),
@@ -545,7 +627,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         &self,
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.rename(from, to),
@@ -553,7 +635,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         }
     }
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.exists(path),
@@ -561,7 +643,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         }
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.create_dir(path),
@@ -569,7 +651,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         }
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.remove_dir(path),
@@ -577,7 +659,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         }
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.remove_file(path),
@@ -585,7 +667,7 @@ impl luminol_core::filesystem::FileSystem for FileSystem {
         }
     }
 
-    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.read_dir(path),

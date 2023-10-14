@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use luminol_core::filesystem::{DirEntry, Error, FileSystem, Metadata, OpenFlags};
+use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync {}
 impl<T> File for T where T: std::io::Read + std::io::Write + std::io::Seek + Send + Sync {}
@@ -51,7 +51,7 @@ pub trait ErasedFilesystem: Send + Sync {
 
 impl<T> ErasedFilesystem for T
 where
-    T: luminol_core::filesystem::FileSystem,
+    T: crate::FileSystem,
 {
     fn open_file(
         &self,
@@ -107,7 +107,7 @@ where
     }
 }
 
-impl luminol_core::filesystem::FileSystem for dyn ErasedFilesystem {
+impl crate::FileSystem for dyn ErasedFilesystem {
     type File<'fs> = Box<dyn File + 'fs> where Self: 'fs;
 
     fn open_file(

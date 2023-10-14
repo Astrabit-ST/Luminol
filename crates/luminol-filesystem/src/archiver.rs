@@ -18,7 +18,7 @@
 use itertools::Itertools;
 use std::io::{prelude::*, Cursor, SeekFrom};
 
-use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
+use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Default)]
 pub struct FileSystem<T>
@@ -27,7 +27,7 @@ where
 {
     files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
     directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
-    archive: Mutex<T>,
+    archive: parking_lot::Mutex<T>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -154,7 +154,7 @@ where
         Ok(FileSystem {
             files,
             directories,
-            archive: Mutex::new(file),
+            archive: parking_lot::Mutex::new(file),
         })
     }
 
@@ -234,7 +234,7 @@ impl std::io::Seek for File {
     }
 }
 
-impl<T> luminol_core::filesystem::FileSystem for FileSystem<T>
+impl<T> crate::FileSystem for FileSystem<T>
 where
     T: Read + Write + Seek + Send + Sync,
 {

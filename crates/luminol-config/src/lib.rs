@@ -54,38 +54,3 @@ pub enum RMVer {
     #[strum(to_string = "RPG Maker VX Ace")]
     Ace = 3,
 }
-
-impl RMVer {
-    pub fn detect_from_filesystem(
-        filesystem: &impl luminol_core::filesystem::FileSystem,
-    ) -> Option<Self> {
-        if filesystem.exists("Data/Actors.rxdata").ok()? {
-            return Some(RMVer::XP);
-        }
-
-        if filesystem.exists("Data/Actors.rvdata").ok()? {
-            return Some(RMVer::VX);
-        }
-
-        if filesystem.exists("Data/Actors.rvdata2").ok()? {
-            return Some(RMVer::Ace);
-        }
-
-        for path in filesystem.read_dir("").ok()? {
-            let path = path.path();
-            if path.extension() == Some("rgssad") {
-                return Some(RMVer::XP);
-            }
-
-            if path.extension() == Some("rgss2a") {
-                return Some(RMVer::VX);
-            }
-
-            if path.extension() == Some("rgss3a") {
-                return Some(RMVer::Ace);
-            }
-        }
-
-        None
-    }
-}

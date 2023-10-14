@@ -17,7 +17,7 @@
 use itertools::Itertools;
 use std::fs::File;
 
-use luminol_core::filesystem::{DirEntry, Error, Metadata, OpenFlags};
+use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Clone)]
 pub struct FileSystem {
@@ -36,7 +36,7 @@ impl FileSystem {
     }
 }
 
-impl luminol_core::filesystem::FileSystem for FileSystem {
+impl crate::FileSystem for FileSystem {
     type File<'fs> = File where Self: 'fs;
 
     fn open_file(

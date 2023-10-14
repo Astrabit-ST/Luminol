@@ -15,4 +15,4 @@ parking_lot.workspace = true
 camino.workspace = true
 once_cell.workspace = true
 
-luminol-core = { version = "0.1.0", path = "../luminol-core/" }
+luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }

@@ -15,5 +15,4 @@ ron.workspace = true
 
 once_cell.workspace = true
 
-luminol-core = { version = "0.1.0", path = "../luminol-core/" }
 luminol-data = { version = "0.1.0", path = "../luminol-data/" }
