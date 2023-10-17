@@ -19,5 +19,3 @@ slab.workspace = true
 strum.workspace = true
 paste.workspace = true
 camino.workspace = true
-
-luminol-core = { version = "0.1.0", path = "../luminol-core/" }

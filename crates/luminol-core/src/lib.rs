@@ -22,6 +22,39 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+mod tab;
+pub use tab::{Tab, Tabs};
+
+mod window;
+pub use window::{Window, Windows};
+
+pub mod modal;
+pub use modal::Modal;
+
+/// Toasts to be displayed for errors, information, etc.
+mod toasts;
+pub use toasts::Toasts;
+
+pub struct UpdateState<'res, W, T> {
+    pub audio: &'res mut luminol_audio::Audio,
+
+    pub graphics: &'res mut luminol_graphics::GraphicsState, // FIXME: certain functions were written with this being a static in mind
+    pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
+    pub data: &'res mut luminol_data::data_cache::Cache,
+
+    // TODO: look into std::any?
+    // we're using generics here to allow specialization on the type of window
+    // this is fucntionality not really used atm but maybe in the future..?
+    pub edit_windows: &'res mut window::EditWindows<W>,
+    pub edit_tabs: &'res mut tab::EditTabs<T>,
+    pub toasts: &'res mut toasts::Toasts,
+
+    pub project_config: &'res mut Option<luminol_config::project::Config>,
+    pub global_config: &'res mut luminol_config::global::Config,
+
+    pub toolbar: &'res mut ToolbarState,
+}
+
 #[allow(missing_docs)]
 #[derive(Default)]
 pub struct ToolbarState {
@@ -37,4 +70,42 @@ pub enum Pencil {
     Circle,
     Rectangle,
     Fill,
+}
+
+impl<'res, W, T> UpdateState<'res, W, T> {
+    pub(crate) fn reborrow_with_edit_window<'this, O>(
+        &'this mut self,
+        edit_windows: &'this mut window::EditWindows<O>,
+    ) -> UpdateState<'this, O, T> {
+        UpdateState {
+            audio: &mut *self.audio,
+            graphics: &mut *self.graphics,
+            filesystem: &mut *self.filesystem,
+            data: &mut *self.data,
+            edit_tabs: &mut *self.edit_tabs,
+            edit_windows,
+            toasts: &mut *self.toasts,
+            project_config: &mut *self.project_config,
+            global_config: &mut *self.global_config,
+            toolbar: &mut *self.toolbar,
+        }
+    }
+
+    pub(crate) fn reborrow_with_edit_tabs<'this, O>(
+        &'this mut self,
+        edit_tabs: &'this mut tab::EditTabs<O>,
+    ) -> UpdateState<'this, W, O> {
+        UpdateState {
+            audio: &mut *self.audio,
+            graphics: &mut *self.graphics,
+            filesystem: &mut *self.filesystem,
+            data: &mut *self.data,
+            edit_tabs,
+            edit_windows: &mut *self.edit_windows,
+            toasts: &mut *self.toasts,
+            project_config: &mut *self.project_config,
+            global_config: &mut *self.global_config,
+            toolbar: &mut *self.toolbar,
+        }
+    }
 }

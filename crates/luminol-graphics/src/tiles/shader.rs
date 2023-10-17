@@ -22,8 +22,12 @@ use const_format::str_replace;
 pub fn create_render_pipeline(
     render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &crate::BindGroupLayouts,
-    use_push_constants: bool,
 ) -> wgpu::RenderPipeline {
+    let use_push_constants = render_state
+        .device
+        .features()
+        .contains(wgpu::Features::PUSH_CONSTANTS);
+
     let shader_module = if use_push_constants {
         render_state
             .device

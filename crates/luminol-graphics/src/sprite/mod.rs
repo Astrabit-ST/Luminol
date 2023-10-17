@@ -16,8 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use std::sync::Arc;
 
-mod graphic;
-mod shader;
+pub(crate) mod graphic;
+pub(crate) mod shader;
 mod vertices;
 
 #[derive(Debug)]

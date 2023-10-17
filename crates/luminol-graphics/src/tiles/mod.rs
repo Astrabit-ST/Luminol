@@ -23,10 +23,10 @@ use opacity::Opacity;
 
 mod atlas;
 mod autotile_ids;
-mod autotiles;
+pub(crate) mod autotiles;
 mod instance;
-mod opacity;
-mod shader;
+pub(crate) mod opacity;
+pub(crate) mod shader;
 
 #[derive(Debug)]
 pub struct Tiles {

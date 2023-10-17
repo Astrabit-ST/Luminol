@@ -41,5 +41,5 @@ pub trait Modal: Sized {
     fn button(this: &mut Option<Self>, ui: &mut egui::Ui, data: &mut Self::Data) -> Self;
 
     /// Show this modal.
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, data: &mut Self::Data);
+    fn show(this: &mut Option<Self>, ctx: &egui::Context, data: &mut Self::Data);
 }

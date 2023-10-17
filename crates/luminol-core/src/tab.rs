@@ -39,10 +39,22 @@ pub struct EditTabs<T> {
 
 type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
 
-struct TabViewer<T: Tab> {
-    // we don't actually own any types of T, but we use them in TabViewer
-    // *const is used here to avoid needing lifetimes and to indicate to the drop checker that we don't own any types of T
-    marker: std::marker::PhantomData<*const T>,
+impl<T> Default for EditTabs<T> {
+    fn default() -> Self {
+        Self {
+            clean_fn: None,
+            added: Vec::new(),
+            removed: std::collections::HashSet::new(),
+        }
+    }
+}
+
+struct TabViewer<'a, 'res, W, T>
+where
+    T: Tab,
+{
+    // FIXME: variance
+    update_state: &'a mut crate::UpdateState<'res, W, T>,
 }
 
 impl<T> Tabs<T>
@@ -58,19 +70,16 @@ where
     }
 
     /// Display all tabs.
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let mut edit_tabs = EditTabs::<T> {
-            clean_fn: None,
-            added: Vec::new(),
-            removed: std::collections::HashSet::new(),
-        };
+    pub fn ui<W, O>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, O>) {
+        let mut edit_tabs = EditTabs::default();
+        let mut update_state = update_state.reborrow_with_edit_tabs(&mut edit_tabs);
 
         egui_dock::DockArea::new(&mut self.dock_state)
             .id(self.id)
             .show_inside(
                 ui,
                 &mut TabViewer {
-                    marker: std::marker::PhantomData::<*const T>,
+                    update_state: &mut update_state,
                 },
             );
 
@@ -139,7 +148,7 @@ where
     }
 }
 
-impl<T> egui_dock::TabViewer for TabViewer<T>
+impl<'a, 'res, W, T> egui_dock::TabViewer for TabViewer<'a, 'res, W, T>
 where
     T: Tab,
 {
@@ -150,7 +159,7 @@ where
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        ui.push_id(tab.id(), |ui| tab.show(ui));
+        ui.push_id(tab.id(), |ui| tab.show(ui, self.update_state));
     }
 
     fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
@@ -169,7 +178,7 @@ pub trait Tab {
     fn id(&self) -> egui::Id;
 
     /// Show this tab.
-    fn show(&mut self, ui: &mut egui::Ui);
+    fn show<W, T>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, T>);
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {
@@ -182,6 +191,8 @@ pub trait Tab {
     }
 }
 
+// FIXME: not object safe
+/*
 impl Tab for Box<dyn Tab + Send> {
     fn force_close(&mut self) -> bool {
         self.as_mut().force_close()
@@ -199,7 +210,15 @@ impl Tab for Box<dyn Tab + Send> {
         self.as_ref().requires_filesystem()
     }
 
-    fn show(&mut self, ui: &mut egui::Ui) {
-        self.as_mut().show(ui)
+    fn show<'res, W, T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut crate::UpdateState<'res, W, T>,
+    ) where
+        W: crate::Window,
+        T: Tab,
+    {
+        self.as_mut().show(ui, update_state)
     }
 }
+*/

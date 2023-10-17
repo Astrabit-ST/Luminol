@@ -53,3 +53,31 @@ pub struct Pipelines {
     sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
     tiles: wgpu::RenderPipeline,
 }
+
+impl GraphicsState {
+    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
+        let bind_group_layouts = BindGroupLayouts {
+            image_cache_texture: image_cache::create_bind_group_layout(&render_state),
+            viewport: viewport::create_bind_group_layout(&render_state),
+            sprite_graphic: sprite::graphic::create_bind_group_layout(&render_state),
+            atlas_autotiles: tiles::autotiles::create_bind_group_layout(&render_state),
+            tile_layer_opacity: tiles::opacity::create_bind_group_layout(&render_state),
+        };
+
+        let pipelines = Pipelines {
+            sprites: sprite::shader::create_sprite_shaders(&render_state, &bind_group_layouts),
+            tiles: tiles::shader::create_render_pipeline(&render_state, &bind_group_layouts),
+        };
+
+        let image_cache = image_cache::Cache::default();
+        let atlas_cache = atlas_cache::Cache::default();
+
+        Self {
+            image_cache,
+            atlas_cache,
+            render_state,
+            pipelines,
+            bind_group_layouts,
+        }
+    }
+}

@@ -26,25 +26,35 @@
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
 #[derive(Default)]
-pub struct Windows<T> {
+pub struct Windows<W> {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: Vec<T>,
+    windows: Vec<W>,
 }
 
-pub struct EditWindows<T> {
-    clean_fn: Option<CleanFn<T>>,
-    added: Vec<T>,
+pub struct EditWindows<W> {
+    clean_fn: Option<CleanFn<W>>,
+    added: Vec<W>,
     removed: std::collections::HashSet<egui::Id>,
 }
 
 type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
 
-impl<T> Windows<T>
+impl<W> Default for EditWindows<W> {
+    fn default() -> Self {
+        Self {
+            clean_fn: None,
+            added: Vec::new(),
+            removed: std::collections::HashSet::new(),
+        }
+    }
+}
+
+impl<W> Windows<W>
 where
-    T: Window,
+    W: Window,
 {
     /// A function to add a window.
-    pub fn add_window(&mut self, window: T) {
+    pub fn add_window(&mut self, window: W) {
         // FIXME use a hashmap, or something with less than O(n) search time
         if self.windows.iter().any(|w| w.id() == window.id()) {
             return;
@@ -54,23 +64,28 @@ where
 
     /// Clean all windows that need the data cache.
     /// This is usually when a project is closed.
-    pub fn clean_windows(&mut self, f: impl Fn(&T) -> bool) {
+    pub fn clean_windows(&mut self, f: impl Fn(&W) -> bool) {
         self.windows.retain(f);
     }
 
     /// Update and draw all windows.
-    pub fn display(&mut self, ctx: &egui::Context) {
-        let mut edit_windows = EditWindows::<T> {
+    pub fn display<O, T>(
+        &mut self,
+        ctx: &egui::Context,
+        update_state: &mut crate::UpdateState<'_, O, T>,
+    ) {
+        let mut edit_windows = EditWindows::<W> {
             clean_fn: None,
             added: Vec::new(),
             removed: std::collections::HashSet::new(),
         };
+        let mut update_state = update_state.reborrow_with_edit_window(&mut edit_windows);
 
         // Iterate through all the windows and clean them up if necessary.
         self.windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
-            window.show(ctx, &mut open);
+            window.show(ctx, &mut open, &mut update_state);
             open
         });
 
@@ -111,7 +126,12 @@ where
 /// This makes up for most of their losses. Modals are still useful in certain cases, though.
 pub trait Window {
     /// Show this window.
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut crate::UpdateState<'_, W, T>,
+    );
 
     /// Optionally used as the title of the window.
     fn name(&self) -> String {
@@ -127,6 +147,7 @@ pub trait Window {
     }
 }
 
+/*
 impl Window for Box<dyn Window + Send + Sync> {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         self.show(ctx, open)
@@ -144,3 +165,4 @@ impl Window for Box<dyn Window + Send + Sync> {
         self.requires_filesystem()
     }
 }
+*/

@@ -703,15 +703,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 
 [[package]]
-name = "cgl"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ced0551234e87afee12411d535648dd89d2e7f34c78b753395567aff3d447ff"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "clang-sys"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1257,10 +1248,6 @@ dependencies = [
  "egui",
  "egui-wgpu",
  "egui-winit",
- "egui_glow",
- "glow",
- "glutin",
- "glutin-winit",
  "image 0.24.7",
  "js-sys",
  "log",
@@ -1355,21 +1342,6 @@ checksum = "9278f4337b526f0d57e5375e5a7340a311fa6ee8f9fcc75721ac50af13face02"
 dependencies = [
  "egui",
  "serde",
-]
-
-[[package]]
-name = "egui_glow"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f8c2752cdf1b0ef5fcda59a898cacabad974d4f5880e92a420b2c917022da64"
-dependencies = [
- "bytemuck",
- "egui",
- "glow",
- "log",
- "memoffset 0.6.5",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]
@@ -1765,17 +1737,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gl_generator"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a95dfc23a2b4a9a2f5ab41d194f8bfda3cabec42af4e39f08c339eb2a0c124d"
-dependencies = [
- "khronos_api",
- "log",
- "xml-rs",
-]
-
-[[package]]
 name = "glam"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1810,70 +1771,6 @@ dependencies = [
  "slotmap",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "glutin"
-version = "0.30.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fc93b03242719b8ad39fb26ed2b01737144ce7bd4bfc7adadcef806596760fe"
-dependencies = [
- "bitflags 1.3.2",
- "cfg_aliases",
- "cgl",
- "core-foundation",
- "dispatch",
- "glutin_egl_sys",
- "glutin_glx_sys",
- "glutin_wgl_sys",
- "libloading 0.7.4",
- "objc2",
- "once_cell",
- "raw-window-handle",
- "wayland-sys 0.30.1",
- "windows-sys 0.45.0",
- "x11-dl",
-]
-
-[[package]]
-name = "glutin-winit"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "629a873fc04062830bfe8f97c03773bcd7b371e23bcc465d0a61448cd1588fa4"
-dependencies = [
- "cfg_aliases",
- "glutin",
- "raw-window-handle",
- "winit",
-]
-
-[[package]]
-name = "glutin_egl_sys"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af784eb26c5a68ec85391268e074f0aa618c096eadb5d6330b0911cf34fe57c5"
-dependencies = [
- "gl_generator",
- "windows-sys 0.45.0",
-]
-
-[[package]]
-name = "glutin_glx_sys"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b53cb5fe568964aa066a3ba91eac5ecbac869fb0842cd0dc9e412434f1a1494"
-dependencies = [
- "gl_generator",
- "x11-dl",
-]
-
-[[package]]
-name = "glutin_wgl_sys"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef89398e90033fc6bc65e9bd42fd29bbbfd483bda5b56dc5562f455550618165"
-dependencies = [
- "gl_generator",
 ]
 
 [[package]]
@@ -2258,12 +2155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "khronos_api"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
-
-[[package]]
 name = "lab"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2417,9 +2308,7 @@ name = "luminol-components"
 version = "0.1.0"
 dependencies = [
  "egui",
- "egui-notify",
  "egui-wgpu",
- "egui_dock",
  "glam",
  "itertools",
  "luminol-data",
@@ -2453,7 +2342,13 @@ dependencies = [
  "bitflags 2.4.0",
  "camino",
  "egui",
+ "egui-notify",
  "egui_dock",
+ "luminol-audio",
+ "luminol-config",
+ "luminol-data",
+ "luminol-filesystem",
+ "luminol-graphics",
  "parking_lot",
  "serde",
  "strum",
@@ -2468,7 +2363,6 @@ dependencies = [
  "bytemuck",
  "camino",
  "flate2",
- "luminol-core",
  "num-derive 0.4.0",
  "num_enum 0.7.0",
  "paste",
@@ -2489,7 +2383,6 @@ dependencies = [
  "egui",
  "itertools",
  "luminol-config",
- "luminol-core",
  "luminol-data",
  "parking_lot",
  "rfd",
@@ -2537,6 +2430,9 @@ dependencies = [
 [[package]]
 name = "luminol-tabs"
 version = "0.1.0"
+dependencies = [
+ "egui",
+]
 
 [[package]]
 name = "luminol-term"
@@ -2553,6 +2449,9 @@ dependencies = [
 [[package]]
 name = "luminol-windows"
 version = "0.1.0"
+dependencies = [
+ "egui",
+]
 
 [[package]]
 name = "mac_address"
@@ -4891,7 +4790,7 @@ dependencies = [
  "scoped-tls",
  "wayland-commons",
  "wayland-scanner",
- "wayland-sys 0.29.5",
+ "wayland-sys",
 ]
 
 [[package]]
@@ -4903,7 +4802,7 @@ dependencies = [
  "nix 0.24.3",
  "once_cell",
  "smallvec",
- "wayland-sys 0.29.5",
+ "wayland-sys",
 ]
 
 [[package]]
@@ -4948,18 +4847,6 @@ checksum = "be12ce1a3c39ec7dba25594b97b42cb3195d54953ddb9d3d95a7c3902bc6e9d4"
 dependencies = [
  "dlib",
  "lazy_static",
- "pkg-config",
-]
-
-[[package]]
-name = "wayland-sys"
-version = "0.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b2a02ac608e07132978689a6f9bf4214949c85998c247abadd4f4129b1aa06"
-dependencies = [
- "dlib",
- "lazy_static",
- "log",
  "pkg-config",
 ]
 

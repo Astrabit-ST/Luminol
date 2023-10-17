@@ -21,6 +21,7 @@ pub struct Plane {
 }
 
 impl Plane {
+    // FIXME: holy SHIT
     pub fn new(
         graphics_state: &crate::GraphicsState,
         texture: std::sync::Arc<crate::image_cache::WgpuTexture>,

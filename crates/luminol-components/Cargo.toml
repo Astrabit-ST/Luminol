@@ -18,9 +18,6 @@ egui-wgpu.workspace = true
 wgpu.workspace = true
 glam.workspace = true
 
-egui_dock = "0.7.3"
-egui-notify = "0.9.0"
-
 syntect = "5.1.0"
 
 parking_lot.workspace = true

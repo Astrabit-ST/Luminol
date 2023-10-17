@@ -24,25 +24,12 @@
 
 /// Syntax highlighter
 pub mod syntax_highlighting;
-/// Toasts to be displayed for errors, information, etc.
-mod toasts;
-
-pub use toasts::Toasts;
 
 /// The tilemap.
 mod map_view;
 pub use map_view::{MapView, SelectedLayer};
 mod tilepicker;
 pub use tilepicker::{SelectedTile, Tilepicker};
-
-mod tab;
-pub use tab::{Tab, Tabs};
-
-mod window;
-pub use window::{Window, Windows};
-
-pub mod modal;
-pub use modal::Modal;
 
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,

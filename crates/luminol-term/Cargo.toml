@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "0.22.0"
+egui.workspace = true
 # termwiz = "0.20.0"
 
 crossbeam-channel = "0.5"
@@ -16,4 +16,4 @@ portable-pty = { version = "0.8.1", git = "https://github.com/wez/wezterm", rev 
 termwiz = { version = "0.22.0", git = "https://github.com/wez/wezterm", rev = "3666303c7b26c6c966b3f136dbb954686d334cc3" }
 
 [dev-dependencies]
-eframe = "0.22.0"
+eframe.workspace = true
