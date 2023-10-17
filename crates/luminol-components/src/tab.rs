@@ -22,13 +22,27 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use parking_lot::Mutex;
 use std::hash::Hash;
 
 /// Helper struct for tabs.
 pub struct Tabs<T> {
-    tree: Mutex<egui_dock::Tree<T>>,
+    dock_state: egui_dock::DockState<T>,
+
     id: egui::Id,
+}
+
+pub struct EditTabs<T> {
+    clean_fn: Option<CleanFn<T>>,
+    added: Vec<T>,
+    removed: std::collections::HashSet<egui::Id>,
+}
+
+type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
+
+struct TabViewer<T: Tab> {
+    // we don't actually own any types of T, but we use them in TabViewer
+    // *const is used here to avoid needing lifetimes and to indicate to the drop checker that we don't own any types of T
+    marker: std::marker::PhantomData<*const T>,
 }
 
 impl<T> Tabs<T>
@@ -39,56 +53,90 @@ where
     pub fn new(id: impl Hash, tabs: Vec<T>) -> Self {
         Self {
             id: egui::Id::new(id),
-            tree: egui_dock::Tree::new(tabs).into(),
+            dock_state: egui_dock::DockState::new(tabs),
         }
     }
 
     /// Display all tabs.
-    pub fn ui(&self, ui: &mut egui::Ui) {
-        // egui_dock::DockArea::new(&mut self.tree.lock())
-        //     .id(self.id)
-        //     .show_inside(
-        //         ui,
-        //         &mut TabViewer {
-        //             marker: std::marker::PhantomData,
-        //         },
-        //     );
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
+        let mut edit_tabs = EditTabs::<T> {
+            clean_fn: None,
+            added: Vec::new(),
+            removed: std::collections::HashSet::new(),
+        };
+
+        egui_dock::DockArea::new(&mut self.dock_state)
+            .id(self.id)
+            .show_inside(
+                ui,
+                &mut TabViewer {
+                    marker: std::marker::PhantomData::<*const T>,
+                },
+            );
+
+        for tab in edit_tabs.added {
+            self.add_tab(tab);
+        }
+        if let Some(f) = edit_tabs.clean_fn {
+            self.clean_tabs(f);
+        }
     }
 
     /// Add a tab.
-    pub fn add_tab(&self, tab: T) {
-        let mut tree = self.tree.lock();
-        for n in tree.iter() {
-            if let egui_dock::Node::Leaf { tabs, .. } = n {
+    pub fn add_tab(&mut self, tab: T) {
+        // FIXME O(n)
+        for node in self.dock_state.iter_nodes() {
+            if let egui_dock::Node::Leaf { tabs, .. } = node {
                 if tabs.iter().any(|t| t.id() == tab.id()) {
                     return;
                 }
             }
         }
-        tree.push_to_focused_leaf(tab);
+        self.dock_state.push_to_focused_leaf(tab);
     }
 
     /// Removes tabs that the provided closure returns `false` when called.
-    pub fn clean_tabs<F: FnMut(&mut T) -> bool>(&self, mut f: F) {
-        let mut tree = self.tree.lock();
-        for node in tree.iter_mut() {
-            if let egui_dock::Node::Leaf { tabs, .. } = node {
-                tabs.retain_mut(&mut f)
+    pub fn clean_tabs(&mut self, mut f: impl Fn(&T) -> bool) {
+        // i hate egui dock
+        for i in 0.. {
+            let Some(surface) = self.dock_state.get_surface_mut(egui_dock::SurfaceIndex(i)) else {
+                break;
+            };
+            if let Some(tree) = surface.node_tree_mut() {
+                for node in tree.iter_mut() {
+                    if let egui_dock::Node::Leaf { tabs, .. } = node {
+                        tabs.retain(&mut f);
+                    }
+                }
             }
         }
     }
 
     /// Returns the name of the focused tab.
     pub fn focused_name(&self) -> Option<String> {
-        let mut tree = self.tree.lock();
-        tree.find_active().map(|(_, t)| t.name())
+        None
     }
 }
 
-struct TabViewer<T: Tab> {
-    // we don't actually own any types of T, but we use them in TabViewer
-    // *const is used here to avoid needing lifetimes and to indicate to the drop checker that we don't own any types of T
-    marker: std::marker::PhantomData<*const T>,
+impl<T> EditTabs<T>
+where
+    T: Tab,
+{
+    pub fn clean(&mut self, f: impl Fn(&T) -> bool + 'static) {
+        self.clean_fn = Some(Box::new(f));
+    }
+
+    pub fn add_tab(&mut self, tabs: T) {
+        self.added.push(tabs)
+    }
+
+    pub fn remove_tab(&mut self, tab: &T) -> bool {
+        self.remove_tab_by_id(tab.id())
+    }
+
+    pub fn remove_tab_by_id(&mut self, id: egui::Id) -> bool {
+        self.removed.insert(id)
+    }
 }
 
 impl<T> egui_dock::TabViewer for TabViewer<T>

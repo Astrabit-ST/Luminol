@@ -14,8 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::prelude::*;
 
+use itertools::Itertools;
 use slab::Slab;
 use std::sync::Arc;
 use std::time::Duration;
@@ -35,8 +35,8 @@ pub struct Tilepicker {
 
 #[derive(Debug)]
 struct Resources {
-    tiles: primitives::Tiles,
-    viewport: primitives::Viewport,
+    tiles: luminol_graphics::tiles::Tiles,
+    viewport: luminol_graphics::viewport::Viewport,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -71,26 +71,33 @@ impl Default for SelectedTile {
 type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
-    pub fn new(tileset: &rpg::Tileset) -> Result<Tilepicker, String> {
-        let use_push_constants = state!()
+    pub fn new(
+        graphics_state: &luminol_graphics::GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        tileset: &luminol_data::rpg::Tileset,
+    ) -> Result<Tilepicker, String> {
+        let use_push_constants = graphics_state
             .render_state
             .device
             .features()
             .contains(wgpu::Features::PUSH_CONSTANTS);
-        let atlas = state!().atlas_cache.load_atlas(tileset)?;
+        let atlas = graphics_state
+            .atlas_cache
+            .load_atlas(graphics_state, filesystem, tileset)?;
 
         let tilepicker_data = (47..(384 + 47))
             .step_by(48)
             .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
             .collect_vec();
-        let tilepicker_data = Table3::new_data(
+        let tilepicker_data = luminol_data::Table3::new_data(
             8,
             1 + (atlas.tileset_height / 32) as usize,
             1,
             tilepicker_data,
         );
 
-        let viewport = primitives::Viewport::new(
+        let viewport = luminol_graphics::viewport::Viewport::new(
+            graphics_state,
             glam::Mat4::orthographic_rh(
                 0.0,
                 256.,
@@ -102,7 +109,12 @@ impl Tilepicker {
             use_push_constants,
         );
 
-        let tiles = primitives::Tiles::new(atlas, &tilepicker_data, use_push_constants);
+        let tiles = luminol_graphics::tiles::Tiles::new(
+            graphics_state,
+            atlas,
+            &tilepicker_data,
+            use_push_constants,
+        );
 
         Ok(Self {
             resources: Arc::new(Resources { tiles, viewport }),
@@ -126,12 +138,20 @@ impl Tilepicker {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, scroll_rect: egui::Rect) -> egui::Response {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        graphics_state: &'static luminol_graphics::GraphicsState,
+        scroll_rect: egui::Rect,
+    ) -> egui::Response {
         let time = ui.ctx().input(|i| i.time);
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. {
                 self.ani_time = Some(time);
-                self.resources.tiles.autotiles.inc_ani_index();
+                self.resources
+                    .tiles
+                    .autotiles
+                    .inc_ani_index(&graphics_state.render_state);
             }
         } else {
             self.ani_time = Some(time);
@@ -145,17 +165,20 @@ impl Tilepicker {
         );
 
         let resources = self.resources.clone();
-        let prepare_id = Arc::new(OnceCell::new());
+        let prepare_id = Arc::new(once_cell::sync::OnceCell::new());
         let paint_id = prepare_id.clone();
 
-        resources.viewport.set_proj(glam::Mat4::orthographic_rh(
-            scroll_rect.left(),
-            scroll_rect.right(),
-            scroll_rect.bottom(),
-            scroll_rect.top(),
-            -1.,
-            1.,
-        ));
+        resources.viewport.set_proj(
+            &graphics_state.render_state,
+            glam::Mat4::orthographic_rh(
+                scroll_rect.left(),
+                scroll_rect.right(),
+                scroll_rect.bottom(),
+                scroll_rect.top(),
+                -1.,
+                1.,
+            ),
+        );
         ui.painter().add(egui::PaintCallback {
             rect: scroll_rect.translate(canvas_rect.min.to_vec2()),
             callback: Arc::new(
@@ -178,7 +201,7 @@ impl Tilepicker {
                         } = resources.as_ref();
 
                         viewport.bind(render_pass);
-                        tiles.draw(viewport, &[true], None, render_pass);
+                        tiles.draw(graphics_state, viewport, &[true], None, render_pass);
                     }),
             ),
         });

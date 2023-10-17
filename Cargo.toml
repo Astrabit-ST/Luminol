@@ -15,6 +15,7 @@ eframe = { version = "0.22.0", features = [
 egui-wgpu = "0.22.0"
 
 wgpu = "0.16.3"
+glam = { version = "0.24.2", features = ["bytemuck"] }
 
 image = "0.24.7"
 

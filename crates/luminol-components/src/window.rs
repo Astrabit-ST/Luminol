@@ -22,47 +22,85 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use parking_lot::Mutex;
-
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
 #[derive(Default)]
-pub struct Windows {
+pub struct Windows<T> {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: Mutex<Vec<Box<dyn Window + Send>>>,
+    windows: Vec<T>,
 }
 
-impl Windows {
+pub struct EditWindows<T> {
+    clean_fn: Option<CleanFn<T>>,
+    added: Vec<T>,
+    removed: std::collections::HashSet<egui::Id>,
+}
+
+type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
+
+impl<T> Windows<T>
+where
+    T: Window,
+{
     /// A function to add a window.
-    pub fn add_window<T>(&self, window: T)
-    where
-        T: Window + Send + 'static,
-    {
-        let mut windows = self.windows.lock();
-        if windows.iter().any(|w| w.id() == window.id()) {
+    pub fn add_window(&mut self, window: T) {
+        // FIXME use a hashmap, or something with less than O(n) search time
+        if self.windows.iter().any(|w| w.id() == window.id()) {
             return;
         }
-        windows.push(Box::new(window));
+        self.windows.push(window);
     }
 
     /// Clean all windows that need the data cache.
     /// This is usually when a project is closed.
-    pub fn clean_windows(&self) {
-        let mut windows = self.windows.lock();
-        windows.retain(|window| !window.requires_filesystem());
+    pub fn clean_windows(&mut self, f: impl Fn(&T) -> bool) {
+        self.windows.retain(f);
     }
 
     /// Update and draw all windows.
-    pub fn update(&self, ctx: &egui::Context) {
+    pub fn display(&mut self, ctx: &egui::Context) {
+        let mut edit_windows = EditWindows::<T> {
+            clean_fn: None,
+            added: Vec::new(),
+            removed: std::collections::HashSet::new(),
+        };
+
         // Iterate through all the windows and clean them up if necessary.
-        let mut windows = self.windows.lock();
-        windows.retain_mut(|window| {
+        self.windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
             window.show(ctx, &mut open);
             open
         });
+
+        for window in edit_windows.added {
+            self.add_window(window);
+        }
+        if let Some(f) = edit_windows.clean_fn {
+            self.clean_windows(f)
+        }
+    }
+}
+
+impl<T> EditWindows<T>
+where
+    T: Window,
+{
+    pub fn clean(&mut self, f: impl Fn(&T) -> bool + 'static) {
+        self.clean_fn = Some(Box::new(f));
+    }
+
+    pub fn add_window(&mut self, window: T) {
+        self.added.push(window)
+    }
+
+    pub fn remove_window(&mut self, window: &T) -> bool {
+        self.remove_window_by_id(window.id())
+    }
+
+    pub fn remove_window_by_id(&mut self, id: egui::Id) -> bool {
+        self.removed.insert(id)
     }
 }
 
@@ -86,5 +124,23 @@ pub trait Window {
     ///  A function to determine if this window needs the data cache.
     fn requires_filesystem(&self) -> bool {
         false
+    }
+}
+
+impl Window for Box<dyn Window + Send + Sync> {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        self.show(ctx, open)
+    }
+
+    fn name(&self) -> String {
+        self.name()
+    }
+
+    fn id(&self) -> egui::Id {
+        self.id()
+    }
+
+    fn requires_filesystem(&self) -> bool {
+        self.requires_filesystem()
     }
 }

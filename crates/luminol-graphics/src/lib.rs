@@ -15,15 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-mod quad;
-mod sprite;
-mod tiles;
-mod vertex;
-mod viewport;
+pub mod quad;
+pub mod sprite;
+pub mod tiles;
+pub mod vertex;
+pub mod viewport;
 
-mod event;
-mod map;
-mod plane;
+pub mod event;
+pub mod map;
+pub mod plane;
 
 pub mod atlas_cache;
 pub mod image_cache;
@@ -33,9 +33,9 @@ pub use map::Map;
 pub use plane::Plane;
 
 pub struct GraphicsState {
-    image_cache: image_cache::Cache,
-    atlas_cache: atlas_cache::Cache,
-    render_state: egui_wgpu::RenderState,
+    pub image_cache: image_cache::Cache,
+    pub atlas_cache: atlas_cache::Cache,
+    pub render_state: egui_wgpu::RenderState,
 
     pipelines: Pipelines,
     bind_group_layouts: BindGroupLayouts,

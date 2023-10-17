@@ -47,12 +47,9 @@ impl Map {
         tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
     ) -> Result<Self, String> {
-        let atlas = graphics_state.atlas_cache.load_atlas(
-            graphics_state,
-            filesystem,
-            &graphics_state.image_cache,
-            tileset,
-        )?;
+        let atlas = graphics_state
+            .atlas_cache
+            .load_atlas(graphics_state, filesystem, tileset)?;
 
         let tiles = crate::tiles::Tiles::new(graphics_state, atlas, &map.data, use_push_constants);
 

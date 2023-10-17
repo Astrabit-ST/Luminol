@@ -25,15 +25,12 @@ impl Cache {
         &self,
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
-        image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Result<crate::tiles::Atlas, String> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .or_try_insert_with(|| {
-                crate::tiles::Atlas::new(graphics_state, filesystem, image_cache, tileset)
-            })?
+            .or_try_insert_with(|| crate::tiles::Atlas::new(graphics_state, filesystem, tileset))?
             .clone())
     }
 
@@ -41,7 +38,6 @@ impl Cache {
         &self,
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
-        image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Result<crate::tiles::Atlas, String> {
         Ok(self
@@ -50,7 +46,6 @@ impl Cache {
             .insert(crate::tiles::Atlas::new(
                 graphics_state,
                 filesystem,
-                image_cache,
                 tileset,
             )?)
             .clone())

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::tilepicker;
+use itertools::Itertools;
 
 #[derive(Debug)]
 pub struct MapView {
@@ -29,8 +29,8 @@ pub struct MapView {
 
     /// The first sprite is for drawing on the tilemap,
     /// and the second sprite is for the hover preview.
-    pub events: luminol_data::OptionVec<(Event, Event)>,
-    pub map: Map,
+    pub events: luminol_data::OptionVec<(luminol_graphics::Event, luminol_graphics::Event)>,
+    pub map: luminol_graphics::Map,
 
     pub selected_layer: SelectedLayer,
     pub selected_event_id: Option<usize>,
@@ -59,21 +59,40 @@ pub enum SelectedLayer {
 }
 
 impl MapView {
-    pub fn new(map: &rpg::Map, tileset: &rpg::Tileset) -> Result<MapView, String> {
+    pub fn new(
+        graphics_state: &luminol_graphics::GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        map: &luminol_data::rpg::Map,
+        tileset: &luminol_data::rpg::Tileset,
+    ) -> Result<MapView, String> {
         // Get tilesets.
 
-        let use_push_constants = state!()
+        let use_push_constants = graphics_state
             .render_state
             .device
             .features()
             .contains(wgpu::Features::PUSH_CONSTANTS);
-        let atlas = state!().atlas_cache.load_atlas(tileset)?;
+        let atlas = graphics_state
+            .atlas_cache
+            .load_atlas(graphics_state, filesystem, tileset)?;
         let events = map
             .events
             .iter()
             .map(|(id, e)| {
-                let sprite = Event::new(e, &atlas, use_push_constants);
-                let preview_sprite = Event::new(e, &atlas, use_push_constants);
+                let sprite = luminol_graphics::Event::new(
+                    graphics_state,
+                    filesystem,
+                    e,
+                    &atlas,
+                    use_push_constants,
+                );
+                let preview_sprite = luminol_graphics::Event::new(
+                    graphics_state,
+                    filesystem,
+                    e,
+                    &atlas,
+                    use_push_constants,
+                );
                 let Ok(sprite) = sprite else {
                     return Err(sprite.unwrap_err());
                 };
@@ -88,7 +107,13 @@ impl MapView {
             })
             .flatten_ok()
             .try_collect()?;
-        let map = Map::new(map, tileset, use_push_constants)?;
+        let map = luminol_graphics::Map::new(
+            graphics_state,
+            filesystem,
+            map,
+            tileset,
+            use_push_constants,
+        )?;
 
         Ok(Self {
             visible_display: false,
@@ -119,8 +144,9 @@ impl MapView {
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        map: &rpg::Map,
-        tilepicker: &Tilepicker,
+        graphics_state: &'static luminol_graphics::GraphicsState,
+        map: &luminol_data::rpg::Map,
+        tilepicker: &crate::Tilepicker,
         dragging_event: bool,
         drawing_shape: bool,
         drawing_shape_pos: Option<egui::Pos2>,
@@ -231,15 +257,19 @@ impl MapView {
         let proj_center_y = height2 * 32. - self.pan.y / scale;
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
-        self.map.set_proj(glam::Mat4::orthographic_rh(
-            proj_center_x - proj_width2,
-            proj_center_x + proj_width2,
-            proj_center_y + proj_height2,
-            proj_center_y - proj_height2,
-            -1.,
-            1.,
-        ));
+        self.map.set_proj(
+            &graphics_state.render_state,
+            glam::Mat4::orthographic_rh(
+                proj_center_x - proj_width2,
+                proj_center_x + proj_width2,
+                proj_center_y + proj_height2,
+                proj_center_y - proj_height2,
+                -1.,
+                1.,
+            ),
+        );
         self.map.paint(
+            graphics_state,
             ui.painter(),
             match self.selected_layer {
                 SelectedLayer::Events => None,
@@ -297,6 +327,7 @@ impl MapView {
                 // Darken the graphic if required
                 if let Some((sprite, _)) = sprites {
                     sprite.sprite().graphic.set_opacity_multiplier(
+                        &graphics_state.render_state,
                         if self.darken_unselected_layers
                             && !matches!(self.selected_layer, SelectedLayer::Events)
                         {
@@ -324,15 +355,18 @@ impl MapView {
                 if let Some((sprite, _)) = sprites {
                     let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
                     let y = event.y as f32 * 32. + (32. - event_size.y);
-                    sprite.set_proj(glam::Mat4::orthographic_rh(
-                        proj_center_x - proj_width2 - x,
-                        proj_center_x + proj_width2 - x,
-                        proj_center_y + proj_height2 - y,
-                        proj_center_y - proj_height2 - y,
-                        -1.,
-                        1.,
-                    ));
-                    sprite.paint(ui.painter(), canvas_rect);
+                    sprite.set_proj(
+                        &graphics_state.render_state,
+                        glam::Mat4::orthographic_rh(
+                            proj_center_x - proj_width2 - x,
+                            proj_center_x + proj_width2 - x,
+                            proj_center_y + proj_height2 - y,
+                            proj_center_y - proj_height2 - y,
+                            -1.,
+                            1.,
+                        ),
+                    );
+                    sprite.paint(graphics_state, ui.painter(), canvas_rect);
                 }
 
                 if matches!(self.selected_layer, SelectedLayer::Events)
@@ -385,7 +419,7 @@ impl MapView {
                             );
                             if let Some((_, preview_sprite)) = sprites {
                                 if ui.ctx().screen_rect().contains_rect(response.rect) {
-                                    preview_sprite.paint(&painter, response.rect);
+                                    preview_sprite.paint(graphics_state, &painter, response.rect);
                                 }
                             }
                             match self.selected_event_id {

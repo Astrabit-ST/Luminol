@@ -37,8 +37,12 @@ pub use tilepicker::{SelectedTile, Tilepicker};
 
 mod tab;
 pub use tab::{Tab, Tabs};
+
 mod window;
 pub use window::{Window, Windows};
+
+pub mod modal;
+pub use modal::Modal;
 
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,

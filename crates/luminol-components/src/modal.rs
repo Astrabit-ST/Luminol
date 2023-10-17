@@ -29,7 +29,7 @@
 /// Modals are not persistent (unlike windows) and are not stored on the heap.
 /// They are stored on the stack and the stack *only*.
 // TODO: Make more featureful and general
-pub trait Modal {
+pub trait Modal: Sized {
     /// The output type for this modal.
     type Data;
 
@@ -38,7 +38,7 @@ pub trait Modal {
 
     /// Display a button to show this modal.
     /// It should call show.
-    fn button(self, ui: &mut egui::Ui, state: &mut bool, data: &mut Self::Data) -> Self;
+    fn button(this: &mut Option<Self>, ui: &mut egui::Ui, data: &mut Self::Data) -> Self;
 
     /// Show this modal.
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, data: &mut Self::Data);
