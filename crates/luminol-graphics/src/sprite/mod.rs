@@ -25,13 +25,13 @@ pub struct Sprite {
     pub texture: Arc<crate::image_cache::WgpuTexture>,
     pub graphic: graphic::Graphic,
     pub vertices: vertices::Vertices,
-    pub blend_mode: luminol_data::BlendMode,,
+    pub blend_mode: luminol_data::BlendMode,
     pub use_push_constants: bool,
 }
 
 impl Sprite {
     pub fn new(
-        render_state: &egui_wgpu::RenderState,
+        graphics_state: &crate::GraphicsState,
         quad: crate::quad::Quad,
         texture: Arc<crate::image_cache::WgpuTexture>,
         blend_mode: luminol_data::BlendMode,
@@ -39,8 +39,9 @@ impl Sprite {
         opacity: i32,
         use_push_constants: bool,
     ) -> Self {
-        let vertices = vertices::Vertices::from_quads(render_state, &[quad], texture.size());
-        let graphic = graphic::Graphic::new(hue, opacity, use_push_constants);
+        let vertices =
+            vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
+        let graphic = graphic::Graphic::new(graphics_state, hue, opacity, use_push_constants);
 
         Self {
             texture,
@@ -66,11 +67,11 @@ impl Sprite {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        render_state: &crate::GraphicsState,
+        graphics_state: &'rpass crate::GraphicsState,
         viewport: &crate::viewport::Viewport,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        render_pass.set_pipeline(&render_state.pipelines.sprites[&self.blend_mode]);
+        render_pass.set_pipeline(&graphics_state.pipelines.sprites[&self.blend_mode]);
 
         if self.use_push_constants {
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());

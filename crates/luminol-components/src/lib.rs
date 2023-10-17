@@ -35,6 +35,11 @@ pub use map_view::{MapView, SelectedLayer};
 mod tilepicker;
 pub use tilepicker::{SelectedTile, Tilepicker};
 
+mod tab;
+pub use tab::{Tab, Tabs};
+mod window;
+pub use window::{Window, Windows};
+
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,
     id: egui::Id,

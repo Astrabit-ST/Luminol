@@ -72,7 +72,7 @@ impl WgpuTexture {
 impl Cache {
     pub fn load_egui_image(
         &self,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
     ) -> Result<Arc<RetainedImage>, String> {
@@ -101,7 +101,7 @@ impl Cache {
 
     pub fn load_image(
         &self,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<camino::Utf8Path>,
         filename: impl AsRef<camino::Utf8Path>,
     ) -> Result<image::DynamicImage, String> {
@@ -156,7 +156,7 @@ impl Cache {
     pub fn load_wgpu_image(
         &self,
         graphics_state: &crate::GraphicsState,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
     ) -> Result<Arc<WgpuTexture>, String> {

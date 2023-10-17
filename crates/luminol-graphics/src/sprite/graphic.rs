@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
 
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
@@ -40,7 +39,12 @@ struct Data {
 }
 
 impl Graphic {
-    pub fn new(hue: i32, opacity: i32, use_push_constants: bool) -> Self {
+    pub fn new(
+        graphics_state: &crate::GraphicsState,
+        hue: i32,
+        opacity: i32,
+        use_push_constants: bool,
+    ) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
         let opacity = opacity as f32 / 255.;
         let data = Data {
@@ -49,30 +53,29 @@ impl Graphic {
             opacity_multiplier: 1.,
         };
 
-        let uniform = if !use_push_constants {
-            let render_state = &state!().render_state;
-            let buffer =
-                render_state
-                    .device
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform =
+            if !use_push_constants {
+                let buffer = graphics_state.render_state.device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
                         label: Some("tilemap sprite graphic buffer"),
                         contents: bytemuck::cast_slice(&[data]),
                         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                    });
-            let bind_group = render_state
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("tilemap sprite graphic bind group"),
-                    layout: &LAYOUT,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: buffer.as_entire_binding(),
-                    }],
-                });
-            Some(GraphicUniform { buffer, bind_group })
-        } else {
-            None
-        };
+                    },
+                );
+                let bind_group = graphics_state.render_state.device.create_bind_group(
+                    &wgpu::BindGroupDescriptor {
+                        label: Some("tilemap sprite graphic bind group"),
+                        layout: &graphics_state.bind_group_layouts.sprite_graphic,
+                        entries: &[wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: buffer.as_entire_binding(),
+                        }],
+                    },
+                );
+                Some(GraphicUniform { buffer, bind_group })
+            } else {
+                None
+            };
 
         Self {
             data: AtomicCell::new(data),
@@ -84,13 +87,13 @@ impl Graphic {
         (self.data.load().hue * 360.) as i32
     }
 
-    pub fn set_hue(&self, hue: i32) {
+    pub fn set_hue(&self, render_state: &egui_wgpu::RenderState, hue: i32) {
         let hue = (hue % 360) as f32 / 360.0;
         let data = self.data.load();
 
         if data.hue != hue {
             self.data.store(Data { hue, ..data });
-            self.regen_buffer();
+            self.regen_buffer(render_state);
         }
     }
 
@@ -98,13 +101,13 @@ impl Graphic {
         (self.data.load().opacity * 255.) as i32
     }
 
-    pub fn set_opacity(&self, opacity: i32) {
+    pub fn set_opacity(&self, render_state: &egui_wgpu::RenderState, opacity: i32) {
         let opacity = opacity as f32 / 255.0;
         let data = self.data.load();
 
         if data.opacity != opacity {
             self.data.store(Data { opacity, ..data });
-            self.regen_buffer();
+            self.regen_buffer(render_state);
         }
     }
 
@@ -112,7 +115,11 @@ impl Graphic {
         self.data.load().opacity_multiplier
     }
 
-    pub fn set_opacity_multiplier(&self, opacity_multiplier: f32) {
+    pub fn set_opacity_multiplier(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        opacity_multiplier: f32,
+    ) {
         let data = self.data.load();
 
         if data.opacity_multiplier != opacity_multiplier {
@@ -120,7 +127,7 @@ impl Graphic {
                 opacity_multiplier,
                 ..data
             });
-            self.regen_buffer();
+            self.regen_buffer(render_state);
         }
     }
 
@@ -128,9 +135,8 @@ impl Graphic {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
-            let render_state = &state!().render_state;
             render_state.queue.write_buffer(
                 &uniform.buffer,
                 0,
@@ -144,15 +150,9 @@ impl Graphic {
             render_pass.set_bind_group(2, &uniform.bind_group, &[]);
         }
     }
-
-    pub fn layout() -> &'static wgpu::BindGroupLayout {
-        &LAYOUT
-    }
 }
 
-static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
-    let render_state = &state!().render_state;
-
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     render_state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -168,4 +168,4 @@ static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
             }],
             label: Some("tilemap sprite graphic bind group layout"),
         })
-});
+}

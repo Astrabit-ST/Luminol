@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::prelude::*;
 
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
@@ -32,33 +31,36 @@ struct ViewportUniform {
 }
 
 impl Viewport {
-    pub fn new(proj: glam::Mat4, use_push_constants: bool) -> Self {
-        let uniform = if !use_push_constants {
-            let render_state = &state!().render_state;
-            let buffer =
-                render_state
-                    .device
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    pub fn new(
+        graphics_state: &crate::GraphicsState,
+        proj: glam::Mat4,
+        use_push_constants: bool,
+    ) -> Self {
+        let uniform =
+            if !use_push_constants {
+                let buffer = graphics_state.render_state.device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
                         label: Some("tilemap viewport buffer"),
                         contents: bytemuck::cast_slice(&[proj]),
                         usage: wgpu::BufferUsages::STORAGE
                             | wgpu::BufferUsages::COPY_DST
                             | wgpu::BufferUsages::UNIFORM,
-                    });
-            let bind_group = render_state
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("tilemap viewport uniform bind group"),
-                    layout: &LAYOUT,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: buffer.as_entire_binding(),
-                    }],
-                });
-            Some(ViewportUniform { buffer, bind_group })
-        } else {
-            None
-        };
+                    },
+                );
+                let bind_group = graphics_state.render_state.device.create_bind_group(
+                    &wgpu::BindGroupDescriptor {
+                        label: Some("tilemap viewport uniform bind group"),
+                        layout: &graphics_state.bind_group_layouts.viewport,
+                        entries: &[wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: buffer.as_entire_binding(),
+                        }],
+                    },
+                );
+                Some(ViewportUniform { buffer, bind_group })
+            } else {
+                None
+            };
 
         Self {
             data: AtomicCell::new(proj),
@@ -66,11 +68,11 @@ impl Viewport {
         }
     }
 
-    pub fn set_proj(&self, proj: glam::Mat4) {
+    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
         let data = self.data.load();
         if data != proj {
             self.data.store(proj);
-            self.regen_buffer();
+            self.regen_buffer(render_state);
         }
     }
 
@@ -78,19 +80,14 @@ impl Viewport {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
-            let render_state = &state!().render_state;
             render_state.queue.write_buffer(
                 &uniform.buffer,
                 0,
                 bytemuck::cast_slice(&[self.data.load()]),
             );
         }
-    }
-
-    pub fn layout() -> &'static wgpu::BindGroupLayout {
-        &LAYOUT
     }
 
     pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
@@ -100,9 +97,7 @@ impl Viewport {
     }
 }
 
-static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
-    let render_state = &state!().render_state;
-
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     render_state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -118,4 +113,4 @@ static LAYOUT: Lazy<wgpu::BindGroupLayout> = Lazy::new(|| {
             }],
             label: Some("tilemap viewport bind group layout"),
         })
-});
+}

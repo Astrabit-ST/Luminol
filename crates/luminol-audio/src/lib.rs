@@ -87,14 +87,14 @@ impl Audio {
     pub fn play(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-        filesystem: &'static impl luminol_core::filesystem::FileSystem, // FIXME
+        filesystem: &'static impl luminol_filesystem::FileSystem, // FIXME
         volume: u8,
         pitch: u8,
         source: Source,
     ) -> Result<(), String> {
         let path = path.as_ref();
         let file = filesystem
-            .open_file(path, luminol_core::filesystem::OpenFlags::Read)
+            .open_file(path, luminol_filesystem::OpenFlags::Read)
             .map_err(|e| e.to_string())?;
 
         let is_midi = path

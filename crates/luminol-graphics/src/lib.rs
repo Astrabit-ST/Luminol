@@ -43,6 +43,10 @@ pub struct GraphicsState {
 
 pub struct BindGroupLayouts {
     image_cache_texture: wgpu::BindGroupLayout,
+    viewport: wgpu::BindGroupLayout,
+    sprite_graphic: wgpu::BindGroupLayout,
+    atlas_autotiles: wgpu::BindGroupLayout,
+    tile_layer_opacity: wgpu::BindGroupLayout,
 }
 
 pub struct Pipelines {

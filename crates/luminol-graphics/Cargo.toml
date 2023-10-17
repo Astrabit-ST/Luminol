@@ -10,6 +10,8 @@ image = "0.24.7"
 
 glam = { version = "0.24.2", features = ["bytemuck"] }
 
+const_format = "0.2.32"
+
 egui.workspace = true
 egui_extras.workspace = true
 egui-wgpu.workspace = true
@@ -28,4 +30,4 @@ itertools.workspace = true
 camino.workspace = true
 
 luminol-data = { version = "0.1.0", path = "../luminol-data/" }
-luminol-core = { version = "0.1.0", path = "../luminol-core/" }
+luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }

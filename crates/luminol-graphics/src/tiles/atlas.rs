@@ -52,8 +52,8 @@ pub struct Atlas {
 
 impl Atlas {
     pub fn new(
-        render_state: &egui_wgpu::RenderState,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        graphics_state: &crate::GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
         image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Result<Atlas, String> {
@@ -77,7 +77,7 @@ impl Atlas {
                     Ok(None)
                 } else {
                     image_cache
-                        .load_wgpu_image(render_state, filesystem, "Graphics/Autotiles", s)
+                        .load_wgpu_image(graphics_state, filesystem, "Graphics/Autotiles", s)
                         .map(Some)
                 }
             })
@@ -99,12 +99,11 @@ impl Atlas {
             .max()
             .unwrap_or(AUTOTILE_FRAME_WIDTH);
 
-        let mut encoder =
-            render_state
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("atlas creation"),
-                });
+        let mut encoder = graphics_state.render_state.device.create_command_encoder(
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("atlas creation"),
+            },
+        );
 
         let width;
         let height;
@@ -135,24 +134,26 @@ impl Atlas {
             height = MAX_SIZE;
         }
 
-        let atlas_texture = render_state
-            .device
-            .create_texture(&wgpu::TextureDescriptor {
-                label: Some("tileset_atlas"),
-                size: wgpu::Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                },
-                dimension: wgpu::TextureDimension::D2,
-                mip_level_count: 1,
-                sample_count: 1,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::COPY_DST
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            });
+        let atlas_texture =
+            graphics_state
+                .render_state
+                .device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("tileset_atlas"),
+                    size: wgpu::Extent3d {
+                        width,
+                        height,
+                        depth_or_array_layers: 1,
+                    },
+                    dimension: wgpu::TextureDimension::D2,
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::COPY_DST
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
         let mut atlas_copy = atlas_texture.as_image_copy();
 
         for (index, autotile_texture) in
@@ -201,13 +202,16 @@ impl Atlas {
             }
         }
 
-        render_state.queue.submit(std::iter::once(encoder.finish()));
+        graphics_state
+            .render_state
+            .queue
+            .submit(std::iter::once(encoder.finish()));
 
         atlas_copy.origin.x = 0;
         if let Some(tileset_img) = tileset_img {
             if TOTAL_AUTOTILE_HEIGHT + tileset_height < MAX_SIZE {
                 write_texture_region(
-                    render_state,
+                    &graphics_state.render_state,
                     &atlas_texture,
                     tileset_img.view(0, 0, TILESET_WIDTH, tileset_height),
                     (0, TOTAL_AUTOTILE_HEIGHT),
@@ -221,7 +225,7 @@ impl Atlas {
                         HEIGHT_UNDER_AUTOTILES
                     };
                     write_texture_region(
-                        render_state,
+                        &graphics_state.render_state,
                         &atlas_texture,
                         tileset_img.view(0, y, TILESET_WIDTH, height),
                         (TILESET_WIDTH * i, TOTAL_AUTOTILE_HEIGHT),
@@ -235,7 +239,7 @@ impl Atlas {
                         MAX_SIZE
                     };
                     write_texture_region(
-                        render_state,
+                        &graphics_state.render_state,
                         &atlas_texture,
                         tileset_img.view(0, y, TILESET_WIDTH, height),
                         (TILESET_WIDTH * (rows_under + i), 0),
@@ -245,7 +249,7 @@ impl Atlas {
         }
 
         let bind_group =
-            crate::image_cache::Cache::create_texture_bind_group(render_state, &atlas_texture);
+            crate::image_cache::Cache::create_texture_bind_group(graphics_state, &atlas_texture);
         let atlas_texture = Arc::new(crate::image_cache::WgpuTexture::new(
             atlas_texture,
             bind_group,

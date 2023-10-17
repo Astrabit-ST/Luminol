@@ -207,13 +207,16 @@ impl FileSystem {
     }
 
     #[cfg(not(any(windows, target_arch = "wasm32")))]
-    fn find_rtp_paths(config: &luminol_config::project::Config) -> Vec<camino::Utf8PathBuf> {
-        let ini = game_ini!();
-        let Some(section) = ini.section(Some("Game")) else {
-            return vec![];
+    fn find_rtp_paths(
+        config: &luminol_config::project::Config,
+        global_config: &luminol_config::global::Config,
+    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
+        let Some(section) = config.game_ini.section(Some("Game")) else {
+            return (vec![], vec![]);
         };
         let mut paths = vec![];
         let mut seen_rtps = vec![];
+        let mut missing_rtps = vec![];
         // FIXME: handle vx ace?
         for rtp in ["RTP1", "RTP2", "RTP3"] {
             if let Some(rtp) = section.get(rtp) {
@@ -222,7 +225,7 @@ impl FileSystem {
                 }
                 seen_rtps.push(rtp);
 
-                if let Some(path) = global_config!().rtp_paths.get(rtp) {
+                if let Some(path) = global_config.rtp_paths.get(rtp) {
                     let path = camino::Utf8PathBuf::from(path);
                     if path.exists() {
                         paths.push(path);
@@ -230,15 +233,10 @@ impl FileSystem {
                     }
                 }
 
-                state!()
-                    .toasts
-                    .warning(format!("Failed to find suitable path for  the RTP {rtp}"));
-                state!()
-                    .toasts
-                    .info(format!("You may want to set an RTP path for {rtp}"));
+                missing_rtps.push(rtp.to_string());
             }
         }
-        paths
+        (paths, missing_rtps)
     }
 
     #[cfg(target_arch = "wasm32")]

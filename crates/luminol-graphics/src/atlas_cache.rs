@@ -23,8 +23,8 @@ pub struct Cache {
 impl Cache {
     pub fn load_atlas(
         &self,
-        render_state: &egui_wgpu::RenderState,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        graphics_state: &crate::GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
         image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Result<crate::tiles::Atlas, String> {
@@ -32,15 +32,15 @@ impl Cache {
             .atlases
             .entry(tileset.id)
             .or_try_insert_with(|| {
-                crate::tiles::Atlas::new(render_state, filesystem, image_cache, tileset)
+                crate::tiles::Atlas::new(graphics_state, filesystem, image_cache, tileset)
             })?
             .clone())
     }
 
     pub fn reload_atlas(
         &self,
-        render_state: &egui_wgpu::RenderState,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        graphics_state: &crate::GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
         image_cache: &crate::image_cache::Cache,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Result<crate::tiles::Atlas, String> {
@@ -48,7 +48,7 @@ impl Cache {
             .atlases
             .entry(tileset.id)
             .insert(crate::tiles::Atlas::new(
-                render_state,
+                graphics_state,
                 filesystem,
                 image_cache,
                 tileset,

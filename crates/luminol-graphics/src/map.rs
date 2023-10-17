@@ -41,22 +41,26 @@ type ResourcesSlab = slab::Slab<std::sync::Arc<Resources>>;
 
 impl Map {
     pub fn new(
-        render_state: &egui_wgpu::RenderState,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
-        image_cache: &crate::image_cache::Cache,
-        atlas_cache: &crate::atlas_cache::Cache,
+        graphics_state: &crate::GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
     ) -> Result<Self, String> {
-        let atlas = atlas_cache.load_atlas(render_state, filesystem, image_cache, tileset)?;
+        let atlas = graphics_state.atlas_cache.load_atlas(
+            graphics_state,
+            filesystem,
+            &graphics_state.image_cache,
+            tileset,
+        )?;
 
-        let tiles = crate::tiles::Tiles::new(render_state, atlas, &map.data, use_push_constants);
+        let tiles = crate::tiles::Tiles::new(graphics_state, atlas, &map.data, use_push_constants);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
-                image_cache.load_wgpu_image(
-                    render_state,
+                graphics_state,
+                graphics_state.image_cache.load_wgpu_image(
+                    graphics_state,
                     filesystem,
                     "Graphics/Panoramas",
                     panorama_name,
@@ -74,7 +78,13 @@ impl Map {
         };
         let fog = if let Some(ref fog_name) = tileset.fog_name {
             Some(Plane::new(
-                image_cache.load_wgpu_image(render_state, filesystem, "Graphics/Fogs", fog_name)?,
+                graphics_state,
+                graphics_state.image_cache.load_wgpu_image(
+                    graphics_state,
+                    filesystem,
+                    "Graphics/Fogs",
+                    fog_name,
+                )?,
                 tileset.fog_hue,
                 tileset.fog_zoom,
                 tileset.fog_blend_type,
@@ -87,6 +97,7 @@ impl Map {
             None
         };
         let viewport = crate::viewport::Viewport::new(
+            graphics_state,
             glam::Mat4::orthographic_rh(
                 0.0,
                 map.width as f32 * 32.,
@@ -125,12 +136,13 @@ impl Map {
             .set_tile(render_state, tile_id, position);
     }
 
-    pub fn set_proj(&self, proj: glam::Mat4) {
-        self.resources.viewport.set_proj(proj);
+    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+        self.resources.viewport.set_proj(render_state, proj);
     }
 
     pub fn paint(
         &mut self,
+        graphics_state: &'static crate::GraphicsState,
         painter: &egui::Painter,
         selected_layer: Option<usize>,
         rect: egui::Rect,
@@ -139,7 +151,10 @@ impl Map {
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. {
                 self.ani_time = Some(time);
-                self.resources.tiles.autotiles.inc_ani_index();
+                self.resources
+                    .tiles
+                    .autotiles
+                    .inc_ani_index(&graphics_state.render_state);
             }
         } else {
             self.ani_time = Some(time);
@@ -185,14 +200,20 @@ impl Map {
 
                 if pano_enabled {
                     if let Some(panorama) = panorama {
-                        panorama.draw(viewport, render_pass);
+                        panorama.draw(graphics_state, viewport, render_pass);
                     }
                 }
 
-                tiles.draw(viewport, &enabled_layers, selected_layer, render_pass);
+                tiles.draw(
+                    graphics_state,
+                    viewport,
+                    &enabled_layers,
+                    selected_layer,
+                    render_pass,
+                );
                 if fog_enabled {
                     if let Some(fog) = fog {
-                        fog.draw(viewport, render_pass);
+                        fog.draw(graphics_state, viewport, render_pass);
                     }
                 }
             });

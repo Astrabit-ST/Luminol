@@ -20,7 +20,6 @@ pub use atlas::Atlas;
 use autotiles::Autotiles;
 use instance::Instances;
 use opacity::Opacity;
-use shader::Shader;
 
 mod atlas;
 mod autotile_ids;
@@ -40,14 +39,18 @@ pub struct Tiles {
 
 impl Tiles {
     pub fn new(
-        render_state: &egui_wgpu::RenderState,
+        graphics_state: &crate::GraphicsState,
         atlas: Atlas,
-        tiles: &luminol_data::Table3, use_push_constants: bool
+        tiles: &luminol_data::Table3,
+        use_push_constants: bool,
     ) -> Self {
-        let autotiles = Autotiles::new(&atlas);
-        let instances = Instances::new(render_state, tiles, atlas.atlas_texture.size());
-        let opacity = Opacity::new(use_push_constants);
-
+        let autotiles = Autotiles::new(graphics_state, &atlas, use_push_constants);
+        let instances = Instances::new(
+            &graphics_state.render_state,
+            tiles,
+            atlas.atlas_texture.size(),
+        );
+        let opacity = Opacity::new(graphics_state, use_push_constants);
 
         Self {
             autotiles,
@@ -69,6 +72,7 @@ impl Tiles {
 
     pub fn draw<'rpass>(
         &'rpass self,
+        graphics_state: &'rpass crate::GraphicsState,
         viewport: &crate::viewport::Viewport,
         enabled_layers: &[bool],
         selected_layer: Option<usize>,
@@ -82,7 +86,7 @@ impl Tiles {
         }
 
         render_pass.push_debug_group("tilemap tiles renderer");
-        Shader::bind(self.use_push_constants, render_pass);
+        render_pass.set_pipeline(&graphics_state.pipelines.tiles);
         self.autotiles.bind(render_pass);
         if self.use_push_constants {
             render_pass.set_push_constants(
@@ -104,7 +108,8 @@ impl Tiles {
                 Some(_) => 0.5,
                 None => 1.0,
             };
-            self.opacity.set_opacity(layer, opacity);
+            self.opacity
+                .set_opacity(&graphics_state.render_state, layer, opacity);
             if self.use_push_constants {
                 render_pass.set_push_constants(
                     wgpu::ShaderStages::FRAGMENT,

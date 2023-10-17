@@ -35,7 +35,7 @@ impl Event {
     // code smell, fix
     pub fn new(
         graphics_state: &crate::GraphicsState,
-        filesystem: &impl luminol_core::filesystem::FileSystem,
+        filesystem: &impl luminol_filesystem::FileSystem,
         event: &luminol_data::rpg::Event,
         atlas: &crate::tiles::Atlas,
         use_push_constants: bool,
@@ -62,8 +62,9 @@ impl Event {
             let quad = atlas.calc_quad((id + 1) as i16);
 
             let viewport = crate::viewport::Viewport::new(
+                graphics_state,
                 glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.),
-                use_push_constants
+                use_push_constants,
             );
 
             (quad, viewport, egui::vec2(32., 32.))
@@ -89,6 +90,7 @@ impl Event {
             let quad = crate::quad::Quad::new(pos, tex_coords, 0.0);
 
             let viewport = crate::viewport::Viewport::new(
+                graphics_state,
                 glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.),
                 use_push_constants,
             );
@@ -116,13 +118,13 @@ impl Event {
         &self.resources.sprite
     }
 
-    pub fn set_proj(&self, proj: glam::Mat4) {
-        self.resources.viewport.set_proj(proj);
+    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+        self.resources.viewport.set_proj(render_state, proj);
     }
 
     pub fn paint(
         &self,
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &'static crate::GraphicsState,
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
