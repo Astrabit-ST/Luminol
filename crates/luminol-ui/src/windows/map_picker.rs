@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The map picker window.
@@ -32,11 +31,12 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Window {}
 
 impl Window {
-    fn render_submap(
+    fn render_submap<W, T>(
         id: usize,
         children_data: &BTreeMap<usize, BTreeSet<usize>>,
-        mapinfos: &mut rpg::MapInfos,
+        mapinfos: &mut luminol_data::rpg::MapInfos,
         ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
         let map_info = mapinfos.get_mut(&id).unwrap();
@@ -57,13 +57,16 @@ impl Window {
                 .show_header(ui, |ui| {
                     // Has the user
                     if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                        Self::create_map_tab(id);
+                        match crate::tabs::map::Tab::new(id) {
+                            Ok(m) => update_state.edit_tabs.push(Box::new(m)),
+                            Err(e) => update_state.toasts.error(e),
+                        }
                     }
                 })
                 .body(|ui| {
                     for id in children_data.get(&id).unwrap() {
                         // Render children.
-                        Self::render_submap(*id, children_data, mapinfos, ui);
+                        Self::render_submap(*id, children_data, mapinfos, ui, update_state);
                     }
                 });
         } else {
@@ -71,26 +74,27 @@ impl Window {
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
                 if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                    Self::create_map_tab(id);
+                    match crate::tabs::map::Tab::new(id) {
+                        Ok(m) => update_state.edit_tabs.push(Box::new(m)),
+                        Err(e) => update_state.toasts.error(e),
+                    }
                 }
             });
         }
     }
-
-    fn create_map_tab(id: usize) {
-        match map::Tab::new(id) {
-            Ok(m) => state!().tabs.add_tab(Box::new(m)),
-            Err(e) => state!().toasts.error(e),
-        }
-    }
 }
 
-impl window::Window for Window {
+impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
         egui::Id::new("Map Picker")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         let mut window_open = true;
         egui::Window::new("Map Picker")
             .open(&mut window_open)
@@ -99,7 +103,7 @@ impl window::Window for Window {
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
-                        let mut mapinfos = state!().data_cache.mapinfos();
+                        let mut mapinfos = update_state.data.mapinfos();
 
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.
@@ -119,7 +123,13 @@ impl window::Window for Window {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
                                 for &id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(id, &children_data, &mut mapinfos, ui);
+                                    Self::render_submap(
+                                        id,
+                                        &children_data,
+                                        &mut mapinfos,
+                                        ui,
+                                        update_state,
+                                    );
                                 }
                             });
                     })

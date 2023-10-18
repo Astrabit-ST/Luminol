@@ -22,14 +22,12 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
 /// The confg window
 pub struct Window {}
 
 impl Window {}
 
-impl window::Window for Window {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         "Local Luminol Config".to_string()
     }
@@ -38,25 +36,30 @@ impl window::Window for Window {
         egui::Id::new("Local Luminol Config")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            let mut config = project_config!();
+            if let Some(config) = update_state.project_config {
+                ui.label("Project name");
+                ui.text_edit_singleline(&mut config.project_name);
+                ui.label("Scripts path");
+                ui.text_edit_singleline(&mut config.scripts_path);
+                ui.checkbox(&mut config.use_ron, "Use RON (Rusty Object Notation)");
+                egui::ComboBox::from_label("RGSS Version")
+                    .selected_text(config.rgss_ver.to_string())
+                    .show_ui(ui, |ui| {
+                        for ver in luminol_config::RGSSVer::iter() {
+                            ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
+                        }
+                    });
 
-            ui.label("Project name");
-            ui.text_edit_singleline(&mut config.project_name);
-            ui.label("Scripts path");
-            ui.text_edit_singleline(&mut config.scripts_path);
-            ui.checkbox(&mut config.use_ron, "Use RON (Rusty Object Notation)");
-            egui::ComboBox::from_label("RGSS Version")
-                .selected_text(config.rgss_ver.to_string())
-                .show_ui(ui, |ui| {
-                    for ver in config::RGSSVer::iter() {
-                        ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
-                    }
-                });
-
-            ui.label("Playtest Executable");
-            ui.text_edit_singleline(&mut config.playtest_exe);
+                ui.label("Playtest Executable");
+                ui.text_edit_singleline(&mut config.playtest_exe);
+            }
         });
     }
 

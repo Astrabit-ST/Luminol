@@ -107,7 +107,7 @@ impl App {
         if let Some(path) = try_load_path {
             match filesystem.load_project(&mut project_config, &mut global_config, path) {
                 Ok(o) => {} // FIXME load data
-                Err(e) => toasts.error(e),
+                Err(e) => toasts.error(e.to_string()),
             }
         }
 

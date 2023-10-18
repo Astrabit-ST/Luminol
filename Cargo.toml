@@ -4,7 +4,8 @@ resolver = "2"
 
 [workspace.dependencies]
 egui = "0.22.0"
-egui_extras = "0.22.0"
+egui_extras = { version = "0.22.0", features = ["svg"] }
+epaint = "0.22.0"
 
 eframe = { version = "0.22.0", features = [
     "wgpu",

@@ -22,6 +22,8 @@ default-run = "luminol"
 [dependencies]
 eframe.workspace = true
 egui.workspace = true
+egui_extras.workspace = true
+epaint.workspace = true
 
 rfd.workspace = true
 
@@ -46,6 +48,7 @@ luminol-graphics = { version = "0.1.0", path = "../luminol-graphics/" }
 # luminol-tabs = { version = "0.1.0", path = "../luminol-tabs/" }
 
 poll-promise.workspace = true
+
 
 [features]
 steamworks = ["dep:steamworks", "crc"]

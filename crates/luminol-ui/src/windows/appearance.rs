@@ -21,14 +21,12 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
-use crate::prelude::*;
-
 #[derive(Default)]
 pub struct Window {
     egui_settings_open: bool,
 }
 
-impl super::Window for Window {
+impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
         egui::Id::new("luminol_appearance_window")
     }
@@ -37,7 +35,12 @@ impl super::Window for Window {
         "Luminol Appearance".to_string()
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             // Or these together so if one OR the other is true the window shows.
             self.egui_settings_open =
@@ -58,12 +61,12 @@ impl super::Window for Window {
                 }
             });
 
-            let theme = &mut global_config!().theme;
+            let theme = &mut update_state.global_config.theme;
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
 
                 ui.label("Code sample");
-                ui.label(syntax_highlighting::highlight(
+                ui.label(luminol_components::syntax_highlighting::highlight(
                     ui.ctx(),
                     *theme,
                     r#"
@@ -85,8 +88,8 @@ impl super::Window for Window {
                 )
                 .clicked()
             {
-                state!().image_cache.clear();
-                state!().atlas_cache.clear();
+                update_state.graphics.image_cache.clear();
+                update_state.graphics.atlas_cache.clear();
             }
         });
     }

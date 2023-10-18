@@ -22,8 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
 mod state;
 
 #[allow(dead_code)]
@@ -70,7 +68,7 @@ impl Lumi {
             self.idle.texture_id(ctx),
             egui::Rect::from_min_size(pos, size),
             egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            Color32::WHITE,
+            egui::Color32::WHITE,
         );
     }
 }
