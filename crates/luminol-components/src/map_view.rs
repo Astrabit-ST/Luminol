@@ -59,36 +59,38 @@ pub enum SelectedLayer {
 }
 
 impl MapView {
-    pub fn new(
-        graphics_state: &luminol_graphics::GraphicsState,
-        filesystem: &impl luminol_filesystem::FileSystem,
+    pub fn new<W, T>(
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Result<MapView, String> {
         // Get tilesets.
 
-        let use_push_constants = graphics_state
+        let use_push_constants = update_state
+            .graphics
             .render_state
             .device
             .features()
             .contains(wgpu::Features::PUSH_CONSTANTS);
-        let atlas = graphics_state
-            .atlas_cache
-            .load_atlas(graphics_state, filesystem, tileset)?;
+        let atlas = update_state.graphics.atlas_cache.load_atlas(
+            &update_state.graphics,
+            update_state.filesystem,
+            tileset,
+        )?;
         let events = map
             .events
             .iter()
             .map(|(id, e)| {
                 let sprite = luminol_graphics::Event::new(
-                    graphics_state,
-                    filesystem,
+                    &update_state.graphics,
+                    update_state.filesystem,
                     e,
                     &atlas,
                     use_push_constants,
                 );
                 let preview_sprite = luminol_graphics::Event::new(
-                    graphics_state,
-                    filesystem,
+                    &update_state.graphics,
+                    update_state.filesystem,
                     e,
                     &atlas,
                     use_push_constants,
@@ -108,8 +110,8 @@ impl MapView {
             .flatten_ok()
             .try_collect()?;
         let map = luminol_graphics::Map::new(
-            graphics_state,
-            filesystem,
+            &update_state.graphics,
+            update_state.filesystem,
             map,
             tileset,
             use_push_constants,
@@ -141,10 +143,10 @@ impl MapView {
         })
     }
 
-    pub fn ui(
+    pub fn ui<W, T>(
         &mut self,
         ui: &mut egui::Ui,
-        graphics_state: &'static luminol_graphics::GraphicsState,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
         map: &luminol_data::rpg::Map,
         tilepicker: &crate::Tilepicker,
         dragging_event: bool,
@@ -257,6 +259,9 @@ impl MapView {
         let proj_center_y = height2 * 32. - self.pan.y / scale;
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
+
+        let graphics_state = update_state.graphics.clone();
+
         self.map.set_proj(
             &graphics_state.render_state,
             glam::Mat4::orthographic_rh(
@@ -269,7 +274,7 @@ impl MapView {
             ),
         );
         self.map.paint(
-            graphics_state,
+            graphics_state.clone(),
             ui.painter(),
             match self.selected_layer {
                 SelectedLayer::Events => None,
@@ -366,7 +371,7 @@ impl MapView {
                             1.,
                         ),
                     );
-                    sprite.paint(graphics_state, ui.painter(), canvas_rect);
+                    sprite.paint(graphics_state.clone(), ui.painter(), canvas_rect);
                 }
 
                 if matches!(self.selected_layer, SelectedLayer::Events)
@@ -419,7 +424,11 @@ impl MapView {
                             );
                             if let Some((_, preview_sprite)) = sprites {
                                 if ui.ctx().screen_rect().contains_rect(response.rect) {
-                                    preview_sprite.paint(graphics_state, &painter, response.rect);
+                                    preview_sprite.paint(
+                                        graphics_state.clone(),
+                                        &painter,
+                                        response.rect,
+                                    );
                                 }
                             }
                             match self.selected_event_id {

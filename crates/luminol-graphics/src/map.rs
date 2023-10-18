@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::Plane;
+use std::sync::Arc;
 
 use std::time::Duration;
 
@@ -139,7 +140,7 @@ impl Map {
 
     pub fn paint(
         &mut self,
-        graphics_state: &'static crate::GraphicsState,
+        graphics_state: Arc<crate::GraphicsState>,
         painter: &egui::Painter,
         selected_layer: Option<usize>,
         rect: egui::Rect,
@@ -179,6 +180,8 @@ impl Map {
                 let id = res_hash.insert(resources.clone());
                 prepare_id.set(id).expect("resources id already set?");
 
+                paint_callback_resources.insert(graphics_state.clone()); // ugh
+
                 vec![]
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
@@ -192,6 +195,10 @@ impl Map {
                     fog,
                     ..
                 } = resources.as_ref();
+
+                let graphics_state: &Arc<crate::GraphicsState> = paint_callback_resources
+                    .get()
+                    .expect("graphics state is unset");
 
                 viewport.bind(render_pass);
 

@@ -124,7 +124,7 @@ impl Event {
 
     pub fn paint(
         &self,
-        graphics_state: &'static crate::GraphicsState,
+        graphics_state: Arc<crate::GraphicsState>,
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
@@ -140,6 +140,9 @@ impl Event {
                     .or_insert_with(Default::default);
                 let id = res_hash.insert(resources.clone());
                 prepare_id.set(id).expect("resources id already set?");
+
+                paint_callback_resources.insert(graphics_state.clone());
+
                 vec![]
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
@@ -147,6 +150,10 @@ impl Event {
                 let id = paint_id.get().copied().expect("resources id is unset");
                 let resources = &res_hash[id];
                 let Resources { viewport, sprite } = resources.as_ref();
+
+                let graphics_state: &Arc<crate::GraphicsState> = paint_callback_resources
+                    .get()
+                    .expect("graphics state is unset");
 
                 viewport.bind(render_pass);
                 sprite.draw(graphics_state, viewport, render_pass);

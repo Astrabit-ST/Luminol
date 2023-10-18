@@ -138,13 +138,15 @@ impl Tilepicker {
         }
     }
 
-    pub fn ui(
+    pub fn ui<W, T>(
         &mut self,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
         ui: &mut egui::Ui,
-        graphics_state: &'static luminol_graphics::GraphicsState,
         scroll_rect: egui::Rect,
     ) -> egui::Response {
         let time = ui.ctx().input(|i| i.time);
+        let graphics_state = update_state.graphics.clone();
+
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. {
                 self.ani_time = Some(time);
@@ -179,6 +181,7 @@ impl Tilepicker {
                 1.,
             ),
         );
+        // FIXME: move this into graphics
         ui.painter().add(egui::PaintCallback {
             rect: scroll_rect.translate(canvas_rect.min.to_vec2()),
             callback: Arc::new(
@@ -190,6 +193,8 @@ impl Tilepicker {
                         let id = res_hash.insert(resources.clone());
                         prepare_id.set(id).expect("resources id already set?");
 
+                        paint_callback_resources.insert(graphics_state.clone());
+
                         vec![]
                     })
                     .paint(move |_info, render_pass, paint_callback_resources| {
@@ -199,6 +204,11 @@ impl Tilepicker {
                         let Resources {
                             tiles, viewport, ..
                         } = resources.as_ref();
+
+                        let graphics_state: &Arc<luminol_graphics::GraphicsState> =
+                            paint_callback_resources
+                                .get()
+                                .expect("graphics state unset");
 
                         viewport.bind(render_pass);
                         tiles.draw(graphics_state, viewport, &[true], None, render_pass);

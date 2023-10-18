@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use std::sync::Arc;
+
 mod tab;
 pub use tab::{Tab, Tabs};
 
@@ -38,7 +40,7 @@ pub use toasts::Toasts;
 pub struct UpdateState<'res, W, T> {
     pub audio: &'res mut luminol_audio::Audio,
 
-    pub graphics: &'res mut luminol_graphics::GraphicsState, // FIXME: certain functions were written with this being a static in mind
+    pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
     pub data: &'res mut luminol_data::data_cache::Cache,
 
@@ -79,7 +81,7 @@ impl<'res, W, T> UpdateState<'res, W, T> {
     ) -> UpdateState<'this, O, T> {
         UpdateState {
             audio: &mut *self.audio,
-            graphics: &mut *self.graphics,
+            graphics: self.graphics.clone(),
             filesystem: &mut *self.filesystem,
             data: &mut *self.data,
             edit_tabs: &mut *self.edit_tabs,
@@ -97,7 +99,7 @@ impl<'res, W, T> UpdateState<'res, W, T> {
     ) -> UpdateState<'this, W, O> {
         UpdateState {
             audio: &mut *self.audio,
-            graphics: &mut *self.graphics,
+            graphics: self.graphics.clone(),
             filesystem: &mut *self.filesystem,
             data: &mut *self.data,
             edit_tabs,

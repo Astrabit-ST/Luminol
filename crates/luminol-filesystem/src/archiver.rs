@@ -245,7 +245,7 @@ impl crate::File for File {
 
 impl<T> crate::FileSystem for FileSystem<T>
 where
-    T: Read + Write + Seek + Send + Sync,
+    T: Read + Write + Seek + Send + Sync + 'static,
 {
     type File = File;
 
