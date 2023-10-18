@@ -36,12 +36,12 @@ pub enum FileSystem {
     },
 }
 
-pub enum File<'fs> {
+pub enum File {
     #[cfg(not(target_arch = "wasm32"))]
-    Host(<host::FileSystem as crate::FileSystem>::File<'fs>),
+    Host(<host::FileSystem as crate::FileSystem>::File),
     #[cfg(target_arch = "wasm32")]
-    Host(<web::FileSystem as crate::FileSystem>::File<'fs>),
-    Loaded(<path_cache::FileSystem<list::FileSystem> as crate::FileSystem>::File<'fs>),
+    Host(<web::FileSystem as crate::FileSystem>::File),
+    Loaded(<path_cache::FileSystem<list::FileSystem> as crate::FileSystem>::File),
 }
 
 impl FileSystem {
@@ -536,7 +536,7 @@ impl FileSystem {
     }
 }
 
-impl<'fs> std::io::Write for File<'fs> {
+impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self {
             File::Host(f) => f.write(buf),
@@ -559,7 +559,7 @@ impl<'fs> std::io::Write for File<'fs> {
     }
 }
 
-impl<'fs> std::io::Read for File<'fs> {
+impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self {
             File::Host(f) => f.read(buf),
@@ -582,7 +582,7 @@ impl<'fs> std::io::Read for File<'fs> {
     }
 }
 
-impl<'fs> std::io::Seek for File<'fs> {
+impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         match self {
             File::Host(f) => f.seek(pos),
@@ -598,14 +598,23 @@ impl<'fs> std::io::Seek for File<'fs> {
     }
 }
 
+impl crate::File for File {
+    fn metadata(&self) -> Result<Metadata> {
+        match self {
+            File::Host(h) => crate::File::metadata(h),
+            File::Loaded(l) => l.metadata(),
+        }
+    }
+}
+
 impl crate::FileSystem for FileSystem {
-    type File<'fs> = File<'fs> where Self: 'fs;
+    type File = File;
 
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File<'_>> {
+    ) -> Result<Self::File> {
         match self {
             FileSystem::Unloaded => Err(Error::NotLoaded),
             FileSystem::HostLoaded(f) => f.open_file(path, flags).map(File::Host),

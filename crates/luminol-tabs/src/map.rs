@@ -315,7 +315,7 @@ impl Tab {
     }
 }
 
-impl tab::Tab for Tab {
+impl luminol_core::Tab for Tab {
     fn name(&self) -> String {
         let mapinfos = state!().data_cache.mapinfos();
         format!("Map {}: {}", self.id, mapinfos[&self.id].name)
@@ -329,7 +329,11 @@ impl tab::Tab for Tab {
         self.force_close
     }
 
-    fn show(&mut self, ui: &mut egui::Ui) {
+    fn show<W, T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {

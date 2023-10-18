@@ -15,9 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use itertools::Itertools;
-use std::fs::File;
 
-use crate::{DirEntry, Error, Metadata, OpenFlags};
+use crate::{DirEntry, File, Metadata, OpenFlags, Result};
 
 #[derive(Debug, Clone)]
 pub struct FileSystem {
@@ -37,13 +36,13 @@ impl FileSystem {
 }
 
 impl crate::FileSystem for FileSystem {
-    type File<'fs> = File where Self: 'fs;
+    type File = std::fs::File;
 
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File<'_>, Error> {
+    ) -> Result<Self::File> {
         let path = self.root_path.join(path);
         std::fs::OpenOptions::new()
             .create(flags.contains(OpenFlags::Create))
@@ -54,7 +53,7 @@ impl crate::FileSystem for FileSystem {
             .map_err(Into::into)
     }
 
-    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         let path = self.root_path.join(path);
         let metadata = std::fs::metadata(path)?;
         Ok(Metadata {
@@ -67,33 +66,33 @@ impl crate::FileSystem for FileSystem {
         &self,
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
-    ) -> std::result::Result<(), Error> {
+    ) -> Result<()> {
         let from = self.root_path.join(from);
         let to = self.root_path.join(to);
         std::fs::rename(from, to).map_err(Into::into)
     }
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         let path = self.root_path.join(path);
         path.try_exists().map_err(Into::into)
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = self.root_path.join(path);
         std::fs::create_dir(path).map_err(Into::into)
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = self.root_path.join(path);
         std::fs::remove_dir_all(path).map_err(Into::into)
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = self.root_path.join(path);
         std::fs::remove_file(path).map_err(Into::into)
     }
 
-    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         let path = self.root_path.join(path);
         path.read_dir_utf8()?
             .map_ok(|entry| {
@@ -112,5 +111,15 @@ impl crate::FileSystem for FileSystem {
             })
             .flatten()
             .try_collect()
+    }
+}
+
+impl File for std::fs::File {
+    fn metadata(&self) -> Result<Metadata> {
+        let metdata = self.metadata()?;
+        Ok(Metadata {
+            is_file: metdata.is_file(),
+            size: metdata.len(),
+        })
     }
 }

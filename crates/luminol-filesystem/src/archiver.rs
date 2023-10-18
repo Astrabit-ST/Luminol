@@ -234,17 +234,26 @@ impl std::io::Seek for File {
     }
 }
 
+impl crate::File for File {
+    fn metadata(&self) -> crate::Result<Metadata> {
+        Ok(Metadata {
+            is_file: true,
+            size: self.cursor.get_ref().len() as u64,
+        })
+    }
+}
+
 impl<T> crate::FileSystem for FileSystem<T>
 where
     T: Read + Write + Seek + Send + Sync,
 {
-    type File<'fs> = File where Self: 'fs;
+    type File = File;
 
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File<'_>, Error> {
+    ) -> Result<Self::File, Error> {
         if flags.contains(OpenFlags::Write) {
             return Err(Error::NotSupported);
         }

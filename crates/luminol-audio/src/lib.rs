@@ -87,7 +87,7 @@ impl Audio {
     pub fn play(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-        filesystem: &'static impl luminol_filesystem::FileSystem, // FIXME
+        filesystem: &impl luminol_filesystem::FileSystem, // FIXME
         volume: u8,
         pitch: u8,
         source: Source,

@@ -14,9 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use super::erased::{ErasedFilesystem, File};
 
-use crate::{DirEntry, Error, Metadata, OpenFlags};
+use crate::{erased::ErasedFilesystem, DirEntry, Error, File, Metadata, OpenFlags};
 use itertools::Itertools;
 
 #[derive(Default)]
@@ -35,13 +34,13 @@ impl FileSystem {
 }
 
 impl crate::FileSystem for FileSystem {
-    type File<'fs> = Box<dyn File + 'fs> where Self: 'fs;
+    type File = Box<dyn File>;
 
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File<'_>, Error> {
+    ) -> Result<Self::File, Error> {
         let path = path.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(path)? || flags.contains(OpenFlags::Create) {

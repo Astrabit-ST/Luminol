@@ -99,16 +99,15 @@ bitflags::bitflags! {
     }
 }
 
-pub trait FileSystem: Send + Sync {
-    type File<'fs>: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + 'fs
-    where
-        Self: 'fs;
+pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + 'static {
+    fn metadata(&self) -> Result<Metadata>;
+}
 
-    fn open_file(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-        flags: OpenFlags,
-    ) -> Result<Self::File<'_>>;
+pub trait FileSystem: Send + Sync + 'static {
+    type File: File;
+
+    fn open_file(&self, path: impl AsRef<camino::Utf8Path>, flags: OpenFlags)
+        -> Result<Self::File>;
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata>;
 

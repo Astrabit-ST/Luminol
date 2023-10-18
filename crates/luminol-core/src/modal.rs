@@ -38,8 +38,18 @@ pub trait Modal: Sized {
 
     /// Display a button to show this modal.
     /// It should call show.
-    fn button(this: &mut Option<Self>, ui: &mut egui::Ui, data: &mut Self::Data) -> Self;
+    fn button<W, T>(
+        this: &mut Option<Self>,
+        ui: &mut egui::Ui,
+        data: &mut Self::Data,
+        update_state: &mut crate::UpdateState<'_, W, T>,
+    );
 
     /// Show this modal.
-    fn show(this: &mut Option<Self>, ctx: &egui::Context, data: &mut Self::Data);
+    fn show<W, T>(
+        this: &mut Option<Self>,
+        ctx: &egui::Context,
+        data: &mut Self::Data,
+        update_state: &mut crate::UpdateState<'_, W, T>,
+    );
 }

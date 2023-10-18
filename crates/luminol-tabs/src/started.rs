@@ -22,8 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
 pub struct Tab {
@@ -42,7 +40,7 @@ impl Tab {
     }
 }
 
-impl tab::Tab for Tab {
+impl luminol_core::Tab for Tab {
     fn name(&self) -> String {
         "Get Started".to_string()
     }
@@ -51,8 +49,11 @@ impl tab::Tab for Tab {
         egui::Id::new("luminol_started_tab")
     }
 
-    fn show(&mut self, ui: &mut egui::Ui) {
-        let state = state!();
+    fn show<W, T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         ui.label(
             egui::RichText::new("Luminol")
                 .size(40.)
@@ -74,8 +75,8 @@ impl tab::Tab for Tab {
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()
             {
-                state!()
-                    .windows
+                update_state
+                    .edit_windows
                     .add_window(crate::windows::new_project::Window::default());
             }
             if ui
