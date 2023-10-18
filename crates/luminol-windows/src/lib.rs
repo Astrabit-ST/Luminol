@@ -49,7 +49,3 @@ pub mod new_project;
 pub mod script_edit;
 /// The sound test.
 pub mod sound_test;
-/// Traits and structs related to windows.
-pub mod window;
-
-pub use window::Window;

@@ -36,6 +36,16 @@ crc = { version = "3.0.1", optional = true }
 tracing-subscriber = "0.3.17"
 color-backtrace = "0.6.0"
 
+luminol-audio = { version = "0.1.0", path = "../luminol-audio/" }
+luminol-core = { version = "0.1.0", path = "../luminol-core/" }
+luminol-config = { version = "0.1.0", path = "../luminol-config/" }
+luminol-data = { version = "0.1.0", path = "../luminol-data/" }
+luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }
+luminol-graphics = { version = "0.1.0", path = "../luminol-graphics/" }
+# luminol-windows = { version = "0.1.0", path = "../luminol-windows/" }
+# luminol-tabs = { version = "0.1.0", path = "../luminol-tabs/" }
+
+poll-promise.workspace = true
 
 [features]
 steamworks = ["dep:steamworks", "crc"]

@@ -24,58 +24,50 @@
 
 /// The switch picker modal.
 pub struct Modal {
-    id: egui::Id,
+    switch_id_range: std::ops::Range<usize>,
+    search_text: String,
 }
 
-impl Modal {
-    /// Create a new modal.
-    pub fn new(id: egui::Id) -> Self {
-        Self { id }
-    }
-}
-
-impl modal::Modal for Modal {
+impl luminol_core::Modal for Modal {
     type Data = usize;
 
-    fn id(mut self, id: egui::Id) -> Self {
-        self.id = id;
-        self
-    }
+    fn button<W, T>(
+        this: &mut Option<Self>,
+        ui: &mut egui::Ui,
+        data: &mut Self::Data,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        let system = update_state.data.system();
 
-    fn button(mut self, ui: &mut egui::Ui, state: &mut bool, data: &mut Self::Data) -> Self {
+        if ui
+            .button(format!("{data}: {}", system.switches[*data - 1]))
+            .clicked()
         {
-            let system = state!().data_cache.system();
-
-            if ui
-                .button(format!("{data}: {}", system.switches[*data - 1]))
-                .clicked()
-            {
-                *state = true;
-                ui.ctx().memory_mut(|m| {
-                    m.data
-                        .get_temp_mut_or(self.id, (*data, *data, String::new()));
-                });
-            }
+            this.get_or_insert(Self {
+                switch_id_range: *data..*data,
+                search_text: String::new(),
+            });
         }
 
-        if *state {
-            self.show(ui.ctx(), state, data);
-        }
-
-        self
+        Modal::show(this, ui.ctx(), data, update_state);
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, data: &mut Self::Data) {
-        let mut win_open = true;
+    fn show<W, T>(
+        this_opt: &mut Option<Self>,
+        ctx: &egui::Context,
+        data: &mut Self::Data,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        let mut win_open = this_opt.is_some();
+        let mut needs_close = this_opt.is_some();
+
         egui::Window::new("Switch Picker")
-            .id(self.id)
             .resizable(false)
             .open(&mut win_open)
             .show(ctx, |ui| {
-                let system = state!().data_cache.system();
+                let this = this_opt.as_mut().unwrap();
 
-                let mut memory: (usize, usize, String) =
-                    ctx.data_mut(|m| m.get_temp(self.id).unwrap());
+                let system = update_state.data.system();
 
                 ui.group(|ui| {
                     egui::ScrollArea::vertical()
@@ -84,55 +76,54 @@ impl modal::Modal for Modal {
                         .show(ui, |ui| {
                             for (id, name) in
                                 system.switches.iter().enumerate().filter(|(id, s)| {
-                                    (id + 1).to_string().contains(&memory.2)
-                                        || s.contains(&memory.2)
+                                    (id + 1).to_string().contains(&this.search_text)
+                                        || s.contains(&this.search_text)
                                 })
                             {
                                 let id = id + 1;
                                 let mut text = egui::RichText::new(format!("{id}: {name}"));
 
-                                if memory.0 == id {
+                                if this.switch_id_range.start == id {
                                     text = text.color(egui::Color32::YELLOW);
                                 }
 
                                 let response = ui.selectable_value(data, id, text);
 
-                                if memory.1 == id {
-                                    memory.1 = usize::MAX;
-                                    memory.0 = id;
+                                if this.switch_id_range.end == id {
+                                    this.switch_id_range.end = usize::MAX;
+                                    this.switch_id_range.start = id;
 
                                     response.scroll_to_me(None);
                                 }
 
                                 if response.double_clicked() {
-                                    *open = false;
+                                    needs_close = true;
                                 }
                             }
                         })
                 });
 
                 ui.horizontal(|ui| {
-                    *open = !ui.button("Ok").clicked();
-                    *open = !ui.button("Cancel").clicked();
+                    needs_close |= ui.button("Ok").clicked();
+                    needs_close |= ui.button("Cancel").clicked();
 
                     if ui
                         .add(
-                            egui::DragValue::new(&mut memory.0)
+                            egui::DragValue::new(&mut this.switch_id_range.start)
                                 .clamp_range(0..=system.switches.len()),
                         )
                         .changed()
                     {
-                        memory.1 = memory.0;
+                        this.switch_id_range.end = this.switch_id_range.start;
                     };
-                    egui::TextEdit::singleline(&mut memory.2)
+                    egui::TextEdit::singleline(&mut this.search_text)
                         .hint_text("Search 🔎")
                         .show(ui);
                 });
-
-                ctx.data_mut(|m| {
-                    m.insert_temp(self.id, memory);
-                });
             });
-        *open = *open && win_open;
+
+        if !win_open || needs_close {
+            *this_opt = None;
+        }
     }
 }

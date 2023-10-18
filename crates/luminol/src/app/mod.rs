@@ -23,6 +23,8 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::lumi::Lumi;
+use crate::steam::Steamworks;
+
 mod top_bar;
 
 /// Custom implementation of `eframe::Frame` for Luminol.
@@ -72,6 +74,15 @@ macro_rules! app_use_custom_update {
 pub struct App {
     top_bar: top_bar::TopBar,
     lumi: Lumi,
+
+    toasts: luminol_core::Toasts,
+
+    global_config: luminol_config::global::Config,
+    project_config: Option<luminol_config::project::Config>,
+
+    filesystem: luminol_filesystem::project::FileSystem,
+
+    steamworks: Steamworks,
 }
 
 impl App {
@@ -81,22 +92,28 @@ impl App {
         cc: &eframe::CreationContext<'_>,
         try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio_wrapper: crate::audio::AudioWrapper,
+        #[cfg(feature = "steamworks")] steamworks: Steamworks,
     ) -> Self {
         let storage = cc.storage.unwrap();
 
-        if let Some(global_config) = eframe::get_value(storage, "SavedState") {
-            *global_config!() = global_config;
+        let mut global_config = eframe::get_value(storage, "SavedState").unwrap_or_default();
+        let mut project_config = None;
+
+        let mut filesystem = luminol_filesystem::project::FileSystem::new();
+
+        let mut toasts = luminol_core::Toasts::default();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(path) = try_load_path {
+            match filesystem.load_project(&mut project_config, &mut global_config, path) {
+                Ok(o) => {} // FIXME load data
+                Err(e) => toasts.error(e),
+            }
         }
+
         let style =
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
-
-        let info = State::new(
-            cc.wgpu_render_state.clone().unwrap(),
-            #[cfg(target_arch = "wasm32")]
-            audio_wrapper,
-        );
-        crate::set_state(info);
 
         #[cfg(not(debug_assertions))]
         state!()
@@ -141,24 +158,25 @@ impl App {
                 std::process::abort();
             }));
 
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Some(path) = try_load_path {
-            state!()
-                .filesystem
-                .load_project(path)
-                .expect("failed to load project");
-        }
-
         let lumi = Lumi::new().expect("failed to load lumi images");
 
         Self {
             top_bar: top_bar::TopBar::default(),
             lumi,
+
+            toasts,
+
+            project_config,
+            global_config,
+
+            filesystem,
+
+            steamworks,
         }
     }
 }
 
-impl CustomApp for Luminol {
+impl CustomApp for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn custom_update(&mut self, ctx: &eframe::egui::Context, frame: &mut CustomFrame<'_>) {
         ctx.input(|i| {
@@ -166,17 +184,17 @@ impl CustomApp for Luminol {
                 let path = f.path.clone().expect("dropped file has no path");
 
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Err(e) = state!().filesystem.load_project(path) {
-                    state!()
-                        .toasts
+                if let Err(e) = self.filesystem.load_project(
+                    &mut self.project_config,
+                    &mut self.global_config,
+                    path,
+                ) {
+                    self.toasts
                         .error(format!("Error opening dropped project: {e}"))
                 } else {
-                    state!().toasts.info(format!(
+                    self.toasts.info(format!(
                         "Successfully opened {:?}",
-                        state!()
-                            .filesystem
-                            .project_path()
-                            .expect("project not open")
+                        self.filesystem.project_path().expect("project not open")
                     ));
                 }
             }
@@ -203,7 +221,7 @@ impl CustomApp for Luminol {
         state!().windows.update(ctx);
 
         // Show toasts.
-        state!().toasts.show(ctx);
+        self.toasts.show(ctx);
 
         #[cfg(not(target_arch = "wasm32"))]
         poll_promise::tick_local();
@@ -211,11 +229,11 @@ impl CustomApp for Luminol {
         self.lumi.ui(ctx);
 
         #[cfg(feature = "steamworks")]
-        Steamworks::update()
+        self.steamworks.update()
     }
 }
 
-impl eframe::App for Luminol {
+impl eframe::App for App {
     app_use_custom_update!();
 
     /// Called by the frame work to save state before shutdown.

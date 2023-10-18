@@ -33,9 +33,6 @@ pub trait Modal: Sized {
     /// The output type for this modal.
     type Data;
 
-    /// Set the modal Id
-    fn id(self, id: egui::Id) -> Self;
-
     /// Display a button to show this modal.
     /// It should call show.
     fn button<W, T>(

@@ -49,7 +49,6 @@
 #![feature(min_specialization, int_roundings)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -149,7 +148,14 @@ fn main() {
     eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| Box::new(app::App::new(cc, std::env::args_os().nth(1)))),
+        Box::new(|cc| {
+            Box::new(app::App::new(
+                cc,
+                std::env::args_os().nth(1),
+                #[cfg(feature = "steamworks")]
+                steamworks,
+            ))
+        }),
     )
     .expect("failed to start luminol");
 }
