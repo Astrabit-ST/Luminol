@@ -2414,6 +2414,7 @@ dependencies = [
  "egui-wgpu",
  "glam",
  "itertools",
+ "luminol-audio",
  "luminol-core",
  "luminol-data",
  "luminol-filesystem",
@@ -2557,6 +2558,8 @@ dependencies = [
  "luminol-data",
  "luminol-filesystem",
  "luminol-graphics",
+ "luminol-modals",
+ "luminol-term",
  "strum",
 ]
 

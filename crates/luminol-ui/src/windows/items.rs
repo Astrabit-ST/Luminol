@@ -22,19 +22,17 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
 /// Database - Items management window.
 pub struct Window {
     // ? Items ?
-    items: rpg::Items,
+    items: luminol_data::rpg::Items,
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
     icon_picker_open: bool,
 
     // ? Menu Sound Effect Picker ?
-    menu_se_picker: sound_test::SoundTab,
+    menu_se_picker: luminol_components::SoundTab,
     menu_se_picker_open: bool,
 }
 

@@ -31,6 +31,9 @@ pub use map_view::{MapView, SelectedLayer};
 mod tilepicker;
 pub use tilepicker::{SelectedTile, Tilepicker};
 
+mod sound_tab;
+pub use sound_tab::SoundTab;
+
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,
     id: egui::Id,

@@ -43,23 +43,26 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
     ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            if let Some(config) = update_state.project_config {
-                ui.label("Project name");
-                ui.text_edit_singleline(&mut config.project_name);
-                ui.label("Scripts path");
-                ui.text_edit_singleline(&mut config.scripts_path);
-                ui.checkbox(&mut config.use_ron, "Use RON (Rusty Object Notation)");
-                egui::ComboBox::from_label("RGSS Version")
-                    .selected_text(config.rgss_ver.to_string())
-                    .show_ui(ui, |ui| {
-                        for ver in luminol_config::RGSSVer::iter() {
-                            ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
-                        }
-                    });
+            let config = update_state
+                .project_config
+                .as_mut()
+                .expect("project not open");
 
-                ui.label("Playtest Executable");
-                ui.text_edit_singleline(&mut config.playtest_exe);
-            }
+            ui.label("Project name");
+            ui.text_edit_singleline(&mut config.project_name);
+            ui.label("Scripts path");
+            ui.text_edit_singleline(&mut config.scripts_path);
+            ui.checkbox(&mut config.use_ron, "Use RON (Rusty Object Notation)");
+            egui::ComboBox::from_label("RGSS Version")
+                .selected_text(config.rgss_ver.to_string())
+                .show_ui(ui, |ui| {
+                    for ver in luminol_config::RGSSVer::iter() {
+                        ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
+                    }
+                });
+
+            ui.label("Playtest Executable");
+            ui.text_edit_singleline(&mut config.playtest_exe);
         });
     }
 

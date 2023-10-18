@@ -12,6 +12,8 @@ luminol-data = { version = "0.1.0", path = "../luminol-data/" }
 luminol-graphics = { version = "0.1.0", path = "../luminol-graphics/" }
 luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }
 luminol-components = { version = "0.1.0", path = "../luminol-components/" }
+luminol-term = { version = "0.1.0", path = "../luminol-term/" }
+luminol-modals = { version = "0.1.0", path = "../luminol-modals/" }
 
 egui.workspace = true
 egui_extras.workspace = true

@@ -22,13 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use super::window::Window;
-use crate::prelude::*;
 /// Egui inspection window.
 #[derive(Default)]
 pub struct EguiInspection {}
 
-impl Window for EguiInspection {
+impl luminol_core::Window for EguiInspection {
     fn name(&self) -> String {
         "Egui Inspection".to_string()
     }
@@ -37,7 +35,12 @@ impl Window for EguiInspection {
         egui::Id::new("Egui Inspection")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.inspection_ui(ui));
@@ -48,7 +51,7 @@ impl Window for EguiInspection {
 #[derive(Default)]
 pub struct EguiMemory {}
 
-impl Window for EguiMemory {
+impl luminol_core::Window for EguiMemory {
     fn name(&self) -> String {
         "Egui Memory".to_string()
     }
@@ -57,7 +60,12 @@ impl Window for EguiMemory {
         egui::Id::new("Egui Memory")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, |ui| ctx.memory_ui(ui));
@@ -67,7 +75,7 @@ impl Window for EguiMemory {
 #[derive(Default)]
 pub struct FilesystemDebug {}
 
-impl Window for FilesystemDebug {
+impl luminol_core::Window for FilesystemDebug {
     fn name(&self) -> String {
         "Filesystem Debug".to_string()
     }
@@ -76,9 +84,14 @@ impl Window for FilesystemDebug {
         egui::Id::new("Filesystem Debug Window")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name())
             .open(open)
-            .show(ctx, |ui| state!().filesystem.debug_ui(ui));
+            .show(ctx, |ui| update_state.filesystem.debug_ui(ui));
     }
 }

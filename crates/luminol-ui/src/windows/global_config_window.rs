@@ -25,7 +25,7 @@
 #[derive(Default)]
 pub struct Window {}
 
-impl super::Window for Window {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         "Luminol Preferences".to_string()
     }
@@ -34,7 +34,12 @@ impl super::Window for Window {
         egui::Id::new("luminol_preferences_window")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {});
     }
 }

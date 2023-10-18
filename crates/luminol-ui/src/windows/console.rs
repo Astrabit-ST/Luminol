@@ -34,7 +34,7 @@ impl Console {
     }
 }
 
-impl super::window::Window for Console {
+impl luminol_core::Window for Console {
     fn name(&self) -> String {
         self.term.title()
     }
@@ -47,14 +47,19 @@ impl super::window::Window for Console {
         true
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name())
             .id(self.term.id())
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
                 if let Err(e) = self.term.ui(ui) {
-                    crate::state!()
+                    update_state
                         .toasts
                         .error(format!("error displaying terminal: {e:?}"));
                 }

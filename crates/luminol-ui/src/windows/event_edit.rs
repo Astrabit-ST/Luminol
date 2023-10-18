@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use luminol_core::Modal;
 
 /// The event editor window.
 pub struct Window {
@@ -31,7 +31,10 @@ pub struct Window {
     selected_page: usize,
     name: String,
     viewed_tab: u8,
-    modals: (bool, bool, bool),
+
+    switch_modal_1: Option<luminol_modals::switch::Modal>,
+    switch_modal_2: Option<luminol_modals::switch::Modal>,
+    variable_modal: Option<luminol_modals::variable::Modal>,
 }
 
 impl Window {
@@ -43,12 +46,15 @@ impl Window {
             selected_page: 0,
             name: String::from("(unknown)"),
             viewed_tab: 2,
-            modals: (false, false, false),
+
+            switch_modal_1: None,
+            switch_modal_2: None,
+            variable_modal: None,
         }
     }
 }
 
-impl window::Window for Window {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         format!("Event: {}, {} in Map {}", self.name, self.id, self.map_id)
     }
@@ -59,8 +65,13 @@ impl window::Window for Window {
             .with(self.id)
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let mut map = state!().data_cache.map(self.map_id);
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        let mut map = update_state.data_cache.map(self.map_id);
         let event = match map.events.get_mut(self.id) {
             Some(e) => e,
             None => {
@@ -121,17 +132,11 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.switch1_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch1_valid, |ui| {
-                                            switch::Modal::new(
-                                                format!(
-                                                    "event_{}_{}_switch1",
-                                                    self.id, self.map_id
-                                                )
-                                                .into(),
-                                            )
-                                            .button(
+                                            luminol_modals::switch::Modal::button(
+                                                &mut self.switch_modal_1,
                                                 ui,
-                                                &mut self.modals.0,
                                                 &mut page.condition.switch1_id,
+                                                update_state,
                                             );
                                         });
                                     });
@@ -140,17 +145,11 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.switch2_valid, "Switch");
 
                                         ui.add_enabled_ui(page.condition.switch2_valid, |ui| {
-                                            switch::Modal::new(
-                                                format!(
-                                                    "event_{}_{}_switch2",
-                                                    self.id, self.map_id
-                                                )
-                                                .into(),
-                                            )
-                                            .button(
+                                            luminol_modals::switch::Modal::button(
+                                                &mut self.switch_modal_2,
                                                 ui,
-                                                &mut self.modals.1,
-                                                &mut page.condition.switch2_id,
+                                                &mut page.condition.switch1_id,
+                                                update_state,
                                             );
                                         });
                                     });
@@ -159,17 +158,11 @@ impl window::Window for Window {
                                         ui.checkbox(&mut page.condition.variable_valid, "Variable");
 
                                         ui.add_enabled_ui(page.condition.variable_valid, |ui| {
-                                            variable::Modal::new(
-                                                format!(
-                                                    "event_{}_{}_variable",
-                                                    self.id, self.map_id
-                                                )
-                                                .into(),
-                                            )
-                                            .button(
+                                            luminol_modals::variable::Modal::button(
+                                                &mut self.variable_modal,
                                                 ui,
-                                                &mut self.modals.2,
                                                 &mut page.condition.variable_id,
+                                                update_state,
                                             );
                                         });
 
