@@ -57,6 +57,8 @@ const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
 
 mod app;
 mod lumi;
+
+#[cfg(feature = "steamworks")]
 mod steam;
 
 #[cfg(not(target_arch = "wasm32"))]

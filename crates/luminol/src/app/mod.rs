@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::lumi::Lumi;
+#[cfg(feature = "steamworks")]
 use crate::steam::Steamworks;
 
 mod top_bar;
@@ -91,6 +92,7 @@ pub struct App {
 
     toolbar: luminol_core::ToolbarState,
 
+    #[cfg(feature = "steamworks")]
     steamworks: Steamworks,
 }
 
@@ -197,6 +199,7 @@ impl App {
             project_config,
             toolbar: luminol_core::ToolbarState::default(),
 
+            #[cfg(feature = "steamworks")]
             steamworks,
         }
     }
