@@ -27,9 +27,13 @@ pub mod tabs;
 pub mod windows;
 
 macro_rules! tab_enum {
-    ($visibility:vis enum $name:ident {
-        $( $variant:ident($variant_type:ty) ),* $(,)?
-    }) => {
+    (
+        $(#[$attr:meta])*
+        $visibility:vis enum $name:ident {
+            $( $variant:ident($variant_type:ty) ),* $(,)?
+        }
+    ) => {
+        $( #[$attr] )*
         $visibility enum $name {
             $(
                 $variant($variant_type),
@@ -93,9 +97,13 @@ macro_rules! tab_enum {
 }
 
 macro_rules! window_enum {
-    ($visibility:vis enum $name:ident {
-        $( $variant:ident($variant_type:ty) ),* $(,)?
-    }) => {
+    (
+        $(#[$attr:meta])*
+        $visibility:vis enum $name:ident {
+            $( $variant:ident($variant_type:ty) ),* $(,)?
+        }
+    ) => {
+        $( #[$attr] )*
         $visibility enum $name {
             $(
                 $variant($variant_type),

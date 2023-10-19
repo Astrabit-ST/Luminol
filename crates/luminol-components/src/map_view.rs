@@ -63,7 +63,9 @@ impl MapView {
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
         map_id: usize,
     ) -> Result<MapView, String> {
-        let map = update_state.data.map(map_id);
+        let map = update_state
+            .data
+            .get_or_load_map(map_id, update_state.filesystem);
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets[map.tileset_id];
 
@@ -113,7 +115,7 @@ impl MapView {
         let map = luminol_graphics::Map::new(
             &update_state.graphics,
             update_state.filesystem,
-            map,
+            &map,
             tileset,
             use_push_constants,
         )?;

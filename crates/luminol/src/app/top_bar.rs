@@ -283,10 +283,12 @@ impl TopBar {
         }
 
         if save_project {
-            update_state.toasts.info("Saving project...");
-            match update_state.data.save(update_state.filesystem) {
-                Ok(_) => update_state.toasts.info("Saved project sucessfully!"),
-                Err(e) => update_state.toasts.error(e),
+            if let Some(config) = update_state.project_config {
+                update_state.toasts.info("Saving project...");
+                match update_state.data.save(update_state.filesystem, config) {
+                    Ok(_) => update_state.toasts.info("Saved project sucessfully!"),
+                    Err(e) => update_state.toasts.error(e),
+                }
             }
         }
 

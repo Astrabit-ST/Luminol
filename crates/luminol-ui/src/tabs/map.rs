@@ -100,7 +100,9 @@ impl Tab {
         let view = luminol_components::MapView::new(update_state, id)?;
         let tilepicker = luminol_components::Tilepicker::new(update_state, id)?;
 
-        let map = update_state.data.map(id);
+        let map = update_state
+            .data
+            .get_or_load_map(id, update_state.filesystem);
 
         Ok(Self {
             id,
@@ -449,7 +451,7 @@ impl luminol_core::Tab for Tab {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 // Get the map.
-                let mut map = update_state.data.map(self.id);
+                let mut map = update_state.data.get_map(self.id);
 
                 // Save the state of the selected layer into the cache
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =

@@ -11,7 +11,7 @@ mod option_vec;
 
 mod rgss_structs;
 
-mod helpers;
+pub mod helpers;
 
 pub mod commands;
 

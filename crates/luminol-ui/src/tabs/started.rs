@@ -74,8 +74,8 @@ impl luminol_core::Tab for Tab {
                 Ok(Ok(host)) => {
                     if let Err(e) = update_state.filesystem.load_project(
                         host,
-                        &mut update_state.project_config,
-                        &mut update_state.global_config,
+                        update_state.project_config,
+                        update_state.global_config,
                     ) {
                         update_state.toasts.error(e.to_string());
                     }
@@ -87,7 +87,7 @@ impl luminol_core::Tab for Tab {
             ui.spinner();
         }
 
-        ui.add_enabled_ui(self.load_project_promise.is_some(), |ui| {
+        ui.add_enabled_ui(self.load_project_promise.is_none(), |ui| {
             if ui
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()

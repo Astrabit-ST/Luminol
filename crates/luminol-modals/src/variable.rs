@@ -49,6 +49,8 @@ impl luminol_core::Modal for Modal {
             });
         }
 
+        drop(system);
+
         Modal::show(this, ui.ctx(), data, update_state);
     }
 

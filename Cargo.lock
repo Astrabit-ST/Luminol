@@ -2595,6 +2595,7 @@ dependencies = [
 name = "luminol-core"
 version = "0.1.0"
 dependencies = [
+ "alox-48",
  "bitflags 2.4.0",
  "camino",
  "egui",
@@ -2606,6 +2607,7 @@ dependencies = [
  "luminol-filesystem",
  "luminol-graphics",
  "parking_lot",
+ "rand",
  "serde",
  "strum",
  "thiserror",

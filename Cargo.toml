@@ -51,6 +51,8 @@ itertools = "0.11.0"
 
 rfd = "0.12.0"
 
+rand = "0.8.5"
+
 # Fast and performant.
 [profile.release]
 opt-level = 3

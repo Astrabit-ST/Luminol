@@ -104,7 +104,7 @@ impl luminol_core::Window for Window {
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
-                        let mut mapinfos = update_state.data.mapinfos();
+                        let mut mapinfos = update_state.data.map_infos();
 
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.

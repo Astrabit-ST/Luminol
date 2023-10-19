@@ -210,8 +210,8 @@ impl Window {
             .map_err(|e| e.to_string())?;
 
         // TODO
-        let data_cache = luminol_core::Data::defaults_from_config(&config);
-        data_cache.save(&host_fs)?;
+        let mut data_cache = luminol_core::Data::from_defaults();
+        data_cache.save(&host_fs, &config)?;
 
         if download_executable {
             Self::download_executable(&config, &host_fs, progress).await?;
