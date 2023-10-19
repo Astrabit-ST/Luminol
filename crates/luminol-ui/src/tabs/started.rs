@@ -69,16 +69,16 @@ impl luminol_core::Tab for Tab {
 
         ui.heading("Start");
 
+        let mut filesystem_open_result = None;
+
         if let Some(p) = self.load_project_promise.take() {
             match p.try_take() {
                 Ok(Ok(host)) => {
-                    if let Err(e) = update_state.filesystem.load_project(
+                    filesystem_open_result = Some(update_state.filesystem.load_project(
                         host,
                         update_state.project_config,
                         update_state.global_config,
-                    ) {
-                        update_state.toasts.error(e.to_string());
-                    }
+                    ));
                 }
                 Ok(Err(error)) => update_state.toasts.error(error.to_string()),
                 Err(p) => self.load_project_promise = Some(p),
@@ -121,14 +121,13 @@ impl luminol_core::Tab for Tab {
                 #[cfg(target_arch = "wasm32")]
                 let idb_key = idb_key.clone();
 
-                let result;
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    result = update_state.filesystem.load_project_from_path(
-                        &mut update_state.project_config,
-                        &mut update_state.global_config,
+                    filesystem_open_result = Some(update_state.filesystem.load_project_from_path(
+                        update_state.project_config,
+                        update_state.global_config,
                         path,
-                    );
+                    ));
                 }
 
                 #[cfg(target_arch = "wasm32")]
@@ -155,11 +154,19 @@ impl luminol_core::Tab for Tab {
                                 };
                         }));
                 }
+            }
+        }
 
-                if let Err(why) = result {
+        match filesystem_open_result {
+            Some(Ok(_)) => {
+                if let Err(why) = update_state.data.load(
+                    update_state.filesystem,
+                    // TODO code jank
+                    update_state.project_config.as_mut().unwrap(),
+                ) {
                     update_state
                         .toasts
-                        .error(format!("Error loading the project: {why}"));
+                        .error(format!("Error loading the project data: {why}"));
                 } else {
                     update_state.toasts.info(format!(
                         "Successfully opened {:?}",
@@ -170,6 +177,12 @@ impl luminol_core::Tab for Tab {
                     ));
                 }
             }
+            Some(Err(why)) => {
+                update_state
+                    .toasts
+                    .error(format!("Error opening the project: {why}"));
+            }
+            None => {}
         }
     }
 }
