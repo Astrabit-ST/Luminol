@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::CodeTheme;
+
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
@@ -37,7 +39,7 @@ pub struct Config {
     pub recent_projects: VecDeque<(String, String)>,
 
     /// The current code theme
-    // pub theme: syntax_highlighting::CodeTheme,
+    pub theme: CodeTheme,
     pub rtp_paths: HashMap<String, String>,
 }
 
@@ -51,7 +53,7 @@ impl Config {
     pub fn new() -> Self {
         Self {
             recent_projects: VecDeque::new(),
-            // theme: syntax_highlighting::CodeTheme::dark(),
+            theme: CodeTheme::dark(),
             rtp_paths: HashMap::new(),
         }
     }

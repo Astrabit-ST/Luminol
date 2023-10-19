@@ -148,7 +148,7 @@ impl luminol_core::Tab for ScriptTab {
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
     ) {
         // FIXME
-        let theme = luminol_components::syntax_highlighting::CodeTheme::dark(); // update_state.global_config.theme;
+
         ui.horizontal(|ui| {
             let mut save_script = false;
 
@@ -173,8 +173,12 @@ impl luminol_core::Tab for ScriptTab {
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job =
-                luminol_components::syntax_highlighting::highlight(ui.ctx(), theme, string, "rb");
+            let mut layout_job = luminol_components::syntax_highlighting::highlight(
+                ui.ctx(),
+                update_state.global_config.theme,
+                string,
+                "rb",
+            );
             layout_job.wrap.max_width = wrap_width;
             ui.fonts(|f| f.layout_job(layout_job))
         };

@@ -21,6 +21,9 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+
+use strum::IntoEnumIterator;
+
 #[derive(Default)]
 pub struct Window {
     egui_settings_open: bool,
@@ -61,15 +64,19 @@ impl luminol_core::Window for Window {
                 }
             });
 
-            // FIXME
-            let mut theme = luminol_components::syntax_highlighting::CodeTheme::dark(); // &mut update_state.global_config.theme;
             ui.menu_button("Code Theme", |ui| {
-                theme.ui(ui);
+                for t in luminol_config::SyntectTheme::iter() {
+                    ui.radio_value(
+                        &mut update_state.global_config.theme.syntect_theme,
+                        t,
+                        t.to_string(),
+                    );
+                }
 
                 ui.label("Code sample");
                 ui.label(luminol_components::syntax_highlighting::highlight(
                     ui.ctx(),
-                    theme,
+                    update_state.global_config.theme,
                     r#"
                         class Foo < Array 
                         end

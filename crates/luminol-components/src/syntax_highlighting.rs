@@ -27,7 +27,7 @@
 use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.
-pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str, theme: CodeTheme) {
+pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str, theme: luminol_config::CodeTheme) {
     let language = "rb";
 
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
@@ -48,9 +48,19 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str, theme: CodeTheme) {
 
 /// Memoized Code highlighting
 #[must_use]
-pub fn highlight(ctx: &egui::Context, theme: CodeTheme, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(CodeTheme, &str, &str), LayoutJob> for Highlighter {
-        fn compute(&mut self, (theme, code, lang): (CodeTheme, &str, &str)) -> LayoutJob {
+pub fn highlight(
+    ctx: &egui::Context,
+    theme: luminol_config::CodeTheme,
+    code: &str,
+    language: &str,
+) -> LayoutJob {
+    impl egui::util::cache::ComputerMut<(luminol_config::CodeTheme, &str, &str), LayoutJob>
+        for Highlighter
+    {
+        fn compute(
+            &mut self,
+            (theme, code, lang): (luminol_config::CodeTheme, &str, &str),
+        ) -> LayoutJob {
             self.highlight(theme, code, lang)
         }
     }
@@ -61,163 +71,6 @@ pub fn highlight(ctx: &egui::Context, theme: CodeTheme, code: &str, language: &s
         let highlight_cache = m.caches.cache::<HighlightCache>();
         highlight_cache.get((theme, code, language))
     })
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    Debug
-)]
-enum SyntectTheme {
-    Base16EightiesDark,
-    Base16MochaDark,
-    Base16OceanDark,
-    Base16OceanLight,
-    InspiredGitHub,
-    SolarizedDark,
-    SolarizedLight,
-}
-
-impl SyntectTheme {
-    fn all() -> impl ExactSizeIterator<Item = Self> {
-        [
-            Self::Base16EightiesDark,
-            Self::Base16MochaDark,
-            Self::Base16OceanDark,
-            Self::Base16OceanLight,
-            Self::InspiredGitHub,
-            Self::SolarizedDark,
-            Self::SolarizedLight,
-        ]
-        .iter()
-        .copied()
-    }
-
-    fn name(self) -> &'static str {
-        match self {
-            Self::Base16EightiesDark => "Base16 Eighties (dark)",
-            Self::Base16MochaDark => "Base16 Mocha (dark)",
-            Self::Base16OceanDark => "Base16 Ocean (dark)",
-            Self::Base16OceanLight => "Base16 Ocean (light)",
-            Self::InspiredGitHub => "InspiredGitHub (light)",
-            Self::SolarizedDark => "Solarized (dark)",
-            Self::SolarizedLight => "Solarized (light)",
-        }
-    }
-
-    fn syntect_key_name(self) -> &'static str {
-        match self {
-            Self::Base16EightiesDark => "base16-eighties.dark",
-            Self::Base16MochaDark => "base16-mocha.dark",
-            Self::Base16OceanDark => "base16-ocean.dark",
-            Self::Base16OceanLight => "base16-ocean.light",
-            Self::InspiredGitHub => "InspiredGitHub",
-            Self::SolarizedDark => "Solarized (dark)",
-            Self::SolarizedLight => "Solarized (light)",
-        }
-    }
-
-    pub fn is_dark(self) -> bool {
-        match self {
-            Self::Base16EightiesDark
-            | Self::Base16MochaDark
-            | Self::Base16OceanDark
-            | Self::SolarizedDark => true,
-
-            Self::Base16OceanLight | Self::InspiredGitHub | Self::SolarizedLight => false,
-        }
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    Debug
-)]
-pub struct CodeTheme {
-    dark_mode: bool,
-
-    syntect_theme: SyntectTheme,
-}
-
-impl Default for CodeTheme {
-    fn default() -> Self {
-        Self::dark()
-    }
-}
-
-impl CodeTheme {
-    #[must_use]
-    pub fn from_style(style: &egui::Style) -> Self {
-        if style.visuals.dark_mode {
-            Self::dark()
-        } else {
-            Self::light()
-        }
-    }
-
-    #[must_use]
-    #[deprecated = "saved state stores code theme now"]
-    pub fn from_memory(ctx: &egui::Context) -> Self {
-        if ctx.style().visuals.dark_mode {
-            ctx.data_mut(|m| {
-                m.get_persisted(egui::Id::new("dark"))
-                    .unwrap_or_else(CodeTheme::dark)
-            })
-        } else {
-            ctx.data_mut(|m| {
-                m.get_persisted(egui::Id::new("light"))
-                    .unwrap_or_else(CodeTheme::light)
-            })
-        }
-    }
-
-    #[deprecated = "saved state stores code theme now"]
-    pub fn store_in_memory(self, ctx: &egui::Context) {
-        if self.dark_mode {
-            ctx.data_mut(|m| {
-                m.insert_persisted(egui::Id::new("dark"), self);
-            });
-        } else {
-            ctx.data_mut(|m| {
-                m.insert_persisted(egui::Id::new("light"), self);
-            });
-        }
-    }
-}
-
-impl CodeTheme {
-    #[must_use]
-    pub const fn dark() -> Self {
-        Self {
-            dark_mode: true,
-            syntect_theme: SyntectTheme::Base16MochaDark,
-        }
-    }
-
-    #[must_use]
-    pub const fn light() -> Self {
-        Self {
-            dark_mode: false,
-            syntect_theme: SyntectTheme::SolarizedLight,
-        }
-    }
-
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        for theme in SyntectTheme::all() {
-            if theme.is_dark() == self.dark_mode {
-                ui.radio_value(&mut self.syntect_theme, theme, theme.name());
-            }
-        }
-    }
 }
 
 struct Highlighter {
@@ -236,7 +89,7 @@ impl Default for Highlighter {
 
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn highlight(&self, theme: CodeTheme, code: &str, lang: &str) -> LayoutJob {
+    fn highlight(&self, theme: luminol_config::CodeTheme, code: &str, lang: &str) -> LayoutJob {
         self.highlight_impl(theme, code, lang).unwrap_or_else(|| {
             // Fallback:
             LayoutJob::simple(
@@ -252,7 +105,12 @@ impl Highlighter {
         })
     }
 
-    fn highlight_impl(&self, theme: CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
+    fn highlight_impl(
+        &self,
+        theme: luminol_config::CodeTheme,
+        text: &str,
+        language: &str,
+    ) -> Option<LayoutJob> {
         use egui::text::{LayoutSection, TextFormat};
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;

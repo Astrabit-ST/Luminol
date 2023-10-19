@@ -54,3 +54,80 @@ pub enum RMVer {
     #[strum(to_string = "RPG Maker VX Ace")]
     Ace = 3,
 }
+
+#[derive(Clone, Copy, Hash, PartialEq, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct CodeTheme {
+    pub dark_mode: bool,
+
+    pub syntect_theme: SyntectTheme,
+}
+
+impl Default for CodeTheme {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl CodeTheme {
+    #[must_use]
+    pub const fn dark() -> Self {
+        Self {
+            dark_mode: true,
+            syntect_theme: SyntectTheme::Base16MochaDark,
+        }
+    }
+
+    #[must_use]
+    pub const fn light() -> Self {
+        Self {
+            dark_mode: false,
+            syntect_theme: SyntectTheme::SolarizedLight,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Debug)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(strum::EnumIter, strum::Display)]
+pub enum SyntectTheme {
+    #[strum(to_string = "Base16 Eighties (dark)")]
+    Base16EightiesDark,
+    #[strum(to_string = "Base16 Mocha (dark)")]
+    Base16MochaDark,
+    #[strum(to_string = "Base16 Ocean (dark)")]
+    Base16OceanDark,
+    #[strum(to_string = "Base16 Ocean (light)")]
+    Base16OceanLight,
+    #[strum(to_string = "InspiredGitHub (light)")]
+    InspiredGitHub,
+    #[strum(to_string = "Solarized (dark)")]
+    SolarizedDark,
+    #[strum(to_string = "Solarized (light)")]
+    SolarizedLight,
+}
+
+impl SyntectTheme {
+    pub fn syntect_key_name(self) -> &'static str {
+        match self {
+            Self::Base16EightiesDark => "base16-eighties.dark",
+            Self::Base16MochaDark => "base16-mocha.dark",
+            Self::Base16OceanDark => "base16-ocean.dark",
+            Self::Base16OceanLight => "base16-ocean.light",
+            Self::InspiredGitHub => "InspiredGitHub",
+            Self::SolarizedDark => "Solarized (dark)",
+            Self::SolarizedLight => "Solarized (light)",
+        }
+    }
+
+    pub fn is_dark(self) -> bool {
+        match self {
+            Self::Base16EightiesDark
+            | Self::Base16MochaDark
+            | Self::Base16OceanDark
+            | Self::SolarizedDark => true,
+
+            Self::Base16OceanLight | Self::InspiredGitHub | Self::SolarizedLight => false,
+        }
+    }
+}
