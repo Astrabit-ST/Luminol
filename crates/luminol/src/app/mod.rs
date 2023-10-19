@@ -75,12 +75,21 @@ pub struct App {
     top_bar: top_bar::TopBar,
     lumi: Lumi,
 
+    audio: luminol_audio::Audio,
+
+    graphics: std::sync::Arc<luminol_graphics::GraphicsState>,
+    filesystem: luminol_filesystem::project::FileSystem,
+    data: luminol_core::Data,
+
     toasts: luminol_core::Toasts,
+
+    windows: luminol_core::Windows<luminol_ui::Window>,
+    tabs: luminol_core::Tabs<luminol_ui::Tab>,
 
     global_config: luminol_config::global::Config,
     project_config: Option<luminol_config::project::Config>,
 
-    filesystem: luminol_filesystem::project::FileSystem,
+    toolbar: luminol_core::ToolbarState,
 
     steamworks: Steamworks,
 }
@@ -94,12 +103,19 @@ impl App {
         #[cfg(target_arch = "wasm32")] audio_wrapper: crate::audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
     ) -> Self {
+        let render_state = cc
+            .wgpu_render_state
+            .clone()
+            .expect("wgpu backend not enabled");
+        let graphics = std::sync::Arc::new(luminol_graphics::GraphicsState::new(render_state));
+
         let storage = cc.storage.unwrap();
 
         let mut global_config = eframe::get_value(storage, "SavedState").unwrap_or_default();
         let mut project_config = None;
 
         let mut filesystem = luminol_filesystem::project::FileSystem::new();
+        let data = luminol_core::Data::default();
 
         let mut toasts = luminol_core::Toasts::default();
 
@@ -109,7 +125,7 @@ impl App {
                 .expect("project path not utf-8");
 
             match filesystem.load_project_from_path(&mut project_config, &mut global_config, path) {
-                Ok(o) => {} // FIXME load data
+                Ok(_) => {} // FIXME load data
                 Err(e) => toasts.error(e.to_string()),
             }
         }
@@ -167,12 +183,19 @@ impl App {
             top_bar: top_bar::TopBar::default(),
             lumi,
 
-            toasts,
-
-            project_config,
-            global_config,
-
+            audio: luminol_audio::Audio::default(),
+            graphics,
             filesystem,
+            data,
+            toasts,
+            windows: luminol_core::Windows::default(),
+            tabs: luminol_core::Tabs::new(
+                "luminol_main_tabs",
+                vec![luminol_ui::tabs::started::Tab::default().into()],
+            ),
+            global_config,
+            project_config,
+            toolbar: luminol_core::ToolbarState::default(),
 
             steamworks,
         }
@@ -185,9 +208,10 @@ impl CustomApp for App {
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
+                let path = camino::Utf8PathBuf::from_path_buf(path).expect("path was not utf8");
 
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Err(e) = self.filesystem.load_project(
+                if let Err(e) = self.filesystem.load_project_from_path(
                     &mut self.project_config,
                     &mut self.global_config,
                     path,
@@ -203,13 +227,29 @@ impl CustomApp for App {
             }
         });
 
+        // dummy values because of the chicken and the egg
+        let mut edit_windows = luminol_core::EditWindows::default();
+        let mut edit_tabs = luminol_core::EditTabs::default();
+        let mut update_state = luminol_core::UpdateState {
+            audio: &mut self.audio,
+            graphics: self.graphics.clone(),
+            filesystem: &mut self.filesystem,
+            data: &mut self.data,
+            edit_windows: &mut edit_windows,
+            edit_tabs: &mut edit_tabs,
+            toasts: &mut self.toasts,
+            project_config: &mut self.project_config,
+            global_config: &mut self.global_config,
+            toolbar: &mut self.toolbar,
+        };
+
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
                 // Turn off button frame.
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
-                self.top_bar.ui(ui, frame);
+                self.top_bar.ui(ui, frame, &mut update_state);
             });
         });
 
@@ -217,11 +257,11 @@ impl CustomApp for App {
         egui::CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.))
             .show(ctx, |ui| {
-                ui.group(|ui| state!().tabs.ui(ui));
+                ui.group(|ui| self.tabs.ui(ui, &mut update_state));
             });
 
         // Update all windows.
-        state!().windows.update(ctx);
+        self.windows.display(ctx, &mut update_state);
 
         // Show toasts.
         self.toasts.show(ctx);
@@ -241,7 +281,7 @@ impl eframe::App for App {
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, "SavedState", &*global_config!());
+        eframe::set_value(storage, "SavedState", &self.global_config);
     }
 
     fn persist_egui_memory(&self) -> bool {

@@ -42,7 +42,7 @@ pub struct Window {
 }
 
 struct CreateProjectResult {
-    data_cache: luminol_data::data_cache::Cache,
+    data_cache: luminol_core::Data,
     config: luminol_config::project::Config,
     host_fs: luminol_filesystem::host::FileSystem,
 }
@@ -204,7 +204,7 @@ impl Window {
             .map_err(|e| e.to_string())?;
 
         // TODO
-        let data_cache = luminol_data::data_cache::Cache::defaults_from_config(());
+        let data_cache = luminol_core::Data::defaults_from_config(&config);
         data_cache.save()?;
 
         if download_executable {

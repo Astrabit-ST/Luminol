@@ -31,12 +31,11 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Window {}
 
 impl Window {
-    fn render_submap<W, T>(
+    fn render_submap(
         id: usize,
         children_data: &BTreeMap<usize, BTreeSet<usize>>,
         mapinfos: &mut luminol_data::rpg::MapInfos,
         ui: &mut egui::Ui,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
         let map_info = mapinfos.get_mut(&id).unwrap();
@@ -67,7 +66,7 @@ impl Window {
                 .body(|ui| {
                     for id in children_data.get(&id).unwrap() {
                         // Render children.
-                        Self::render_submap(*id, children_data, mapinfos, ui, update_state);
+                        Self::render_submap(*id, children_data, mapinfos, ui);
                     }
                 });
         } else {
@@ -125,13 +124,7 @@ impl luminol_core::Window for Window {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
                                 for &id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(
-                                        id,
-                                        &children_data,
-                                        &mut mapinfos,
-                                        ui,
-                                        update_state,
-                                    );
+                                    Self::render_submap(id, &children_data, &mut mapinfos, ui);
                                 }
                             });
                     })

@@ -38,7 +38,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(data_cache: &luminol_data::data_cache::Cache) -> Self {
+    pub fn new(data_cache: &luminol_core::Data) -> Self {
         let items = data_cache.items().clone();
 
         Self {

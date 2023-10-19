@@ -44,12 +44,16 @@ luminol-config = { version = "0.1.0", path = "../luminol-config/" }
 luminol-data = { version = "0.1.0", path = "../luminol-data/" }
 luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }
 luminol-graphics = { version = "0.1.0", path = "../luminol-graphics/" }
+luminol-ui = { version = "0.1.0", path = "../luminol-ui/" }
+luminol-term = { version = "0.1.0", path = "../luminol-term/" }
 # luminol-windows = { version = "0.1.0", path = "../luminol-windows/" }
 # luminol-tabs = { version = "0.1.0", path = "../luminol-tabs/" }
 
 poll-promise.workspace = true
 
 camino.workspace = true
+
+strum.workspace = true
 
 [features]
 steamworks = ["dep:steamworks", "crc"]

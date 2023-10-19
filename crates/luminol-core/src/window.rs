@@ -117,8 +117,8 @@ where
         self.clean_fn = Some(Box::new(f));
     }
 
-    pub fn add_window(&mut self, window: T) {
-        self.added.push(window)
+    pub fn add_window(&mut self, window: impl Into<T>) {
+        self.added.push(window.into())
     }
 
     pub fn remove_window(&mut self, window: &T) -> bool {

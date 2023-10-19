@@ -22,12 +22,12 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::rpg;
+use luminol_data::rpg;
 
 #[derive(Default, Debug)]
-pub struct Cache {}
+pub struct Data {}
 
-impl Cache {
+impl Data {
     /// Load all data required when opening a project.
     /// Does not load config. That is expected to have been loaded beforehand.
     pub fn load(&mut self) -> Result<(), String> {
@@ -35,7 +35,7 @@ impl Cache {
     }
 
     // TODO dependcy cycle
-    pub fn defaults_from_config(config: ()) -> Self {
+    pub fn defaults_from_config(config: &luminol_config::project::Config) -> Self {
         todo!()
     }
 
@@ -70,7 +70,7 @@ macro_rules! nested_ref_getter {
 
 }
 
-impl Cache {
+impl Data {
     nested_ref_getter! {
         rpg::Actors, actors, State::Loaded;
         rpg::Animations, animations, State::Loaded;

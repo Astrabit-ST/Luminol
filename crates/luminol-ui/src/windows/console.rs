@@ -22,11 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct Console {
+pub struct Window {
     term: luminol_term::Terminal,
 }
 
-impl Console {
+impl Window {
     pub fn new(command: luminol_term::CommandBuilder) -> Result<Self, luminol_term::Error> {
         Ok(Self {
             term: luminol_term::Terminal::new(command)?,
@@ -34,7 +34,7 @@ impl Console {
     }
 }
 
-impl luminol_core::Window for Console {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         self.term.title()
     }

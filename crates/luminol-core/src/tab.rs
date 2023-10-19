@@ -139,8 +139,8 @@ where
         self.clean_fn = Some(Box::new(f));
     }
 
-    pub fn add_tab(&mut self, tabs: T) {
-        self.added.push(tabs)
+    pub fn add_tab(&mut self, tab: impl Into<T>) {
+        self.added.push(tab.into())
     }
 
     pub fn remove_tab(&mut self, tab: &T) -> bool {

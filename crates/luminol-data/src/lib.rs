@@ -13,8 +13,6 @@ mod rgss_structs;
 
 mod helpers;
 
-pub mod data_cache;
-
 pub mod commands;
 
 pub use helpers::*;

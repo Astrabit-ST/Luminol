@@ -25,13 +25,16 @@
 use std::sync::Arc;
 
 mod tab;
-pub use tab::{Tab, Tabs};
+pub use tab::{EditTabs, Tab, Tabs};
 
 mod window;
-pub use window::{Window, Windows};
+pub use window::{EditWindows, Window, Windows};
 
 pub mod modal;
 pub use modal::Modal;
+
+mod data_cache;
+pub use data_cache::Data;
 
 /// Toasts to be displayed for errors, information, etc.
 mod toasts;
@@ -42,14 +45,14 @@ pub struct UpdateState<'res, W, T> {
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
-    pub data: &'res mut luminol_data::data_cache::Cache, // FIXME: this is also probably wrong
+    pub data: &'res mut Data, // FIXME: this is also probably wrong
 
     // TODO: look into std::any?
     // we're using generics here to allow specialization on the type of window
     // this is fucntionality not really used atm but maybe in the future..?
-    pub edit_windows: &'res mut window::EditWindows<W>,
-    pub edit_tabs: &'res mut tab::EditTabs<T>,
-    pub toasts: &'res mut toasts::Toasts,
+    pub edit_windows: &'res mut EditWindows<W>,
+    pub edit_tabs: &'res mut EditTabs<T>,
+    pub toasts: &'res mut Toasts,
 
     pub project_config: &'res mut Option<luminol_config::project::Config>,
     pub global_config: &'res mut luminol_config::global::Config,

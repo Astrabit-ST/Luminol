@@ -22,14 +22,15 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use luminol_core::Tab;
+use luminol_core::Window;
 
-use crate::Pencil;
+use strum::IntoEnumIterator;
 
 /// The top bar for managing the project.
 #[derive(Default)]
 pub struct TopBar {
-    open_project_promise: Option<Promise<Result<(), String>>>,
+    open_project_promise: Option<poll_promise::Promise<Result<(), String>>>,
 
     fullscreen: bool,
 }
@@ -37,8 +38,12 @@ pub struct TopBar {
 impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut crate::luminol::CustomFrame<'_>) {
-        let state = state!();
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        frame: &mut super::CustomFrame<'_>,
+        update_state: &mut luminol_core::UpdateState<'_, luminol_ui::Window, luminol_ui::Tab>,
+    ) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -48,40 +53,48 @@ impl TopBar {
         }
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
-            && state.filesystem.project_loaded();
+            && update_state.filesystem.project_loaded();
         let mut save_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S))
-            && state.filesystem.project_loaded();
+            && update_state.filesystem.project_loaded();
         if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::N)) {
-            state.windows.add_window(new_project::Window::default());
+            update_state
+                .edit_windows
+                .add_window(luminol_ui::windows::new_project::Window::default());
         }
 
         ui.separator();
 
         ui.menu_button("File", |ui| {
-            ui.label(if let Some(path) = state.filesystem.project_path() {
+            ui.label(if let Some(path) = update_state.filesystem.project_path() {
                 format!("Current project:\n{}", path)
             } else {
                 "No project open".to_string()
             });
 
             if ui.button("New Project").clicked() {
-                state.windows.add_window(new_project::Window::default());
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::new_project::Window::default());
             }
 
             open_project |= ui.button("Open Project").clicked();
 
             ui.separator();
 
-            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
-                    state.windows.add_window(config_window::Window {});
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::config_window::Window {});
                 }
 
                 if ui.button("Close Project").clicked() {
-                    state.windows.clean_windows();
-                    state.tabs.clean_tabs(|t| !t.requires_filesystem());
-                    state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
-                    state.filesystem.unload_project();
+                    update_state
+                        .edit_windows
+                        .clean(|w| !w.requires_filesystem());
+                    update_state.edit_tabs.clean(|t| !t.requires_filesystem());
+                    update_state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
+                    update_state.filesystem.unload_project();
                 }
 
                 save_project |= ui.button("Save Project").clicked();
@@ -89,11 +102,11 @@ impl TopBar {
 
             ui.separator();
 
-            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Command Maker").clicked() {
-                    state
-                        .windows
-                        .add_window(crate::command_gen::CommandGeneratorWindow::default());
+                    // update_state.windows.add_window(
+                    //     luminol_ui::windows::command_gen::CommandGeneratorWindow::default(),
+                    // );
                 }
             });
 
@@ -112,40 +125,50 @@ impl TopBar {
         ui.menu_button("Edit", |ui| {
             //
             if ui.button("Preferences").clicked() {
-                state
-                    .windows
-                    .add_window(global_config_window::Window::default())
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::global_config_window::Window::default())
             }
 
             if ui.button("Appearance").clicked() {
-                state.windows.add_window(appearance::Window::default())
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::appearance::Window::default())
             }
         });
 
         ui.separator();
 
         ui.menu_button("Data", |ui| {
-            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
-                    state.windows.add_window(map_picker::Window::default());
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::map_picker::Window::default());
                 }
 
                 if ui.button("Items").clicked() {
-                    state.windows.add_window(items::Window::default());
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::items::Window::new(update_state.data));
                 }
 
                 if ui.button("Common Events").clicked() {
-                    state
-                        .windows
-                        .add_window(common_event_edit::Window::default());
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::common_event_edit::Window::default());
                 }
 
                 if ui.button("Scripts").clicked() {
-                    state.windows.add_window(script_edit::Window::default());
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::script_edit::Window::default());
                 }
 
                 if ui.button("Sound Test").clicked() {
-                    state.windows.add_window(sound_test::Window::default());
+                    update_state.edit_windows.add_window(
+                        luminol_ui::windows::sound_test::Window::new(update_state.filesystem),
+                    );
                 }
             });
         });
@@ -156,17 +179,23 @@ impl TopBar {
             ui.button("Contents").clicked();
 
             if ui.button("About...").clicked() {
-                state.windows.add_window(about::Window::default());
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::about::Window::default());
             };
         });
 
         ui.menu_button("Debug", |ui| {
             if ui.button("Egui Inspection").clicked() {
-                state.windows.add_window(misc::EguiInspection::default());
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::misc::EguiInspection::default());
             }
 
             if ui.button("Egui Memory").clicked() {
-                state.windows.add_window(misc::EguiMemory::default());
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::misc::EguiMemory::default());
             }
 
             let mut debug_on_hover = ui.ctx().debug_on_hover();
@@ -176,7 +205,9 @@ impl TopBar {
             ui.separator();
 
             if ui.button("Filesystem Debug").clicked() {
-                state.windows.add_window(misc::FilesystemDebug::default());
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::misc::FilesystemDebug::default());
             }
         });
 
@@ -184,21 +215,31 @@ impl TopBar {
         {
             ui.separator();
 
-            ui.add_enabled_ui(state.filesystem.project_loaded(), |ui| {
+            ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Playtest").clicked() {
                     let mut cmd = luminol_term::CommandBuilder::new("steamshim");
-                    cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
+                    cmd.cwd(
+                        update_state
+                            .filesystem
+                            .project_path()
+                            .expect("project not loaded"),
+                    );
 
-                    let result = crate::windows::console::Console::new(cmd).or_else(|_| {
+                    let result = luminol_ui::windows::console::Window::new(cmd).or_else(|_| {
                         let mut cmd = luminol_term::CommandBuilder::new("game");
-                        cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
+                        cmd.cwd(
+                            update_state
+                                .filesystem
+                                .project_path()
+                                .expect("project not loaded"),
+                        );
 
-                        crate::windows::console::Console::new(cmd)
+                        luminol_ui::windows::console::Window::new(cmd)
                     });
 
                     match result {
-                        Ok(w) => state.windows.add_window(w),
-                        Err(e) => state.toasts.error(format!(
+                        Ok(w) => update_state.edit_windows.add_window(w),
+                        Err(e) => update_state.toasts.error(format!(
                             "error starting game (tried steamshim.exe and then game.exe): {e}"
                         )),
                     }
@@ -210,11 +251,18 @@ impl TopBar {
                     #[cfg(unix)]
                     let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
                     let mut cmd = luminol_term::CommandBuilder::new(shell);
-                    cmd.cwd(state.filesystem.project_path().expect("project not loaded"));
+                    cmd.cwd(
+                        update_state
+                            .filesystem
+                            .project_path()
+                            .expect("project not loaded"),
+                    );
 
-                    match crate::windows::console::Console::new(cmd) {
-                        Ok(w) => state.windows.add_window(w),
-                        Err(e) => state.toasts.error(format!("error starting shell: {e}")),
+                    match luminol_ui::windows::console::Window::new(cmd) {
+                        Ok(w) => update_state.edit_windows.add_window(w),
+                        Err(e) => update_state
+                            .toasts
+                            .error(format!("error starting shell: {e}")),
                     }
                 }
             });
@@ -224,30 +272,29 @@ impl TopBar {
 
         ui.label("Brush:");
 
-        let mut toolbar = state.toolbar.borrow_mut();
-        for brush in Pencil::iter() {
-            ui.selectable_value(&mut toolbar.pencil, brush, brush.to_string());
+        for brush in luminol_core::Pencil::iter() {
+            ui.selectable_value(&mut update_state.toolbar.pencil, brush, brush.to_string());
         }
 
         if open_project {
-            self.open_project_promise = Some(Promise::spawn_local(
-                state.filesystem.spawn_project_file_picker(),
-            ));
+            // self.open_project_promise = Some(poll_promise::Promise::spawn_local(
+            //     update_state.filesystem.spawn_project_file_picker(),
+            // ));
         }
 
         if save_project {
-            state.toasts.info("Saving project...");
-            match state.data_cache.save() {
-                Ok(_) => state.toasts.info("Saved project sucessfully!"),
-                Err(e) => state.toasts.error(e),
+            update_state.toasts.info("Saving project...");
+            match update_state.data.save() {
+                Ok(_) => update_state.toasts.info("Saved project sucessfully!"),
+                Err(e) => update_state.toasts.error(e),
             }
         }
 
         if self.open_project_promise.is_some() {
             if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
                 match r {
-                    Ok(_) => state.toasts.info("Opened project successfully!"),
-                    Err(e) => state.toasts.error(e),
+                    Ok(_) => update_state.toasts.info("Opened project successfully!"),
+                    Err(e) => update_state.toasts.error(e),
                 }
                 self.open_project_promise = None;
             }

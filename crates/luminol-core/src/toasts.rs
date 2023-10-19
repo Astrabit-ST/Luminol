@@ -22,45 +22,42 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use egui_notify::{Toast, Toasts as ToastsInner};
-use parking_lot::RwLock;
-
 /// A toasts management struct.
 #[derive(Default)]
 pub struct Toasts {
-    inner: RwLock<ToastsInner>,
+    inner: egui_notify::Toasts,
 }
 
 // We wrap the toasts structs in a RefCell to maintain interior mutability.
 #[allow(dead_code)]
 impl Toasts {
     /// Add a custom toast.
-    pub fn add(&self, toast: Toast) {
-        self.inner.write().add(toast);
+    pub fn add(&mut self, toast: egui_notify::Toast) {
+        self.inner.add(toast);
     }
 
     /// Display an info toast.
-    pub fn info(&self, caption: impl Into<String>) {
-        self.inner.write().info(caption);
+    pub fn info(&mut self, caption: impl Into<String>) {
+        self.inner.info(caption);
     }
 
     /// Display a warning toast.
-    pub fn warning(&self, caption: impl Into<String>) {
-        self.inner.write().warning(caption);
+    pub fn warning(&mut self, caption: impl Into<String>) {
+        self.inner.warning(caption);
     }
 
     /// Display an error toast.
-    pub fn error(&self, caption: impl Into<String>) {
-        self.inner.write().error(caption);
+    pub fn error(&mut self, caption: impl Into<String>) {
+        self.inner.error(caption);
     }
 
     /// Display a generic toast.
-    pub fn basic(&self, caption: impl Into<String>) {
-        self.inner.write().basic(caption);
+    pub fn basic(&mut self, caption: impl Into<String>) {
+        self.inner.basic(caption);
     }
 
     /// Display all toasts.
-    pub fn show(&self, ctx: &egui::Context) {
-        self.inner.write().show(ctx);
+    pub fn show(&mut self, ctx: &egui::Context) {
+        self.inner.show(ctx);
     }
 }
