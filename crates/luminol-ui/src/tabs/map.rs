@@ -26,21 +26,22 @@
 use egui::Pos2;
 use std::{cell::RefMut, collections::HashMap, collections::VecDeque};
 
-use crate::prelude::*;
-use crate::Pencil;
-
 const HISTORY_SIZE: usize = 50;
+
+use crate::windows::event_edit;
+
+use itertools::Itertools;
 
 pub struct Tab {
     /// ID of the map that is being edited.
     pub id: usize,
     /// The tilemap.
-    pub view: MapView,
-    pub tilepicker: Tilepicker,
+    pub view: luminol_components::MapView,
+    pub tilepicker: luminol_components::Tilepicker,
 
     dragging_event: bool,
     drawing_shape: bool,
-    event_windows: window::Windows,
+    event_windows: luminol_core::Windows<event_edit::Window>,
     force_close: bool,
 
     /// When event dragging starts, this is set to the difference between
@@ -83,26 +84,33 @@ enum HistoryEntry {
     EventCreated(usize),
     /// Contains a deleted event and its corresponding graphic.
     EventDeleted {
-        event: rpg::Event,
-        sprites: Option<(Event, Event)>,
+        event: luminol_data::rpg::Event,
+        sprites: Option<(luminol_graphics::Event, luminol_graphics::Event)>,
     },
 }
 
 impl Tab {
     /// Create a new map editor.
-    pub fn new(id: usize) -> Result<Self, String> {
-        let map = state!().data_cache.map(id);
-        let tilesets = state!().data_cache.tilesets();
-        let tileset = &tilesets[map.tileset_id];
+    pub fn new<W, T>(
+        id: usize,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) -> Result<Self, String> {
+        // *sigh*
+        // borrow checker.
+        let view = luminol_components::MapView::new(update_state, id)?;
+        let tilepicker = luminol_components::Tilepicker::new(update_state, id)?;
+
+        let map = update_state.data.map(id);
 
         Ok(Self {
             id,
-            view: MapView::new(&map, tileset)?,
-            tilepicker: Tilepicker::new(tileset)?,
+
+            view,
+            tilepicker,
 
             dragging_event: false,
             drawing_shape: false,
-            event_windows: window::Windows::default(),
+            event_windows: luminol_core::Windows::default(),
             force_close: false,
 
             event_drag_offset: None,
@@ -120,7 +128,11 @@ impl Tab {
         })
     }
 
-    fn recompute_autotile(&self, map: &rpg::Map, position: (usize, usize, usize)) -> i16 {
+    fn recompute_autotile(
+        &self,
+        map: &luminol_data::rpg::Map,
+        position: (usize, usize, usize),
+    ) -> i16 {
         if map.data[position] >= 384 {
             return map.data[position];
         }
@@ -235,7 +247,12 @@ impl Tab {
             } as i16
     }
 
-    fn set_tile(&self, map: &mut rpg::Map, tile: SelectedTile, position: (usize, usize, usize)) {
+    fn set_tile(
+        &self,
+        map: &mut luminol_data::rpg::Map,
+        tile: luminol_components::SelectedTile,
+        position: (usize, usize, usize),
+    ) {
         map.data[position] = tile.to_id();
 
         for y in -1i8..=1i8 {
@@ -266,7 +283,7 @@ impl Tab {
         }
     }
 
-    fn add_event(&self, map: &mut rpg::Map) -> Option<usize> {
+    fn add_event(&mut self, map: &mut luminol_data::rpg::Map) -> Option<usize> {
         let mut first_vacant_id = 1;
         let mut max_event_id = 0;
 
@@ -278,9 +295,6 @@ impl Tab {
 
             if event.x == self.view.cursor_pos.x as i32 && event.y == self.view.cursor_pos.y as i32
             {
-                state!()
-                    .toasts
-                    .error("Cannot create event on an existing event's tile");
                 return None;
             }
         }
@@ -294,15 +308,12 @@ impl Tab {
         else if first_vacant_id <= 999 {
             first_vacant_id
         } else {
-            state!()
-                .toasts
-                .error("Event limit reached, please delete some events");
             return None;
         };
 
         map.events.insert(
             new_event_id,
-            rpg::Event::new(
+            luminol_data::rpg::Event::new(
                 self.view.cursor_pos.x as i32,
                 self.view.cursor_pos.y as i32,
                 new_event_id,
@@ -317,8 +328,10 @@ impl Tab {
 
 impl luminol_core::Tab for Tab {
     fn name(&self) -> String {
-        let mapinfos = state!().data_cache.mapinfos();
-        format!("Map {}: {}", self.id, mapinfos[&self.id].name)
+        // FIXME
+        // let mapinfos = state!().data_cache.mapinfos();
+        // format!("Map {}: {}", self.id, mapinfos[&self.id].name)
+        "Map Tab".to_string()
     }
 
     fn id(&self) -> egui::Id {
@@ -348,8 +361,10 @@ impl luminol_core::Tab for Tab {
                 ui.menu_button(
                     // Format the text based on what layer is selected.
                     match self.view.selected_layer {
-                        SelectedLayer::Events => "Events ⏷".to_string(),
-                        SelectedLayer::Tiles(layer) => format!("Layer {} ⏷", layer + 1),
+                        luminol_components::SelectedLayer::Events => "Events ⏷".to_string(),
+                        luminol_components::SelectedLayer::Tiles(layer) => {
+                            format!("Layer {} ⏷", layer + 1)
+                        }
                     },
                     |ui| {
                         // TODO: Add layer enable button
@@ -364,7 +379,7 @@ impl luminol_core::Tab for Tab {
                             {
                                 columns[0].selectable_value(
                                     &mut self.view.selected_layer,
-                                    SelectedLayer::Tiles(index),
+                                    luminol_components::SelectedLayer::Tiles(index),
                                     format!("Layer {}", index + 1),
                                 );
                                 columns[1].checkbox(layer, "👁");
@@ -373,7 +388,7 @@ impl luminol_core::Tab for Tab {
                             // Display event layer.
                             columns[0].selectable_value(
                                 &mut self.view.selected_layer,
-                                SelectedLayer::Events,
+                                luminol_components::SelectedLayer::Events,
                                 egui::RichText::new("Events").italics(),
                             );
                             columns[1].checkbox(&mut self.view.event_enabled, "👁");
@@ -424,7 +439,7 @@ impl luminol_core::Tab for Tab {
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show_viewport(ui, |ui, rect| {
-                    self.tilepicker.ui(ui, rect);
+                    self.tilepicker.ui(update_state, ui, rect);
                     ui.separator();
                 });
             });
@@ -432,10 +447,12 @@ impl luminol_core::Tab for Tab {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 // Get the map.
-                let mut map = state!().data_cache.map(self.id);
+                let mut map = update_state.data.map(self.id);
 
                 // Save the state of the selected layer into the cache
-                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                if let luminol_components::SelectedLayer::Tiles(tile_layer) =
+                    self.view.selected_layer
+                {
                     for x in 0..map.data.xsize() {
                         for y in 0..map.data.ysize() {
                             self.layer_cache[x + y * map.data.xsize()] =
@@ -446,12 +463,13 @@ impl luminol_core::Tab for Tab {
 
                 let response = self.view.ui(
                     ui,
+                    &update_state.graphics,
                     &map,
                     &self.tilepicker,
                     self.dragging_event,
                     self.drawing_shape,
                     self.drawing_shape_pos,
-                    matches!(state!().toolbar.borrow().pencil, Pencil::Pen),
+                    matches!(update_state.toolbar.pencil, luminol_core::Pencil::Pen),
                 );
 
                 let layers_max = map.data.zsize();
@@ -491,7 +509,9 @@ impl luminol_core::Tab for Tab {
                     }
                 }
 
-                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                if let luminol_components::SelectedLayer::Tiles(tile_layer) =
+                    self.view.selected_layer
+                {
                     // Before drawing tiles, save the state of the current layer so we can undo it
                     // later if we need to
                     if response.drag_started_by(egui::PointerButton::Primary)
@@ -505,7 +525,8 @@ impl luminol_core::Tab for Tab {
 
                     // Tile drawing
                     let position = (map_x as usize, map_y as usize, tile_layer);
-                    let initial_tile = SelectedTile::from_id(map.data[position]);
+                    let initial_tile =
+                        luminol_components::SelectedTile::from_id(map.data[position]);
                     let left = self.tilepicker.selected_tiles_left;
                     let right = self.tilepicker.selected_tiles_right;
                     let top = self.tilepicker.selected_tiles_top;
@@ -515,8 +536,8 @@ impl luminol_core::Tab for Tab {
                     if response.dragged_by(egui::PointerButton::Primary)
                         && !ui.input(|i| i.modifiers.command)
                     {
-                        match state!().toolbar.borrow().pencil {
-                            Pencil::Pen => {
+                        match update_state.toolbar.pencil {
+                            luminol_core::Pencil::Pen => {
                                 let drawing_shape_pos =
                                     if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                                         drawing_shape_pos
@@ -553,9 +574,9 @@ impl luminol_core::Tab for Tab {
                                 }
                             }
 
-                            Pencil::Fill
+                            luminol_core::Pencil::Fill
                                 if initial_tile == self.tilepicker.get_tile_from_offset(0, 0) => {}
-                            Pencil::Fill => {
+                            luminol_core::Pencil::Fill => {
                                 // Use depth-first search to find all of the orthogonally
                                 // contiguous matching tiles
                                 let mut stack = vec![position; 1];
@@ -607,7 +628,9 @@ impl luminol_core::Tab for Tab {
                                             continue;
                                         }
 
-                                        if SelectedTile::from_id(map.data[position]) == initial_tile
+                                        if luminol_components::SelectedTile::from_id(
+                                            map.data[position],
+                                        ) == initial_tile
                                         {
                                             stack.push(position);
                                         }
@@ -619,7 +642,7 @@ impl luminol_core::Tab for Tab {
                                 }
                             }
 
-                            Pencil::Rectangle => {
+                            luminol_core::Pencil::Rectangle => {
                                 if !self.drawing_shape {
                                     // Save the current layer
                                     for x in 0..map.data.xsize() {
@@ -666,7 +689,7 @@ impl luminol_core::Tab for Tab {
                                 }
                             }
 
-                            Pencil::Circle => {
+                            luminol_core::Pencil::Circle => {
                                 if !self.drawing_shape {
                                     // Save the current layer
                                     for x in 0..map.data.xsize() {
@@ -957,7 +980,11 @@ impl luminol_core::Tab for Tab {
                                 let new_id = d.2;
                                 *d = (d.0, d.1, map.data[position]);
                                 map.data[position] = new_id;
-                                self.view.map.set_tile(new_id, position);
+                                self.view.map.set_tile(
+                                    &update_state.graphics.render_state,
+                                    new_id,
+                                    position,
+                                );
                             }
                             Some(HistoryEntry::Tiles { layer, delta })
                         }
@@ -1003,14 +1030,20 @@ impl luminol_core::Tab for Tab {
                     event.extra_data.is_editor_open = false;
                 }
 
-                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
+                if let luminol_components::SelectedLayer::Tiles(tile_layer) =
+                    self.view.selected_layer
+                {
                     // Write the buffered tile changes to the tilemap
                     for y in 0..map.data.ysize() {
                         for x in 0..map.data.xsize() {
                             let position = (x, y, tile_layer);
                             let new_tile_id = map.data[position];
                             if new_tile_id != self.layer_cache[x + y * map.data.xsize()] {
-                                self.view.map.set_tile(new_tile_id, position);
+                                self.view.map.set_tile(
+                                    &update_state.graphics.render_state,
+                                    new_tile_id,
+                                    position,
+                                );
                             }
                         }
                     }
@@ -1018,7 +1051,7 @@ impl luminol_core::Tab for Tab {
             })
         });
 
-        self.event_windows.update(ui.ctx());
+        self.event_windows.display(ui.ctx(), update_state);
     }
 
     fn requires_filesystem(&self) -> bool {

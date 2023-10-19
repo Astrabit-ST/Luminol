@@ -26,3 +26,7 @@
 pub mod switch;
 /// The variable picker.
 pub mod variable;
+
+pub mod sound_picker;
+
+pub mod graphic_picker;

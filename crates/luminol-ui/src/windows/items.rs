@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_core::Modal;
+
 /// Database - Items management window.
 pub struct Window {
     // ? Items ?
@@ -29,30 +31,28 @@ pub struct Window {
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker_open: bool,
+    icon_picker: Option<luminol_modals::graphic_picker::Modal>,
 
     // ? Menu Sound Effect Picker ?
-    menu_se_picker: luminol_components::SoundTab,
-    menu_se_picker_open: bool,
+    menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
 }
 
-impl Default for Window {
-    fn default() -> Self {
-        let items = state!().data_cache.items().clone();
+impl Window {
+    pub fn new(data_cache: &luminol_data::data_cache::Cache) -> Self {
+        let items = data_cache.items().clone();
 
         Self {
             items,
             selected_item: 0,
 
-            icon_picker_open: false,
+            icon_picker: None,
 
-            menu_se_picker: sound_test::SoundTab::new(crate::audio::Source::SE, true),
-            menu_se_picker_open: false,
+            menu_se_picker: None,
         }
     }
 }
 
-impl window::Window for Window {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         format!("Editing item {}", self.items[self.selected_item].name)
     }
@@ -65,11 +65,16 @@ impl window::Window for Window {
         true
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         let _selected_item = &self.items[self.selected_item];
-        let animations = state!().data_cache.animations();
+        let animations = update_state.data.animations();
 
-        let common_events = state!().data_cache.common_events();
+        let common_events = update_state.data.common_events();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations
@@ -111,14 +116,14 @@ impl window::Window for Window {
                 });
                 let selected_item = &mut self.items[self.selected_item];
                 egui::Grid::new("item_edit_central_grid").show(ui, |ui| {
-                    ui.add(Field::new(
+                    ui.add(luminol_components::Field::new(
                         "Name",
                         egui::TextEdit::singleline(&mut selected_item.name),
                     ));
 
                     ui.end_row();
 
-                    ui.add(Field::new(
+                    ui.add(luminol_components::Field::new(
                         "Description",
                         egui::TextEdit::singleline(&mut selected_item.description),
                     ));
@@ -126,14 +131,6 @@ impl window::Window for Window {
 
                     egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
-
-                if self.menu_se_picker_open {
-                    egui::Window::new("Menu Sound Effect Picker")
-                        .id(egui::Id::new("menu_se_picker"))
-                        .show(ctx, |ui| {
-                            self.menu_se_picker.ui(ui);
-                        });
-                }
             });
     }
 }

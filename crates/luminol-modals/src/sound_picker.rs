@@ -21,3 +21,29 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+
+pub struct Modal {
+    tab: luminol_components::SoundTab,
+}
+
+impl luminol_core::Modal for Modal {
+    type Data = luminol_data::rpg::AudioFile;
+
+    fn button<W, T>(
+        this: &mut Option<Self>,
+        ui: &mut egui::Ui,
+        data: &mut Self::Data,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        todo!()
+    }
+
+    fn show<W, T>(
+        this: &mut Option<Self>,
+        ctx: &egui::Context,
+        data: &mut Self::Data,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        todo!()
+    }
+}

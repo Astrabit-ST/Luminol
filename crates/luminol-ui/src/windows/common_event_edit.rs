@@ -22,24 +22,24 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use luminol_core::Modal;
 
 /// The common event editor.
 pub struct Window {
-    tabs: tab::Tabs<CommonEventTab>,
+    tabs: luminol_core::Tabs<CommonEventTab>,
     selected_id: usize,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: tab::Tabs::new("common_event_tabs", vec![]),
+            tabs: luminol_core::Tabs::new("common_event_tabs", vec![]),
             selected_id: 0,
         }
     }
 }
 
-impl window::Window for Window {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -52,14 +52,19 @@ impl window::Window for Window {
         egui::Id::new("Common Events")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name())
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let common_events = state!().data_cache.common_events();
+                    let common_events = update_state.data.common_events();
 
                     egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
                         ui,
@@ -82,10 +87,10 @@ impl window::Window for Window {
                                     self.tabs.add_tab(CommonEventTab {
                                         event: event.clone(),
                                         force_close: false,
-                                        switch_open: false,
-                                        command_view: CommandView::new(format!(
-                                            "common_event_{ele}"
-                                        )),
+                                        switch_modal: None,
+                                        command_view: luminol_components::CommandView::new(
+                                            format!("common_event_{ele}"),
+                                        ),
                                     });
                                 }
                             }
@@ -93,7 +98,7 @@ impl window::Window for Window {
                     );
                 });
 
-                self.tabs.ui(ui);
+                self.tabs.ui(ui, update_state);
             });
     }
 
@@ -103,13 +108,13 @@ impl window::Window for Window {
 }
 
 struct CommonEventTab {
-    event: rpg::CommonEvent,
+    event: luminol_data::rpg::CommonEvent,
     force_close: bool,
-    switch_open: bool,
-    command_view: CommandView,
+    switch_modal: Option<luminol_modals::switch::Modal>,
+    command_view: luminol_components::CommandView,
 }
 
-impl tab::Tab for CommonEventTab {
+impl luminol_core::Tab for CommonEventTab {
     fn name(&self) -> String {
         format!("{}: {}", self.event.name, self.event.id)
     }
@@ -118,7 +123,11 @@ impl tab::Tab for CommonEventTab {
         egui::Id::new("luminol_common_event").with(self.event.id)
     }
 
-    fn show(&mut self, ui: &mut egui::Ui) {
+    fn show<W, T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         ui.horizontal(|ui| {
             let trigger_types = ["None", "Autorun", "Parallel"];
             egui::ComboBox::new(format!("common_event_{}_trigger", self.event.id), "Trigger")
@@ -130,8 +139,12 @@ impl tab::Tab for CommonEventTab {
                 });
 
             ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                switch::Modal::new(format!("common_event_{}_trigger_switch", self.event.id).into())
-                    .button(ui, &mut self.switch_open, &mut self.event.switch_id)
+                luminol_modals::switch::Modal::button(
+                    &mut self.switch_modal,
+                    ui,
+                    &mut self.event.switch_id,
+                    update_state,
+                );
             });
 
             let mut save_event = false;
@@ -150,7 +163,7 @@ impl tab::Tab for CommonEventTab {
             }
 
             if save_event {
-                let mut common_events = state!().data_cache.common_events();
+                let mut common_events = update_state.data.common_events();
 
                 common_events[self.event.id - 1] = self.event.clone();
             }
@@ -164,8 +177,11 @@ impl tab::Tab for CommonEventTab {
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                self.command_view
-                    .ui(ui, &command_db!(), &mut self.event.list);
+                self.command_view.ui(
+                    ui,
+                    &update_state.project_config.as_ref().unwrap().command_db,
+                    &mut self.event.list,
+                );
             });
     }
 

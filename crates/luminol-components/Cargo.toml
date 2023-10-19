@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 luminol-audio = { version = "0.1.0", path = "../luminol-audio/" }
 luminol-core = { version = "0.1.0", path = "../luminol-core/" }
+luminol-config = { version = "0.1.0", path = "../luminol-config/" }
 luminol-data = { version = "0.1.0", path = "../luminol-data/" }
 luminol-graphics = { version = "0.1.0", path = "../luminol-graphics/" }
 luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }

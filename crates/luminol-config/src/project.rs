@@ -60,3 +60,25 @@ impl Default for Project {
         }
     }
 }
+
+impl Config {
+    pub fn from_project(project: Project) -> Self {
+        let mut game_ini = ini::Ini::new();
+        game_ini
+            .with_section(Some("Game"))
+            .set("Library", "RGSS104E.dll")
+            .set("Scripts", format!("Data/{}", project.scripts_path))
+            .set("Title", &project.project_name)
+            .set("RTP1", "")
+            .set("RTP2", "")
+            .set("RTP3", "");
+
+        let command_db = command_db::CommandDB::new(project.editor_ver);
+
+        Self {
+            project,
+            command_db,
+            game_ini,
+        }
+    }
+}

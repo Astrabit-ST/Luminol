@@ -61,14 +61,15 @@ impl luminol_core::Window for Window {
                 }
             });
 
-            let theme = &mut update_state.global_config.theme;
+            // FIXME
+            let mut theme = luminol_components::syntax_highlighting::CodeTheme::dark(); // &mut update_state.global_config.theme;
             ui.menu_button("Code Theme", |ui| {
                 theme.ui(ui);
 
                 ui.label("Code sample");
                 ui.label(luminol_components::syntax_highlighting::highlight(
                     ui.ctx(),
-                    *theme,
+                    theme,
                     r#"
                         class Foo < Array 
                         end

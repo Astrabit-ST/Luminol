@@ -22,22 +22,20 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub use crate::prelude::*;
-
 /// The script editor.
 pub struct Window {
-    tabs: tab::Tabs<ScriptTab>,
+    tabs: luminol_core::Tabs<ScriptTab>,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: tab::Tabs::new("script_editor", vec![]),
+            tabs: luminol_core::Tabs::new("script_editor", vec![]),
         }
     }
 }
 
-impl window::Window for Window {
+impl luminol_core::Window for Window {
     fn name(&self) -> String {
         self.tabs
             .focused_name()
@@ -50,7 +48,12 @@ impl window::Window for Window {
         egui::Id::new("Script Edit")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new(self.name())
             .open(open)
             .id(egui::Id::new("script_editor_window"))
@@ -59,7 +62,7 @@ impl window::Window for Window {
                     egui::ScrollArea::both()
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
-                            let mut scripts = state!().data_cache.scripts();
+                            let mut scripts = update_state.data.scripts();
 
                             let mut insert_index = None;
                             let mut del_index = None;
@@ -89,7 +92,7 @@ impl window::Window for Window {
                             if let Some(index) = insert_index {
                                 scripts.insert(
                                     index,
-                                    rpg::Script {
+                                    luminol_data::rpg::Script {
                                         name: "New Script".to_string(),
                                         script_text: String::new(),
                                     },
@@ -102,7 +105,7 @@ impl window::Window for Window {
                         });
                 });
 
-                self.tabs.ui(ui);
+                self.tabs.ui(ui, update_state);
             });
     }
 
@@ -128,7 +131,7 @@ impl ScriptTab {
     }
 }
 
-impl tab::Tab for ScriptTab {
+impl luminol_core::Tab for ScriptTab {
     fn name(&self) -> String {
         self.index.to_string()
     }
@@ -137,8 +140,13 @@ impl tab::Tab for ScriptTab {
         egui::Id::new("luminol_script_edit").with(self.index)
     }
 
-    fn show(&mut self, ui: &mut egui::Ui) {
-        let theme = global_config!().theme;
+    fn show<W, T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        // FIXME
+        let theme = luminol_components::syntax_highlighting::CodeTheme::dark(); // update_state.global_config.theme;
         ui.horizontal(|ui| {
             let mut save_script = false;
 
@@ -156,14 +164,15 @@ impl tab::Tab for ScriptTab {
             }
 
             if save_script {
-                let mut scripts = state!().data_cache.scripts();
+                let mut scripts = update_state.data.scripts();
 
                 scripts[self.index].script_text = self.script_text.clone();
             }
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job = syntax_highlighting::highlight(ui.ctx(), theme, string, "rb");
+            let mut layout_job =
+                luminol_components::syntax_highlighting::highlight(ui.ctx(), theme, string, "rb");
             layout_job.wrap.max_width = wrap_width;
             ui.fonts(|f| f.layout_job(layout_job))
         };

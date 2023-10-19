@@ -25,7 +25,7 @@
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
-#[derive(Default)]
+
 pub struct Windows<W> {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
     windows: Vec<W>,
@@ -38,6 +38,14 @@ pub struct EditWindows<W> {
 }
 
 type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
+
+impl<W> Default for Windows<W> {
+    fn default() -> Self {
+        Self {
+            windows: Vec::new(),
+        }
+    }
+}
 
 impl<W> Default for EditWindows<W> {
     fn default() -> Self {

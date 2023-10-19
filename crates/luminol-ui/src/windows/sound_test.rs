@@ -22,36 +22,41 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
+use strum::IntoEnumIterator;
 
 /// A tab for a sound (be it BGM, ME, SE, etc)
 /// Optionally can be in 'picker' mode to pick a sound effect.
 
 /// A simple sound test window.
 pub struct Window {
-    sources: Vec<SoundTab>,
-    selected_source: audio::Source,
+    sources: Vec<luminol_components::SoundTab>,
+    selected_source: luminol_audio::Source,
 }
 
-impl Default for Window {
-    fn default() -> Self {
+impl Window {
+    pub fn new(filesystem: &impl luminol_filesystem::FileSystem) -> Self {
         Self {
             // Create all sources.
-            sources: audio::Source::iter()
-                .map(|s| SoundTab::new(s, false))
+            sources: luminol_audio::Source::iter()
+                .map(|s| luminol_components::SoundTab::new(filesystem, s))
                 .collect(),
             // By default, bgm is selected.
-            selected_source: audio::Source::BGM,
+            selected_source: luminol_audio::Source::BGM,
         }
     }
 }
 
-impl super::window::Window for Window {
+impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
         egui::Id::new("Sound Test")
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show<W, T>(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
         egui::Window::new("Sound Test").open(open).show(ctx, |ui| {
             egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {
                 // Display the tab selector.
@@ -75,7 +80,7 @@ impl super::window::Window for Window {
                 .iter_mut()
                 .find(|t| t.source == self.selected_source)
                 .unwrap()
-                .ui(ui);
+                .ui(ui, update_state);
         });
     }
 

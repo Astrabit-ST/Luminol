@@ -35,8 +35,6 @@ pub mod console;
 /// The event editor.
 pub mod event_edit;
 pub mod global_config_window;
-/// The Graphic picker.
-pub mod graphic_picker;
 /// The item editor.
 pub mod items;
 /// The map picker.

@@ -71,7 +71,7 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
     ) {
-        let mut map = update_state.data_cache.map(self.map_id);
+        let mut map = update_state.data.map(self.map_id);
         let event = match map.events.get_mut(self.id) {
             Some(e) => e,
             None => {
@@ -105,7 +105,9 @@ impl luminol_core::Window for Window {
                             .selectable_value(&mut self.selected_page, page, page.to_string())
                             .clicked()
                         {
-                            self.modals = (false, false, false);
+                            self.switch_modal_1 = None;
+                            self.switch_modal_2 = None;
+                            self.variable_modal = None;
                         }
                     }
                 });

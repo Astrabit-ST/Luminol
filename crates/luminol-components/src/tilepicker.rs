@@ -71,19 +71,25 @@ impl Default for SelectedTile {
 type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
-    pub fn new(
-        graphics_state: &luminol_graphics::GraphicsState,
-        filesystem: &impl luminol_filesystem::FileSystem,
-        tileset: &luminol_data::rpg::Tileset,
+    pub fn new<W, T>(
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        map_id: usize, // FIXME
     ) -> Result<Tilepicker, String> {
-        let use_push_constants = graphics_state
+        let map = update_state.data.map(map_id);
+        let tilesets = update_state.data.tilesets();
+        let tileset = &tilesets[map.tileset_id];
+
+        let use_push_constants = update_state
+            .graphics
             .render_state
             .device
             .features()
             .contains(wgpu::Features::PUSH_CONSTANTS);
-        let atlas = graphics_state
-            .atlas_cache
-            .load_atlas(graphics_state, filesystem, tileset)?;
+        let atlas = update_state.graphics.atlas_cache.load_atlas(
+            &update_state.graphics,
+            update_state.filesystem,
+            tileset,
+        )?;
 
         let tilepicker_data = (47..(384 + 47))
             .step_by(48)
@@ -97,7 +103,7 @@ impl Tilepicker {
         );
 
         let viewport = luminol_graphics::viewport::Viewport::new(
-            graphics_state,
+            &update_state.graphics,
             glam::Mat4::orthographic_rh(
                 0.0,
                 256.,
@@ -110,7 +116,7 @@ impl Tilepicker {
         );
 
         let tiles = luminol_graphics::tiles::Tiles::new(
-            graphics_state,
+            &update_state.graphics,
             atlas,
             &tilepicker_data,
             use_push_constants,

@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use strum::IntoEnumIterator;
+
 /// The confg window
 pub struct Window {}
 
@@ -49,20 +51,23 @@ impl luminol_core::Window for Window {
                 .expect("project not open");
 
             ui.label("Project name");
-            ui.text_edit_singleline(&mut config.project_name);
+            ui.text_edit_singleline(&mut config.project.project_name);
             ui.label("Scripts path");
-            ui.text_edit_singleline(&mut config.scripts_path);
-            ui.checkbox(&mut config.use_ron, "Use RON (Rusty Object Notation)");
+            ui.text_edit_singleline(&mut config.project.scripts_path);
+            ui.checkbox(
+                &mut config.project.use_ron,
+                "Use RON (Rusty Object Notation)",
+            );
             egui::ComboBox::from_label("RGSS Version")
-                .selected_text(config.rgss_ver.to_string())
+                .selected_text(config.project.rgss_ver.to_string())
                 .show_ui(ui, |ui| {
                     for ver in luminol_config::RGSSVer::iter() {
-                        ui.selectable_value(&mut config.rgss_ver, ver, ver.to_string());
+                        ui.selectable_value(&mut config.project.rgss_ver, ver, ver.to_string());
                     }
                 });
 
             ui.label("Playtest Executable");
-            ui.text_edit_singleline(&mut config.playtest_exe);
+            ui.text_edit_singleline(&mut config.project.playtest_exe);
         });
     }
 

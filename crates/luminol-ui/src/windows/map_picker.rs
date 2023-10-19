@@ -57,10 +57,11 @@ impl Window {
                 .show_header(ui, |ui| {
                     // Has the user
                     if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                        match crate::tabs::map::Tab::new(id) {
-                            Ok(m) => update_state.edit_tabs.push(Box::new(m)),
-                            Err(e) => update_state.toasts.error(e),
-                        }
+                        // FIXME
+                        // match crate::tabs::map::Tab::new(id) {
+                        //     Ok(m) => update_state.edit_tabs.push(Box::new(m)),
+                        //     Err(e) => update_state.toasts.error(e),
+                        // }
                     }
                 })
                 .body(|ui| {
@@ -74,10 +75,11 @@ impl Window {
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
                 if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                    match crate::tabs::map::Tab::new(id) {
-                        Ok(m) => update_state.edit_tabs.push(Box::new(m)),
-                        Err(e) => update_state.toasts.error(e),
-                    }
+                    // FIXME
+                    // match crate::tabs::map::Tab::new(id) {
+                    //     Ok(m) => update_state.edit_tabs.push(Box::new(m)),
+                    //     Err(e) => update_state.toasts.error(e),
+                    // }
                 }
             });
         }

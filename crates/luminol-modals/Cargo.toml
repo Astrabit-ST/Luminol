@@ -8,4 +8,8 @@ edition = "2021"
 [dependencies]
 egui.workspace = true
 
+camino.workspace = true
+
 luminol-core = { version = "0.1.0", path = "../luminol-core/" }
+luminol-data = { version = "0.1.0", path = "../luminol-data/" }
+luminol-components = { version = "0.1.0", path = "../luminol-components" }

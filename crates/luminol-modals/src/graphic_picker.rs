@@ -22,15 +22,25 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use super::CommandView;
+pub struct Modal {}
 
-impl CommandView {
-    #[allow(clippy::only_used_in_recursion)]
-    pub fn parameter_ui(
-        &mut self,
+impl luminol_core::Modal for Modal {
+    type Data = camino::Utf8PathBuf;
+
+    fn button<W, T>(
+        this: &mut Option<Self>,
         ui: &mut egui::Ui,
-        parameter: &luminol_data::commands::Parameter,
-        command: &mut luminol_data::rpg::EventCommand,
+        data: &mut Self::Data,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    ) {
+        todo!()
+    }
+
+    fn show<W, T>(
+        this: &mut Option<Self>,
+        ctx: &egui::Context,
+        data: &mut Self::Data,
+        update_state: &mut luminol_core::UpdateState<'_, W, T>,
     ) {
         todo!()
     }

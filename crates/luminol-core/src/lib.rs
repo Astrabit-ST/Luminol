@@ -42,7 +42,7 @@ pub struct UpdateState<'res, W, T> {
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
-    pub data: &'res mut luminol_data::data_cache::Cache,
+    pub data: &'res luminol_data::data_cache::Cache, // FIXME: this is also probably wrong
 
     // TODO: look into std::any?
     // we're using generics here to allow specialization on the type of window
@@ -83,7 +83,7 @@ impl<'res, W, T> UpdateState<'res, W, T> {
             audio: &mut *self.audio,
             graphics: self.graphics.clone(),
             filesystem: &mut *self.filesystem,
-            data: &mut *self.data,
+            data: self.data,
             edit_tabs: &mut *self.edit_tabs,
             edit_windows,
             toasts: &mut *self.toasts,
@@ -101,7 +101,7 @@ impl<'res, W, T> UpdateState<'res, W, T> {
             audio: &mut *self.audio,
             graphics: self.graphics.clone(),
             filesystem: &mut *self.filesystem,
-            data: &mut *self.data,
+            data: self.data,
             edit_tabs,
             edit_windows: &mut *self.edit_windows,
             toasts: &mut *self.toasts,

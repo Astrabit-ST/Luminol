@@ -75,45 +75,64 @@ impl luminol_core::Tab for Tab {
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()
             {
-                update_state
-                    .edit_windows
-                    .add_window(crate::windows::new_project::Window::default());
+                // FIXME
+                // update_state
+                //     .edit_windows
+                //     .add_window(crate::windows::new_project::Window::default());
             }
             if ui
                 .button(egui::RichText::new("Open Project").size(20.))
                 .clicked()
             {
-                self.load_project_promise = Some(Promise::spawn_local(async move {
-                    if let Err(e) = state.filesystem.spawn_project_file_picker().await {
-                        state
-                            .toasts
-                            .error(format!("Error loading the project: {e}"));
-                    }
-                }));
+                // FIXME
+                // self.load_project_promise = Some(poll_promise::Promise::spawn_local(async move {
+                //     if let Err(e) = update_state
+                //         .filesystem
+                //         .spawn_project_file_picker(
+                //             &mut update_state.project_config,
+                //             &mut update_state.global_config,
+                //         )
+                //         .await
+                //     {
+                //         update_state
+                //             .toasts
+                //             .error(format!("Error loading the project: {e}"));
+                //     }
+                // }));
             }
 
             ui.add_space(100.);
 
             ui.heading("Recent");
 
-            for path in &global_config!().recent_projects {
+            // FIXME
+            for path in update_state.global_config.recent_projects.clone() {
                 #[cfg(target_arch = "wasm32")]
                 let (path, idb_key) = path;
 
-                if ui.button(path).clicked() {
+                if ui.button(&path).clicked() {
                     let path = path.clone();
                     #[cfg(target_arch = "wasm32")]
                     let idb_key = idb_key.clone();
 
-                    self.load_project_promise =
-                        Some(Promise::spawn_local(async move {
-                            #[cfg(not(target_arch = "wasm32"))]
-                            let result = state.filesystem.load_project(path);
+                    let result;
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        result = update_state.filesystem.load_project(
+                            &mut update_state.project_config,
+                            &mut update_state.global_config,
+                            path,
+                        );
+                    }
 
-                            #[cfg(target_arch = "wasm32")]
-                            let result =
-                                match filesystem::web::FileSystem::from_idb_key(idb_key.clone())
-                                    .await
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        self.load_project_promise =
+                            Some(poll_promise::Promise::spawn_local(async move {
+                                result = match filesystem::web::FileSystem::from_idb_key(
+                                    idb_key.clone(),
+                                )
+                                .await
                                 {
                                     Some(dir) => {
                                         let idb_key = dir.idb_key().map(|k| k.to_string());
@@ -129,21 +148,22 @@ impl luminol_core::Tab for Tab {
                                     None => Err("Could not restore project handle from IndexedDB"
                                         .to_string()),
                                 };
+                            }));
+                    }
 
-                            if let Err(why) = result {
-                                state
-                                    .toasts
-                                    .error(format!("Error loading the project: {why}"));
-                            } else {
-                                state!().toasts.info(format!(
-                                    "Successfully opened {:?}",
-                                    state!()
-                                        .filesystem
-                                        .project_path()
-                                        .expect("project not open")
-                                ));
-                            }
-                        }));
+                    if let Err(why) = result {
+                        update_state
+                            .toasts
+                            .error(format!("Error loading the project: {why}"));
+                    } else {
+                        update_state.toasts.info(format!(
+                            "Successfully opened {:?}",
+                            update_state
+                                .filesystem
+                                .project_path()
+                                .expect("project not open")
+                        ));
+                    }
                 }
             }
         }

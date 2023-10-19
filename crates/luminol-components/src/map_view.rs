@@ -61,10 +61,11 @@ pub enum SelectedLayer {
 impl MapView {
     pub fn new<W, T>(
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
-        map: &luminol_data::rpg::Map,
-        tileset: &luminol_data::rpg::Tileset,
+        map_id: usize,
     ) -> Result<MapView, String> {
-        // Get tilesets.
+        let map = update_state.data.map(map_id);
+        let tilesets = update_state.data.tilesets();
+        let tileset = &tilesets[map.tileset_id];
 
         let use_push_constants = update_state
             .graphics
@@ -143,10 +144,11 @@ impl MapView {
         })
     }
 
-    pub fn ui<W, T>(
+    // FIXME
+    pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
         map: &luminol_data::rpg::Map,
         tilepicker: &crate::Tilepicker,
         dragging_event: bool,
@@ -260,7 +262,7 @@ impl MapView {
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
 
-        let graphics_state = update_state.graphics.clone();
+        let graphics_state = graphics_state.clone();
 
         self.map.set_proj(
             &graphics_state.render_state,
