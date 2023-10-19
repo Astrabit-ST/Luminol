@@ -346,7 +346,9 @@ impl luminol_core::Tab for Tab {
         &mut self,
         ui: &mut egui::Ui,
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) {
+    ) where
+        T: luminol_core::Tab,
+    {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {

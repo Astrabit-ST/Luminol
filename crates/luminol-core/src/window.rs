@@ -25,6 +25,7 @@
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
+use crate::Tab;
 
 pub struct Windows<W> {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
@@ -81,7 +82,9 @@ where
         &mut self,
         ctx: &egui::Context,
         update_state: &mut crate::UpdateState<'_, O, T>,
-    ) {
+    ) where
+        T: Tab,
+    {
         let mut edit_windows = EditWindows::<W> {
             clean_fn: None,
             added: Vec::new(),
@@ -139,7 +142,9 @@ pub trait Window {
         ctx: &egui::Context,
         open: &mut bool,
         update_state: &mut crate::UpdateState<'_, W, T>,
-    );
+    ) where
+        W: Window,
+        T: Tab;
 
     /// Optionally used as the title of the window.
     fn name(&self) -> String {

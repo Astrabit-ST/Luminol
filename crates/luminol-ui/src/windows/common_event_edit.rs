@@ -57,7 +57,9 @@ impl luminol_core::Window for Window {
         ctx: &egui::Context,
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) {
+    ) where
+        W: luminol_core::Window,
+    {
         egui::Window::new(self.name())
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))

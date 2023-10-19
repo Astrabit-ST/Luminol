@@ -27,17 +27,27 @@ use std::sync::Arc;
 
 use strum::IntoEnumIterator;
 
+use std::io::Read;
+
 /// The new project window
 pub struct Window {
     name: String,
     rgss_ver: luminol_config::RGSSVer,
     editor_ver: luminol_config::RMVer,
-    project_promise: Option<poll_promise::Promise<Result<(), String>>>,
+    project_promise: Option<poll_promise::Promise<PromiseResult>>,
     download_executable: bool,
     progress: Arc<Progress>,
     init_git: bool,
     git_branch_name: String,
 }
+
+struct CreateProjectResult {
+    data_cache: luminol_data::data_cache::Cache,
+    config: luminol_config::project::Config,
+    host_fs: luminol_filesystem::host::FileSystem,
+}
+
+type PromiseResult = Result<CreateProjectResult, String>;
 
 #[derive(Default)]
 struct Progress {
@@ -115,41 +125,7 @@ impl luminol_core::Window for Window {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    if let Some(ref promise) = self.project_promise {
-                        if let Some(res) = promise.ready() {
-                            match res {
-                                Ok(_) => *open = false,
-                                Err(e) => {
-                                    update_state
-                                        .toasts
-                                        .error(format!("Failed to create project: {e}"));
-                                    self.project_promise = None;
-                                }
-                            }
-                        }
-
-                        if self.progress.zip_total.load(Ordering::Relaxed) != 0 {
-                            ui.label(format!(
-                                "Downloadind & Unzipping {}/{}",
-                                self.progress.zip_current.load(Ordering::Relaxed) + 1,
-                                self.progress.zip_total.load(Ordering::Relaxed)
-                            ));
-                        }
-
-                        let total = self.progress.total_progress.load(Ordering::Relaxed);
-                        let current = self.progress.current_progress.load(Ordering::Relaxed) + 1;
-                        if total == 0 {
-                            ui.spinner();
-                        } else {
-                            // FIXME: find a way to avoid cast precision loss
-                            #[allow(clippy::cast_precision_loss)]
-                            ui.add({
-                                egui::ProgressBar::new(current as f32 / total as f32)
-                                    .animate(true)
-                                    .show_percentage()
-                            });
-                        }
-                    } else {
+                    ui.add_enabled_ui(self.project_promise.is_some(), |ui| {
                         if ui.button("Ok").clicked() {
                             let rgss_ver = self.rgss_ver;
                             let config = luminol_config::project::Config::from_project(
@@ -173,16 +149,40 @@ impl luminol_core::Window for Window {
 
                             let branch_name = self.git_branch_name.clone();
 
-                            self.project_promise = Some(poll_promise::Promise::spawn_local(
-                                Self::setup_project(rgss_ver, progress),
-                            ));
+                            self.project_promise =
+                                Some(poll_promise::Promise::spawn_local(Self::setup_project(
+                                    config,
+                                    download_executable,
+                                    init_git.then_some(branch_name),
+                                    progress,
+                                )));
                         }
                         if ui.button("Cancel").clicked() {
                             *open = false;
                         }
-                    }
+                    });
                 })
             });
+
+        if let Some(p) = self.project_promise.take() {
+            match p.try_take() {
+                Ok(Ok(CreateProjectResult {
+                    data_cache,
+                    config,
+                    host_fs,
+                })) => {
+                    update_state.filesystem.load_partially_loaded_project(
+                        host_fs,
+                        &config,
+                        &mut update_state.global_config,
+                    );
+                    *update_state.data = data_cache;
+                    update_state.project_config.replace(config);
+                }
+                Ok(Err(error)) => update_state.toasts.error(error.to_string()),
+                Err(p) => self.project_promise = Some(p),
+            }
+        }
 
         *open &= win_open;
     }
@@ -194,16 +194,129 @@ impl luminol_core::Window for Window {
 
 impl Window {
     async fn setup_project(
-        rgss_ver: luminol_config::RGSSVer,
+        config: luminol_config::project::Config,
+        download_executable: bool,
+        git_branch_name: Option<String>,
         progress: Arc<Progress>,
-    ) -> Result<(), String> {
-        todo!()
+    ) -> PromiseResult {
+        let host_fs = luminol_filesystem::host::FileSystem::from_pile_picker()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // TODO
+        let data_cache = luminol_data::data_cache::Cache::defaults_from_config(());
+        data_cache.save()?;
+
+        if download_executable {
+            Self::download_executable(&config, &host_fs, progress).await?;
+        }
+
+        if let Some(branch_name) = git_branch_name {
+            if let Err(e) = std::process::Command::new("git")
+                .arg("init")
+                .arg("-b")
+                .arg(branch_name)
+                .current_dir(host_fs.root_path())
+                .spawn()
+                .and_then(|mut c| c.wait())
+            {
+                return Err(format!("Failed to initialize git repository: {e}"));
+            }
+        }
+
+        Ok(CreateProjectResult {
+            data_cache,
+            config,
+            host_fs,
+        })
     }
 
     async fn download_executable(
-        rgss_ver: luminol_config::RGSSVer,
+        config: &luminol_config::project::Config,
+        filesystem: &impl luminol_filesystem::FileSystem,
         progress: Arc<Progress>,
     ) -> Result<(), String> {
-        todo!()
+        let zip_url: &[_] = match config.project.rgss_ver {
+            luminol_config:: RGSSVer::ModShot => &[
+                "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Windows_bb6bcbc_Ruby-3.1-ucrt64_Steam-false.zip", 
+                "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Linux_bb6bcbc_Ruby-3.1_Steam-false.zip"
+            ],
+            luminol_config::RGSSVer::MKXPZ => &[
+                "https://github.com/mkxp-z/mkxp-z/releases/download/v2.4.0-github/mkxp-z_2.4.0-linux.zip",
+                "https://github.com/mkxp-z/mkxp-z/releases/download/v2.4.0-github/mkxp-z_2.4.0-windows.zip"
+            ],
+            luminol_config::RGSSVer::MKXPFreebird => &[
+                "https://mapleshrine.eu/releases/mkxp-freebird/win64/mkxp-win64-231004-8bdbef1.zip",
+            ],
+            _ => unreachable!(),
+        };
+
+        progress.zip_total.store(zip_url.len(), Ordering::Relaxed);
+
+        let zips = futures::future::join_all(zip_url.iter().map(|url| reqwest::get(*url))).await;
+
+        for (index, zip_response) in zips.into_iter().enumerate() {
+            progress.zip_current.store(index, Ordering::Relaxed);
+
+            progress.total_progress.store(0, Ordering::Relaxed);
+            let response = zip_response
+                .map_err(|e| format!("Error downloading {}: {e}", config.project.rgss_ver))?;
+
+            let bytes = response.bytes().await.map_err(|e| {
+                format!(
+                    "Error getting response body for {}: {e}",
+                    config.project.rgss_ver
+                )
+            })?;
+
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|e| {
+                format!(
+                    "Failed to read zip archive for {}: {e}",
+                    config.project.rgss_ver
+                )
+            })?;
+            progress
+                .total_progress
+                .store(archive.len(), Ordering::Relaxed);
+
+            for index in 0..archive.len() {
+                let mut file = archive.by_index(index).unwrap();
+                progress.current_progress.store(index, Ordering::Relaxed);
+
+                let file_path = match file.enclosed_name() {
+                    Some(p) => p.to_owned(),
+                    None => continue,
+                };
+
+                let file_path = file_path
+                    .strip_prefix("mkxp-z_2.4.0/")
+                    .unwrap_or(&file_path);
+                let file_path = file_path
+                    .to_str()
+                    .ok_or(format!("Invalid file path {file_path:#?}"))?;
+
+                if file_path.is_empty()
+                    || filesystem.exists(file_path).map_err(|e| e.to_string())?
+                {
+                    continue;
+                }
+
+                if file.is_dir() {
+                    filesystem
+                        .create_dir(file_path)
+                        .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
+                } else {
+                    let mut bytes = Vec::new();
+                    file.read_to_end(&mut bytes)
+                        .map_err(|e| e.to_string())
+                        .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
+                    filesystem
+                        .write(file_path, bytes)
+                        .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }

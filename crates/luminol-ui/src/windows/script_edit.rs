@@ -53,7 +53,9 @@ impl luminol_core::Window for Window {
         ctx: &egui::Context,
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) {
+    ) where
+        W: luminol_core::Window,
+    {
         egui::Window::new(self.name())
             .open(open)
             .id(egui::Id::new("script_editor_window"))

@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::Window;
 use std::hash::Hash;
 
 /// Helper struct for tabs.
@@ -70,7 +71,10 @@ where
     }
 
     /// Display all tabs.
-    pub fn ui<W, O>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, O>) {
+    pub fn ui<W, O>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, O>)
+    where
+        W: Window,
+    {
         let mut edit_tabs = EditTabs::default();
         let mut update_state = update_state.reborrow_with_edit_tabs(&mut edit_tabs);
 
@@ -150,6 +154,7 @@ where
 
 impl<'a, 'res, W, T> egui_dock::TabViewer for TabViewer<'a, 'res, W, T>
 where
+    W: Window,
     T: Tab,
 {
     type Tab = T;
@@ -178,7 +183,10 @@ pub trait Tab {
     fn id(&self) -> egui::Id;
 
     /// Show this tab.
-    fn show<W, T>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, T>);
+    fn show<W, T>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, T>)
+    where
+        W: Window,
+        T: Tab;
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {

@@ -25,7 +25,6 @@ alox-48.workspace = true
 ron.workspace = true
 rust-ini = "0.19.0"
 
-luminol-data = { version = "0.1.0", path = "../luminol-data/" }
 luminol-config = { version = "0.1.0", path = "../luminol-config/" }
 
 [target.'cfg(windows)'.dependencies]

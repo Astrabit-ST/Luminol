@@ -105,7 +105,10 @@ impl App {
 
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
-            match filesystem.load_project(&mut project_config, &mut global_config, path) {
+            let path = camino::Utf8PathBuf::from_path_buf(std::path::PathBuf::from(path))
+                .expect("project path not utf-8");
+
+            match filesystem.load_project_from_path(&mut project_config, &mut global_config, path) {
                 Ok(o) => {} // FIXME load data
                 Err(e) => toasts.error(e.to_string()),
             }

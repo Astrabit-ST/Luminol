@@ -30,7 +30,12 @@ pub struct Cache {}
 impl Cache {
     /// Load all data required when opening a project.
     /// Does not load config. That is expected to have been loaded beforehand.
-    pub fn load(&self) -> Result<(), String> {
+    pub fn load(&mut self) -> Result<(), String> {
+        todo!()
+    }
+
+    // TODO dependcy cycle
+    pub fn defaults_from_config(config: ()) -> Self {
         todo!()
     }
 
@@ -44,13 +49,9 @@ impl Cache {
         todo!()
     }
 
-    pub async fn create_project(&self) -> Result<(), String> {
-        todo!()
-    }
-
     /// Setup default values
     // FIXME: Code jank
-    pub fn setup_defaults(&self) {
+    pub fn setup_defaults(&mut self) {
         todo!()
     }
 }

@@ -42,7 +42,7 @@ pub struct UpdateState<'res, W, T> {
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
-    pub data: &'res luminol_data::data_cache::Cache, // FIXME: this is also probably wrong
+    pub data: &'res mut luminol_data::data_cache::Cache, // FIXME: this is also probably wrong
 
     // TODO: look into std::any?
     // we're using generics here to allow specialization on the type of window
@@ -80,16 +80,16 @@ impl<'res, W, T> UpdateState<'res, W, T> {
         edit_windows: &'this mut window::EditWindows<O>,
     ) -> UpdateState<'this, O, T> {
         UpdateState {
-            audio: &mut *self.audio,
+            audio: self.audio,
             graphics: self.graphics.clone(),
-            filesystem: &mut *self.filesystem,
+            filesystem: self.filesystem,
             data: self.data,
-            edit_tabs: &mut *self.edit_tabs,
+            edit_tabs: self.edit_tabs,
             edit_windows,
-            toasts: &mut *self.toasts,
-            project_config: &mut *self.project_config,
-            global_config: &mut *self.global_config,
-            toolbar: &mut *self.toolbar,
+            toasts: self.toasts,
+            project_config: self.project_config,
+            global_config: self.global_config,
+            toolbar: self.toolbar,
         }
     }
 
@@ -98,16 +98,16 @@ impl<'res, W, T> UpdateState<'res, W, T> {
         edit_tabs: &'this mut tab::EditTabs<O>,
     ) -> UpdateState<'this, W, O> {
         UpdateState {
-            audio: &mut *self.audio,
+            audio: self.audio,
             graphics: self.graphics.clone(),
-            filesystem: &mut *self.filesystem,
+            filesystem: self.filesystem,
             data: self.data,
             edit_tabs,
-            edit_windows: &mut *self.edit_windows,
-            toasts: &mut *self.toasts,
-            project_config: &mut *self.project_config,
-            global_config: &mut *self.global_config,
-            toolbar: &mut *self.toolbar,
+            edit_windows: self.edit_windows,
+            toasts: self.toasts,
+            project_config: self.project_config,
+            global_config: self.global_config,
+            toolbar: self.toolbar,
         }
     }
 }

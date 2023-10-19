@@ -49,41 +49,6 @@ impl FileSystem {
         Self::default()
     }
 
-    pub fn read_data<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<T>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let data = self.read(path)?;
-
-        Ok(alox_48::from_bytes(&data)?)
-    }
-
-    pub fn read_nil_padded<T>(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<T>>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let data = self.read(path)?;
-
-        Ok(alox_48::Deserializer::new(&data)
-            .and_then(|mut de| luminol_data::nil_padded::deserialize(&mut de))?)
-    }
-
-    pub fn save_data<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &T) -> Result<()>
-    where
-        T: serde::ser::Serialize,
-    {
-        self.write(path, alox_48::to_bytes(data)?)
-    }
-
-    pub fn save_nil_padded<T>(&self, path: impl AsRef<camino::Utf8Path>, data: &[T]) -> Result<()>
-    where
-        T: serde::ser::Serialize,
-    {
-        let mut ser = alox_48::Serializer::new();
-        luminol_data::nil_padded::serialize(data, &mut ser)?;
-        self.write(path, ser.output)
-    }
-
     pub fn project_path(&self) -> Option<camino::Utf8PathBuf> {
         match self {
             FileSystem::Unloaded => None,
@@ -98,23 +63,6 @@ impl FileSystem {
 
     pub fn unload_project(&mut self) {
         *self = FileSystem::Unloaded;
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn spawn_project_file_picker(
-        &mut self,
-        project_config: &mut Option<luminol_config::project::Config>,
-        global_config: &mut luminol_config::global::Config,
-    ) -> Result<()> {
-        if let Some(path) = rfd::AsyncFileDialog::default()
-            .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
-            .pick_file()
-            .await
-        {
-            self.load_project(project_config, global_config, path.path())
-        } else {
-            Err(Error::CancelledLoading)
-        }
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -369,38 +317,62 @@ impl FileSystem {
         })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn load_project(
+    pub fn load_project_from_path(
         &mut self,
         project_config: &mut Option<luminol_config::project::Config>,
         global_config: &mut luminol_config::global::Config,
-        project_path: impl AsRef<std::path::Path>,
+        project_path: impl AsRef<camino::Utf8Path>,
     ) -> Result<()> {
-        let original_path = camino::Utf8Path::from_path(project_path.as_ref()).unwrap();
-        let path = original_path.parent().unwrap_or(original_path);
+        let host = host::FileSystem::new(project_path);
+        self.load_project(host, project_config, global_config)
+    }
 
-        *self = FileSystem::HostLoaded(host::FileSystem::new(path));
-
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn load_project(
+        &mut self,
+        host: host::FileSystem,
+        project_config: &mut Option<luminol_config::project::Config>,
+        global_config: &mut luminol_config::global::Config,
+    ) -> Result<()> {
+        *self = FileSystem::HostLoaded(host);
         let config = self.load_project_config()?;
+
+        let Self::HostLoaded(host) = std::mem::take(self) else {
+            panic!("unable to fetch host filesystem")
+        };
+
+        self.load_partially_loaded_project(host, &config, global_config)?;
+
+        *project_config = Some(config);
+
+        Ok(())
+    }
+
+    pub fn load_partially_loaded_project(
+        &mut self,
+        host: host::FileSystem,
+        project_config: &luminol_config::project::Config,
+        global_config: &mut luminol_config::global::Config,
+    ) -> Result<()> {
+        let project_path = host.root_path().to_path_buf();
 
         let mut list = list::FileSystem::new();
 
-        let dir = host::FileSystem::new(path);
-        let archive = dir
+        let archive = host
             .read_dir("")?
             .into_iter()
             .find(|entry| {
                 entry.metadata.is_file
                     && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
             })
-            .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .map(|entry| host.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
             .transpose()?
             .map(archiver::FileSystem::new)
             .transpose()?;
 
-        list.push(dir);
+        list.push(host);
         // FIXME: handle missing rtps
-        let (found_rtps, missing_rtps) = Self::find_rtp_paths(&config, global_config);
+        let (found_rtps, missing_rtps) = Self::find_rtp_paths(project_config, global_config);
         for path in found_rtps {
             list.push(host::FileSystem::new(path))
         }
@@ -412,7 +384,7 @@ impl FileSystem {
 
         *self = FileSystem::Loaded {
             filesystem: path_cache,
-            project_path: path.to_path_buf(),
+            project_path: project_path.to_path_buf(),
         };
 
         // FIXME: handle
@@ -424,13 +396,11 @@ impl FileSystem {
         let mut projects: std::collections::VecDeque<_> = global_config
             .recent_projects
             .iter()
-            .filter(|p| p.as_str() != original_path)
+            .filter(|p| p.as_str() != project_path)
             .cloned()
             .collect();
-        projects.push_front(original_path.to_string());
+        projects.push_front(project_path.into_string());
         global_config.recent_projects = projects;
-
-        *project_config = Some(config);
 
         Ok(())
     }
