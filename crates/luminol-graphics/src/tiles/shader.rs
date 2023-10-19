@@ -17,7 +17,6 @@
 
 use super::instance::Instances;
 use crate::vertex::Vertex;
-use const_format::str_replace;
 
 pub fn create_render_pipeline(
     render_state: &egui_wgpu::RenderState,
@@ -34,8 +33,8 @@ pub fn create_render_pipeline(
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("tilemap.wgsl (push constants)"),
                 source: wgpu::ShaderSource::Wgsl(
-                    str_replace!(
-                        str_replace!(
+                    const_format::str_replace!(
+                        const_format::str_replace!(
                             concat!(
                                 include_str!("tilemap_header_push_constants.wgsl"),
                                 include_str!("tilemap.wgsl"),
@@ -55,8 +54,8 @@ pub fn create_render_pipeline(
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("tilemap.wgsl (uniforms)"),
                 source: wgpu::ShaderSource::Wgsl(
-                    str_replace!(
-                        str_replace!(
+                    const_format::str_replace!(
+                        const_format::str_replace!(
                             concat!(
                                 include_str!("tilemap_header_uniforms.wgsl"),
                                 include_str!("tilemap.wgsl"),

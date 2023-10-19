@@ -25,18 +25,24 @@
 use luminol_data::rpg;
 
 #[derive(Default, Debug)]
-pub struct Data {}
+pub enum Data {
+    #[default]
+    Unloaded,
+    Loaded, // TODO
+}
 
 impl Data {
     /// Load all data required when opening a project.
     /// Does not load config. That is expected to have been loaded beforehand.
-    pub fn load(&mut self) -> Result<(), String> {
-        todo!()
+    pub fn load(&mut self, filesystem: &impl luminol_filesystem::FileSystem) -> Result<(), String> {
+        *self = Self::Loaded;
+
+        Ok(())
     }
 
     // TODO dependcy cycle
     pub fn defaults_from_config(config: &luminol_config::project::Config) -> Self {
-        todo!()
+        Self::Loaded {}
     }
 
     pub fn rxdata_ext(&self) -> &'static str {
@@ -45,7 +51,7 @@ impl Data {
 
     /// Save all cached data to disk.
     /// Will flush the cache too.
-    pub fn save(&self) -> Result<(), String> {
+    pub fn save(&self, filesystem: &impl luminol_filesystem::FileSystem) -> Result<(), String> {
         todo!()
     }
 

@@ -22,7 +22,8 @@
 		"image cache",
 		"tilemap",
 		"config",
-		"audio"
+		"audio",
+		"graphics"
 	],
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"rust-analyzer.cargo.extraEnv": {

@@ -20,9 +20,46 @@ fn create_shader(
     bind_group_layouts: &crate::BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> wgpu::RenderPipeline {
-    let shader_module = render_state
+    let use_push_constants = render_state
         .device
-        .create_shader_module(wgpu::include_wgsl!("sprite.wgsl"));
+        .features()
+        .contains(wgpu::Features::PUSH_CONSTANTS);
+
+    let shader_module = if use_push_constants {
+        render_state
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("sprite.wgsl (push constants)"),
+                source: wgpu::ShaderSource::Wgsl(
+                    const_format::str_replace!(
+                        concat!(
+                            include_str!("sprite_header_push_constants.wgsl"),
+                            include_str!("sprite.wgsl"),
+                        ),
+                        "HOST.",
+                        "push_constants."
+                    )
+                    .into(),
+                ),
+            })
+    } else {
+        render_state
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("sprite.wgsl (uniforms)"),
+                source: wgpu::ShaderSource::Wgsl(
+                    const_format::str_replace!(
+                        concat!(
+                            include_str!("sprite_header_uniforms.wgsl"),
+                            include_str!("sprite.wgsl"),
+                        ),
+                        "HOST.",
+                        ""
+                    )
+                    .into(),
+                ),
+            })
+    };
 
     let pipeline_layout =
         render_state

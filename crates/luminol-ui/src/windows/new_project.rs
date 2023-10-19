@@ -171,13 +171,19 @@ impl luminol_core::Window for Window {
                     config,
                     host_fs,
                 })) => {
-                    update_state.filesystem.load_partially_loaded_project(
+                    let result = update_state.filesystem.load_partially_loaded_project(
                         host_fs,
                         &config,
-                        &mut update_state.global_config,
+                        update_state.global_config,
                     );
-                    *update_state.data = data_cache;
-                    update_state.project_config.replace(config);
+
+                    match result {
+                        Ok(_) => {
+                            *update_state.data = data_cache;
+                            update_state.project_config.replace(config);
+                        }
+                        Err(e) => update_state.toasts.error(e.to_string()),
+                    }
                 }
                 Ok(Err(error)) => update_state.toasts.error(error.to_string()),
                 Err(p) => self.project_promise = Some(p),
@@ -205,7 +211,7 @@ impl Window {
 
         // TODO
         let data_cache = luminol_core::Data::defaults_from_config(&config);
-        data_cache.save()?;
+        data_cache.save(&host_fs)?;
 
         if download_executable {
             Self::download_executable(&config, &host_fs, progress).await?;
