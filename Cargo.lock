@@ -2545,7 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-audio"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "camino",
  "luminol-filesystem",
@@ -2558,7 +2558,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-components"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "egui",
  "egui-wgpu",
@@ -2581,7 +2581,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-config"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "luminol-data",
  "once_cell",
@@ -2593,7 +2593,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "alox-48",
  "bitflags 2.4.0",
@@ -2615,7 +2615,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-data"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "alox-48",
  "bytemuck",
@@ -2632,7 +2632,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-filesystem"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "alox-48",
  "bitflags 2.4.0",
@@ -2652,7 +2652,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-graphics"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "bytemuck",
  "camino",
@@ -2674,11 +2674,11 @@ dependencies = [
 
 [[package]]
 name = "luminol-macros"
-version = "0.1.0"
+version = "0.4.0"
 
 [[package]]
 name = "luminol-modals"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "camino",
  "egui",
@@ -2689,7 +2689,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-term"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam-channel",
  "eframe",
@@ -2701,7 +2701,7 @@ dependencies = [
 
 [[package]]
 name = "luminol-ui"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "catppuccin-egui",
  "egui",

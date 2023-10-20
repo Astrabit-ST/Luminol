@@ -1,20 +1,28 @@
 [package]
 name = "luminol-ui"
-version = "0.1.0"
-edition = "2021"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-luminol-audio = { version = "0.1.0", path = "../luminol-audio/" }
-luminol-core = { version = "0.1.0", path = "../luminol-core/" }
-luminol-config = { version = "0.1.0", path = "../luminol-config/" }
-luminol-data = { version = "0.1.0", path = "../luminol-data/" }
-luminol-graphics = { version = "0.1.0", path = "../luminol-graphics/" }
-luminol-filesystem = { version = "0.1.0", path = "../luminol-filesystem/" }
-luminol-components = { version = "0.1.0", path = "../luminol-components/" }
-luminol-term = { version = "0.1.0", path = "../luminol-term/" }
-luminol-modals = { version = "0.1.0", path = "../luminol-modals/" }
+luminol-audio.workspace = true
+luminol-core.workspace = true
+luminol-config.workspace = true
+luminol-data.workspace = true
+luminol-graphics.workspace = true
+luminol-filesystem.workspace = true
+luminol-components.workspace = true
+luminol-term.workspace = true
+luminol-modals.workspace = true
 
 egui.workspace = true
 egui_extras.workspace = true

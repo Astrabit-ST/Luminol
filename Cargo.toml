@@ -2,6 +2,21 @@
 members = ["crates/*"]
 resolver = "2"
 
+[workspace.package]
+version = "0.4.0"
+authors = [
+    "Lily Lyons <lily@nowaffles.com>",
+    "Egor Poleshko <somedevfox@gmail.com>",
+]
+edition = "2021"
+rust-version = "1.74"
+license = "GPL-3.0"
+readme = "README.md"
+repository = "https://github.com/Speak2Erase/Luminol"
+keywords = ["gamedev", "rpg", "rpg-maker"]
+categories = ["games"]
+default-run = "luminol"
+
 [workspace.dependencies]
 egui = "0.22.0"
 egui_extras = { version = "0.22.0", features = ["svg", "image"] }
@@ -17,7 +32,6 @@ egui-wgpu = "0.22.0"
 
 wgpu = "0.16.3"
 glam = { version = "0.24.2", features = ["bytemuck"] }
-
 image = "0.24.7"
 
 serde = { version = "1.0", features = ["derive"] }
@@ -52,6 +66,18 @@ itertools = "0.11.0"
 rfd = "0.12.0"
 
 rand = "0.8.5"
+
+luminol-audio = { version = "0.4.0", path = "crates/luminol-audio/" }
+luminol-components = { version = "0.4.0", path = "crates/luminol-components/" }
+luminol-config = { version = "0.4.0", path = "crates/luminol-config/" }
+luminol-core = { version = "0.4.0", path = "crates/luminol-core/" }
+luminol-data = { version = "0.4.0", path = "crates/luminol-data/" }
+luminol-filesystem = { version = "0.4.0", path = "crates/luminol-filesystem/" }
+luminol-graphics = { version = "0.4.0", path = "crates/luminol-graphics/" }
+luminol-macros = { version = "0.4.0", path = "crates/luminol-macros/" }
+luminol-modals = { version = "0.4.0", path = "crates/luminol-modals/" }
+luminol-term = { version = "0.4.0", path = "crates/luminol-term/" }
+luminol-ui = { version = "0.4.0", path = "crates/luminol-ui/" }
 
 # Fast and performant.
 [profile.release]
