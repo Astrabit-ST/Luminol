@@ -22,11 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::Tab;
+
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
-use crate::Tab;
-
 pub struct Windows<W> {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
     windows: Vec<W>,
@@ -47,6 +47,22 @@ impl<W> Default for Windows<W> {
         }
     }
 }
+
+// impl<W> std::fmt::Debug for EditWindows<W> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("EditWindows")
+//             .field(
+//                 "clean_fn",
+//                 &match self.clean_fn {
+//                     Some(_) => "Some(..)",
+//                     None => "None",
+//                 },
+//             )
+//             .field("added", &format!("[ 0..{} ]", self.added.len()))
+//             .field("removed", &format!("{{ 0..{} }}", self.removed.len()))
+//             .finish()
+//     }
+// }
 
 impl<W> Default for EditWindows<W> {
     fn default() -> Self {
@@ -77,6 +93,29 @@ where
         self.windows.retain(f);
     }
 
+    pub fn display_with_update_state_windows<T>(
+        &mut self,
+        ctx: &egui::Context,
+        update_state: &mut crate::UpdateState<'_, W, T>,
+    ) where
+        T: Tab,
+    {
+        // Iterate through all the windows and clean them up if necessary.
+        self.windows.retain_mut(|window| {
+            // Pass in a bool requesting to see if the window open.
+            let mut open = true;
+            window.show(ctx, &mut open, update_state);
+            open
+        });
+
+        for window in update_state.edit_windows.added.drain(..) {
+            self.add_window(window);
+        }
+        if let Some(f) = update_state.edit_windows.clean_fn.take() {
+            self.clean_windows(f)
+        }
+    }
+
     /// Update and draw all windows.
     pub fn display<O, T>(
         &mut self,
@@ -90,13 +129,13 @@ where
             added: Vec::new(),
             removed: std::collections::HashSet::new(),
         };
-        let mut update_state = update_state.reborrow_with_edit_window(&mut edit_windows);
+        let mut reborrowed_update_state = update_state.reborrow_with_edit_window(&mut edit_windows);
 
         // Iterate through all the windows and clean them up if necessary.
         self.windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
             let mut open = true;
-            window.show(ctx, &mut open, &mut update_state);
+            window.show(ctx, &mut open, &mut reborrowed_update_state);
             open
         });
 

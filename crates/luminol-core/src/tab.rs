@@ -70,6 +70,25 @@ where
         }
     }
 
+    pub fn ui_with_update_state_tabs<W>(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut crate::UpdateState<'_, W, T>,
+    ) where
+        W: Window,
+    {
+        egui_dock::DockArea::new(&mut self.dock_state)
+            .id(self.id)
+            .show_inside(ui, &mut TabViewer { update_state });
+
+        for tab in update_state.edit_tabs.added.drain(..) {
+            self.add_tab(tab);
+        }
+        if let Some(f) = update_state.edit_tabs.clean_fn.take() {
+            self.clean_tabs(f);
+        }
+    }
+
     /// Display all tabs.
     pub fn ui<W, O>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, O>)
     where

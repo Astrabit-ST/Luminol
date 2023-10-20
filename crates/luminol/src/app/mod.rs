@@ -260,11 +260,12 @@ impl CustomApp for App {
         egui::CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.))
             .show(ctx, |ui| {
-                ui.group(|ui| self.tabs.ui(ui, &mut update_state));
+                ui.group(|ui| self.tabs.ui_with_update_state_tabs(ui, &mut update_state));
             });
 
         // Update all windows.
-        self.windows.display(ctx, &mut update_state);
+        self.windows
+            .display_with_update_state_windows(ctx, &mut update_state);
 
         // Show toasts.
         self.toasts.show(ctx);
