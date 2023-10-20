@@ -43,10 +43,10 @@ macro_rules! tab_enum {
         }
 
         impl luminol_core::Tab for $name {
-            fn name(&self) -> String {
+            fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
                 match self {
                     $(
-                        Self::$variant(v) => v.name(),
+                        Self::$variant(v) => v.name(update_state),
                     )*
                 }
             }

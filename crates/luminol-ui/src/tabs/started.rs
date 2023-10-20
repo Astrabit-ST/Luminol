@@ -44,7 +44,7 @@ impl Tab {
 }
 
 impl luminol_core::Tab for Tab {
-    fn name(&self) -> String {
+    fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
         "Get Started".to_string()
     }
 
@@ -86,10 +86,9 @@ impl luminol_core::Tab for Tab {
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()
             {
-                // FIXME
-                // update_state
-                //     .edit_windows
-                //     .add_window(crate::windows::new_project::Window::default());
+                update_state
+                    .edit_windows
+                    .add_window(crate::windows::new_project::Window::default());
             }
             if ui
                 .button(egui::RichText::new("Open Project").size(20.))

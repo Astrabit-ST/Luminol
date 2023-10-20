@@ -35,6 +35,7 @@ impl Window {
         id: usize,
         children_data: &BTreeMap<usize, BTreeSet<usize>>,
         mapinfos: &mut luminol_data::rpg::MapInfos,
+        open_map_id: &mut Option<usize>,
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
@@ -56,17 +57,13 @@ impl Window {
                 .show_header(ui, |ui| {
                     // Has the user
                     if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                        // FIXME
-                        // match crate::tabs::map::Tab::new(id) {
-                        //     Ok(m) => update_state.edit_tabs.push(Box::new(m)),
-                        //     Err(e) => update_state.toasts.error(e),
-                        // }
+                        *open_map_id = Some(id)
                     }
                 })
                 .body(|ui| {
                     for id in children_data.get(&id).unwrap() {
                         // Render children.
-                        Self::render_submap(*id, children_data, mapinfos, ui);
+                        Self::render_submap(*id, children_data, mapinfos, open_map_id, ui);
                     }
                 });
         } else {
@@ -74,11 +71,7 @@ impl Window {
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
                 if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                    // FIXME
-                    // match crate::tabs::map::Tab::new(id) {
-                    //     Ok(m) => update_state.edit_tabs.push(Box::new(m)),
-                    //     Err(e) => update_state.toasts.error(e),
-                    // }
+                    *open_map_id = Some(id)
                 }
             });
         }
@@ -117,6 +110,8 @@ impl luminol_core::Window for Window {
                         }
                         children_data.entry(0).or_default(); // If there is no `0` entry (i.e. there are no maps) then add one.
 
+                        let mut open_map_id = None;
+
                         // Now we can actually render all maps.
                         egui::CollapsingHeader::new("root")
                             .default_open(true)
@@ -124,9 +119,24 @@ impl luminol_core::Window for Window {
                                 // There will always be a map `0`.
                                 // `0` is assumed to be the root map.
                                 for &id in children_data.get(&0).unwrap() {
-                                    Self::render_submap(id, &children_data, &mut mapinfos, ui);
+                                    Self::render_submap(
+                                        id,
+                                        &children_data,
+                                        &mut mapinfos,
+                                        &mut open_map_id,
+                                        ui,
+                                    );
                                 }
                             });
+
+                        drop(mapinfos);
+
+                        if let Some(id) = open_map_id {
+                            match crate::tabs::map::Tab::new(id, update_state) {
+                                Ok(tab) => update_state.edit_tabs.add_tab(tab),
+                                Err(e) => update_state.toasts.error(e),
+                            }
+                        }
                     })
             });
         *open = window_open;

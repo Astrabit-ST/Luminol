@@ -71,15 +71,7 @@ impl Tabs {
             .show_inside(ui, &mut TabViewer { update_state });
 
         for tab in update_state.edit_tabs.added.drain(..) {
-            // FIXME O(n)
-            for node in self.dock_state.iter_nodes() {
-                if let egui_dock::Node::Leaf { tabs, .. } = node {
-                    if tabs.iter().any(|t| t.id() == tab.id()) {
-                        return;
-                    }
-                }
-            }
-            self.dock_state.push_to_focused_leaf(tab);
+            self.add_boxed_tab(tab)
         }
         if let Some(f) = update_state.edit_tabs.clean_fn.take() {
             self.clean_tabs(f);
@@ -101,15 +93,7 @@ impl Tabs {
             );
 
         for tab in edit_tabs.added {
-            // FIXME O(n)
-            for node in self.dock_state.iter_nodes() {
-                if let egui_dock::Node::Leaf { tabs, .. } = node {
-                    if tabs.iter().any(|t| t.id() == tab.id()) {
-                        return;
-                    }
-                }
-            }
-            self.dock_state.push_to_focused_leaf(tab);
+            self.add_boxed_tab(tab)
         }
         if let Some(f) = edit_tabs.clean_fn {
             self.clean_tabs(f);
@@ -118,6 +102,10 @@ impl Tabs {
 
     /// Add a tab.
     pub fn add_tab(&mut self, tab: impl Tab + 'static) {
+        self.add_boxed_tab(Box::new(tab))
+    }
+
+    fn add_boxed_tab(&mut self, tab: Box<dyn Tab>) {
         // FIXME O(n)
         for node in self.dock_state.iter_nodes() {
             if let egui_dock::Node::Leaf { tabs, .. } = node {
@@ -126,7 +114,7 @@ impl Tabs {
                 }
             }
         }
-        self.dock_state.push_to_focused_leaf(Box::new(tab));
+        self.dock_state.push_to_focused_leaf(tab);
     }
 
     /// Removes tabs that the provided closure returns `false` when called.
@@ -174,7 +162,7 @@ impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
     type Tab = Box<dyn Tab>;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
-        tab.name().into()
+        tab.name(self.update_state).into()
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
@@ -189,7 +177,7 @@ impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
 /// A tab trait.
 pub trait Tab {
     /// Optionally used as the title of the tab.
-    fn name(&self) -> String {
+    fn name(&self, _: &crate::UpdateState<'_>) -> String {
         "Untitled Window".to_string()
     }
 

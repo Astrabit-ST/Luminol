@@ -43,11 +43,15 @@ type CleanFn = Box<dyn Fn(&Box<dyn Window>) -> bool>;
 impl Windows {
     /// A function to add a window.
     pub fn add_window(&mut self, window: impl Window + 'static) {
+        self.add_boxed_window(Box::new(window))
+    }
+
+    fn add_boxed_window(&mut self, window: Box<dyn Window>) {
         // FIXME use a hashmap, or something with less than O(n) search time
         if self.windows.iter().any(|w| w.id() == window.id()) {
             return;
         }
-        self.windows.push(Box::new(window));
+        self.windows.push(window)
     }
 
     /// Clean all windows that need the data cache.
