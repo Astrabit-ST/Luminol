@@ -35,11 +35,11 @@ impl luminol_core::Window for EguiInspection {
         egui::Id::new("Egui Inspection")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
             .open(open)
@@ -60,11 +60,11 @@ impl luminol_core::Window for EguiMemory {
         egui::Id::new("Egui Memory")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
             .open(open)
@@ -84,11 +84,11 @@ impl luminol_core::Window for FilesystemDebug {
         egui::Id::new("Filesystem Debug Window")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
             .open(open)

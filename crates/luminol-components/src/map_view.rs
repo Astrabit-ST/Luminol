@@ -59,8 +59,8 @@ pub enum SelectedLayer {
 }
 
 impl MapView {
-    pub fn new<W, T>(
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    pub fn new(
+        update_state: &mut luminol_core::UpdateState<'_>,
         map_id: usize,
     ) -> Result<MapView, String> {
         let map = update_state

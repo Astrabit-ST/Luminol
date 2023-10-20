@@ -29,20 +29,20 @@ pub struct Modal {
 impl luminol_core::Modal for Modal {
     type Data = luminol_data::rpg::AudioFile;
 
-    fn button<W, T>(
+    fn button(
         this: &mut Option<Self>,
         ui: &mut egui::Ui,
         data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         todo!()
     }
 
-    fn show<W, T>(
+    fn show(
         this: &mut Option<Self>,
         ctx: &egui::Context,
         data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         todo!()
     }

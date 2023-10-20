@@ -90,11 +90,11 @@ impl luminol_core::Window for Window {
         egui::Id::new("Map Picker")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let mut window_open = true;
         egui::Window::new("Map Picker")

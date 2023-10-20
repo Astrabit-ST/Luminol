@@ -22,9 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_core::Tab;
-use luminol_core::Window;
-
 use strum::IntoEnumIterator;
 
 /// The top bar for managing the project.
@@ -42,7 +39,7 @@ impl TopBar {
         &mut self,
         ui: &mut egui::Ui,
         frame: &mut super::CustomFrame<'_>,
-        update_state: &mut luminol_core::UpdateState<'_, luminol_ui::Window, luminol_ui::Tab>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::widgets::global_dark_light_mode_switch(ui);
 

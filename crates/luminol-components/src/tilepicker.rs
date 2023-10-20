@@ -71,8 +71,8 @@ impl Default for SelectedTile {
 type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
-    pub fn new<W, T>(
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+    pub fn new(
+        update_state: &mut luminol_core::UpdateState<'_>,
         map_id: usize, // FIXME
     ) -> Result<Tilepicker, String> {
         let map = update_state
@@ -146,9 +146,9 @@ impl Tilepicker {
         }
     }
 
-    pub fn ui<W, T>(
+    pub fn ui(
         &mut self,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
     ) -> egui::Response {

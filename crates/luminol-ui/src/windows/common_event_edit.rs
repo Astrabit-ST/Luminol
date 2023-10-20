@@ -26,14 +26,14 @@ use luminol_core::Modal;
 
 /// The common event editor.
 pub struct Window {
-    tabs: luminol_core::Tabs<CommonEventTab>,
+    tabs: luminol_core::Tabs,
     selected_id: usize,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: luminol_core::Tabs::new("common_event_tabs", vec![]),
+            tabs: luminol_core::Tabs::new("common_event_tabs"),
             selected_id: 0,
         }
     }
@@ -52,14 +52,12 @@ impl luminol_core::Window for Window {
         egui::Id::new("Common Events")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) where
-        W: luminol_core::Window,
-    {
+        update_state: &mut luminol_core::UpdateState<'_>,
+    ) {
         egui::Window::new(self.name())
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))
@@ -125,11 +123,7 @@ impl luminol_core::Tab for CommonEventTab {
         egui::Id::new("luminol_common_event").with(self.event.id)
     }
 
-    fn show<W, T>(
-        &mut self,
-        ui: &mut egui::Ui,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) {
+    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         ui.horizontal(|ui| {
             let trigger_types = ["None", "Autorun", "Parallel"];
             egui::ComboBox::new(format!("common_event_{}_trigger", self.event.id), "Trigger")

@@ -65,11 +65,11 @@ impl luminol_core::Window for Window {
         true
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let _selected_item = &self.items[self.selected_item];
         let animations = update_state.data.animations();

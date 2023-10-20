@@ -24,13 +24,13 @@
 
 /// The script editor.
 pub struct Window {
-    tabs: luminol_core::Tabs<ScriptTab>,
+    tabs: luminol_core::Tabs,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: luminol_core::Tabs::new("script_editor", vec![]),
+            tabs: luminol_core::Tabs::new("script_editor"),
         }
     }
 }
@@ -48,14 +48,12 @@ impl luminol_core::Window for Window {
         egui::Id::new("Script Edit")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) where
-        W: luminol_core::Window,
-    {
+        update_state: &mut luminol_core::UpdateState<'_>,
+    ) {
         egui::Window::new(self.name())
             .open(open)
             .id(egui::Id::new("script_editor_window"))
@@ -142,11 +140,7 @@ impl luminol_core::Tab for ScriptTab {
         egui::Id::new("luminol_script_edit").with(self.index)
     }
 
-    fn show<W, T>(
-        &mut self,
-        ui: &mut egui::Ui,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) {
+    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         // FIXME
 
         ui.horizontal(|ui| {

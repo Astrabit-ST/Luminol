@@ -84,8 +84,8 @@ pub struct App {
 
     toasts: luminol_core::Toasts,
 
-    windows: luminol_core::Windows<luminol_ui::Window>,
-    tabs: luminol_core::Tabs<luminol_ui::Tab>,
+    windows: luminol_core::Windows,
+    tabs: luminol_core::Tabs,
 
     global_config: luminol_config::global::Config,
     project_config: Option<luminol_config::project::Config>,
@@ -117,7 +117,7 @@ impl App {
         let mut project_config = None;
 
         let mut filesystem = luminol_filesystem::project::FileSystem::new();
-        let data = luminol_core::Data::default();
+        let mut data = luminol_core::Data::default();
 
         let mut toasts = luminol_core::Toasts::default();
 
@@ -127,7 +127,11 @@ impl App {
                 .expect("project path not utf-8");
 
             match filesystem.load_project_from_path(&mut project_config, &mut global_config, path) {
-                Ok(_) => {} // FIXME load data
+                Ok(_) => {
+                    if let Err(e) = data.load(&filesystem, project_config.as_mut().unwrap()) {
+                        toasts.error(e.to_string())
+                    }
+                }
                 Err(e) => toasts.error(e.to_string()),
             }
         }
@@ -191,9 +195,9 @@ impl App {
             data,
             toasts,
             windows: luminol_core::Windows::default(),
-            tabs: luminol_core::Tabs::new(
+            tabs: luminol_core::Tabs::new_with_tabs(
                 "luminol_main_tabs",
-                vec![luminol_ui::tabs::started::Tab::default().into()],
+                vec![luminol_ui::tabs::started::Tab::default()],
             ),
             global_config,
             project_config,

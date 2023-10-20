@@ -40,7 +40,7 @@ pub use data_cache::Data;
 mod toasts;
 pub use toasts::Toasts;
 
-pub struct UpdateState<'res, W, T> {
+pub struct UpdateState<'res> {
     pub audio: &'res mut luminol_audio::Audio,
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
@@ -50,8 +50,8 @@ pub struct UpdateState<'res, W, T> {
     // TODO: look into std::any?
     // we're using generics here to allow specialization on the type of window
     // this is fucntionality not really used atm but maybe in the future..?
-    pub edit_windows: &'res mut EditWindows<W>,
-    pub edit_tabs: &'res mut EditTabs<T>,
+    pub edit_windows: &'res mut EditWindows,
+    pub edit_tabs: &'res mut EditTabs,
     pub toasts: &'res mut Toasts,
 
     pub project_config: &'res mut Option<luminol_config::project::Config>,
@@ -77,11 +77,11 @@ pub enum Pencil {
     Fill,
 }
 
-impl<'res, W, T> UpdateState<'res, W, T> {
-    pub(crate) fn reborrow_with_edit_window<'this, O>(
+impl<'res> UpdateState<'res> {
+    pub(crate) fn reborrow_with_edit_window<'this>(
         &'this mut self,
-        edit_windows: &'this mut window::EditWindows<O>,
-    ) -> UpdateState<'this, O, T> {
+        edit_windows: &'this mut window::EditWindows,
+    ) -> UpdateState<'this> {
         UpdateState {
             audio: self.audio,
             graphics: self.graphics.clone(),
@@ -96,10 +96,10 @@ impl<'res, W, T> UpdateState<'res, W, T> {
         }
     }
 
-    pub(crate) fn reborrow_with_edit_tabs<'this, O>(
+    pub(crate) fn reborrow_with_edit_tabs<'this>(
         &'this mut self,
-        edit_tabs: &'this mut tab::EditTabs<O>,
-    ) -> UpdateState<'this, W, O> {
+        edit_tabs: &'this mut tab::EditTabs,
+    ) -> UpdateState<'this> {
         UpdateState {
             audio: self.audio,
             graphics: self.graphics.clone(),

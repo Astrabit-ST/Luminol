@@ -31,11 +31,11 @@ pub struct Modal {
 impl luminol_core::Modal for Modal {
     type Data = usize;
 
-    fn button<W, T>(
+    fn button(
         this: &mut Option<Self>,
         ui: &mut egui::Ui,
         data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let system = update_state.data.system();
 
@@ -54,11 +54,11 @@ impl luminol_core::Modal for Modal {
         Modal::show(this, ui.ctx(), data, update_state);
     }
 
-    fn show<W, T>(
+    fn show(
         this_opt: &mut Option<Self>,
         ctx: &egui::Context,
         data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let mut win_open = this_opt.is_some();
         let mut needs_close = this_opt.is_some();

@@ -41,7 +41,7 @@ pub struct Tab {
 
     dragging_event: bool,
     drawing_shape: bool,
-    event_windows: luminol_core::Windows<event_edit::Window>,
+    event_windows: luminol_core::Windows,
     force_close: bool,
 
     /// When event dragging starts, this is set to the difference between
@@ -91,9 +91,9 @@ enum HistoryEntry {
 
 impl Tab {
     /// Create a new map editor.
-    pub fn new<W, T>(
+    pub fn new(
         id: usize,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) -> Result<Self, String> {
         // *sigh*
         // borrow checker.
@@ -344,13 +344,7 @@ impl luminol_core::Tab for Tab {
         self.force_close
     }
 
-    fn show<W, T>(
-        &mut self,
-        ui: &mut egui::Ui,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) where
-        T: luminol_core::Tab,
-    {
+    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {

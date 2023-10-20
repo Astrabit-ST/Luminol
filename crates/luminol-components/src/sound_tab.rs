@@ -48,11 +48,7 @@ impl SoundTab {
     }
 
     /// Display this SoundTab.
-    pub fn ui<W, T>(
-        &mut self,
-        ui: &mut egui::Ui,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
-    ) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         egui::SidePanel::right("sound_tab_controls")
             .resizable(false)
             .show_inside(ui, |ui| {

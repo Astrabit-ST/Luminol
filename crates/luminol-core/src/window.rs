@@ -22,84 +22,45 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::Tab;
-
 /// A window management system to handle heap allocated windows
 ///
 /// Will deny any duplicated window titles and is not specialized like modals
-pub struct Windows<W> {
+#[derive(Default)]
+pub struct Windows {
     // A dynamic array of Windows. Iterated over and cleaned up in fn update().
-    windows: Vec<W>,
+    windows: Vec<Box<dyn Window>>,
 }
 
-pub struct EditWindows<W> {
-    clean_fn: Option<CleanFn<W>>,
-    added: Vec<W>,
+#[derive(Default)]
+pub struct EditWindows {
+    clean_fn: Option<CleanFn>,
+    added: Vec<Box<dyn Window>>,
     removed: std::collections::HashSet<egui::Id>,
 }
 
-type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
+type CleanFn = Box<dyn Fn(&Box<dyn Window>) -> bool>;
 
-impl<W> Default for Windows<W> {
-    fn default() -> Self {
-        Self {
-            windows: Vec::new(),
-        }
-    }
-}
-
-// impl<W> std::fmt::Debug for EditWindows<W> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("EditWindows")
-//             .field(
-//                 "clean_fn",
-//                 &match self.clean_fn {
-//                     Some(_) => "Some(..)",
-//                     None => "None",
-//                 },
-//             )
-//             .field("added", &format!("[ 0..{} ]", self.added.len()))
-//             .field("removed", &format!("{{ 0..{} }}", self.removed.len()))
-//             .finish()
-//     }
-// }
-
-impl<W> Default for EditWindows<W> {
-    fn default() -> Self {
-        Self {
-            clean_fn: None,
-            added: Vec::new(),
-            removed: std::collections::HashSet::new(),
-        }
-    }
-}
-
-impl<W> Windows<W>
-where
-    W: Window,
-{
+impl Windows {
     /// A function to add a window.
-    pub fn add_window(&mut self, window: W) {
+    pub fn add_window(&mut self, window: impl Window + 'static) {
         // FIXME use a hashmap, or something with less than O(n) search time
         if self.windows.iter().any(|w| w.id() == window.id()) {
             return;
         }
-        self.windows.push(window);
+        self.windows.push(Box::new(window));
     }
 
     /// Clean all windows that need the data cache.
     /// This is usually when a project is closed.
-    pub fn clean_windows(&mut self, f: impl Fn(&W) -> bool) {
+    pub fn clean_windows(&mut self, f: impl Fn(&Box<dyn Window>) -> bool) {
         self.windows.retain(f);
     }
 
-    pub fn display_with_update_state_windows<T>(
+    pub fn display_with_update_state_windows(
         &mut self,
         ctx: &egui::Context,
-        update_state: &mut crate::UpdateState<'_, W, T>,
-    ) where
-        T: Tab,
-    {
+        update_state: &mut crate::UpdateState<'_>,
+    ) {
         // Iterate through all the windows and clean them up if necessary.
         self.windows.retain_mut(|window| {
             // Pass in a bool requesting to see if the window open.
@@ -109,7 +70,10 @@ where
         });
 
         for window in update_state.edit_windows.added.drain(..) {
-            self.add_window(window);
+            if self.windows.iter().any(|w| w.id() == window.id()) {
+                return;
+            }
+            self.windows.push(window);
         }
         if let Some(f) = update_state.edit_windows.clean_fn.take() {
             self.clean_windows(f)
@@ -117,14 +81,8 @@ where
     }
 
     /// Update and draw all windows.
-    pub fn display<O, T>(
-        &mut self,
-        ctx: &egui::Context,
-        update_state: &mut crate::UpdateState<'_, O, T>,
-    ) where
-        T: Tab,
-    {
-        let mut edit_windows = EditWindows::<W> {
+    pub fn display(&mut self, ctx: &egui::Context, update_state: &mut crate::UpdateState<'_>) {
+        let mut edit_windows = EditWindows {
             clean_fn: None,
             added: Vec::new(),
             removed: std::collections::HashSet::new(),
@@ -140,7 +98,10 @@ where
         });
 
         for window in edit_windows.added {
-            self.add_window(window);
+            if self.windows.iter().any(|w| w.id() == window.id()) {
+                return;
+            }
+            self.windows.push(window);
         }
         if let Some(f) = edit_windows.clean_fn {
             self.clean_windows(f)
@@ -148,19 +109,16 @@ where
     }
 }
 
-impl<T> EditWindows<T>
-where
-    T: Window,
-{
-    pub fn clean(&mut self, f: impl Fn(&T) -> bool + 'static) {
+impl EditWindows {
+    pub fn clean(&mut self, f: impl Fn(&Box<dyn Window>) -> bool + 'static) {
         self.clean_fn = Some(Box::new(f));
     }
 
-    pub fn add_window(&mut self, window: impl Into<T>) {
-        self.added.push(window.into())
+    pub fn add_window(&mut self, window: impl Window + 'static) {
+        self.added.push(Box::new(window))
     }
 
-    pub fn remove_window(&mut self, window: &T) -> bool {
+    pub fn remove_window(&mut self, window: &impl Window) -> bool {
         self.remove_window_by_id(window.id())
     }
 
@@ -176,14 +134,12 @@ where
 /// This makes up for most of their losses. Modals are still useful in certain cases, though.
 pub trait Window {
     /// Show this window.
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut crate::UpdateState<'_, W, T>,
-    ) where
-        W: Window,
-        T: Tab;
+        update_state: &mut crate::UpdateState<'_>,
+    );
 
     /// Optionally used as the title of the window.
     fn name(&self) -> String {

@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+pub type UpdateState<'res> = luminol_core::UpdateState<'res>;
+
 pub mod tabs;
 
 pub mod windows;
@@ -57,11 +59,7 @@ macro_rules! tab_enum {
                 }
             }
 
-            fn show<W, T>(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_, W, T>)
-            where
-                W: luminol_core::Window,
-                T: luminol_core::Tab
-            {
+            fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
                 match self {
                     $(
                         Self::$variant(v) => v.show(ui, update_state),
@@ -111,15 +109,12 @@ macro_rules! window_enum {
         }
 
         impl luminol_core::Window for $name {
-            fn show<W, T>(
+            fn show(
                 &mut self,
                 ctx: &egui::Context,
                 open: &mut bool,
-                update_state: &mut luminol_core::UpdateState<'_, W, T>,
-            ) where
-                W: luminol_core::Window,
-                T: luminol_core::Tab
-            {
+                update_state: &mut luminol_core::UpdateState<'_>,
+            ) {
                 match self {
                     $(
                         Self::$variant(v) => v.show(ctx, open, update_state),

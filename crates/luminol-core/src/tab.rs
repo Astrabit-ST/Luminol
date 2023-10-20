@@ -22,67 +22,64 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::Window;
-use std::hash::Hash;
-
 /// Helper struct for tabs.
-pub struct Tabs<T> {
-    dock_state: egui_dock::DockState<T>,
+pub struct Tabs {
+    dock_state: egui_dock::DockState<Box<dyn Tab>>,
 
     id: egui::Id,
 }
 
-pub struct EditTabs<T> {
-    clean_fn: Option<CleanFn<T>>,
-    added: Vec<T>,
+#[derive(Default)]
+pub struct EditTabs {
+    clean_fn: Option<CleanFn>,
+    added: Vec<Box<dyn Tab>>,
     removed: std::collections::HashSet<egui::Id>,
 }
 
-type CleanFn<T> = Box<dyn Fn(&T) -> bool>;
+type CleanFn = Box<dyn Fn(&Box<dyn Tab>) -> bool>;
 
-impl<T> Default for EditTabs<T> {
-    fn default() -> Self {
-        Self {
-            clean_fn: None,
-            added: Vec::new(),
-            removed: std::collections::HashSet::new(),
-        }
-    }
-}
-
-struct TabViewer<'a, 'res, W, T>
-where
-    T: Tab,
-{
+struct TabViewer<'a, 'res> {
     // FIXME: variance
-    update_state: &'a mut crate::UpdateState<'res, W, T>,
+    update_state: &'a mut crate::UpdateState<'res>,
 }
 
-impl<T> Tabs<T>
-where
-    T: Tab,
-{
-    /// Create a new Tab viewer without any tabs.
-    pub fn new(id: impl Hash, tabs: Vec<T>) -> Self {
+impl Tabs {
+    pub fn new(id: impl std::hash::Hash) -> Self {
         Self {
             id: egui::Id::new(id),
-            dock_state: egui_dock::DockState::new(tabs),
+            dock_state: egui_dock::DockState::new(Vec::with_capacity(4)),
         }
     }
 
-    pub fn ui_with_update_state_tabs<W>(
+    /// Create a new Tab viewer without any tabs.
+    pub fn new_with_tabs(id: impl std::hash::Hash, tabs: Vec<impl Tab + 'static>) -> Self {
+        Self {
+            id: egui::Id::new(id),
+            dock_state: egui_dock::DockState::new(
+                tabs.into_iter().map(|t| Box::new(t) as Box<_>).collect(),
+            ),
+        }
+    }
+
+    pub fn ui_with_update_state_tabs(
         &mut self,
         ui: &mut egui::Ui,
-        update_state: &mut crate::UpdateState<'_, W, T>,
-    ) where
-        W: Window,
-    {
+        update_state: &mut crate::UpdateState<'_>,
+    ) {
         egui_dock::DockArea::new(&mut self.dock_state)
             .id(self.id)
             .show_inside(ui, &mut TabViewer { update_state });
 
         for tab in update_state.edit_tabs.added.drain(..) {
-            self.add_tab(tab);
+            // FIXME O(n)
+            for node in self.dock_state.iter_nodes() {
+                if let egui_dock::Node::Leaf { tabs, .. } = node {
+                    if tabs.iter().any(|t| t.id() == tab.id()) {
+                        return;
+                    }
+                }
+            }
+            self.dock_state.push_to_focused_leaf(tab);
         }
         if let Some(f) = update_state.edit_tabs.clean_fn.take() {
             self.clean_tabs(f);
@@ -90,10 +87,7 @@ where
     }
 
     /// Display all tabs.
-    pub fn ui<W, O>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, O>)
-    where
-        W: Window,
-    {
+    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState) {
         let mut edit_tabs = EditTabs::default();
         let mut update_state = update_state.reborrow_with_edit_tabs(&mut edit_tabs);
 
@@ -107,7 +101,15 @@ where
             );
 
         for tab in edit_tabs.added {
-            self.add_tab(tab);
+            // FIXME O(n)
+            for node in self.dock_state.iter_nodes() {
+                if let egui_dock::Node::Leaf { tabs, .. } = node {
+                    if tabs.iter().any(|t| t.id() == tab.id()) {
+                        return;
+                    }
+                }
+            }
+            self.dock_state.push_to_focused_leaf(tab);
         }
         if let Some(f) = edit_tabs.clean_fn {
             self.clean_tabs(f);
@@ -115,7 +117,7 @@ where
     }
 
     /// Add a tab.
-    pub fn add_tab(&mut self, tab: T) {
+    pub fn add_tab(&mut self, tab: impl Tab + 'static) {
         // FIXME O(n)
         for node in self.dock_state.iter_nodes() {
             if let egui_dock::Node::Leaf { tabs, .. } = node {
@@ -124,11 +126,11 @@ where
                 }
             }
         }
-        self.dock_state.push_to_focused_leaf(tab);
+        self.dock_state.push_to_focused_leaf(Box::new(tab));
     }
 
     /// Removes tabs that the provided closure returns `false` when called.
-    pub fn clean_tabs(&mut self, mut f: impl Fn(&T) -> bool) {
+    pub fn clean_tabs(&mut self, mut f: impl Fn(&Box<dyn Tab>) -> bool) {
         // i hate egui dock
         for i in 0.. {
             let Some(surface) = self.dock_state.get_surface_mut(egui_dock::SurfaceIndex(i)) else {
@@ -150,19 +152,16 @@ where
     }
 }
 
-impl<T> EditTabs<T>
-where
-    T: Tab,
-{
-    pub fn clean(&mut self, f: impl Fn(&T) -> bool + 'static) {
+impl EditTabs {
+    pub fn clean(&mut self, f: impl Fn(&Box<dyn Tab>) -> bool + 'static) {
         self.clean_fn = Some(Box::new(f));
     }
 
-    pub fn add_tab(&mut self, tab: impl Into<T>) {
-        self.added.push(tab.into())
+    pub fn add_tab(&mut self, tab: impl Tab + 'static) {
+        self.added.push(Box::new(tab))
     }
 
-    pub fn remove_tab(&mut self, tab: &T) -> bool {
+    pub fn remove_tab<T>(&mut self, tab: &impl Tab) -> bool {
         self.remove_tab_by_id(tab.id())
     }
 
@@ -171,12 +170,8 @@ where
     }
 }
 
-impl<'a, 'res, W, T> egui_dock::TabViewer for TabViewer<'a, 'res, W, T>
-where
-    W: Window,
-    T: Tab,
-{
-    type Tab = T;
+impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
+    type Tab = Box<dyn Tab>;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         tab.name().into()
@@ -202,10 +197,7 @@ pub trait Tab {
     fn id(&self) -> egui::Id;
 
     /// Show this tab.
-    fn show<W, T>(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_, W, T>)
-    where
-        W: Window,
-        T: Tab;
+    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_>);
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {

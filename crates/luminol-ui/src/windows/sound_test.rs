@@ -51,11 +51,11 @@ impl luminol_core::Window for Window {
         egui::Id::new("Sound Test")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new("Sound Test").open(open).show(ctx, |ui| {
             egui::TopBottomPanel::top("sound_test_selector").show_inside(ui, |ui| {

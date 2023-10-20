@@ -34,11 +34,11 @@ impl luminol_core::Window for Window {
         egui::Id::new("luminol_preferences_window")
     }
 
-    fn show<W, T>(
+    fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_, W, T>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {});
     }
