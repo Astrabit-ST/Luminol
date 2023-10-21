@@ -27,10 +27,12 @@ use strum::IntoEnumIterator;
 /// The top bar for managing the project.
 #[derive(Default)]
 pub struct TopBar {
-    open_project_promise: Option<poll_promise::Promise<Result<(), String>>>,
+    load_project_promise: Option<poll_promise::Promise<PromiseResult>>,
 
     fullscreen: bool,
 }
+
+type PromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 
 impl TopBar {
     /// Display the top bar.
@@ -68,13 +70,15 @@ impl TopBar {
                 "No project open".to_string()
             });
 
-            if ui.button("New Project").clicked() {
-                update_state
-                    .edit_windows
-                    .add_window(luminol_ui::windows::new_project::Window::default());
-            }
+            ui.add_enabled_ui(self.load_project_promise.is_none(), |ui| {
+                if ui.button("New Project").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::new_project::Window::default());
+                }
 
-            open_project |= ui.button("Open Project").clicked();
+                open_project |= ui.button("Open Project").clicked();
+            });
 
             ui.separator();
 
@@ -274,9 +278,9 @@ impl TopBar {
         }
 
         if open_project {
-            // self.open_project_promise = Some(poll_promise::Promise::spawn_local(
-            //     update_state.filesystem.spawn_project_file_picker(),
-            // ));
+            self.load_project_promise = Some(poll_promise::Promise::spawn_local(
+                luminol_filesystem::host::FileSystem::from_pile_picker(),
+            ));
         }
 
         if save_project {
@@ -289,13 +293,29 @@ impl TopBar {
             }
         }
 
-        if self.open_project_promise.is_some() {
-            if let Some(r) = self.open_project_promise.as_ref().unwrap().ready() {
-                match r {
-                    Ok(_) => update_state.toasts.info("Opened project successfully!"),
-                    Err(e) => update_state.toasts.error(e),
+        if let Some(p) = self.load_project_promise.take() {
+            match p.try_take() {
+                Ok(Ok(host)) => {
+                    if let Err(why) = update_state.data.load(
+                        update_state.filesystem,
+                        // TODO code jank
+                        update_state.project_config.as_mut().unwrap(),
+                    ) {
+                        update_state
+                            .toasts
+                            .error(why.context("while loading project data").to_string());
+                    } else {
+                        update_state.toasts.info(format!(
+                            "Successfully opened {:?}",
+                            update_state
+                                .filesystem
+                                .project_path()
+                                .expect("project not open")
+                        ));
+                    }
                 }
-                self.open_project_promise = None;
+                Ok(Err(error)) => update_state.toasts.error(error.to_string()),
+                Err(p) => self.load_project_promise = Some(p),
             }
         }
     }

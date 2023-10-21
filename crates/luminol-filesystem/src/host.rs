@@ -34,6 +34,18 @@ impl FileSystem {
         &self.root_path
     }
 
+    pub async fn from_folder_picker() -> Result<Self> {
+        if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
+            let path = camino::Utf8Path::from_path(path.path())
+                .expect("path not utf-8")
+                .parent()
+                .expect("path does not have parent");
+            Ok(Self::new(path))
+        } else {
+            Err(crate::Error::CancelledLoading)
+        }
+    }
+
     pub async fn from_pile_picker() -> Result<Self> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])

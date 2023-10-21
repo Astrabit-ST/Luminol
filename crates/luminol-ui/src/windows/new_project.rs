@@ -126,7 +126,7 @@ impl luminol_core::Window for Window {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    ui.add_enabled_ui(self.project_promise.is_some(), |ui| {
+                    ui.add_enabled_ui(self.project_promise.is_none(), |ui| {
                         if ui.button("Ok").clicked() {
                             let rgss_ver = self.rgss_ver;
                             let config = luminol_config::project::Config::from_project(
@@ -206,9 +206,8 @@ impl Window {
         git_branch_name: Option<String>,
         progress: Arc<Progress>,
     ) -> PromiseResult {
-        let host_fs = luminol_filesystem::host::FileSystem::from_pile_picker().await?;
+        let host_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
 
-        // TODO
         let mut data_cache = luminol_core::Data::from_defaults();
         data_cache.save(&host_fs, &config)?;
 
