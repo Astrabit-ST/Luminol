@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use anyhow::Context;
+use luminol_filesystem::FileSystem;
 use strum::IntoEnumIterator;
 
 use std::io::Read;
@@ -125,6 +126,31 @@ impl luminol_core::Window for Window {
 
                 ui.separator();
 
+                if self.project_promise.is_some() {
+                    let zip_current = self.progress.zip_current.load(Ordering::Relaxed) + 1;
+                    let zip_total = self.progress.zip_total.load(Ordering::Relaxed);
+
+                    if zip_total != 0 {
+                        ui.label(format!(
+                            "Downloading & Unzipping {zip_current} / {zip_total}"
+                        ));
+                    }
+
+                    let total = self.progress.total_progress.load(Ordering::Relaxed);
+                    let current = self.progress.current_progress.load(Ordering::Relaxed) + 1;
+
+                    match total {
+                        0 => ui.spinner(),
+                        _ => ui.add(
+                            egui::ProgressBar::new(current as f32 / total as f32)
+                                .show_percentage()
+                                .animate(true),
+                        ),
+                    };
+
+                    ui.separator();
+                }
+
                 ui.horizontal(|ui| {
                     ui.add_enabled_ui(self.project_promise.is_none(), |ui| {
                         if ui.button("Ok").clicked() {
@@ -151,7 +177,7 @@ impl luminol_core::Window for Window {
                             let branch_name = self.git_branch_name.clone();
 
                             self.project_promise =
-                                Some(poll_promise::Promise::spawn_local(Self::setup_project(
+                                Some(poll_promise::Promise::spawn_async(Self::setup_project(
                                     config,
                                     download_executable,
                                     init_git.then_some(branch_name),
@@ -183,10 +209,10 @@ impl luminol_core::Window for Window {
                             *update_state.data = data_cache;
                             update_state.project_config.replace(config);
                         }
-                        Err(e) => update_state.toasts.error(e.to_string()),
+                        Err(error) => update_state.toasts.error(format!("{error:#}")),
                     }
                 }
-                Ok(Err(error)) => update_state.toasts.error(error.to_string()),
+                Ok(Err(error)) => update_state.toasts.error(format!("{error:#}")),
                 Err(p) => self.project_promise = Some(p),
             }
         }
@@ -207,6 +233,12 @@ impl Window {
         progress: Arc<Progress>,
     ) -> PromiseResult {
         let host_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
+
+        host_fs.create_dir("Audio")?;
+        host_fs.create_dir("Data")?;
+        host_fs.create_dir("Graphics")?;
+
+        host_fs.create_file(format!("{}.lumproj", config.project.project_name))?;
 
         let mut data_cache = luminol_core::Data::from_defaults();
         data_cache.save(&host_fs, &config)?;

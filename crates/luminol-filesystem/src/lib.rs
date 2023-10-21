@@ -105,6 +105,10 @@ pub trait FileSystem: Send + Sync + 'static {
     fn open_file(&self, path: impl AsRef<camino::Utf8Path>, flags: OpenFlags)
         -> Result<Self::File>;
 
+    fn create_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self::File> {
+        self.open_file(path, OpenFlags::Create | OpenFlags::Write)
+    }
+
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata>;
 
     fn rename(

@@ -92,6 +92,8 @@ pub struct App {
 
     toolbar: luminol_core::ToolbarState,
 
+    runtime: tokio::runtime::Runtime,
+
     #[cfg(feature = "steamworks")]
     steamworks: Steamworks,
 }
@@ -185,6 +187,13 @@ impl App {
 
         let lumi = Lumi::new().expect("failed to load lumi images");
 
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2) // TODO use single threaded runtime
+            .enable_all()
+            .build()
+            .expect("failed to build tokio runtime");
+        std::mem::forget(runtime.enter()); //enter the runtime permanently
+
         Self {
             top_bar: top_bar::TopBar::default(),
             lumi,
@@ -202,6 +211,8 @@ impl App {
             global_config,
             project_config,
             toolbar: luminol_core::ToolbarState::default(),
+
+            runtime,
 
             #[cfg(feature = "steamworks")]
             steamworks,
@@ -276,9 +287,6 @@ impl CustomApp for App {
 
         // Show toasts.
         self.toasts.show(ctx);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        poll_promise::tick_local();
 
         self.lumi.ui(ctx);
 

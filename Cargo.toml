@@ -56,7 +56,7 @@ once_cell = "1.18.0"
 crossbeam = "0.8.2"
 dashmap = "5.5.3"
 
-poll-promise = { version = "0.3.0", features = ["smol"] }
+poll-promise = { version = "0.3.0", features = ["tokio"] }
 
 camino = "1.1.6"
 

@@ -278,7 +278,7 @@ impl TopBar {
         }
 
         if open_project {
-            self.load_project_promise = Some(poll_promise::Promise::spawn_local(
+            self.load_project_promise = Some(poll_promise::Promise::spawn_async(
                 luminol_filesystem::host::FileSystem::from_pile_picker(),
             ));
         }

@@ -94,7 +94,7 @@ impl luminol_core::Tab for Tab {
                 .button(egui::RichText::new("Open Project").size(20.))
                 .clicked()
             {
-                self.load_project_promise = Some(poll_promise::Promise::spawn_local(
+                self.load_project_promise = Some(poll_promise::Promise::spawn_async(
                     luminol_filesystem::host::FileSystem::from_pile_picker(),
                 ));
             }
