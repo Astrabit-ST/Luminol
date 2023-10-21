@@ -24,25 +24,16 @@
 
 mod midi;
 
+mod error;
+pub use error::{Error, Result};
+
 #[cfg(target_arch = "wasm32")]
 mod wrapper;
 #[cfg(target_arch = "wasm32")]
 pub use wrapper::*;
 
-use std::io::{Read, Seek};
 use strum::Display;
 use strum::EnumIter;
-
-/// Different sound sources.
-#[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy, Hash)]
-#[allow(clippy::upper_case_acronyms)]
-#[allow(missing_docs)]
-pub enum Source {
-    BGM,
-    BGS,
-    ME,
-    SE,
-}
 
 /// A struct for playing Audio.
 pub struct Audio {
@@ -55,6 +46,17 @@ struct Inner {
     _output_stream: rodio::OutputStream,
     output_stream_handle: rodio::OutputStreamHandle,
     sinks: std::collections::HashMap<Source, rodio::Sink>,
+}
+
+/// Different sound sources.
+#[derive(EnumIter, Display, PartialEq, Eq, Clone, Copy, Hash)]
+#[allow(clippy::upper_case_acronyms)]
+#[allow(missing_docs)]
+pub enum Source {
+    BGM,
+    BGS,
+    ME,
+    SE,
 }
 
 #[cfg(not(target_arch = "wasm32"))] // Audio can't be shared between threads in wasm either
@@ -91,11 +93,9 @@ impl Audio {
         volume: u8,
         pitch: u8,
         source: Source,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let path = path.as_ref();
-        let file = filesystem
-            .open_file(path, luminol_filesystem::OpenFlags::Read)
-            .map_err(|e| e.to_string())?;
+        let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read)?;
 
         let is_midi = path
             .extension()
@@ -104,17 +104,17 @@ impl Audio {
         self.play_from_file(file, is_midi, volume, pitch, source)
     }
 
-    fn play_from_file(
+    pub fn play_from_file(
         &self,
-        file: impl Read + Seek + Send + Sync + 'static,
+        file: impl luminol_filesystem::File,
         is_midi: bool,
         volume: u8,
         pitch: u8,
         source: Source,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let mut inner = self.inner.lock();
         // Create a sink
-        let sink = rodio::Sink::try_new(&inner.output_stream_handle).map_err(|e| e.to_string())?;
+        let sink = rodio::Sink::try_new(&inner.output_stream_handle)?;
 
         // Select decoder type based on sound source
         match source {
@@ -123,7 +123,7 @@ impl Audio {
                 if is_midi {
                     sink.append(midi::MidiSource::new(file, false)?);
                 } else {
-                    sink.append(rodio::Decoder::new(file).map_err(|e| e.to_string())?);
+                    sink.append(rodio::Decoder::new(file)?);
                 }
             }
             _ => {
@@ -131,7 +131,7 @@ impl Audio {
                 if is_midi {
                     sink.append(midi::MidiSource::new(file, true)?);
                 } else {
-                    sink.append(rodio::Decoder::new_looped(file).map_err(|e| e.to_string())?);
+                    sink.append(rodio::Decoder::new_looped(file)?);
                 }
             }
         }

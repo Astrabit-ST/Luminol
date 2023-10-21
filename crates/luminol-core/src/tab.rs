@@ -195,7 +195,6 @@ pub trait Tab {
     }
 }
 
-// FIXME: not object safe
 /*
 impl Tab for Box<dyn Tab + Send> {
     fn force_close(&mut self) -> bool {

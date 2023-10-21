@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use anyhow::Context;
 use luminol_data::rpg;
 use std::{
     cell::{RefCell, RefMut},
@@ -58,55 +59,55 @@ pub enum Data {
 fn read_data<T>(
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> Result<T, String>
+) -> anyhow::Result<T>
 where
     T: serde::de::DeserializeOwned,
 {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
-    let data = filesystem.read(path).map_err(|e| e.to_string())?;
+    let data = filesystem.read(path)?;
 
-    alox_48::from_bytes(&data).map_err(|e| e.to_string())
+    alox_48::from_bytes(&data).map_err(anyhow::Error::from)
 }
 
 fn write_data(
     data: &impl serde::Serialize,
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
-    let bytes = alox_48::to_bytes(data).map_err(|e| e.to_string())?;
-    filesystem.write(path, bytes).map_err(|e| e.to_string())
+    let bytes = alox_48::to_bytes(data)?;
+    filesystem.write(path, bytes).map_err(anyhow::Error::from)
 }
 
 fn read_nil_padded<T>(
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> Result<Vec<T>, String>
+) -> anyhow::Result<Vec<T>>
 where
     T: serde::de::DeserializeOwned,
 {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
-    let data = filesystem.read(path).map_err(|e| e.to_string())?;
+    let data = filesystem.read(path)?;
 
-    let mut de = alox_48::Deserializer::new(&data).map_err(|e| e.to_string())?;
+    let mut de = alox_48::Deserializer::new(&data)?;
 
-    luminol_data::helpers::nil_padded::deserialize(&mut de).map_err(|e| e.to_string())
+    luminol_data::helpers::nil_padded::deserialize(&mut de).map_err(anyhow::Error::from)
 }
 
 fn write_nil_padded(
     data: &[impl serde::Serialize],
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
     let mut ser = alox_48::Serializer::new();
 
-    luminol_data::helpers::nil_padded::serialize(data, &mut ser).map_err(|e| e.to_string())?;
+    luminol_data::helpers::nil_padded::serialize(data, &mut ser)?;
     filesystem
         .write(path, ser.output)
-        .map_err(|e| e.to_string())
+        .map_err(anyhow::Error::from)
 }
 
 impl Data {
@@ -116,23 +117,52 @@ impl Data {
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &mut luminol_config::project::Config,
-    ) -> Result<(), String> {
-        let actors = RefCell::new(read_nil_padded(filesystem, "Actors.rxdata")?);
-        let animations = RefCell::new(read_nil_padded(filesystem, "Animations.rxdata")?);
-        let armors = RefCell::new(read_nil_padded(filesystem, "Armors.rxdata")?);
-        let classes = RefCell::new(read_nil_padded(filesystem, "Classes.rxdata")?);
-        let common_events = RefCell::new(read_nil_padded(filesystem, "CommonEvents.rxdata")?);
-        let enemies = RefCell::new(read_nil_padded(filesystem, "Enemies.rxdata")?);
-        let items = RefCell::new(read_nil_padded(filesystem, "Items.rxdata")?);
-        let skills = RefCell::new(read_nil_padded(filesystem, "Skills.rxdata")?);
-        let states = RefCell::new(read_nil_padded(filesystem, "States.rxdata")?);
-        let tilesets = RefCell::new(read_nil_padded(filesystem, "Tilesets.rxdata")?);
-        let troops = RefCell::new(read_nil_padded(filesystem, "Troops.rxdata")?);
-        let weapons = RefCell::new(read_nil_padded(filesystem, "Weapons.rxdata")?);
+    ) -> anyhow::Result<()> {
+        let actors = RefCell::new(
+            read_nil_padded(filesystem, "Actors.rxdata").context("while reading actor data")?,
+        );
+        let animations = RefCell::new(
+            read_nil_padded(filesystem, "Animations.rxdata")
+                .context("while reading animation data")?,
+        );
+        let armors = RefCell::new(
+            read_nil_padded(filesystem, "Armors.rxdata").context("while reading armor data")?,
+        );
+        let classes = RefCell::new(
+            read_nil_padded(filesystem, "Classes.rxdata").context("while reading class data")?,
+        );
+        let common_events = RefCell::new(
+            read_nil_padded(filesystem, "CommonEvents.rxdata")
+                .context("while reading common events")?,
+        );
+        let enemies = RefCell::new(
+            read_nil_padded(filesystem, "Enemies.rxdata").context("while reading enemy data")?,
+        );
+        let items = RefCell::new(
+            read_nil_padded(filesystem, "Items.rxdata").context("while reading item data")?,
+        );
+        let skills = RefCell::new(
+            read_nil_padded(filesystem, "Skills.rxdata").context("while reading skill data")?,
+        );
+        let states = RefCell::new(
+            read_nil_padded(filesystem, "States.rxdata").context("while reading state data")?,
+        );
+        let tilesets = RefCell::new(
+            read_nil_padded(filesystem, "Tilesets.rxdata").context("while reading tileset data")?,
+        );
+        let troops = RefCell::new(
+            read_nil_padded(filesystem, "Troops.rxdata").context("while reading troop data")?,
+        );
+        let weapons = RefCell::new(
+            read_nil_padded(filesystem, "Weapons.rxdata").context("while reading weapon data")?,
+        );
 
-        let map_infos = RefCell::new(read_data(filesystem, "MapInfos.rxdata")?);
+        let map_infos = RefCell::new(
+            read_data(filesystem, "MapInfos.rxdata").context("while reading map infos")?,
+        );
 
-        let mut system = read_data::<rpg::System>(filesystem, "System.rxdata")?;
+        let mut system = read_data::<rpg::System>(filesystem, "System.rxdata")
+            .context("while reading system")?;
         system.magic_number = rand::random();
 
         let system = RefCell::new(system);
@@ -143,6 +173,7 @@ impl Data {
             "xScripts".to_string(),
             "Scripts".to_string(),
         ];
+
         for script_path in scripts_paths {
             match read_data(filesystem, format!("{script_path}.rxdata")) {
                 Ok(s) => {
@@ -150,13 +181,14 @@ impl Data {
                     scripts = Some(s);
                     break;
                 }
-                Err(e) => {
-                    eprintln!("error loading scripts from {script_path}: {e}")
-                }
+                Err(e) => eprintln!("error loading scripts from {script_path}: {e}"),
             }
         }
         let Some(scripts) = scripts else {
-            return Err("failed to load scripts".to_string());
+            anyhow::bail!(
+                "Unable to load scripts (tried {}, xScripts, and Scripts first)",
+                config.project.scripts_path
+            );
         };
         let scripts = RefCell::new(scripts);
 
@@ -188,7 +220,6 @@ impl Data {
         *self = Self::Unloaded;
     }
 
-    // TODO dependency cycle
     pub fn from_defaults() -> Self {
         let actors = RefCell::new(vec![rpg::Actor::default()]);
         let animations = RefCell::new(vec![rpg::Animation::default()]);
@@ -250,7 +281,7 @@ impl Data {
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &luminol_config::project::Config,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         let Self::Loaded {
             actors,
             animations,
@@ -273,24 +304,37 @@ impl Data {
             panic!("project not loaded")
         };
 
-        write_nil_padded(actors.get_mut(), filesystem, "Actors.rxdata")?;
-        write_nil_padded(animations.get_mut(), filesystem, "Animations.rxdata")?;
-        write_nil_padded(armors.get_mut(), filesystem, "Armors.rxdata")?;
-        write_nil_padded(classes.get_mut(), filesystem, "Classes.rxdata")?;
-        write_nil_padded(common_events.get_mut(), filesystem, "CommonEvents.rxdata")?;
-        write_nil_padded(enemies.get_mut(), filesystem, "Enemies.rxdata")?;
-        write_nil_padded(items.get_mut(), filesystem, "Items.rxdata")?;
-        write_nil_padded(skills.get_mut(), filesystem, "Skills.rxdata")?;
-        write_nil_padded(states.get_mut(), filesystem, "States.rxdata")?;
-        write_nil_padded(tilesets.get_mut(), filesystem, "Tilesets.rxdata")?;
-        write_nil_padded(troops.get_mut(), filesystem, "Troops.rxdata")?;
-        write_nil_padded(weapons.get_mut(), filesystem, "Weapons.rxdata")?;
+        write_nil_padded(actors.get_mut(), filesystem, "Actors.rxdata")
+            .context("while saving actor data")?;
+        write_nil_padded(animations.get_mut(), filesystem, "Animations.rxdata")
+            .context("while saving animation data")?;
+        write_nil_padded(armors.get_mut(), filesystem, "Armors.rxdata")
+            .context("while saving armor data")?;
+        write_nil_padded(classes.get_mut(), filesystem, "Classes.rxdata")
+            .context("while saving class data")?;
+        write_nil_padded(common_events.get_mut(), filesystem, "CommonEvents.rxdata")
+            .context("while saving common event data")?;
+        write_nil_padded(enemies.get_mut(), filesystem, "Enemies.rxdata")
+            .context("while saving enemy data")?;
+        write_nil_padded(items.get_mut(), filesystem, "Items.rxdata")
+            .context("while saving item data")?;
+        write_nil_padded(skills.get_mut(), filesystem, "Skills.rxdata")
+            .context("while saving skill data")?;
+        write_nil_padded(states.get_mut(), filesystem, "States.rxdata")
+            .context("while saving state data")?;
+        write_nil_padded(tilesets.get_mut(), filesystem, "Tilesets.rxdata")
+            .context("while saving tileset data")?;
+        write_nil_padded(troops.get_mut(), filesystem, "Troops.rxdata")
+            .context("while saving troop data")?;
+        write_nil_padded(weapons.get_mut(), filesystem, "Weapons.rxdata")
+            .context("while saving weapons data")?;
 
-        write_data(map_infos.get_mut(), filesystem, "MapInfos.rxdata")?;
+        write_data(map_infos.get_mut(), filesystem, "MapInfos.rxdata")
+            .context("while saving map infos")?;
 
         let system = system.get_mut();
         system.magic_number = rand::random();
-        write_data(system, filesystem, "System.rxdata")?;
+        write_data(system, filesystem, "System.rxdata").context("while saving system")?;
 
         write_data(
             scripts.get_mut(),
@@ -298,15 +342,10 @@ impl Data {
             format!("{}.rxdata", config.project.scripts_path),
         )?;
 
-        maps.get_mut()
-            .iter()
-            .try_for_each(|(id, map)| write_data(map, filesystem, format!("Map{id:0>3}.rxdata")))
-    }
-
-    /// Setup default values
-    // FIXME: Code jank
-    pub fn setup_defaults(&mut self) {
-        todo!()
+        maps.get_mut().iter().try_for_each(|(id, map)| {
+            write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
+                .with_context(|| format!("while saving map {id:0>3}"))
+        })
     }
 }
 

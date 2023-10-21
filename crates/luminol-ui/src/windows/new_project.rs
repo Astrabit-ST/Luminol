@@ -25,6 +25,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use anyhow::Context;
 use strum::IntoEnumIterator;
 
 use std::io::Read;
@@ -47,7 +48,7 @@ struct CreateProjectResult {
     host_fs: luminol_filesystem::host::FileSystem,
 }
 
-type PromiseResult = Result<CreateProjectResult, String>;
+type PromiseResult = anyhow::Result<CreateProjectResult>;
 
 #[derive(Default)]
 struct Progress {
@@ -205,16 +206,16 @@ impl Window {
         git_branch_name: Option<String>,
         progress: Arc<Progress>,
     ) -> PromiseResult {
-        let host_fs = luminol_filesystem::host::FileSystem::from_pile_picker()
-            .await
-            .map_err(|e| e.to_string())?;
+        let host_fs = luminol_filesystem::host::FileSystem::from_pile_picker().await?;
 
         // TODO
         let mut data_cache = luminol_core::Data::from_defaults();
         data_cache.save(&host_fs, &config)?;
 
         if download_executable {
-            Self::download_executable(&config, &host_fs, progress).await?;
+            Self::download_executable(&config, &host_fs, progress)
+                .await
+                .with_context(|| format!("while downloading {}", config.project.rgss_ver))?;
         }
 
         if let Some(branch_name) = git_branch_name {
@@ -226,7 +227,7 @@ impl Window {
                 .spawn()
                 .and_then(|mut c| c.wait())
             {
-                return Err(format!("Failed to initialize git repository: {e}"));
+                anyhow::bail!("Failed to initialize git repository: {e}");
             }
         }
 
@@ -241,7 +242,7 @@ impl Window {
         config: &luminol_config::project::Config,
         filesystem: &impl luminol_filesystem::FileSystem,
         progress: Arc<Progress>,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         let zip_url: &[_] = match config.project.rgss_ver {
             luminol_config:: RGSSVer::ModShot => &[
                 "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Windows_bb6bcbc_Ruby-3.1-ucrt64_Steam-false.zip", 
@@ -266,21 +267,13 @@ impl Window {
 
             progress.total_progress.store(0, Ordering::Relaxed);
             let response = zip_response
-                .map_err(|e| format!("Error downloading {}: {e}", config.project.rgss_ver))?;
+                .map_err(anyhow::Error::from)
+                .context("while downloading the zip")?;
 
-            let bytes = response.bytes().await.map_err(|e| {
-                format!(
-                    "Error getting response body for {}: {e}",
-                    config.project.rgss_ver
-                )
-            })?;
+            let bytes = response.bytes().await?;
 
-            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|e| {
-                format!(
-                    "Failed to read zip archive for {}: {e}",
-                    config.project.rgss_ver
-                )
-            })?;
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+                .context("while reading the zip archive")?;
             progress
                 .total_progress
                 .store(archive.len(), Ordering::Relaxed);
@@ -299,26 +292,23 @@ impl Window {
                     .unwrap_or(&file_path);
                 let file_path = file_path
                     .to_str()
-                    .ok_or(format!("Invalid file path {file_path:#?}"))?;
+                    .ok_or(anyhow::anyhow!("invalid file path {file_path:#?}"))?;
 
-                if file_path.is_empty()
-                    || filesystem.exists(file_path).map_err(|e| e.to_string())?
-                {
+                if file_path.is_empty() || filesystem.exists(file_path)? {
                     continue;
                 }
 
                 if file.is_dir() {
                     filesystem
                         .create_dir(file_path)
-                        .map_err(|e| format!("Failed to create directory {file_path}: {e}"))?;
+                        .with_context(|| format!("creating the directory {file_path}"))?;
                 } else {
                     let mut bytes = Vec::new();
                     file.read_to_end(&mut bytes)
-                        .map_err(|e| e.to_string())
-                        .map_err(|e| format!("Failed to read file data {file_path}: {e}"))?;
+                        .with_context(|| format!("reading the file {file_path}"))?;
                     filesystem
                         .write(file_path, bytes)
-                        .map_err(|e| format!("Failed to save file data {file_path}: {e}"))?;
+                        .with_context(|| format!("writing the file {file_path}"))?;
                 }
             }
         }

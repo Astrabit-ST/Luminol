@@ -28,6 +28,8 @@ once_cell.workspace = true
 crossbeam.workspace = true
 dashmap.workspace = true
 
+anyhow.workspace = true
+
 slab.workspace = true
 
 bytemuck.workspace = true

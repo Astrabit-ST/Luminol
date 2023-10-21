@@ -1,3 +1,4 @@
+use anyhow::Context;
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -55,14 +56,17 @@ impl Atlas {
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> Result<Atlas, String> {
-        let tileset_img = tileset.tileset_name.as_ref().and_then(|tileset_name| {
-            let tileset_img = graphics_state
-                .image_cache
-                .load_image(filesystem, "Graphics/Tilesets", tileset_name)
-                .ok()?;
-            Some(tileset_img.to_rgba8())
-        });
+    ) -> anyhow::Result<Atlas> {
+        let tileset_img = match &tileset.tileset_name {
+            Some(tileset_name) => {
+                let tileset_img = graphics_state
+                    .image_cache
+                    .load_image(filesystem, "Graphics/Tilesets", tileset_name)
+                    .context("while loading atlas tileset")?;
+                Some(tileset_img.to_rgba8())
+            }
+            None => None,
+        };
 
         let tileset_height = tileset_img
             .as_ref()
@@ -82,7 +86,8 @@ impl Atlas {
                         .map(Some)
                 }
             })
-            .try_collect()?;
+            .try_collect()
+            .context("while loading atlas autotiles")?;
 
         let autotile_frames = std::array::from_fn(|i| {
             autotiles[i]

@@ -39,3 +39,5 @@ serde.workspace = true
 
 once_cell.workspace = true
 slab.workspace = true
+
+anyhow.workspace = true

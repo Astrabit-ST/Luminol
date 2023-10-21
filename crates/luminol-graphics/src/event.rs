@@ -39,9 +39,9 @@ impl Event {
         event: &luminol_data::rpg::Event,
         atlas: &crate::tiles::Atlas,
         use_push_constants: bool,
-    ) -> Result<Option<Self>, String> {
+    ) -> anyhow::Result<Option<Self>> {
         let Some(page) = event.pages.first() else {
-            return Err("event does not have first page".to_string());
+            anyhow::bail!("event does not have first page");
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {

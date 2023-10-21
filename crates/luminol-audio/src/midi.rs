@@ -17,6 +17,8 @@
 use once_cell::sync::Lazy;
 use std::{io::Cursor, sync::Arc};
 
+use crate::Result;
+
 pub struct MidiSource {
     // These are each 4410 long
     left: Vec<f32>,
@@ -26,12 +28,11 @@ pub struct MidiSource {
 }
 
 impl MidiSource {
-    pub fn new(mut file: impl std::io::Read, looping: bool) -> Result<Self, String> {
-        let midi_file = Arc::new(rustysynth::MidiFile::new(&mut file).map_err(|e| e.to_string())?);
+    pub fn new(mut file: impl std::io::Read, looping: bool) -> Result<Self> {
+        let midi_file = Arc::new(rustysynth::MidiFile::new(&mut file)?);
 
         let settings = rustysynth::SynthesizerSettings::new(44100);
-        let synthesizer =
-            rustysynth::Synthesizer::new(&SOUND_FONT, &settings).map_err(|e| e.to_string())?;
+        let synthesizer = rustysynth::Synthesizer::new(&SOUND_FONT, &settings)?;
         let mut sequencer = rustysynth::MidiFileSequencer::new(synthesizer);
 
         sequencer.play(&midi_file, looping);

@@ -43,10 +43,6 @@ pub enum Error {
     NoFilesystems,
     #[error("Unable to detect the project's RPG Maker version (perhaps you did not open an RPG Maker project?")]
     UnableToDetectRMVer,
-    #[error("Failed to deserialize marshal data: {0}")]
-    AloxDe(#[from] alox_48::DeError),
-    #[error("Failed to serialize marshal data: {0}")]
-    AloxSer(#[from] alox_48::SerError),
     #[error("Cancelled loading project")]
     CancelledLoading,
 }

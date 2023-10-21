@@ -47,7 +47,7 @@ impl Map {
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
-    ) -> Result<Self, String> {
+    ) -> anyhow::Result<Self> {
         let atlas = graphics_state
             .atlas_cache
             .load_atlas(graphics_state, filesystem, tileset)?;

@@ -15,9 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::tiles::Atlas;
+
 #[derive(Default, Debug)]
 pub struct Cache {
-    atlases: dashmap::DashMap<usize, crate::tiles::Atlas>,
+    atlases: dashmap::DashMap<usize, Atlas>,
 }
 
 impl Cache {
@@ -26,11 +28,11 @@ impl Cache {
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> Result<crate::tiles::Atlas, String> {
+    ) -> anyhow::Result<Atlas> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .or_try_insert_with(|| crate::tiles::Atlas::new(graphics_state, filesystem, tileset))?
+            .or_try_insert_with(|| Atlas::new(graphics_state, filesystem, tileset))?
             .clone())
     }
 
@@ -39,15 +41,11 @@ impl Cache {
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> Result<crate::tiles::Atlas, String> {
+    ) -> anyhow::Result<Atlas> {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .insert(crate::tiles::Atlas::new(
-                graphics_state,
-                filesystem,
-                tileset,
-            )?)
+            .insert(Atlas::new(graphics_state, filesystem, tileset)?)
             .clone())
     }
 

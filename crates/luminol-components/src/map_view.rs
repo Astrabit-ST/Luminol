@@ -62,7 +62,7 @@ impl MapView {
     pub fn new(
         update_state: &mut luminol_core::UpdateState<'_>,
         map_id: usize,
-    ) -> Result<MapView, String> {
+    ) -> anyhow::Result<MapView> {
         let map = update_state
             .data
             .get_or_load_map(map_id, update_state.filesystem);

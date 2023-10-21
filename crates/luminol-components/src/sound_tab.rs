@@ -68,7 +68,7 @@ impl SoundTab {
                                 pitch,
                                 source,
                             ) {
-                                update_state.toasts.error(e);
+                                update_state.toasts.error(e.to_string());
                             }
                         }
 
@@ -146,7 +146,7 @@ impl SoundTab {
                                         pitch,
                                         source,
                                     ) {
-                                        update_state.toasts.error(e);
+                                        update_state.toasts.error(e.to_string());
                                     }
                                 };
                             }

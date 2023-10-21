@@ -21,7 +21,7 @@ egui-notify = "0.9.0"
 
 parking_lot.workspace = true
 
-thiserror.workspace = true
+anyhow.workspace = true
 camino.workspace = true
 bitflags.workspace = true
 

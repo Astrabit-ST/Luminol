@@ -24,6 +24,7 @@
 
 use std::sync::Arc;
 
+use anyhow::Context;
 use egui_extras::RetainedImage;
 use wgpu::util::DeviceExt;
 
@@ -75,14 +76,14 @@ impl Cache {
         filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
-    ) -> Result<Arc<RetainedImage>, String> {
+    ) -> anyhow::Result<Arc<RetainedImage>> {
         let directory = directory.as_ref();
         let filename = filename.as_ref();
 
         let entry = self
             .retained_images
             .entry(format!("{directory}/{filename}"))
-            .or_try_insert_with(|| -> Result<_, String> {
+            .or_try_insert_with(|| -> anyhow::Result<_> {
                 let image = self
                     .load_image(filesystem, directory, filename)?
                     .into_rgba8();
@@ -104,11 +105,12 @@ impl Cache {
         filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<camino::Utf8Path>,
         filename: impl AsRef<camino::Utf8Path>,
-    ) -> Result<image::DynamicImage, String> {
+    ) -> anyhow::Result<image::DynamicImage> {
         let path = directory.as_ref().join(filename);
-        let image = image::load_from_memory(&filesystem.read(path).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-        Ok(image)
+        let data = filesystem
+            .read(&path)
+            .with_context(|| format!("while loading an image at {path}"))?;
+        image::load_from_memory(&data).map_err(anyhow::Error::from)
     }
 
     pub fn create_texture_bind_group(
@@ -159,14 +161,14 @@ impl Cache {
         filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<str>,
         filename: impl AsRef<str>,
-    ) -> Result<Arc<WgpuTexture>, String> {
+    ) -> anyhow::Result<Arc<WgpuTexture>> {
         let directory = directory.as_ref();
         let filename = filename.as_ref();
 
         let entry = self
             .wgpu_textures
             .entry(format!("{directory}/{filename}"))
-            .or_try_insert_with(|| -> Result<_, String> {
+            .or_try_insert_with(|| -> anyhow::Result<_> {
                 // We force the image to be rgba8 to avoid any weird texture errors.
                 // If the image was not rgba8 (say it was rgb8) we would get weird texture errors
                 let image = self

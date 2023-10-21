@@ -44,6 +44,11 @@ pub enum File {
     Loaded(<path_cache::FileSystem<list::FileSystem> as crate::FileSystem>::File),
 }
 
+#[must_use = "contains potential warnings generated while loading a project"]
+pub struct LoadResult {
+    pub missing_rtps: Vec<String>,
+}
+
 impl FileSystem {
     pub fn new() -> Self {
         Self::default()
@@ -322,7 +327,7 @@ impl FileSystem {
         project_config: &mut Option<luminol_config::project::Config>,
         global_config: &mut luminol_config::global::Config,
         project_path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<()> {
+    ) -> Result<LoadResult> {
         let host = host::FileSystem::new(project_path);
         self.load_project(host, project_config, global_config)
     }
@@ -333,7 +338,7 @@ impl FileSystem {
         host: host::FileSystem,
         project_config: &mut Option<luminol_config::project::Config>,
         global_config: &mut luminol_config::global::Config,
-    ) -> Result<()> {
+    ) -> Result<LoadResult> {
         *self = FileSystem::HostLoaded(host);
         let config = self.load_project_config()?;
 
@@ -341,11 +346,11 @@ impl FileSystem {
             panic!("unable to fetch host filesystem")
         };
 
-        self.load_partially_loaded_project(host, &config, global_config)?;
+        let result = self.load_partially_loaded_project(host, &config, global_config)?;
 
         *project_config = Some(config);
 
-        Ok(())
+        Ok(result)
     }
 
     pub fn load_partially_loaded_project(
@@ -353,7 +358,7 @@ impl FileSystem {
         host: host::FileSystem,
         project_config: &luminol_config::project::Config,
         global_config: &mut luminol_config::global::Config,
-    ) -> Result<()> {
+    ) -> Result<LoadResult> {
         let project_path = host.root_path().to_path_buf();
 
         let mut list = list::FileSystem::new();
@@ -402,7 +407,7 @@ impl FileSystem {
         projects.push_front(project_path.into_string());
         global_config.recent_projects = projects;
 
-        Ok(())
+        Ok(LoadResult { missing_rtps })
     }
 
     #[cfg(target_arch = "wasm32")]

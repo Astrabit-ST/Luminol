@@ -2554,12 +2554,14 @@ dependencies = [
  "rodio",
  "rustysynth",
  "strum",
+ "thiserror",
 ]
 
 [[package]]
 name = "luminol-components"
 version = "0.4.0"
 dependencies = [
+ "anyhow",
  "egui",
  "egui-wgpu",
  "glam",
@@ -2596,6 +2598,7 @@ name = "luminol-core"
 version = "0.4.0"
 dependencies = [
  "alox-48",
+ "anyhow",
  "bitflags 2.4.0",
  "camino",
  "egui",
@@ -2610,7 +2613,6 @@ dependencies = [
  "rand",
  "serde",
  "strum",
- "thiserror",
 ]
 
 [[package]]
@@ -2634,7 +2636,6 @@ dependencies = [
 name = "luminol-filesystem"
 version = "0.4.0"
 dependencies = [
- "alox-48",
  "bitflags 2.4.0",
  "camino",
  "dashmap",
@@ -2654,6 +2655,7 @@ dependencies = [
 name = "luminol-graphics"
 version = "0.4.0"
 dependencies = [
+ "anyhow",
  "bytemuck",
  "camino",
  "const_format",
@@ -2703,6 +2705,7 @@ dependencies = [
 name = "luminol-ui"
 version = "0.4.0"
 dependencies = [
+ "anyhow",
  "catppuccin-egui",
  "egui",
  "egui_extras",

@@ -29,7 +29,6 @@ parking_lot.workspace = true
 egui.workspace = true
 
 serde.workspace = true
-alox-48.workspace = true
 ron.workspace = true
 rust-ini = "0.19.0"
 
