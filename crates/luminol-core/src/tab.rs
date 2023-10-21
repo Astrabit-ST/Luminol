@@ -61,7 +61,16 @@ impl Tabs {
         }
     }
 
-    pub fn ui_with_update_state_tabs(
+    pub fn process_edit_tabs(&mut self, mut edit_tabs: EditTabs) {
+        for tab in edit_tabs.added.drain(..) {
+            self.add_boxed_tab(tab)
+        }
+        if let Some(f) = edit_tabs.clean_fn.take() {
+            self.clean_tabs(f);
+        }
+    }
+
+    pub fn ui_without_edit(
         &mut self,
         ui: &mut egui::Ui,
         update_state: &mut crate::UpdateState<'_>,
@@ -69,13 +78,6 @@ impl Tabs {
         egui_dock::DockArea::new(&mut self.dock_state)
             .id(self.id)
             .show_inside(ui, &mut TabViewer { update_state });
-
-        for tab in update_state.edit_tabs.added.drain(..) {
-            self.add_boxed_tab(tab)
-        }
-        if let Some(f) = update_state.edit_tabs.clean_fn.take() {
-            self.clean_tabs(f);
-        }
     }
 
     /// Display all tabs.
@@ -92,12 +94,7 @@ impl Tabs {
                 },
             );
 
-        for tab in edit_tabs.added {
-            self.add_boxed_tab(tab)
-        }
-        if let Some(f) = edit_tabs.clean_fn {
-            self.clean_tabs(f);
-        }
+        self.process_edit_tabs(edit_tabs);
     }
 
     /// Add a tab.

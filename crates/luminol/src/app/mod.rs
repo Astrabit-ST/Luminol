@@ -234,7 +234,6 @@ impl CustomApp for App {
             }
         });
 
-        // dummy values because of the chicken and the egg
         let mut edit_windows = luminol_core::EditWindows::default();
         let mut edit_tabs = luminol_core::EditTabs::default();
         let mut update_state = luminol_core::UpdateState {
@@ -264,12 +263,16 @@ impl CustomApp for App {
         egui::CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.))
             .show(ctx, |ui| {
-                ui.group(|ui| self.tabs.ui_with_update_state_tabs(ui, &mut update_state));
+                ui.group(|ui| self.tabs.ui_without_edit(ui, &mut update_state));
             });
 
         // Update all windows.
-        self.windows
-            .display_with_update_state_windows(ctx, &mut update_state);
+        self.windows.display_without_edit(ctx, &mut update_state);
+
+        // If we don't do this tabs added by windows won't be added.
+        // It also cleans up code nicely.
+        self.tabs.process_edit_tabs(edit_tabs);
+        self.windows.process_edit_windows(edit_windows);
 
         // Show toasts.
         self.toasts.show(ctx);

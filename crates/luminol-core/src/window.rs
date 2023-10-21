@@ -60,7 +60,16 @@ impl Windows {
         self.windows.retain(f);
     }
 
-    pub fn display_with_update_state_windows(
+    pub fn process_edit_windows(&mut self, mut edit_windows: EditWindows) {
+        for window in edit_windows.added.drain(..) {
+            self.add_boxed_window(window)
+        }
+        if let Some(f) = edit_windows.clean_fn.take() {
+            self.clean_windows(f);
+        }
+    }
+
+    pub fn display_without_edit(
         &mut self,
         ctx: &egui::Context,
         update_state: &mut crate::UpdateState<'_>,
@@ -71,17 +80,7 @@ impl Windows {
             let mut open = true;
             window.show(ctx, &mut open, update_state);
             open
-        });
-
-        for window in update_state.edit_windows.added.drain(..) {
-            if self.windows.iter().any(|w| w.id() == window.id()) {
-                return;
-            }
-            self.windows.push(window);
-        }
-        if let Some(f) = update_state.edit_windows.clean_fn.take() {
-            self.clean_windows(f)
-        }
+        })
     }
 
     /// Update and draw all windows.
