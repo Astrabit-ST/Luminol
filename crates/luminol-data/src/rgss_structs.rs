@@ -166,6 +166,14 @@ impl Table1 {
     pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }
+
+    pub fn as_slice(&self) -> &[i16] {
+        self.data.as_slice()
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [i16] {
+        self.data.as_mut_slice()
+    }
 }
 
 impl Index<usize> for Table1 {
@@ -282,6 +290,14 @@ impl Table2 {
 
     pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
+    }
+
+    pub fn as_slice(&self) -> &[i16] {
+        self.data.as_slice()
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [i16] {
+        self.data.as_mut_slice()
     }
 }
 
@@ -427,6 +443,19 @@ impl Table3 {
 
     pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
+    }
+
+    pub fn as_slice(&self) -> &[i16] {
+        self.data.as_slice()
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [i16] {
+        self.data.as_mut_slice()
+    }
+
+    pub fn layer_as_slice(&self, layer: usize) -> &[i16] {
+        let layer_size = self.xsize * self.ysize;
+        &self.data[(layer_size * layer)..(layer_size * (layer + 1))]
     }
 }
 

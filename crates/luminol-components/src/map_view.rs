@@ -51,6 +51,13 @@ pub struct MapView {
     pub scale: f32,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CursorState {
+    Nothing,
+    DraggingEvent(egui::Vec2),
+    DrawingShape(egui::Pos2),
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
 pub enum SelectedLayer {
     #[default]
@@ -60,7 +67,7 @@ pub enum SelectedLayer {
 
 impl MapView {
     pub fn new(
-        update_state: &mut luminol_core::UpdateState<'_>,
+        update_state: &luminol_core::UpdateState<'_>,
         map_id: usize,
     ) -> anyhow::Result<MapView> {
         let map = update_state
@@ -69,12 +76,6 @@ impl MapView {
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets[map.tileset_id];
 
-        let use_push_constants = update_state
-            .graphics
-            .render_state
-            .device
-            .features()
-            .contains(wgpu::Features::PUSH_CONSTANTS);
         let atlas = update_state.graphics.atlas_cache.load_atlas(
             &update_state.graphics,
             update_state.filesystem,
@@ -89,14 +90,14 @@ impl MapView {
                     update_state.filesystem,
                     e,
                     &atlas,
-                    use_push_constants,
+                    update_state.graphics.push_constants_supported(),
                 );
                 let preview_sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,
                     e,
                     &atlas,
-                    use_push_constants,
+                    update_state.graphics.push_constants_supported(),
                 );
                 let Ok(sprite) = sprite else {
                     return Err(sprite.unwrap_err());
@@ -117,7 +118,7 @@ impl MapView {
             update_state.filesystem,
             &map,
             tileset,
-            use_push_constants,
+            update_state.graphics.push_constants_supported(),
         )?;
 
         Ok(Self {
@@ -153,9 +154,7 @@ impl MapView {
         graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
         map: &luminol_data::rpg::Map,
         tilepicker: &crate::Tilepicker,
-        dragging_event: bool,
-        drawing_shape: bool,
-        drawing_shape_pos: Option<egui::Pos2>,
+        cursor_state: CursorState,
         force_show_pattern_rect: bool,
     ) -> egui::Response {
         // Allocate the largest size we can for the tilemap
@@ -243,7 +242,7 @@ impl MapView {
             self.hover_tile = Some(pos_tile.to_pos2());
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
-                || dragging_event
+                || matches!(cursor_state, CursorState::DraggingEvent(_))
                 || response.clicked()
             {
                 self.cursor_pos = pos_tile.to_pos2();
@@ -302,7 +301,7 @@ impl MapView {
         );
         let pattern_rect = egui::Rect::from_min_size(
             map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
-            if !force_show_pattern_rect && drawing_shape_pos.is_some() {
+            if !force_show_pattern_rect && matches!(cursor_state, CursorState::DrawingShape(_)) {
                 egui::Vec2::splat(tile_size)
             } else {
                 egui::vec2(
@@ -347,11 +346,6 @@ impl MapView {
                     );
                 }
 
-                let tile_rect = egui::Rect::from_min_size(
-                    map_rect.min
-                        + egui::vec2(event.x as f32 * tile_size, event.y as f32 * tile_size),
-                    egui::vec2(32., 32.) * scale,
-                );
                 let box_rect = egui::Rect::from_min_size(
                     map_rect.min
                         + egui::vec2(
@@ -389,7 +383,9 @@ impl MapView {
 
                     // If the mouse is not hovering over an event, then we will handle the selected
                     // tile based on where the map cursor is
-                    if !self.selected_event_is_hovered && !dragging_event {
+                    if !self.selected_event_is_hovered
+                        && !matches!(cursor_state, CursorState::DraggingEvent(_))
+                    {
                         selected_event = match selected_event {
                             // If the map cursor is on the exact tile of an event, then that is the
                             // selected event
@@ -413,7 +409,7 @@ impl MapView {
                         };
                         if let Some(e) = selected_event {
                             if e.id == event.id {
-                                selected_event_rects = Some((tile_rect, box_rect));
+                                selected_event_rects = Some(box_rect);
                             }
                         }
                     }
@@ -450,7 +446,7 @@ impl MapView {
                         });
 
                         if let Some(hover_tile) = self.hover_tile {
-                            if !dragging_event {
+                            if !matches!(cursor_state, CursorState::DraggingEvent(_)) {
                                 // Handle which event should be considered selected based on the
                                 // hovered tile
                                 selected_event = match selected_event {
@@ -475,7 +471,7 @@ impl MapView {
                                 if let Some(e) = selected_event {
                                     if e.id == event.id {
                                         self.selected_event_is_hovered = true;
-                                        selected_event_rects = Some((tile_rect, box_rect));
+                                        selected_event_rects = Some(box_rect);
                                     }
                                 }
                             }
@@ -484,9 +480,9 @@ impl MapView {
 
                     // If an event is being dragged, that should always be the selected event
                     if let Some(id) = self.selected_event_id {
-                        if dragging_event && id == event.id {
+                        if matches!(cursor_state, CursorState::DraggingEvent(_)) && id == event.id {
                             selected_event = Some(event);
-                            selected_event_rects = Some((tile_rect, box_rect));
+                            selected_event_rects = Some(box_rect);
                         }
                     }
                 } else {
@@ -514,7 +510,7 @@ impl MapView {
                 // Make sure the event editor isn't open so we don't draw over the
                 // magenta rectangle
                 if !selected_event.extra_data.is_editor_open {
-                    if let Some((tile_rect, box_rect)) = selected_event_rects {
+                    if let Some(box_rect) = selected_event_rects {
                         ui.painter().rect_stroke(
                             box_rect,
                             5.,
@@ -546,18 +542,16 @@ impl MapView {
         }
 
         // Draw the origin tile for the rectangle and circle brushes
-        if drawing_shape {
-            if let Some(drawing_shape_pos) = drawing_shape_pos {
-                let drawing_shape_rect = egui::Rect::from_min_size(
-                    map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
-                    egui::Vec2::splat(tile_size),
-                );
-                ui.painter().rect_stroke(
-                    drawing_shape_rect,
-                    5.,
-                    egui::Stroke::new(1., egui::Color32::WHITE),
-                );
-            }
+        if let CursorState::DrawingShape(drawing_shape_pos) = cursor_state {
+            let drawing_shape_rect = egui::Rect::from_min_size(
+                map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
+                egui::Vec2::splat(tile_size),
+            );
+            ui.painter().rect_stroke(
+                drawing_shape_rect,
+                5.,
+                egui::Stroke::new(1., egui::Color32::WHITE),
+            );
         }
 
         // Display cursor.

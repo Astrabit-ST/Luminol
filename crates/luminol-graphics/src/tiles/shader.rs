@@ -22,12 +22,7 @@ pub fn create_render_pipeline(
     render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &crate::BindGroupLayouts,
 ) -> wgpu::RenderPipeline {
-    let use_push_constants = render_state
-        .device
-        .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS);
-
-    let shader_module = if use_push_constants {
+    let shader_module = if crate::push_constants_supported(render_state) {
         render_state
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -71,7 +66,7 @@ pub fn create_render_pipeline(
             })
     };
 
-    let pipeline_layout = if use_push_constants {
+    let pipeline_layout = if crate::push_constants_supported(render_state) {
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

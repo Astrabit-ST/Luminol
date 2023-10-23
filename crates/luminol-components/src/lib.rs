@@ -27,7 +27,7 @@ pub mod syntax_highlighting;
 
 /// The tilemap.
 mod map_view;
-pub use map_view::{MapView, SelectedLayer};
+pub use map_view::{CursorState, MapView, SelectedLayer};
 mod tilepicker;
 pub use tilepicker::{SelectedTile, Tilepicker};
 

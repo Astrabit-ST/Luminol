@@ -80,4 +80,15 @@ impl GraphicsState {
             bind_group_layouts,
         }
     }
+
+    pub fn push_constants_supported(&self) -> bool {
+        push_constants_supported(&self.render_state)
+    }
+}
+
+pub fn push_constants_supported(render_state: &egui_wgpu::RenderState) -> bool {
+    render_state
+        .device
+        .features()
+        .contains(wgpu::Features::PUSH_CONSTANTS)
 }

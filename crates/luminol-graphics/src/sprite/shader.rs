@@ -20,12 +20,7 @@ fn create_shader(
     bind_group_layouts: &crate::BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> wgpu::RenderPipeline {
-    let use_push_constants = render_state
-        .device
-        .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS);
-
-    let shader_module = if use_push_constants {
+    let shader_module = if crate::push_constants_supported(render_state) {
         render_state
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {

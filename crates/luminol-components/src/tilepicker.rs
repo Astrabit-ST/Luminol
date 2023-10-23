@@ -72,7 +72,7 @@ type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
     pub fn new(
-        update_state: &mut luminol_core::UpdateState<'_>,
+        update_state: &luminol_core::UpdateState<'_>,
         map_id: usize, // FIXME
     ) -> anyhow::Result<Tilepicker> {
         let map = update_state
@@ -81,12 +81,6 @@ impl Tilepicker {
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets[map.tileset_id];
 
-        let use_push_constants = update_state
-            .graphics
-            .render_state
-            .device
-            .features()
-            .contains(wgpu::Features::PUSH_CONSTANTS);
         let atlas = update_state.graphics.atlas_cache.load_atlas(
             &update_state.graphics,
             update_state.filesystem,
@@ -114,14 +108,14 @@ impl Tilepicker {
                 -1.0,
                 1.0,
             ),
-            use_push_constants,
+            update_state.graphics.push_constants_supported(),
         );
 
         let tiles = luminol_graphics::tiles::Tiles::new(
             &update_state.graphics,
             atlas,
             &tilepicker_data,
-            use_push_constants,
+            update_state.graphics.push_constants_supported(),
         );
 
         Ok(Self {
@@ -148,7 +142,7 @@ impl Tilepicker {
 
     pub fn ui(
         &mut self,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        update_state: &luminol_core::UpdateState<'_>,
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
     ) -> egui::Response {
