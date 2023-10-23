@@ -160,7 +160,7 @@ impl Map {
 
         painter
             .ctx()
-            .request_repaint_after(Duration::from_millis(16));
+            .request_repaint_after(Duration::from_secs_f64(16. / 60.));
 
         let resources = self.resources.clone();
         let resource_id = std::sync::Arc::new(once_cell::sync::OnceCell::new());

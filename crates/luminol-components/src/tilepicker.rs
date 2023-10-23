@@ -161,7 +161,8 @@ impl Tilepicker {
             self.ani_time = Some(time);
         }
 
-        ui.ctx().request_repaint_after(Duration::from_millis(16));
+        ui.ctx()
+            .request_repaint_after(Duration::from_secs_f64(16. / 60.));
 
         let (canvas_rect, response) = ui.allocate_exact_size(
             egui::vec2(256., self.resources.tiles.atlas.tileset_height as f32 + 32.),
