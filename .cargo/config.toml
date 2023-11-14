@@ -1,8 +1,21 @@
+# Possibly enable -Zshare-generics=y?
+
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
+rustflags = [
+	"-Z","threads=8"
+]
 
 [target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=mold"]
+rustflags = [
+	"-C","linker=clang",
+	"-C","link-arg=-fuse-ld=mold",
+	"-Z","threads=8",
+]
 
 [target.'cfg(target_arch = "wasm32")']
-rustflags = ["--cfg=web_sys_unstable_apis", "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals"]
+rustflags = [
+	"--cfg=web_sys_unstable_apis",
+	"-C","target-feature=+atomics,+bulk-memory,+mutable-globals",
+	"-Z","threads=8"
+]
