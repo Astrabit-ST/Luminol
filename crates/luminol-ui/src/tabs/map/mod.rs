@@ -43,8 +43,14 @@ pub struct Tab {
     pub view: luminol_components::MapView,
     pub tilepicker: luminol_components::Tilepicker,
 
+    dragging_event: bool,
+    drawing_shape: bool,
     event_windows: luminol_core::Windows,
     force_close: bool,
+
+    /// When event dragging starts, this is set to the difference between
+    /// the dragged event's tile and the cursor position
+    event_drag_offset: Option<egui::Vec2>,
 
     layer_cache: Vec<i16>,
 
@@ -53,7 +59,9 @@ pub struct Tab {
     /// This is used to save a copy of the current layer when using the
     /// rectangle or circle brush
     brush_layer_cache: Vec<i16>,
-    cursor_state: luminol_components::CursorState,
+    /// When drawing with any brush,
+    /// this is set to the position of the original tile we began drawing on
+    drawing_shape_pos: Option<egui::Pos2>,
 
     /// Undo history
     history: VecDeque<HistoryEntry>,
@@ -106,14 +114,18 @@ impl Tab {
             view,
             tilepicker,
 
+            dragging_event: false,
+            drawing_shape: false,
             event_windows: luminol_core::Windows::default(),
             force_close: false,
+
+            event_drag_offset: None,
 
             layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
 
             dfs_cache: vec![false; map.data.xsize() * map.data.ysize()],
             brush_layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
-            cursor_state: luminol_components::CursorState::Nothing,
+            drawing_shape_pos: None,
 
             history: VecDeque::with_capacity(HISTORY_SIZE),
             redo_history: Vec::with_capacity(HISTORY_SIZE),
@@ -253,7 +265,9 @@ impl luminol_core::Tab for Tab {
                     &update_state.graphics,
                     &map,
                     &self.tilepicker,
-                    self.cursor_state,
+                    self.dragging_event,
+                    self.drawing_shape,
+                    self.drawing_shape_pos,
                     matches!(update_state.toolbar.pencil, luminol_core::Pencil::Pen),
                 );
 
@@ -261,39 +275,37 @@ impl luminol_core::Tab for Tab {
                 let map_x = self.view.cursor_pos.x as i32;
                 let map_y = self.view.cursor_pos.y as i32;
 
-                if matches!(
-                    self.cursor_state,
-                    luminol_components::CursorState::DraggingEvent(_)
-                ) && self.view.selected_event_id.is_none()
-                {
-                    self.cursor_state = luminol_components::CursorState::Nothing;
+                if self.dragging_event && self.view.selected_event_id.is_none() {
+                    self.dragging_event = false;
+                    self.event_drag_offset = None;
                 }
 
-                if !response.dragged_by(egui::PointerButton::Primary)
-                    && matches!(
-                        self.cursor_state,
-                        luminol_components::CursorState::DrawingShape(_)
-                    )
-                {
-                    self.cursor_state = luminol_components::CursorState::Nothing;
-                    self.redo_history.clear();
-                    if self.history.len() == HISTORY_SIZE {
-                        self.history.pop_front();
+                if !response.dragged_by(egui::PointerButton::Primary) {
+                    if self.drawing_shape {
+                        self.drawing_shape = false;
                     }
-                    self.history.push_back(HistoryEntry::Tiles {
-                        layer: self.tilemap_undo_cache_layer,
-                        delta: (0..map.data.ysize())
-                            .cartesian_product(0..map.data.xsize())
-                            .filter_map(|(y, x)| {
-                                let old_id = self.tilemap_undo_cache[x + y * map.data.xsize()];
-                                if map.data[(x, y, self.tilemap_undo_cache_layer)] != old_id {
-                                    Some((x, y, old_id))
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect(),
-                    });
+
+                    if self.drawing_shape_pos.is_some() {
+                        self.drawing_shape_pos = None;
+                        self.redo_history.clear();
+                        if self.history.len() == HISTORY_SIZE {
+                            self.history.pop_front();
+                        }
+                        self.history.push_back(HistoryEntry::Tiles {
+                            layer: self.tilemap_undo_cache_layer,
+                            delta: (0..map.data.ysize())
+                                .cartesian_product(0..map.data.xsize())
+                                .filter_map(|(y, x)| {
+                                    let old_id = self.tilemap_undo_cache[x + y * map.data.xsize()];
+                                    if map.data[(x, y, self.tilemap_undo_cache_layer)] != old_id {
+                                        Some((x, y, old_id))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect(),
+                        });
+                    }
                 }
 
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =
@@ -311,7 +323,6 @@ impl luminol_core::Tab for Tab {
                     }
 
                     // Tile drawing
-
                     if response.dragged_by(egui::PointerButton::Primary)
                         && !ui.input(|i| i.modifiers.command)
                     {
@@ -331,26 +342,23 @@ impl luminol_core::Tab for Tab {
                     {
                         // Double-click/press enter on events to edit them
                         if ui.input(|i| !i.modifiers.command) {
-                            self.cursor_state = luminol_components::CursorState::Nothing;
+                            self.dragging_event = false;
+                            self.event_drag_offset = None;
                             self.event_windows
                                 .add_window(event_edit::Window::new(selected_event_id, self.id));
                         }
                     }
                     // Allow drag and drop to move events
-                    else if !matches!(
-                        self.cursor_state,
-                        luminol_components::CursorState::DraggingEvent(_)
-                    ) && self.view.selected_event_is_hovered
+                    else if !self.dragging_event
+                        && self.view.selected_event_is_hovered
                         && response.drag_started_by(egui::PointerButton::Primary)
                     {
-                        self.cursor_state =
-                            luminol_components::CursorState::DraggingEvent(egui::Vec2::ZERO);
-                    } else if matches!(
-                        self.cursor_state,
-                        luminol_components::CursorState::DraggingEvent(_)
-                    ) && !response.dragged_by(egui::PointerButton::Primary)
+                        self.dragging_event = true;
+                    } else if self.dragging_event
+                        && !response.dragged_by(egui::PointerButton::Primary)
                     {
-                        self.cursor_state = luminol_components::CursorState::Nothing;
+                        self.dragging_event = false;
+                        self.event_drag_offset = None;
                     }
 
                     // Press delete or backspace to delete the selected event

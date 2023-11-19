@@ -51,13 +51,6 @@ pub struct MapView {
     pub scale: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CursorState {
-    Nothing,
-    DraggingEvent(egui::Vec2),
-    DrawingShape(egui::Pos2),
-}
-
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
 pub enum SelectedLayer {
     #[default]
@@ -154,7 +147,9 @@ impl MapView {
         graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
         map: &luminol_data::rpg::Map,
         tilepicker: &crate::Tilepicker,
-        cursor_state: CursorState,
+        dragging_event: bool,
+        drawing_shape: bool,
+        drawing_shape_pos: Option<egui::Pos2>,
         force_show_pattern_rect: bool,
     ) -> egui::Response {
         // Allocate the largest size we can for the tilemap
@@ -242,7 +237,7 @@ impl MapView {
             self.hover_tile = Some(pos_tile.to_pos2());
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
-                || matches!(cursor_state, CursorState::DraggingEvent(_))
+                || dragging_event
                 || response.clicked()
             {
                 self.cursor_pos = pos_tile.to_pos2();
@@ -301,7 +296,7 @@ impl MapView {
         );
         let pattern_rect = egui::Rect::from_min_size(
             map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
-            if !force_show_pattern_rect && matches!(cursor_state, CursorState::DrawingShape(_)) {
+            if !force_show_pattern_rect && drawing_shape_pos.is_some() {
                 egui::Vec2::splat(tile_size)
             } else {
                 egui::vec2(
@@ -383,9 +378,7 @@ impl MapView {
 
                     // If the mouse is not hovering over an event, then we will handle the selected
                     // tile based on where the map cursor is
-                    if !self.selected_event_is_hovered
-                        && !matches!(cursor_state, CursorState::DraggingEvent(_))
-                    {
+                    if !self.selected_event_is_hovered && !dragging_event {
                         selected_event = match selected_event {
                             // If the map cursor is on the exact tile of an event, then that is the
                             // selected event
@@ -446,7 +439,7 @@ impl MapView {
                         });
 
                         if let Some(hover_tile) = self.hover_tile {
-                            if !matches!(cursor_state, CursorState::DraggingEvent(_)) {
+                            if !dragging_event {
                                 // Handle which event should be considered selected based on the
                                 // hovered tile
                                 selected_event = match selected_event {
@@ -480,7 +473,7 @@ impl MapView {
 
                     // If an event is being dragged, that should always be the selected event
                     if let Some(id) = self.selected_event_id {
-                        if matches!(cursor_state, CursorState::DraggingEvent(_)) && id == event.id {
+                        if dragging_event && id == event.id {
                             selected_event = Some(event);
                             selected_event_rects = Some(box_rect);
                         }
@@ -542,16 +535,18 @@ impl MapView {
         }
 
         // Draw the origin tile for the rectangle and circle brushes
-        if let CursorState::DrawingShape(drawing_shape_pos) = cursor_state {
-            let drawing_shape_rect = egui::Rect::from_min_size(
-                map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
-                egui::Vec2::splat(tile_size),
-            );
-            ui.painter().rect_stroke(
-                drawing_shape_rect,
-                5.,
-                egui::Stroke::new(1., egui::Color32::WHITE),
-            );
+        if drawing_shape {
+            if let Some(drawing_shape_pos) = drawing_shape_pos {
+                let drawing_shape_rect = egui::Rect::from_min_size(
+                    map_rect.min + (drawing_shape_pos.to_vec2() * tile_size),
+                    egui::Vec2::splat(tile_size),
+                );
+                ui.painter().rect_stroke(
+                    drawing_shape_rect,
+                    5.,
+                    egui::Stroke::new(1., egui::Color32::WHITE),
+                );
+            }
         }
 
         // Display cursor.

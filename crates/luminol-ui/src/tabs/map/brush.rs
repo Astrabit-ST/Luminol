@@ -44,16 +44,12 @@ impl super::Tab {
 
         match pencil {
             luminol_core::Pencil::Pen => {
-                let drawing_shape_pos =
-                    if let luminol_components::CursorState::DrawingShape(drawing_shape_pos) =
-                        self.cursor_state
-                    {
-                        drawing_shape_pos
-                    } else {
-                        self.cursor_state =
-                            luminol_components::CursorState::DrawingShape(self.view.cursor_pos);
-                        self.view.cursor_pos
-                    };
+                let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                    drawing_shape_pos
+                } else {
+                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                    self.view.cursor_pos
+                };
                 for y in 0..height {
                     for x in 0..width {
                         // Skip out-of-bounds tiles
@@ -65,7 +61,7 @@ impl super::Tab {
                         }
 
                         self.set_tile(
-                            &mut map,
+                            map,
                             self.tilepicker.get_tile_from_offset(
                                 x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
                                 y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
@@ -81,12 +77,12 @@ impl super::Tab {
             luminol_core::Pencil::Fill => {
                 // Use depth-first search to find all of the orthogonally
                 // contiguous matching tiles
-                let mut stack = vec![position; 1];
+                let mut stack = vec![(map_x, map_y, tile_layer); 1];
                 let initial_x = map_x;
                 let initial_y = map_y;
                 while let Some(position) = stack.pop() {
                     self.set_tile(
-                        &mut map,
+                        map,
                         self.tilepicker.get_tile_from_offset(
                             map_x as i16 - initial_x as i16,
                             map_y as i16 - initial_y as i16,
@@ -117,7 +113,7 @@ impl super::Tab {
                             } else {
                                 map_y + y as usize
                             },
-                            tile_layer,
+                            position.2,
                         );
 
                         // Don't search tiles that we've already searched before
@@ -140,10 +136,7 @@ impl super::Tab {
             }
 
             luminol_core::Pencil::Rectangle => {
-                if !matches!(
-                    self.cursor_state,
-                    luminol_components::CursorState::DrawingShape(_)
-                ) {
+                if !self.drawing_shape {
                     // Save the current layer
                     for x in 0..map.data.xsize() {
                         for y in 0..map.data.ysize() {
@@ -162,16 +155,14 @@ impl super::Tab {
                     }
                 }
 
-                if let luminol_components::CursorState::DrawingShape(drawing_shape_pos) =
-                    self.cursor_state
-                {
+                if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                     let bounding_rect =
                         egui::Rect::from_two_pos(drawing_shape_pos, self.view.cursor_pos);
                     for y in (bounding_rect.min.y as usize)..=(bounding_rect.max.y as usize) {
                         for x in (bounding_rect.min.x as usize)..=(bounding_rect.max.x) as usize {
                             let position = (x, y, tile_layer);
                             self.set_tile(
-                                &mut map,
+                                map,
                                 self.tilepicker.get_tile_from_offset(
                                     x as i16 - drawing_shape_pos.x as i16,
                                     y as i16 - drawing_shape_pos.y as i16,
@@ -181,8 +172,7 @@ impl super::Tab {
                         }
                     }
                 } else {
-                    self.cursor_state =
-                        luminol_components::CursorState::DrawingShape(self.view.cursor_pos);
+                    self.drawing_shape_pos = Some(self.view.cursor_pos);
                 }
             }
 
@@ -216,7 +206,7 @@ impl super::Tab {
                     // 1x1 ellipse.
                     if drawing_shape_pos == self.view.cursor_pos {
                         self.set_tile(
-                            &mut map,
+                            map,
                             self.tilepicker.get_tile_from_offset(
                                 map_x as i16 - drawing_shape_pos.x as i16,
                                 map_y as i16 - drawing_shape_pos.y as i16,
@@ -264,7 +254,7 @@ impl super::Tab {
                                     let x = (x0 + j).floor();
                                     let y = (y0 + i).floor();
                                     self.set_tile(
-                                        &mut map,
+                                        map,
                                         self.tilepicker.get_tile_from_offset(
                                             x as i16 - drawing_shape_pos.x as i16,
                                             y as i16 - drawing_shape_pos.y as i16,
@@ -306,7 +296,7 @@ impl super::Tab {
                                     let x = (x0 + i).floor();
                                     let y = (y0 + j).floor();
                                     self.set_tile(
-                                        &mut map,
+                                        map,
                                         self.tilepicker.get_tile_from_offset(
                                             x as i16 - drawing_shape_pos.x as i16,
                                             y as i16 - drawing_shape_pos.y as i16,
