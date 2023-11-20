@@ -39,6 +39,29 @@ struct Resources {
     viewport: luminol_graphics::viewport::Viewport,
 }
 
+struct Callback {
+    resources: Arc<Resources>,
+    graphics_state: Arc<luminol_graphics::GraphicsState>,
+}
+
+impl egui_wgpu::CallbackTrait for Callback {
+    fn paint<'a>(
+        &'a self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        callback_resources: &'a egui_wgpu::CallbackResources,
+    ) {
+        self.resources.viewport.bind(render_pass);
+        self.resources.tiles.draw(
+            &self.graphics_state,
+            &self.resources.viewport,
+            &[true],
+            None,
+            render_pass,
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum SelectedTile {
     Autotile(i16),
@@ -169,11 +192,7 @@ impl Tilepicker {
             egui::Sense::click_and_drag(),
         );
 
-        let resources = self.resources.clone();
-        let prepare_id = Arc::new(once_cell::sync::OnceCell::new());
-        let paint_id = prepare_id.clone();
-
-        resources.viewport.set_proj(
+        self.resources.viewport.set_proj(
             &graphics_state.render_state,
             glam::Mat4::orthographic_rh(
                 scroll_rect.left(),
@@ -185,39 +204,13 @@ impl Tilepicker {
             ),
         );
         // FIXME: move this into graphics
-        ui.painter().add(egui::PaintCallback {
-            rect: scroll_rect.translate(canvas_rect.min.to_vec2()),
-            callback: Arc::new(
-                egui_wgpu::CallbackFn::new()
-                    .prepare(move |_, _, _encoder, paint_callback_resources| {
-                        let res_hash: &mut ResourcesSlab = paint_callback_resources
-                            .entry()
-                            .or_insert_with(Default::default);
-                        let id = res_hash.insert(resources.clone());
-                        prepare_id.set(id).expect("resources id already set?");
-
-                        paint_callback_resources.insert(graphics_state.clone());
-
-                        vec![]
-                    })
-                    .paint(move |_info, render_pass, paint_callback_resources| {
-                        let res_hash: &ResourcesSlab = paint_callback_resources.get().unwrap();
-                        let id = paint_id.get().copied().expect("resources id is unset");
-                        let resources = &res_hash[id];
-                        let Resources {
-                            tiles, viewport, ..
-                        } = resources.as_ref();
-
-                        let graphics_state: &Arc<luminol_graphics::GraphicsState> =
-                            paint_callback_resources
-                                .get()
-                                .expect("graphics state unset");
-
-                        viewport.bind(render_pass);
-                        tiles.draw(graphics_state, viewport, &[true], None, render_pass);
-                    }),
-            ),
-        });
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            scroll_rect.translate(canvas_rect.min.to_vec2()),
+            Callback {
+                resources: self.resources.clone(),
+                graphics_state: graphics_state.clone(),
+            },
+        ));
 
         let rect = egui::Rect::from_x_y_ranges(
             (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,

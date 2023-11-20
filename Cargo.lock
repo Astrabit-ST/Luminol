@@ -478,12 +478,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "atomic_refcell"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41e67cd8309bbd06cd603a9e693a784ac2e5d1e955f11286e355089fcab3047c"
-
-[[package]]
 name = "atspi"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -724,10 +718,9 @@ checksum = "c59e92b5a388f549b863a7bea62612c09f24c8393560709a54558a9abdfb3b9c"
 [[package]]
 name = "catppuccin-egui"
 version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d3754c4417c19dc020529b0a3fb5e649afa59b16d49c9231210800ce00891b5"
+source = "git+https://github.com/catppuccin/egui?rev=f2bcf74#f2bcf74a122d82e880a7e61c8833e043a825409e"
 dependencies = [
- "egui 0.22.0",
+ "egui",
 ]
 
 [[package]]
@@ -1321,12 +1314,6 @@ dependencies = [
 
 [[package]]
 name = "ecolor"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e479a7fa3f23d4e794f8b2f8b3568dd4e47886ad1b12c9c095e141cb591eb63"
-
-[[package]]
-name = "ecolor"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfdf4e52dbbb615cfd30cf5a5265335c217b5fd8d669593cea74a517d9c605af"
@@ -1344,7 +1331,7 @@ dependencies = [
  "bytemuck",
  "cocoa",
  "directories-next",
- "egui 0.23.0",
+ "egui",
  "egui-wgpu",
  "egui-winit",
  "image 0.24.7",
@@ -1369,24 +1356,13 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3aef8ec3ae1b772f340170c65bf27d5b8c28f543a0116c844d2ac08d01123e7"
-dependencies = [
- "ahash 0.8.6",
- "epaint 0.22.0",
- "nohash-hasher",
-]
-
-[[package]]
-name = "egui"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bd69fed5fcf4fbb8225b24e80ea6193b61e17a625db105ef0c4d71dde6eb8b7"
 dependencies = [
  "accesskit",
  "ahash 0.8.6",
- "epaint 0.23.0",
+ "epaint",
  "log",
  "nohash-hasher",
  "ron",
@@ -1395,11 +1371,11 @@ dependencies = [
 
 [[package]]
 name = "egui-notify"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d57ed9c398e24c1b9faf2c52cdc305dd29cb1d9dfa12a0166d254582bc47727a"
+checksum = "dc3b10f21c7bb2afaecb8d98677cdb233a8b1f336b9b95abd610a33aeced04fc"
 dependencies = [
- "egui 0.22.0",
+ "egui",
 ]
 
 [[package]]
@@ -1409,7 +1385,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62d4c9ab93d9528c184ef1d695c8c99b2e6d50833696ec3f513063efeee0fe77"
 dependencies = [
  "bytemuck",
- "epaint 0.23.0",
+ "epaint",
  "log",
  "thiserror",
  "type-map",
@@ -1425,7 +1401,7 @@ checksum = "c15479a96d9fadccf5dac690bdc6373b97b8e1c0dd28367058f25a5298da0195"
 dependencies = [
  "accesskit_winit",
  "arboard",
- "egui 0.23.0",
+ "egui",
  "log",
  "raw-window-handle",
  "serde",
@@ -1437,12 +1413,12 @@ dependencies = [
 
 [[package]]
 name = "egui_dock"
-version = "0.7.3"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c257477084601e557ba4c905a79f66e9010b584ab7ef0e720d098d819c25cc33"
+checksum = "a52f67bcab0eb6050cf8051c614966c1c57129fab23dbeae9c157214779053c7"
 dependencies = [
  "duplicate",
- "egui 0.22.0",
+ "egui",
  "paste",
 ]
 
@@ -1452,7 +1428,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ffe3fe5c00295f91c2a61a74ee271c32f74049c94ba0b1cea8f26eb478bc07"
 dependencies = [
- "egui 0.23.0",
+ "egui",
  "enum-map",
  "image 0.24.7",
  "log",
@@ -1468,12 +1444,6 @@ name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
-
-[[package]]
-name = "emath"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3857d743a6e0741cdd60b622a74c7a36ea75f5f8f11b793b41d905d2c9721a4b"
 
 [[package]]
 name = "emath"
@@ -1561,21 +1531,6 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09333964d4d57f40a85338ba3ca5ed4716070ab184dcfed966b35491c5c64f3b"
-dependencies = [
- "ab_glyph",
- "ahash 0.8.6",
- "atomic_refcell",
- "ecolor 0.22.0",
- "emath 0.22.0",
- "nohash-hasher",
- "parking_lot",
-]
-
-[[package]]
-name = "epaint"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58067b840d009143934d91d8dcb8ded054d8301d7c11a517ace0a99bb1e1595e"
@@ -1583,8 +1538,8 @@ dependencies = [
  "ab_glyph",
  "ahash 0.8.6",
  "bytemuck",
- "ecolor 0.23.0",
- "emath 0.23.0",
+ "ecolor",
+ "emath",
  "log",
  "nohash-hasher",
  "parking_lot",
@@ -2738,16 +2693,18 @@ dependencies = [
  "color-backtrace",
  "crc",
  "eframe",
- "egui 0.23.0",
+ "egui",
  "egui_extras",
- "epaint 0.23.0",
+ "epaint",
  "image 0.24.7",
+ "luminol-app",
  "luminol-audio",
  "luminol-config",
  "luminol-core",
  "luminol-data",
  "luminol-filesystem",
  "luminol-graphics",
+ "luminol-term",
  "luminol-ui",
  "once_cell",
  "parking_lot",
@@ -2765,7 +2722,7 @@ name = "luminol-app"
 version = "0.4.0"
 dependencies = [
  "eframe",
- "egui 0.23.0",
+ "egui",
 ]
 
 [[package]]
@@ -2787,7 +2744,7 @@ name = "luminol-components"
 version = "0.4.0"
 dependencies = [
  "anyhow",
- "egui 0.23.0",
+ "egui",
  "egui-wgpu",
  "glam",
  "itertools",
@@ -2826,7 +2783,7 @@ dependencies = [
  "anyhow",
  "bitflags 2.4.1",
  "camino",
- "egui 0.23.0",
+ "egui",
  "egui-notify",
  "egui_dock",
  "getrandom",
@@ -2866,7 +2823,7 @@ dependencies = [
  "bitflags 2.4.1",
  "camino",
  "dashmap",
- "egui 0.23.0",
+ "egui",
  "flume",
  "indexed_db_futures",
  "itertools",
@@ -2899,7 +2856,7 @@ dependencies = [
  "const_format",
  "crossbeam",
  "dashmap",
- "egui 0.23.0",
+ "egui",
  "egui-wgpu",
  "egui_extras",
  "glam",
@@ -2921,7 +2878,7 @@ name = "luminol-modals"
 version = "0.4.0"
 dependencies = [
  "camino",
- "egui 0.23.0",
+ "egui",
  "luminol-components",
  "luminol-core",
  "luminol-data",
@@ -2932,7 +2889,7 @@ name = "luminol-term"
 version = "0.4.0"
 dependencies = [
  "crossbeam-channel",
- "egui 0.23.0",
+ "egui",
  "portable-pty",
  "termwiz",
  "wezterm-term",
@@ -2944,7 +2901,7 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "catppuccin-egui",
- "egui 0.23.0",
+ "egui",
  "egui_extras",
  "futures",
  "git-version",
@@ -2969,7 +2926,7 @@ name = "luminol-web"
 version = "0.4.0"
 dependencies = [
  "eframe",
- "egui 0.23.0",
+ "egui",
  "egui-wgpu",
  "flume",
  "js-sys",

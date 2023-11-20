@@ -175,9 +175,13 @@ impl App {
     }
 }
 
-impl CustomApp for App {
+impl luminol_app::CustomApp for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn custom_update(&mut self, ctx: &eframe::egui::Context, frame: &mut CustomFrame<'_>) {
+    fn custom_update(
+        &mut self,
+        ctx: &eframe::egui::Context,
+        frame: &mut luminol_app::CustomFrame<'_>,
+    ) {
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
@@ -251,7 +255,7 @@ impl CustomApp for App {
 }
 
 impl eframe::App for App {
-    app_use_custom_update!();
+    luminol_app::app_use_custom_update!();
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -259,10 +263,6 @@ impl eframe::App for App {
     }
 
     fn persist_egui_memory(&self) -> bool {
-        true
-    }
-
-    fn persist_native_window(&self) -> bool {
         true
     }
 }

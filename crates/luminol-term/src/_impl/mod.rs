@@ -209,7 +209,7 @@ impl Terminal {
                             cursor_pos.min,
                             egui::vec2(text_width, text_height),
                         ),
-                        egui::Rounding::none(),
+                        egui::Rounding::ZERO,
                         egui::Stroke::new(1.0, egui::Color32::WHITE),
                     );
 

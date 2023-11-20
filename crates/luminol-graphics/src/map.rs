@@ -38,7 +38,45 @@ struct Resources {
     fog: Option<Plane>,
 }
 
-type ResourcesSlab = slab::Slab<std::sync::Arc<Resources>>;
+struct Callback {
+    resources: Arc<Resources>,
+    graphics_state: Arc<crate::GraphicsState>,
+
+    fog_enabled: bool,
+    pano_enabled: bool,
+    enabled_layers: Vec<bool>,
+    selected_layer: Option<usize>,
+}
+
+impl egui_wgpu::CallbackTrait for Callback {
+    fn paint<'a>(
+        &'a self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        callback_resources: &'a egui_wgpu::CallbackResources,
+    ) {
+        self.resources.viewport.bind(render_pass);
+
+        if self.pano_enabled {
+            if let Some(panorama) = &self.resources.panorama {
+                panorama.draw(&self.graphics_state, &self.resources.viewport, render_pass);
+            }
+        }
+
+        self.resources.tiles.draw(
+            &self.graphics_state,
+            &self.resources.viewport,
+            &self.enabled_layers,
+            self.selected_layer,
+            render_pass,
+        );
+        if self.fog_enabled {
+            if let Some(fog) = &self.resources.fog {
+                fog.draw(&self.graphics_state, &self.resources.viewport, render_pass);
+            }
+        }
+    }
+}
 
 impl Map {
     pub fn new(
@@ -162,69 +200,17 @@ impl Map {
             .ctx()
             .request_repaint_after(Duration::from_secs_f64(16. / 60.));
 
-        let resources = self.resources.clone();
-        let resource_id = std::sync::Arc::new(once_cell::sync::OnceCell::new());
-
-        let prepare_id = resource_id;
-        let paint_id = prepare_id.clone();
-
-        let fog_enabled = self.fog_enabled;
-        let pano_enabled = self.pano_enabled;
-        let enabled_layers = self.enabled_layers.clone();
-
-        let paint_callback = egui_wgpu::CallbackFn::new()
-            .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
-                let res_hash: &mut ResourcesSlab = paint_callback_resources
-                    .entry()
-                    .or_insert_with(Default::default);
-                let id = res_hash.insert(resources.clone());
-                prepare_id.set(id).expect("resources id already set?");
-
-                paint_callback_resources.insert(graphics_state.clone()); // ugh
-
-                vec![]
-            })
-            .paint(move |_info, render_pass, paint_callback_resources| {
-                let res_hash: &ResourcesSlab = paint_callback_resources.get().unwrap();
-                let id = paint_id.get().copied().expect("resources id is unset");
-                let resources = &res_hash[id];
-                let Resources {
-                    tiles,
-                    viewport,
-                    panorama,
-                    fog,
-                    ..
-                } = resources.as_ref();
-
-                let graphics_state: &Arc<crate::GraphicsState> = paint_callback_resources
-                    .get()
-                    .expect("graphics state is unset");
-
-                viewport.bind(render_pass);
-
-                if pano_enabled {
-                    if let Some(panorama) = panorama {
-                        panorama.draw(graphics_state, viewport, render_pass);
-                    }
-                }
-
-                tiles.draw(
-                    graphics_state,
-                    viewport,
-                    &enabled_layers,
-                    selected_layer,
-                    render_pass,
-                );
-                if fog_enabled {
-                    if let Some(fog) = fog {
-                        fog.draw(graphics_state, viewport, render_pass);
-                    }
-                }
-            });
-
-        painter.add(egui::PaintCallback {
+        painter.add(egui_wgpu::Callback::new_paint_callback(
             rect,
-            callback: std::sync::Arc::new(paint_callback),
-        });
+            Callback {
+                resources: self.resources.clone(),
+                graphics_state,
+
+                fog_enabled: self.fog_enabled,
+                pano_enabled: self.pano_enabled,
+                enabled_layers: self.enabled_layers.clone(),
+                selected_layer,
+            },
+        ));
     }
 }

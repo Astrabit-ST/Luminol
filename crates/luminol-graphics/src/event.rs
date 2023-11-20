@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use once_cell::sync::OnceCell;
+
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -29,7 +29,24 @@ struct Resources {
     viewport: crate::viewport::Viewport,
 }
 
-type ResourcesSlab = slab::Slab<Arc<Resources>>;
+struct Callback {
+    resources: Arc<Resources>,
+    graphics_state: Arc<crate::GraphicsState>,
+}
+
+impl egui_wgpu::CallbackTrait for Callback {
+    fn paint<'a>(
+        &'a self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        callback_resources: &'a egui_wgpu::CallbackResources,
+    ) {
+        self.resources.viewport.bind(render_pass);
+        self.resources
+            .sprite
+            .draw(&self.graphics_state, &self.resources.viewport, render_pass);
+    }
+}
 
 impl Event {
     // code smell, fix
@@ -128,39 +145,12 @@ impl Event {
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
-        let resources = self.resources.clone();
-        let resource_id = Arc::new(OnceCell::new());
-
-        let prepare_id = resource_id;
-        let paint_id = prepare_id.clone();
-        let callback = egui_wgpu::CallbackFn::new()
-            .prepare(move |_device, _queue, _encoder, paint_callback_resources| {
-                let res_hash: &mut ResourcesSlab = paint_callback_resources
-                    .entry()
-                    .or_insert_with(Default::default);
-                let id = res_hash.insert(resources.clone());
-                prepare_id.set(id).expect("resources id already set?");
-
-                paint_callback_resources.insert(graphics_state.clone());
-
-                vec![]
-            })
-            .paint(move |_info, render_pass, paint_callback_resources| {
-                let res_hash: &ResourcesSlab = paint_callback_resources.get().unwrap();
-                let id = paint_id.get().copied().expect("resources id is unset");
-                let resources = &res_hash[id];
-                let Resources { viewport, sprite } = resources.as_ref();
-
-                let graphics_state: &Arc<crate::GraphicsState> = paint_callback_resources
-                    .get()
-                    .expect("graphics state is unset");
-
-                viewport.bind(render_pass);
-                sprite.draw(graphics_state, viewport, render_pass);
-            });
-        painter.add(egui::PaintCallback {
-            callback: Arc::new(callback),
+        painter.add(egui_wgpu::Callback::new_paint_callback(
             rect,
-        });
+            Callback {
+                resources: self.resources.clone(),
+                graphics_state,
+            },
+        ));
     }
 }

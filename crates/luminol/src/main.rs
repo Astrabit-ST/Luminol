@@ -51,7 +51,6 @@ const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
 
 mod app;
 mod lumi;
-mod web;
 
 #[cfg(feature = "steamworks")]
 mod steam;
@@ -87,7 +86,7 @@ fn main() {
         rfd::MessageDialog::new()
             .set_title("Fatal Error")
             .set_level(rfd::MessageLevel::Error)
-            .set_description(&format!(
+            .set_description(format!(
                 "Luminol has deadlocked! Please file an issue.\n{} deadlocks detected",
                 deadlocks.len()
             ))
@@ -139,6 +138,7 @@ fn main() {
             ..Default::default()
         },
         app_id: Some("astrabit.luminol".to_string()),
+        persist_window: true,
         ..Default::default()
     };
 

@@ -16,8 +16,8 @@ categories.workspace = true
 [dependencies]
 egui.workspace = true
 
-egui_dock = "0.7.3"
-egui-notify = "0.9.0"
+egui_dock = "0.8.2"
+egui-notify = "0.10.0"
 
 parking_lot.workspace = true
 

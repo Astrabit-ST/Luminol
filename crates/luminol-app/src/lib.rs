@@ -36,7 +36,7 @@ macro_rules! app_use_custom_update {
     () => {
         fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
             #[cfg(not(target_arch = "wasm32"))]
-            self.custom_update(ctx, &mut CustomFrame(frame))
+            $crate::CustomApp::custom_update(self, ctx, &mut $crate::CustomFrame(frame))
         }
     };
 }

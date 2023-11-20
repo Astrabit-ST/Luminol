@@ -34,6 +34,7 @@ crc = { version = "3.0.1", optional = true }
 tracing-subscriber = "0.3.17"
 color-backtrace = "0.6.0"
 
+luminol-app.workspace = true
 luminol-audio.workspace = true
 luminol-core.workspace = true
 luminol-config.workspace = true
@@ -60,6 +61,7 @@ tokio = { version = "1.33", features = [
     "rt-multi-thread",
     "time",
 ] } # *sigh*
+luminol-term.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.poll-promise]
 features = ["tokio"]
