@@ -30,6 +30,7 @@ serde.workspace = true
 alox-48.workspace = true
 
 rand.workspace = true
+getrandom.workspace = true
 
 luminol-audio.workspace = true
 luminol-config.workspace = true

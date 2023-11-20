@@ -29,7 +29,9 @@ egui-wgpu.workspace = true
 wgpu.workspace = true
 glam.workspace = true
 
-syntect = "5.1.0"
+syntect = { version = "5.1.0", default-features = false, features = [
+    "default-fancy",
+] }
 
 parking_lot.workspace = true
 
