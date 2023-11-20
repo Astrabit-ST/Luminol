@@ -30,9 +30,39 @@ egui.workspace = true
 
 serde.workspace = true
 ron.workspace = true
-rust-ini = "0.19.0"
+rust-ini.workspace = true
+
+tracing.workspace = true
 
 luminol-config.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.51.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+once_cell.workspace = true
+rand.workspace = true
+slab.workspace = true
+
+luminol-web = { version = "0.4.0", path = "../luminol-web/" }
+
+flume = "0.11.0"
+
+wasm-bindgen = "0.2.87"
+wasm-bindgen-futures = "0.4"
+indexed_db_futures = "0.4.1"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Blob",
+    "File",
+    "FileSystemCreateWritableOptions",
+    "FileSystemDirectoryHandle",
+    "FileSystemFileHandle",
+    "FileSystemGetDirectoryOptions",
+    "FileSystemGetFileOptions",
+    "FileSystemHandle",
+    "FileSystemHandleKind",
+    "FileSystemRemoveOptions",
+    "FileSystemWritableFileStream",
+    "WritableStream",
+] }

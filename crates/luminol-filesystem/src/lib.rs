@@ -17,13 +17,21 @@
 
 pub mod archiver;
 pub mod erased;
-pub mod host;
 pub mod list;
 pub mod path_cache;
 pub mod project;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
+
+// Re-export platform specific filesystem as "host"
+// This means we need can use less #[cfg]s!
+#[cfg(not(target_arch = "wasm32"))]
+pub use native as host;
+#[cfg(target_arch = "wasm32")]
+pub use web as host;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -45,6 +53,10 @@ pub enum Error {
     UnableToDetectRMVer,
     #[error("Cancelled loading project")]
     CancelledLoading,
+    #[error("Your browser does not support File System Access API")]
+    Wasm32FilesystemNotSupported,
+    #[error("Invalid project folder")]
+    InvalidProjectFolder,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

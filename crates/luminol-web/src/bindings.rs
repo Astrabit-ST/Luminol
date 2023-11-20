@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen(module = "/assets/bindings.js")]
+#[wasm_bindgen(module = "/js/bindings.js")]
 extern "C" {
     pub fn worker() -> Option<web_sys::DedicatedWorkerGlobalScope>;
     pub fn performance(worker: &web_sys::DedicatedWorkerGlobalScope) -> web_sys::Performance;

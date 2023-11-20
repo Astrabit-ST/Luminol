@@ -15,27 +15,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use super::bindings;
-use crate::prelude::*;
+
+use portable_atomic::{AtomicF64, Ordering};
+use std::sync::Arc;
+
+// ensure that AtomicF64 is using atomic ops (otherwise it would use global locks, and that would be bad)
+const _: [(); 0 - !{
+    const ASSERT: bool = AtomicF64::is_always_lock_free();
+    ASSERT
+} as usize] = [];
+
 use eframe::{egui_wgpu, wgpu};
 use wasm_bindgen::prelude::*;
 
-static PANIC_LOCK: OnceCell<()> = OnceCell::new();
+static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
 
 #[derive(Debug, Default)]
 struct Storage {
-    output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
+    output_tx: Option<flume::Sender<WebWorkerRunnerOutput>>,
 }
 
 impl eframe::Storage for Storage {
     fn get_string(&self, key: &str) -> Option<String> {
         if let Some(output_tx) = &self.output_tx {
-            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
             output_tx
                 .send(WebWorkerRunnerOutput(
                     WebWorkerRunnerOutputInner::StorageGet(key.to_string(), oneshot_tx),
                 ))
                 .unwrap();
-            oneshot_rx.blocking_recv().unwrap()
+            oneshot_rx.recv().unwrap()
         } else {
             None
         }
@@ -43,7 +52,7 @@ impl eframe::Storage for Storage {
 
     fn set_string(&mut self, key: &str, value: String) {
         if let Some(output_tx) = &self.output_tx {
-            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
             output_tx
                 .send(WebWorkerRunnerOutput(
                     WebWorkerRunnerOutputInner::StorageSet(
@@ -53,7 +62,7 @@ impl eframe::Storage for Storage {
                     ),
                 ))
                 .unwrap();
-            if !oneshot_rx.blocking_recv().unwrap() {
+            if !oneshot_rx.recv().unwrap() {
                 tracing::warn!("Failed to save to local storage key {key}");
             }
         }
@@ -77,12 +86,12 @@ pub struct WebWorkerRunnerOutput(WebWorkerRunnerOutputInner);
 
 enum WebWorkerRunnerOutputInner {
     PlatformOutput(egui::PlatformOutput),
-    StorageGet(String, oneshot::Sender<Option<String>>),
-    StorageSet(String, String, oneshot::Sender<bool>),
+    StorageGet(String, flume::Sender<Option<String>>),
+    StorageSet(String, String, flume::Sender<bool>),
 }
 
 struct WebWorkerRunnerState {
-    app: Box<dyn CustomApp>,
+    app: Box<dyn luminol_app::CustomApp>,
     app_id: String,
     save_time: f64,
     render_state: egui_wgpu::RenderState,
@@ -98,9 +107,9 @@ struct WebWorkerRunnerState {
     /// Length of a pixel divided by length of a point.
     pixel_ratio: f32,
 
-    event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
-    custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
-    output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
+    event_rx: Option<flume::Receiver<egui::Event>>,
+    custom_event_rx: Option<flume::Receiver<WebWorkerRunnerEvent>>,
+    output_tx: Option<flume::Sender<WebWorkerRunnerOutput>>,
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
@@ -110,8 +119,11 @@ pub struct WebWorkerRunner {
     state: std::rc::Rc<std::cell::RefCell<WebWorkerRunnerState>>,
     storage: std::rc::Rc<std::cell::RefCell<Storage>>,
     context: egui::Context,
-    time_lock: Arc<RwLock<f64>>,
+    // FIXME: no idea what the orderings should be here
+    time_lock: Arc<AtomicF64>,
 }
+
+type AppCreateFn = dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn luminol_app::CustomApp>;
 
 impl WebWorkerRunner {
     /// Creates a new `WebWorkerRunner` to render onto the given `OffscreenCanvas` with the
@@ -119,20 +131,20 @@ impl WebWorkerRunner {
     ///
     /// This function MUST be run in a web worker.
     pub async fn new(
-        app_creator: Box<dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn CustomApp>>,
+        app_creator: Box<AppCreateFn>,
         canvas: web_sys::OffscreenCanvas,
         web_options: eframe::WebOptions,
         app_id: &str,
         prefers_color_scheme_dark: Option<bool>,
-        event_rx: Option<mpsc::UnboundedReceiver<egui::Event>>,
-        custom_event_rx: Option<mpsc::UnboundedReceiver<WebWorkerRunnerEvent>>,
-        output_tx: Option<mpsc::UnboundedSender<WebWorkerRunnerOutput>>,
+        event_rx: Option<flume::Receiver<egui::Event>>,
+        custom_event_rx: Option<flume::Receiver<WebWorkerRunnerEvent>>,
+        output_tx: Option<flume::Sender<WebWorkerRunnerOutput>>,
     ) -> Self {
         let Some(worker) = bindings::worker() else {
             panic!("cannot use `WebWorkerRunner::new()` outside of a web worker");
         };
 
-        let time_lock = Arc::new(RwLock::new(0.));
+        let time_lock = Arc::new(AtomicF64::new(0.));
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: web_options.wgpu_options.supported_backends,
@@ -214,20 +226,22 @@ impl WebWorkerRunner {
         {
             let time_lock = time_lock.clone();
             context.set_request_repaint_callback(move |i| {
-                *time_lock.write() = bindings::performance(&bindings::worker().unwrap()).now()
-                    / 1000.
-                    + i.after.as_secs_f64();
+                time_lock.store(
+                    bindings::performance(&bindings::worker().unwrap()).now() / 1000.
+                        + i.after.as_secs_f64(),
+                    Ordering::Relaxed,
+                )
             });
         }
 
         if let Some(output_tx) = &output_tx {
-            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
             output_tx
                 .send(WebWorkerRunnerOutput(
                     WebWorkerRunnerOutputInner::StorageGet(app_id.to_string(), oneshot_tx),
                 ))
                 .unwrap();
-            if let Some(memory) = oneshot_rx.await.ok().flatten() {
+            if let Some(memory) = oneshot_rx.recv_async().await.ok().flatten() {
                 match ron::from_str(&memory) {
                     Ok(memory) => {
                         context.memory_mut(|m| *m = memory);
@@ -318,9 +332,9 @@ impl WebWorkerRunner {
                 state.save_time = now;
                 state.app.save(&mut *self.storage.borrow_mut());
                 if let Some(output_tx) = &state.output_tx {
-                    match self.context.memory(|memory| ron::to_string(memory)) {
+                    match self.context.memory(ron::to_string) {
                         Ok(ron) => {
-                            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+                            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
                             output_tx
                                 .send(WebWorkerRunnerOutput(
                                     WebWorkerRunnerOutputInner::StorageSet(
@@ -330,7 +344,7 @@ impl WebWorkerRunner {
                                     ),
                                 ))
                                 .unwrap();
-                            if !oneshot_rx.blocking_recv().unwrap() {
+                            if !oneshot_rx.recv().unwrap() {
                                 tracing::warn!("Failed to save memory for {}", state.app_id);
                             }
                         }
@@ -355,27 +369,27 @@ impl WebWorkerRunner {
                     .configure(&state.render_state.device, &state.surface_configuration);
 
                 // Also trigger a rerender immediately
-                *self.time_lock.write() = 0.;
+                self.time_lock.store(0., Ordering::Relaxed);
             }
 
             // If the modifiers have changed, trigger a rerender
             if modifiers != state.modifiers {
                 state.modifiers = modifiers;
-                *self.time_lock.write() = 0.;
+                self.time_lock.store(0., Ordering::Relaxed);
             }
 
             let events = if let Some(event_rx) = &mut state.event_rx {
-                std::iter::from_fn(|| event_rx.try_recv().ok()).collect_vec()
+                std::iter::from_fn(|| event_rx.try_recv().ok()).collect()
             } else {
-                Default::default()
+                vec![]
             };
             if !events.is_empty() {
                 // Render immediately if there are any pending events
-                *self.time_lock.write() = 0.;
+                self.time_lock.store(0., Ordering::Relaxed);
             }
 
             // Render only if sufficient time has passed since the last render
-            if now >= *self.time_lock.read() {
+            if now >= self.time_lock.load(Ordering::Relaxed) {
                 // Ask the app to paint the next frame
                 let input = egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_max(
@@ -394,7 +408,7 @@ impl WebWorkerRunner {
                 let output = self.context.run(input, |_| {
                     state.app.custom_update(
                         &self.context,
-                        &mut crate::luminol::CustomFrame(std::marker::PhantomData),
+                        &mut luminol_app::CustomFrame(std::marker::PhantomData),
                     )
                 });
                 if let Some(output_tx) = &state.output_tx {
@@ -483,8 +497,11 @@ impl WebWorkerRunner {
                 );
                 state.surface.get_current_texture().unwrap().present();
 
-                *self.time_lock.write() = bindings::performance(&worker).now() / 1000.
-                    + output.repaint_after.as_secs_f64();
+                self.time_lock.store(
+                    bindings::performance(&worker).now() / 1000.
+                        + output.repaint_after.as_secs_f64(),
+                    Ordering::Relaxed,
+                );
             }
 
             self.clone().setup_render_hooks();
@@ -501,9 +518,9 @@ impl WebWorkerRunner {
 /// mouse events and resize the canvas to fill the screen.
 pub fn setup_main_thread_hooks(
     canvas: web_sys::HtmlCanvasElement,
-    event_tx: mpsc::UnboundedSender<egui::Event>,
-    custom_event_tx: mpsc::UnboundedSender<WebWorkerRunnerEvent>,
-    mut output_rx: mpsc::UnboundedReceiver<WebWorkerRunnerOutput>,
+    event_tx: flume::Sender<egui::Event>,
+    custom_event_tx: flume::Sender<WebWorkerRunnerEvent>,
+    output_rx: flume::Receiver<WebWorkerRunnerOutput>,
 ) {
     let window =
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
@@ -973,7 +990,7 @@ pub fn setup_main_thread_hooks(
         let body_style = window.document().unwrap().body().unwrap().style();
         let local_storage = window.local_storage().unwrap().unwrap();
         loop {
-            let Some(command) = output_rx.recv().await else {
+            let Ok(command) = output_rx.recv_async().await else {
                 tracing::warn!(
                     "WebWorkerRunner main thread loop is stopping! This is not supposed to happen."
                 );

@@ -1,11 +1,10 @@
 [package]
-name = "luminol-config"
-
+name = "luminol-app"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
+license.workspace = true
 readme.workspace = true
 repository.workspace = true
 keywords.workspace = true
@@ -14,13 +13,5 @@ categories.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust-ini.workspace = true
-
-serde.workspace = true
-
-strum.workspace = true
-ron.workspace = true
-
-once_cell.workspace = true
-
-luminol-data.workspace = true
+egui.workspace = true
+eframe.workspace = true

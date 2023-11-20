@@ -19,17 +19,11 @@ use crate::FileSystem as _;
 use crate::{archiver, host, list, path_cache};
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
-#[cfg(target_arch = "wasm32")]
-use super::web;
-
 #[derive(Default)]
 pub enum FileSystem {
     #[default]
     Unloaded,
-    #[cfg(not(target_arch = "wasm32"))]
     HostLoaded(host::FileSystem),
-    #[cfg(target_arch = "wasm32")]
-    HostLoaded(web::FileSystem),
     Loaded {
         filesystem: path_cache::FileSystem<list::FileSystem>,
         project_path: camino::Utf8PathBuf,
@@ -37,10 +31,7 @@ pub enum FileSystem {
 }
 
 pub enum File {
-    #[cfg(not(target_arch = "wasm32"))]
     Host(<host::FileSystem as crate::FileSystem>::File),
-    #[cfg(target_arch = "wasm32")]
-    Host(<web::FileSystem as crate::FileSystem>::File),
     Loaded(<path_cache::FileSystem<list::FileSystem> as crate::FileSystem>::File),
 }
 
@@ -69,164 +60,10 @@ impl FileSystem {
     pub fn unload_project(&mut self) {
         *self = FileSystem::Unloaded;
     }
+}
 
-    #[cfg(target_arch = "wasm32")]
-    pub async fn spawn_project_file_picker(&self) -> Result<(), String> {
-        if !web::FileSystem::filesystem_supported() {
-            return Err("Your browser does not support File System Access API".to_string());
-        }
-        if let Some(dir) = web::FileSystem::from_directory_picker().await {
-            let idb_key = dir.idb_key().map(|k| k.to_string());
-            if let Err(e) = self.load_project(dir) {
-                if let Some(idb_key) = idb_key {
-                    web::FileSystem::idb_drop(idb_key);
-                }
-                Err(e)
-            } else {
-                Ok(())
-            }
-        } else {
-            Err("Cancelled loading project".to_string())
-        }
-    }
-
-    #[cfg(windows)]
-    fn find_rtp_paths(
-        config: &luminol_config::project::Config,
-        global_config: &luminol_config::global::Config,
-    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
-        let Some(section) = config.game_ini.section(Some("Game")) else {
-            return (vec![], vec![]);
-        };
-        let mut paths = vec![];
-        let mut seen_rtps = vec![];
-        let mut missing_rtps = vec![];
-        // FIXME: handle vx ace?
-        for rtp in ["RTP1", "RTP2", "RTP3"] {
-            if let Some(rtp) = section.get(rtp) {
-                if seen_rtps.contains(&rtp) || rtp.is_empty() {
-                    continue;
-                }
-                seen_rtps.push(rtp);
-
-                let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-                if let Ok(value) = hklm
-                    .open_subkey("SOFTWARE\\WOW6432Node\\Enterbrain\\RGSS\\RTP")
-                    .and_then(|key| key.get_value::<String, _>(rtp))
-                {
-                    let path = camino::Utf8PathBuf::from(value);
-                    if path.exists() {
-                        paths.push(path);
-                        continue;
-                    }
-                }
-
-                if let Ok(value) = hklm
-                    .open_subkey("SOFTWARE\\WOW6432Node\\Enterbrain\\RPGXP")
-                    .and_then(|key| key.get_value::<String, _>("ApplicationPath"))
-                {
-                    let path = camino::Utf8PathBuf::from(value).join("rtp");
-                    if path.exists() {
-                        paths.push(path);
-                        continue;
-                    }
-                }
-
-                if let Ok(value) = hklm
-                    .open_subkey(
-                        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 235900",
-                    )
-                    .and_then(|key| key.get_value::<String, _>("InstallLocation"))
-                {
-                    let path = camino::Utf8PathBuf::from(value).join("rtp");
-                    if path.exists() {
-                        paths.push(path);
-                        continue;
-                    }
-                }
-
-                if let Some(path) = global_config.rtp_paths.get(rtp) {
-                    let path = camino::Utf8PathBuf::from(path);
-                    if path.exists() {
-                        paths.push(path);
-                        continue;
-                    }
-                }
-
-                missing_rtps.push(rtp.to_string());
-            }
-        }
-        (paths, missing_rtps)
-    }
-
-    #[cfg(not(any(windows, target_arch = "wasm32")))]
-    fn find_rtp_paths(
-        config: &luminol_config::project::Config,
-        global_config: &luminol_config::global::Config,
-    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
-        let Some(section) = config.game_ini.section(Some("Game")) else {
-            return (vec![], vec![]);
-        };
-        let mut paths = vec![];
-        let mut seen_rtps = vec![];
-        let mut missing_rtps = vec![];
-        // FIXME: handle vx ace?
-        for rtp in ["RTP1", "RTP2", "RTP3"] {
-            if let Some(rtp) = section.get(rtp) {
-                if seen_rtps.contains(&rtp) || rtp.is_empty() {
-                    continue;
-                }
-                seen_rtps.push(rtp);
-
-                if let Some(path) = global_config.rtp_paths.get(rtp) {
-                    let path = camino::Utf8PathBuf::from(path);
-                    if path.exists() {
-                        paths.push(path);
-                        continue;
-                    }
-                }
-
-                missing_rtps.push(rtp.to_string());
-            }
-        }
-        (paths, missing_rtps)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn find_rtp_paths(dir: &web::FileSystem) -> Vec<camino::Utf8PathBuf> {
-        let ini = game_ini!();
-        let Some(section) = ini.section(Some("Game")) else {
-            return vec![];
-        };
-        let mut paths = vec![];
-        let mut seen_rtps = vec![];
-        // FIXME: handle vx ace?
-        for rtp in ["RTP1", "RTP2", "RTP3"] {
-            if let Some(rtp) = section.get(rtp) {
-                if seen_rtps.contains(&rtp) || rtp.is_empty() {
-                    continue;
-                }
-                seen_rtps.push(rtp);
-
-                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
-                if let Ok(exists) = dir.exists(&path) {
-                    if exists {
-                        paths.push(path);
-                        continue;
-                    }
-                }
-
-                state!()
-                    .toasts
-                    .warning(format!("Failed to find suitable path for the RTP {rtp}"));
-                state!()
-                    .toasts
-                    .info(format!("Please place the {rtp} RTP in the 'RTP/{rtp}' subdirectory in your project directory"));
-            }
-        }
-        paths
-    }
-
+// Not platform specific
+impl FileSystem {
     fn detect_rm_ver(&self) -> Option<luminol_config::RMVer> {
         if self.exists("Data/Actors.rxdata").ok()? {
             return Some(luminol_config::RMVer::XP);
@@ -322,17 +159,25 @@ impl FileSystem {
         })
     }
 
-    pub fn load_project_from_path(
-        &mut self,
-        project_config: &mut Option<luminol_config::project::Config>,
-        global_config: &mut luminol_config::global::Config,
-        project_path: impl AsRef<camino::Utf8Path>,
-    ) -> Result<LoadResult> {
-        let host = host::FileSystem::new(project_path);
-        self.load_project(host, project_config, global_config)
+    pub fn debug_ui(&self, ui: &mut egui::Ui) {
+        match self {
+            FileSystem::Unloaded => {
+                ui.label("Unloaded");
+            }
+            FileSystem::HostLoaded(fs) => {
+                ui.label("Host Filesystem Loaded");
+                ui.horizontal(|ui| {
+                    ui.label("Project path: ");
+                    ui.label(fs.root_path().as_str());
+                });
+            }
+            FileSystem::Loaded { filesystem, .. } => {
+                ui.label("Loaded");
+                filesystem.debug_ui(ui);
+            }
+        }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_project(
         &mut self,
         host: host::FileSystem,
@@ -351,6 +196,128 @@ impl FileSystem {
         *project_config = Some(config);
 
         Ok(result)
+    }
+}
+
+// Specific to windows
+#[cfg(windows)]
+impl FileSystem {
+    fn find_rtp_paths(
+        config: &luminol_config::project::Config,
+        global_config: &luminol_config::global::Config,
+    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
+        let Some(section) = config.game_ini.section(Some("Game")) else {
+            return (vec![], vec![]);
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        let mut missing_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+                if let Ok(value) = hklm
+                    .open_subkey("SOFTWARE\\WOW6432Node\\Enterbrain\\RGSS\\RTP")
+                    .and_then(|key| key.get_value::<String, _>(rtp))
+                {
+                    let path = camino::Utf8PathBuf::from(value);
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                if let Ok(value) = hklm
+                    .open_subkey("SOFTWARE\\WOW6432Node\\Enterbrain\\RPGXP")
+                    .and_then(|key| key.get_value::<String, _>("ApplicationPath"))
+                {
+                    let path = camino::Utf8PathBuf::from(value).join("rtp");
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                if let Ok(value) = hklm
+                    .open_subkey(
+                        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 235900",
+                    )
+                    .and_then(|key| key.get_value::<String, _>("InstallLocation"))
+                {
+                    let path = camino::Utf8PathBuf::from(value).join("rtp");
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                if let Some(path) = global_config.rtp_paths.get(rtp) {
+                    let path = camino::Utf8PathBuf::from(path);
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                missing_rtps.push(rtp.to_string());
+            }
+        }
+        (paths, missing_rtps)
+    }
+}
+
+// Specific to anything BUT windows
+#[cfg(not(any(windows, target_arch = "wasm32")))]
+impl FileSystem {
+    fn find_rtp_paths(
+        config: &luminol_config::project::Config,
+        global_config: &luminol_config::global::Config,
+    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
+        let Some(section) = config.game_ini.section(Some("Game")) else {
+            return (vec![], vec![]);
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        let mut missing_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                if let Some(path) = global_config.rtp_paths.get(rtp) {
+                    let path = camino::Utf8PathBuf::from(path);
+                    if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                missing_rtps.push(rtp.to_string());
+            }
+        }
+        (paths, missing_rtps)
+    }
+}
+
+// Specific to native
+#[cfg(not(target_arch = "wasm32"))]
+impl FileSystem {
+    pub fn load_project_from_path(
+        &mut self,
+        project_config: &mut Option<luminol_config::project::Config>,
+        global_config: &mut luminol_config::global::Config,
+        project_path: impl AsRef<camino::Utf8Path>,
+    ) -> Result<LoadResult> {
+        let host = host::FileSystem::new(project_path);
+        self.load_project(host, project_config, global_config)
     }
 
     pub fn load_partially_loaded_project(
@@ -409,10 +376,51 @@ impl FileSystem {
 
         Ok(LoadResult { missing_rtps })
     }
+}
+
+// Specific to web
+#[cfg(target_arch = "wasm32")]
+impl FileSystem {
+    fn find_rtp_paths(
+        filesystem: &host::FileSystem,
+        config: &luminol_config::project::Config,
+    ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
+        let Some(section) = config.game_ini.section(Some("Game")) else {
+            return vec![];
+        };
+        let mut paths = vec![];
+        let mut seen_rtps = vec![];
+        let mut missing_rtps = vec![];
+        // FIXME: handle vx ace?
+        for rtp in ["RTP1", "RTP2", "RTP3"] {
+            if let Some(rtp) = section.get(rtp) {
+                if seen_rtps.contains(&rtp) || rtp.is_empty() {
+                    continue;
+                }
+                seen_rtps.push(rtp);
+
+                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                if let Ok(exists) = filesystem.exists(&path) {
+                    if exists {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                missing_rtps.push(rtp.to_string());
+            }
+        }
+        (paths, missing_rtps)
+    }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn load_project(&self, dir: web::FileSystem) -> Result<(), String> {
-        let entries = dir.read_dir("").map_err(|e| e.to_string())?;
+    pub fn load_partially_loaded_project(
+        &mut self,
+        host: host::FileSystem,
+        project_config: &luminol_config::project::Config,
+        global_config: &mut luminol_config::global::Config,
+    ) -> Result<LoadResult> {
+        let entries = host.read_dir("").map_err(|e| e.to_string())?;
         let Some(entry) = entries.iter().find(|e| {
             if let Some(extension) = e.path.extension() {
                 e.metadata.is_file
@@ -424,25 +432,17 @@ impl FileSystem {
                 false
             }
         }) else {
-            return Err("Invalid project folder".to_string());
+            return Err(Error::InvalidProjectFolder);
         };
 
-        *self.state.borrow_mut() = State::HostLoaded(dir);
-        config::Project::load()?;
-        let State::HostLoaded(dir) =
-            std::mem::replace(&mut *self.state.borrow_mut(), State::Unloaded)
-        else {
-            unreachable!();
-        };
-
-        let root_path = dir.root_path().to_path_buf();
-        let idb_key = dir.idb_key().map(|k| k.to_string());
+        let root_path = host.root_path().to_path_buf();
+        let idb_key = host.idb_key().map(|k| k.to_string());
 
         let mut list = list::FileSystem::new();
 
-        let paths = Self::find_rtp_paths(&dir);
+        let (found_rtps, missing_rtps) = Self::find_rtp_paths(&host, project_config);
 
-        let archive = dir
+        let archive = host
             .read_dir("")
             .map_err(|e| e.to_string())?
             .into_iter()
@@ -450,15 +450,15 @@ impl FileSystem {
                 entry.metadata.is_file
                     && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
             })
-            .map(|entry| dir.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .map(|entry| host.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
             .transpose()
             .map_err(|e| e.to_string())?
             .map(archiver::FileSystem::new)
             .transpose()
             .map_err(|e| e.to_string())?;
 
-        list.push(dir);
-        for path in paths {
+        list.push(host);
+        for path in found_rtps {
             list.push(host::FileSystem::new(path))
         }
         if let Some(archive) = archive {
@@ -467,47 +467,23 @@ impl FileSystem {
 
         let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
 
-        *self.state.borrow_mut() = State::Loaded {
+        *self = Self::Loaded {
             filesystem: path_cache,
             project_path: root_path.clone(),
         };
 
         if let Some(idb_key) = idb_key {
-            let mut projects: std::collections::VecDeque<_> = global_config!()
+            let mut projects: std::collections::VecDeque<_> = global_config
                 .recent_projects
                 .iter()
                 .filter(|(_, k)| k.as_str() != idb_key.as_str())
                 .cloned()
                 .collect();
             projects.push_front((root_path.join(&entry.path).to_string(), idb_key));
-            global_config!().recent_projects = projects;
+            global_config.recent_projects = projects;
         }
 
-        if let Err(e) = state!().data_cache.load() {
-            *self.state.borrow_mut() = State::Unloaded;
-            return Err(e);
-        }
-
-        Ok(())
-    }
-
-    pub fn debug_ui(&self, ui: &mut egui::Ui) {
-        match self {
-            FileSystem::Unloaded => {
-                ui.label("Unloaded");
-            }
-            FileSystem::HostLoaded(fs) => {
-                ui.label("Host Filesystem Loaded");
-                ui.horizontal(|ui| {
-                    ui.label("Project path: ");
-                    ui.label(fs.root_path().as_str());
-                });
-            }
-            FileSystem::Loaded { filesystem, .. } => {
-                ui.label("Loaded");
-                filesystem.debug_ui(ui);
-            }
-        }
+        Ok(LoadResult { missing_rtps })
     }
 }
 

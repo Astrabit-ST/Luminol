@@ -39,14 +39,8 @@
     clippy::missing_panics_doc,
     clippy::too_many_lines
 )]
-// You must provide a safety doc. DO NOT TURN OFF THESE LINTS.
+// You must provide a safety doc.
 #![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
-// Okay, lemme run through *why* some of these are enabled
-// 1) min_specialization
-// min_specialization is used in alox-48 to deserialize extra data types.
-// 2) int_roundings
-// int_roundings is close to stabilization.
-#![feature(min_specialization, int_roundings)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 #[cfg(target_arch = "wasm32")]

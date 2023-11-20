@@ -15,7 +15,6 @@ readme = "README.md"
 repository = "https://github.com/Speak2Erase/Luminol"
 keywords = ["gamedev", "rpg", "rpg-maker"]
 categories = ["games"]
-default-run = "luminol"
 
 [workspace.dependencies]
 egui = "0.23.0"
@@ -38,12 +37,15 @@ serde = { version = "1.0", features = ["derive"] }
 alox-48 = { version = "0.4.1", default-features = false }
 ron = "0.8.1"
 serde_json = "1.0"
+rust-ini = "0.20.0"
 
 bytemuck = { version = "1.14.0", features = [
     "extern_crate_alloc",
     "derive",
     "min_const_generics",
 ] }
+
+tracing = "0.1.37"
 
 strum = { version = "0.25.0", features = ["derive"] }
 paste = "1.0.14"
@@ -70,6 +72,7 @@ rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 
 luminol-audio = { version = "0.4.0", path = "crates/luminol-audio/" }
+luminol-app = { version = "0.4.0", path = "crates/luminol-app/" }
 luminol-components = { version = "0.4.0", path = "crates/luminol-components/" }
 luminol-config = { version = "0.4.0", path = "crates/luminol-config/" }
 luminol-core = { version = "0.4.0", path = "crates/luminol-core/" }
