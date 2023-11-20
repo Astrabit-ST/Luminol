@@ -30,7 +30,7 @@ use wasm_bindgen::prelude::*;
 
 static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct Storage {
     output_tx: Option<flume::Sender<WebWorkerRunnerOutput>>,
 }
@@ -38,7 +38,7 @@ struct Storage {
 impl eframe::Storage for Storage {
     fn get_string(&self, key: &str) -> Option<String> {
         if let Some(output_tx) = &self.output_tx {
-            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
             output_tx
                 .send(WebWorkerRunnerOutput(
                     WebWorkerRunnerOutputInner::StorageGet(key.to_string(), oneshot_tx),
@@ -52,7 +52,7 @@ impl eframe::Storage for Storage {
 
     fn set_string(&mut self, key: &str, value: String) {
         if let Some(output_tx) = &self.output_tx {
-            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
             output_tx
                 .send(WebWorkerRunnerOutput(
                     WebWorkerRunnerOutputInner::StorageSet(
@@ -86,8 +86,8 @@ pub struct WebWorkerRunnerOutput(WebWorkerRunnerOutputInner);
 
 enum WebWorkerRunnerOutputInner {
     PlatformOutput(egui::PlatformOutput),
-    StorageGet(String, flume::Sender<Option<String>>),
-    StorageSet(String, String, flume::Sender<bool>),
+    StorageGet(String, oneshot::Sender<Option<String>>),
+    StorageSet(String, String, oneshot::Sender<bool>),
 }
 
 struct WebWorkerRunnerState {
@@ -235,13 +235,13 @@ impl WebWorkerRunner {
         }
 
         if let Some(output_tx) = &output_tx {
-            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
             output_tx
                 .send(WebWorkerRunnerOutput(
                     WebWorkerRunnerOutputInner::StorageGet(app_id.to_string(), oneshot_tx),
                 ))
                 .unwrap();
-            if let Some(memory) = oneshot_rx.recv_async().await.ok().flatten() {
+            if let Some(memory) = oneshot_rx.await.ok().flatten() {
                 match ron::from_str(&memory) {
                     Ok(memory) => {
                         context.memory_mut(|m| *m = memory);
@@ -334,7 +334,7 @@ impl WebWorkerRunner {
                 if let Some(output_tx) = &state.output_tx {
                     match self.context.memory(ron::to_string) {
                         Ok(ron) => {
-                            let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+                            let (oneshot_tx, oneshot_rx) = oneshot::channel();
                             output_tx
                                 .send(WebWorkerRunnerOutput(
                                     WebWorkerRunnerOutputInner::StorageSet(

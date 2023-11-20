@@ -46,28 +46,28 @@ enum AudioWrapperCommandInner {
         volume: u8,
         pitch: u8,
         source: Source,
-        oneshot_tx: flume::Sender<Result<()>>,
+        oneshot_tx: oneshot::Sender<Result<()>>,
     },
     SetPitch {
         pitch: u8,
         source: Source,
-        oneshot_tx: flume::Sender<()>,
+        oneshot_tx: oneshot::Sender<()>,
     },
     SetVolume {
         volume: u8,
         source: Source,
-        oneshot_tx: flume::Sender<()>,
+        oneshot_tx: oneshot::Sender<()>,
     },
     ClearSinks {
-        oneshot_tx: flume::Sender<()>,
+        oneshot_tx: oneshot::Sender<()>,
     },
     Stop {
         source: Source,
-        oneshot_tx: flume::Sender<()>,
+        oneshot_tx: oneshot::Sender<()>,
     },
     Drop {
         key: usize,
-        oneshot_tx: flume::Sender<bool>,
+        oneshot_tx: oneshot::Sender<bool>,
     },
 }
 
@@ -95,7 +95,7 @@ impl AudioWrapper {
             .extension()
             .is_some_and(|e| matches!(e, "mid" | "midi"));
 
-        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Play {
                 cursor,
@@ -110,7 +110,7 @@ impl AudioWrapper {
     }
 
     pub fn set_pitch(&self, pitch: u8, source: &Source) {
-        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::SetPitch {
                 pitch,
@@ -122,7 +122,7 @@ impl AudioWrapper {
     }
 
     pub fn set_volume(&self, volume: u8, source: &Source) {
-        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::SetVolume {
                 volume,
@@ -134,7 +134,7 @@ impl AudioWrapper {
     }
 
     pub fn clear_sinks(&self) {
-        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::ClearSinks {
                 oneshot_tx,
@@ -144,7 +144,7 @@ impl AudioWrapper {
     }
 
     pub fn stop(&self, source: &Source) {
-        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Stop {
                 source: *source,
@@ -225,7 +225,7 @@ impl From<Audio> for AudioWrapper {
 
 impl Drop for AudioWrapper {
     fn drop(&mut self) {
-        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Drop {
                 key: self.key,

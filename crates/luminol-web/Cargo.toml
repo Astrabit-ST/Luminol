@@ -27,6 +27,7 @@ tracing.workspace = true
 luminol-app.workspace = true
 
 flume.workspace = true
+oneshot.workspace = true
 
 wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"
