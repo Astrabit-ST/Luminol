@@ -34,6 +34,10 @@ struct Callback {
     graphics_state: Arc<crate::GraphicsState>,
 }
 
+// FIXME
+unsafe impl Send for Callback {}
+unsafe impl Sync for Callback {}
+
 impl egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
