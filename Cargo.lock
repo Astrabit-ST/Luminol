@@ -2730,13 +2730,17 @@ name = "luminol-audio"
 version = "0.4.0"
 dependencies = [
  "camino",
+ "flume",
  "luminol-filesystem",
  "once_cell",
  "parking_lot",
+ "poll-promise",
  "rodio",
  "rustysynth",
+ "slab",
  "strum",
  "thiserror",
+ "web-sys",
 ]
 
 [[package]]

@@ -46,7 +46,7 @@ slab.workspace = true
 
 luminol-web = { version = "0.4.0", path = "../luminol-web/" }
 
-flume = "0.11.0"
+flume.workspace = true
 
 wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"

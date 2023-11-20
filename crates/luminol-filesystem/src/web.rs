@@ -20,7 +20,7 @@ use std::future::IntoFuture;
 use wasm_bindgen::prelude::*;
 
 use super::FileSystem as FileSystemTrait;
-use super::{DirEntry, Error, Metadata, OpenFlags};
+use super::{DirEntry, Error, Metadata, OpenFlags, Result};
 
 static FILESYSTEM_TX: once_cell::sync::OnceCell<flume::Sender<FileSystemCommand>> =
     once_cell::sync::OnceCell::new();
@@ -43,33 +43,29 @@ pub struct FileSystemCommand(FileSystemCommandInner);
 #[derive(Debug)]
 enum FileSystemCommandInner {
     Supported(flume::Sender<bool>),
-    DirEntryMetadata(
-        usize,
-        camino::Utf8PathBuf,
-        flume::Sender<Result<Metadata, Error>>,
-    ),
+    DirEntryMetadata(usize, camino::Utf8PathBuf, flume::Sender<Result<Metadata>>),
     DirPicker(flume::Sender<Option<(usize, String, Option<String>)>>),
     DirFromIdb(String, flume::Sender<Option<(usize, String)>>),
     DirSubdir(
         usize,
         camino::Utf8PathBuf,
-        flume::Sender<Result<(usize, String, Option<String>), Error>>,
+        flume::Sender<Result<(usize, String, Option<String>)>>,
     ),
     DirIdbDrop(String, flume::Sender<bool>),
     DirOpenFile(
         usize,
         camino::Utf8PathBuf,
         OpenFlags,
-        flume::Sender<Result<usize, Error>>,
+        flume::Sender<Result<usize>>,
     ),
     DirEntryExists(usize, camino::Utf8PathBuf, flume::Sender<bool>),
-    DirCreateDir(usize, camino::Utf8PathBuf, flume::Sender<Result<(), Error>>),
-    DirRemoveDir(usize, camino::Utf8PathBuf, flume::Sender<Result<(), Error>>),
-    DirRemoveFile(usize, camino::Utf8PathBuf, flume::Sender<Result<(), Error>>),
+    DirCreateDir(usize, camino::Utf8PathBuf, flume::Sender<Result<()>>),
+    DirRemoveDir(usize, camino::Utf8PathBuf, flume::Sender<Result<()>>),
+    DirRemoveFile(usize, camino::Utf8PathBuf, flume::Sender<Result<()>>),
     DirReadDir(
         usize,
         camino::Utf8PathBuf,
-        flume::Sender<Result<Vec<DirEntry>, Error>>,
+        flume::Sender<Result<Vec<DirEntry>>>,
     ),
     DirDrop(usize, flume::Sender<bool>),
     DirClone(usize, flume::Sender<usize>),
@@ -114,9 +110,9 @@ impl FileSystem {
     /// Then creates a `FileSystem` allowing read-write access to that directory if they chose one
     /// successfully.
     /// If the File System API is not supported, this always returns `None` without doing anything.
-    pub async fn from_directory_picker() -> Option<Self> {
+    pub async fn from_folder_picker() -> Result<Self> {
         if !Self::filesystem_supported() {
-            return None;
+            return Err(Error::Wasm32FilesystemNotSupported);
         }
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
@@ -129,6 +125,7 @@ impl FileSystem {
             .await
             .unwrap()
             .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+            .ok_or(Error::CancelledLoading)
     }
 
     /// Attempts to restore a previously created `FileSystem` using its `.idb_key()`.
@@ -155,7 +152,7 @@ impl FileSystem {
     }
 
     /// Creates a new `FileSystem` from a subdirectory of this one.
-    pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self, Error> {
+    pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirSubdir(
@@ -228,7 +225,7 @@ impl FileSystemTrait for FileSystem {
         &self,
         path: impl AsRef<camino::Utf8Path>,
         mut flags: OpenFlags,
-    ) -> Result<Self::File, Error> {
+    ) -> Result<Self::File> {
         if flags.contains(OpenFlags::Truncate) || flags.contains(OpenFlags::Create) {
             flags |= OpenFlags::Write;
         }
@@ -244,7 +241,7 @@ impl FileSystemTrait for FileSystem {
         oneshot_rx.recv().unwrap().map(|key| File { key })
     }
 
-    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirEntryMetadata(
@@ -260,11 +257,11 @@ impl FileSystemTrait for FileSystem {
         &self,
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         Err(Error::NotSupported)
     }
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirEntryExists(
@@ -276,7 +273,7 @@ impl FileSystemTrait for FileSystem {
         Ok(oneshot_rx.recv().unwrap())
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirCreateDir(
@@ -288,7 +285,7 @@ impl FileSystemTrait for FileSystem {
         oneshot_rx.recv().unwrap()
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirRemoveDir(
@@ -300,7 +297,7 @@ impl FileSystemTrait for FileSystem {
         oneshot_rx.recv().unwrap()
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirRemoveFile(
@@ -312,7 +309,7 @@ impl FileSystemTrait for FileSystem {
         oneshot_rx.recv().unwrap()
     }
 
-    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
             .send(FileSystemCommand(FileSystemCommandInner::DirReadDir(
@@ -421,7 +418,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
         let mut dirs: slab::Slab<web_sys::FileSystemDirectoryHandle> = slab::Slab::new();
         let mut files: slab::Slab<FileHandle> = slab::Slab::new();
 
-        async fn to_future<T>(promise: js_sys::Promise) -> Result<T, js_sys::Error>
+        async fn to_future<T>(promise: js_sys::Promise) -> std::result::Result<T, js_sys::Error>
         where
             T: JsCast,
         {
@@ -450,8 +447,8 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
 
         async fn idb<R>(
             mode: IdbTransactionMode,
-            f: impl Fn(IdbObjectStore<'_>) -> Result<R, web_sys::DomException>,
-        ) -> Result<R, web_sys::DomException> {
+            f: impl Fn(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
+        ) -> std::result::Result<R, web_sys::DomException> {
             let mut db_req = IdbDatabase::open_u32("astrabit.luminol", 1)?;
 
             // Create store for our directory handles if it doesn't exist

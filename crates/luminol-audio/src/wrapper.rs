@@ -22,55 +22,53 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::prelude::*;
-
+use luminol_filesystem::File;
 use poll_promise::Promise;
-use slab::Slab;
-use std::io::{Cursor, Read};
 
-use super::{Audio, Source};
+use super::{Audio, Result, Source};
 
-static_assertions::assert_impl_all!(AudioWrapper: Send, Sync);
-
-thread_local!(static SLAB: Lazy<Mutex<Slab<Promise<()>>>> = Lazy::new(|| Mutex::new(Slab::new())));
+thread_local! {
+    static SLAB: once_cell::sync::Lazy<std::cell::RefCell<slab::Slab<Promise<()>>>> =
+        once_cell::sync::Lazy::new(|| std::cell::RefCell::new(slab::Slab::new()));
+}
 
 #[derive(Debug)]
 pub struct AudioWrapper {
     key: usize,
-    tx: mpsc::UnboundedSender<AudioWrapperCommand>,
+    tx: flume::Sender<AudioWrapperCommand>,
 }
 
 pub struct AudioWrapperCommand(AudioWrapperCommandInner);
 
 enum AudioWrapperCommandInner {
     Play {
-        vec: Vec<u8>,
+        file: Box<dyn File>,
         is_midi: bool,
         volume: u8,
         pitch: u8,
         source: Source,
-        oneshot_tx: oneshot::Sender<Result<(), String>>,
+        oneshot_tx: flume::Sender<Result<()>>,
     },
     SetPitch {
         pitch: u8,
         source: Source,
-        oneshot_tx: oneshot::Sender<()>,
+        oneshot_tx: flume::Sender<()>,
     },
     SetVolume {
         volume: u8,
         source: Source,
-        oneshot_tx: oneshot::Sender<()>,
+        oneshot_tx: flume::Sender<()>,
     },
     ClearSinks {
-        oneshot_tx: oneshot::Sender<()>,
+        oneshot_tx: flume::Sender<()>,
     },
     Stop {
         source: Source,
-        oneshot_tx: oneshot::Sender<()>,
+        oneshot_tx: flume::Sender<()>,
     },
     Drop {
         key: usize,
-        oneshot_tx: oneshot::Sender<bool>,
+        oneshot_tx: flume::Sender<bool>,
     },
 }
 
@@ -82,34 +80,25 @@ impl AudioWrapper {
     pub fn play(
         &self,
         path: impl AsRef<camino::Utf8Path>,
+        filesystem: &impl luminol_filesystem::FileSystem,
         volume: u8,
         pitch: u8,
         source: Source,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         // We have to load the file on the current thread,
         // otherwise if we read the file in the main thread of a web browser
         // we will block the main thread
         let path = path.as_ref();
-        let mut file = state!()
-            .filesystem
-            .open_file(path, filesystem::OpenFlags::Read)
-            .map_err(|e| e.to_string())?;
-        let length = state!()
-            .filesystem
-            .metadata(path)
-            .map_err(|e| e.to_string())?
-            .size as usize;
-        let mut vec = vec![0; length];
-        file.read(&mut vec[..]).map_err(|e| e.to_string())?;
+        let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read)?;
 
         let is_midi = path
             .extension()
             .is_some_and(|e| matches!(e, "mid" | "midi"));
 
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Play {
-                vec,
+                file: Box::new(file),
                 is_midi,
                 volume,
                 pitch,
@@ -117,68 +106,68 @@ impl AudioWrapper {
                 oneshot_tx,
             }))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap()
+        oneshot_rx.recv().unwrap()
     }
 
     pub fn set_pitch(&self, pitch: u8, source: &Source) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::SetPitch {
                 pitch,
-                source: source.clone(),
+                source: *source,
                 oneshot_tx,
             }))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap()
+        oneshot_rx.recv().unwrap()
     }
 
     pub fn set_volume(&self, volume: u8, source: &Source) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::SetVolume {
                 volume,
-                source: source.clone(),
+                source: *source,
                 oneshot_tx,
             }))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap()
+        oneshot_rx.recv().unwrap()
     }
 
     pub fn clear_sinks(&self) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::ClearSinks {
                 oneshot_tx,
             }))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap()
+        oneshot_rx.recv().unwrap()
     }
 
     pub fn stop(&self, source: &Source) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Stop {
-                source: source.clone(),
+                source: *source,
                 oneshot_tx,
             }))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap()
+        oneshot_rx.recv().unwrap()
     }
 }
 
 impl From<Audio> for AudioWrapper {
     fn from(audio: Audio) -> Self {
-        let (tx, mut rx) = mpsc::unbounded_channel();
+        let (tx, rx) = flume::unbounded::<AudioWrapperCommand>();
 
         let promise = poll_promise::Promise::spawn_local(async move {
             loop {
-                let Some(command): Option<AudioWrapperCommand> = rx.recv().await else {
+                let Ok(command) = rx.recv_async().await else {
                     return;
                 };
 
                 match command.0 {
                     AudioWrapperCommandInner::Play {
-                        vec,
+                        file,
                         is_midi,
                         volume,
                         pitch,
@@ -186,13 +175,7 @@ impl From<Audio> for AudioWrapper {
                         oneshot_tx,
                     } => {
                         oneshot_tx
-                            .send(audio.play_from_file(
-                                Cursor::new(vec),
-                                is_midi,
-                                volume,
-                                pitch,
-                                source,
-                            ))
+                            .send(audio.play_from_file(file, is_midi, volume, pitch, source))
                             .unwrap();
                     }
 
@@ -201,7 +184,8 @@ impl From<Audio> for AudioWrapper {
                         source,
                         oneshot_tx,
                     } => {
-                        oneshot_tx.send(audio.set_pitch(pitch, &source)).unwrap();
+                        audio.set_pitch(pitch, &source);
+                        oneshot_tx.send(()).unwrap();
                     }
 
                     AudioWrapperCommandInner::SetVolume {
@@ -209,19 +193,22 @@ impl From<Audio> for AudioWrapper {
                         source,
                         oneshot_tx,
                     } => {
-                        oneshot_tx.send(audio.set_volume(volume, &source)).unwrap();
+                        audio.set_volume(volume, &source);
+                        oneshot_tx.send(()).unwrap();
                     }
 
                     AudioWrapperCommandInner::ClearSinks { oneshot_tx } => {
-                        oneshot_tx.send(audio.clear_sinks()).unwrap();
+                        audio.clear_sinks();
+                        oneshot_tx.send(()).unwrap();
                     }
 
                     AudioWrapperCommandInner::Stop { source, oneshot_tx } => {
-                        oneshot_tx.send(audio.stop(&source)).unwrap();
+                        audio.stop(&source);
+                        oneshot_tx.send(()).unwrap();
                     }
 
                     AudioWrapperCommandInner::Drop { key, oneshot_tx } => {
-                        let promise = SLAB.with(|slab| slab.lock().try_remove(key));
+                        let promise = SLAB.with(|slab| slab.borrow_mut().try_remove(key));
                         oneshot_tx.send(promise.is_some()).unwrap();
                         return;
                     }
@@ -230,7 +217,7 @@ impl From<Audio> for AudioWrapper {
         });
 
         Self {
-            key: SLAB.with(|slab| slab.lock().insert(promise)),
+            key: SLAB.with(|slab| slab.borrow_mut().insert(promise)),
             tx,
         }
     }
@@ -238,13 +225,13 @@ impl From<Audio> for AudioWrapper {
 
 impl Drop for AudioWrapper {
     fn drop(&mut self) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Drop {
                 key: self.key,
                 oneshot_tx,
             }))
             .unwrap();
-        oneshot_rx.blocking_recv().unwrap();
+        oneshot_rx.recv().unwrap();
     }
 }

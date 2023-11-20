@@ -19,6 +19,8 @@ use crate::FileSystem as _;
 use crate::{archiver, host, list, path_cache};
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
+use itertools::Itertools;
+
 #[derive(Default)]
 pub enum FileSystem {
     #[default]
@@ -386,7 +388,7 @@ impl FileSystem {
         config: &luminol_config::project::Config,
     ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
         let Some(section) = config.game_ini.section(Some("Game")) else {
-            return vec![];
+            return (vec![], vec![]);
         };
         let mut paths = vec![];
         let mut seen_rtps = vec![];
@@ -420,7 +422,7 @@ impl FileSystem {
         project_config: &luminol_config::project::Config,
         global_config: &mut luminol_config::global::Config,
     ) -> Result<LoadResult> {
-        let entries = host.read_dir("").map_err(|e| e.to_string())?;
+        let entries = host.read_dir("")?;
         let Some(entry) = entries.iter().find(|e| {
             if let Some(extension) = e.path.extension() {
                 e.metadata.is_file
@@ -441,31 +443,32 @@ impl FileSystem {
         let mut list = list::FileSystem::new();
 
         let (found_rtps, missing_rtps) = Self::find_rtp_paths(&host, project_config);
+        let rtp_filesystems: Vec<_> = found_rtps
+            .into_iter()
+            .map(|rtp| host.subdir(rtp))
+            .try_collect()?;
 
         let archive = host
-            .read_dir("")
-            .map_err(|e| e.to_string())?
+            .read_dir("")?
             .into_iter()
             .find(|entry| {
                 entry.metadata.is_file
                     && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
             })
             .map(|entry| host.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
-            .transpose()
-            .map_err(|e| e.to_string())?
+            .transpose()?
             .map(archiver::FileSystem::new)
-            .transpose()
-            .map_err(|e| e.to_string())?;
+            .transpose()?;
 
         list.push(host);
-        for path in found_rtps {
-            list.push(host::FileSystem::new(path))
+        for filesystem in rtp_filesystems {
+            list.push(filesystem)
         }
         if let Some(archive) = archive {
             list.push(archive);
         }
 
-        let path_cache = path_cache::FileSystem::new(list).map_err(|e| e.to_string())?;
+        let path_cache = path_cache::FileSystem::new(list)?;
 
         *self = Self::Loaded {
             filesystem: path_cache,
