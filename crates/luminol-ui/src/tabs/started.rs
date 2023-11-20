@@ -127,8 +127,6 @@ impl luminol_core::Tab for Tab {
             let (path, idb_key) = path;
 
             if ui.button(&path).clicked() {
-                let path = path.clone();
-
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     filesystem_open_result = Some(update_state.filesystem.load_project_from_path(
@@ -141,7 +139,7 @@ impl luminol_core::Tab for Tab {
                 #[cfg(target_arch = "wasm32")]
                 {
                     self.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
-                        luminol_filesystem::host::FileSystem::from_idb_key(path),
+                        luminol_filesystem::host::FileSystem::from_idb_key(idb_key),
                     ));
                 }
             }
