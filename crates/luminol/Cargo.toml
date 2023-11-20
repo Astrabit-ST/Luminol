@@ -63,14 +63,32 @@ tokio = { version = "1.33", features = [
 ] } # *sigh*
 luminol-term.workspace = true
 
+# Set poll promise features here based on the target
+# I'd much rather do it in the workspace, but cargo doesn't support that yet
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.poll-promise]
+workspace = true
 features = ["tokio"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.poll-promise]
+workspace = true
 features = ["web"]
 
 # Web
+# Look into somehow pinning these as workspace dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.87"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+flume.workspace = true
+
+luminol-web = { version = "0.4.0", path = "../luminol-web/" }
+
+tracing-wasm = "0.2"
+tracing-log = "0.1.3"
+tracing.workspace = true
+
+web-sys = { version = "0.3", features = ["Window"] }
 
 
 [features]

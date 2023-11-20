@@ -41,7 +41,10 @@ mod toasts;
 pub use toasts::Toasts;
 
 pub struct UpdateState<'res> {
+    #[cfg(not(target_arch = "wasm32"))]
     pub audio: &'res mut luminol_audio::Audio,
+    #[cfg(target_arch = "wasm32")]
+    pub audio: &'res mut luminol_audio::AudioWrapper,
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong

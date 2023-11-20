@@ -278,9 +278,18 @@ impl TopBar {
         }
 
         if open_project {
-            self.load_project_promise = Some(poll_promise::Promise::spawn_async(
-                luminol_filesystem::host::FileSystem::from_pile_picker(),
-            ));
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                self.load_project_promise = Some(poll_promise::Promise::spawn_async(
+                    luminol_filesystem::host::FileSystem::from_pile_picker(),
+                ));
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                self.load_project_promise = Some(poll_promise::Promise::spawn_local(
+                    luminol_filesystem::host::FileSystem::from_folder_picker(),
+                ));
+            }
         }
 
         if save_project {

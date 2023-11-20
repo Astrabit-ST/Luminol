@@ -33,7 +33,10 @@ pub struct App {
     top_bar: top_bar::TopBar,
     lumi: Lumi,
 
+    #[cfg(not(target_arch = "wasm32"))]
     audio: luminol_audio::Audio,
+    #[cfg(target_arch = "wasm32")]
+    audio: luminol_audio::AudioWrapper,
 
     graphics: std::sync::Arc<luminol_graphics::GraphicsState>,
     filesystem: luminol_filesystem::project::FileSystem,
@@ -49,6 +52,7 @@ pub struct App {
 
     toolbar: luminol_core::ToolbarState,
 
+    #[cfg(not(target_arch = "wasm32"))]
     runtime: tokio::runtime::Runtime,
 
     #[cfg(feature = "steamworks")]
@@ -60,8 +64,8 @@ impl App {
     #[must_use]
     pub fn new(
         cc: &eframe::CreationContext<'_>,
-        try_load_path: Option<std::ffi::OsString>,
-        #[cfg(target_arch = "wasm32")] audio_wrapper: crate::audio::AudioWrapper,
+        #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
+        #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
     ) -> Self {
         let render_state = cc
@@ -142,18 +146,26 @@ impl App {
 
         let lumi = Lumi::new().expect("failed to load lumi images");
 
+        #[cfg(not(target_arch = "wasm32"))]
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2) // TODO use single threaded runtime
             .enable_all()
             .build()
             .expect("failed to build tokio runtime");
-        std::mem::forget(runtime.enter()); //enter the runtime permanently
+        //enter the runtime permanently
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            std::mem::forget(runtime.enter());
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let audio = luminol_audio::Audio::default();
 
         Self {
             top_bar: top_bar::TopBar::default(),
             lumi,
 
-            audio: luminol_audio::Audio::default(),
+            audio,
             graphics,
             filesystem,
             data,
@@ -167,6 +179,7 @@ impl App {
             project_config,
             toolbar: luminol_core::ToolbarState::default(),
 
+            #[cfg(not(target_arch = "wasm32"))]
             runtime,
 
             #[cfg(feature = "steamworks")]
@@ -182,12 +195,12 @@ impl luminol_app::CustomApp for App {
         ctx: &eframe::egui::Context,
         frame: &mut luminol_app::CustomFrame<'_>,
     ) {
+        #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
                 let path = f.path.clone().expect("dropped file has no path");
                 let path = camino::Utf8PathBuf::from_path_buf(path).expect("path was not utf8");
 
-                #[cfg(not(target_arch = "wasm32"))]
                 if let Err(e) = self.filesystem.load_project_from_path(
                     &mut self.project_config,
                     &mut self.global_config,

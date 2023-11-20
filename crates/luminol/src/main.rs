@@ -52,6 +52,9 @@ const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
 mod app;
 mod lumi;
 
+#[cfg(all(feature = "steamworks", target_arch = "wasm32"))]
+compile_error!("Steamworks is not supported on webassembly");
+
 #[cfg(feature = "steamworks")]
 mod steam;
 
@@ -165,35 +168,38 @@ const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
-    audio: luminol::audio::AudioWrapper,
+    audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
-    filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
-    output_tx: mpsc::UnboundedSender<luminol::web::WebWorkerRunnerOutput>,
-    event_rx: mpsc::UnboundedReceiver<egui::Event>,
-    custom_event_rx: mpsc::UnboundedReceiver<luminol::web::WebWorkerRunnerEvent>,
+    filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
+    output_tx: flume::Sender<luminol_web::WebWorkerRunnerOutput>,
+    event_rx: flume::Receiver<egui::Event>,
+    custom_event_rx: flume::Receiver<luminol_web::WebWorkerRunnerEvent>,
 }
 
 #[cfg(target_arch = "wasm32")]
-static WORKER_DATA: Lazy<AtomicRefCell<Option<WorkerData>>> =
-    Lazy::new(|| AtomicRefCell::new(None));
+static WORKER_DATA: parking_lot::RwLock<Option<WorkerData>> = parking_lot::RwLock::new(None);
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start() {
-    let (panic_tx, mut panic_rx) = mpsc::unbounded_channel::<()>();
+    let (panic_tx, mut panic_rx) = flume::unbounded::<()>();
 
     wasm_bindgen_futures::spawn_local(async move {
-        if panic_rx.recv().await.is_some() {
+        if panic_rx.recv_async().await.is_ok() {
             let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
         }
     });
 
-    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
     std::panic::set_hook(Box::new(move |info| {
-        luminol::web::web_worker_runner::panic_hook();
+        luminol_web::web_worker_runner::panic_hook();
 
-        let report = panic.panic_report(info);
-        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+        let backtrace_printer =
+            color_backtrace::BacktracePrinter::new().verbosity(color_backtrace::Verbosity::Full);
+        let mut buffer = color_backtrace::termcolor::Ansi::new(vec![]);
+        backtrace_printer.print_panic_info(info, &mut buffer);
+        let report = String::from_utf8(buffer.into_inner()).expect("panic report not valid utf-8");
+
+        web_sys::console::log_1(&js_sys::JsString::from(report));
 
         let _ = panic_tx.send(());
     }));
@@ -220,26 +226,26 @@ pub fn luminol_main_start() {
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
 
-    if !luminol::web::bindings::cross_origin_isolated() {
+    if !luminol_web::bindings::cross_origin_isolated() {
         tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");
         return;
     }
 
-    let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
-    let (output_tx, output_rx) = mpsc::unbounded_channel();
-    let (event_tx, event_rx) = mpsc::unbounded_channel();
-    let (custom_event_tx, custom_event_rx) = mpsc::unbounded_channel();
+    let (filesystem_tx, filesystem_rx) = flume::unbounded();
+    let (output_tx, output_rx) = flume::unbounded();
+    let (event_tx, event_rx) = flume::unbounded();
+    let (custom_event_tx, custom_event_rx) = flume::unbounded();
 
-    filesystem::web::setup_main_thread_hooks(filesystem_rx);
-    luminol::web::web_worker_runner::setup_main_thread_hooks(
+    luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
+    luminol_web::web_worker_runner::setup_main_thread_hooks(
         canvas,
         event_tx.clone(),
         custom_event_tx.clone(),
         output_rx,
     );
 
-    *WORKER_DATA.borrow_mut() = Some(WorkerData {
-        audio: luminol::audio::Audio::default().into(),
+    *WORKER_DATA.write() = Some(WorkerData {
+        audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
         output_tx,
@@ -274,14 +280,14 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         output_tx,
         event_rx,
         custom_event_rx,
-    } = WORKER_DATA.borrow_mut().take().unwrap();
+    } = WORKER_DATA.write().take().unwrap();
 
-    filesystem::web::FileSystem::setup_filesystem_sender(filesystem_tx);
+    luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
 
     let web_options = eframe::WebOptions::default();
 
-    let runner = luminol::web::WebWorkerRunner::new(
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, None, audio))),
+    let runner = luminol_web::WebWorkerRunner::new(
+        Box::new(|cc| Box::new(app::App::new(cc, audio))),
         canvas,
         web_options,
         "astrabit.luminol",

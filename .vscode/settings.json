@@ -5,7 +5,7 @@
 	"licenser.customHeaderFile": "${workspaceFolder}/.vscode/header.txt",
 	"licenser.disableAutoHeaderInsertion": false,
 	"rust-analyzer.cargo.features": [
-		"steamworks"
+		// "steamworks"
 	],
 	"editor.formatOnSave": true,
 	"rust-analyzer.check.command": "clippy",
