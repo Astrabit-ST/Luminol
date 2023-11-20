@@ -19,7 +19,7 @@ jobs:
           toolchain: nightly-2023-11-14
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features --jobs 1
+      - run: cargo check --all-features 
 
   check-wasm32:
     name: Check wasm32
@@ -39,7 +39,7 @@ jobs:
           components: rust-src
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo check --jobs 1 --target wasm32-unknown-unknown -Z build-std=std,panic_abort
+      - run: cargo check  --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
   test:
     name: Test Suite
@@ -56,7 +56,7 @@ jobs:
           toolchain: nightly-2023-11-14
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo test --lib --jobs 1
+      - run: cargo test --lib 
 
   trunk:
     name: Trunk
@@ -116,4 +116,4 @@ jobs:
           components: clippy
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --jobs 1 -- # -D warnings
+      - run: cargo clippy  -- # -D warnings

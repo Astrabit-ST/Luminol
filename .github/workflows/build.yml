@@ -22,7 +22,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
-        run: cargo build --release --jobs 1
+        run: cargo build --release 
       - name: Setup artifact
         run: |
           mkdir -p ${{ github.workspace }}/artifact
@@ -46,7 +46,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
-        run: cargo build --release --jobs 1
+        run: cargo build --release 
       - name: Setup artifact
         run: |
           mkdir -p ${{ github.workspace }}/artifact
@@ -70,7 +70,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
-        run: cargo build --release --jobs 1
+        run: cargo build --release 
       - name: Setup artifact
         run: |
           mkdir -p ${{ github.workspace }}/artifact
