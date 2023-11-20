@@ -47,7 +47,7 @@
 use wasm_bindgen::prelude::*;
 
 /// Embedded icon 256x256 in size.
-const ICON: &[u8] = include_bytes!("../../../assets/icon-256.png");
+const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 
 mod app;
 mod lumi;
