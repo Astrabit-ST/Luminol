@@ -26,7 +26,7 @@
 #[derive(Default)]
 pub struct Tab {
     // now this is a type
-    load_project_promise: Option<poll_promise::Promise<PromiseResult>>,
+    load_filesystem_promise: Option<poll_promise::Promise<PromiseResult>>,
 }
 
 type PromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
@@ -64,10 +64,17 @@ impl luminol_core::Tab for Tab {
         ui.heading("Start");
 
         let mut filesystem_open_result = None;
+        #[cfg(target_arch = "wasm32")]
+        let mut idb_key = None;
 
-        if let Some(p) = self.load_project_promise.take() {
+        if let Some(p) = self.load_filesystem_promise.take() {
             match p.try_take() {
                 Ok(Ok(host)) => {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        idb_key = host.idb_key().map(str::to_string);
+                    }
+
                     filesystem_open_result = Some(update_state.filesystem.load_project(
                         host,
                         update_state.project_config,
@@ -75,13 +82,13 @@ impl luminol_core::Tab for Tab {
                     ));
                 }
                 Ok(Err(error)) => update_state.toasts.error(error.to_string()),
-                Err(p) => self.load_project_promise = Some(p),
+                Err(p) => self.load_filesystem_promise = Some(p),
             }
 
             ui.spinner();
         }
 
-        ui.add_enabled_ui(self.load_project_promise.is_none(), |ui| {
+        ui.add_enabled_ui(self.load_filesystem_promise.is_none(), |ui| {
             if ui
                 .button(egui::RichText::new("New Project").size(20.))
                 .clicked()
@@ -94,9 +101,19 @@ impl luminol_core::Tab for Tab {
                 .button(egui::RichText::new("Open Project").size(20.))
                 .clicked()
             {
-                self.load_project_promise = Some(poll_promise::Promise::spawn_async(
-                    luminol_filesystem::host::FileSystem::from_pile_picker(),
-                ));
+                // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    self.load_project_promise = Some(poll_promise::Promise::spawn_async(
+                        luminol_filesystem::host::FileSystem::from_file_picker(),
+                    ));
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    self.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
+                        luminol_filesystem::host::FileSystem::from_folder_picker(),
+                    ));
+                }
             }
         });
 
@@ -111,8 +128,6 @@ impl luminol_core::Tab for Tab {
 
             if ui.button(&path).clicked() {
                 let path = path.clone();
-                #[cfg(target_arch = "wasm32")]
-                let idb_key = idb_key.clone();
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
@@ -125,33 +140,30 @@ impl luminol_core::Tab for Tab {
 
                 #[cfg(target_arch = "wasm32")]
                 {
-                    self.load_project_promise =
-                        Some(poll_promise::Promise::spawn_local(async move {
-                            result =
-                                match filesystem::web::FileSystem::from_idb_key(idb_key.clone())
-                                    .await
-                                {
-                                    Some(dir) => {
-                                        let idb_key = dir.idb_key().map(|k| k.to_string());
-                                        if let Err(e) = state.filesystem.load_project(dir) {
-                                            if let Some(idb_key) = idb_key {
-                                                filesystem::web::FileSystem::idb_drop(idb_key);
-                                            }
-                                            Err(e)
-                                        } else {
-                                            Ok(())
-                                        }
-                                    }
-                                    None => Err("Could not restore project handle from IndexedDB"
-                                        .to_string()),
-                                };
-                        }));
+                    self.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
+                        luminol_filesystem::host::FileSystem::from_idb_key(path),
+                    ));
                 }
             }
         }
 
         match filesystem_open_result {
-            Some(Ok(_)) => {
+            Some(Ok(load_result)) => {
+                for missing_rtp in load_result.missing_rtps {
+                    update_state.toasts.warning(format!(
+                        "Failed to find suitable path for the RTP {missing_rtp}"
+                    ));
+                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
+                    #[cfg(not(target_arch = "wasm32"))]
+                    update_state
+                        .toasts
+                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
+                    #[cfg(target_arch = "wasm32")]
+                    update_state
+                        .toasts
+                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
+                }
+
                 if let Err(why) = update_state.data.load(
                     update_state.filesystem,
                     // TODO code jank
@@ -160,6 +172,9 @@ impl luminol_core::Tab for Tab {
                     update_state
                         .toasts
                         .error(format!("Error loading the project data: {why}"));
+
+                    #[cfg(target_arch = "wasm32")]
+                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
                 } else {
                     update_state.toasts.info(format!(
                         "Successfully opened {:?}",
@@ -174,6 +189,9 @@ impl luminol_core::Tab for Tab {
                 update_state
                     .toasts
                     .error(format!("Error opening the project: {why}"));
+
+                #[cfg(target_arch = "wasm32")]
+                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
             }
             None => {}
         }

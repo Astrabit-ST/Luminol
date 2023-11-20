@@ -176,13 +176,26 @@ impl luminol_core::Window for Window {
 
                             let branch_name = self.git_branch_name.clone();
 
-                            self.project_promise =
-                                Some(poll_promise::Promise::spawn_async(Self::setup_project(
-                                    config,
-                                    download_executable,
-                                    init_git.then_some(branch_name),
-                                    progress,
-                                )));
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                self.project_promise =
+                                    Some(poll_promise::Promise::spawn_async(Self::setup_project(
+                                        config,
+                                        download_executable,
+                                        init_git.then_some(branch_name),
+                                        progress,
+                                    )));
+                            }
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                self.project_promise =
+                                    Some(poll_promise::Promise::spawn_local(Self::setup_project(
+                                        config,
+                                        download_executable,
+                                        init_git.then_some(branch_name),
+                                        progress,
+                                    )));
+                            }
                         }
                         if ui.button("Cancel").clicked() {
                             *open = false;
@@ -232,6 +245,7 @@ impl Window {
         git_branch_name: Option<String>,
         progress: Arc<Progress>,
     ) -> PromiseResult {
+        // because we re-export host based on the platform specific filesystem, we don't actually need to change any of this code!
         let host_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
 
         host_fs.create_dir("Audio")?;

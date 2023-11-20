@@ -98,12 +98,15 @@ macro_rules! window_enum {
     (
         $(#[$attr:meta])*
         $visibility:vis enum $name:ident {
-            $( $variant:ident($variant_type:ty) ),* $(,)?
+            $( $(#[$variant_attr:meta])* $variant:ident($variant_type:path) ),* $(,)?
         }
     ) => {
         $( #[$attr] )*
         $visibility enum $name {
             $(
+                $(
+                    #[$variant_attr]
+                )*
                 $variant($variant_type),
             )*
         }
@@ -164,6 +167,8 @@ tab_enum! {
     }
 }
 
+// I tried adding #[cfg] support in the macro and it would compile but rust-analyzer wasn't happy with it
+#[cfg(not(target_arch = "wasm32"))]
 window_enum! {
     pub enum Window {
         About(windows::about::Window),
@@ -171,6 +176,25 @@ window_enum! {
         CommonEvent(windows::common_event_edit::Window),
         ProjectConfig(windows::config_window::Window),
         Console(windows::console::Window),
+        EventEdit(windows::event_edit::Window),
+        GlobalConfig(windows::global_config_window::Window),
+        Items(windows::items::Window),
+        MapPicker(windows::map_picker::Window),
+        EguiInspection(windows::misc::EguiInspection),
+        EguiMemory(windows::misc::EguiMemory),
+        FilesystemDebug(windows::misc::FilesystemDebug),
+        NewProject(windows::new_project::Window),
+        ScriptEdit(windows::script_edit::Window),
+        SoundTest(windows::sound_test::Window)
+    }
+}
+#[cfg(target_arch = "wasm32")]
+window_enum! {
+    pub enum Window {
+        About(windows::about::Window),
+        Appearance(windows::appearance::Window),
+        CommonEvent(windows::common_event_edit::Window),
+        ProjectConfig(windows::config_window::Window),
         EventEdit(windows::event_edit::Window),
         GlobalConfig(windows::global_config_window::Window),
         Items(windows::items::Window),

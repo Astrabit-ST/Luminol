@@ -57,6 +57,8 @@ pub enum Error {
     Wasm32FilesystemNotSupported,
     #[error("Invalid project folder")]
     InvalidProjectFolder,
+    #[error("Could not restore project handle from IndexedDB")]
+    MissingIDB,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

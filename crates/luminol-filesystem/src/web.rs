@@ -129,9 +129,9 @@ impl FileSystem {
     }
 
     /// Attempts to restore a previously created `FileSystem` using its `.idb_key()`.
-    pub async fn from_idb_key(idb_key: String) -> Option<Self> {
+    pub async fn from_idb_key(idb_key: String) -> Result<Self> {
         if !Self::filesystem_supported() {
-            return None;
+            return Err(Error::Wasm32FilesystemNotSupported);
         }
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         filesystem_tx_or_die()
@@ -149,6 +149,7 @@ impl FileSystem {
                 name,
                 idb_key: Some(idb_key),
             })
+            .ok_or(Error::MissingIDB)
     }
 
     /// Creates a new `FileSystem` from a subdirectory of this one.

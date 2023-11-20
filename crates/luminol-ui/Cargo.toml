@@ -44,3 +44,6 @@ anyhow.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 luminol-term = { version = "0.4.0", path = "../luminol-term/" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.poll-promise]
+features = ["web"]

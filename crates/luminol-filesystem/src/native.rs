@@ -43,7 +43,7 @@ impl FileSystem {
         }
     }
 
-    pub async fn from_pile_picker() -> Result<Self> {
+    pub async fn from_file_picker() -> Result<Self> {
         if let Some(path) = rfd::AsyncFileDialog::default()
             .add_filter("project file", &["rxproj", "rvproj", "rvproj2", "lumproj"])
             .pick_file()
