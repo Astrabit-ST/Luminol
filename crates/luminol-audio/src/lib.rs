@@ -106,7 +106,7 @@ impl Audio {
 
     pub fn play_from_file(
         &self,
-        file: impl luminol_filesystem::File,
+        file: impl std::io::Read + std::io::Seek + Send + Sync + 'static,
         is_midi: bool,
         volume: u8,
         pitch: u8,

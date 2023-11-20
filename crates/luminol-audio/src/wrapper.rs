@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_filesystem::File;
 use poll_promise::Promise;
 
 use super::{Audio, Result, Source};
@@ -42,7 +41,7 @@ pub struct AudioWrapperCommand(AudioWrapperCommandInner);
 
 enum AudioWrapperCommandInner {
     Play {
-        file: Box<dyn File>,
+        cursor: std::io::Cursor<Vec<u8>>,
         is_midi: bool,
         volume: u8,
         pitch: u8,
@@ -89,7 +88,8 @@ impl AudioWrapper {
         // otherwise if we read the file in the main thread of a web browser
         // we will block the main thread
         let path = path.as_ref();
-        let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read)?;
+        let file = filesystem.read(path)?;
+        let cursor = std::io::Cursor::new(file);
 
         let is_midi = path
             .extension()
@@ -98,7 +98,7 @@ impl AudioWrapper {
         let (oneshot_tx, oneshot_rx) = flume::bounded(1);
         self.tx
             .send(AudioWrapperCommand(AudioWrapperCommandInner::Play {
-                file: Box::new(file),
+                cursor,
                 is_midi,
                 volume,
                 pitch,
@@ -167,7 +167,7 @@ impl From<Audio> for AudioWrapper {
 
                 match command.0 {
                     AudioWrapperCommandInner::Play {
-                        file,
+                        cursor,
                         is_midi,
                         volume,
                         pitch,
@@ -175,7 +175,7 @@ impl From<Audio> for AudioWrapper {
                         oneshot_tx,
                     } => {
                         oneshot_tx
-                            .send(audio.play_from_file(file, is_midi, volume, pitch, source))
+                            .send(audio.play_from_file(cursor, is_midi, volume, pitch, source))
                             .unwrap();
                     }
 
