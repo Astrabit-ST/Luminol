@@ -104,7 +104,7 @@ impl luminol_core::Tab for Tab {
                 // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    self.load_project_promise = Some(poll_promise::Promise::spawn_async(
+                    self.load_filesystem_promise = Some(poll_promise::Promise::spawn_async(
                         luminol_filesystem::host::FileSystem::from_file_picker(),
                     ));
                 }
