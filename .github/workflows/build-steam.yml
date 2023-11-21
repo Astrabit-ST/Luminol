@@ -1,6 +1,10 @@
 on: 
   push:
     branches: dev
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - '**.md'
   workflow_dispatch:
 
 name: Autobuild Steam
