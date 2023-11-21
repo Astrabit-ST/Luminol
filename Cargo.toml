@@ -109,7 +109,7 @@ tracing-wasm = "0.2"
 tracing-log = "0.1.3"
 wasm-bindgen = "0.2.87"
 poll-promise = { version = "0.3.0", features = ["web"] }
-tokio = { version = "1.32", features = ["sync"] }
+tokio = { version = "1.34", features = ["sync"] }
 wasm-bindgen-futures = "0.4"
 indexed_db_futures = "0.3.0"
 rodio = { version = "0.17.1", features = ["wasm-bindgen"] }
