@@ -26,22 +26,43 @@ struct Autotiles {
     frame_counts: array<u32, 7>
 }
 
+#if USE_PUSH_CONSTANTS == true
+struct PushConstants {
+    viewport: Viewport,
+    autotiles: Autotiles,
+    opacity: f32,
+}
+var<push_constant> push_constants: PushConstants;
+#else
+@group(1) @binding(0)
+var<uniform> viewport: Viewport;
+@group(2) @binding(0)
+var<storage, read> autotiles: Autotiles;
+@group(3) @binding(0)
+var<uniform> opacity: array<vec4<f32>, 1>;
+#endif
+
 @vertex
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
     out.layer = instance.layer;
 
+#if USE_PUSH_CONSTANTS == true
+    let viewport = push_constants.viewport;
+    let autotiles = push_constants.autotiles;
+#endif
+
     if instance.tile_id < 48 {
         return out;
     }
 
-    let position = HOST.viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * 32.), 0.0, 1.0);
+    let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * 32.), 0.0, 1.0);
     out.clip_position = vec4<f32>(position.xy, instance.tile_position.z, 1.0);
 
     let is_autotile = instance.tile_id < 384;
 
     // 1712 is the number of non-autotile tiles that can fit under the autotiles without wrapping around
-    let max_tiles_under_autotiles = i32(HOST.autotiles.max_frame_count) * 1712;
+    let max_tiles_under_autotiles = i32(autotiles.max_frame_count) * 1712;
     let is_under_autotiles = !is_autotile && instance.tile_id - 384 < max_tiles_under_autotiles;
 
     var atlas_tile_position: vec2<f32>;
@@ -61,15 +82,22 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
         } else {
             atlas_tile_position = vec2<f32>(
             // If the tile is not an autotile and is not located underneath the autotiles in the atlas
-                f32((instance.tile_id % 8 + ((instance.tile_id - 384 - max_tiles_under_autotiles) / 2048 + i32(HOST.autotiles.max_frame_count)) * 8) * 32),
+                f32((instance.tile_id % 8 + ((instance.tile_id - 384 - max_tiles_under_autotiles) / 2048 + i32(autotiles.max_frame_count)) * 8) * 32),
                 f32((instance.tile_id - 384 - max_tiles_under_autotiles) / 8 % 256 * 32)
             );
         }
     }
 
     if is_autotile {
-        let frame_count = HOST.autotiles.frame_counts[instance.tile_id / 48 - 1];
-        let frame = HOST.autotiles.animation_index % frame_count;
+// we get an error about non constant indexing without this.
+// not sure why
+#if USE_PUSH_CONSTANTS == true
+        let frame_count = push_constants.autotiles.frame_counts[instance.tile_id / 48 - 1];
+#else
+        let frame_count = autotiles.frame_counts[instance.tile_id / 48 - 1];
+#endif
+
+        let frame = autotiles.animation_index % frame_count;
         atlas_tile_position.x += f32(frame * 256u);
     }
     let tex_size = vec2<f32>(textureDimensions(atlas));
@@ -86,7 +114,13 @@ var atlas_sampler: sampler;
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(atlas, atlas_sampler, input.tex_coords);
-    color.a *= FRAGMENT_OPACITY;
+
+#if USE_PUSH_CONSTANTS == true
+    let layer_opacity = push_constants.opacity;
+#else
+    let layer_opacity = opacity[input.layer / 4u][input.layer % 4u];
+#endif
+    color.a *= layer_opacity;
 
     if color.a <= 0.0 {
         discard;

@@ -19,6 +19,19 @@ struct Graphic {
     opacity_multiplier: f32,
 }
 
+#if USE_PUSH_CONSTANTS == true
+struct PushConstants {
+    viewport: Viewport,
+    graphic: Graphic,
+}
+var<push_constant> push_constants: PushConstants;
+#else
+@group(1) @binding(0)
+var<uniform> viewport: Viewport;
+@group(2) @binding(0)
+var<uniform> graphic: Graphic;
+#endif
+
 @group(0) @binding(0)
 var t_diffuse: texture_2d<f32>;
 @group(0) @binding(1)
@@ -53,7 +66,11 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    var position = HOST.viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
+#if USE_PUSH_CONSTANTS == true
+    let viewport = push_constants.viewport;
+#endif
+
+    var position = viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
 
     out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
     return out;
@@ -62,15 +79,20 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    tex_sample.a *= HOST.graphic.opacity * HOST.graphic.opacity_multiplier;
+
+#if USE_PUSH_CONSTANTS == true
+    let graphic = push_constants.graphic;
+#endif
+
+    tex_sample.a *= graphic.opacity * graphic.opacity_multiplier;
     if tex_sample.a <= 0. {
         discard;
     }
 
-    if HOST.graphic.hue > 0.0 {
+    if graphic.hue > 0.0 {
         var hsv = rgb_to_hsv(tex_sample.rgb);
 
-        hsv.x += HOST.graphic.hue;
+        hsv.x += graphic.hue;
         tex_sample = vec4<f32>(hsv_to_rgb(hsv), tex_sample.a);
     }
 

@@ -22,49 +22,38 @@ pub fn create_render_pipeline(
     render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &crate::BindGroupLayouts,
 ) -> wgpu::RenderPipeline {
-    let shader_module = if crate::push_constants_supported(render_state) {
-        render_state
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("tilemap.wgsl (push constants)"),
-                source: wgpu::ShaderSource::Wgsl(
-                    const_format::str_replace!(
-                        const_format::str_replace!(
-                            concat!(
-                                include_str!("tilemap_header_push_constants.wgsl"),
-                                include_str!("tilemap.wgsl"),
-                            ),
-                            "FRAGMENT_OPACITY",
-                            "HOST.opacity"
-                        ),
-                        "HOST.",
-                        "push_constants."
-                    )
-                    .into(),
-                ),
-            })
-    } else {
-        render_state
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("tilemap.wgsl (uniforms)"),
-                source: wgpu::ShaderSource::Wgsl(
-                    const_format::str_replace!(
-                        const_format::str_replace!(
-                            concat!(
-                                include_str!("tilemap_header_uniforms.wgsl"),
-                                include_str!("tilemap.wgsl"),
-                            ),
-                            "FRAGMENT_OPACITY",
-                            "HOST.opacity[input.layer / 4u][input.layer % 4u]"
-                        ),
-                        "HOST.",
-                        ""
-                    )
-                    .into(),
-                ),
-            })
+    let push_constants_supported = crate::push_constants_supported(render_state);
+
+    let mut composer = naga_oil::compose::Composer::default().with_capabilities(
+        push_constants_supported
+            .then_some(naga::valid::Capabilities::PUSH_CONSTANT)
+            .unwrap_or_default(),
+    );
+
+    let result = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
+        source: include_str!("tilemap.wgsl"),
+        file_path: "tilemap.wgsl",
+        shader_type: naga_oil::compose::ShaderType::Wgsl,
+        shader_defs: std::collections::HashMap::from([(
+            "USE_PUSH_CONSTANTS".to_string(),
+            naga_oil::compose::ShaderDefValue::Bool(push_constants_supported),
+        )]),
+        additional_imports: &[],
+    });
+    let module = match result {
+        Ok(module) => module,
+        Err(e) => {
+            let error = e.emit_to_string(&composer);
+            panic!("{error}");
+        }
     };
+
+    let shader_module = render_state
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Tilemap Shader Module"),
+            source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
+        });
 
     let pipeline_layout = if crate::push_constants_supported(render_state) {
         render_state
@@ -93,7 +82,7 @@ pub fn create_render_pipeline(
                 bind_group_layouts: &[
                     &bind_group_layouts.image_cache_texture,
                     &bind_group_layouts.viewport,
-                    &bind_group_layouts.viewport,
+                    &bind_group_layouts.atlas_autotiles,
                     &bind_group_layouts.tile_layer_opacity,
                 ],
                 push_constant_ranges: &[],

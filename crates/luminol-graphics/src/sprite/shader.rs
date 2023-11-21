@@ -20,47 +20,39 @@ fn create_shader(
     bind_group_layouts: &crate::BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> wgpu::RenderPipeline {
-    let shader_module = if crate::push_constants_supported(render_state) {
-        render_state
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("sprite.wgsl (push constants)"),
-                source: wgpu::ShaderSource::Wgsl(
-                    const_format::str_replace!(
-                        concat!(
-                            include_str!("sprite_header_push_constants.wgsl"),
-                            include_str!("sprite.wgsl"),
-                        ),
-                        "HOST.",
-                        "push_constants."
-                    )
-                    .into(),
-                ),
-            })
-    } else {
-        render_state
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("sprite.wgsl (uniforms)"),
-                source: wgpu::ShaderSource::Wgsl(
-                    const_format::str_replace!(
-                        concat!(
-                            include_str!("sprite_header_uniforms.wgsl"),
-                            include_str!("sprite.wgsl"),
-                        ),
-                        "HOST.",
-                        ""
-                    )
-                    .into(),
-                ),
-            })
-    };
+    let push_constants_supported = crate::push_constants_supported(render_state);
 
-    let pipeline_layout =
+    let mut composer = naga_oil::compose::Composer::default().with_capabilities(
+        push_constants_supported
+            .then_some(naga::valid::Capabilities::PUSH_CONSTANT)
+            .unwrap_or_default(),
+    );
+
+    let module = composer
+        .make_naga_module(naga_oil::compose::NagaModuleDescriptor {
+            source: include_str!("sprite.wgsl"),
+            file_path: "sprite.wgsl",
+            shader_type: naga_oil::compose::ShaderType::Wgsl,
+            shader_defs: std::collections::HashMap::from([(
+                "USE_PUSH_CONSTANTS".to_string(),
+                naga_oil::compose::ShaderDefValue::Bool(push_constants_supported),
+            )]),
+            additional_imports: &[],
+        })
+        .expect("failed to create sprite shader module");
+
+    let shader_module = render_state
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Sprite Shader Module"),
+            source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
+        });
+
+    let pipeline_layout = if push_constants_supported {
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Sprite Pipeline Layout"),
+                label: Some("Tilemap Sprite Pipeline Layout (push constants)"),
                 bind_group_layouts: &[&bind_group_layouts.image_cache_texture],
                 push_constant_ranges: &[
                     // Viewport
@@ -73,7 +65,20 @@ fn create_shader(
                         range: 64..(64 + 4 + 4 + 4),
                     },
                 ],
-            });
+            })
+    } else {
+        render_state
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Tilemap Sprite Pipeline Layout (uniforms)"),
+                bind_group_layouts: &[
+                    &bind_group_layouts.image_cache_texture,
+                    &bind_group_layouts.viewport,
+                    &bind_group_layouts.sprite_graphic,
+                ],
+                push_constant_ranges: &[],
+            })
+    };
     render_state
         .device
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
