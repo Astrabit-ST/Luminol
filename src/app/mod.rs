@@ -217,15 +217,13 @@ impl luminol_app::CustomApp for App {
             }
         });
 
-        let mut edit_windows = luminol_core::EditWindows::default();
-        let mut edit_tabs = luminol_core::EditTabs::default();
         let mut update_state = luminol_core::UpdateState {
             audio: &mut self.audio,
             graphics: self.graphics.clone(),
             filesystem: &mut self.filesystem,
             data: &mut self.data,
-            edit_windows: &mut edit_windows,
-            edit_tabs: &mut edit_tabs,
+            edit_windows: &mut luminol_core::EditWindows::default(),
+            edit_tabs: &mut luminol_core::EditTabs::default(),
             toasts: &mut self.toasts,
             project_config: &mut self.project_config,
             global_config: &mut self.global_config,
@@ -239,6 +237,14 @@ impl luminol_app::CustomApp for App {
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
                 self.top_bar.ui(ui, frame, &mut update_state);
+
+                // Process edit tabs for any changes made by top bar.
+                // If we don't do this before displaying windows and tabs, any changes made by the top bar will be delayed a frame.
+                // This means closing the project, for example, won't close tabs until the frame after.
+                self.tabs
+                    .process_edit_tabs(std::mem::take(update_state.edit_tabs));
+                self.windows
+                    .process_edit_windows(std::mem::take(update_state.edit_windows));
             });
         });
 
@@ -254,8 +260,10 @@ impl luminol_app::CustomApp for App {
 
         // If we don't do this tabs added by windows won't be added.
         // It also cleans up code nicely.
-        self.tabs.process_edit_tabs(edit_tabs);
-        self.windows.process_edit_windows(edit_windows);
+        self.tabs
+            .process_edit_tabs(std::mem::take(update_state.edit_tabs));
+        self.windows
+            .process_edit_windows(std::mem::take(update_state.edit_windows));
 
         // Show toasts.
         self.toasts.show(ctx);

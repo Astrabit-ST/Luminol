@@ -27,7 +27,7 @@ use strum::IntoEnumIterator;
 /// The top bar for managing the project.
 #[derive(Default)]
 pub struct TopBar {
-    load_project_promise: Option<poll_promise::Promise<PromiseResult>>,
+    load_filesystem_promise: Option<poll_promise::Promise<PromiseResult>>,
 
     fullscreen: bool,
 }
@@ -70,7 +70,7 @@ impl TopBar {
                 "No project open".to_string()
             });
 
-            ui.add_enabled_ui(self.load_project_promise.is_none(), |ui| {
+            ui.add_enabled_ui(self.load_filesystem_promise.is_none(), |ui| {
                 if ui.button("New Project").clicked() {
                     update_state
                         .edit_windows
@@ -96,6 +96,8 @@ impl TopBar {
                     update_state.edit_tabs.clean(|t| !t.requires_filesystem());
                     update_state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
                     update_state.filesystem.unload_project();
+                    *update_state.project_config = None;
+                    update_state.data.unload();
                 }
 
                 save_project |= ui.button("Save Project").clicked();
@@ -280,13 +282,13 @@ impl TopBar {
         if open_project {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                self.load_project_promise = Some(poll_promise::Promise::spawn_async(
+                self.load_filesystem_promise = Some(poll_promise::Promise::spawn_async(
                     luminol_filesystem::host::FileSystem::from_file_picker(),
                 ));
             }
             #[cfg(target_arch = "wasm32")]
             {
-                self.load_project_promise = Some(poll_promise::Promise::spawn_local(
+                self.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
                     luminol_filesystem::host::FileSystem::from_folder_picker(),
                 ));
             }
@@ -302,30 +304,78 @@ impl TopBar {
             }
         }
 
-        if let Some(p) = self.load_project_promise.take() {
+        let mut filesystem_open_result = None;
+        #[cfg(target_arch = "wasm32")]
+        let mut idb_key = None;
+
+        if let Some(p) = self.load_filesystem_promise.take() {
             match p.try_take() {
                 Ok(Ok(host)) => {
-                    if let Err(why) = update_state.data.load(
-                        update_state.filesystem,
-                        // TODO code jank
-                        update_state.project_config.as_mut().unwrap(),
-                    ) {
-                        update_state
-                            .toasts
-                            .error(why.context("while loading project data").to_string());
-                    } else {
-                        update_state.toasts.info(format!(
-                            "Successfully opened {:?}",
-                            update_state
-                                .filesystem
-                                .project_path()
-                                .expect("project not open")
-                        ));
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        idb_key = host.idb_key().map(str::to_string);
                     }
+
+                    filesystem_open_result = Some(update_state.filesystem.load_project(
+                        host,
+                        update_state.project_config,
+                        update_state.global_config,
+                    ));
                 }
                 Ok(Err(error)) => update_state.toasts.error(error.to_string()),
-                Err(p) => self.load_project_promise = Some(p),
+                Err(p) => self.load_filesystem_promise = Some(p),
             }
+
+            ui.spinner();
+        }
+
+        match filesystem_open_result {
+            Some(Ok(load_result)) => {
+                for missing_rtp in load_result.missing_rtps {
+                    update_state.toasts.warning(format!(
+                        "Failed to find suitable path for the RTP {missing_rtp}"
+                    ));
+                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
+                    #[cfg(not(target_arch = "wasm32"))]
+                    update_state
+                        .toasts
+                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
+                    #[cfg(target_arch = "wasm32")]
+                    update_state
+                        .toasts
+                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
+                }
+
+                if let Err(why) = update_state.data.load(
+                    update_state.filesystem,
+                    // TODO code jank
+                    update_state.project_config.as_mut().unwrap(),
+                ) {
+                    update_state
+                        .toasts
+                        .error(format!("Error loading the project data: {why}"));
+
+                    #[cfg(target_arch = "wasm32")]
+                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
+                } else {
+                    update_state.toasts.info(format!(
+                        "Successfully opened {:?}",
+                        update_state
+                            .filesystem
+                            .project_path()
+                            .expect("project not open")
+                    ));
+                }
+            }
+            Some(Err(why)) => {
+                update_state
+                    .toasts
+                    .error(format!("Error opening the project: {why}"));
+
+                #[cfg(target_arch = "wasm32")]
+                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
+            }
+            None => {}
         }
     }
 }

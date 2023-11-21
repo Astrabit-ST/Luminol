@@ -121,7 +121,8 @@ impl luminol_core::Tab for Tab {
 
         ui.heading("Recent");
 
-        // FIXME
+        // FIXME this logic is shared with the top bar
+        // We should probably join the two
         for path in update_state.global_config.recent_projects.clone() {
             #[cfg(target_arch = "wasm32")]
             let (path, idb_key) = path;
@@ -151,7 +152,6 @@ impl luminol_core::Tab for Tab {
                     update_state.toasts.warning(format!(
                         "Failed to find suitable path for the RTP {missing_rtp}"
                     ));
-                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
                     #[cfg(not(target_arch = "wasm32"))]
                     update_state
                         .toasts
@@ -164,7 +164,6 @@ impl luminol_core::Tab for Tab {
 
                 if let Err(why) = update_state.data.load(
                     update_state.filesystem,
-                    // TODO code jank
                     update_state.project_config.as_mut().unwrap(),
                 ) {
                     update_state
