@@ -45,7 +45,7 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(render_pass);
+        self.resources.viewport.bind(1, render_pass);
         self.resources
             .sprite
             .draw(&self.graphics_state, &self.resources.viewport, render_pass);

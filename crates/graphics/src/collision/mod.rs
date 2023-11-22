@@ -132,7 +132,6 @@ impl Collision {
         }
 
         render_pass.push_debug_group("tilemap collision renderer");
-        render_pass.set_bind_group(0, &graphics_state.dummy_group, &[]);
         render_pass.set_pipeline(&graphics_state.pipelines.collision);
         if self.use_push_constants {
             render_pass.set_push_constants(

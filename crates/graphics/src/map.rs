@@ -70,7 +70,7 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(render_pass);
+        self.resources.viewport.bind(1, render_pass);
 
         if self.pano_enabled {
             if let Some(panorama) = &self.resources.panorama {
@@ -95,7 +95,7 @@ impl egui_wgpu::CallbackTrait for OverlayCallback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(render_pass);
+        self.resources.viewport.bind(1, render_pass);
 
         if self.fog_enabled {
             if let Some(fog) = &self.resources.fog {
@@ -104,6 +104,7 @@ impl egui_wgpu::CallbackTrait for OverlayCallback {
         }
 
         if self.coll_enabled {
+            self.resources.viewport.bind(0, render_pass);
             self.resources.collision.draw(
                 &self.graphics_state,
                 &self.resources.viewport,

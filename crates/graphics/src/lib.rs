@@ -40,8 +40,6 @@ pub struct GraphicsState {
 
     pipelines: Pipelines,
     bind_group_layouts: BindGroupLayouts,
-
-    dummy_group: wgpu::BindGroup,
 }
 
 pub struct BindGroupLayouts {
@@ -50,7 +48,6 @@ pub struct BindGroupLayouts {
     sprite_graphic: wgpu::BindGroupLayout,
     atlas_autotiles: wgpu::BindGroupLayout,
     tile_layer_opacity: wgpu::BindGroupLayout,
-    dummy: wgpu::BindGroupLayout,
 }
 
 pub struct Pipelines {
@@ -61,28 +58,12 @@ pub struct Pipelines {
 
 impl GraphicsState {
     pub fn new(render_state: egui_wgpu::RenderState) -> Self {
-        let dummy =
-            render_state
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[],
-                    label: None,
-                });
-        let dummy_group = render_state
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &dummy,
-                entries: &[],
-                label: None,
-            });
-
         let bind_group_layouts = BindGroupLayouts {
             image_cache_texture: image_cache::create_bind_group_layout(&render_state),
             viewport: viewport::create_bind_group_layout(&render_state),
             sprite_graphic: sprite::graphic::create_bind_group_layout(&render_state),
             atlas_autotiles: tiles::autotiles::create_bind_group_layout(&render_state),
             tile_layer_opacity: tiles::opacity::create_bind_group_layout(&render_state),
-            dummy,
         };
 
         let pipelines = Pipelines {
@@ -103,7 +84,6 @@ impl GraphicsState {
             render_state,
             pipelines,
             bind_group_layouts,
-            dummy_group,
         }
     }
 

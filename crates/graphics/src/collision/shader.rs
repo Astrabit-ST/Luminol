@@ -60,7 +60,7 @@ pub fn create_render_pipeline(
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Tilemap Collision Render Pipeline Layout (push constants)"),
-                bind_group_layouts: &[&bind_group_layouts.dummy],
+                bind_group_layouts: &[],
                 push_constant_ranges: &[
                     // Viewport
                     wgpu::PushConstantRange {
@@ -74,7 +74,7 @@ pub fn create_render_pipeline(
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Tilemap Collision Render Pipeline Layout (uniforms)"),
-                bind_group_layouts: &[&bind_group_layouts.dummy, &bind_group_layouts.viewport],
+                bind_group_layouts: &[&bind_group_layouts.viewport],
                 push_constant_ranges: &[],
             })
     };

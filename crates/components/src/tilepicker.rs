@@ -58,7 +58,7 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(render_pass);
+        self.resources.viewport.bind(1, render_pass);
         self.resources.tiles.draw(
             &self.graphics_state,
             &self.resources.viewport,
@@ -68,6 +68,7 @@ impl egui_wgpu::CallbackTrait for Callback {
         );
 
         if self.coll_enabled {
+            self.resources.viewport.bind(0, render_pass);
             self.resources.collision.draw(
                 &self.graphics_state,
                 &self.resources.viewport,

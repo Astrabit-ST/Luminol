@@ -90,9 +90,13 @@ impl Viewport {
         }
     }
 
-    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn bind<'rpass>(
+        &'rpass self,
+        group_index: u32,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+    ) {
         if let Some(uniform) = &self.uniform {
-            render_pass.set_bind_group(1, &uniform.bind_group, &[]);
+            render_pass.set_bind_group(group_index, &uniform.bind_group, &[]);
         }
     }
 }
