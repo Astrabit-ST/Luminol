@@ -30,7 +30,7 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: luminol_core::Tabs::new("script_editor"),
+            tabs: luminol_core::Tabs::new("script_editor", false),
         }
     }
 }

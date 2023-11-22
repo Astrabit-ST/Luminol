@@ -33,7 +33,7 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: luminol_core::Tabs::new("common_event_tabs"),
+            tabs: luminol_core::Tabs::new("common_event_tabs", false),
             selected_id: 0,
         }
     }

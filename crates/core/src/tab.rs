@@ -27,6 +27,7 @@ pub struct Tabs {
     dock_state: egui_dock::DockState<Box<dyn Tab>>,
 
     id: egui::Id,
+    allowed_in_windows: bool,
 }
 
 #[derive(Default)]
@@ -42,20 +43,27 @@ struct TabViewer<'a, 'res> {
     // FIXME: variance
     update_state: &'a mut crate::UpdateState<'res>,
     focused_id: Option<egui::Id>,
+    allowed_in_windows: bool,
 }
 
 impl Tabs {
-    pub fn new(id: impl std::hash::Hash) -> Self {
+    pub fn new(id: impl std::hash::Hash, allowed_in_windows: bool) -> Self {
         Self {
             id: egui::Id::new(id),
+            allowed_in_windows,
             dock_state: egui_dock::DockState::new(Vec::with_capacity(4)),
         }
     }
 
     /// Create a new Tab viewer without any tabs.
-    pub fn new_with_tabs(id: impl std::hash::Hash, tabs: Vec<impl Tab + 'static>) -> Self {
+    pub fn new_with_tabs(
+        id: impl std::hash::Hash,
+        tabs: Vec<impl Tab + 'static>,
+        allowed_in_windows: bool,
+    ) -> Self {
         Self {
             id: egui::Id::new(id),
+            allowed_in_windows,
             dock_state: egui_dock::DockState::new(
                 tabs.into_iter().map(|t| Box::new(t) as Box<_>).collect(),
             ),
@@ -97,6 +105,7 @@ impl Tabs {
                         &mut TabViewer {
                             update_state,
                             focused_id,
+                            allowed_in_windows: self.allowed_in_windows,
                         },
                     );
             });
@@ -236,6 +245,10 @@ impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
         // We need to disable scroll bars for at least the map editor because otherwise it'll start
         // jiggling when the screen or tab is resized. We're not making that type of game.
         [false, false]
+    }
+
+    fn allowed_in_windows(&self, _tab: &mut Self::Tab) -> bool {
+        self.allowed_in_windows
     }
 }
 
