@@ -94,18 +94,18 @@ rfd = "0.12.0"
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 
-luminol-audio = { version = "0.4.0", path = "crates/luminol-audio/" }
-luminol-app = { version = "0.4.0", path = "crates/luminol-app/" }
-luminol-components = { version = "0.4.0", path = "crates/luminol-components/" }
-luminol-config = { version = "0.4.0", path = "crates/luminol-config/" }
-luminol-core = { version = "0.4.0", path = "crates/luminol-core/" }
-luminol-data = { version = "0.4.0", path = "crates/luminol-data/" }
-luminol-filesystem = { version = "0.4.0", path = "crates/luminol-filesystem/" }
-luminol-graphics = { version = "0.4.0", path = "crates/luminol-graphics/" }
-luminol-macros = { version = "0.4.0", path = "crates/luminol-macros/" }
-luminol-modals = { version = "0.4.0", path = "crates/luminol-modals/" }
-luminol-term = { version = "0.4.0", path = "crates/luminol-term/" }
-luminol-ui = { version = "0.4.0", path = "crates/luminol-ui/" }
+luminol-audio = { version = "0.4.0", path = "crates/audio/" }
+luminol-app = { version = "0.4.0", path = "crates/app/" }
+luminol-components = { version = "0.4.0", path = "crates/components/" }
+luminol-config = { version = "0.4.0", path = "crates/config/" }
+luminol-core = { version = "0.4.0", path = "crates/core/" }
+luminol-data = { version = "0.4.0", path = "crates/data/" }
+luminol-filesystem = { version = "0.4.0", path = "crates/filesystem/" }
+luminol-graphics = { version = "0.4.0", path = "crates/graphics/" }
+luminol-macros = { version = "0.4.0", path = "crates/macros/" }
+luminol-modals = { version = "0.4.0", path = "crates/modals/" }
+luminol-term = { version = "0.4.0", path = "crates/term/" }
+luminol-ui = { version = "0.4.0", path = "crates/ui/" }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -135,8 +135,8 @@ luminol-data.workspace = true
 luminol-filesystem.workspace = true
 luminol-graphics.workspace = true
 luminol-ui.workspace = true
-# luminol-windows = { version = "0.1.0", path = "../luminol-windows/" }
-# luminol-tabs = { version = "0.1.0", path = "../luminol-tabs/" }
+# luminol-windows = { version = "0.1.0", path = "../windows/" }
+# luminol-tabs = { version = "0.1.0", path = "../tabs/" }
 
 poll-promise.workspace = true
 
@@ -177,7 +177,7 @@ js-sys = "0.3"
 
 flume.workspace = true
 
-luminol-web = { version = "0.4.0", path = "crates/luminol-web/" }
+luminol-web = { version = "0.4.0", path = "crates/web/" }
 
 tracing-wasm = "0.2"
 tracing-log = "0.1.3"

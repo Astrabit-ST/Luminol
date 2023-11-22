@@ -44,7 +44,7 @@ once_cell.workspace = true
 rand.workspace = true
 slab.workspace = true
 
-luminol-web = { version = "0.4.0", path = "../luminol-web/" }
+luminol-web = { version = "0.4.0", path = "../web/" }
 
 flume.workspace = true
 oneshot.workspace = true
