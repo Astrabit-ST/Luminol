@@ -190,36 +190,46 @@ impl luminol_core::Tab for Tab {
                     |ui| {
                         // TODO: Add layer enable button
                         // Display all layers.
-                        ui.columns(2, |columns| {
-                            columns[1].visuals_mut().button_frame = true;
-                            columns[0].label(egui::RichText::new("Panorama").underline());
-                            columns[1].checkbox(&mut self.view.map.pano_enabled, "👁");
+                        egui::Grid::new(self.id().with("layer_select"))
+                            .striped(true)
+                            .show(ui, |ui| {
+                                ui.label(egui::RichText::new("Panorama").underline());
+                                ui.checkbox(&mut self.view.map.pano_enabled, "👁");
+                                ui.end_row();
 
-                            for (index, layer) in
-                                self.view.map.enabled_layers.iter_mut().enumerate()
-                            {
-                                columns[0].selectable_value(
-                                    &mut self.view.selected_layer,
-                                    luminol_components::SelectedLayer::Tiles(index),
-                                    format!("Layer {}", index + 1),
-                                );
-                                columns[1].checkbox(layer, "👁");
-                            }
+                                for (index, layer) in
+                                    self.view.map.enabled_layers.iter_mut().enumerate()
+                                {
+                                    ui.columns(1, |columns| {
+                                        columns[0].selectable_value(
+                                            &mut self.view.selected_layer,
+                                            luminol_components::SelectedLayer::Tiles(index),
+                                            format!("Layer {}", index + 1),
+                                        );
+                                    });
+                                    ui.checkbox(layer, "👁");
+                                    ui.end_row();
+                                }
 
-                            // Display event layer.
-                            columns[0].selectable_value(
-                                &mut self.view.selected_layer,
-                                luminol_components::SelectedLayer::Events,
-                                egui::RichText::new("Events").italics(),
-                            );
-                            columns[1].checkbox(&mut self.view.event_enabled, "👁");
+                                // Display event layer.
+                                ui.columns(1, |columns| {
+                                    columns[0].selectable_value(
+                                        &mut self.view.selected_layer,
+                                        luminol_components::SelectedLayer::Events,
+                                        egui::RichText::new("Events").italics(),
+                                    );
+                                });
+                                ui.checkbox(&mut self.view.event_enabled, "👁");
+                                ui.end_row();
 
-                            columns[0].label(egui::RichText::new("Fog").underline());
-                            columns[1].checkbox(&mut self.view.map.fog_enabled, "👁");
+                                ui.label(egui::RichText::new("Fog").underline());
+                                ui.checkbox(&mut self.view.map.fog_enabled, "👁");
+                                ui.end_row();
 
-                            columns[0].label(egui::RichText::new("Collision").underline());
-                            columns[1].checkbox(&mut self.view.map.coll_enabled, "👁");
-                        });
+                                ui.label(egui::RichText::new("Collision").underline());
+                                ui.checkbox(&mut self.view.map.coll_enabled, "👁");
+                                ui.end_row();
+                            });
                     },
                 );
 
