@@ -44,23 +44,31 @@ struct Callback {
     resources: Arc<Resources>,
     graphics_state: Arc<crate::GraphicsState>,
 
-    fog_enabled: bool,
     pano_enabled: bool,
-    coll_enabled: bool,
     enabled_layers: Vec<bool>,
     selected_layer: Option<usize>,
+}
+
+struct OverlayCallback {
+    resources: Arc<Resources>,
+    graphics_state: Arc<crate::GraphicsState>,
+
+    fog_enabled: bool,
+    coll_enabled: bool,
 }
 
 // FIXME
 unsafe impl Send for Callback {}
 unsafe impl Sync for Callback {}
+unsafe impl Send for OverlayCallback {}
+unsafe impl Sync for OverlayCallback {}
 
 impl egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(render_pass);
 
@@ -77,6 +85,18 @@ impl egui_wgpu::CallbackTrait for Callback {
             self.selected_layer,
             render_pass,
         );
+    }
+}
+
+impl egui_wgpu::CallbackTrait for OverlayCallback {
+    fn paint<'a>(
+        &'a self,
+        _info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
+    ) {
+        self.resources.viewport.bind(render_pass);
+
         if self.fog_enabled {
             if let Some(fog) = &self.resources.fog {
                 fog.draw(&self.graphics_state, &self.resources.viewport, render_pass);
@@ -237,11 +257,27 @@ impl Map {
                 resources: self.resources.clone(),
                 graphics_state,
 
-                fog_enabled: self.fog_enabled,
                 pano_enabled: self.pano_enabled,
-                coll_enabled: self.coll_enabled,
                 enabled_layers: self.enabled_layers.clone(),
                 selected_layer,
+            },
+        ));
+    }
+
+    pub fn paint_overlay(
+        &mut self,
+        graphics_state: Arc<crate::GraphicsState>,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+    ) {
+        painter.add(egui_wgpu::Callback::new_paint_callback(
+            rect,
+            OverlayCallback {
+                resources: self.resources.clone(),
+                graphics_state,
+
+                fog_enabled: self.fog_enabled,
+                coll_enabled: self.coll_enabled,
             },
         ));
     }
