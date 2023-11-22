@@ -201,9 +201,12 @@ impl TopBar {
                     .add_window(luminol_ui::windows::misc::EguiMemory::default());
             }
 
-            let mut debug_on_hover = ui.ctx().debug_on_hover();
-            ui.toggle_value(&mut debug_on_hover, "Debug on hover");
-            ui.ctx().set_debug_on_hover(debug_on_hover);
+            #[cfg(debug_assertions)]
+            {
+                let mut debug_on_hover = ui.ctx().debug_on_hover();
+                ui.toggle_value(&mut debug_on_hover, "Debug on hover");
+                ui.ctx().set_debug_on_hover(debug_on_hover);
+            }
 
             ui.separator();
 
