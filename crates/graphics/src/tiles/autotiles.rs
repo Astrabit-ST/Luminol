@@ -30,12 +30,14 @@ struct AutotilesUniform {
     bind_group: wgpu::BindGroup,
 }
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Data {
+    autotile_frames: [u32; 7],
+    _array_padding: u32,
     ani_index: u32,
     autotile_region_width: u32,
-    autotile_frames: [u32; 7],
+    _end_padding: u64,
 }
 
 impl Autotiles {
@@ -48,6 +50,8 @@ impl Autotiles {
             autotile_frames: atlas.autotile_frames,
             autotile_region_width: atlas.autotile_width,
             ani_index: 0,
+            _array_padding: 0,
+            _end_padding: 0,
         };
 
         let uniform =
@@ -56,9 +60,7 @@ impl Autotiles {
                     &wgpu::util::BufferInitDescriptor {
                         label: Some("tilemap autotile buffer"),
                         contents: bytemuck::cast_slice(&[autotiles]),
-                        usage: wgpu::BufferUsages::STORAGE
-                            | wgpu::BufferUsages::COPY_DST
-                            | wgpu::BufferUsages::UNIFORM,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                     },
                 );
                 let bind_group = graphics_state.render_state.device.create_bind_group(
@@ -120,7 +122,7 @@ pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },

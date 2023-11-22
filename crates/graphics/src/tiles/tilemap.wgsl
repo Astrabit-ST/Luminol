@@ -21,9 +21,9 @@ struct Viewport {
 }
 
 struct Autotiles {
+    frame_counts: array<vec4<u32>, 2>,
     animation_index: u32,
     max_frame_count: u32,
-    frame_counts: array<u32, 7>
 }
 
 #if USE_PUSH_CONSTANTS == true
@@ -37,7 +37,7 @@ var<push_constant> push_constants: PushConstants;
 @group(1) @binding(0)
 var<uniform> viewport: Viewport;
 @group(2) @binding(0)
-var<storage, read> autotiles: Autotiles;
+var<uniform> autotiles: Autotiles;
 @group(3) @binding(0)
 var<uniform> opacity: array<vec4<f32>, 1>;
 #endif
@@ -89,12 +89,13 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     }
 
     if is_autotile {
+        let autotile_type = instance.tile_id / 48 - 1;
 // we get an error about non constant indexing without this.
 // not sure why
 #if USE_PUSH_CONSTANTS == true
-        let frame_count = push_constants.autotiles.frame_counts[instance.tile_id / 48 - 1];
+        let frame_count = push_constants.autotiles.frame_counts[autotile_type / 4][autotile_type % 4];
 #else
-        let frame_count = autotiles.frame_counts[instance.tile_id / 48 - 1];
+        let frame_count = autotiles.frame_counts[autotile_type / 4][autotile_type % 4];
 #endif
 
         let frame = autotiles.animation_index % frame_count;
