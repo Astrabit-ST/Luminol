@@ -169,6 +169,7 @@ impl luminol_core::Tab for Tab {
                 ui.add(
                     egui::Slider::new(&mut self.view.scale, 15.0..=300.)
                         .text("Scale")
+                        .logarithmic(true)
                         .fixed_decimals(0),
                 );
 
