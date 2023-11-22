@@ -247,7 +247,7 @@ impl luminol_core::Tab for Tab {
         // Display the tilepicker.
         let spacing = ui.spacing();
         let tilepicker_default_width = 256.
-            + 3. * spacing.window_margin.left
+            + spacing.indent
             + spacing.scroll_bar_inner_margin
             + spacing.scroll_bar_width
             + spacing.scroll_bar_outer_margin;
