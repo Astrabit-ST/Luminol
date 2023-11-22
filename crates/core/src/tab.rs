@@ -142,7 +142,8 @@ impl Tabs {
             .dock_state
             .find_active_focused()
             .map(|(_, tab)| tab.id());
-        let mut active_tab = None;
+        let focused_leaf = self.dock_state.focused_leaf();
+        let mut focused_leaf_was_removed = focused_leaf.is_none();
 
         // i hate egui dock
         for i in 0.. {
@@ -151,43 +152,52 @@ impl Tabs {
             };
 
             if let Some(tree) = surface.node_tree_mut() {
-                let mut is_empty = !egui_dock::SurfaceIndex(i).is_main();
+                let mut is_window_empty = !egui_dock::SurfaceIndex(i).is_main();
+                let mut empty_leaves = Vec::new();
 
                 for (j, node) in tree.iter_mut().enumerate() {
-                    if let egui_dock::Node::Leaf { tabs, .. } = node {
+                    if let egui_dock::Node::Leaf { active, tabs, .. } = node {
                         tabs.retain(&mut f);
 
                         if !tabs.is_empty() {
-                            is_empty = false;
+                            is_window_empty = false;
+                        } else {
+                            empty_leaves.push(egui_dock::NodeIndex(j));
+                            if focused_leaf.is_some_and(|(surface_index, node_index)| {
+                                i == surface_index.0 && j == node_index.0
+                            }) {
+                                focused_leaf_was_removed = true;
+                            }
                         }
 
-                        // Check if the originally focused tab is inside this node
                         if let Some((k, _)) = focused_id
                             .and_then(|id| tabs.iter().enumerate().find(|(_, tab)| tab.id() == id))
                         {
-                            active_tab = Some((i, j, k));
+                            // If the previously focused tab hasn't been removed, refocus it
+                            // since its index in the `tabs` array may have changed
+                            *active = egui_dock::TabIndex(k);
+                        } else if active.0 >= tabs.len() {
+                            // If the active tab index for this leaf node is out of bounds, reset
+                            // it to the first tab in this node
+                            *active = egui_dock::TabIndex(0);
                         }
                     }
                 }
 
-                // We need to remove empty windows or we'll cause a crash
-                if is_empty {
+                if is_window_empty {
+                    // Remove empty windows
                     self.dock_state.remove_surface(egui_dock::SurfaceIndex(i));
+                } else {
+                    for node_index in empty_leaves {
+                        // Remove empty leaf nodes
+                        tree.remove_leaf(node_index);
+                    }
                 }
             }
         }
 
-        // If the previously focused tab hasn't been removed, refocus it since the index may have
-        // changed, otherwise the application may crash due to out-of-bounds vector access
-        if let Some((i, j, k)) = active_tab {
-            self.dock_state.set_active_tab((
-                egui_dock::SurfaceIndex(i),
-                egui_dock::NodeIndex(j),
-                egui_dock::TabIndex(k),
-            ));
-        }
-        // Otherwise we need to unfocus all tabs, again to prevent a crash
-        else {
+        // If the previously focused leaf node was removed, unfocus all tabs
+        if focused_leaf_was_removed {
             self.dock_state.set_focused_node_and_surface((
                 egui_dock::SurfaceIndex(usize::MAX),
                 egui_dock::NodeIndex(usize::MAX),
