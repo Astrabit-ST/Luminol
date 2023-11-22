@@ -49,6 +49,7 @@ pub struct MapView {
     pub darken_unselected_layers: bool,
 
     pub scale: f32,
+    pub previous_scale: f32,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
@@ -137,6 +138,7 @@ impl MapView {
             selected_event_is_hovered: false,
 
             scale: 100.,
+            previous_scale: 100.,
         })
     }
 
@@ -165,6 +167,12 @@ impl MapView {
         let clip_offset = (max_clip - min_clip) / 2.;
         let canvas_rect = ui.ctx().screen_rect().intersect(canvas_rect);
 
+        // If the user changed the scale using the scale slider, pan the map so that the scale uses
+        // the center of the visible part of the map as the scale center
+        if self.scale != self.previous_scale {
+            self.pan = self.inter_tile_pan + self.pan * self.scale / self.previous_scale;
+        }
+
         // Handle zoom
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
@@ -181,6 +189,8 @@ impl MapView {
             // Still not sure how the math works out, if it ain't broke don't fix it
             self.pan = pos - canvas_center - pos_norm * self.scale + self.inter_tile_pan;
         }
+
+        self.previous_scale = self.scale;
 
         let ctrl_drag = ui.input(|i| {
             if is_focused {
