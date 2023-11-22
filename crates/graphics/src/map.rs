@@ -118,7 +118,6 @@ impl Map {
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         map: &luminol_data::rpg::Map,
-        passages: &luminol_data::Table2,
         tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
     ) -> anyhow::Result<Self> {
@@ -127,8 +126,14 @@ impl Map {
             .load_atlas(graphics_state, filesystem, tileset)?;
 
         let tiles = crate::tiles::Tiles::new(graphics_state, atlas, &map.data, use_push_constants);
-        let collision =
-            crate::collision::Collision::new(graphics_state, passages, use_push_constants);
+        let collision = crate::collision::Collision::new(
+            graphics_state,
+            &tileset.passages,
+            &tileset.priorities,
+            &map.data,
+            &map.events,
+            use_push_constants,
+        );
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
