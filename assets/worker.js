@@ -14,11 +14,12 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-import wasm_bindgen, { luminol_worker_start } from '/luminol.js';
 
 onmessage = async function (e) {
-    if (e.data[0] === 'init') {
-        await wasm_bindgen(undefined, e.data[1]);
-        await luminol_worker_start(e.data[2]);
-    }
+    const [fallback, memory, canvas] = e.data;
+
+    const luminol = await import(fallback ? '/luminol_webgl.js' : '/luminol.js');
+
+    await luminol.default(fallback ? '/luminol_webgl_bg.wasm' : '/luminol_bg.wasm', memory);
+    await luminol.luminol_worker_start(canvas);
 };

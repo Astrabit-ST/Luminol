@@ -14,7 +14,34 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-import wasm_bindgen, { luminol_main_start } from '/luminol.js';
 
-await wasm_bindgen();
-luminol_main_start();
+// Check if the user's browser supports WebGPU
+console.log('Checking for WebGPU support…');
+let gpu = false;
+try {
+    let adapter = await navigator.gpu?.requestAdapter();
+    gpu = typeof GPUAdapter === 'function' && adapter instanceof GPUAdapter;
+} catch (e) {}
+if (gpu) {
+    console.log('WebGPU is supported. Using WebGPU backend if available.');
+} else {
+    console.log('No support detected. Using WebGL backend if available.');
+}
+
+// If WebGPU is supported, always use luminol.js
+// If WebGPU is not supported, use luminol_webgl.js if it's available or fallback to luminol.js
+let fallback = false;
+let luminol;
+if (gpu) {
+    luminol = await import('/luminol.js');
+} else {
+    try {
+        luminol = await import('/luminol_webgl.js');
+        fallback = true;
+    } catch (e) {
+        luminol = await import ('/luminol.js');
+    }
+}
+
+await luminol.default(fallback ? '/luminol_webgl_bg.wasm' : '/luminol_bg.wasm');
+luminol.luminol_main_start(fallback);
