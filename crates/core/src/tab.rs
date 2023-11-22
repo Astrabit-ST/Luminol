@@ -182,6 +182,12 @@ impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
     fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
         tab.force_close()
     }
+
+    fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
+        // We need to disable scroll bars for at least the map editor because otherwise it'll start
+        // jiggling when the screen or tab is resized. We're not making that type of game.
+        [false, false]
+    }
 }
 
 /// A tab trait.
