@@ -205,7 +205,11 @@ pub fn luminol_main_start() {
     }));
 
     // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default();
+    tracing_wasm::set_as_global_default_with_config(
+        tracing_wasm::WASMLayerConfigBuilder::new()
+            .set_max_level(tracing::Level::INFO)
+            .build(),
+    );
 
     // Redirect log (currently used by egui) to tracing
     tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
