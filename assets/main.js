@@ -39,7 +39,7 @@ if (gpu) {
         luminol = await import('/luminol_webgl.js');
         fallback = true;
     } catch (e) {
-        luminol = await import ('/luminol.js');
+        luminol = await import('/luminol.js');
     }
 }
 
