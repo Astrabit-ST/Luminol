@@ -16,12 +16,16 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 // Check if the user's browser supports WebGPU
-console.log('Checking for WebGPU support…');
-let gpu = false;
-try {
-    let adapter = await navigator.gpu?.requestAdapter();
-    gpu = typeof GPUAdapter === 'function' && adapter instanceof GPUAdapter;
-} catch (e) {}
+console.log('Checking for WebGPU support in web workers…');
+const worker = new Worker("/webgpu-test-worker.js");
+const promise = new Promise(function (resolve) {
+    worker.onmessage = function (e) {
+        resolve(e.data);
+    };
+});
+worker.postMessage(null);
+const gpu = await promise;
+worker.terminate();
 if (gpu) {
     console.log('WebGPU is supported. Using WebGPU backend if available.');
 } else {
