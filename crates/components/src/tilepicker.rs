@@ -243,11 +243,11 @@ impl Tilepicker {
                 pos
             };
             let rect = egui::Rect::from_two_pos(drag_origin, pos);
-            self.selected_tiles_left = (rect.left() as i16).max(0);
-            self.selected_tiles_right = (rect.right() as i16).min(7);
-            self.selected_tiles_top = (rect.top() as i16).max(0);
-            self.selected_tiles_bottom =
-                (rect.bottom() as i16).min(self.resources.tiles.atlas.tileset_height as i16 / 32);
+            let bottom = self.resources.tiles.atlas.tileset_height as i16 / 32;
+            self.selected_tiles_left = (rect.left() as i16).clamp(0, 7);
+            self.selected_tiles_right = (rect.right() as i16).clamp(0, 7);
+            self.selected_tiles_top = (rect.top() as i16).clamp(0, bottom);
+            self.selected_tiles_bottom = (rect.bottom() as i16).clamp(0, bottom);
         } else {
             self.drag_origin = None;
         }
