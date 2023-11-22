@@ -61,6 +61,33 @@
 - [ ] Tileset editor
 - [ ] System editor
 
+### RPG Maker VX Ace
+
+- [ ] Load from rvdata
+- [ ] Load projects
+- [ ] Make new projects
+- [ ] Create new maps
+- [ ] Reorder maps
+- [ ] Resize maps
+- [ ] Open events
+- [ ] Edit event commands
+- [ ] View event commands
+- [ ] Change tiles on map
+- [ ] Multiple brush types
+- [ ] Hardware accelerated tilemap
+- [ ] Actor editor
+- [ ] Class editor
+- [ ] Skill editor
+- [ ] Item editor
+- [ ] Weapon editor
+- [ ] Armor editor
+- [ ] Enemy editor
+- [ ] Troop editor
+- [ ] State editor
+- [ ] Animation editor
+- [ ] Tileset editor
+- [ ] System editor
+
 ### Extra functionality
 
 - [x] Edit multiple maps at the same time
