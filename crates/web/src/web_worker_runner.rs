@@ -113,7 +113,6 @@ struct WebWorkerRunnerState {
 }
 
 /// A runner for wgpu egui applications intended to be run in a web worker.
-/// Currently only targets WebGPU, not WebGL.
 #[derive(Clone)]
 pub struct WebWorkerRunner {
     state: std::rc::Rc<std::cell::RefCell<WebWorkerRunnerState>>,
@@ -452,15 +451,15 @@ impl WebWorkerRunner {
                     )
                 };
 
+                // Create texture to render onto
+                // This variable needs to live for the entire remaining duration we use
+                // `state.render_state` or WebGL will break
+                let render_texture = state.surface.get_current_texture().unwrap();
+
                 // Execute egui's render pass
                 {
                     let renderer = state.render_state.renderer.read();
-                    let view = state
-                        .surface
-                        .get_current_texture()
-                        .unwrap()
-                        .texture
-                        .create_view(&Default::default());
+                    let view = render_texture.texture.create_view(&Default::default());
                     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                             view: &view,
@@ -495,7 +494,7 @@ impl WebWorkerRunner {
                         .into_iter()
                         .chain(std::iter::once(encoder.finish())),
                 );
-                state.surface.get_current_texture().unwrap().present();
+                render_texture.present();
 
                 self.time_lock.store(
                     bindings::performance(&worker).now() / 1000.
