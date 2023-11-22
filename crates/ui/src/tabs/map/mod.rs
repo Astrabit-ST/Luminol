@@ -431,10 +431,19 @@ impl luminol_core::Tab for Tab {
                             // after adjusting for drag offset, unless that would put the event
                             // on the same tile as an existing event
                             let adjusted_hover_tile = hover_tile + info.offset;
-                            if !map.events.iter().any(|(_, e)| {
-                                adjusted_hover_tile.x == e.x as f32
-                                    && adjusted_hover_tile.y == e.y as f32
-                            }) {
+                            if egui::Rect::from_min_size(
+                                egui::pos2(0., 0.),
+                                egui::vec2(
+                                    map.data.xsize() as f32 - 0.5,
+                                    map.data.ysize() as f32 - 0.5,
+                                ),
+                            )
+                            .contains(adjusted_hover_tile)
+                                && !map.events.iter().any(|(_, e)| {
+                                    adjusted_hover_tile.x == e.x as f32
+                                        && adjusted_hover_tile.y == e.y as f32
+                                })
+                            {
                                 if let Some(selected_event) = map.events.get_mut(selected_event_id)
                                 {
                                     selected_event.x = adjusted_hover_tile.x as i32;
