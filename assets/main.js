@@ -17,7 +17,7 @@
 
 // Check if the user's browser supports WebGPU
 console.log('Checking for WebGPU support in web workers…');
-const worker = new Worker("/webgpu-test-worker.js");
+const worker = new Worker('/webgpu-test-worker.js');
 const promise = new Promise(function (resolve) {
     worker.onmessage = function (e) {
         resolve(e.data);
