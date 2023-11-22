@@ -110,6 +110,7 @@ impl MapView {
             &update_state.graphics,
             update_state.filesystem,
             &map,
+            &luminol_data::Table2::new(map.width, map.height),
             tileset,
             update_state.graphics.push_constants_supported(),
         )?;

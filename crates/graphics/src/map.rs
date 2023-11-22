@@ -27,6 +27,7 @@ pub struct Map {
 
     pub fog_enabled: bool,
     pub pano_enabled: bool,
+    pub coll_enabled: bool,
     pub enabled_layers: Vec<bool>,
 }
 
@@ -36,6 +37,7 @@ struct Resources {
     viewport: crate::viewport::Viewport,
     panorama: Option<Plane>,
     fog: Option<Plane>,
+    collision: crate::collision::Collision,
 }
 
 struct Callback {
@@ -44,6 +46,7 @@ struct Callback {
 
     fog_enabled: bool,
     pano_enabled: bool,
+    coll_enabled: bool,
     enabled_layers: Vec<bool>,
     selected_layer: Option<usize>,
 }
@@ -79,6 +82,14 @@ impl egui_wgpu::CallbackTrait for Callback {
                 fog.draw(&self.graphics_state, &self.resources.viewport, render_pass);
             }
         }
+
+        if self.coll_enabled {
+            self.resources.collision.draw(
+                &self.graphics_state,
+                &self.resources.viewport,
+                render_pass,
+            );
+        }
     }
 }
 
@@ -87,6 +98,7 @@ impl Map {
         graphics_state: &crate::GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         map: &luminol_data::rpg::Map,
+        passages: &luminol_data::Table2,
         tileset: &luminol_data::rpg::Tileset,
         use_push_constants: bool,
     ) -> anyhow::Result<Self> {
@@ -95,6 +107,8 @@ impl Map {
             .load_atlas(graphics_state, filesystem, tileset)?;
 
         let tiles = crate::tiles::Tiles::new(graphics_state, atlas, &map.data, use_push_constants);
+        let collision =
+            crate::collision::Collision::new(graphics_state, passages, use_push_constants);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
@@ -155,12 +169,14 @@ impl Map {
                 viewport,
                 panorama,
                 fog,
+                collision,
             }),
 
             ani_time: None,
 
             fog_enabled: true,
             pano_enabled: true,
+            coll_enabled: false,
             enabled_layers: vec![true; map.data.zsize()],
         })
     }
@@ -174,6 +190,17 @@ impl Map {
         self.resources
             .tiles
             .set_tile(render_state, tile_id, position);
+    }
+
+    pub fn set_passage(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        passage: i16,
+        position: (usize, usize),
+    ) {
+        self.resources
+            .collision
+            .set_passage(render_state, passage, position);
     }
 
     pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
@@ -212,6 +239,7 @@ impl Map {
 
                 fog_enabled: self.fog_enabled,
                 pano_enabled: self.pano_enabled,
+                coll_enabled: self.coll_enabled,
                 enabled_layers: self.enabled_layers.clone(),
                 selected_layer,
             },

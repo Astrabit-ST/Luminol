@@ -198,6 +198,9 @@ impl luminol_core::Tab for Tab {
 
                             columns[0].label(egui::RichText::new("Fog").underline());
                             columns[1].checkbox(&mut self.view.map.fog_enabled, "👁");
+
+                            columns[0].label(egui::RichText::new("Collision").underline());
+                            columns[1].checkbox(&mut self.view.map.coll_enabled, "👁");
                         });
                     },
                 );
