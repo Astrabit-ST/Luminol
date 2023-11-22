@@ -426,11 +426,31 @@ impl MapView {
                                 egui::Sense::click(),
                             );
                             if let Some((_, preview_sprite)) = sprites {
-                                if ui.ctx().screen_rect().contains_rect(response.rect) {
+                                if response.rect.is_positive() {
+                                    let clipped_rect =
+                                        ui.ctx().screen_rect().intersect(response.rect);
+                                    let proj_rect = egui::Rect::from_min_size(
+                                        (ui.ctx().screen_rect().min - response.rect.min)
+                                            .max(Default::default())
+                                            .to_pos2(),
+                                        preview_sprite.sprite_size * clipped_rect.size()
+                                            / response.rect.size(),
+                                    );
+                                    preview_sprite.set_proj(
+                                        &graphics_state.render_state,
+                                        glam::Mat4::orthographic_rh(
+                                            proj_rect.left(),
+                                            proj_rect.right(),
+                                            proj_rect.bottom(),
+                                            proj_rect.top(),
+                                            -1.,
+                                            1.,
+                                        ),
+                                    );
                                     preview_sprite.paint(
                                         graphics_state.clone(),
                                         &painter,
-                                        response.rect,
+                                        clipped_rect,
                                     );
                                 }
                             }
