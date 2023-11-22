@@ -72,6 +72,10 @@ pub struct Tab {
     tilemap_undo_cache: Vec<i16>,
     /// The layer tilemap_undo_cache refers to
     tilemap_undo_cache_layer: usize,
+
+    /// This stores the passage values for every position on the map so that we can figure out
+    /// which passage values have changed in the current frame
+    passages: luminol_data::Table2,
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -107,6 +111,17 @@ impl Tab {
         let map = update_state
             .data
             .get_or_load_map(id, update_state.filesystem);
+        let tilesets = update_state.data.tilesets();
+        let tileset = &tilesets[map.tileset_id];
+
+        let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
+        luminol_graphics::collision::calculate_passages(
+            &tileset.passages,
+            &tileset.priorities,
+            &map.data,
+            &map.events,
+            |x, y, passage| passages[(x, y)] = passage,
+        );
 
         Ok(Self {
             id,
@@ -131,6 +146,8 @@ impl Tab {
             redo_history: Vec::with_capacity(HISTORY_SIZE),
             tilemap_undo_cache: vec![0; map.data.xsize() * map.data.ysize()],
             tilemap_undo_cache_layer: 0,
+
+            passages,
         })
     }
 }
@@ -254,6 +271,8 @@ impl luminol_core::Tab for Tab {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 // Get the map.
                 let mut map = update_state.data.get_map(self.id);
+                let tilesets = update_state.data.tilesets();
+                let tileset = &tilesets[map.tileset_id];
 
                 // Save the state of the selected layer into the cache
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =
@@ -539,6 +558,24 @@ impl luminol_core::Tab for Tab {
                         }
                     }
                 }
+
+                // Update the collision preview
+                luminol_graphics::collision::calculate_passages(
+                    &tileset.passages,
+                    &tileset.priorities,
+                    &map.data,
+                    &map.events,
+                    |x, y, passage| {
+                        if self.passages[(x, y)] != passage {
+                            self.view.map.set_passage(
+                                &update_state.graphics.render_state,
+                                passage,
+                                (x, y),
+                            );
+                            self.passages[(x, y)] = passage;
+                        }
+                    },
+                );
             })
         });
 

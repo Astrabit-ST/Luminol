@@ -73,6 +73,15 @@ impl MapView {
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets[map.tileset_id];
 
+        let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
+        luminol_graphics::collision::calculate_passages(
+            &tileset.passages,
+            &tileset.priorities,
+            &map.data,
+            &map.events,
+            |x, y, passage| passages[(x, y)] = passage,
+        );
+
         let atlas = update_state.graphics.atlas_cache.load_atlas(
             &update_state.graphics,
             update_state.filesystem,
@@ -115,6 +124,7 @@ impl MapView {
             update_state.filesystem,
             &map,
             tileset,
+            &passages,
             update_state.graphics.push_constants_supported(),
         )?;
 

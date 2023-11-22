@@ -29,70 +29,82 @@ pub struct Collision {
     pub use_push_constants: bool,
 }
 
+/// Determines the passage values for every position on the map, running `f(x, y, passage)` for
+/// every position.
+pub fn calculate_passages(
+    passages: &luminol_data::Table1,
+    priorities: &luminol_data::Table1,
+    tiles: &luminol_data::Table3,
+    events: &luminol_data::OptionVec<luminol_data::rpg::Event>,
+    mut f: impl FnMut(usize, usize, i16),
+) {
+    let mut event_map = events
+        .iter()
+        .filter_map(|(_, event)| {
+            let Some(page) = event.pages.first() else {
+                return None;
+            };
+            if page.through {
+                return None;
+            }
+            let tile_event = page
+                .graphic
+                .tile_id
+                .map_or((15, 1), |id| (passages[id + 1], priorities[id + 1]));
+            Some(((event.x as usize, event.y as usize), tile_event))
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+
+    for (y, x) in (0..tiles.ysize()).cartesian_product(0..tiles.xsize()) {
+        let tile_event = event_map.remove(&(x, y));
+
+        f(
+            x,
+            y,
+            calculate_passage(
+                tile_event
+                    .into_iter()
+                    .chain((0..tiles.zsize()).rev().map(|z| {
+                        let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
+                        (passages[tile_id], priorities[tile_id])
+                    })),
+            ),
+        );
+    }
+}
+
+/// Determines the passage value for a position on the map given an iterator over the
+/// `(passage, priority)` values for the tiles in each layer on that position.
+/// The iterator should iterate over the layers from top to bottom.
+pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16)> + Clone) -> i16 {
+    let mut computed_passage = 0;
+
+    for direction in [1, 2, 4, 8] {
+        for (passage, priority) in layers.clone() {
+            if passage & direction != 0 {
+                computed_passage |= direction;
+                break;
+            } else if priority == 0 {
+                break;
+            }
+        }
+    }
+
+    computed_passage
+}
+
 impl Collision {
     pub fn new(
         graphics_state: &crate::GraphicsState,
-        passages: &luminol_data::Table1,
-        priorities: &luminol_data::Table1,
-        tiles: &luminol_data::Table3,
-        events: &luminol_data::OptionVec<luminol_data::rpg::Event>,
+        passages: &luminol_data::Table2,
         use_push_constants: bool,
     ) -> Self {
-        let mut event_map = events
-            .iter()
-            .filter_map(|(_, event)| {
-                let Some(page) = event.pages.first() else {
-                    return None;
-                };
-                if page.through {
-                    return None;
-                }
-                let tile_event = page
-                    .graphic
-                    .tile_id
-                    .map_or((15, 1), |id| (passages[id + 1], priorities[id + 1]));
-                Some(((event.x as usize, event.y as usize), tile_event))
-            })
-            .collect::<std::collections::HashMap<_, _>>();
-
-        let mut calculated_passages = luminol_data::Table2::new(tiles.xsize(), tiles.ysize());
-        for (y, x) in (0..tiles.ysize()).cartesian_product(0..tiles.xsize()) {
-            let tile_event = event_map.remove(&(x, y));
-
-            calculated_passages[(x, y)] = Self::calculate_passage(tile_event.into_iter().chain(
-                (0..tiles.zsize()).rev().map(|z| {
-                    let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
-                    (passages[tile_id], priorities[tile_id])
-                }),
-            ));
-        }
-
-        let instances = Instances::new(&graphics_state.render_state, &calculated_passages);
+        let instances = Instances::new(&graphics_state.render_state, &passages);
 
         Self {
             instances,
             use_push_constants,
         }
-    }
-
-    /// Determines the passage value for a position on the map given an iterator over the
-    /// `(passage, priority)` values for the tiles in each layer on that position.
-    /// The iterator should iterate over the layers from top to bottom.
-    pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16)> + Clone) -> i16 {
-        let mut computed_passage = 0;
-
-        for direction in [1, 2, 4, 8] {
-            for (passage, priority) in layers.clone() {
-                if passage & direction != 0 {
-                    computed_passage |= direction;
-                    break;
-                } else if priority == 0 {
-                    break;
-                }
-            }
-        }
-
-        computed_passage
     }
 
     pub fn set_passage(
