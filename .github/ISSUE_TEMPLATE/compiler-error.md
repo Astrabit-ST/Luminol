@@ -3,7 +3,7 @@ name: Compiler error
 about: Create a report of why luminol will not compile on a platform
 title: "[COMPILER]"
 labels: compiler
-assignees: somedevfox, Speak2Erase
+assignees: ''
 
 ---
 
