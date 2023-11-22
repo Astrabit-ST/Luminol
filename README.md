@@ -42,7 +42,7 @@ Additionally, to enable steamworks support pass `--features steamworks` to `carg
 
 Once cargo is finished compiling, the Luminol binary should be located at `target/release/luminol`. 
 
-If you enabled steamworks support you'll also need to grab the steamworks redistributable from `steamworks/redistributable_bin/`.
+If you enabled steamworks support you'll also need to place the steamworks redistributable from `steamworks/redistributable_bin/` alongside your Luminol binary.
 
 If you are on Linux, you will also need to grab `clang` and `mold` from your package manager. 
 If your particular distro doesn't have those (or you can't use them) you can comment out these lines in [.cargo/config.toml](/.cargo/config.toml):
