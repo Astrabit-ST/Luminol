@@ -255,8 +255,7 @@ impl MapView {
             self.hover_tile = Some(pos_tile.to_pos2());
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
-                || dragging_event
-                || response.clicked()
+                || ((dragging_event || response.clicked()) && ui.input(|i| !i.modifiers.command))
             {
                 self.cursor_pos = pos_tile.to_pos2();
             }
