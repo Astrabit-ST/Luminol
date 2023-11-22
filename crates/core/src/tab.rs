@@ -41,6 +41,7 @@ type CleanFn = Box<dyn Fn(&Box<dyn Tab>) -> bool>;
 struct TabViewer<'a, 'res> {
     // FIXME: variance
     update_state: &'a mut crate::UpdateState<'res>,
+    focused_id: Option<egui::Id>,
 }
 
 impl Tabs {
@@ -78,10 +79,20 @@ impl Tabs {
         let mut style = egui_dock::Style::from_egui(ui.style());
         style.overlay.surface_fade_opacity = 1.;
 
+        let focused_id = ui
+            .memory(|m| m.focus().is_none())
+            .then_some(self.dock_state.find_active_focused().map(|(_, t)| t.id()))
+            .flatten();
         egui_dock::DockArea::new(&mut self.dock_state)
             .id(self.id)
             .style(style)
-            .show_inside(ui, &mut TabViewer { update_state });
+            .show_inside(
+                ui,
+                &mut TabViewer {
+                    update_state,
+                    focused_id,
+                },
+            );
     }
 
     /// Display all tabs.
@@ -158,7 +169,14 @@ impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        ui.push_id(tab.id(), |ui| tab.show(ui, self.update_state));
+        let id = tab.id();
+        ui.push_id(id, |ui| {
+            tab.show(
+                ui,
+                self.update_state,
+                self.focused_id.is_some_and(|focused_id| focused_id == id),
+            )
+        });
     }
 
     fn force_close(&mut self, tab: &mut Self::Tab) -> bool {
@@ -177,7 +195,12 @@ pub trait Tab {
     fn id(&self) -> egui::Id;
 
     /// Show this tab.
-    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_>);
+    fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut crate::UpdateState<'_>,
+        is_focused: bool,
+    );
 
     /// Does this tab need the filesystem?
     fn requires_filesystem(&self) -> bool {
@@ -212,11 +235,12 @@ impl Tab for Box<dyn Tab + Send> {
         &mut self,
         ui: &mut egui::Ui,
         update_state: &mut crate::UpdateState<'res, W, T>,
+        is_focused: bool,
     ) where
         W: crate::Window,
         T: Tab,
     {
-        self.as_mut().show(ui, update_state)
+        self.as_mut().show(ui, update_state, is_focused)
     }
 }
 */

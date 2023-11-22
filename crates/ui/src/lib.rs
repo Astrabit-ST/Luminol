@@ -59,10 +59,10 @@ macro_rules! tab_enum {
                 }
             }
 
-            fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+            fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>, is_focused: bool) {
                 match self {
                     $(
-                        Self::$variant(v) => v.show(ui, update_state),
+                        Self::$variant(v) => v.show(ui, update_state, is_focused),
                     )*
                 }
             }
