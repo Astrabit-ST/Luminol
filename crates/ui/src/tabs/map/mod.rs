@@ -262,7 +262,8 @@ impl luminol_core::Tab for Tab {
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show_viewport(ui, |ui, rect| {
-                    self.tilepicker.ui(update_state, ui, rect);
+                    self.tilepicker
+                        .ui(update_state, ui, rect, self.view.map.coll_enabled);
                     ui.separator();
                 });
             });

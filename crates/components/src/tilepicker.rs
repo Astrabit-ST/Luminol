@@ -36,12 +36,15 @@ pub struct Tilepicker {
 #[derive(Debug)]
 struct Resources {
     tiles: luminol_graphics::tiles::Tiles,
+    collision: luminol_graphics::collision::Collision,
     viewport: luminol_graphics::viewport::Viewport,
 }
 
 struct Callback {
     resources: Arc<Resources>,
     graphics_state: Arc<luminol_graphics::GraphicsState>,
+
+    coll_enabled: bool,
 }
 
 // FIXME
@@ -51,9 +54,9 @@ unsafe impl Sync for Callback {}
 impl egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(render_pass);
         self.resources.tiles.draw(
@@ -63,6 +66,14 @@ impl egui_wgpu::CallbackTrait for Callback {
             None,
             render_pass,
         );
+
+        if self.coll_enabled {
+            self.resources.collision.draw(
+                &self.graphics_state,
+                &self.resources.viewport,
+                render_pass,
+            );
+        }
     }
 }
 
@@ -145,8 +156,24 @@ impl Tilepicker {
             update_state.graphics.push_constants_supported(),
         );
 
+        let mut passages =
+            luminol_data::Table2::new(tilepicker_data.xsize(), tilepicker_data.ysize());
+        for (y, x) in (0..tilepicker_data.ysize()).cartesian_product(0..tilepicker_data.xsize()) {
+            passages[(x, y)] =
+                tileset.passages[tilepicker_data[(x, y, 0)].try_into().unwrap_or_default()];
+        }
+        let collision = luminol_graphics::collision::Collision::new(
+            &update_state.graphics,
+            &passages,
+            update_state.graphics.push_constants_supported(),
+        );
+
         Ok(Self {
-            resources: Arc::new(Resources { tiles, viewport }),
+            resources: Arc::new(Resources {
+                tiles,
+                collision,
+                viewport,
+            }),
             ani_time: None,
             selected_tiles_left: 0,
             selected_tiles_top: 0,
@@ -172,6 +199,7 @@ impl Tilepicker {
         update_state: &luminol_core::UpdateState<'_>,
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
+        coll_enabled: bool,
     ) -> egui::Response {
         let time = ui.ctx().input(|i| i.time);
         let graphics_state = update_state.graphics.clone();
@@ -213,6 +241,7 @@ impl Tilepicker {
             Callback {
                 resources: self.resources.clone(),
                 graphics_state: graphics_state.clone(),
+                coll_enabled,
             },
         ));
 
