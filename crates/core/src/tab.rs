@@ -75,8 +75,12 @@ impl Tabs {
         ui: &mut egui::Ui,
         update_state: &mut crate::UpdateState<'_>,
     ) {
+        let mut style = egui_dock::Style::from_egui(ui.style());
+        style.overlay.surface_fade_opacity = 1.;
+
         egui_dock::DockArea::new(&mut self.dock_state)
             .id(self.id)
+            .style(style)
             .show_inside(ui, &mut TabViewer { update_state });
     }
 
@@ -84,16 +88,7 @@ impl Tabs {
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState) {
         let mut edit_tabs = EditTabs::default();
         let mut update_state = update_state.reborrow_with_edit_tabs(&mut edit_tabs);
-
-        egui_dock::DockArea::new(&mut self.dock_state)
-            .id(self.id)
-            .show_inside(
-                ui,
-                &mut TabViewer {
-                    update_state: &mut update_state,
-                },
-            );
-
+        self.ui_without_edit(ui, &mut update_state);
         self.process_edit_tabs(edit_tabs);
     }
 
