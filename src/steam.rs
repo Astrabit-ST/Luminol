@@ -21,41 +21,27 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
-use once_cell::sync::OnceCell;
-use parking_lot::Mutex;
 
 const APPID: u32 = 2501490;
 
 pub struct Steamworks {
     pub client: steamworks::Client<steamworks::ClientManager>,
-    pub single: Mutex<steamworks::SingleClient<steamworks::ClientManager>>,
+    pub single: parking_lot::Mutex<steamworks::SingleClient<steamworks::ClientManager>>,
 }
 
 impl Steamworks {
-    pub fn setup() -> Result<(), steamworks::SteamError> {
+    pub fn new() -> Result<Self, steamworks::SteamError> {
         let (client, single) = steamworks::Client::init_app(APPID)?;
-        let single = Mutex::new(single);
+        let single = parking_lot::Mutex::new(single);
 
         let steamworks = Steamworks { client, single };
 
-        STEAMWORKS
-            .set(steamworks)
-            .ok()
-            .expect("steamworks already initialized");
-
-        Ok(())
+        Ok(steamworks)
     }
 
-    pub fn get() -> &'static Self {
-        STEAMWORKS.get().expect("failed to get steamworks")
-    }
-
-    pub fn update() {
-        let steamworks = Self::get();
-        let single = steamworks.single.lock();
+    pub fn update(&self) {
+        let single = self.single.lock();
 
         single.run_callbacks();
     }
 }
-
-static STEAMWORKS: OnceCell<Steamworks> = OnceCell::new();

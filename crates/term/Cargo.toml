@@ -1,0 +1,25 @@
+[package]
+name = "luminol-term"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+egui.workspace = true
+# termwiz = "0.20.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+crossbeam-channel = "0.5"
+
+wezterm-term = { version = "0.1.0", git = "https://github.com/wez/wezterm", rev = "3666303c7b26c6c966b3f136dbb954686d334cc3" }
+portable-pty = { version = "0.8.1", git = "https://github.com/wez/wezterm", rev = "3666303c7b26c6c966b3f136dbb954686d334cc3" }
+termwiz = { version = "0.22.0", git = "https://github.com/wez/wezterm", rev = "3666303c7b26c6c966b3f136dbb954686d334cc3" }

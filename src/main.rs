@@ -1,5 +1,3 @@
-#![warn(clippy::all, rust_2018_idioms)]
-#![allow(clippy::uninlined_format_args)]
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -23,26 +21,59 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![warn(rust_2018_idioms)]
+#![warn(
+    clippy::all,
+    clippy::panic,
+    clippy::panic_in_result_fn,
+    clippy::panicking_unwrap,
+    clippy::unnecessary_wraps,
+    // unsafe code is sometimes fine but in general we don't want to use it.
+    unsafe_code,
+)]
+// These may be turned on in the future.
+// #![warn(clippy::unwrap, clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::doc_markdown,
+    clippy::missing_panics_doc,
+    clippy::too_many_lines
+)]
+// You must provide a safety doc.
+#![forbid(clippy::missing_safety_doc, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-
-use luminol::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+/// Embedded icon 256x256 in size.
+const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
+
+mod app;
+mod lumi;
+
+#[cfg(all(feature = "steamworks", target_arch = "wasm32"))]
+compile_error!("Steamworks is not supported on webassembly");
+
+#[cfg(feature = "steamworks")]
+mod steam;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     #[cfg(feature = "steamworks")]
-    if let Err(e) = luminol::steam::Steamworks::setup() {
-        rfd::MessageDialog::new()
-            .set_title("Error")
-            .set_level(rfd::MessageLevel::Error)
-            .set_description(format!(
-                "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
-            ))
-            .show();
-        return;
-    }
+    let steamworks = match steam::Steamworks::new() {
+        Ok(s) => s,
+        Err(e) => {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_level(rfd::MessageLevel::Error)
+                .set_description(format!(
+                    "Steam error: {e}\nPerhaps you want to compile yourself a free copy?"
+                ))
+                .show();
+            return;
+        }
+    };
 
     #[cfg(debug_assertions)]
     std::thread::spawn(|| loop {
@@ -58,7 +89,7 @@ fn main() {
         rfd::MessageDialog::new()
             .set_title("Fatal Error")
             .set_level(rfd::MessageLevel::Error)
-            .set_description(&format!(
+            .set_description(format!(
                 "Luminol has deadlocked! Please file an issue.\n{} deadlocks detected",
                 deadlocks.len()
             ))
@@ -82,14 +113,11 @@ fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    color_eyre::install().expect("failed to setup eyre hooks");
+    color_backtrace::BacktracePrinter::new()
+        .verbosity(color_backtrace::Verbosity::Full)
+        .install(color_backtrace::default_output_stream());
 
-    #[cfg(windows)]
-    if let Err(e) = setup_file_assocs() {
-        eprintln!("error setting up registry {e}")
-    }
-
-    let image = image::load_from_memory(luminol::ICON).expect("Failed to load Icon data.");
+    let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
     let native_options = eframe::NativeOptions {
         drag_and_drop_support: true,
@@ -97,12 +125,12 @@ fn main() {
         icon_data: Some(eframe::IconData {
             width: image.width(),
             height: image.height(),
-            rgba: image.into_bytes(),
+            rgba: image.to_rgba8().into_vec(),
         }),
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
             supported_backends: eframe::wgpu::util::backend_bits_from_env()
                 .unwrap_or(eframe::wgpu::Backends::PRIMARY),
-            device_descriptor: luminol::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
+            device_descriptor: std::sync::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
                 features: eframe::wgpu::Features::PUSH_CONSTANTS,
                 limits: eframe::wgpu::Limits {
@@ -113,13 +141,21 @@ fn main() {
             ..Default::default()
         },
         app_id: Some("astrabit.luminol".to_string()),
+        persist_window: true,
         ..Default::default()
     };
 
     eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, std::env::args_os().nth(1)))),
+        Box::new(|cc| {
+            Box::new(app::App::new(
+                cc,
+                std::env::args_os().nth(1),
+                #[cfg(feature = "steamworks")]
+                steamworks,
+            ))
+        }),
     )
     .expect("failed to start luminol");
 }
@@ -132,35 +168,38 @@ const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
-    audio: luminol::audio::AudioWrapper,
+    audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
-    filesystem_tx: mpsc::UnboundedSender<filesystem::web::FileSystemCommand>,
-    output_tx: mpsc::UnboundedSender<luminol::web::WebWorkerRunnerOutput>,
-    event_rx: mpsc::UnboundedReceiver<egui::Event>,
-    custom_event_rx: mpsc::UnboundedReceiver<luminol::web::WebWorkerRunnerEvent>,
+    filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
+    output_tx: flume::Sender<luminol_web::WebWorkerRunnerOutput>,
+    event_rx: flume::Receiver<egui::Event>,
+    custom_event_rx: flume::Receiver<luminol_web::WebWorkerRunnerEvent>,
 }
 
 #[cfg(target_arch = "wasm32")]
-static WORKER_DATA: Lazy<AtomicRefCell<Option<WorkerData>>> =
-    Lazy::new(|| AtomicRefCell::new(None));
+static WORKER_DATA: parking_lot::RwLock<Option<WorkerData>> = parking_lot::RwLock::new(None);
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start() {
-    let (panic_tx, mut panic_rx) = mpsc::unbounded_channel::<()>();
+    let (panic_tx, mut panic_rx) = flume::unbounded::<()>();
 
     wasm_bindgen_futures::spawn_local(async move {
-        if panic_rx.recv().await.is_some() {
+        if panic_rx.recv_async().await.is_ok() {
             let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
         }
     });
 
-    let (panic, _) = color_eyre::config::HookBuilder::new().into_hooks();
     std::panic::set_hook(Box::new(move |info| {
-        luminol::web::web_worker_runner::panic_hook();
+        luminol_web::web_worker_runner::panic_hook();
 
-        let report = panic.panic_report(info);
-        web_sys::console::log_1(&js_sys::JsString::from(report.to_string()));
+        let backtrace_printer =
+            color_backtrace::BacktracePrinter::new().verbosity(color_backtrace::Verbosity::Full);
+        let mut buffer = color_backtrace::termcolor::Ansi::new(vec![]);
+        backtrace_printer.print_panic_info(info, &mut buffer);
+        let report = String::from_utf8(buffer.into_inner()).expect("panic report not valid utf-8");
+
+        web_sys::console::log_1(&js_sys::JsString::from(report));
 
         let _ = panic_tx.send(());
     }));
@@ -187,26 +226,26 @@ pub fn luminol_main_start() {
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
 
-    if !luminol::web::bindings::cross_origin_isolated() {
+    if !luminol_web::bindings::cross_origin_isolated() {
         tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");
         return;
     }
 
-    let (filesystem_tx, filesystem_rx) = mpsc::unbounded_channel();
-    let (output_tx, output_rx) = mpsc::unbounded_channel();
-    let (event_tx, event_rx) = mpsc::unbounded_channel();
-    let (custom_event_tx, custom_event_rx) = mpsc::unbounded_channel();
+    let (filesystem_tx, filesystem_rx) = flume::unbounded();
+    let (output_tx, output_rx) = flume::unbounded();
+    let (event_tx, event_rx) = flume::unbounded();
+    let (custom_event_tx, custom_event_rx) = flume::unbounded();
 
-    filesystem::web::setup_main_thread_hooks(filesystem_rx);
-    luminol::web::web_worker_runner::setup_main_thread_hooks(
+    luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
+    luminol_web::web_worker_runner::setup_main_thread_hooks(
         canvas,
         event_tx.clone(),
         custom_event_tx.clone(),
         output_rx,
     );
 
-    *WORKER_DATA.borrow_mut() = Some(WorkerData {
-        audio: luminol::audio::Audio::default().into(),
+    *WORKER_DATA.write() = Some(WorkerData {
+        audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
         output_tx,
@@ -241,14 +280,14 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         output_tx,
         event_rx,
         custom_event_rx,
-    } = WORKER_DATA.borrow_mut().take().unwrap();
+    } = WORKER_DATA.write().take().unwrap();
 
-    filesystem::web::FileSystem::setup_filesystem_sender(filesystem_tx);
+    luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
 
     let web_options = eframe::WebOptions::default();
 
-    let runner = luminol::web::WebWorkerRunner::new(
-        Box::new(|cc| Box::new(luminol::Luminol::new(cc, None, audio))),
+    let runner = luminol_web::WebWorkerRunner::new(
+        Box::new(|cc| Box::new(app::App::new(cc, audio))),
         canvas,
         web_options,
         "astrabit.luminol",
@@ -259,55 +298,4 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     )
     .await;
     runner.setup_render_hooks();
-}
-
-#[cfg(windows)]
-fn setup_file_assocs() -> std::io::Result<()> {
-    /*
-       use winreg::enums::*;
-       use winreg::RegKey;
-
-       let path = std::env::current_exe().expect("failed to get current executable path");
-       let path = path.to_string_lossy();
-       let command = format!("\"{path}\" \"%1\"");
-
-       let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-
-       // RXPROJ
-       let (key, _) = hkcu.create_subkey("Software\\Classes\\.rxproj")?;
-       key.set_value("", &"Luminol.rxproj")?;
-       let (rxproj_key, _) = hkcu.create_subkey("Software\\Classes\\Luminol.rxproj")?;
-       rxproj_key.set_value("", &"RPG Maker XP Project")?;
-       let (open_key, _) = rxproj_key.create_subkey("shell\\open\\command")?;
-       open_key.set_value("", &command)?;
-       let (icon_key, _) = rxproj_key.create_subkey("DefaultIcon")?;
-       icon_key.set_value("", &format!("\"{path}\",2"))?;
-
-       // RXDATA
-       let (key, _) = hkcu.create_subkey("Software\\Classes\\.rxdata")?;
-       key.set_value("", &"Luminol.rxdata")?;
-       let (rxdata_key, _) = hkcu.create_subkey("Software\\Classes\\Luminol.rxdata")?;
-       rxdata_key.set_value("", &"RPG Maker XP Data")?;
-       let (icon_key, _) = rxdata_key.create_subkey("DefaultIcon")?;
-       icon_key.set_value("", &format!("\"{path}\",3"))?;
-
-       // LUMPROJ
-       let (key, _) = hkcu.create_subkey("Software\\Classes\\.lumproj")?;
-       key.set_value("", &"Luminol.lumproj")?;
-       let (lumproj_key, _) = hkcu.create_subkey("Software\\Classes\\Luminol.lumproj")?;
-       lumproj_key.set_value("", &"Luminol project")?;
-       let (open_key, _) = lumproj_key.create_subkey("shell\\open\\command")?;
-       open_key.set_value("", &command)?;
-       let (icon_key, _) = lumproj_key.create_subkey("DefaultIcon")?;
-       icon_key.set_value("", &format!("\"{path}\",4"))?;
-
-       let (app_key, _) = hkcu.create_subkey("Software\\Classes\\Applications\\luminol.exe")?;
-       app_key.set_value("FriendlyAppName", &"Luminol")?;
-       let (supported_key, _) = app_key.create_subkey("SupportedTypes")?;
-       supported_key.set_value(".rxproj", &"")?;
-       supported_key.set_value(".lumproj", &"")?;
-       let (open_key, _) = app_key.create_subkey("shell\\open\\command")?;
-       open_key.set_value("", &command)?;
-    */
-    Ok(())
 }

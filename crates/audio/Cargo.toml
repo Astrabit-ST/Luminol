@@ -1,0 +1,41 @@
+[package]
+name = "luminol-audio"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+rustysynth = "1.3.1"
+
+strum.workspace = true
+parking_lot.workspace = true
+camino.workspace = true
+once_cell.workspace = true
+
+thiserror.workspace = true
+
+luminol-filesystem.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rodio = "0.17.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+rodio = { version = "0.17.1", features = ["wasm-bindgen"] }
+web-sys = { version = "0.3", features = ["Window"] }
+
+flume.workspace = true
+oneshot.workspace = true
+
+once_cell.workspace = true
+poll-promise.workspace = true
+slab.workspace = true

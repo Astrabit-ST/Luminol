@@ -1,0 +1,69 @@
+[package]
+name = "luminol-filesystem"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rfd.workspace = true
+
+thiserror.workspace = true
+bitflags.workspace = true
+
+camino.workspace = true
+
+itertools.workspace = true
+
+dashmap.workspace = true
+parking_lot.workspace = true
+
+egui.workspace = true
+
+serde.workspace = true
+ron.workspace = true
+rust-ini.workspace = true
+
+tracing.workspace = true
+
+luminol-config.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.51.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+once_cell.workspace = true
+rand.workspace = true
+slab.workspace = true
+
+luminol-web = { version = "0.4.0", path = "../web/" }
+
+flume.workspace = true
+oneshot.workspace = true
+
+wasm-bindgen = "0.2.87"
+wasm-bindgen-futures = "0.4"
+indexed_db_futures = "0.4.1"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Blob",
+    "File",
+    "FileSystemCreateWritableOptions",
+    "FileSystemDirectoryHandle",
+    "FileSystemFileHandle",
+    "FileSystemGetDirectoryOptions",
+    "FileSystemGetFileOptions",
+    "FileSystemHandle",
+    "FileSystemHandleKind",
+    "FileSystemRemoveOptions",
+    "FileSystemWritableFileStream",
+    "WritableStream",
+] }

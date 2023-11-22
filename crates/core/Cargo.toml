@@ -1,0 +1,39 @@
+[package]
+name = "luminol-core"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+egui.workspace = true
+
+egui_dock = "0.8.2"
+egui-notify = "0.10.0"
+
+parking_lot.workspace = true
+
+anyhow.workspace = true
+camino.workspace = true
+bitflags.workspace = true
+
+strum.workspace = true
+serde.workspace = true
+alox-48.workspace = true
+
+rand.workspace = true
+getrandom.workspace = true
+
+luminol-audio.workspace = true
+luminol-config.workspace = true
+luminol-data.workspace = true
+luminol-filesystem.workspace = true
+luminol-graphics.workspace = true
