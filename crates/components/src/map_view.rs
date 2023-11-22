@@ -263,29 +263,31 @@ impl MapView {
 
         let graphics_state = graphics_state.clone();
 
-        self.map.set_proj(
-            &graphics_state.render_state,
-            glam::Mat4::orthographic_rh(
-                proj_center_x - proj_width2,
-                proj_center_x + proj_width2,
-                proj_center_y + proj_height2,
-                proj_center_y - proj_height2,
-                -1.,
-                1.,
-            ),
-        );
-        self.map.paint(
-            graphics_state.clone(),
-            ui.painter(),
-            match self.selected_layer {
-                SelectedLayer::Events => None,
-                SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
-                    Some(selected_layer)
-                }
-                SelectedLayer::Tiles(_) => None,
-            },
-            canvas_rect,
-        );
+        if ui.ctx().screen_rect().contains_rect(canvas_rect) {
+            self.map.set_proj(
+                &graphics_state.render_state,
+                glam::Mat4::orthographic_rh(
+                    proj_center_x - proj_width2,
+                    proj_center_x + proj_width2,
+                    proj_center_y + proj_height2,
+                    proj_center_y - proj_height2,
+                    -1.,
+                    1.,
+                ),
+            );
+            self.map.paint(
+                graphics_state.clone(),
+                ui.painter(),
+                match self.selected_layer {
+                    SelectedLayer::Events => None,
+                    SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
+                        Some(selected_layer)
+                    }
+                    SelectedLayer::Tiles(_) => None,
+                },
+                canvas_rect,
+            );
+        }
 
         ui.painter().rect_stroke(
             map_rect,
@@ -354,20 +356,24 @@ impl MapView {
                 );
 
                 if let Some((sprite, _)) = sprites {
-                    let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
-                    let y = event.y as f32 * 32. + (32. - event_size.y);
-                    sprite.set_proj(
-                        &graphics_state.render_state,
-                        glam::Mat4::orthographic_rh(
-                            proj_center_x - proj_width2 - x,
-                            proj_center_x + proj_width2 - x,
-                            proj_center_y + proj_height2 - y,
-                            proj_center_y - proj_height2 - y,
-                            -1.,
-                            1.,
-                        ),
-                    );
-                    sprite.paint(graphics_state.clone(), ui.painter(), canvas_rect);
+                    if ui.ctx().screen_rect().contains_rect(canvas_rect)
+                        && canvas_rect.intersects(box_rect)
+                    {
+                        let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
+                        let y = event.y as f32 * 32. + (32. - event_size.y);
+                        sprite.set_proj(
+                            &graphics_state.render_state,
+                            glam::Mat4::orthographic_rh(
+                                proj_center_x - proj_width2 - x,
+                                proj_center_x + proj_width2 - x,
+                                proj_center_y + proj_height2 - y,
+                                proj_center_y - proj_height2 - y,
+                                -1.,
+                                1.,
+                            ),
+                        );
+                        sprite.paint(graphics_state.clone(), ui.painter(), canvas_rect);
+                    }
                 }
 
                 if matches!(self.selected_layer, SelectedLayer::Events)
