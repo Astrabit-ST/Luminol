@@ -48,6 +48,7 @@ web-sys = { version = "0.3", features = [
 
     "Event",
     "MouseEvent",
+    "WheelEvent",
 
     "DedicatedWorkerGlobalScope",
     "WorkerGlobalScope",
