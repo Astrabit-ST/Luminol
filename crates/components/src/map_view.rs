@@ -164,10 +164,10 @@ impl MapView {
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
             let old_scale = self.scale;
-            let delta = ui.input(|i| i.scroll_delta.y * 5.);
+            let delta = ui.input(|i| i.scroll_delta.y);
 
             // Apply scroll and cap max zoom to 15%
-            self.scale += delta / 30.;
+            self.scale *= (delta / 9.0f32.exp2()).exp2();
             self.scale = self.scale.max(15.).min(300.);
 
             // Get the normalized cursor position relative to pan
