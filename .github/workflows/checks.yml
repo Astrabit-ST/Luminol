@@ -5,6 +5,10 @@ on:
       - '.vscode/**'
       - '**.md'
   pull_request:
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - '**.md'
   workflow_dispatch:
 
 name: CI
