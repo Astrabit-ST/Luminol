@@ -110,7 +110,7 @@ impl Instances {
     fn calculate_vertices(width: usize, height: usize) -> Vec<Vertex> {
         let mut vertices = Vec::with_capacity(width * height * 12);
 
-        for (y, x) in (0..width).cartesian_product(0..height) {
+        for (y, x) in (0..height).cartesian_product(0..width) {
             let rect =
                 egui::Rect::from_min_size(egui::pos2(x as f32, y as f32), egui::vec2(32., 32.));
             let center = glam::vec3(rect.center().x, rect.center().y, 0.);
