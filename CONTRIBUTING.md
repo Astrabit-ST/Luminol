@@ -20,7 +20,7 @@
 
 #### **Did you fix whitespace, format code, or make a purely cosmetic patch?**
 
-We do not generally accept these sorts of changes unless they substantially fix readability or fix a violation of the style guide.
+We do not generally accept these sorts of changes unless they substantially fix readability.
 
 #### **Do you intend to add a new feature or change an existing one?**
 
