@@ -534,6 +534,10 @@ impl MapView {
                     }
                 }
             }
+        } else {
+            // Draw the fog and collision layers
+            self.map
+                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
         }
 
         // Do we display the visible region?
