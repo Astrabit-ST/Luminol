@@ -78,7 +78,8 @@ impl MapView {
             &tileset.passages,
             &tileset.priorities,
             &map.data,
-            &map.events,
+            Some(&map.events),
+            (0..map.data.zsize()).rev(),
             |x, y, passage| passages[(x, y)] = passage,
         );
 

@@ -31,29 +31,36 @@ pub struct Collision {
 
 /// Determines the passage values for every position on the map, running `f(x, y, passage)` for
 /// every position.
+///
+/// `layers` should be an iterator over the enabled layer numbers of the map from top to bottom.
 pub fn calculate_passages(
     passages: &luminol_data::Table1,
     priorities: &luminol_data::Table1,
     tiles: &luminol_data::Table3,
-    events: &luminol_data::OptionVec<luminol_data::rpg::Event>,
+    events: Option<&luminol_data::OptionVec<luminol_data::rpg::Event>>,
+    layers: impl Iterator<Item = usize> + Clone,
     mut f: impl FnMut(usize, usize, i16),
 ) {
-    let mut event_map = events
-        .iter()
-        .filter_map(|(_, event)| {
-            let Some(page) = event.pages.first() else {
-                return None;
-            };
-            if page.through {
-                return None;
-            }
-            let tile_event = page
-                .graphic
-                .tile_id
-                .map_or((15, 1), |id| (passages[id + 1], priorities[id + 1]));
-            Some(((event.x as usize, event.y as usize), tile_event))
-        })
-        .collect::<std::collections::HashMap<_, _>>();
+    let mut event_map = if let Some(events) = events {
+        events
+            .iter()
+            .filter_map(|(_, event)| {
+                let Some(page) = event.pages.first() else {
+                    return None;
+                };
+                if page.through {
+                    return None;
+                }
+                let tile_event = page
+                    .graphic
+                    .tile_id
+                    .map_or((15, 1), |id| (passages[id + 1], priorities[id + 1]));
+                Some(((event.x as usize, event.y as usize), tile_event))
+            })
+            .collect()
+    } else {
+        std::collections::HashMap::new()
+    };
 
     for (y, x) in (0..tiles.ysize()).cartesian_product(0..tiles.xsize()) {
         let tile_event = event_map.remove(&(x, y));
@@ -61,14 +68,10 @@ pub fn calculate_passages(
         f(
             x,
             y,
-            calculate_passage(
-                tile_event
-                    .into_iter()
-                    .chain((0..tiles.zsize()).rev().map(|z| {
-                        let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
-                        (passages[tile_id], priorities[tile_id])
-                    })),
-            ),
+            calculate_passage(tile_event.into_iter().chain(layers.clone().map(|z| {
+                let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
+                (passages[tile_id], priorities[tile_id])
+            }))),
         );
     }
 }
