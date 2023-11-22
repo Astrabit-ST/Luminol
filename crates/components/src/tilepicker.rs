@@ -196,28 +196,31 @@ impl Tilepicker {
             egui::Sense::click_and_drag(),
         );
 
-        let absolute_scroll_rect = scroll_rect.translate(canvas_rect.min.to_vec2());
-        if ui.ctx().screen_rect().contains_rect(absolute_scroll_rect) {
-            self.resources.viewport.set_proj(
-                &graphics_state.render_state,
-                glam::Mat4::orthographic_rh(
-                    scroll_rect.left(),
-                    scroll_rect.right(),
-                    scroll_rect.bottom(),
-                    scroll_rect.top(),
-                    -1.,
-                    1.,
-                ),
-            );
-            // FIXME: move this into graphics
-            ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-                absolute_scroll_rect,
-                Callback {
-                    resources: self.resources.clone(),
-                    graphics_state: graphics_state.clone(),
-                },
-            ));
-        }
+        let absolute_scroll_rect = ui
+            .ctx()
+            .screen_rect()
+            .intersect(scroll_rect.translate(canvas_rect.min.to_vec2()));
+        let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
+
+        self.resources.viewport.set_proj(
+            &graphics_state.render_state,
+            glam::Mat4::orthographic_rh(
+                scroll_rect.left(),
+                scroll_rect.right(),
+                scroll_rect.bottom(),
+                scroll_rect.top(),
+                -1.,
+                1.,
+            ),
+        );
+        // FIXME: move this into graphics
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            absolute_scroll_rect,
+            Callback {
+                resources: self.resources.clone(),
+                graphics_state: graphics_state.clone(),
+            },
+        ));
 
         let rect = egui::Rect::from_x_y_ranges(
             (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,

@@ -160,6 +160,11 @@ impl MapView {
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
+        let min_clip = (ui.ctx().screen_rect().min - canvas_rect.min).max(Default::default());
+        let max_clip = (canvas_rect.max - ui.ctx().screen_rect().max).max(Default::default());
+        let clip_offset = (max_clip - min_clip) / 2.;
+        let canvas_rect = ui.ctx().screen_rect().intersect(canvas_rect);
+
         // Handle zoom
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
@@ -256,38 +261,36 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
-        let proj_center_x = width2 * 32. - self.pan.x / scale;
-        let proj_center_y = height2 * 32. - self.pan.y / scale;
+        let proj_center_x = width2 * 32. - (self.pan.x + clip_offset.x) / scale;
+        let proj_center_y = height2 * 32. - (self.pan.y + clip_offset.y) / scale;
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
 
         let graphics_state = graphics_state.clone();
 
-        if ui.ctx().screen_rect().contains_rect(canvas_rect) {
-            self.map.set_proj(
-                &graphics_state.render_state,
-                glam::Mat4::orthographic_rh(
-                    proj_center_x - proj_width2,
-                    proj_center_x + proj_width2,
-                    proj_center_y + proj_height2,
-                    proj_center_y - proj_height2,
-                    -1.,
-                    1.,
-                ),
-            );
-            self.map.paint(
-                graphics_state.clone(),
-                ui.painter(),
-                match self.selected_layer {
-                    SelectedLayer::Events => None,
-                    SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
-                        Some(selected_layer)
-                    }
-                    SelectedLayer::Tiles(_) => None,
-                },
-                canvas_rect,
-            );
-        }
+        self.map.set_proj(
+            &graphics_state.render_state,
+            glam::Mat4::orthographic_rh(
+                proj_center_x - proj_width2,
+                proj_center_x + proj_width2,
+                proj_center_y + proj_height2,
+                proj_center_y - proj_height2,
+                -1.,
+                1.,
+            ),
+        );
+        self.map.paint(
+            graphics_state.clone(),
+            ui.painter(),
+            match self.selected_layer {
+                SelectedLayer::Events => None,
+                SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
+                    Some(selected_layer)
+                }
+                SelectedLayer::Tiles(_) => None,
+            },
+            canvas_rect,
+        );
 
         ui.painter().rect_stroke(
             map_rect,
@@ -356,9 +359,7 @@ impl MapView {
                 );
 
                 if let Some((sprite, _)) = sprites {
-                    if ui.ctx().screen_rect().contains_rect(canvas_rect)
-                        && canvas_rect.intersects(box_rect)
-                    {
+                    if canvas_rect.intersects(box_rect) {
                         let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
                         let y = event.y as f32 * 32. + (32. - event_size.y);
                         sprite.set_proj(
