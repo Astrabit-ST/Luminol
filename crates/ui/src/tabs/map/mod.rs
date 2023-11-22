@@ -153,7 +153,7 @@ impl luminol_core::Tab for Tab {
         &mut self,
         ui: &mut egui::Ui,
         update_state: &mut luminol_core::UpdateState<'_>,
-        _is_focused: bool,
+        is_focused: bool,
     ) {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
@@ -274,6 +274,7 @@ impl luminol_core::Tab for Tab {
                     self.drawing_shape,
                     self.drawing_shape_pos,
                     matches!(update_state.toolbar.pencil, luminol_core::Pencil::Pen),
+                    is_focused,
                 );
 
                 let layers_max = map.data.zsize();
