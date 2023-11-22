@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use itertools::Itertools;
 use std::usize;
 
 impl super::Tab {
@@ -50,25 +51,23 @@ impl super::Tab {
                     self.drawing_shape_pos = Some(self.view.cursor_pos);
                     self.view.cursor_pos
                 };
-                for y in 0..height {
-                    for x in 0..width {
-                        // Skip out-of-bounds tiles
-                        if ((x == -1 && map_x == 0) || (x == 1 && map_x + 1 == map.data.xsize()))
-                            || ((y == -1 && map_y == 0)
-                                || (y == 1 && map_y + 1 == map.data.ysize()))
-                        {
-                            continue;
-                        }
+                for (y, x) in (0..height).cartesian_product(0..width) {
+                    let absolute_x = map_x + x as usize;
+                    let absolute_y = map_y + y as usize;
 
-                        self.set_tile(
-                            map,
-                            self.tilepicker.get_tile_from_offset(
-                                x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
-                                y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
-                            ),
-                            (map_x + x as usize, map_y + y as usize, tile_layer),
-                        );
+                    // Skip out-of-bounds tiles
+                    if absolute_x >= map.data.xsize() || absolute_y >= map.data.ysize() {
+                        continue;
                     }
+
+                    self.set_tile(
+                        map,
+                        self.tilepicker.get_tile_from_offset(
+                            x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
+                            y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
+                        ),
+                        (absolute_x, absolute_y, tile_layer),
+                    );
                 }
             }
 
