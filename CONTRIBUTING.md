@@ -16,8 +16,6 @@
 
 * Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
 
-* Ensure that your fix matches the style guide. You can read it in [STYLE.md](STYLE.md).
-
 #### **Did you fix whitespace, format code, or make a purely cosmetic patch?**
 
 We do not generally accept these sorts of changes unless they substantially fix readability.
