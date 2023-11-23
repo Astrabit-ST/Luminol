@@ -26,6 +26,12 @@ We do not generally accept these sorts of changes unless they substantially fix 
 
 * After there is a consensus on the new feature, you are free to make a pull request.
 
+#### **Did you make a commit to the repository?**
+
+As a general rule of thumb we use [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages. It's okay if you miss it occasionally though!
+
+You can use the [Conventional Commits](https://marketplace.visualstudio.com/items?itemName=vivaxy.vscode-conventional-commits) Visual Studio Code extension to automatically write conventional commit messages for you.
+
 #### **Do you have questions about the source code?**
 
 * Ask any question about code design in the [discord server](https://discord.gg/8jZKmesKJy).
