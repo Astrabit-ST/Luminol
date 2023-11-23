@@ -29,6 +29,16 @@ pub struct Collision {
     pub use_push_constants: bool,
 }
 
+#[derive(Debug, Clone)]
+pub enum CollisionType {
+    /// An event
+    Event,
+    /// A tile whose ID is less than 48 (i.e. a blank autotile)
+    BlankTile,
+    /// A tile whose ID is greater than or equal to 48
+    Tile,
+}
+
 /// Determines the passage values for every position on the map, running `f(x, y, passage)` for
 /// every position.
 ///
@@ -53,14 +63,17 @@ pub fn calculate_passages(
                 if page.through {
                     return None;
                 }
-                let tile_event = page.graphic.tile_id.map_or((15, 1), |id| {
-                    let tile_id = id + 1;
-                    if tile_id >= tileset_size {
-                        (0, 0)
-                    } else {
-                        (passages[tile_id], priorities[tile_id])
-                    }
-                });
+                let tile_event = page
+                    .graphic
+                    .tile_id
+                    .map_or((15, 1, CollisionType::Event), |id| {
+                        let tile_id = id + 1;
+                        if tile_id >= tileset_size {
+                            (0, 0, CollisionType::Event)
+                        } else {
+                            (passages[tile_id], priorities[tile_id], CollisionType::Event)
+                        }
+                    });
                 Some(((event.x as usize, event.y as usize), tile_event))
             })
             .collect()
@@ -76,10 +89,15 @@ pub fn calculate_passages(
             y,
             calculate_passage(tile_event.into_iter().chain(layers.clone().map(|z| {
                 let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
-                if tile_id >= tileset_size {
-                    (0, 0)
+                let collision_type = if tile_id < 48 {
+                    CollisionType::BlankTile
                 } else {
-                    (passages[tile_id], priorities[tile_id])
+                    CollisionType::Tile
+                };
+                if tile_id >= tileset_size {
+                    (0, 0, collision_type)
+                } else {
+                    (passages[tile_id], priorities[tile_id], collision_type)
                 }
             }))),
         );
@@ -87,14 +105,28 @@ pub fn calculate_passages(
 }
 
 /// Determines the passage value for a position on the map given an iterator over the
-/// `(passage, priority)` values for the tiles in each layer on that position.
+/// `(passage, priority, collision_type)` values for the tiles in each layer on that position.
 /// The iterator should iterate over the layers from top to bottom.
-pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16)> + Clone) -> i16 {
+pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16, CollisionType)> + Clone) -> i16 {
     let mut computed_passage = 0;
 
     for direction in [1, 2, 4, 8] {
-        for (passage, priority) in layers.clone() {
-            if passage & direction != 0 {
+        let mut at_least_one_layer_not_blank = false;
+        let mut layers = layers.clone().peekable();
+        while let Some((passage, priority, collision_type)) = layers.next() {
+            if matches!(
+                collision_type,
+                CollisionType::Tile | CollisionType::BlankTile
+            ) {
+                if matches!(collision_type, CollisionType::BlankTile)
+                    && (at_least_one_layer_not_blank || layers.peek().is_some())
+                {
+                    continue;
+                } else {
+                    at_least_one_layer_not_blank = true;
+                }
+            }
+            if passage & direction != 0 || passage & 0xf == 0xf {
                 computed_passage |= direction;
                 break;
             } else if priority == 0 {
