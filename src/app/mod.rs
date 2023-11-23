@@ -174,6 +174,7 @@ impl App {
             tabs: luminol_core::Tabs::new_with_tabs(
                 "luminol_main_tabs",
                 vec![luminol_ui::tabs::started::Tab::default()],
+                true,
             ),
             global_config,
             project_config,

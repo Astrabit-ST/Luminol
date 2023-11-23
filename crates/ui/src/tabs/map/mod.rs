@@ -28,6 +28,18 @@ use std::{cell::RefMut, collections::HashMap, collections::VecDeque};
 
 const HISTORY_SIZE: usize = 50;
 
+struct EventDragInfo {
+    /// ID of the event being dragged
+    id: usize,
+    /// Original x position of the event at the start of the drag
+    x: i32,
+    /// Original y position of the event at the start of the drag
+    y: i32,
+    /// Difference between the dragged event's tile and the cursor position, at the start of the
+    /// drag
+    offset: egui::Vec2,
+}
+
 use crate::windows::event_edit;
 
 use itertools::Itertools;
@@ -43,14 +55,11 @@ pub struct Tab {
     pub view: luminol_components::MapView,
     pub tilepicker: luminol_components::Tilepicker,
 
-    dragging_event: bool,
     drawing_shape: bool,
     event_windows: luminol_core::Windows,
     force_close: bool,
 
-    /// When event dragging starts, this is set to the difference between
-    /// the dragged event's tile and the cursor position
-    event_drag_offset: Option<egui::Vec2>,
+    event_drag_info: Option<EventDragInfo>,
 
     layer_cache: Vec<i16>,
 
@@ -114,12 +123,11 @@ impl Tab {
             view,
             tilepicker,
 
-            dragging_event: false,
             drawing_shape: false,
             event_windows: luminol_core::Windows::default(),
             force_close: false,
 
-            event_drag_offset: None,
+            event_drag_info: None,
 
             layer_cache: vec![0; map.data.xsize() * map.data.ysize()],
 
@@ -149,13 +157,19 @@ impl luminol_core::Tab for Tab {
         self.force_close
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+    fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        is_focused: bool,
+    ) {
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.add(
                     egui::Slider::new(&mut self.view.scale, 15.0..=300.)
                         .text("Scale")
+                        .logarithmic(true)
                         .fixed_decimals(0),
                 );
 
@@ -233,7 +247,7 @@ impl luminol_core::Tab for Tab {
         // Display the tilepicker.
         let spacing = ui.spacing();
         let tilepicker_default_width = 256.
-            + 3. * spacing.window_margin.left
+            + spacing.indent
             + spacing.scroll_bar_inner_margin
             + spacing.scroll_bar_width
             + spacing.scroll_bar_outer_margin;
@@ -265,19 +279,49 @@ impl luminol_core::Tab for Tab {
                     &update_state.graphics,
                     &map,
                     &self.tilepicker,
-                    self.dragging_event,
+                    self.event_drag_info.is_some(),
                     self.drawing_shape,
                     self.drawing_shape_pos,
                     matches!(update_state.toolbar.pencil, luminol_core::Pencil::Pen),
+                    is_focused,
                 );
 
                 let layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
                 let map_y = self.view.cursor_pos.y as i32;
 
-                if self.dragging_event && self.view.selected_event_id.is_none() {
-                    self.dragging_event = false;
-                    self.event_drag_offset = None;
+                let is_delete_pressed = is_focused
+                    && ui.input(|i| {
+                        i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
+                    });
+
+                // If the user stopped dragging an event or the user tried to delete an event while
+                // dragging it
+                if self.event_drag_info.as_ref().is_some_and(|info| {
+                    is_delete_pressed
+                        || !response.dragged_by(egui::PointerButton::Primary)
+                        || !self.view.selected_event_id.is_some_and(|id| info.id == id)
+                }) {
+                    let info = self.event_drag_info.take().unwrap();
+
+                    // If the event has moved from its original position, save the original
+                    // position to the history (we need to check if it has moved because otherwise
+                    // it'll also be saved if the user just clicks or double-clicks the event)
+                    if map
+                        .events
+                        .get(info.id)
+                        .is_some_and(|event| event.x != info.x || event.y != info.y)
+                    {
+                        self.redo_history.clear();
+                        if self.history.len() == HISTORY_SIZE {
+                            self.history.pop_front();
+                        }
+                        self.history.push_back(HistoryEntry::EventMoved {
+                            id: info.id,
+                            x: info.x,
+                            y: info.y,
+                        });
+                    }
                 }
 
                 if !response.dragged_by(egui::PointerButton::Primary) {
@@ -336,38 +380,17 @@ impl luminol_core::Tab for Tab {
                     }
                 } else if let Some(selected_event_id) = self.view.selected_event_id {
                     if response.double_clicked()
-                        || (response.hovered()
-                            && ui.memory(|m| m.focus().is_none())
-                            && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                        || (is_focused && ui.input(|i| i.key_pressed(egui::Key::Enter)))
                     {
                         // Double-click/press enter on events to edit them
                         if ui.input(|i| !i.modifiers.command) {
-                            self.dragging_event = false;
-                            self.event_drag_offset = None;
                             self.event_windows
                                 .add_window(event_edit::Window::new(selected_event_id, self.id));
                         }
                     }
-                    // Allow drag and drop to move events
-                    else if !self.dragging_event
-                        && self.view.selected_event_is_hovered
-                        && response.drag_started_by(egui::PointerButton::Primary)
-                    {
-                        self.dragging_event = true;
-                    } else if self.dragging_event
-                        && !response.dragged_by(egui::PointerButton::Primary)
-                    {
-                        self.dragging_event = false;
-                        self.event_drag_offset = None;
-                    }
 
                     // Press delete or backspace to delete the selected event
-                    if response.hovered()
-                        && ui.memory(|m| m.focus().is_none())
-                        && ui.input(|i| {
-                            i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
-                        })
-                    {
+                    if is_delete_pressed {
                         let event = map.events.remove(selected_event_id);
                         let sprites = self.view.events.try_remove(selected_event_id).ok();
                         self.redo_history.clear();
@@ -379,47 +402,52 @@ impl luminol_core::Tab for Tab {
                     }
 
                     if let Some(hover_tile) = self.view.hover_tile {
-                        if self.dragging_event {
+                        // Allow drag and drop to move events
+                        if self.event_drag_info.is_none()
+                            && self.view.selected_event_is_hovered
+                            && !response.double_clicked()
+                            && response.drag_started_by(egui::PointerButton::Primary)
+                        {
                             if let Some(selected_event) = map.events.get(selected_event_id) {
                                 // If we just started dragging an event, save the offset between the
                                 // cursor and the event's tile so that the event will be dragged
                                 // with that offset from the cursor
-                                if self.event_drag_offset.is_none() {
-                                    self.event_drag_offset = Some(
-                                        egui::Pos2::new(
+                                if self.event_drag_info.is_none() {
+                                    self.event_drag_info = Some(EventDragInfo {
+                                        id: selected_event.id,
+                                        x: selected_event.x,
+                                        y: selected_event.y,
+                                        offset: egui::Pos2::new(
                                             selected_event.x as f32,
                                             selected_event.y as f32,
                                         ) - hover_tile,
-                                    );
-
-                                    // Also save the original position of the event to the history
-                                    self.redo_history.clear();
-                                    if self.history.len() == HISTORY_SIZE {
-                                        self.history.pop_front();
-                                    }
-                                    self.history.push_back(HistoryEntry::EventMoved {
-                                        id: selected_event_id,
-                                        x: selected_event.x,
-                                        y: selected_event.y,
                                     });
                                 };
                             }
+                        }
 
-                            if let Some(offset) = self.event_drag_offset {
-                                // If moving an event, move the dragged event's tile to the cursor
-                                // after adjusting for drag offset, unless that would put the event
-                                // on the same tile as an existing event
-                                let adjusted_hover_tile = hover_tile + offset;
-                                if !map.events.iter().any(|(_, e)| {
+                        if let Some(info) = &self.event_drag_info {
+                            // If moving an event, move the dragged event's tile to the cursor
+                            // after adjusting for drag offset, unless that would put the event
+                            // on the same tile as an existing event
+                            let adjusted_hover_tile = hover_tile + info.offset;
+                            if egui::Rect::from_min_size(
+                                egui::pos2(0., 0.),
+                                egui::vec2(
+                                    map.data.xsize() as f32 - 0.5,
+                                    map.data.ysize() as f32 - 0.5,
+                                ),
+                            )
+                            .contains(adjusted_hover_tile)
+                                && !map.events.iter().any(|(_, e)| {
                                     adjusted_hover_tile.x == e.x as f32
                                         && adjusted_hover_tile.y == e.y as f32
-                                }) {
-                                    if let Some(selected_event) =
-                                        map.events.get_mut(selected_event_id)
-                                    {
-                                        selected_event.x = adjusted_hover_tile.x as i32;
-                                        selected_event.y = adjusted_hover_tile.y as i32;
-                                    }
+                                })
+                            {
+                                if let Some(selected_event) = map.events.get_mut(selected_event_id)
+                                {
+                                    selected_event.x = adjusted_hover_tile.x as i32;
+                                    selected_event.y = adjusted_hover_tile.y as i32;
                                 }
                             }
                         }
@@ -428,12 +456,8 @@ impl luminol_core::Tab for Tab {
                     // Double-click/press enter on an empty space to add an event
                     // (hold shift to prevent events from being selected)
                     if response.double_clicked()
-                        || (response.hovered()
-                            && ui.memory(|m| m.focus().is_none())
-                            && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                        || (is_focused && ui.input(|i| i.key_pressed(egui::Key::Enter)))
                     {
-                        self.dragging_event = false;
-                        self.event_drag_offset = None;
                         if let Some(id) = self.add_event(&mut map) {
                             self.redo_history.clear();
                             if self.history.len() == HISTORY_SIZE {
@@ -446,14 +470,16 @@ impl luminol_core::Tab for Tab {
 
                 // Handle undo/redo keypresses
                 let is_dragged_by_primary = response.dragged_by(egui::PointerButton::Primary);
-                let is_undo_pressed = ui.input(|i| {
-                    i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
-                });
-                let is_redo_pressed = ui.input(|i| {
-                    i.modifiers.command
-                        && (i.modifiers.shift || i.key_pressed(egui::Key::Y))
-                        && (!i.modifiers.shift || i.key_pressed(egui::Key::Z))
-                });
+                let is_undo_pressed = is_focused
+                    && ui.input(|i| {
+                        i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
+                    });
+                let is_redo_pressed = is_focused
+                    && ui.input(|i| {
+                        i.modifiers.command
+                            && (i.modifiers.shift || i.key_pressed(egui::Key::Y))
+                            && (!i.modifiers.shift || i.key_pressed(egui::Key::Z))
+                    });
                 if !is_dragged_by_primary && (is_undo_pressed || is_redo_pressed) {
                     let new_entry = match if is_undo_pressed {
                         self.history.pop_back()

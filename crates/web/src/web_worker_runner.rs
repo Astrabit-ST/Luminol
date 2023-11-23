@@ -537,7 +537,8 @@ pub fn setup_main_thread_hooks(
         let f = {
             let custom_event_tx = custom_event_tx.clone();
             let window = window.clone();
-            let canvas_id = canvas.id();
+            let document = document.clone();
+            let canvas = canvas.clone();
             move || {
                 if PANIC_LOCK.get().is_some() {
                     return;
@@ -548,12 +549,12 @@ pub fn setup_main_thread_hooks(
                 } else {
                     1.
                 };
+                let width = window.inner_width().unwrap().as_f64().unwrap() as u32;
+                let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
+                let _ = canvas.set_attribute("width", width.to_string().as_str());
+                let _ = canvas.set_attribute("height", height.to_string().as_str());
                 let _ = custom_event_tx.send(WebWorkerRunnerEvent(
-                    WebWorkerRunnerEventInner::ScreenResize(
-                        window.inner_width().unwrap().as_f64().unwrap() as u32,
-                        window.inner_height().unwrap().as_f64().unwrap() as u32,
-                        pixel_ratio,
-                    ),
+                    WebWorkerRunnerEventInner::ScreenResize(width, height, pixel_ratio),
                 ));
             }
         };

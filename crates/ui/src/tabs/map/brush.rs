@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use itertools::Itertools;
 use std::usize;
 
 impl super::Tab {
@@ -50,42 +51,43 @@ impl super::Tab {
                     self.drawing_shape_pos = Some(self.view.cursor_pos);
                     self.view.cursor_pos
                 };
-                for y in 0..height {
-                    for x in 0..width {
-                        // Skip out-of-bounds tiles
-                        if ((x == -1 && map_x == 0) || (x == 1 && map_x + 1 == map.data.xsize()))
-                            || ((y == -1 && map_y == 0)
-                                || (y == 1 && map_y + 1 == map.data.ysize()))
-                        {
-                            continue;
-                        }
+                for (y, x) in (0..height).cartesian_product(0..width) {
+                    let absolute_x = map_x + x as usize;
+                    let absolute_y = map_y + y as usize;
 
-                        self.set_tile(
-                            map,
-                            self.tilepicker.get_tile_from_offset(
-                                x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
-                                y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
-                            ),
-                            (map_x + x as usize, map_y + y as usize, tile_layer),
-                        );
+                    // Skip out-of-bounds tiles
+                    if absolute_x >= map.data.xsize() || absolute_y >= map.data.ysize() {
+                        continue;
                     }
+
+                    self.set_tile(
+                        map,
+                        self.tilepicker.get_tile_from_offset(
+                            x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
+                            y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
+                        ),
+                        (absolute_x, absolute_y, tile_layer),
+                    );
                 }
             }
 
-            luminol_core::Pencil::Fill
-                if initial_tile == self.tilepicker.get_tile_from_offset(0, 0) => {}
             luminol_core::Pencil::Fill => {
+                let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
+                    drawing_shape_pos
+                } else {
+                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                    self.view.cursor_pos
+                };
+
                 // Use depth-first search to find all of the orthogonally
                 // contiguous matching tiles
                 let mut stack = vec![(map_x, map_y, tile_layer); 1];
-                let initial_x = map_x;
-                let initial_y = map_y;
                 while let Some(position) = stack.pop() {
                     self.set_tile(
                         map,
                         self.tilepicker.get_tile_from_offset(
-                            map_x as i16 - initial_x as i16,
-                            map_y as i16 - initial_y as i16,
+                            position.0 as i16 - drawing_shape_pos.x as i16,
+                            position.1 as i16 - drawing_shape_pos.y as i16,
                         ),
                         position,
                     );

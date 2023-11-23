@@ -30,7 +30,7 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         Self {
-            tabs: luminol_core::Tabs::new("script_editor"),
+            tabs: luminol_core::Tabs::new("script_editor", false),
         }
     }
 }
@@ -140,7 +140,12 @@ impl luminol_core::Tab for ScriptTab {
         egui::Id::new("luminol_script_edit").with(self.index)
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+    fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        _is_focused: bool,
+    ) {
         // FIXME
 
         ui.horizontal(|ui| {
