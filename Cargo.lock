@@ -2906,7 +2906,7 @@ dependencies = [
  "itertools",
  "luminol-data",
  "luminol-filesystem",
- "naga",
+ "naga 0.13.0",
  "naga_oil",
  "once_cell",
  "slab",
@@ -3223,7 +3223,6 @@ dependencies = [
  "indexmap 1.9.3",
  "log",
  "num-traits",
- "pp-rs",
  "rustc-hash",
  "spirv",
  "termcolor",
@@ -3232,16 +3231,36 @@ dependencies = [
 ]
 
 [[package]]
-name = "naga_oil"
-version = "0.10.1"
+name = "naga"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ac54c77b3529887f9668d3dd81e955e58f252b31a333f836e3548c06460b958"
+checksum = "6cd05939c491da968a42986204b7431678be21fdcd4b10cc84997ba130ada5a4"
+dependencies = [
+ "bit-set",
+ "bitflags 2.4.1",
+ "codespan-reporting",
+ "hexf-parse",
+ "indexmap 2.1.0",
+ "log",
+ "num-traits",
+ "pp-rs",
+ "rustc-hash",
+ "termcolor",
+ "thiserror",
+ "unicode-xid",
+]
+
+[[package]]
+name = "naga_oil"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fff3f369dd665ee365daeab786466a6f70ff53e4a95a76117363b1077e1b0492"
 dependencies = [
  "bit-set",
  "codespan-reporting",
  "data-encoding",
- "indexmap 1.9.3",
- "naga",
+ "indexmap 2.1.0",
+ "naga 0.14.1",
  "once_cell",
  "regex",
  "regex-syntax 0.7.5",
@@ -6015,7 +6034,7 @@ dependencies = [
  "cfg-if",
  "js-sys",
  "log",
- "naga",
+ "naga 0.13.0",
  "parking_lot",
  "profiling",
  "raw-window-handle",
@@ -6040,7 +6059,7 @@ dependencies = [
  "bitflags 2.4.1",
  "codespan-reporting",
  "log",
- "naga",
+ "naga 0.13.0",
  "parking_lot",
  "profiling",
  "raw-window-handle",
@@ -6077,7 +6096,7 @@ dependencies = [
  "libloading 0.8.1",
  "log",
  "metal",
- "naga",
+ "naga 0.13.0",
  "objc",
  "parking_lot",
  "profiling",
