@@ -23,7 +23,7 @@ wgpu.workspace = true
 glam.workspace = true
 
 naga_oil = "0.10.1"
-naga = "0.13.0"
+naga = "0.14.1"
 
 once_cell.workspace = true
 crossbeam.workspace = true
