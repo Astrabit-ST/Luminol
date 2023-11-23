@@ -160,8 +160,14 @@ impl Tilepicker {
         let mut passages =
             luminol_data::Table2::new(tilepicker_data.xsize(), tilepicker_data.ysize());
         for (y, x) in (0..tilepicker_data.ysize()).cartesian_product(0..tilepicker_data.xsize()) {
-            passages[(x, y)] =
-                tileset.passages[tilepicker_data[(x, y, 0)].try_into().unwrap_or_default()];
+            passages[(x, y)] = {
+                let tile_id = tilepicker_data[(x, y, 0)].try_into().unwrap_or_default();
+                if tile_id >= tileset.passages.len() {
+                    0
+                } else {
+                    tileset.passages[tile_id]
+                }
+            };
         }
         let collision = luminol_graphics::collision::Collision::new(
             &update_state.graphics,
