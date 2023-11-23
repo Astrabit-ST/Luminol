@@ -41,6 +41,8 @@ pub fn calculate_passages(
     layers: impl Iterator<Item = usize> + Clone,
     mut f: impl FnMut(usize, usize, i16),
 ) {
+    let tileset_size = passages.len().min(priorities.len());
+
     let mut event_map = if let Some(events) = events {
         events
             .iter()
@@ -51,10 +53,14 @@ pub fn calculate_passages(
                 if page.through {
                     return None;
                 }
-                let tile_event = page
-                    .graphic
-                    .tile_id
-                    .map_or((15, 1), |id| (passages[id + 1], priorities[id + 1]));
+                let tile_event = page.graphic.tile_id.map_or((15, 1), |id| {
+                    let tile_id = id + 1;
+                    if tile_id >= tileset_size {
+                        (0, 0)
+                    } else {
+                        (passages[tile_id], priorities[tile_id])
+                    }
+                });
                 Some(((event.x as usize, event.y as usize), tile_event))
             })
             .collect()
@@ -70,7 +76,11 @@ pub fn calculate_passages(
             y,
             calculate_passage(tile_event.into_iter().chain(layers.clone().map(|z| {
                 let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
-                (passages[tile_id], priorities[tile_id])
+                if tile_id >= tileset_size {
+                    (0, 0)
+                } else {
+                    (passages[tile_id], priorities[tile_id])
+                }
             }))),
         );
     }
