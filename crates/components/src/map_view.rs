@@ -49,6 +49,7 @@ pub struct MapView {
     pub darken_unselected_layers: bool,
 
     pub scale: f32,
+    pub previous_scale: f32,
 
     /// Used to store the bounding boxes of event graphics in order to render them on top of the
     /// fog and collision layers
@@ -152,6 +153,7 @@ impl MapView {
             selected_event_is_hovered: false,
 
             scale: 100.,
+            previous_scale: 100.,
 
             event_rects: Vec::new(),
         })
@@ -168,6 +170,7 @@ impl MapView {
         drawing_shape: bool,
         drawing_shape_pos: Option<egui::Pos2>,
         force_show_pattern_rect: bool,
+        is_focused: bool,
     ) -> egui::Response {
         // Allocate the largest size we can for the tilemap
         let canvas_rect = ui.max_rect();
@@ -176,14 +179,25 @@ impl MapView {
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
+        let min_clip = (ui.ctx().screen_rect().min - canvas_rect.min).max(Default::default());
+        let max_clip = (canvas_rect.max - ui.ctx().screen_rect().max).max(Default::default());
+        let clip_offset = (max_clip - min_clip) / 2.;
+        let canvas_rect = ui.ctx().screen_rect().intersect(canvas_rect);
+
+        // If the user changed the scale using the scale slider, pan the map so that the scale uses
+        // the center of the visible part of the map as the scale center
+        if self.scale != self.previous_scale {
+            self.pan = self.inter_tile_pan + self.pan * self.scale / self.previous_scale;
+        }
+
         // Handle zoom
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
             let old_scale = self.scale;
-            let delta = ui.input(|i| i.scroll_delta.y * 5.);
+            let delta = ui.input(|i| i.scroll_delta.y);
 
             // Apply scroll and cap max zoom to 15%
-            self.scale += delta / 30.;
+            self.scale *= (delta / 9.0f32.exp2()).exp2();
             self.scale = self.scale.max(15.).min(300.);
 
             // Get the normalized cursor position relative to pan
@@ -193,23 +207,27 @@ impl MapView {
             self.pan = pos - canvas_center - pos_norm * self.scale + self.inter_tile_pan;
         }
 
+        self.previous_scale = self.scale;
+
         let ctrl_drag = ui.input(|i| {
-            // Handle pan
-            if i.key_pressed(egui::Key::ArrowUp) && self.cursor_pos.y > 0. {
-                self.cursor_pos.y -= 1.0;
-            }
-            if i.key_pressed(egui::Key::ArrowDown)
-                && self.cursor_pos.y < map.data.ysize() as f32 - 1.
-            {
-                self.cursor_pos.y += 1.0;
-            }
-            if i.key_pressed(egui::Key::ArrowLeft) && self.cursor_pos.x > 0. {
-                self.cursor_pos.x -= 1.0;
-            }
-            if i.key_pressed(egui::Key::ArrowRight)
-                && self.cursor_pos.x < map.data.xsize() as f32 - 1.
-            {
-                self.cursor_pos.x += 1.0;
+            if is_focused {
+                // Handle pan
+                if i.key_pressed(egui::Key::ArrowUp) && self.cursor_pos.y > 0. {
+                    self.cursor_pos.y -= 1.0;
+                }
+                if i.key_pressed(egui::Key::ArrowDown)
+                    && self.cursor_pos.y < map.data.ysize() as f32 - 1.
+                {
+                    self.cursor_pos.y += 1.0;
+                }
+                if i.key_pressed(egui::Key::ArrowLeft) && self.cursor_pos.x > 0. {
+                    self.cursor_pos.x -= 1.0;
+                }
+                if i.key_pressed(egui::Key::ArrowRight)
+                    && self.cursor_pos.x < map.data.xsize() as f32 - 1.
+                {
+                    self.cursor_pos.x += 1.0;
+                }
             }
 
             i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
@@ -254,8 +272,7 @@ impl MapView {
             self.hover_tile = Some(pos_tile.to_pos2());
             // Handle input
             if matches!(self.selected_layer, SelectedLayer::Tiles(_))
-                || dragging_event
-                || response.clicked()
+                || ((dragging_event || response.clicked()) && ui.input(|i| !i.modifiers.command))
             {
                 self.cursor_pos = pos_tile.to_pos2();
             }
@@ -270,8 +287,8 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
-        let proj_center_x = width2 * 32. - self.pan.x / scale;
-        let proj_center_y = height2 * 32. - self.pan.y / scale;
+        let proj_center_x = width2 * 32. - (self.pan.x + clip_offset.x) / scale;
+        let proj_center_y = height2 * 32. - (self.pan.y + clip_offset.y) / scale;
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
 
@@ -368,20 +385,22 @@ impl MapView {
                 );
 
                 if let Some((sprite, _)) = sprites {
-                    let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
-                    let y = event.y as f32 * 32. + (32. - event_size.y);
-                    sprite.set_proj(
-                        &graphics_state.render_state,
-                        glam::Mat4::orthographic_rh(
-                            proj_center_x - proj_width2 - x,
-                            proj_center_x + proj_width2 - x,
-                            proj_center_y + proj_height2 - y,
-                            proj_center_y - proj_height2 - y,
-                            -1.,
-                            1.,
-                        ),
-                    );
-                    sprite.paint(graphics_state.clone(), ui.painter(), canvas_rect);
+                    if canvas_rect.intersects(box_rect) {
+                        let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
+                        let y = event.y as f32 * 32. + (32. - event_size.y);
+                        sprite.set_proj(
+                            &graphics_state.render_state,
+                            glam::Mat4::orthographic_rh(
+                                proj_center_x - proj_width2 - x,
+                                proj_center_x + proj_width2 - x,
+                                proj_center_y + proj_height2 - y,
+                                proj_center_y - proj_height2 - y,
+                                -1.,
+                                1.,
+                            ),
+                        );
+                        sprite.paint(graphics_state.clone(), ui.painter(), canvas_rect);
+                    }
                 }
 
                 if matches!(self.selected_layer, SelectedLayer::Events)
@@ -429,11 +448,31 @@ impl MapView {
                                 egui::Sense::click(),
                             );
                             if let Some((_, preview_sprite)) = sprites {
-                                if ui.ctx().screen_rect().contains_rect(response.rect) {
+                                if response.rect.is_positive() {
+                                    let clipped_rect =
+                                        ui.ctx().screen_rect().intersect(response.rect);
+                                    let proj_rect = egui::Rect::from_min_size(
+                                        (ui.ctx().screen_rect().min - response.rect.min)
+                                            .max(Default::default())
+                                            .to_pos2(),
+                                        preview_sprite.sprite_size * clipped_rect.size()
+                                            / response.rect.size(),
+                                    );
+                                    preview_sprite.set_proj(
+                                        &graphics_state.render_state,
+                                        glam::Mat4::orthographic_rh(
+                                            proj_rect.left(),
+                                            proj_rect.right(),
+                                            proj_rect.bottom(),
+                                            proj_rect.top(),
+                                            -1.,
+                                            1.,
+                                        ),
+                                    );
                                     preview_sprite.paint(
                                         graphics_state.clone(),
                                         &painter,
-                                        response.rect,
+                                        clipped_rect,
                                     );
                                 }
                             }

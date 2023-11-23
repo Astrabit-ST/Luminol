@@ -52,7 +52,12 @@ impl luminol_core::Tab for Tab {
         egui::Id::new("luminol_started_tab")
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+    fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        _is_focused: bool,
+    ) {
         ui.label(
             egui::RichText::new("Luminol")
                 .size(40.)

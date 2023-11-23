@@ -82,7 +82,7 @@ impl Tiles {
         #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
         struct VertexPushConstant {
             viewport: [u8; 64],
-            autotiles: [u8; 36],
+            autotiles: [u8; 48],
         }
 
         render_pass.push_debug_group("tilemap tiles renderer");
@@ -113,7 +113,7 @@ impl Tiles {
             if self.use_push_constants {
                 render_pass.set_push_constants(
                     wgpu::ShaderStages::FRAGMENT,
-                    64 + 36,
+                    64 + 48,
                     bytemuck::bytes_of::<f32>(&opacity),
                 );
             }

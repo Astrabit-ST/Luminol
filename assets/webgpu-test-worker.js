@@ -15,11 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-onmessage = async function (e) {
-    const [fallback, memory, canvas] = e.data;
-
-    const luminol = await import(fallback ? '/luminol_webgl.js' : '/luminol.js');
-
-    await luminol.default(fallback ? '/luminol_webgl_bg.wasm' : '/luminol_bg.wasm', memory);
-    await luminol.luminol_worker_start(canvas);
-};
+onmessage = async function () {
+    let gpu = false;
+    try {
+        let adapter = await navigator.gpu?.requestAdapter();
+        gpu = typeof GPUAdapter === 'function' && adapter instanceof GPUAdapter;
+    } catch (e) {}
+    postMessage(gpu);
+}

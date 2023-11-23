@@ -181,7 +181,7 @@ static WORKER_DATA: parking_lot::RwLock<Option<WorkerData>> = parking_lot::RwLoc
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn luminol_main_start() {
+pub fn luminol_main_start(fallback: bool) {
     let (panic_tx, mut panic_rx) = flume::unbounded::<()>();
 
     wasm_bindgen_futures::spawn_local(async move {
@@ -205,7 +205,11 @@ pub fn luminol_main_start() {
     }));
 
     // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default();
+    tracing_wasm::set_as_global_default_with_config(
+        tracing_wasm::WASMLayerConfigBuilder::new()
+            .set_max_level(tracing::Level::INFO)
+            .build(),
+    );
 
     // Redirect log (currently used by egui) to tracing
     tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
@@ -260,7 +264,7 @@ pub fn luminol_main_start() {
         .expect("failed to spawn web worker");
 
     let message = js_sys::Array::new();
-    message.push(&JsValue::from("init"));
+    message.push(&JsValue::from(fallback));
     message.push(&wasm_bindgen::memory());
     message.push(&offscreen_canvas);
     let transfer = js_sys::Array::new();
