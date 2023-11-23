@@ -107,9 +107,7 @@ impl Instances {
             .collect_vec()
     }
 
-    fn calculate_vertices() -> Vec<Vertex> {
-        let mut vertices = Vec::with_capacity(12);
-
+    fn calculate_vertices() -> [Vertex; 12] {
         let rect = egui::Rect::from_min_size(egui::pos2(0., 0.), egui::vec2(32., 32.));
         let center = glam::vec3(rect.center().x, rect.center().y, 0.);
         let top_left = glam::vec3(rect.left_top().x, rect.left_top().y, 0.);
@@ -117,59 +115,56 @@ impl Instances {
         let bottom_left = glam::vec3(rect.left_bottom().x, rect.left_bottom().y, 0.);
         let bottom_right = glam::vec3(rect.right_bottom().x, rect.right_bottom().y, 0.);
 
-        vertices.push(Vertex {
-            position: center,
-            direction: 1,
-        });
-        vertices.push(Vertex {
-            position: bottom_left,
-            direction: 1,
-        });
-        vertices.push(Vertex {
-            position: bottom_right,
-            direction: 1,
-        });
-
-        vertices.push(Vertex {
-            position: center,
-            direction: 2,
-        });
-        vertices.push(Vertex {
-            position: top_left,
-            direction: 2,
-        });
-        vertices.push(Vertex {
-            position: bottom_left,
-            direction: 2,
-        });
-
-        vertices.push(Vertex {
-            position: center,
-            direction: 4,
-        });
-        vertices.push(Vertex {
-            position: bottom_right,
-            direction: 4,
-        });
-        vertices.push(Vertex {
-            position: top_right,
-            direction: 4,
-        });
-
-        vertices.push(Vertex {
-            position: center,
-            direction: 8,
-        });
-        vertices.push(Vertex {
-            position: top_right,
-            direction: 8,
-        });
-        vertices.push(Vertex {
-            position: top_left,
-            direction: 8,
-        });
-
-        vertices
+        [
+            Vertex {
+                position: center,
+                direction: 1,
+            },
+            Vertex {
+                position: bottom_left,
+                direction: 1,
+            },
+            Vertex {
+                position: bottom_right,
+                direction: 1,
+            },
+            Vertex {
+                position: center,
+                direction: 2,
+            },
+            Vertex {
+                position: top_left,
+                direction: 2,
+            },
+            Vertex {
+                position: bottom_left,
+                direction: 2,
+            },
+            Vertex {
+                position: center,
+                direction: 4,
+            },
+            Vertex {
+                position: bottom_right,
+                direction: 4,
+            },
+            Vertex {
+                position: top_right,
+                direction: 4,
+            },
+            Vertex {
+                position: center,
+                direction: 8,
+            },
+            Vertex {
+                position: top_right,
+                direction: 8,
+            },
+            Vertex {
+                position: top_left,
+                direction: 8,
+            },
+        ]
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
