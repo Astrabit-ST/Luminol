@@ -17,6 +17,7 @@ struct Graphic {
     hue: f32,
     opacity: f32,
     opacity_multiplier: f32,
+    _padding: u32,
 }
 
 #if USE_PUSH_CONSTANTS == true

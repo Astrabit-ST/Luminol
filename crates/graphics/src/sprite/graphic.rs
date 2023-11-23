@@ -36,6 +36,7 @@ struct Data {
     hue: f32,
     opacity: f32,
     opacity_multiplier: f32,
+    _padding: u32,
 }
 
 impl Graphic {
@@ -51,6 +52,7 @@ impl Graphic {
             hue,
             opacity,
             opacity_multiplier: 1.,
+            _padding: 0,
         };
 
         let uniform =
