@@ -126,7 +126,7 @@ pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16, CollisionType)>
                     at_least_one_layer_not_blank = true;
                 }
             }
-            if passage & direction != 0 || passage & 0xf == 0xf {
+            if passage & direction != 0 {
                 computed_passage |= direction;
                 break;
             } else if priority == 0 {
