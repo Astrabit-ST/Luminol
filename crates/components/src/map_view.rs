@@ -50,6 +50,10 @@ pub struct MapView {
 
     pub scale: f32,
     pub previous_scale: f32,
+
+    /// Used to store the bounding boxes of event graphics in order to render them on top of the
+    /// fog and collision layers
+    pub event_rects: Vec<egui::Rect>,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
@@ -69,6 +73,16 @@ impl MapView {
             .get_or_load_map(map_id, update_state.filesystem);
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets[map.tileset_id];
+
+        let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
+        luminol_graphics::collision::calculate_passages(
+            &tileset.passages,
+            &tileset.priorities,
+            &map.data,
+            Some(&map.events),
+            (0..map.data.zsize()).rev(),
+            |x, y, passage| passages[(x, y)] = passage,
+        );
 
         let atlas = update_state.graphics.atlas_cache.load_atlas(
             &update_state.graphics,
@@ -112,6 +126,7 @@ impl MapView {
             update_state.filesystem,
             &map,
             tileset,
+            &passages,
             update_state.graphics.push_constants_supported(),
         )?;
 
@@ -139,6 +154,8 @@ impl MapView {
 
             scale: 100.,
             previous_scale: 100.,
+
+            event_rects: Vec::new(),
         })
     }
 
@@ -335,7 +352,7 @@ impl MapView {
 
         if self.event_enabled {
             let mut selected_event = None;
-            let mut selected_event_rects = None;
+            let mut selected_event_rect = None;
 
             for (_, event) in map.events.iter() {
                 let sprites = self.events.get(event.id);
@@ -389,11 +406,7 @@ impl MapView {
                 if matches!(self.selected_layer, SelectedLayer::Events)
                     && ui.input(|i| !i.modifiers.shift)
                 {
-                    ui.painter().rect_stroke(
-                        box_rect,
-                        5.,
-                        egui::Stroke::new(1., egui::Color32::WHITE),
-                    );
+                    self.event_rects.push(box_rect);
 
                     // If the mouse is not hovering over an event, then we will handle the selected
                     // tile based on where the map cursor is
@@ -421,7 +434,7 @@ impl MapView {
                         };
                         if let Some(e) = selected_event {
                             if e.id == event.id {
-                                selected_event_rects = Some(box_rect);
+                                selected_event_rect = Some(box_rect);
                             }
                         }
                     }
@@ -503,7 +516,7 @@ impl MapView {
                                 if let Some(e) = selected_event {
                                     if e.id == event.id {
                                         self.selected_event_is_hovered = true;
-                                        selected_event_rects = Some(box_rect);
+                                        selected_event_rect = Some(box_rect);
                                     }
                                 }
                             }
@@ -514,7 +527,7 @@ impl MapView {
                     if let Some(id) = self.selected_event_id {
                         if dragging_event && id == event.id {
                             selected_event = Some(event);
-                            selected_event_rects = Some(box_rect);
+                            selected_event_rect = Some(box_rect);
                         }
                     }
                 } else {
@@ -537,20 +550,34 @@ impl MapView {
 
             self.selected_event_id = selected_event.map(|e| e.id);
 
+            // Draw the fog and collision layers
+            self.map
+                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
+
+            // Draw white rectangles on the border of all events
+            while let Some(rect) = self.event_rects.pop() {
+                ui.painter()
+                    .rect_stroke(rect, 5., egui::Stroke::new(1., egui::Color32::WHITE));
+            }
+
             // Draw a yellow rectangle on the border of the selected event's graphic
             if let Some(selected_event) = selected_event {
                 // Make sure the event editor isn't open so we don't draw over the
                 // magenta rectangle
                 if !selected_event.extra_data.is_editor_open {
-                    if let Some(box_rect) = selected_event_rects {
+                    if let Some(rect) = selected_event_rect {
                         ui.painter().rect_stroke(
-                            box_rect,
+                            rect,
                             5.,
                             egui::Stroke::new(3., egui::Color32::YELLOW),
                         );
                     }
                 }
             }
+        } else {
+            // Draw the fog and collision layers
+            self.map
+                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
         }
 
         // Do we display the visible region?

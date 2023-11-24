@@ -36,12 +36,15 @@ pub struct Tilepicker {
 #[derive(Debug)]
 struct Resources {
     tiles: luminol_graphics::tiles::Tiles,
+    collision: luminol_graphics::collision::Collision,
     viewport: luminol_graphics::viewport::Viewport,
 }
 
 struct Callback {
     resources: Arc<Resources>,
     graphics_state: Arc<luminol_graphics::GraphicsState>,
+
+    coll_enabled: bool,
 }
 
 // FIXME
@@ -51,11 +54,11 @@ unsafe impl Sync for Callback {}
 impl egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(render_pass);
+        self.resources.viewport.bind(1, render_pass);
         self.resources.tiles.draw(
             &self.graphics_state,
             &self.resources.viewport,
@@ -63,6 +66,15 @@ impl egui_wgpu::CallbackTrait for Callback {
             None,
             render_pass,
         );
+
+        if self.coll_enabled {
+            self.resources.viewport.bind(0, render_pass);
+            self.resources.collision.draw(
+                &self.graphics_state,
+                &self.resources.viewport,
+                render_pass,
+            );
+        }
     }
 }
 
@@ -145,8 +157,34 @@ impl Tilepicker {
             update_state.graphics.push_constants_supported(),
         );
 
+        let mut passages =
+            luminol_data::Table2::new(tilepicker_data.xsize(), tilepicker_data.ysize());
+        for x in 0..8 {
+            passages[(x, 0)] = {
+                let tile_id = tilepicker_data[(x, 0, 0)].try_into().unwrap_or_default();
+                if tile_id >= tileset.passages.len() {
+                    0
+                } else {
+                    tileset.passages[tile_id]
+                }
+            };
+        }
+        let length =
+            (passages.len().saturating_sub(8)).min(tileset.passages.len().saturating_sub(384));
+        passages.as_mut_slice()[8..8 + length]
+            .copy_from_slice(&tileset.passages.as_slice()[384..384 + length]);
+        let collision = luminol_graphics::collision::Collision::new(
+            &update_state.graphics,
+            &passages,
+            update_state.graphics.push_constants_supported(),
+        );
+
         Ok(Self {
-            resources: Arc::new(Resources { tiles, viewport }),
+            resources: Arc::new(Resources {
+                tiles,
+                collision,
+                viewport,
+            }),
             ani_time: None,
             selected_tiles_left: 0,
             selected_tiles_top: 0,
@@ -172,6 +210,7 @@ impl Tilepicker {
         update_state: &luminol_core::UpdateState<'_>,
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
+        coll_enabled: bool,
     ) -> egui::Response {
         let time = ui.ctx().input(|i| i.time);
         let graphics_state = update_state.graphics.clone();
@@ -219,6 +258,7 @@ impl Tilepicker {
             Callback {
                 resources: self.resources.clone(),
                 graphics_state: graphics_state.clone(),
+                coll_enabled,
             },
         ));
 

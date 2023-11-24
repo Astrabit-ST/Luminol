@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+pub mod collision;
 pub mod quad;
 pub mod sprite;
 pub mod tiles;
@@ -52,6 +53,7 @@ pub struct BindGroupLayouts {
 pub struct Pipelines {
     sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
     tiles: wgpu::RenderPipeline,
+    collision: wgpu::RenderPipeline,
 }
 
 impl GraphicsState {
@@ -67,6 +69,10 @@ impl GraphicsState {
         let pipelines = Pipelines {
             sprites: sprite::shader::create_sprite_shaders(&render_state, &bind_group_layouts),
             tiles: tiles::shader::create_render_pipeline(&render_state, &bind_group_layouts),
+            collision: collision::shader::create_render_pipeline(
+                &render_state,
+                &bind_group_layouts,
+            ),
         };
 
         let image_cache = image_cache::Cache::default();

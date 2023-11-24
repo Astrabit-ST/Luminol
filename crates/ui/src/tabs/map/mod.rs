@@ -81,6 +81,10 @@ pub struct Tab {
     tilemap_undo_cache: Vec<i16>,
     /// The layer tilemap_undo_cache refers to
     tilemap_undo_cache_layer: usize,
+
+    /// This stores the passage values for every position on the map so that we can figure out
+    /// which passage values have changed in the current frame
+    passages: luminol_data::Table2,
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -116,6 +120,18 @@ impl Tab {
         let map = update_state
             .data
             .get_or_load_map(id, update_state.filesystem);
+        let tilesets = update_state.data.tilesets();
+        let tileset = &tilesets[map.tileset_id];
+
+        let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
+        luminol_graphics::collision::calculate_passages(
+            &tileset.passages,
+            &tileset.priorities,
+            &map.data,
+            Some(&map.events),
+            (0..map.data.zsize()).rev(),
+            |x, y, passage| passages[(x, y)] = passage,
+        );
 
         Ok(Self {
             id,
@@ -139,6 +155,8 @@ impl Tab {
             redo_history: Vec::with_capacity(HISTORY_SIZE),
             tilemap_undo_cache: vec![0; map.data.xsize() * map.data.ysize()],
             tilemap_undo_cache_layer: 0,
+
+            passages,
         })
     }
 }
@@ -186,33 +204,46 @@ impl luminol_core::Tab for Tab {
                     |ui| {
                         // TODO: Add layer enable button
                         // Display all layers.
-                        ui.columns(2, |columns| {
-                            columns[1].visuals_mut().button_frame = true;
-                            columns[0].label(egui::RichText::new("Panorama").underline());
-                            columns[1].checkbox(&mut self.view.map.pano_enabled, "👁");
+                        egui::Grid::new(self.id().with("layer_select"))
+                            .striped(true)
+                            .show(ui, |ui| {
+                                ui.label(egui::RichText::new("Panorama").underline());
+                                ui.checkbox(&mut self.view.map.pano_enabled, "👁");
+                                ui.end_row();
 
-                            for (index, layer) in
-                                self.view.map.enabled_layers.iter_mut().enumerate()
-                            {
-                                columns[0].selectable_value(
-                                    &mut self.view.selected_layer,
-                                    luminol_components::SelectedLayer::Tiles(index),
-                                    format!("Layer {}", index + 1),
-                                );
-                                columns[1].checkbox(layer, "👁");
-                            }
+                                for (index, layer) in
+                                    self.view.map.enabled_layers.iter_mut().enumerate()
+                                {
+                                    ui.columns(1, |columns| {
+                                        columns[0].selectable_value(
+                                            &mut self.view.selected_layer,
+                                            luminol_components::SelectedLayer::Tiles(index),
+                                            format!("Layer {}", index + 1),
+                                        );
+                                    });
+                                    ui.checkbox(layer, "👁");
+                                    ui.end_row();
+                                }
 
-                            // Display event layer.
-                            columns[0].selectable_value(
-                                &mut self.view.selected_layer,
-                                luminol_components::SelectedLayer::Events,
-                                egui::RichText::new("Events").italics(),
-                            );
-                            columns[1].checkbox(&mut self.view.event_enabled, "👁");
+                                // Display event layer.
+                                ui.columns(1, |columns| {
+                                    columns[0].selectable_value(
+                                        &mut self.view.selected_layer,
+                                        luminol_components::SelectedLayer::Events,
+                                        egui::RichText::new("Events").italics(),
+                                    );
+                                });
+                                ui.checkbox(&mut self.view.event_enabled, "👁");
+                                ui.end_row();
 
-                            columns[0].label(egui::RichText::new("Fog").underline());
-                            columns[1].checkbox(&mut self.view.map.fog_enabled, "👁");
-                        });
+                                ui.label(egui::RichText::new("Fog").underline());
+                                ui.checkbox(&mut self.view.map.fog_enabled, "👁");
+                                ui.end_row();
+
+                                ui.label(egui::RichText::new("Collision").underline());
+                                ui.checkbox(&mut self.view.map.coll_enabled, "👁");
+                                ui.end_row();
+                            });
                     },
                 );
 
@@ -256,7 +287,8 @@ impl luminol_core::Tab for Tab {
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both().show_viewport(ui, |ui, rect| {
-                    self.tilepicker.ui(update_state, ui, rect);
+                    self.tilepicker
+                        .ui(update_state, ui, rect, self.view.map.coll_enabled);
                     ui.separator();
                 });
             });
@@ -265,6 +297,8 @@ impl luminol_core::Tab for Tab {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 // Get the map.
                 let mut map = update_state.data.get_map(self.id);
+                let tilesets = update_state.data.tilesets();
+                let tileset = &tilesets[map.tileset_id];
 
                 // Save the state of the selected layer into the cache
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =
@@ -562,6 +596,31 @@ impl luminol_core::Tab for Tab {
                         }
                     }
                 }
+
+                // Update the collision preview
+                luminol_graphics::collision::calculate_passages(
+                    &tileset.passages,
+                    &tileset.priorities,
+                    &map.data,
+                    if self.view.event_enabled {
+                        Some(&map.events)
+                    } else {
+                        None
+                    },
+                    (0..map.data.zsize())
+                        .filter(|&i| self.view.map.enabled_layers[i])
+                        .rev(),
+                    |x, y, passage| {
+                        if self.passages[(x, y)] != passage {
+                            self.view.map.set_passage(
+                                &update_state.graphics.render_state,
+                                passage,
+                                (x, y),
+                            );
+                            self.passages[(x, y)] = passage;
+                        }
+                    },
+                );
             })
         });
 

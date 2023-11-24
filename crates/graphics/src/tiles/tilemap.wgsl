@@ -52,7 +52,7 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     let autotiles = push_constants.autotiles;
 #endif
 
-    if instance.tile_id < 48 {
+    if instance.tile_id < 48 || instance.tile_id >= (8192 / 256) * 1712 + 384 {
         return out;
     }
 

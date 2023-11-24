@@ -27,6 +27,7 @@ pub struct Map {
 
     pub fog_enabled: bool,
     pub pano_enabled: bool,
+    pub coll_enabled: bool,
     pub enabled_layers: Vec<bool>,
 }
 
@@ -36,30 +37,40 @@ struct Resources {
     viewport: crate::viewport::Viewport,
     panorama: Option<Plane>,
     fog: Option<Plane>,
+    collision: crate::collision::Collision,
 }
 
 struct Callback {
     resources: Arc<Resources>,
     graphics_state: Arc<crate::GraphicsState>,
 
-    fog_enabled: bool,
     pano_enabled: bool,
     enabled_layers: Vec<bool>,
     selected_layer: Option<usize>,
 }
 
+struct OverlayCallback {
+    resources: Arc<Resources>,
+    graphics_state: Arc<crate::GraphicsState>,
+
+    fog_enabled: bool,
+    coll_enabled: bool,
+}
+
 // FIXME
 unsafe impl Send for Callback {}
 unsafe impl Sync for Callback {}
+unsafe impl Send for OverlayCallback {}
+unsafe impl Sync for OverlayCallback {}
 
 impl egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(render_pass);
+        self.resources.viewport.bind(1, render_pass);
 
         if self.pano_enabled {
             if let Some(panorama) = &self.resources.panorama {
@@ -74,10 +85,31 @@ impl egui_wgpu::CallbackTrait for Callback {
             self.selected_layer,
             render_pass,
         );
+    }
+}
+
+impl egui_wgpu::CallbackTrait for OverlayCallback {
+    fn paint<'a>(
+        &'a self,
+        _info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
+    ) {
+        self.resources.viewport.bind(1, render_pass);
+
         if self.fog_enabled {
             if let Some(fog) = &self.resources.fog {
                 fog.draw(&self.graphics_state, &self.resources.viewport, render_pass);
             }
+        }
+
+        if self.coll_enabled {
+            self.resources.viewport.bind(0, render_pass);
+            self.resources.collision.draw(
+                &self.graphics_state,
+                &self.resources.viewport,
+                render_pass,
+            );
         }
     }
 }
@@ -88,6 +120,7 @@ impl Map {
         filesystem: &impl luminol_filesystem::FileSystem,
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
+        passages: &luminol_data::Table2,
         use_push_constants: bool,
     ) -> anyhow::Result<Self> {
         let atlas = graphics_state
@@ -95,6 +128,8 @@ impl Map {
             .load_atlas(graphics_state, filesystem, tileset)?;
 
         let tiles = crate::tiles::Tiles::new(graphics_state, atlas, &map.data, use_push_constants);
+        let collision =
+            crate::collision::Collision::new(graphics_state, passages, use_push_constants);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
@@ -155,12 +190,14 @@ impl Map {
                 viewport,
                 panorama,
                 fog,
+                collision,
             }),
 
             ani_time: None,
 
             fog_enabled: true,
             pano_enabled: true,
+            coll_enabled: false,
             enabled_layers: vec![true; map.data.zsize()],
         })
     }
@@ -174,6 +211,17 @@ impl Map {
         self.resources
             .tiles
             .set_tile(render_state, tile_id, position);
+    }
+
+    pub fn set_passage(
+        &self,
+        render_state: &egui_wgpu::RenderState,
+        passage: i16,
+        position: (usize, usize),
+    ) {
+        self.resources
+            .collision
+            .set_passage(render_state, passage, position);
     }
 
     pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
@@ -210,10 +258,27 @@ impl Map {
                 resources: self.resources.clone(),
                 graphics_state,
 
-                fog_enabled: self.fog_enabled,
                 pano_enabled: self.pano_enabled,
                 enabled_layers: self.enabled_layers.clone(),
                 selected_layer,
+            },
+        ));
+    }
+
+    pub fn paint_overlay(
+        &mut self,
+        graphics_state: Arc<crate::GraphicsState>,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+    ) {
+        painter.add(egui_wgpu::Callback::new_paint_callback(
+            rect,
+            OverlayCallback {
+                resources: self.resources.clone(),
+                graphics_state,
+
+                fog_enabled: self.fog_enabled,
+                coll_enabled: self.coll_enabled,
             },
         ));
     }
