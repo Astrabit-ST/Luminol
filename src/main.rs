@@ -286,8 +286,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
 
     let web_options = eframe::WebOptions::default();
 
-    let runner = eframe::WebRunner::new();
-    runner
+    eframe::WebRunner::new()
         .start(
             canvas,
             web_options,

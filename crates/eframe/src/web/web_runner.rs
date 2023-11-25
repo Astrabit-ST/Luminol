@@ -73,7 +73,7 @@ impl WebRunner {
                 //events::install_color_scheme_change_event(self)?;
             }
 
-            //events::request_animation_frame(self.clone())?;
+            events::request_animation_frame(self.clone())?;
         }
 
         Ok(())

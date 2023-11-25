@@ -30,9 +30,9 @@ fn paint_if_needed(runner: &mut AppRunner) -> Result<(), JsValue> {
 }
 
 pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
+    let worker = luminol_web::bindings::worker().unwrap();
     let closure = Closure::once(move || paint_and_schedule(&runner_ref));
-    window.request_animation_frame(closure.as_ref().unchecked_ref())?;
+    worker.request_animation_frame(closure.as_ref().unchecked_ref())?;
     closure.forget(); // We must forget it, or else the callback is canceled on drop
     Ok(())
 }

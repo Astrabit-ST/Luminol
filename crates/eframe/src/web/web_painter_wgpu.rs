@@ -100,6 +100,7 @@ impl WebPainterWgpu {
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
         };
+        surface.configure(&render_state.device, &surface_configuration);
 
         log::debug!("wgpu painter initialized.");
 
