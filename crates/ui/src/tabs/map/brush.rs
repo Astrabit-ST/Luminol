@@ -34,6 +34,7 @@ impl super::Tab {
         pencil: luminol_core::Pencil,
         map: &mut luminol_data::rpg::Map,
     ) {
+        let map_pos = egui::pos2(map_x as f32, map_y as f32);
         let initial_tile =
             luminol_components::SelectedTile::from_id(map.data[(map_x, map_y, tile_layer)]);
         let left = self.tilepicker.selected_tiles_left;
@@ -48,8 +49,8 @@ impl super::Tab {
                 let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                     drawing_shape_pos
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
-                    self.view.cursor_pos
+                    self.drawing_shape_pos = Some(map_pos);
+                    map_pos
                 };
                 for (y, x) in (0..height).cartesian_product(0..width) {
                     let absolute_x = map_x + x as usize;
@@ -63,8 +64,8 @@ impl super::Tab {
                     self.set_tile(
                         map,
                         self.tilepicker.get_tile_from_offset(
-                            x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
-                            y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
+                            x + (map_x as f32 - drawing_shape_pos.x) as i16,
+                            y + (map_y as f32 - drawing_shape_pos.y) as i16,
                         ),
                         (absolute_x, absolute_y, tile_layer),
                     );
@@ -75,8 +76,8 @@ impl super::Tab {
                 let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                     drawing_shape_pos
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
-                    self.view.cursor_pos
+                    self.drawing_shape_pos = Some(map_pos);
+                    map_pos
                 };
 
                 // Use depth-first search to find all of the orthogonally
@@ -158,8 +159,7 @@ impl super::Tab {
                 }
 
                 if let Some(drawing_shape_pos) = self.drawing_shape_pos {
-                    let bounding_rect =
-                        egui::Rect::from_two_pos(drawing_shape_pos, self.view.cursor_pos);
+                    let bounding_rect = egui::Rect::from_two_pos(drawing_shape_pos, map_pos);
                     for y in (bounding_rect.min.y as usize)..=(bounding_rect.max.y as usize) {
                         for x in (bounding_rect.min.x as usize)..=(bounding_rect.max.x) as usize {
                             let position = (x, y, tile_layer);
@@ -174,7 +174,7 @@ impl super::Tab {
                         }
                     }
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                    self.drawing_shape_pos = Some(map_pos);
                 }
             }
 
@@ -202,11 +202,10 @@ impl super::Tab {
                 // We consider (x, y) to be the top-left corner of the tile at
                 // (x, y).
                 if let Some(drawing_shape_pos) = self.drawing_shape_pos {
-                    let bounding_rect =
-                        egui::Rect::from_two_pos(drawing_shape_pos, self.view.cursor_pos);
+                    let bounding_rect = egui::Rect::from_two_pos(drawing_shape_pos, map_pos);
                     // Edge case: Bresenham's algorithm breaks down when drawing a
                     // 1x1 ellipse.
-                    if drawing_shape_pos == self.view.cursor_pos {
+                    if drawing_shape_pos == map_pos {
                         self.set_tile(
                             map,
                             self.tilepicker.get_tile_from_offset(
@@ -323,7 +322,7 @@ impl super::Tab {
                         }
                     }
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                    self.drawing_shape_pos = Some(map_pos);
                 }
             }
         };
