@@ -30,7 +30,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 default = [
   "accesskit",
   "default_fonts",
-  "glow",
+  "wgpu",
   "wayland",
   "winit/default",
   "x11",
@@ -54,7 +54,7 @@ android-native-activity = ["egui-winit/android-native-activity"]
 default_fonts = ["egui/default_fonts"]
 
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
+#glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -197,6 +197,11 @@ web-sys = { version = "0.3.58", features = [
   "WheelEvent",
   "Window",
 ] }
+
+flume.workspace = true
+oneshot.workspace = true
+
+luminol-web = { version = "0.4.0", path = "../web/" }
 
 # optional web:
 egui-wgpu = { workspace = true, optional = true } # if wgpu is used, use it without (!) winit

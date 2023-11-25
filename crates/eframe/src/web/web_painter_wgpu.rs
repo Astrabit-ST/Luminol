@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use wasm_bindgen::JsValue;
-use web_sys::HtmlCanvasElement;
 
 use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
 
@@ -28,8 +27,7 @@ unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
 }
 
 pub(crate) struct WebPainterWgpu {
-    canvas: HtmlCanvasElement,
-    canvas_id: String,
+    canvas: web_sys::OffscreenCanvas,
     surface: wgpu::Surface,
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
@@ -72,7 +70,10 @@ impl WebPainterWgpu {
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
-    pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
+    pub async fn new(
+        canvas: web_sys::OffscreenCanvas,
+        options: &WebOptions,
+    ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -80,22 +81,9 @@ impl WebPainterWgpu {
             ..Default::default()
         });
 
-        let canvas = super::canvas_element_or_die(canvas_id);
-
-        let surface = if false {
-            instance.create_surface_from_canvas(canvas.clone())
-        } else {
-            // Workaround for https://github.com/gfx-rs/wgpu/issues/3710:
-            // Don't use `create_surface_from_canvas`, but `create_surface` instead!
-            let raw_window = EguiWebWindow(egui::util::hash(("egui on wgpu", canvas_id)) as u32);
-            canvas.set_attribute("data-raw-handle", &raw_window.0.to_string());
-
-            #[allow(unsafe_code)]
-            unsafe {
-                instance.create_surface(&raw_window)
-            }
-        }
-        .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
+        let surface = instance
+            .create_surface_from_offscreen_canvas(canvas.clone())
+            .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
         let render_state =
@@ -106,8 +94,8 @@ impl WebPainterWgpu {
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
-            width: 0,
-            height: 0,
+            width: canvas.width(),
+            height: canvas.height(),
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
@@ -117,7 +105,6 @@ impl WebPainterWgpu {
 
         Ok(Self {
             canvas,
-            canvas_id: canvas_id.to_owned(),
             render_state: Some(render_state),
             surface,
             surface_configuration,
@@ -129,10 +116,6 @@ impl WebPainterWgpu {
 }
 
 impl WebPainter for WebPainterWgpu {
-    fn canvas_id(&self) -> &str {
-        &self.canvas_id
-    }
-
     fn max_texture_side(&self) -> usize {
         self.render_state.as_ref().map_or(0, |state| {
             state.device.limits().max_texture_dimension_2d as _

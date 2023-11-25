@@ -121,7 +121,6 @@ pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let canvas_style = canvas_element(runner.canvas_id())?.style();
 
     if runner.mutable_text_under_cursor {
         let is_already_editing = input.hidden();
@@ -150,8 +149,8 @@ pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
 
                     let new_pos_percent = format!("{}%", (delta * 100.0).round());
 
-                    canvas_style.set_property("position", "absolute").ok()?;
-                    canvas_style.set_property("top", &new_pos_percent).ok()?;
+                    //canvas_style.set_property("position", "absolute").ok()?;
+                    //canvas_style.set_property("top", &new_pos_percent).ok()?;
                 }
             }
         }
@@ -171,8 +170,8 @@ pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
         call_after_delay(std::time::Duration::from_millis(0), move || {
             input.blur().ok();
             input.set_hidden(true);
-            canvas_style.set_property("position", "absolute").ok();
-            canvas_style.set_property("top", "0%").ok(); // move back to normal position
+            //canvas_style.set_property("position", "absolute").ok();
+            //canvas_style.set_property("top", "0%").ok(); // move back to normal position
         });
     }
     Some(())

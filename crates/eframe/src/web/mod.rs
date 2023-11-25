@@ -53,11 +53,10 @@ use crate::Theme;
 ///
 /// Monotonically increasing.
 pub fn now_sec() -> f64 {
-    web_sys::window()
-        .expect("should have a Window")
-        .performance()
-        .expect("should have a Performance")
-        .now()
+    luminol_web::bindings::performance(
+        &luminol_web::bindings::worker().expect("should have a DedicatedWorkerGlobalScope"),
+    )
+    .now()
         / 1000.0
 }
 
@@ -106,15 +105,12 @@ fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
-fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
-    let rect = canvas_element(canvas_id)
-        .unwrap()
-        .get_bounding_client_rect();
+fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
+    let rect = canvas.get_bounding_client_rect();
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
-    let canvas = canvas_element(canvas_id).unwrap();
+fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement) -> egui::Vec2 {
     let pixels_per_point = native_pixels_per_point();
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
@@ -122,8 +118,10 @@ fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     )
 }
 
-fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
-    let canvas = canvas_element(canvas_id)?;
+fn resize_canvas_to_screen_size(
+    canvas: &web_sys::HtmlCanvasElement,
+    max_size_points: egui::Vec2,
+) -> Option<()> {
     let parent = canvas.parent_element()?;
 
     // Prefer the client width and height so that if the parent
@@ -274,4 +272,39 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
+}
+
+pub struct WorkerOptions {
+    pub app_id: String,
+    pub prefers_color_scheme_dark: Option<bool>,
+    pub channels: WebRunnerChannels,
+}
+
+#[derive(Default)]
+pub struct WebRunnerChannels {
+    pub event_rx: Option<flume::Receiver<egui::Event>>,
+    pub custom_event_rx: Option<flume::Receiver<WebRunnerCustomEvent>>,
+    pub output_tx: Option<flume::Sender<WebRunnerOutput>>,
+}
+
+pub struct WebRunnerCustomEvent(WebRunnerCustomEventInner);
+
+pub(super) enum WebRunnerCustomEventInner {
+    /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
+    ScreenResize(u32, u32, f32),
+    /// This should be sent whenever the modifiers change
+    Modifiers(egui::Modifiers),
+    /// This should be sent whenever the app needs to save immediately
+    Save,
+}
+
+pub struct WebRunnerOutput(WebRunnerOutputInner);
+
+pub(super) enum WebRunnerOutputInner {
+    /// Miscellaneous egui output events
+    PlatformOutput(egui::PlatformOutput),
+    /// The runner wants to read a key from storage
+    StorageGet(String, oneshot::Sender<Option<String>>),
+    /// The runner wants to write a key to storage
+    StorageSet(String, String, oneshot::Sender<bool>),
 }

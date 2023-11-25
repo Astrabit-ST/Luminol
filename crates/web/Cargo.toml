@@ -14,7 +14,6 @@ categories.workspace = true
 
 [dependencies]
 egui.workspace = true
-eframe.workspace = true
 egui-wgpu.workspace = true
 wgpu.workspace = true
 
@@ -23,8 +22,6 @@ ron.workspace = true
 once_cell.workspace = true
 
 tracing.workspace = true
-
-luminol-app.workspace = true
 
 flume.workspace = true
 oneshot.workspace = true

@@ -171,9 +171,7 @@ struct WorkerData {
     audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
     filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
-    output_tx: flume::Sender<luminol_web::WebWorkerRunnerOutput>,
-    event_rx: flume::Receiver<egui::Event>,
-    custom_event_rx: flume::Receiver<luminol_web::WebWorkerRunnerEvent>,
+    web_runner_channels: eframe::web::WebRunnerChannels,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -182,7 +180,7 @@ static WORKER_DATA: parking_lot::RwLock<Option<WorkerData>> = parking_lot::RwLoc
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
-    let (panic_tx, mut panic_rx) = flume::unbounded::<()>();
+    let (panic_tx, panic_rx) = flume::unbounded();
 
     wasm_bindgen_futures::spawn_local(async move {
         if panic_rx.recv_async().await.is_ok() {
@@ -191,7 +189,7 @@ pub fn luminol_main_start(fallback: bool) {
     });
 
     std::panic::set_hook(Box::new(move |info| {
-        luminol_web::web_worker_runner::panic_hook();
+        //luminol_web::web_worker_runner::panic_hook();
 
         let backtrace_printer =
             color_backtrace::BacktracePrinter::new().verbosity(color_backtrace::Verbosity::Full);
@@ -241,20 +239,20 @@ pub fn luminol_main_start(fallback: bool) {
     let (custom_event_tx, custom_event_rx) = flume::unbounded();
 
     luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
-    luminol_web::web_worker_runner::setup_main_thread_hooks(
-        canvas,
-        event_tx.clone(),
-        custom_event_tx.clone(),
-        output_rx,
-    );
+    // TODO
+    std::mem::forget(event_tx);
+    std::mem::forget(custom_event_tx);
+    std::mem::forget(output_rx);
 
     *WORKER_DATA.write() = Some(WorkerData {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
-        output_tx,
-        event_rx,
-        custom_event_rx,
+        web_runner_channels: eframe::web::WebRunnerChannels {
+            event_rx: Some(event_rx),
+            custom_event_rx: Some(custom_event_rx),
+            output_tx: Some(output_tx),
+        },
     });
 
     let mut worker_options = web_sys::WorkerOptions::new();
@@ -281,25 +279,25 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         audio,
         prefers_color_scheme_dark,
         filesystem_tx,
-        output_tx,
-        event_rx,
-        custom_event_rx,
+        web_runner_channels,
     } = WORKER_DATA.write().take().unwrap();
 
     luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
 
     let web_options = eframe::WebOptions::default();
 
-    let runner = luminol_web::WebWorkerRunner::new(
-        Box::new(|cc| Box::new(app::App::new(cc, audio))),
-        canvas,
-        web_options,
-        "astrabit.luminol",
-        prefers_color_scheme_dark,
-        Some(event_rx),
-        Some(custom_event_rx),
-        Some(output_tx),
-    )
-    .await;
-    runner.setup_render_hooks();
+    let runner = eframe::WebRunner::new();
+    runner
+        .start(
+            canvas,
+            web_options,
+            Box::new(|cc| Box::new(app::App::new(cc, audio))),
+            eframe::web::WorkerOptions {
+                app_id: String::from("astrabit.luminol"),
+                prefers_color_scheme_dark,
+                channels: web_runner_channels,
+            },
+        )
+        .await
+        .expect("failed to start eframe");
 }

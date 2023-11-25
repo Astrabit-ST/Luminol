@@ -50,29 +50,30 @@ impl WebRunner {
     /// Failing to initialize graphics.
     pub async fn start(
         &self,
-        canvas_id: &str,
+        canvas: web_sys::OffscreenCanvas,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
+        worker_options: super::WorkerOptions,
     ) -> Result<(), JsValue> {
         self.destroy();
 
         let follow_system_theme = web_options.follow_system_theme;
 
-        let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
+        let mut runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
         runner.warm_up();
         self.runner.replace(Some(runner));
 
         {
-            events::install_canvas_events(self)?;
-            events::install_document_events(self)?;
-            events::install_window_events(self)?;
-            super::text_agent::install_text_agent(self)?;
+            //events::install_canvas_events(self)?;
+            //events::install_document_events(self)?;
+            //events::install_window_events(self)?;
+            //super::text_agent::install_text_agent(self)?;
 
             if follow_system_theme {
-                events::install_color_scheme_change_event(self)?;
+                //events::install_color_scheme_change_event(self)?;
             }
 
-            events::request_animation_frame(self.clone())?;
+            //events::request_animation_frame(self.clone())?;
         }
 
         Ok(())

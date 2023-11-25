@@ -22,21 +22,13 @@ pub(crate) struct WebInput {
 }
 
 impl WebInput {
-    pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
+    pub fn new_frame(&mut self, canvas_size: egui::Vec2, pixels_per_point: f32) -> egui::RawInput {
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
-            pixels_per_point: Some(super::native_pixels_per_point()), // We ALWAYS use the native pixels-per-point
+            pixels_per_point: Some(pixels_per_point),
             time: Some(super::now_sec()),
             ..self.raw.take()
         }
-    }
-
-    pub fn on_web_page_focus_change(&mut self, focused: bool) {
-        self.raw.modifiers = egui::Modifiers::default();
-        self.raw.focused = focused;
-        self.raw.events.push(egui::Event::WindowFocused(focused));
-        self.latest_touch_pos = None;
-        self.latest_touch_pos_id = None;
     }
 }
 

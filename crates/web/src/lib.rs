@@ -17,11 +17,3 @@
 
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;
-#[cfg(target_arch = "wasm32")]
-pub mod web_worker_runner;
-#[cfg(target_arch = "wasm32")]
-pub use web_worker_runner::WebWorkerRunner;
-#[cfg(target_arch = "wasm32")]
-pub use web_worker_runner::WebWorkerRunnerEvent;
-#[cfg(target_arch = "wasm32")]
-pub use web_worker_runner::WebWorkerRunnerOutput;

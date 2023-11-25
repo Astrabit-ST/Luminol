@@ -13,21 +13,28 @@ pub fn local_storage_set(key: &str, value: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub(crate) fn load_memory(ctx: &egui::Context) {
-    if let Some(memory_string) = local_storage_get("egui_memory_ron") {
-        match ron::from_str(&memory_string) {
-            Ok(memory) => {
-                ctx.memory_mut(|m| *m = memory);
-            }
-            Err(err) => {
-                log::warn!("Failed to parse memory RON: {err}");
+pub(crate) async fn load_memory(ctx: &egui::Context, worker_options: &super::WorkerOptions) {
+    if let Some(output_tx) = &worker_options.channels.output_tx {
+        let app_id = worker_options.app_id.clone();
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        output_tx
+            .send(super::WebRunnerOutput(
+                super::WebRunnerOutputInner::StorageGet(app_id, oneshot_tx),
+            ))
+            .unwrap();
+        if let Some(memory) = oneshot_rx.await.ok().flatten() {
+            match ron::from_str(&memory) {
+                Ok(memory) => {
+                    ctx.memory_mut(|m| *m = memory);
+                }
+                Err(err) => log::warn!("Failed to parse memory RON: {err}"),
             }
         }
     }
 }
 
 #[cfg(not(feature = "persistence"))]
-pub(crate) fn load_memory(_: &egui::Context) {}
+pub(crate) async fn load_memory(_: &egui::Context, _: &super::WorkerOptions) {}
 
 #[cfg(feature = "persistence")]
 pub(crate) fn save_memory(ctx: &egui::Context) {

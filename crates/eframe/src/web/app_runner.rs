@@ -18,6 +18,15 @@ pub struct AppRunner {
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
+
+    pub(super) canvas: web_sys::OffscreenCanvas,
+    worker_options: super::WorkerOptions,
+    /// Width of the canvas in points. `surface_configuration.width` is the width in pixels.
+    width: u32,
+    /// Height of the canvas in points. `surface_configuration.height` is the height in pixels.
+    height: u32,
+    /// Length of a pixel divided by length of a point.
+    pixel_ratio: f32,
 }
 
 impl Drop for AppRunner {
@@ -30,34 +39,59 @@ impl AppRunner {
     /// # Errors
     /// Failure to initialize WebGL renderer.
     pub async fn new(
-        canvas_id: &str,
+        canvas: web_sys::OffscreenCanvas,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
+        worker_options: super::WorkerOptions,
     ) -> Result<Self, String> {
-        let painter = super::ActiveWebPainter::new(canvas_id, &web_options).await?;
+        let Some(worker) = luminol_web::bindings::worker() else {
+            panic!("cannot create a web runner outside of a web worker");
+        };
+        let location = worker.location();
+        let user_agent = worker.navigator().user_agent().unwrap_or_default();
+
+        let painter = super::ActiveWebPainter::new(canvas.clone(), &web_options).await?;
 
         let system_theme = if web_options.follow_system_theme {
-            super::system_theme()
+            worker_options.prefers_color_scheme_dark.map(|x| {
+                if x {
+                    crate::Theme::Dark
+                } else {
+                    crate::Theme::Light
+                }
+            })
         } else {
             None
         };
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
-                user_agent: super::user_agent().unwrap_or_default(),
-                location: super::web_location(),
+                user_agent: user_agent.clone(),
+                location: crate::Location {
+                    url: location
+                        .href()
+                        .strip_suffix("/worker.js")
+                        .unwrap_or(location.href().as_str())
+                        .to_string(),
+                    protocol: location.protocol(),
+                    host: location.host(),
+                    hostname: location.hostname(),
+                    port: location.port(),
+                    hash: Default::default(),
+                    query: Default::default(),
+                    query_map: Default::default(),
+                    origin: location.origin(),
+                },
             },
             system_theme,
             cpu_usage: None,
-            native_pixels_per_point: Some(super::native_pixels_per_point()),
+            native_pixels_per_point: Some(1.),
         };
         let storage = LocalStorage::default();
 
         let egui_ctx = egui::Context::default();
-        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
-            &super::user_agent().unwrap_or_default(),
-        ));
-        super::storage::load_memory(&egui_ctx);
+        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(&user_agent));
+        super::storage::load_memory(&egui_ctx, &worker_options).await;
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
@@ -111,6 +145,12 @@ impl AppRunner {
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
+
+            worker_options,
+            width: canvas.width(),
+            height: canvas.height(),
+            canvas,
+            pixel_ratio: 1.,
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -150,10 +190,6 @@ impl AppRunner {
         self.last_save_time = now_sec();
     }
 
-    pub fn canvas_id(&self) -> &str {
-        self.painter.canvas_id()
-    }
-
     pub fn warm_up(&mut self) {
         if self.app.warm_up_enabled() {
             let saved_memory: egui::Memory = self.egui_ctx.memory(|m| m.clone());
@@ -176,9 +212,10 @@ impl AppRunner {
     pub fn logic(&mut self) -> (std::time::Duration, Vec<egui::ClippedPrimitive>) {
         let frame_start = now_sec();
 
-        super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
-        let canvas_size = super::canvas_size_in_points(self.canvas_id());
-        let raw_input = self.input.new_frame(canvas_size);
+        let raw_input = self.input.new_frame(
+            egui::vec2(self.width as f32, self.height as f32),
+            self.pixel_ratio,
+        );
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             self.app.update(egui_ctx, &mut self.frame);
@@ -251,7 +288,7 @@ impl AppRunner {
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
         if self.text_cursor_pos != text_cursor_pos {
-            super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
+            //super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
             self.text_cursor_pos = text_cursor_pos;
         }
     }
