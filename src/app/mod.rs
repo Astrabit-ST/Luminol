@@ -189,13 +189,9 @@ impl App {
     }
 }
 
-impl luminol_app::CustomApp for App {
+impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn custom_update(
-        &mut self,
-        ctx: &eframe::egui::Context,
-        frame: &mut luminol_app::CustomFrame<'_>,
-    ) {
+    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
@@ -274,10 +270,6 @@ impl luminol_app::CustomApp for App {
         #[cfg(feature = "steamworks")]
         self.steamworks.update()
     }
-}
-
-impl eframe::App for App {
-    luminol_app::app_use_custom_update!();
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

@@ -97,7 +97,6 @@ rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
-luminol-app = { version = "0.4.0", path = "crates/app/" }
 luminol-components = { version = "0.4.0", path = "crates/components/" }
 luminol-config = { version = "0.4.0", path = "crates/config/" }
 luminol-core = { version = "0.4.0", path = "crates/core/" }
@@ -129,7 +128,6 @@ crc = { version = "3.0.1", optional = true }
 tracing-subscriber = "0.3.17"
 color-backtrace = "0.6.0"
 
-luminol-app.workspace = true
 luminol-audio.workspace = true
 luminol-core.workspace = true
 luminol-config.workspace = true

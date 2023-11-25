@@ -40,7 +40,7 @@ impl TopBar {
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        frame: &mut luminol_app::CustomFrame<'_>,
+        frame: &mut eframe::Frame,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::widgets::global_dark_light_mode_switch(ui);

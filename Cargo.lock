@@ -2926,7 +2926,6 @@ dependencies = [
  "flume",
  "image 0.24.7",
  "js-sys",
- "luminol-app",
  "luminol-audio",
  "luminol-config",
  "luminol-core",
@@ -2952,14 +2951,6 @@ dependencies = [
  "web-sys",
  "wgpu",
  "winres",
-]
-
-[[package]]
-name = "luminol-app"
-version = "0.4.0"
-dependencies = [
- "eframe",
- "egui",
 ]
 
 [[package]]
