@@ -205,7 +205,7 @@ impl super::Tab {
                                 map_x as i16 - drawing_shape_pos.x as i16,
                                 map_y as i16 - drawing_shape_pos.y as i16,
                             ),
-                            (map_x as usize, map_y as usize, tile_layer),
+                            (map_x, map_y, tile_layer),
                         );
                     } else {
                         let bounding_rect = bounding_rect.translate(egui::vec2(0.5, 0.5));
