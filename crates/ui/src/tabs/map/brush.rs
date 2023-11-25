@@ -34,6 +34,7 @@ impl super::Tab {
         pencil: luminol_core::Pencil,
         map: &mut luminol_data::rpg::Map,
     ) {
+        let map_pos = egui::pos2(map_x as f32, map_y as f32);
         let initial_tile =
             luminol_components::SelectedTile::from_id(map.data[(map_x, map_y, tile_layer)]);
         let left = self.tilepicker.selected_tiles_left;
@@ -48,8 +49,8 @@ impl super::Tab {
                 let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                     drawing_shape_pos
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
-                    self.view.cursor_pos
+                    self.drawing_shape_pos = Some(map_pos);
+                    map_pos
                 };
                 for (y, x) in (0..height).cartesian_product(0..width) {
                     let absolute_x = map_x + x as usize;
@@ -63,8 +64,8 @@ impl super::Tab {
                     self.set_tile(
                         map,
                         self.tilepicker.get_tile_from_offset(
-                            x + (self.view.cursor_pos.x - drawing_shape_pos.x) as i16,
-                            y + (self.view.cursor_pos.y - drawing_shape_pos.y) as i16,
+                            x + (map_x as f32 - drawing_shape_pos.x) as i16,
+                            y + (map_y as f32 - drawing_shape_pos.y) as i16,
                         ),
                         (absolute_x, absolute_y, tile_layer),
                     );
@@ -75,8 +76,8 @@ impl super::Tab {
                 let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                     drawing_shape_pos
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
-                    self.view.cursor_pos
+                    self.drawing_shape_pos = Some(map_pos);
+                    map_pos
                 };
 
                 // Use depth-first search to find all of the orthogonally
@@ -91,36 +92,29 @@ impl super::Tab {
                         ),
                         position,
                     );
-                    self.dfs_cache[map_x + map_y * map.data.xsize()] = true;
+                    self.dfs_cache[position.0 + position.1 * map.data.xsize()] = true;
 
-                    let x_array: [i8; 4] = [-1, 1, 0, 0];
-                    let y_array: [i8; 4] = [0, 0, -1, 1];
+                    let x_array: [isize; 4] = [-1, 1, 0, 0];
+                    let y_array: [isize; 4] = [0, 0, -1, 1];
                     for (x, y) in x_array.into_iter().zip(y_array.into_iter()) {
                         // Don't search tiles that are out of bounds
-                        if ((x == -1 && map_x == 0) || (x == 1 && map_x + 1 == map.data.xsize()))
-                            || ((y == -1 && map_y == 0)
-                                || (y == 1 && map_y + 1 == map.data.ysize()))
+                        if (x == -1 && position.0 == 0)
+                            || (x == 1 && position.0 + 1 == map.data.xsize())
+                            || (y == -1 && position.1 == 0)
+                            || (y == 1 && position.1 + 1 == map.data.ysize())
                         {
                             continue;
                         }
 
                         let position = (
-                            if x == -1 {
-                                map_x - 1
-                            } else {
-                                map_x + x as usize
-                            },
-                            if y == -1 {
-                                map_y - 1
-                            } else {
-                                map_y + y as usize
-                            },
+                            position.0.saturating_add_signed(x),
+                            position.1.saturating_add_signed(y),
                             position.2,
                         );
 
                         // Don't search tiles that we've already searched before
                         // because that would cause an infinite loop
-                        if self.dfs_cache[map_x + map_y * map.data.xsize()] {
+                        if self.dfs_cache[position.0 + position.1 * map.data.xsize()] {
                             continue;
                         }
 
@@ -158,8 +152,7 @@ impl super::Tab {
                 }
 
                 if let Some(drawing_shape_pos) = self.drawing_shape_pos {
-                    let bounding_rect =
-                        egui::Rect::from_two_pos(drawing_shape_pos, self.view.cursor_pos);
+                    let bounding_rect = egui::Rect::from_two_pos(drawing_shape_pos, map_pos);
                     for y in (bounding_rect.min.y as usize)..=(bounding_rect.max.y as usize) {
                         for x in (bounding_rect.min.x as usize)..=(bounding_rect.max.x) as usize {
                             let position = (x, y, tile_layer);
@@ -174,7 +167,7 @@ impl super::Tab {
                         }
                     }
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                    self.drawing_shape_pos = Some(map_pos);
                 }
             }
 
@@ -202,18 +195,17 @@ impl super::Tab {
                 // We consider (x, y) to be the top-left corner of the tile at
                 // (x, y).
                 if let Some(drawing_shape_pos) = self.drawing_shape_pos {
-                    let bounding_rect =
-                        egui::Rect::from_two_pos(drawing_shape_pos, self.view.cursor_pos);
+                    let bounding_rect = egui::Rect::from_two_pos(drawing_shape_pos, map_pos);
                     // Edge case: Bresenham's algorithm breaks down when drawing a
                     // 1x1 ellipse.
-                    if drawing_shape_pos == self.view.cursor_pos {
+                    if drawing_shape_pos == map_pos {
                         self.set_tile(
                             map,
                             self.tilepicker.get_tile_from_offset(
                                 map_x as i16 - drawing_shape_pos.x as i16,
                                 map_y as i16 - drawing_shape_pos.y as i16,
                             ),
-                            (map_x as usize, map_y as usize, tile_layer),
+                            (map_x, map_y, tile_layer),
                         );
                     } else {
                         let bounding_rect = bounding_rect.translate(egui::vec2(0.5, 0.5));
@@ -323,7 +315,7 @@ impl super::Tab {
                         }
                     }
                 } else {
-                    self.drawing_shape_pos = Some(self.view.cursor_pos);
+                    self.drawing_shape_pos = Some(map_pos);
                 }
             }
         };
