@@ -147,7 +147,7 @@ impl WebWorkerRunner {
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: web_options.wgpu_options.supported_backends,
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
         let surface = instance
             .create_surface_from_offscreen_canvas(canvas.clone())
@@ -471,11 +471,13 @@ impl WebWorkerRunner {
                                     b: clear_color[2].into(),
                                     a: clear_color[3].into(),
                                 }),
-                                store: true,
+                                store: wgpu::StoreOp::Store,
                             },
                         })],
                         depth_stencil_attachment: None,
                         label: Some("Luminol WebWorkerRunner Renderer"),
+                        occlusion_query_set: None,
+                        timestamp_writes: None,
                     });
                     renderer.render(&mut render_pass, &paint_jobs[..], &screen_descriptor);
                 }

@@ -52,7 +52,7 @@ egui-wgpu = { version = "0.23.0", path = "crates/egui-wgpu/" }
 egui_glow = "0.23.0"
 egui-winit = "0.23.0"
 
-wgpu = { version = "0.17.2", features = ["naga"] }
+wgpu = { version = "0.18.0", features = ["naga"] }
 glam = { version = "0.24.2", features = ["bytemuck"] }
 image = "0.24.7"
 
