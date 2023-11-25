@@ -92,36 +92,29 @@ impl super::Tab {
                         ),
                         position,
                     );
-                    self.dfs_cache[map_x + map_y * map.data.xsize()] = true;
+                    self.dfs_cache[position.0 + position.1 * map.data.xsize()] = true;
 
-                    let x_array: [i8; 4] = [-1, 1, 0, 0];
-                    let y_array: [i8; 4] = [0, 0, -1, 1];
+                    let x_array: [isize; 4] = [-1, 1, 0, 0];
+                    let y_array: [isize; 4] = [0, 0, -1, 1];
                     for (x, y) in x_array.into_iter().zip(y_array.into_iter()) {
                         // Don't search tiles that are out of bounds
-                        if ((x == -1 && map_x == 0) || (x == 1 && map_x + 1 == map.data.xsize()))
-                            || ((y == -1 && map_y == 0)
-                                || (y == 1 && map_y + 1 == map.data.ysize()))
+                        if (x == -1 && position.0 == 0)
+                            || (x == 1 && position.0 + 1 == map.data.xsize())
+                            || (y == -1 && position.1 == 0)
+                            || (y == 1 && position.1 + 1 == map.data.ysize())
                         {
                             continue;
                         }
 
                         let position = (
-                            if x == -1 {
-                                map_x - 1
-                            } else {
-                                map_x + x as usize
-                            },
-                            if y == -1 {
-                                map_y - 1
-                            } else {
-                                map_y + y as usize
-                            },
+                            position.0.saturating_add_signed(x),
+                            position.1.saturating_add_signed(y),
                             position.2,
                         );
 
                         // Don't search tiles that we've already searched before
                         // because that would cause an infinite loop
-                        if self.dfs_cache[map_x + map_y * map.data.xsize()] {
+                        if self.dfs_cache[position.0 + position.1 * map.data.xsize()] {
                             continue;
                         }
 
