@@ -223,7 +223,7 @@ impl AppRunner {
         self.mutable_text_under_cursor = platform_output.mutable_text_under_cursor;
         self.worker_options
             .channels
-            .push(super::WebRunnerOutputInner::PlatformOutput(platform_output));
+            .send(super::WebRunnerOutputInner::PlatformOutput(platform_output));
         self.textures_delta.append(textures_delta);
         let clipped_primitives = self.egui_ctx.tessellate(shapes);
 
@@ -294,13 +294,13 @@ impl AppRunner {
 
 #[derive(Default)]
 struct LocalStorage {
-    channels: super::WebRunnerChannels,
+    channels: super::WorkerChannels,
 }
 
 impl epi::Storage for LocalStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.channels.push(super::WebRunnerOutputInner::StorageGet(
+        self.channels.send(super::WebRunnerOutputInner::StorageGet(
             key.to_string(),
             oneshot_tx,
         ));
@@ -309,7 +309,7 @@ impl epi::Storage for LocalStorage {
 
     fn set_string(&mut self, key: &str, value: String) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.channels.push(super::WebRunnerOutputInner::StorageSet(
+        self.channels.send(super::WebRunnerOutputInner::StorageSet(
             key.to_string(),
             value,
             oneshot_tx,

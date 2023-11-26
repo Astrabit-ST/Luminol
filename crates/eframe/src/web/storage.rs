@@ -13,10 +13,10 @@ pub fn local_storage_set(key: &str, value: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WebRunnerChannels) {
+pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {
     if channels.output_tx.is_some() {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        channels.push(super::WebRunnerOutputInner::StorageGet(
+        channels.send(super::WebRunnerOutputInner::StorageGet(
             String::from("egui_memory_ron"),
             oneshot_tx,
         ));
@@ -32,14 +32,14 @@ pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WebRunner
 }
 
 #[cfg(not(feature = "persistence"))]
-pub(crate) async fn load_memory(_: &egui::Context, _: &super::WebRunnerChannels) {}
+pub(crate) async fn load_memory(_: &egui::Context, _: &super::WorkerChannels) {}
 
 #[cfg(feature = "persistence")]
-pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WebRunnerChannels) {
+pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {
     match ctx.memory(|mem| ron::to_string(mem)) {
         Ok(ron) => {
             let (oneshot_tx, oneshot_rx) = oneshot::channel();
-            channels.push(super::WebRunnerOutputInner::StorageSet(
+            channels.send(super::WebRunnerOutputInner::StorageSet(
                 String::from("egui_memory_ron"),
                 ron,
                 oneshot_tx,
@@ -53,4 +53,4 @@ pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WebRunnerChanne
 }
 
 #[cfg(not(feature = "persistence"))]
-pub(crate) fn save_memory(_: &egui::Context, _: &super::WebRunnerChannels) {}
+pub(crate) fn save_memory(_: &egui::Context, _: &super::WorkerChannels) {}

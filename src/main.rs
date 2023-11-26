@@ -171,7 +171,7 @@ struct WorkerData {
     audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
     filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
-    web_runner_channels: eframe::web::WebRunnerChannels,
+    web_runner_channels: eframe::web::WorkerChannels,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -251,7 +251,7 @@ pub fn luminol_main_start(fallback: bool) {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
-        web_runner_channels: eframe::web::WebRunnerChannels {
+        web_runner_channels: eframe::web::WorkerChannels {
             event_rx: Some(event_rx),
             custom_event_rx: Some(custom_event_rx),
             output_tx: Some(output_tx),
@@ -295,7 +295,6 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
             web_options,
             Box::new(|cc| Box::new(app::App::new(cc, audio))),
             eframe::web::WorkerOptions {
-                app_id: String::from("astrabit.luminol"),
                 prefers_color_scheme_dark,
                 channels: web_runner_channels,
             },

@@ -275,20 +275,19 @@ pub fn percent_decode(s: &str) -> String {
 }
 
 pub struct WorkerOptions {
-    pub app_id: String,
     pub prefers_color_scheme_dark: Option<bool>,
-    pub channels: WebRunnerChannels,
+    pub channels: WorkerChannels,
 }
 
 #[derive(Default, Clone)]
-pub struct WebRunnerChannels {
+pub struct WorkerChannels {
     pub event_rx: Option<flume::Receiver<egui::Event>>,
     pub custom_event_rx: Option<flume::Receiver<WebRunnerCustomEvent>>,
     pub output_tx: Option<flume::Sender<WebRunnerOutput>>,
 }
 
-impl WebRunnerChannels {
-    pub fn push(&self, output: WebRunnerOutputInner) {
+impl WorkerChannels {
+    pub fn send(&self, output: WebRunnerOutputInner) {
         if let Some(output_tx) = &self.output_tx {
             let _ = output_tx.send(WebRunnerOutput(output));
         }
@@ -303,13 +302,13 @@ pub struct MainThreadChannels {
 }
 
 impl MainThreadChannels {
-    pub fn push(&self, event: egui::Event) {
+    pub fn send(&self, event: egui::Event) {
         if let Some(event_tx) = &self.event_tx {
             let _ = event_tx.send(event);
         }
     }
 
-    pub fn push_custom(&self, event: WebRunnerCustomEventInner) {
+    pub fn send_custom(&self, event: WebRunnerCustomEventInner) {
         if let Some(custom_event_tx) = &self.custom_event_tx {
             let _ = custom_event_tx.send(WebRunnerCustomEvent(event));
         }

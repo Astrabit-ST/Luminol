@@ -164,14 +164,14 @@ pub(crate) fn install_document_events(
 
                 if !has_focus {
                     // We lost focus - good idea to save
-                    channels.push_custom(WebRunnerCustomEventInner::Save);
+                    channels.send_custom(WebRunnerCustomEventInner::Save);
                 }
 
                 //runner.input.on_web_page_focus_change(has_focus);
                 //runner.egui_ctx().request_repaint();
                 // log::debug!("{event_name:?}");
 
-                channels.push_custom(WebRunnerCustomEventInner::Modifiers(
+                channels.send_custom(WebRunnerCustomEventInner::Modifiers(
                     modifiers_from_mouse_event(&event),
                 ));
             };
@@ -192,13 +192,13 @@ pub(crate) fn install_document_events(
             }
 
             let modifiers = modifiers_from_event(&event);
-            channels.push_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
+            channels.send_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
 
             let key = event.key();
             let egui_key = translate_key(&key);
 
             if let Some(key) = egui_key {
-                channels.push(egui::Event::Key {
+                channels.send(egui::Event::Key {
                     key,
                     pressed: true,
                     repeat: false, // egui will fill this in for us!
@@ -209,7 +209,7 @@ pub(crate) fn install_document_events(
             // When text agent is shown, it sends text event instead.
             //&& text_agent::text_agent().hidden()
             {
-                channels.push(egui::Event::Text(key));
+                channels.send(egui::Event::Text(key));
             }
             //runner.needs_repaint.repaint_asap();
 
@@ -264,9 +264,9 @@ pub(crate) fn install_document_events(
         &canvas,
         |event: web_sys::KeyboardEvent, channels, canvas| {
             let modifiers = modifiers_from_event(&event);
-            channels.push_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
+            channels.send_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
             if let Some(key) = translate_key(&event.key()) {
-                channels.push(egui::Event::Key {
+                channels.send(egui::Event::Key {
                     key,
                     pressed: false,
                     repeat: false,
@@ -288,7 +288,7 @@ pub(crate) fn install_document_events(
                 if let Ok(text) = data.get_data("text") {
                     let text = text.replace("\r\n", "\n");
                     if !text.is_empty() {
-                        channels.push(egui::Event::Paste(text));
+                        channels.send(egui::Event::Paste(text));
                         //runner.needs_repaint.repaint_asap();
                     }
                     event.stop_propagation();
@@ -305,7 +305,7 @@ pub(crate) fn install_document_events(
         &channels,
         &canvas,
         |_: web_sys::ClipboardEvent, channels, canvas| {
-            channels.push(egui::Event::Cut);
+            channels.send(egui::Event::Cut);
             //runner.needs_repaint.repaint_asap();
         },
     )?;
@@ -317,7 +317,7 @@ pub(crate) fn install_document_events(
         &channels,
         &canvas,
         |_: web_sys::ClipboardEvent, channels, canvas| {
-            channels.push(egui::Event::Copy);
+            channels.send(egui::Event::Copy);
             //runner.needs_repaint.repaint_asap();
         },
     )?;
@@ -366,7 +366,7 @@ pub(crate) fn install_window_events(
             let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
             let _ = canvas.set_attribute("width", width.to_string().as_str());
             let _ = canvas.set_attribute("height", height.to_string().as_str());
-            channels.push_custom(WebRunnerCustomEventInner::ScreenResize(
+            channels.send_custom(WebRunnerCustomEventInner::ScreenResize(
                 width,
                 height,
                 pixel_ratio,
@@ -433,7 +433,7 @@ pub(crate) fn install_canvas_events(
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(&canvas, &event);
                 let modifiers = modifiers_from_mouse_event(&event);
-                channels.push(egui::Event::PointerButton {
+                channels.send(egui::Event::PointerButton {
                     pos,
                     button,
                     pressed: true,
@@ -459,7 +459,7 @@ pub(crate) fn install_canvas_events(
         &canvas,
         |event: web_sys::MouseEvent, channels, canvas| {
             let pos = pos_from_mouse_event(&canvas, &event);
-            channels.push(egui::Event::PointerMoved(pos));
+            channels.send(egui::Event::PointerMoved(pos));
             //runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
@@ -474,7 +474,7 @@ pub(crate) fn install_canvas_events(
         |event: web_sys::MouseEvent, channels, canvas| {
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(&canvas, &event);
-                channels.push(egui::Event::PointerButton {
+                channels.send(egui::Event::PointerButton {
                     pos,
                     button,
                     pressed: false,
@@ -501,9 +501,9 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::MouseEvent, channels, canvas| {
-            channels.push_custom(WebRunnerCustomEventInner::Save);
+            channels.send_custom(WebRunnerCustomEventInner::Save);
 
-            channels.push(egui::Event::PointerGone);
+            channels.send(egui::Event::PointerGone);
             //runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
@@ -615,7 +615,7 @@ pub(crate) fn install_canvas_events(
             let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
             let modifiers = modifiers_from_wheel_event(&event);
 
-            channels.push(egui::Event::MouseWheel {
+            channels.send(egui::Event::MouseWheel {
                 unit,
                 delta,
                 modifiers,
@@ -638,7 +638,7 @@ pub(crate) fn install_canvas_events(
             // `modifiers_from_event()`, but we cannot directly use that fn for a [`WheelEvent`].
             if event.ctrl_key() || event.meta_key() {
                 let factor = (delta.y / 200.0).exp();
-                channels.push(egui::Event::Zoom(factor));
+                channels.send(egui::Event::Zoom(factor));
             } else {
                 if event.shift_key() {
                     // Treat as horizontal scrolling.
@@ -646,7 +646,7 @@ pub(crate) fn install_canvas_events(
                     delta = egui::vec2(delta.x + delta.y, 0.0);
                 }
 
-                channels.push(egui::Event::Scroll(delta));
+                channels.send(egui::Event::Scroll(delta));
             }
 
             //runner.needs_repaint.repaint_asap();
