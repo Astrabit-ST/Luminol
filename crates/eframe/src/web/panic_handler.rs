@@ -19,6 +19,8 @@ impl PanicHandler {
         let handler_clone = handler.clone();
         let previous_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |panic_info| {
+            let _ = super::PANIC_LOCK.set(());
+
             let summary = PanicSummary::new(panic_info);
 
             // Log it using console.error

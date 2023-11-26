@@ -198,6 +198,8 @@ web-sys = { version = "0.3.58", features = [
   "Window",
 ] }
 
+once_cell.workspace = true
+
 flume.workspace = true
 oneshot.workspace = true
 

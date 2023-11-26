@@ -206,18 +206,32 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
     }
 }
 
+macro_rules! modifiers {
+    ($event:ident) => {
+        egui::Modifiers {
+            alt: $event.alt_key(),
+            ctrl: $event.ctrl_key(),
+            shift: $event.shift_key(),
+
+            // Ideally we should know if we are running or mac or not,
+            // but this works good enough for now.
+            mac_cmd: $event.meta_key(),
+
+            // Ideally we should know if we are running or mac or not,
+            // but this works good enough for now.
+            command: $event.ctrl_key() || $event.meta_key(),
+        }
+    };
+}
+
 pub fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
-    egui::Modifiers {
-        alt: event.alt_key(),
-        ctrl: event.ctrl_key(),
-        shift: event.shift_key(),
+    modifiers!(event)
+}
 
-        // Ideally we should know if we are running or mac or not,
-        // but this works good enough for now.
-        mac_cmd: event.meta_key(),
+pub(super) fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::Modifiers {
+    modifiers!(event)
+}
 
-        // Ideally we should know if we are running or mac or not,
-        // but this works good enough for now.
-        command: event.ctrl_key() || event.meta_key(),
-    }
+pub(super) fn modifiers_from_wheel_event(event: &web_sys::WheelEvent) -> egui::Modifiers {
+    modifiers!(event)
 }

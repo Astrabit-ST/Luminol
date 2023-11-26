@@ -280,11 +280,26 @@ pub struct WorkerOptions {
     pub channels: WebRunnerChannels,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct WebRunnerChannels {
     pub event_rx: Option<flume::Receiver<egui::Event>>,
     pub custom_event_rx: Option<flume::Receiver<WebRunnerCustomEvent>>,
     pub output_tx: Option<flume::Sender<WebRunnerOutput>>,
+}
+
+#[derive(Default, Clone)]
+pub struct MainThreadChannels {
+    pub event_tx: Option<flume::Sender<egui::Event>>,
+    pub custom_event_tx: Option<flume::Sender<WebRunnerCustomEvent>>,
+    pub output_rx: Option<flume::Receiver<WebRunnerOutput>>,
+}
+
+impl MainThreadChannels {
+    pub fn push(&self, event: egui::Event) {
+        if let Some(event_tx) = &self.event_tx {
+            let _ = event_tx.send(event);
+        }
+    }
 }
 
 pub struct WebRunnerCustomEvent(WebRunnerCustomEventInner);
@@ -308,3 +323,5 @@ pub(super) enum WebRunnerOutputInner {
     /// The runner wants to write a key to storage
     StorageSet(String, String, oneshot::Sender<bool>),
 }
+
+pub(super) static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();

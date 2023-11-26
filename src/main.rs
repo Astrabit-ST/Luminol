@@ -189,12 +189,10 @@ pub fn luminol_main_start(fallback: bool) {
     });
 
     std::panic::set_hook(Box::new(move |info| {
-        //luminol_web::web_worker_runner::panic_hook();
-
         let backtrace_printer =
             color_backtrace::BacktracePrinter::new().verbosity(color_backtrace::Verbosity::Full);
         let mut buffer = color_backtrace::termcolor::Ansi::new(vec![]);
-        backtrace_printer.print_panic_info(info, &mut buffer);
+        let _ = backtrace_printer.print_panic_info(info, &mut buffer);
         let report = String::from_utf8(buffer.into_inner()).expect("panic report not valid utf-8");
 
         web_sys::console::log_1(&js_sys::JsString::from(report));
@@ -239,10 +237,15 @@ pub fn luminol_main_start(fallback: bool) {
     let (custom_event_tx, custom_event_rx) = flume::unbounded();
 
     luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
-    // TODO
-    std::mem::forget(event_tx);
-    std::mem::forget(custom_event_tx);
-    std::mem::forget(output_rx);
+    eframe::WebRunner::setup_main_thread_hooks(
+        canvas.clone(),
+        eframe::web::MainThreadChannels {
+            event_tx: Some(event_tx),
+            custom_event_tx: Some(custom_event_tx),
+            output_rx: Some(output_rx),
+        },
+    )
+    .expect("unable to setup web runner main thread hooks");
 
     *WORKER_DATA.write() = Some(WorkerData {
         audio: luminol_audio::Audio::default().into(),

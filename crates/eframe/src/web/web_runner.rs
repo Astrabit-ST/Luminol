@@ -44,6 +44,20 @@ impl WebRunner {
         }
     }
 
+    pub fn setup_main_thread_hooks(
+        canvas: web_sys::HtmlCanvasElement,
+        channels: super::MainThreadChannels,
+    ) -> Result<(), JsValue> {
+        {
+            events::install_canvas_events(canvas.clone(), &channels)?;
+            //events::install_document_events(self)?;
+            //events::install_window_events(self)?;
+            //super::text_agent::install_text_agent(self)?;
+        }
+
+        Ok(())
+    }
+
     /// Create the application, install callbacks, and start running the app.
     ///
     /// # Errors
@@ -57,22 +71,11 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let follow_system_theme = web_options.follow_system_theme;
-
         let mut runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
         runner.warm_up();
         self.runner.replace(Some(runner));
 
         {
-            //events::install_canvas_events(self)?;
-            //events::install_document_events(self)?;
-            //events::install_window_events(self)?;
-            //super::text_agent::install_text_agent(self)?;
-
-            if follow_system_theme {
-                //events::install_color_scheme_change_event(self)?;
-            }
-
             events::request_animation_frame(self.clone())?;
         }
 

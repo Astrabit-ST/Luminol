@@ -1417,6 +1417,7 @@ dependencies = [
  "log",
  "luminol-web",
  "objc",
+ "once_cell",
  "oneshot",
  "parking_lot",
  "percent-encoding",

@@ -20,13 +20,13 @@ pub struct AppRunner {
     textures_delta: TexturesDelta,
 
     pub(super) canvas: web_sys::OffscreenCanvas,
-    worker_options: super::WorkerOptions,
+    pub(super) worker_options: super::WorkerOptions,
     /// Width of the canvas in points. `surface_configuration.width` is the width in pixels.
-    width: u32,
+    pub(super) width: u32,
     /// Height of the canvas in points. `surface_configuration.height` is the height in pixels.
-    height: u32,
+    pub(super) height: u32,
     /// Length of a pixel divided by length of a point.
-    pixel_ratio: f32,
+    pub(super) pixel_ratio: f32,
 }
 
 impl Drop for AppRunner {
