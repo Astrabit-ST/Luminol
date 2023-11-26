@@ -290,9 +290,7 @@ pub(crate) fn install_canvas_events(
         ];
 
         for event_name in prevent_default_events {
-            let closure = move |event: web_sys::MouseEvent,
-                                channels: MainThreadChannels,
-                                canvas: web_sys::HtmlCanvasElement| {
+            let closure = move |event: web_sys::MouseEvent, channels, canvas| {
                 event.prevent_default();
                 // event.stop_propagation();
                 // log::debug!("Preventing event {event_name:?}");
@@ -307,9 +305,7 @@ pub(crate) fn install_canvas_events(
         "mousedown",
         &channels,
         &canvas,
-        |event: web_sys::MouseEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::MouseEvent, channels, canvas| {
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(&canvas, &event);
                 let modifiers = modifiers_from_mouse_event(&event);
@@ -337,9 +333,7 @@ pub(crate) fn install_canvas_events(
         "mousemove",
         &channels,
         &canvas,
-        |event: web_sys::MouseEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::MouseEvent, channels, canvas| {
             let pos = pos_from_mouse_event(&canvas, &event);
             channels.push(egui::Event::PointerMoved(pos));
             //runner.needs_repaint.repaint_asap();
@@ -353,9 +347,7 @@ pub(crate) fn install_canvas_events(
         "mouseup",
         &channels,
         &canvas,
-        |event: web_sys::MouseEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::MouseEvent, channels, canvas| {
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(&canvas, &event);
                 channels.push(egui::Event::PointerButton {
@@ -384,9 +376,7 @@ pub(crate) fn install_canvas_events(
         "mouseleave",
         &channels,
         &canvas,
-        |event: web_sys::MouseEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::MouseEvent, channels, canvas| {
             channels.push(egui::Event::PointerGone);
             //runner.needs_repaint.repaint_asap();
             event.stop_propagation();
@@ -399,9 +389,7 @@ pub(crate) fn install_canvas_events(
         "touchstart",
         &channels,
         &canvas,
-        |event: web_sys::TouchEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::TouchEvent, channels, canvas| {
             todo!("touch events are not implemented yet");
             //let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
             //let pos = pos_from_touch_event(runner.canvas_id(), &event, &mut latest_touch_pos_id);
@@ -427,9 +415,7 @@ pub(crate) fn install_canvas_events(
         "touchmove",
         &channels,
         &canvas,
-        |event: web_sys::TouchEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::TouchEvent, channels, canvas| {
             todo!("touch events are not implemented yet");
             //let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
             //let pos = pos_from_touch_event(runner.canvas_id(), &event, &mut latest_touch_pos_id);
@@ -449,9 +435,7 @@ pub(crate) fn install_canvas_events(
         "touchend",
         &channels,
         &canvas,
-        |event: web_sys::TouchEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::TouchEvent, channels, canvas| {
             todo!("touch events are not implemented yet");
             //if let Some(pos) = runner.input.latest_touch_pos {
             //    let modifiers = runner.input.raw.modifiers;
@@ -481,9 +465,7 @@ pub(crate) fn install_canvas_events(
         "touchcancel",
         &channels,
         &canvas,
-        |event: web_sys::TouchEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::TouchEvent, channels, canvas| {
             todo!("touch events are not implemented yet");
             //push_touches(runner, egui::TouchPhase::Cancel, &event);
             //event.stop_propagation();
@@ -496,9 +478,7 @@ pub(crate) fn install_canvas_events(
         "wheel",
         &channels,
         &canvas,
-        |event: web_sys::WheelEvent,
-         channels: MainThreadChannels,
-         canvas: web_sys::HtmlCanvasElement| {
+        |event: web_sys::WheelEvent, channels, canvas| {
             let unit = match event.delta_mode() {
                 web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Point,
                 web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
