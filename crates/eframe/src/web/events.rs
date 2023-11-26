@@ -8,12 +8,77 @@ use super::*;
 fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
     // Only paint and schedule if there has been no panic
     if let Some(mut runner_lock) = runner_ref.try_lock() {
+        let mut width = runner_lock.painter.width;
+        let mut height = runner_lock.painter.height;
+        let mut pixel_ratio = runner_lock.painter.pixel_ratio;
+        let mut modifiers = runner_lock.input.raw.modifiers;
+        let mut should_save = false;
+
+        if let Some(custom_event_rx) = &runner_lock.worker_options.channels.custom_event_rx {
+            for event in custom_event_rx.try_iter() {
+                match event.0 {
+                    WebRunnerCustomEventInner::ScreenResize(
+                        new_width,
+                        new_height,
+                        new_pixel_ratio,
+                    ) => {
+                        width = new_width;
+                        height = new_height;
+                        pixel_ratio = new_pixel_ratio;
+                    }
+
+                    WebRunnerCustomEventInner::Modifiers(new_modifiers) => {
+                        modifiers = new_modifiers;
+                    }
+
+                    WebRunnerCustomEventInner::Save => {
+                        should_save = true;
+                    }
+                }
+            }
+        }
+
+        // If the modifiers have changed, trigger a rerender
+        if runner_lock.input.raw.modifiers != modifiers {
+            runner_lock.input.raw.modifiers = modifiers;
+            runner_lock.needs_repaint.repaint_asap();
+        }
+
         if let Some(event_rx) = &runner_lock.worker_options.channels.event_rx {
             runner_lock.input.raw.events = event_rx.try_iter().collect();
             if !runner_lock.input.raw.events.is_empty() {
                 // Render immediately if there are any pending events
                 runner_lock.needs_repaint.repaint_asap();
             }
+        }
+
+        // Save and rerender immediately if saving was requested
+        if should_save {
+            runner_lock.save();
+            runner_lock.needs_repaint.repaint_asap();
+        }
+
+        // Resize the canvas if the screen size has changed
+        if runner_lock.painter.width != width
+            || runner_lock.painter.height != height
+            || runner_lock.painter.pixel_ratio != pixel_ratio
+        {
+            runner_lock.painter.pixel_ratio = pixel_ratio;
+            runner_lock.painter.width = width;
+            runner_lock.painter.height = height;
+            runner_lock.painter.surface_configuration.width =
+                (width as f32 * pixel_ratio).round() as u32;
+            runner_lock.painter.surface_configuration.height =
+                (height as f32 * pixel_ratio).round() as u32;
+            runner_lock
+                .canvas
+                .set_width(runner_lock.painter.surface_configuration.width);
+            runner_lock
+                .canvas
+                .set_height(runner_lock.painter.surface_configuration.height);
+            runner_lock.painter.needs_resize = true;
+            // Also trigger a rerender immediately
+            runner_lock.needs_repaint.repaint_asap();
         }
 
         paint_if_needed(&mut runner_lock)?;
@@ -77,63 +142,74 @@ fn add_event_listener<E: wasm_bindgen::JsCast>(
     Ok(())
 }
 
-pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn install_document_events(
+    channels: &MainThreadChannels,
+    canvas: &web_sys::HtmlCanvasElement,
+) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
 
     {
         // Avoid sticky modifier keys on alt-tab:
         for event_name in ["blur", "focus"] {
-            let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
+            let closure = move |event: web_sys::MouseEvent,
+                                channels: MainThreadChannels,
+                                canvas: web_sys::HtmlCanvasElement| {
                 let has_focus = event_name == "focus";
 
                 if !has_focus {
                     // We lost focus - good idea to save
-                    runner.save();
+                    channels.push_custom(WebRunnerCustomEventInner::Save);
                 }
 
                 //runner.input.on_web_page_focus_change(has_focus);
-                runner.egui_ctx().request_repaint();
+                //runner.egui_ctx().request_repaint();
                 // log::debug!("{event_name:?}");
+
+                channels.push_custom(WebRunnerCustomEventInner::Modifiers(
+                    modifiers_from_mouse_event(&event),
+                ));
             };
 
-            runner_ref.add_event_listener(&document, event_name, closure)?;
+            add_event_listener(&document, event_name, &channels, &canvas, closure)?;
         }
     }
 
-    runner_ref.add_event_listener(
+    add_event_listener(
         &document,
         "keydown",
-        |event: web_sys::KeyboardEvent, runner| {
+        &channels,
+        &canvas,
+        |event: web_sys::KeyboardEvent, channels, canvas| {
             if event.is_composing() || event.key_code() == 229 {
                 // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 return;
             }
 
             let modifiers = modifiers_from_event(&event);
-            runner.input.raw.modifiers = modifiers;
+            channels.push_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
 
             let key = event.key();
             let egui_key = translate_key(&key);
 
             if let Some(key) = egui_key {
-                runner.input.raw.events.push(egui::Event::Key {
+                channels.push(egui::Event::Key {
                     key,
                     pressed: true,
                     repeat: false, // egui will fill this in for us!
                     modifiers,
                 });
             }
-            if !modifiers.ctrl
-                && !modifiers.command
-                && !should_ignore_key(&key)
-                // When text agent is shown, it sends text event instead.
-                && text_agent::text_agent().hidden()
+            if !modifiers.ctrl && !modifiers.command && !should_ignore_key(&key)
+            // When text agent is shown, it sends text event instead.
+            //&& text_agent::text_agent().hidden()
             {
-                runner.input.raw.events.push(egui::Event::Text(key));
+                channels.push(egui::Event::Text(key));
             }
-            runner.needs_repaint.repaint_asap();
+            //runner.needs_repaint.repaint_asap();
 
-            let egui_wants_keyboard = runner.egui_ctx().wants_keyboard_input();
+            // TODO
+            //let egui_wants_keyboard = runner.egui_ctx().wants_keyboard_input();
+            let egui_wants_keyboard = false;
 
             #[allow(clippy::if_same_then_else)]
             let prevent_default = if egui_key == Some(egui::Key::Tab) {
@@ -175,35 +251,39 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
         },
     )?;
 
-    runner_ref.add_event_listener(
+    add_event_listener(
         &document,
         "keyup",
-        |event: web_sys::KeyboardEvent, runner| {
+        &channels,
+        &canvas,
+        |event: web_sys::KeyboardEvent, channels, canvas| {
             let modifiers = modifiers_from_event(&event);
-            runner.input.raw.modifiers = modifiers;
+            channels.push_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
             if let Some(key) = translate_key(&event.key()) {
-                runner.input.raw.events.push(egui::Event::Key {
+                channels.push(egui::Event::Key {
                     key,
                     pressed: false,
                     repeat: false,
                     modifiers,
                 });
             }
-            runner.needs_repaint.repaint_asap();
+            //runner.needs_repaint.repaint_asap();
         },
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(
+    add_event_listener(
         &document,
         "paste",
-        |event: web_sys::ClipboardEvent, runner| {
+        &channels,
+        &canvas,
+        |event: web_sys::ClipboardEvent, channels, canvas| {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     let text = text.replace("\r\n", "\n");
                     if !text.is_empty() {
-                        runner.input.raw.events.push(egui::Event::Paste(text));
-                        runner.needs_repaint.repaint_asap();
+                        channels.push(egui::Event::Paste(text));
+                        //runner.needs_repaint.repaint_asap();
                     }
                     event.stop_propagation();
                     event.prevent_default();
@@ -213,22 +293,39 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(&document, "cut", |_: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Cut);
-        runner.needs_repaint.repaint_asap();
-    })?;
+    add_event_listener(
+        &document,
+        "cut",
+        &channels,
+        &canvas,
+        |_: web_sys::ClipboardEvent, channels, canvas| {
+            channels.push(egui::Event::Cut);
+            //runner.needs_repaint.repaint_asap();
+        },
+    )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(&document, "copy", |_: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Copy);
-        runner.needs_repaint.repaint_asap();
-    })?;
+    add_event_listener(
+        &document,
+        "copy",
+        &channels,
+        &canvas,
+        |_: web_sys::ClipboardEvent, channels, canvas| {
+            channels.push(egui::Event::Copy);
+            //runner.needs_repaint.repaint_asap();
+        },
+    )?;
 
     Ok(())
 }
 
-pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn install_window_events(
+    channels: &MainThreadChannels,
+    canvas: &web_sys::HtmlCanvasElement,
+) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
+
+    /*
 
     // Save-on-close
     runner_ref.add_event_listener(&window, "onbeforeunload", |_: web_sys::Event, runner| {
@@ -245,6 +342,33 @@ pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValu
         // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
         runner.frame.info.web_info.location.hash = location_hash();
     })?;
+
+    */
+
+    let closure = {
+        let window = window.clone();
+        move |_event: web_sys::Event,
+              channels: MainThreadChannels,
+              canvas: web_sys::HtmlCanvasElement| {
+            let pixel_ratio = window.device_pixel_ratio();
+            let pixel_ratio = if pixel_ratio > 0. && pixel_ratio.is_finite() {
+                pixel_ratio as f32
+            } else {
+                1.
+            };
+            let width = window.inner_width().unwrap().as_f64().unwrap() as u32;
+            let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
+            let _ = canvas.set_attribute("width", width.to_string().as_str());
+            let _ = canvas.set_attribute("height", height.to_string().as_str());
+            channels.push_custom(WebRunnerCustomEventInner::ScreenResize(
+                width,
+                height,
+                pixel_ratio,
+            ));
+        }
+    };
+    closure(web_sys::Event::new("")?, channels.clone(), canvas.clone());
+    add_event_listener(&window, "resize", &channels, &canvas, closure)?;
 
     Ok(())
 }
@@ -269,16 +393,10 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
 }
 
 pub(crate) fn install_canvas_events(
-    canvas: web_sys::HtmlCanvasElement,
     channels: &MainThreadChannels,
+    canvas: &web_sys::HtmlCanvasElement,
 ) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
-    let is_mac = matches!(
-        egui::os::OperatingSystem::from_user_agent(
-            window.navigator().user_agent().unwrap_or_default().as_str()
-        ),
-        egui::os::OperatingSystem::Mac | egui::os::OperatingSystem::IOS
-    );
 
     {
         let prevent_default_events = [
@@ -609,7 +727,40 @@ pub(crate) fn install_canvas_events(
             }
         }
     })?;
+
     */
+
+    {
+        // The canvas automatically resizes itself whenever a frame is drawn.
+        // The resizing does not take window.devicePixelRatio into account,
+        // so this mutation observer is to detect canvas resizes and correct them.
+        let window = window.clone();
+        let callback: Closure<dyn FnMut(_)> = Closure::new(move |mutations: js_sys::Array| {
+            if PANIC_LOCK.get().is_some() {
+                return;
+            }
+            let width = window.inner_width().unwrap().as_f64().unwrap() as u32;
+            let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
+            mutations.for_each(&mut |mutation, _, _| {
+                let mutation = mutation.unchecked_into::<web_sys::MutationRecord>();
+                if mutation.type_().as_str() == "attributes" {
+                    let canvas = mutation
+                        .target()
+                        .unwrap()
+                        .unchecked_into::<web_sys::HtmlCanvasElement>();
+                    if canvas.width() != width || canvas.height() != height {
+                        let _ = canvas.set_attribute("width", width.to_string().as_str());
+                        let _ = canvas.set_attribute("height", height.to_string().as_str());
+                    }
+                }
+            });
+        });
+        let observer = web_sys::MutationObserver::new(callback.as_ref().unchecked_ref())?;
+        let mut options = web_sys::MutationObserverInit::new();
+        options.attributes(true);
+        observer.observe_with_options(&canvas, &options)?;
+        callback.forget();
+    }
 
     Ok(())
 }

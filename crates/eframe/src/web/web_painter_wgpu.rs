@@ -29,11 +29,19 @@ unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
 pub(crate) struct WebPainterWgpu {
     canvas: web_sys::OffscreenCanvas,
     surface: wgpu::Surface,
-    surface_configuration: wgpu::SurfaceConfiguration,
+    pub(super) surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
+
+    /// Width of the canvas in points. `surface_configuration.width` is the width in pixels.
+    pub(super) width: u32,
+    /// Height of the canvas in points. `surface_configuration.height` is the height in pixels.
+    pub(super) height: u32,
+    /// Length of a pixel divided by length of a point.
+    pub(super) pixel_ratio: f32,
+    pub(super) needs_resize: bool,
 }
 
 impl WebPainterWgpu {
@@ -94,13 +102,12 @@ impl WebPainterWgpu {
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
-            width: canvas.width(),
-            height: canvas.height(),
+            width: 0,
+            height: 0,
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
         };
-        surface.configure(&render_state.device, &surface_configuration);
 
         log::debug!("wgpu painter initialized.");
 
@@ -112,6 +119,11 @@ impl WebPainterWgpu {
             depth_format,
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
+
+            width: 0,
+            height: 0,
+            pixel_ratio: 1.,
+            needs_resize: false,
         })
     }
 }
@@ -130,7 +142,10 @@ impl WebPainter for WebPainterWgpu {
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
-        let size_in_pixels = [self.canvas.width(), self.canvas.height()];
+        let size_in_pixels = [
+            self.surface_configuration.width,
+            self.surface_configuration.height,
+        ];
 
         let Some(render_state) = &self.render_state else {
             return Err(JsValue::from_str(
@@ -176,11 +191,8 @@ impl WebPainter for WebPainterWgpu {
         let frame = if is_zero_sized_surface {
             None
         } else {
-            if size_in_pixels[0] != self.surface_configuration.width
-                || size_in_pixels[1] != self.surface_configuration.height
-            {
-                self.surface_configuration.width = size_in_pixels[0];
-                self.surface_configuration.height = size_in_pixels[1];
+            if self.needs_resize {
+                self.needs_resize = false;
                 self.surface
                     .configure(&render_state.device, &self.surface_configuration);
                 self.depth_texture_view = self.generate_depth_texture_view(

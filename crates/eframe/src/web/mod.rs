@@ -300,6 +300,12 @@ impl MainThreadChannels {
             let _ = event_tx.send(event);
         }
     }
+
+    pub fn push_custom(&self, event: WebRunnerCustomEventInner) {
+        if let Some(custom_event_tx) = &self.custom_event_tx {
+            let _ = custom_event_tx.send(WebRunnerCustomEvent(event));
+        }
+    }
 }
 
 pub struct WebRunnerCustomEvent(WebRunnerCustomEventInner);

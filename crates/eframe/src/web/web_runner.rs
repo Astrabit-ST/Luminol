@@ -49,9 +49,9 @@ impl WebRunner {
         channels: super::MainThreadChannels,
     ) -> Result<(), JsValue> {
         {
-            events::install_canvas_events(canvas.clone(), &channels)?;
-            //events::install_document_events(self)?;
-            //events::install_window_events(self)?;
+            events::install_canvas_events(&channels, &canvas)?;
+            events::install_document_events(&channels, &canvas)?;
+            events::install_window_events(&channels, &canvas)?;
             //super::text_agent::install_text_agent(self)?;
         }
 

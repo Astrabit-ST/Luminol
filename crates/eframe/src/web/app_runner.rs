@@ -9,7 +9,7 @@ pub struct AppRunner {
     web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: super::ActiveWebPainter,
+    pub(crate) painter: super::ActiveWebPainter,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -21,12 +21,6 @@ pub struct AppRunner {
 
     pub(super) canvas: web_sys::OffscreenCanvas,
     pub(super) worker_options: super::WorkerOptions,
-    /// Width of the canvas in points. `surface_configuration.width` is the width in pixels.
-    pub(super) width: u32,
-    /// Height of the canvas in points. `surface_configuration.height` is the height in pixels.
-    pub(super) height: u32,
-    /// Length of a pixel divided by length of a point.
-    pub(super) pixel_ratio: f32,
 }
 
 impl Drop for AppRunner {
@@ -147,10 +141,7 @@ impl AppRunner {
             textures_delta: Default::default(),
 
             worker_options,
-            width: canvas.width(),
-            height: canvas.height(),
             canvas,
-            pixel_ratio: 1.,
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -213,8 +204,8 @@ impl AppRunner {
         let frame_start = now_sec();
 
         let raw_input = self.input.new_frame(
-            egui::vec2(self.width as f32, self.height as f32),
-            self.pixel_ratio,
+            egui::vec2(self.painter.width as f32, self.painter.height as f32),
+            self.painter.pixel_ratio,
         );
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
