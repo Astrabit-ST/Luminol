@@ -55,6 +55,40 @@ impl WebRunner {
             //super::text_agent::install_text_agent(self)?;
         }
 
+        let Some(output_rx) = channels.output_rx else {
+            return Ok(());
+        };
+
+        wasm_bindgen_futures::spawn_local(async move {
+            loop {
+                let Ok(command) = output_rx.recv_async().await else {
+                    log::warn!(
+                        "Web runner main thread loop is stopping! This is not supposed to happen."
+                    );
+                    return;
+                };
+
+                match command.0 {
+                    super::WebRunnerOutputInner::PlatformOutput(output) => {
+                        AppRunner::handle_platform_output(None, output);
+                    }
+
+                    super::WebRunnerOutputInner::StorageGet(key, oneshot_tx) => {
+                        let _ = oneshot_tx.send(super::storage::local_storage_get(&key));
+                    }
+
+                    super::WebRunnerOutputInner::StorageSet(key, value, oneshot_tx) => {
+                        if super::storage::local_storage().is_none() {
+                            let _ = oneshot_tx.send(false);
+                        } else {
+                            super::storage::local_storage_set(&key, &value);
+                            let _ = oneshot_tx.send(true);
+                        }
+                    }
+                }
+            }
+        });
+
         Ok(())
     }
 

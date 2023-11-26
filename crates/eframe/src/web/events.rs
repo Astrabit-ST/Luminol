@@ -501,6 +501,8 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::MouseEvent, channels, canvas| {
+            channels.push_custom(WebRunnerCustomEventInner::Save);
+
             channels.push(egui::Event::PointerGone);
             //runner.needs_repaint.repaint_asap();
             event.stop_propagation();

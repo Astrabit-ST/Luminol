@@ -1,4 +1,4 @@
-fn local_storage() -> Option<web_sys::Storage> {
+pub(super) fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
 }
 
@@ -13,15 +13,13 @@ pub fn local_storage_set(key: &str, value: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub(crate) async fn load_memory(ctx: &egui::Context, worker_options: &super::WorkerOptions) {
-    if let Some(output_tx) = &worker_options.channels.output_tx {
-        let app_id = worker_options.app_id.clone();
+pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WebRunnerChannels) {
+    if channels.output_tx.is_some() {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        output_tx
-            .send(super::WebRunnerOutput(
-                super::WebRunnerOutputInner::StorageGet(app_id, oneshot_tx),
-            ))
-            .unwrap();
+        channels.push(super::WebRunnerOutputInner::StorageGet(
+            String::from("egui_memory_ron"),
+            oneshot_tx,
+        ));
         if let Some(memory) = oneshot_rx.await.ok().flatten() {
             match ron::from_str(&memory) {
                 Ok(memory) => {
@@ -34,13 +32,19 @@ pub(crate) async fn load_memory(ctx: &egui::Context, worker_options: &super::Wor
 }
 
 #[cfg(not(feature = "persistence"))]
-pub(crate) async fn load_memory(_: &egui::Context, _: &super::WorkerOptions) {}
+pub(crate) async fn load_memory(_: &egui::Context, _: &super::WebRunnerChannels) {}
 
 #[cfg(feature = "persistence")]
-pub(crate) fn save_memory(ctx: &egui::Context) {
+pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WebRunnerChannels) {
     match ctx.memory(|mem| ron::to_string(mem)) {
         Ok(ron) => {
-            local_storage_set("egui_memory_ron", &ron);
+            let (oneshot_tx, oneshot_rx) = oneshot::channel();
+            channels.push(super::WebRunnerOutputInner::StorageSet(
+                String::from("egui_memory_ron"),
+                ron,
+                oneshot_tx,
+            ));
+            let _ = oneshot_rx.recv();
         }
         Err(err) => {
             log::warn!("Failed to serialize memory as RON: {err}");
@@ -49,4 +53,4 @@ pub(crate) fn save_memory(ctx: &egui::Context) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub(crate) fn save_memory(_: &egui::Context) {}
+pub(crate) fn save_memory(_: &egui::Context, _: &super::WebRunnerChannels) {}

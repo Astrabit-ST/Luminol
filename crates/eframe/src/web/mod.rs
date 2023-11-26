@@ -287,6 +287,14 @@ pub struct WebRunnerChannels {
     pub output_tx: Option<flume::Sender<WebRunnerOutput>>,
 }
 
+impl WebRunnerChannels {
+    pub fn push(&self, output: WebRunnerOutputInner) {
+        if let Some(output_tx) = &self.output_tx {
+            let _ = output_tx.send(WebRunnerOutput(output));
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct MainThreadChannels {
     pub event_tx: Option<flume::Sender<egui::Event>>,

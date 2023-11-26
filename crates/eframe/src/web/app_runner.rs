@@ -81,11 +81,13 @@ impl AppRunner {
             cpu_usage: None,
             native_pixels_per_point: Some(1.),
         };
-        let storage = LocalStorage::default();
+        let storage = LocalStorage {
+            channels: worker_options.channels.clone(),
+        };
 
         let egui_ctx = egui::Context::default();
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(&user_agent));
-        //super::storage::load_memory(&egui_ctx, &worker_options).await;
+        super::storage::load_memory(&egui_ctx, &worker_options.channels).await;
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
@@ -173,7 +175,7 @@ impl AppRunner {
 
     pub fn save(&mut self) {
         if self.app.persist_egui_memory() {
-            super::storage::save_memory(&self.egui_ctx);
+            super::storage::save_memory(&self.egui_ctx, &self.worker_options.channels);
         }
         if let Some(storage) = self.frame.storage_mut() {
             self.app.save(storage);
@@ -218,7 +220,10 @@ impl AppRunner {
             shapes,
         } = full_output;
 
-        self.handle_platform_output(platform_output);
+        self.mutable_text_under_cursor = platform_output.mutable_text_under_cursor;
+        self.worker_options
+            .channels
+            .push(super::WebRunnerOutputInner::PlatformOutput(platform_output));
         self.textures_delta.append(textures_delta);
         let clipped_primitives = self.egui_ctx.tessellate(shapes);
 
@@ -246,10 +251,12 @@ impl AppRunner {
         Ok(())
     }
 
-    fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
-        if self.egui_ctx.options(|o| o.screen_reader) {
-            self.screen_reader
-                .speak(&platform_output.events_description());
+    pub(super) fn handle_platform_output(
+        screen_reader: Option<&mut super::screen_reader::ScreenReader>,
+        platform_output: egui::PlatformOutput,
+    ) {
+        if let Some(screen_reader) = screen_reader {
+            screen_reader.speak(&platform_output.events_description());
         }
 
         let egui::PlatformOutput {
@@ -276,27 +283,38 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        self.mutable_text_under_cursor = mutable_text_under_cursor;
-
-        if self.text_cursor_pos != text_cursor_pos {
-            //super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
-            self.text_cursor_pos = text_cursor_pos;
-        }
+        //if self.text_cursor_pos != text_cursor_pos {
+        //    super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
+        //    self.text_cursor_pos = text_cursor_pos;
+        //}
     }
 }
 
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
-struct LocalStorage {}
+struct LocalStorage {
+    channels: super::WebRunnerChannels,
+}
 
 impl epi::Storage for LocalStorage {
     fn get_string(&self, key: &str) -> Option<String> {
-        super::storage::local_storage_get(key)
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.channels.push(super::WebRunnerOutputInner::StorageGet(
+            key.to_string(),
+            oneshot_tx,
+        ));
+        oneshot_rx.recv().ok().flatten()
     }
 
     fn set_string(&mut self, key: &str, value: String) {
-        super::storage::local_storage_set(key, &value);
+        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+        self.channels.push(super::WebRunnerOutputInner::StorageSet(
+            key.to_string(),
+            value,
+            oneshot_tx,
+        ));
+        let _ = oneshot_rx.recv();
     }
 
     fn flush(&mut self) {}
