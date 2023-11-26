@@ -203,6 +203,8 @@ once_cell.workspace = true
 flume.workspace = true
 oneshot.workspace = true
 
+portable-atomic = { version = "1.5.1", features = ["float"] }
+
 luminol-web = { version = "0.4.0", path = "../web/" }
 
 # optional web:

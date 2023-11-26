@@ -34,12 +34,18 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
+// ensure that AtomicF64 is using atomic ops (otherwise it would use global locks, and that would be bad)
+const _: [(); 0 - !{
+    const ASSERT: bool = portable_atomic::AtomicF64::is_always_lock_free();
+    ASSERT
+} as usize] = [];
+
 /// Stores when to do the next repaint.
-pub(crate) struct NeedRepaint(Mutex<f64>);
+pub(crate) struct NeedRepaint(portable_atomic::AtomicF64);
 
 impl Default for NeedRepaint {
     fn default() -> Self {
-        Self(Mutex::new(f64::NEG_INFINITY)) // start with a repaint
+        Self(portable_atomic::AtomicF64::new(f64::NEG_INFINITY)) // start with a repaint
     }
 }
 
@@ -47,21 +53,25 @@ impl NeedRepaint {
     /// Returns the time (in [`now_sec`] scale) when
     /// we should next repaint.
     pub fn when_to_repaint(&self) -> f64 {
-        *self.0.lock()
+        self.0.load(portable_atomic::Ordering::Relaxed)
     }
 
     /// Unschedule repainting.
     pub fn clear(&self) {
-        *self.0.lock() = f64::INFINITY;
+        self.0
+            .store(f64::INFINITY, portable_atomic::Ordering::Relaxed);
     }
 
     pub fn repaint_after(&self, num_seconds: f64) {
-        let mut repaint_time = self.0.lock();
-        *repaint_time = repaint_time.min(super::now_sec() + num_seconds);
+        self.0.fetch_min(
+            super::now_sec() + num_seconds,
+            portable_atomic::Ordering::Relaxed,
+        );
     }
 
     pub fn repaint_asap(&self) {
-        *self.0.lock() = f64::NEG_INFINITY;
+        self.0
+            .store(f64::NEG_INFINITY, portable_atomic::Ordering::Relaxed);
     }
 }
 
