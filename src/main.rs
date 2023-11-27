@@ -243,6 +243,7 @@ pub fn luminol_main_start(fallback: bool) {
             event_tx: Some(event_tx),
             custom_event_tx: Some(custom_event_tx),
             output_rx: Some(output_rx),
+            touch: Default::default(),
         },
     )
     .expect("unable to setup web runner main thread hooks");

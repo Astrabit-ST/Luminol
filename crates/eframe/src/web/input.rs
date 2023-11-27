@@ -62,14 +62,14 @@ fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Po
 
 pub fn push_touches(
     canvas: &web_sys::HtmlCanvasElement,
-    runner: &mut AppRunner,
+    channels: &super::MainThreadChannels,
     phase: egui::TouchPhase,
     event: &web_sys::TouchEvent,
 ) {
     let canvas_origin = canvas_origin(canvas);
     for touch_idx in 0..event.changed_touches().length() {
         if let Some(touch) = event.changed_touches().item(touch_idx) {
-            runner.input.raw.events.push(egui::Event::Touch {
+            channels.send(egui::Event::Touch {
                 device_id: egui::TouchDeviceId(0),
                 id: egui::TouchId::from(touch.identifier()),
                 phase,
@@ -233,5 +233,9 @@ pub(super) fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::M
 }
 
 pub(super) fn modifiers_from_wheel_event(event: &web_sys::WheelEvent) -> egui::Modifiers {
+    modifiers!(event)
+}
+
+pub(super) fn modifiers_from_touch_event(event: &web_sys::TouchEvent) -> egui::Modifiers {
     modifiers!(event)
 }

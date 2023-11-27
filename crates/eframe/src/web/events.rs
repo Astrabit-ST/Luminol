@@ -13,6 +13,7 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
         let mut pixel_ratio = runner_lock.painter.pixel_ratio;
         let mut modifiers = runner_lock.input.raw.modifiers;
         let mut should_save = false;
+        let mut touch = None;
 
         if let Some(custom_event_rx) = &runner_lock.worker_options.channels.custom_event_rx {
             for event in custom_event_rx.try_iter() {
@@ -34,8 +35,19 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
                     WebRunnerCustomEventInner::Save => {
                         should_save = true;
                     }
+
+                    WebRunnerCustomEventInner::Touch(touch_id, touch_pos) => {
+                        touch = Some((touch_id, touch_pos));
+                    }
                 }
             }
+        }
+
+        // If a touch event has been detected, put it into the input and trigger a rerender
+        if let Some((touch_id, touch_pos)) = touch {
+            runner_lock.input.latest_touch_pos_id = touch_id;
+            runner_lock.input.latest_touch_pos = Some(touch_pos);
+            runner_lock.needs_repaint.repaint_asap();
         }
 
         // If the modifiers have changed, trigger a rerender
@@ -516,23 +528,22 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            todo!("touch events are not implemented yet");
-            //let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            //let pos = pos_from_touch_event(runner.canvas_id(), &event, &mut latest_touch_pos_id);
-            //runner.input.latest_touch_pos_id = latest_touch_pos_id;
-            //runner.input.latest_touch_pos = Some(pos);
-            //let modifiers = runner.input.raw.modifiers;
-            //runner.input.raw.events.push(egui::Event::PointerButton {
-            //    pos,
-            //    button: egui::PointerButton::Primary,
-            //    pressed: true,
-            //    modifiers,
-            //});
+            if let Ok(mut touch) = channels.touch.try_borrow_mut() {
+                touch.pos = pos_from_touch_event(&canvas, &event, &mut touch.id);
+                channels.send_custom(WebRunnerCustomEventInner::Touch(touch.id, touch.pos));
+                let modifiers = modifiers_from_touch_event(&event);
+                channels.send(egui::Event::PointerButton {
+                    pos: touch.pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers,
+                });
 
-            //push_touches(runner, egui::TouchPhase::Start, &event);
-            //runner.needs_repaint.repaint_asap();
-            //event.stop_propagation();
-            //event.prevent_default();
+                push_touches(&canvas, &channels, egui::TouchPhase::Start, &event);
+                //runner.needs_repaint.repaint_asap();
+            }
+            event.stop_propagation();
+            event.prevent_default();
         },
     )?;
 
@@ -542,17 +553,16 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            todo!("touch events are not implemented yet");
-            //let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            //let pos = pos_from_touch_event(runner.canvas_id(), &event, &mut latest_touch_pos_id);
-            //runner.input.latest_touch_pos_id = latest_touch_pos_id;
-            //runner.input.latest_touch_pos = Some(pos);
-            //runner.input.raw.events.push(egui::Event::PointerMoved(pos));
+            if let Ok(mut touch) = channels.touch.try_borrow_mut() {
+                touch.pos = pos_from_touch_event(&canvas, &event, &mut touch.id);
+                channels.send_custom(WebRunnerCustomEventInner::Touch(touch.id, touch.pos));
+                channels.send(egui::Event::PointerMoved(touch.pos));
 
-            //push_touches(runner, egui::TouchPhase::Move, &event);
-            //runner.needs_repaint.repaint_asap();
-            //event.stop_propagation();
-            //event.prevent_default();
+                push_touches(&canvas, &channels, egui::TouchPhase::Move, &event);
+                //runner.needs_repaint.repaint_asap();
+            }
+            event.stop_propagation();
+            event.prevent_default();
         },
     )?;
 
@@ -562,26 +572,27 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            todo!("touch events are not implemented yet");
-            //if let Some(pos) = runner.input.latest_touch_pos {
-            //    let modifiers = runner.input.raw.modifiers;
-            //    // First release mouse to click:
-            //    runner.input.raw.events.push(egui::Event::PointerButton {
-            //        pos,
-            //        button: egui::PointerButton::Primary,
-            //        pressed: false,
-            //        modifiers,
-            //    });
-            //    // Then remove hover effect:
-            //    runner.input.raw.events.push(egui::Event::PointerGone);
+            if let Ok(touch) = channels.touch.try_borrow().as_ref() {
+                if touch.id.is_some() {
+                    let modifiers = modifiers_from_touch_event(&event);
+                    // First release mouse to click:
+                    channels.send(egui::Event::PointerButton {
+                        pos: touch.pos,
+                        button: egui::PointerButton::Primary,
+                        pressed: false,
+                        modifiers,
+                    });
+                    // Then remove hover effect:
+                    channels.send(egui::Event::PointerGone);
 
-            //    push_touches(runner, egui::TouchPhase::End, &event);
-            //    runner.needs_repaint.repaint_asap();
-            //    event.stop_propagation();
-            //    event.prevent_default();
-            //}
+                    push_touches(&canvas, &channels, egui::TouchPhase::End, &event);
+                    //runner.needs_repaint.repaint_asap();
+                }
+            }
+            event.stop_propagation();
+            event.prevent_default();
 
-            //// Finally, focus or blur text agent to toggle mobile keyboard:
+            // Finally, focus or blur text agent to toggle mobile keyboard:
             //text_agent::update_text_agent(runner);
         },
     )?;
@@ -592,10 +603,9 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            todo!("touch events are not implemented yet");
-            //push_touches(runner, egui::TouchPhase::Cancel, &event);
-            //event.stop_propagation();
-            //event.prevent_default();
+            push_touches(&canvas, &channels, egui::TouchPhase::Cancel, &event);
+            event.stop_propagation();
+            event.prevent_default();
         },
     )?;
 

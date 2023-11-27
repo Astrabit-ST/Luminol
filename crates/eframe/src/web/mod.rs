@@ -274,12 +274,13 @@ pub fn percent_decode(s: &str) -> String {
         .to_string()
 }
 
+#[derive(Debug, Default, Clone)]
 pub struct WorkerOptions {
     pub prefers_color_scheme_dark: Option<bool>,
     pub channels: WorkerChannels,
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct WorkerChannels {
     pub event_rx: Option<flume::Receiver<egui::Event>>,
     pub custom_event_rx: Option<flume::Receiver<WebRunnerCustomEvent>>,
@@ -294,11 +295,19 @@ impl WorkerChannels {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct MainThreadChannels {
     pub event_tx: Option<flume::Sender<egui::Event>>,
     pub custom_event_tx: Option<flume::Sender<WebRunnerCustomEvent>>,
     pub output_rx: Option<flume::Receiver<WebRunnerOutput>>,
+
+    pub touch: std::rc::Rc<std::cell::RefCell<MainThreadTouch>>,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MainThreadTouch {
+    pub id: Option<egui::TouchId>,
+    pub pos: egui::Pos2,
 }
 
 impl MainThreadChannels {
@@ -324,6 +333,8 @@ pub(super) enum WebRunnerCustomEventInner {
     Modifiers(egui::Modifiers),
     /// This should be sent whenever the app needs to save immediately
     Save,
+    /// The browser detected a touchstart or touchmove event with this ID and position in canvas coordinates
+    Touch(Option<egui::TouchId>, egui::Pos2),
 }
 
 pub struct WebRunnerOutput(WebRunnerOutputInner);
