@@ -175,7 +175,7 @@ struct WorkerData {
 }
 
 #[cfg(target_arch = "wasm32")]
-static WORKER_DATA: parking_lot::RwLock<Option<WorkerData>> = parking_lot::RwLock::new(None);
+static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex::new(None);
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -247,7 +247,7 @@ pub fn luminol_main_start(fallback: bool) {
     )
     .expect("unable to setup web runner main thread hooks");
 
-    *WORKER_DATA.write() = Some(WorkerData {
+    *WORKER_DATA.lock() = Some(WorkerData {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
@@ -283,7 +283,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         prefers_color_scheme_dark,
         filesystem_tx,
         web_runner_channels,
-    } = WORKER_DATA.write().take().unwrap();
+    } = WORKER_DATA.lock().take().unwrap();
 
     luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
 
