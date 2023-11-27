@@ -274,59 +274,85 @@ pub fn percent_decode(s: &str) -> String {
         .to_string()
 }
 
+// ----------------------------------------------------------------------------
+
+/// Options and state that will be sent to the web worker part of the web runner.
 #[derive(Debug, Default, Clone)]
 pub struct WorkerOptions {
+    /// Whether or not the user's browser prefers dark mode.
+    /// `Some(true)` means dark mode is preferred.
+    /// `Some(false)` means light mode is preferred.
+    /// `None` means no preference was detected.
     pub prefers_color_scheme_dark: Option<bool>,
+    /// The halves of the web runner channels that are used in the web worker.
     pub channels: WorkerChannels,
 }
 
+/// The halves of the web runner channels that are used in the web worker.
 #[derive(Debug, Default, Clone)]
 pub struct WorkerChannels {
+    /// The receiver used to receive egui events from the main thread.
     pub event_rx: Option<flume::Receiver<egui::Event>>,
+    /// The receiver used to receive custom events from the main thread.
     pub custom_event_rx: Option<flume::Receiver<WebRunnerCustomEvent>>,
+    /// The sender used to send outputs to the main thread.
     pub output_tx: Option<flume::Sender<WebRunnerOutput>>,
 }
 
 impl WorkerChannels {
-    pub fn send(&self, output: WebRunnerOutputInner) {
+    /// Send an output to the main thread.
+    pub(self) fn send(&self, output: WebRunnerOutputInner) {
         if let Some(output_tx) = &self.output_tx {
             let _ = output_tx.send(WebRunnerOutput(output));
         }
     }
 }
 
+/// The halves of the web runner channels that are used in the main thread.
 #[derive(Debug, Default, Clone)]
 pub struct MainThreadChannels {
+    /// The sender used to send egui events to the worker thread.
     pub event_tx: Option<flume::Sender<egui::Event>>,
+    /// The sender used to send custom events to the worker thread.
     pub custom_event_tx: Option<flume::Sender<WebRunnerCustomEvent>>,
+    /// The receiver used to receive outputs from the worker thread.
     pub output_rx: Option<flume::Receiver<WebRunnerOutput>>,
 
+    /// The state of the current touch device.
     pub touch: std::rc::Rc<std::cell::RefCell<MainThreadTouch>>,
 }
 
+/// The state of the current touch device.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MainThreadTouch {
+    /// If the user is currently interacting with the touchscreen, this is the ID of the touch,
+    /// measured with `Touch.identifier` in JavaScript.
     pub id: Option<egui::TouchId>,
+    /// The position relative to the canvas of the last received touch event. If no touch event has
+    /// been received yet, this will be (0, 0).
     pub pos: egui::Pos2,
 }
 
 impl MainThreadChannels {
-    pub fn send(&self, event: egui::Event) {
+    /// Send an egui event to the worker thread.
+    pub(self) fn send(&self, event: egui::Event) {
         if let Some(event_tx) = &self.event_tx {
             let _ = event_tx.send(event);
         }
     }
 
-    pub fn send_custom(&self, event: WebRunnerCustomEventInner) {
+    /// Send a custom event to the worker thread.
+    pub(self) fn send_custom(&self, event: WebRunnerCustomEventInner) {
         if let Some(custom_event_tx) = &self.custom_event_tx {
             let _ = custom_event_tx.send(WebRunnerCustomEvent(event));
         }
     }
 }
 
+/// A custom event that can be sent from the main thread to the worker thread.
 pub struct WebRunnerCustomEvent(WebRunnerCustomEventInner);
 
-pub(super) enum WebRunnerCustomEventInner {
+pub(self) enum WebRunnerCustomEventInner {
     /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
     ScreenResize(u32, u32, f32),
     /// This should be sent whenever the modifiers change
@@ -337,9 +363,10 @@ pub(super) enum WebRunnerCustomEventInner {
     Touch(Option<egui::TouchId>, egui::Pos2),
 }
 
+/// A custom output that can be sent from the worker thread to the main thread.
 pub struct WebRunnerOutput(WebRunnerOutputInner);
 
-pub(super) enum WebRunnerOutputInner {
+pub(self) enum WebRunnerOutputInner {
     /// Miscellaneous egui output events
     PlatformOutput(egui::PlatformOutput),
     /// The runner wants to read a key from storage
@@ -348,4 +375,4 @@ pub(super) enum WebRunnerOutputInner {
     StorageSet(String, String, oneshot::Sender<bool>),
 }
 
-pub(super) static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
+pub(self) static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();

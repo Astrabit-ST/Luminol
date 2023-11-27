@@ -44,6 +44,8 @@ impl WebRunner {
         }
     }
 
+    /// Set up the event listeners on the main thread in order to do things like respond to
+    /// mouse events and resize the canvas to fill the screen.
     pub fn setup_main_thread_hooks(
         canvas: web_sys::HtmlCanvasElement,
         channels: super::MainThreadChannels,
