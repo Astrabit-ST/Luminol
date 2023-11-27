@@ -171,7 +171,7 @@ pub(crate) fn install_document_events(
         for event_name in ["blur", "focus"] {
             let closure = move |event: web_sys::MouseEvent,
                                 channels: MainThreadChannels,
-                                canvas: web_sys::HtmlCanvasElement| {
+                                _canvas: web_sys::HtmlCanvasElement| {
                 let has_focus = event_name == "focus";
 
                 if !has_focus {
@@ -197,7 +197,7 @@ pub(crate) fn install_document_events(
         "keydown",
         &channels,
         &canvas,
-        |event: web_sys::KeyboardEvent, channels, canvas| {
+        |event: web_sys::KeyboardEvent, channels, _canvas| {
             if event.is_composing() || event.key_code() == 229 {
                 // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 return;
@@ -274,7 +274,7 @@ pub(crate) fn install_document_events(
         "keyup",
         &channels,
         &canvas,
-        |event: web_sys::KeyboardEvent, channels, canvas| {
+        |event: web_sys::KeyboardEvent, channels, _canvas| {
             let modifiers = modifiers_from_event(&event);
             channels.send_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
             if let Some(key) = translate_key(&event.key()) {
@@ -295,7 +295,7 @@ pub(crate) fn install_document_events(
         "paste",
         &channels,
         &canvas,
-        |event: web_sys::ClipboardEvent, channels, canvas| {
+        |event: web_sys::ClipboardEvent, channels, _canvas| {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     let text = text.replace("\r\n", "\n");
@@ -316,7 +316,7 @@ pub(crate) fn install_document_events(
         "cut",
         &channels,
         &canvas,
-        |_: web_sys::ClipboardEvent, channels, canvas| {
+        |_: web_sys::ClipboardEvent, channels, _canvas| {
             channels.send(egui::Event::Cut);
             //runner.needs_repaint.repaint_asap();
         },
@@ -328,7 +328,7 @@ pub(crate) fn install_document_events(
         "copy",
         &channels,
         &canvas,
-        |_: web_sys::ClipboardEvent, channels, canvas| {
+        |_: web_sys::ClipboardEvent, channels, _canvas| {
             channels.send(egui::Event::Copy);
             //runner.needs_repaint.repaint_asap();
         },
@@ -426,7 +426,7 @@ pub(crate) fn install_canvas_events(
         ];
 
         for event_name in prevent_default_events {
-            let closure = move |event: web_sys::MouseEvent, channels, canvas| {
+            let closure = move |event: web_sys::MouseEvent, _channels, _canvas| {
                 event.prevent_default();
                 // event.stop_propagation();
                 // log::debug!("Preventing event {event_name:?}");
@@ -512,7 +512,7 @@ pub(crate) fn install_canvas_events(
         "mouseleave",
         &channels,
         &canvas,
-        |event: web_sys::MouseEvent, channels, canvas| {
+        |event: web_sys::MouseEvent, channels, _canvas| {
             channels.send_custom(WebRunnerCustomEventInner::Save);
 
             channels.send(egui::Event::PointerGone);

@@ -264,7 +264,7 @@ impl AppRunner {
             open_url,
             copied_text,
             events: _, // already handled
-            mutable_text_under_cursor,
+            mutable_text_under_cursor: _,
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
