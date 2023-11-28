@@ -51,6 +51,13 @@ impl WebRunner {
         channels: super::MainThreadChannels,
     ) -> Result<(), JsValue> {
         {
+            let mut state = channels.state.borrow_mut();
+            if state.screen_reader.is_none() {
+                state.screen_reader = Some(Default::default());
+            }
+        }
+
+        {
             events::install_canvas_events(&channels, &canvas)?;
             events::install_document_events(&channels, &canvas)?;
             events::install_window_events(&channels, &canvas)?;
@@ -71,8 +78,13 @@ impl WebRunner {
                 };
 
                 match command.0 {
-                    super::WebRunnerOutputInner::PlatformOutput(output) => {
-                        AppRunner::handle_platform_output(&channels, &canvas, None, output);
+                    super::WebRunnerOutputInner::PlatformOutput(output, screen_reader_enabled) => {
+                        AppRunner::handle_platform_output(
+                            &channels,
+                            &canvas,
+                            output,
+                            screen_reader_enabled,
+                        );
                     }
 
                     super::WebRunnerOutputInner::StorageGet(key, oneshot_tx) => {

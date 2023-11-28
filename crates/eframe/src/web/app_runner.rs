@@ -14,7 +14,6 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    screen_reader: super::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
@@ -137,7 +136,6 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            screen_reader: Default::default(),
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
@@ -223,7 +221,10 @@ impl AppRunner {
         self.mutable_text_under_cursor = platform_output.mutable_text_under_cursor;
         self.worker_options
             .channels
-            .send(super::WebRunnerOutputInner::PlatformOutput(platform_output));
+            .send(super::WebRunnerOutputInner::PlatformOutput(
+                platform_output,
+                self.egui_ctx.options(|o| o.screen_reader),
+            ));
         self.textures_delta.append(textures_delta);
         let clipped_primitives = self.egui_ctx.tessellate(shapes);
 
@@ -254,11 +255,15 @@ impl AppRunner {
     pub(super) fn handle_platform_output(
         channels: &super::MainThreadChannels,
         canvas: &web_sys::HtmlCanvasElement,
-        screen_reader: Option<&mut super::screen_reader::ScreenReader>,
         platform_output: egui::PlatformOutput,
+        screen_reader_enabled: bool,
     ) {
-        if let Some(screen_reader) = screen_reader {
-            screen_reader.speak(&platform_output.events_description());
+        if screen_reader_enabled {
+            if let Ok(mut state) = channels.state.try_borrow_mut() {
+                if let Some(screen_reader) = &mut state.screen_reader {
+                    screen_reader.speak(&platform_output.events_description());
+                }
+            }
         }
 
         let egui::PlatformOutput {

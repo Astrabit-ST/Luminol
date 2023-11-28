@@ -277,7 +277,7 @@ pub fn percent_decode(s: &str) -> String {
 // ----------------------------------------------------------------------------
 
 /// Options and state that will be sent to the web worker part of the web runner.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct WorkerOptions {
     /// Whether or not the user's browser prefers dark mode.
     /// `Some(true)` means dark mode is preferred.
@@ -289,7 +289,7 @@ pub struct WorkerOptions {
 }
 
 /// The halves of the web runner channels that are used in the web worker.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct WorkerChannels {
     /// The receiver used to receive egui events from the main thread.
     pub event_rx: Option<flume::Receiver<egui::Event>>,
@@ -309,7 +309,7 @@ impl WorkerChannels {
 }
 
 /// The halves of the web runner channels that are used in the main thread.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct MainThreadChannels {
     /// The sender used to send egui events to the worker thread.
     pub event_tx: Option<flume::Sender<egui::Event>>,
@@ -323,7 +323,7 @@ pub struct MainThreadChannels {
 }
 
 /// The state of the web runner that is accessible to the main thread.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Default)]
 pub struct MainThreadState {
     /// If the user is currently interacting with the touchscreen, this is the ID of the touch,
     /// measured with `Touch.identifier` in JavaScript.
@@ -336,6 +336,8 @@ pub struct MainThreadState {
     pub(self) text_cursor_pos: Option<egui::Pos2>,
     /// Whether or not the user is editing a mutable egui text box.
     pub(self) mutable_text_under_cursor: bool,
+    /// The screen reader used for reading text aloud.
+    pub(self) screen_reader: Option<screen_reader::ScreenReader>,
 }
 
 impl MainThreadChannels {
@@ -373,7 +375,7 @@ pub struct WebRunnerOutput(WebRunnerOutputInner);
 
 pub(self) enum WebRunnerOutputInner {
     /// Miscellaneous egui output events
-    PlatformOutput(egui::PlatformOutput),
+    PlatformOutput(egui::PlatformOutput, bool),
     /// The runner wants to read a key from storage
     StorageGet(String, oneshot::Sender<Option<String>>),
     /// The runner wants to write a key to storage
