@@ -14,398 +14,12 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+
+use super::util::{generate_key, get_subdir, idb, to_future};
+use super::{FileSystemCommand, FileSystemCommandInner};
+use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 use indexed_db_futures::prelude::*;
-use rand::Rng;
-use std::future::IntoFuture;
 use wasm_bindgen::prelude::*;
-
-use super::FileSystem as FileSystemTrait;
-use super::{DirEntry, Error, Metadata, OpenFlags, Result};
-
-static FILESYSTEM_TX: once_cell::sync::OnceCell<flume::Sender<FileSystemCommand>> =
-    once_cell::sync::OnceCell::new();
-
-#[derive(Debug)]
-pub struct FileSystem {
-    key: usize,
-    name: String,
-    idb_key: Option<String>,
-}
-
-#[derive(Debug)]
-pub struct File {
-    key: usize,
-}
-
-#[derive(Debug)]
-pub struct FileSystemCommand(FileSystemCommandInner);
-
-#[derive(Debug)]
-enum FileSystemCommandInner {
-    Supported(oneshot::Sender<bool>),
-    DirEntryMetadata(
-        usize,
-        camino::Utf8PathBuf,
-        oneshot::Sender<Result<Metadata>>,
-    ),
-    DirPicker(oneshot::Sender<Option<(usize, String, Option<String>)>>),
-    DirFromIdb(String, oneshot::Sender<Option<(usize, String)>>),
-    DirSubdir(
-        usize,
-        camino::Utf8PathBuf,
-        oneshot::Sender<Result<(usize, String, Option<String>)>>,
-    ),
-    DirIdbDrop(String, oneshot::Sender<bool>),
-    DirOpenFile(
-        usize,
-        camino::Utf8PathBuf,
-        OpenFlags,
-        oneshot::Sender<Result<usize>>,
-    ),
-    DirEntryExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
-    DirCreateDir(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
-    DirRemoveDir(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
-    DirRemoveFile(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
-    DirReadDir(
-        usize,
-        camino::Utf8PathBuf,
-        oneshot::Sender<Result<Vec<DirEntry>>>,
-    ),
-    DirDrop(usize, oneshot::Sender<bool>),
-    DirClone(usize, oneshot::Sender<usize>),
-    FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
-    FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
-    FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
-    FileSeek(
-        usize,
-        std::io::SeekFrom,
-        oneshot::Sender<std::io::Result<u64>>,
-    ),
-    FileDrop(usize, oneshot::Sender<bool>),
-    FileSize(usize, oneshot::Sender<u64>),
-}
-
-fn filesystem_tx_or_die() -> &'static flume::Sender<FileSystemCommand> {
-    FILESYSTEM_TX.get().expect("FileSystem sender has not been initialized! Please call `FileSystem::initialize_sender` before calling this function.")
-}
-
-impl FileSystem {
-    /// Initializes the sender that we use to send filesystem commands to the main thread.
-    /// This must be called before performing any filesystem operations.
-    pub fn setup_filesystem_sender(filesystem_tx: flume::Sender<FileSystemCommand>) {
-        FILESYSTEM_TX
-            .set(filesystem_tx)
-            .expect("FileSystem sender cannot be initialized twice");
-    }
-
-    /// Returns whether or not the user's browser supports the JavaScript File System API.
-    pub fn filesystem_supported() -> bool {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::Supported(
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-
-    /// Attempts to prompt the user to choose a directory from their local machine using the
-    /// JavaScript File System API.
-    /// Then creates a `FileSystem` allowing read-write access to that directory if they chose one
-    /// successfully.
-    /// If the File System API is not supported, this always returns `None` without doing anything.
-    pub async fn from_folder_picker() -> Result<Self> {
-        if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported);
-        }
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirPicker(
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx
-            .await
-            .unwrap()
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
-            .ok_or(Error::CancelledLoading)
-    }
-
-    /// Attempts to restore a previously created `FileSystem` using its `.idb_key()`.
-    pub async fn from_idb_key(idb_key: String) -> Result<Self> {
-        if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported);
-        }
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirFromIdb(
-                idb_key.clone(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx
-            .await
-            .unwrap()
-            .map(|(key, name)| FileSystem {
-                key,
-                name,
-                idb_key: Some(idb_key),
-            })
-            .ok_or(Error::MissingIDB)
-    }
-
-    /// Creates a new `FileSystem` from a subdirectory of this one.
-    pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirSubdir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx
-            .recv()
-            .unwrap()
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
-    }
-
-    /// Drops the directory with the given key from IndexedDB if it exists in there.
-    pub fn idb_drop(idb_key: String) -> bool {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirIdbDrop(
-                idb_key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-
-    /// Returns a path consisting of a single element: the name of the root directory of this
-    /// filesystem.
-    pub fn root_path(&self) -> &camino::Utf8Path {
-        self.name.as_str().into()
-    }
-
-    /// Returns the key needed to restore this `FileSystem` using `FileSystem::from_idb()`.
-    pub fn idb_key(&self) -> Option<&str> {
-        self.idb_key.as_deref()
-    }
-}
-
-impl Drop for FileSystem {
-    fn drop(&mut self) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirDrop(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap();
-    }
-}
-
-impl Clone for FileSystem {
-    fn clone(&self) -> Self {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirClone(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        Self {
-            key: oneshot_rx.recv().unwrap(),
-            name: self.name.clone(),
-            idb_key: self.idb_key.clone(),
-        }
-    }
-}
-
-impl FileSystemTrait for FileSystem {
-    type File = File;
-
-    fn open_file(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-        mut flags: OpenFlags,
-    ) -> Result<Self::File> {
-        if flags.contains(OpenFlags::Truncate) || flags.contains(OpenFlags::Create) {
-            flags |= OpenFlags::Write;
-        }
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirOpenFile(
-                self.key,
-                path.as_ref().to_path_buf(),
-                flags,
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap().map(|key| File { key })
-    }
-
-    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirEntryMetadata(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-
-    fn rename(
-        &self,
-        from: impl AsRef<camino::Utf8Path>,
-        to: impl AsRef<camino::Utf8Path>,
-    ) -> Result<()> {
-        Err(Error::NotSupported)
-    }
-
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirEntryExists(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        Ok(oneshot_rx.recv().unwrap())
-    }
-
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirCreateDir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirRemoveDir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirRemoveFile(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-
-    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirReadDir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-}
-
-impl Drop for File {
-    fn drop(&mut self) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileDrop(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap();
-    }
-}
-
-impl crate::File for File {
-    fn metadata(&self) -> crate::Result<Metadata> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileSize(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        let size = oneshot_rx.recv().unwrap();
-        Ok(Metadata {
-            is_file: true,
-            size,
-        })
-    }
-}
-
-impl std::io::Read for File {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileRead(
-                self.key,
-                buf.len(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        let vec = oneshot_rx.recv().unwrap()?;
-        let length = vec.len();
-        buf[..length].copy_from_slice(&vec[..]);
-        Ok(length)
-    }
-}
-
-impl std::io::Write for File {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileWrite(
-                self.key,
-                buf.to_vec(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()?;
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileFlush(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-}
-
-impl std::io::Seek for File {
-    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileSeek(
-                self.key, pos, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
-    }
-}
 
 pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemCommand>) {
     wasm_bindgen_futures::spawn_local(async move {
@@ -420,59 +34,6 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
 
         let mut dirs: slab::Slab<web_sys::FileSystemDirectoryHandle> = slab::Slab::new();
         let mut files: slab::Slab<FileHandle> = slab::Slab::new();
-
-        async fn to_future<T>(promise: js_sys::Promise) -> std::result::Result<T, js_sys::Error>
-        where
-            T: JsCast,
-        {
-            wasm_bindgen_futures::JsFuture::from(promise)
-                .await
-                .map(|t| t.unchecked_into())
-                .map_err(|e| e.unchecked_into())
-        }
-
-        async fn get_subdir(
-            dir: &web_sys::FileSystemDirectoryHandle,
-            path_iter: &mut camino::Iter<'_>,
-        ) -> Option<web_sys::FileSystemDirectoryHandle> {
-            let mut dir = dir.clone();
-            loop {
-                let Some(path_element) = path_iter.next() else {
-                    return Some(dir);
-                };
-                if let Ok(subdir) = to_future(dir.get_directory_handle(path_element)).await {
-                    dir = subdir;
-                } else {
-                    return None;
-                }
-            }
-        }
-
-        async fn idb<R>(
-            mode: IdbTransactionMode,
-            f: impl Fn(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
-        ) -> std::result::Result<R, web_sys::DomException> {
-            let mut db_req = IdbDatabase::open_u32("astrabit.luminol", 1)?;
-
-            // Create store for our directory handles if it doesn't exist
-            db_req.set_on_upgrade_needed(Some(|e: &IdbVersionChangeEvent| {
-                if e.db()
-                    .object_store_names()
-                    .find(|n| n == "filesystem.dir_handles")
-                    .is_none()
-                {
-                    e.db().create_object_store("filesystem.dir_handles")?;
-                }
-                Ok(())
-            }));
-
-            let db = db_req.into_future().await?;
-            let tx = db.transaction_on_one_with_mode("filesystem.dir_handles", mode)?;
-            let store = tx.object_store("filesystem.dir_handles")?;
-            let r = f(store);
-            tx.await.into_result()?;
-            r
-        }
 
         loop {
             let Ok(command) = filesystem_rx.recv_async().await else {
@@ -543,14 +104,10 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                 FileSystemCommandInner::DirPicker(oneshot_tx) => {
                     if let Ok(dir) = luminol_web::bindings::show_directory_picker().await {
                         // Try to insert the handle into IndexedDB
-                        let idb_key = rand::thread_rng()
-                            .sample_iter(rand::distributions::Alphanumeric)
-                            .take(42) // This should be enough to avoid collisions
-                            .map(char::from)
-                            .collect::<String>();
+                        let idb_key = generate_key();
                         let idb_ok = {
                             let idb_key = idb_key.as_str();
-                            idb(IdbTransactionMode::Readwrite, |store| {
+                            super::util::idb(IdbTransactionMode::Readwrite, |store| {
                                 store.put_key_val_owned(idb_key, &dir)
                             })
                             .await
@@ -572,7 +129,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
 
                 FileSystemCommandInner::DirFromIdb(idb_key, oneshot_tx) => {
                     let idb_key = idb_key.as_str();
-                    if let Ok(future) = idb(IdbTransactionMode::Readonly, |store| {
+                    if let Ok(future) = super::util::idb(IdbTransactionMode::Readonly, |store| {
                         store.get_owned(idb_key)
                     })
                     .await
@@ -601,14 +158,10 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                     };
 
                     // Try to insert the handle into IndexedDB
-                    let idb_key = rand::thread_rng()
-                        .sample_iter(rand::distributions::Alphanumeric)
-                        .take(42) // This should be enough to avoid collisions
-                        .map(char::from)
-                        .collect::<String>();
+                    let idb_key = generate_key();
                     let idb_ok = {
                         let idb_key = idb_key.as_str();
-                        idb(IdbTransactionMode::Readwrite, |store| {
+                        super::util::idb(IdbTransactionMode::Readwrite, |store| {
                             store.put_key_val_owned(idb_key, &dir)
                         })
                         .await
@@ -629,7 +182,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                     let idb_key = idb_key.as_str();
                     oneshot_tx
                         .send(
-                            idb(IdbTransactionMode::Readwrite, |store| {
+                            super::util::idb(IdbTransactionMode::Readwrite, |store| {
                                 store.delete_owned(idb_key)
                             })
                             .await
