@@ -15,30 +15,29 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
         let mut should_save = false;
         let mut touch = None;
 
-        if let Some(custom_event_rx) = &runner_lock.worker_options.channels.custom_event_rx {
-            for event in custom_event_rx.try_iter() {
-                match event.0 {
-                    WebRunnerCustomEventInner::ScreenResize(
-                        new_width,
-                        new_height,
-                        new_pixel_ratio,
-                    ) => {
-                        width = new_width;
-                        height = new_height;
-                        pixel_ratio = new_pixel_ratio;
-                    }
+        for event in runner_lock
+            .worker_options
+            .channels
+            .custom_event_rx
+            .try_iter()
+        {
+            match event.0 {
+                WebRunnerCustomEventInner::ScreenResize(new_width, new_height, new_pixel_ratio) => {
+                    width = new_width;
+                    height = new_height;
+                    pixel_ratio = new_pixel_ratio;
+                }
 
-                    WebRunnerCustomEventInner::Modifiers(new_modifiers) => {
-                        modifiers = new_modifiers;
-                    }
+                WebRunnerCustomEventInner::Modifiers(new_modifiers) => {
+                    modifiers = new_modifiers;
+                }
 
-                    WebRunnerCustomEventInner::Save => {
-                        should_save = true;
-                    }
+                WebRunnerCustomEventInner::Save => {
+                    should_save = true;
+                }
 
-                    WebRunnerCustomEventInner::Touch(touch_id, touch_pos) => {
-                        touch = Some((touch_id, touch_pos));
-                    }
+                WebRunnerCustomEventInner::Touch(touch_id, touch_pos) => {
+                    touch = Some((touch_id, touch_pos));
                 }
             }
         }
@@ -56,12 +55,15 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
             runner_lock.needs_repaint.repaint_asap();
         }
 
-        if let Some(event_rx) = &runner_lock.worker_options.channels.event_rx {
-            runner_lock.input.raw.events = event_rx.try_iter().collect();
-            if !runner_lock.input.raw.events.is_empty() {
-                // Render immediately if there are any pending events
-                runner_lock.needs_repaint.repaint_asap();
-            }
+        runner_lock.input.raw.events = runner_lock
+            .worker_options
+            .channels
+            .event_rx
+            .try_iter()
+            .collect();
+        if !runner_lock.input.raw.events.is_empty() {
+            // Render immediately if there are any pending events
+            runner_lock.needs_repaint.repaint_asap();
         }
 
         // Save and rerender immediately if saving was requested

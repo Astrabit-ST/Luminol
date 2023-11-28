@@ -65,12 +65,8 @@ impl WebRunner {
         }
 
         wasm_bindgen_futures::spawn_local(async move {
-            let Some(output_rx) = &channels.output_rx else {
-                return;
-            };
-
             loop {
-                let Ok(command) = output_rx.recv_async().await else {
+                let Ok(command) = channels.output_rx.recv_async().await else {
                     log::warn!(
                         "Web runner main thread loop is stopping! This is not supposed to happen."
                     );

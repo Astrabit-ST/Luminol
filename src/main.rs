@@ -240,9 +240,9 @@ pub fn luminol_main_start(fallback: bool) {
     eframe::WebRunner::setup_main_thread_hooks(
         canvas.clone(),
         eframe::web::MainThreadChannels {
-            event_tx: Some(event_tx),
-            custom_event_tx: Some(custom_event_tx),
-            output_rx: Some(output_rx),
+            event_tx,
+            custom_event_tx,
+            output_rx,
             state: Default::default(),
         },
     )
@@ -253,9 +253,9 @@ pub fn luminol_main_start(fallback: bool) {
         prefers_color_scheme_dark,
         filesystem_tx,
         web_runner_channels: eframe::web::WorkerChannels {
-            event_rx: Some(event_rx),
-            custom_event_rx: Some(custom_event_rx),
-            output_tx: Some(output_tx),
+            event_rx,
+            custom_event_rx,
+            output_tx,
         },
     });
 

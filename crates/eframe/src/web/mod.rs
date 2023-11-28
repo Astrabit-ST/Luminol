@@ -277,7 +277,7 @@ pub fn percent_decode(s: &str) -> String {
 // ----------------------------------------------------------------------------
 
 /// Options and state that will be sent to the web worker part of the web runner.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct WorkerOptions {
     /// Whether or not the user's browser prefers dark mode.
     /// `Some(true)` means dark mode is preferred.
@@ -289,34 +289,32 @@ pub struct WorkerOptions {
 }
 
 /// The halves of the web runner channels that are used in the web worker.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct WorkerChannels {
     /// The receiver used to receive egui events from the main thread.
-    pub event_rx: Option<flume::Receiver<egui::Event>>,
+    pub event_rx: flume::Receiver<egui::Event>,
     /// The receiver used to receive custom events from the main thread.
-    pub custom_event_rx: Option<flume::Receiver<WebRunnerCustomEvent>>,
+    pub custom_event_rx: flume::Receiver<WebRunnerCustomEvent>,
     /// The sender used to send outputs to the main thread.
-    pub output_tx: Option<flume::Sender<WebRunnerOutput>>,
+    pub output_tx: flume::Sender<WebRunnerOutput>,
 }
 
 impl WorkerChannels {
     /// Send an output to the main thread.
     pub(self) fn send(&self, output: WebRunnerOutputInner) {
-        if let Some(output_tx) = &self.output_tx {
-            let _ = output_tx.send(WebRunnerOutput(output));
-        }
+        let _ = self.output_tx.send(WebRunnerOutput(output));
     }
 }
 
 /// The halves of the web runner channels that are used in the main thread.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct MainThreadChannels {
     /// The sender used to send egui events to the worker thread.
-    pub event_tx: Option<flume::Sender<egui::Event>>,
+    pub event_tx: flume::Sender<egui::Event>,
     /// The sender used to send custom events to the worker thread.
-    pub custom_event_tx: Option<flume::Sender<WebRunnerCustomEvent>>,
+    pub custom_event_tx: flume::Sender<WebRunnerCustomEvent>,
     /// The receiver used to receive outputs from the worker thread.
-    pub output_rx: Option<flume::Receiver<WebRunnerOutput>>,
+    pub output_rx: flume::Receiver<WebRunnerOutput>,
 
     /// The state of the web runner that is accessible to the main thread.
     pub state: std::rc::Rc<std::cell::RefCell<MainThreadState>>,
@@ -343,16 +341,12 @@ pub struct MainThreadState {
 impl MainThreadChannels {
     /// Send an egui event to the worker thread.
     pub(self) fn send(&self, event: egui::Event) {
-        if let Some(event_tx) = &self.event_tx {
-            let _ = event_tx.send(event);
-        }
+        let _ = self.event_tx.send(event);
     }
 
     /// Send a custom event to the worker thread.
     pub(self) fn send_custom(&self, event: WebRunnerCustomEventInner) {
-        if let Some(custom_event_tx) = &self.custom_event_tx {
-            let _ = custom_event_tx.send(WebRunnerCustomEvent(event));
-        }
+        let _ = self.custom_event_tx.send(WebRunnerCustomEvent(event));
     }
 }
 

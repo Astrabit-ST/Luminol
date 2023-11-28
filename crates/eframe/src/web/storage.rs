@@ -14,19 +14,17 @@ pub fn local_storage_set(key: &str, value: &str) {
 
 #[cfg(feature = "persistence")]
 pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {
-    if channels.output_tx.is_some() {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        channels.send(super::WebRunnerOutputInner::StorageGet(
-            String::from("egui_memory_ron"),
-            oneshot_tx,
-        ));
-        if let Some(memory) = oneshot_rx.await.ok().flatten() {
-            match ron::from_str(&memory) {
-                Ok(memory) => {
-                    ctx.memory_mut(|m| *m = memory);
-                }
-                Err(err) => log::warn!("Failed to parse memory RON: {err}"),
+    let (oneshot_tx, oneshot_rx) = oneshot::channel();
+    channels.send(super::WebRunnerOutputInner::StorageGet(
+        String::from("egui_memory_ron"),
+        oneshot_tx,
+    ));
+    if let Some(memory) = oneshot_rx.await.ok().flatten() {
+        match ron::from_str(&memory) {
+            Ok(memory) => {
+                ctx.memory_mut(|m| *m = memory);
             }
+            Err(err) => log::warn!("Failed to parse memory RON: {err}"),
         }
     }
 }

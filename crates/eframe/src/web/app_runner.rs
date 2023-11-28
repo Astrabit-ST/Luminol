@@ -303,7 +303,6 @@ impl AppRunner {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 struct LocalStorage {
     channels: super::WorkerChannels,
 }
