@@ -333,6 +333,8 @@ pub struct MainStateInner {
     pub(self) mutable_text_under_cursor: bool,
     /// The screen reader used for reading text aloud.
     pub(self) screen_reader: Option<screen_reader::ScreenReader>,
+    /// Whether or not egui is trying to receive text input.
+    pub(self) wants_keyboard_input: bool,
 }
 
 /// The halves of the web runner channels that are used in the main thread.
@@ -405,7 +407,7 @@ pub struct WebRunnerOutput(WebRunnerOutputInner);
 
 pub(self) enum WebRunnerOutputInner {
     /// Miscellaneous egui output events
-    PlatformOutput(egui::PlatformOutput, bool),
+    PlatformOutput(egui::PlatformOutput, bool, bool),
     /// The runner wants to read a key from storage
     StorageGet(String, oneshot::Sender<Option<String>>),
     /// The runner wants to write a key to storage

@@ -71,8 +71,17 @@ impl WebRunner {
                 };
 
                 match command.0 {
-                    super::WebRunnerOutputInner::PlatformOutput(output, screen_reader_enabled) => {
-                        AppRunner::handle_platform_output(&state, output, screen_reader_enabled);
+                    super::WebRunnerOutputInner::PlatformOutput(
+                        output,
+                        screen_reader_enabled,
+                        wants_keyboard_input,
+                    ) => {
+                        AppRunner::handle_platform_output(
+                            &state,
+                            output,
+                            screen_reader_enabled,
+                            wants_keyboard_input,
+                        );
                     }
 
                     super::WebRunnerOutputInner::StorageGet(key, oneshot_tx) => {

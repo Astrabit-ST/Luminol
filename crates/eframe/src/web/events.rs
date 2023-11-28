@@ -196,9 +196,11 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
             }
             //runner.needs_repaint.repaint_asap();
 
-            // TODO
-            //let egui_wants_keyboard = runner.egui_ctx().wants_keyboard_input();
-            let egui_wants_keyboard = false;
+            let egui_wants_keyboard = if let Ok(inner) = state.inner.try_borrow() {
+                inner.wants_keyboard_input
+            } else {
+                true
+            };
 
             #[allow(clippy::if_same_then_else)]
             let prevent_default = if egui_key == Some(egui::Key::Tab) {

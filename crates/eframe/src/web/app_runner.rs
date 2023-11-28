@@ -224,6 +224,7 @@ impl AppRunner {
             .send(super::WebRunnerOutputInner::PlatformOutput(
                 platform_output,
                 self.egui_ctx.options(|o| o.screen_reader),
+                self.egui_ctx.wants_keyboard_input(),
             ));
         self.textures_delta.append(textures_delta);
         let clipped_primitives = self.egui_ctx.tessellate(shapes);
@@ -256,6 +257,7 @@ impl AppRunner {
         state: &super::MainState,
         platform_output: egui::PlatformOutput,
         screen_reader_enabled: bool,
+        wants_keyboard_input: bool,
     ) {
         if screen_reader_enabled {
             if let Ok(mut inner) = state.inner.try_borrow_mut() {
@@ -291,6 +293,7 @@ impl AppRunner {
 
         if let Ok(mut inner) = state.inner.try_borrow_mut() {
             inner.mutable_text_under_cursor = mutable_text_under_cursor;
+            inner.wants_keyboard_input = wants_keyboard_input;
 
             if inner.text_cursor_pos != text_cursor_pos {
                 super::text_agent::move_text_cursor(text_cursor_pos, &state.canvas);
