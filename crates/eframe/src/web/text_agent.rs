@@ -21,10 +21,7 @@ pub fn text_agent() -> web_sys::HtmlInputElement {
 }
 
 /// Text event handler,
-pub fn install_text_agent(
-    channels: &super::MainThreadChannels,
-    canvas: &web_sys::HtmlCanvasElement,
-) -> Result<(), JsValue> {
+pub fn install_text_agent(state: &super::MainState) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
@@ -47,15 +44,15 @@ pub fn install_text_agent(
     input.set_hidden(true);
 
     // When IME is off
-    super::events::add_event_listener(&input, "input", &channels, &canvas, {
+    state.add_event_listener(&input, "input", {
         let input_clone = input.clone();
         let is_composing = is_composing.clone();
 
-        move |_event: web_sys::InputEvent, channels, _canvas| {
+        move |_event: web_sys::InputEvent, state| {
             let text = input_clone.value();
             if !text.is_empty() && !is_composing.get() {
                 input_clone.set_value("");
-                channels.send(egui::Event::Text(text));
+                state.channels.send(egui::Event::Text(text));
                 //runner.needs_repaint.repaint_asap();
             }
         }
@@ -63,41 +60,39 @@ pub fn install_text_agent(
 
     {
         // When IME is on, handle composition event
-        super::events::add_event_listener(&input, "compositionstart", &channels, &canvas, {
+        state.add_event_listener(&input, "compositionstart", {
             let input_clone = input.clone();
             let is_composing = is_composing.clone();
 
-            move |_event: web_sys::CompositionEvent, channels, _canvas| {
+            move |_event: web_sys::CompositionEvent, state| {
                 is_composing.set(true);
                 input_clone.set_value("");
 
-                channels.send(egui::Event::CompositionStart);
+                state.channels.send(egui::Event::CompositionStart);
                 //runner.needs_repaint.repaint_asap();
             }
         })?;
 
-        super::events::add_event_listener(
+        state.add_event_listener(
             &input,
             "compositionupdate",
-            &channels,
-            &canvas,
-            move |event: web_sys::CompositionEvent, channels, _canvas| {
+            move |event: web_sys::CompositionEvent, state| {
                 if let Some(event) = event.data().map(egui::Event::CompositionUpdate) {
-                    channels.send(event);
+                    state.channels.send(event);
                     //runner.needs_repaint.repaint_asap();
                 }
             },
         )?;
 
-        super::events::add_event_listener(&input, "compositionend", &channels, &canvas, {
+        state.add_event_listener(&input, "compositionend", {
             let input_clone = input.clone();
 
-            move |event: web_sys::CompositionEvent, channels, _canvas| {
+            move |event: web_sys::CompositionEvent, state| {
                 is_composing.set(false);
                 input_clone.set_value("");
 
                 if let Some(event) = event.data().map(egui::Event::CompositionEnd) {
-                    channels.send(event);
+                    state.channels.send(event);
                     //runner.needs_repaint.repaint_asap();
                 }
             }
@@ -107,12 +102,10 @@ pub fn install_text_agent(
     // When input lost focus, focus on it again.
     // It is useful when user click somewhere outside canvas.
     let input_refocus = input.clone();
-    super::events::add_event_listener(
+    state.add_event_listener(
         &input,
         "focusout",
-        &channels,
-        &canvas,
-        move |_event: web_sys::MouseEvent, _channels, _canvas| {
+        move |_event: web_sys::MouseEvent, _state| {
             // Delay 10 ms, and focus again.
             let input_refocus = input_refocus.clone();
             call_after_delay(std::time::Duration::from_millis(10), move || {
@@ -127,19 +120,16 @@ pub fn install_text_agent(
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
-pub fn update_text_agent(
-    channels: &super::MainThreadChannels,
-    canvas: &web_sys::HtmlCanvasElement,
-) -> Option<()> {
-    let mut state = channels.state.try_borrow().ok()?;
+pub fn update_text_agent(state: &super::MainState) -> Option<()> {
+    let inner = state.inner.try_borrow().ok()?;
 
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let canvas_style = canvas.style();
+    let canvas_style = state.canvas.style();
 
-    if state.mutable_text_under_cursor {
+    if inner.mutable_text_under_cursor {
         let is_already_editing = input.hidden();
         if is_already_editing {
             input.set_hidden(false);
@@ -147,9 +137,9 @@ pub fn update_text_agent(
 
             // Move up canvas so that text edit is shown at ~30% of screen height.
             // Only on touch screens, when keyboard popups.
-            if state.touch_id.is_some() {
+            if inner.touch_id.is_some() {
                 let window_height = window.inner_height().ok()?.as_f64()? as f32;
-                let current_rel = state.touch_pos.y / window_height;
+                let current_rel = inner.touch_pos.y / window_height;
 
                 // estimated amount of screen covered by keyboard
                 let keyboard_fraction = 0.5;

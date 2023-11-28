@@ -237,15 +237,15 @@ pub fn luminol_main_start(fallback: bool) {
     let (custom_event_tx, custom_event_rx) = flume::unbounded();
 
     luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
-    eframe::WebRunner::setup_main_thread_hooks(
-        canvas.clone(),
-        eframe::web::MainThreadChannels {
+    eframe::WebRunner::setup_main_thread_hooks(eframe::web::MainState {
+        inner: Default::default(),
+        canvas: canvas.clone(),
+        channels: eframe::web::MainChannels {
             event_tx,
             custom_event_tx,
             output_rx,
-            state: Default::default(),
         },
-    )
+    })
     .expect("unable to setup web runner main thread hooks");
 
     *WORKER_DATA.lock() = Some(WorkerData {

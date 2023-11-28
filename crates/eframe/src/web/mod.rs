@@ -306,23 +306,20 @@ impl WorkerChannels {
     }
 }
 
-/// The halves of the web runner channels that are used in the main thread.
+/// The state of the web runner that is accessible to the main thread.
 #[derive(Clone)]
-pub struct MainThreadChannels {
-    /// The sender used to send egui events to the worker thread.
-    pub event_tx: flume::Sender<egui::Event>,
-    /// The sender used to send custom events to the worker thread.
-    pub custom_event_tx: flume::Sender<WebRunnerCustomEvent>,
-    /// The receiver used to receive outputs from the worker thread.
-    pub output_rx: flume::Receiver<WebRunnerOutput>,
-
+pub struct MainState {
     /// The state of the web runner that is accessible to the main thread.
-    pub state: std::rc::Rc<std::cell::RefCell<MainThreadState>>,
+    pub inner: std::rc::Rc<std::cell::RefCell<MainStateInner>>,
+    /// The HTML canvas element that this runner renders onto.
+    pub canvas: web_sys::HtmlCanvasElement,
+    /// The halves of the web runner channels that are used in the main thread.
+    pub channels: MainChannels,
 }
 
 /// The state of the web runner that is accessible to the main thread.
 #[derive(Default)]
-pub struct MainThreadState {
+pub struct MainStateInner {
     /// If the user is currently interacting with the touchscreen, this is the ID of the touch,
     /// measured with `Touch.identifier` in JavaScript.
     pub(self) touch_id: Option<egui::TouchId>,
@@ -338,7 +335,46 @@ pub struct MainThreadState {
     pub(self) screen_reader: Option<screen_reader::ScreenReader>,
 }
 
-impl MainThreadChannels {
+/// The halves of the web runner channels that are used in the main thread.
+#[derive(Clone)]
+pub struct MainChannels {
+    /// The sender used to send egui events to the worker thread.
+    pub event_tx: flume::Sender<egui::Event>,
+    /// The sender used to send custom events to the worker thread.
+    pub custom_event_tx: flume::Sender<WebRunnerCustomEvent>,
+    /// The receiver used to receive outputs from the worker thread.
+    pub output_rx: flume::Receiver<WebRunnerOutput>,
+}
+
+impl MainState {
+    /// Add an event listener to the given JavaScript `EventTarget`.
+    pub(self) fn add_event_listener<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &web_sys::EventTarget,
+        event_name: &'static str,
+        mut closure: impl FnMut(E, &MainState) + 'static,
+    ) -> Result<(), wasm_bindgen::JsValue> {
+        let state = self.clone();
+
+        // Create a JS closure based on the FnMut provided
+        let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+            // Only call the wrapped closure if the egui code has not panicked
+            if PANIC_LOCK.get().is_none() {
+                // Cast the event to the expected event type
+                let event = event.unchecked_into::<E>();
+                closure(event, &state);
+            }
+        }) as Box<dyn FnMut(web_sys::Event)>);
+
+        // Add the event listener to the target
+        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+
+        closure.forget();
+        Ok(())
+    }
+}
+
+impl MainChannels {
     /// Send an egui event to the worker thread.
     pub(self) fn send(&self, event: egui::Event) {
         let _ = self.event_tx.send(event);
@@ -376,4 +412,4 @@ pub(self) enum WebRunnerOutputInner {
     StorageSet(String, String, oneshot::Sender<bool>),
 }
 
-pub(self) static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
+static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();

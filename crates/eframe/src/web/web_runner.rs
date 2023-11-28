@@ -46,27 +46,24 @@ impl WebRunner {
 
     /// Set up the event listeners on the main thread in order to do things like respond to
     /// mouse events and resize the canvas to fill the screen.
-    pub fn setup_main_thread_hooks(
-        canvas: web_sys::HtmlCanvasElement,
-        channels: super::MainThreadChannels,
-    ) -> Result<(), JsValue> {
+    pub fn setup_main_thread_hooks(state: super::MainState) -> Result<(), JsValue> {
         {
-            let mut state = channels.state.borrow_mut();
-            if state.screen_reader.is_none() {
-                state.screen_reader = Some(Default::default());
+            let mut inner = state.inner.borrow_mut();
+            if inner.screen_reader.is_none() {
+                inner.screen_reader = Some(Default::default());
             }
         }
 
         {
-            events::install_canvas_events(&channels, &canvas)?;
-            events::install_document_events(&channels, &canvas)?;
-            events::install_window_events(&channels, &canvas)?;
-            super::text_agent::install_text_agent(&channels, &canvas)?;
+            events::install_canvas_events(&state)?;
+            events::install_document_events(&state)?;
+            events::install_window_events(&state)?;
+            super::text_agent::install_text_agent(&state)?;
         }
 
         wasm_bindgen_futures::spawn_local(async move {
             loop {
-                let Ok(command) = channels.output_rx.recv_async().await else {
+                let Ok(command) = state.channels.output_rx.recv_async().await else {
                     log::warn!(
                         "Web runner main thread loop is stopping! This is not supposed to happen."
                     );
@@ -75,12 +72,7 @@ impl WebRunner {
 
                 match command.0 {
                     super::WebRunnerOutputInner::PlatformOutput(output, screen_reader_enabled) => {
-                        AppRunner::handle_platform_output(
-                            &channels,
-                            &canvas,
-                            output,
-                            screen_reader_enabled,
-                        );
+                        AppRunner::handle_platform_output(&state, output, screen_reader_enabled);
                     }
 
                     super::WebRunnerOutputInner::StorageGet(key, oneshot_tx) => {

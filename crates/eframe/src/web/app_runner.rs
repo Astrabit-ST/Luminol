@@ -253,14 +253,13 @@ impl AppRunner {
     }
 
     pub(super) fn handle_platform_output(
-        channels: &super::MainThreadChannels,
-        canvas: &web_sys::HtmlCanvasElement,
+        state: &super::MainState,
         platform_output: egui::PlatformOutput,
         screen_reader_enabled: bool,
     ) {
         if screen_reader_enabled {
-            if let Ok(mut state) = channels.state.try_borrow_mut() {
-                if let Some(screen_reader) = &mut state.screen_reader {
+            if let Ok(mut inner) = state.inner.try_borrow_mut() {
+                if let Some(screen_reader) = &mut inner.screen_reader {
                     screen_reader.speak(&platform_output.events_description());
                 }
             }
@@ -290,12 +289,12 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        if let Ok(mut state) = channels.state.try_borrow_mut() {
-            state.mutable_text_under_cursor = mutable_text_under_cursor;
+        if let Ok(mut inner) = state.inner.try_borrow_mut() {
+            inner.mutable_text_under_cursor = mutable_text_under_cursor;
 
-            if state.text_cursor_pos != text_cursor_pos {
-                super::text_agent::move_text_cursor(text_cursor_pos, canvas);
-                state.text_cursor_pos = text_cursor_pos;
+            if inner.text_cursor_pos != text_cursor_pos {
+                super::text_agent::move_text_cursor(text_cursor_pos, &state.canvas);
+                inner.text_cursor_pos = text_cursor_pos;
             }
         }
     }

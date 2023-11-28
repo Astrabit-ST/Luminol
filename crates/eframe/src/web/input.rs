@@ -61,15 +61,14 @@ fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Po
 }
 
 pub fn push_touches(
-    canvas: &web_sys::HtmlCanvasElement,
-    channels: &super::MainThreadChannels,
+    state: &super::MainState,
     phase: egui::TouchPhase,
     event: &web_sys::TouchEvent,
 ) {
-    let canvas_origin = canvas_origin(canvas);
+    let canvas_origin = canvas_origin(&state.canvas);
     for touch_idx in 0..event.changed_touches().length() {
         if let Some(touch) = event.changed_touches().item(touch_idx) {
-            channels.send(egui::Event::Touch {
+            state.channels.send(egui::Event::Touch {
                 device_id: egui::TouchDeviceId(0),
                 id: egui::TouchId::from(touch.identifier()),
                 phase,
