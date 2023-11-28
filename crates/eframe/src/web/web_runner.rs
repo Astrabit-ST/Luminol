@@ -54,14 +54,14 @@ impl WebRunner {
             events::install_canvas_events(&channels, &canvas)?;
             events::install_document_events(&channels, &canvas)?;
             events::install_window_events(&channels, &canvas)?;
-            //super::text_agent::install_text_agent(self)?;
+            super::text_agent::install_text_agent(&channels, &canvas)?;
         }
 
-        let Some(output_rx) = channels.output_rx else {
-            return Ok(());
-        };
-
         wasm_bindgen_futures::spawn_local(async move {
+            let Some(output_rx) = &channels.output_rx else {
+                return;
+            };
+
             loop {
                 let Ok(command) = output_rx.recv_async().await else {
                     log::warn!(
@@ -72,7 +72,7 @@ impl WebRunner {
 
                 match command.0 {
                     super::WebRunnerOutputInner::PlatformOutput(output) => {
-                        AppRunner::handle_platform_output(None, output);
+                        AppRunner::handle_platform_output(&channels, &canvas, None, output);
                     }
 
                     super::WebRunnerOutputInner::StorageGet(key, oneshot_tx) => {

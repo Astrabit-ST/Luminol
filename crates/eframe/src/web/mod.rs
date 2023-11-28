@@ -318,19 +318,24 @@ pub struct MainThreadChannels {
     /// The receiver used to receive outputs from the worker thread.
     pub output_rx: Option<flume::Receiver<WebRunnerOutput>>,
 
-    /// The state of the current touch device.
-    pub touch: std::rc::Rc<std::cell::RefCell<MainThreadTouch>>,
+    /// The state of the web runner that is accessible to the main thread.
+    pub state: std::rc::Rc<std::cell::RefCell<MainThreadState>>,
 }
 
-/// The state of the current touch device.
+/// The state of the web runner that is accessible to the main thread.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct MainThreadTouch {
+pub struct MainThreadState {
     /// If the user is currently interacting with the touchscreen, this is the ID of the touch,
     /// measured with `Touch.identifier` in JavaScript.
-    pub id: Option<egui::TouchId>,
+    pub(self) touch_id: Option<egui::TouchId>,
     /// The position relative to the canvas of the last received touch event. If no touch event has
     /// been received yet, this will be (0, 0).
-    pub pos: egui::Pos2,
+    pub(self) touch_pos: egui::Pos2,
+    /// If the user is typing something, the position of the text cursor (for IME) in screen
+    /// coordinates.
+    pub(self) text_cursor_pos: Option<egui::Pos2>,
+    /// Whether or not the user is editing a mutable egui text box.
+    pub(self) mutable_text_under_cursor: bool,
 }
 
 impl MainThreadChannels {

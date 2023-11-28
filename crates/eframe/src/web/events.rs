@@ -130,7 +130,7 @@ pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsVal
 
 // ------------------------------------------------------------------------
 
-fn add_event_listener<E: wasm_bindgen::JsCast>(
+pub(super) fn add_event_listener<E: wasm_bindgen::JsCast>(
     target: &web_sys::EventTarget,
     event_name: &'static str,
     channels: &MainThreadChannels,
@@ -217,9 +217,11 @@ pub(crate) fn install_document_events(
                     modifiers,
                 });
             }
-            if !modifiers.ctrl && !modifiers.command && !should_ignore_key(&key)
-            // When text agent is shown, it sends text event instead.
-            //&& text_agent::text_agent().hidden()
+            if !modifiers.ctrl
+                && !modifiers.command
+                && !should_ignore_key(&key)
+                // When text agent is shown, it sends text event instead.
+                && text_agent::text_agent().hidden()
             {
                 channels.send(egui::Event::Text(key));
             }
@@ -500,7 +502,7 @@ pub(crate) fn install_canvas_events(
                 // Make sure we paint the output of the above logic call asap:
                 //runner.needs_repaint.repaint_asap();
 
-                //text_agent::update_text_agent(runner);
+                text_agent::update_text_agent(&channels, &canvas);
             }
             event.stop_propagation();
             event.prevent_default();
@@ -528,12 +530,15 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            if let Ok(mut touch) = channels.touch.try_borrow_mut() {
-                touch.pos = pos_from_touch_event(&canvas, &event, &mut touch.id);
-                channels.send_custom(WebRunnerCustomEventInner::Touch(touch.id, touch.pos));
+            if let Ok(mut state) = channels.state.try_borrow_mut() {
+                state.touch_pos = pos_from_touch_event(&canvas, &event, &mut state.touch_id);
+                channels.send_custom(WebRunnerCustomEventInner::Touch(
+                    state.touch_id,
+                    state.touch_pos,
+                ));
                 let modifiers = modifiers_from_touch_event(&event);
                 channels.send(egui::Event::PointerButton {
-                    pos: touch.pos,
+                    pos: state.touch_pos,
                     button: egui::PointerButton::Primary,
                     pressed: true,
                     modifiers,
@@ -553,10 +558,13 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            if let Ok(mut touch) = channels.touch.try_borrow_mut() {
-                touch.pos = pos_from_touch_event(&canvas, &event, &mut touch.id);
-                channels.send_custom(WebRunnerCustomEventInner::Touch(touch.id, touch.pos));
-                channels.send(egui::Event::PointerMoved(touch.pos));
+            if let Ok(mut state) = channels.state.try_borrow_mut() {
+                state.touch_pos = pos_from_touch_event(&canvas, &event, &mut state.touch_id);
+                channels.send_custom(WebRunnerCustomEventInner::Touch(
+                    state.touch_id,
+                    state.touch_pos,
+                ));
+                channels.send(egui::Event::PointerMoved(state.touch_pos));
 
                 push_touches(&canvas, &channels, egui::TouchPhase::Move, &event);
                 //runner.needs_repaint.repaint_asap();
@@ -572,12 +580,12 @@ pub(crate) fn install_canvas_events(
         &channels,
         &canvas,
         |event: web_sys::TouchEvent, channels, canvas| {
-            if let Ok(touch) = channels.touch.try_borrow().as_ref() {
-                if touch.id.is_some() {
+            if let Ok(state) = channels.state.try_borrow().as_ref() {
+                if state.touch_id.is_some() {
                     let modifiers = modifiers_from_touch_event(&event);
                     // First release mouse to click:
                     channels.send(egui::Event::PointerButton {
-                        pos: touch.pos,
+                        pos: state.touch_pos,
                         button: egui::PointerButton::Primary,
                         pressed: false,
                         modifiers,
@@ -593,7 +601,7 @@ pub(crate) fn install_canvas_events(
             event.prevent_default();
 
             // Finally, focus or blur text agent to toggle mobile keyboard:
-            //text_agent::update_text_agent(runner);
+            text_agent::update_text_agent(&channels, &canvas);
         },
     )?;
 

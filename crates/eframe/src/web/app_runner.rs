@@ -252,6 +252,8 @@ impl AppRunner {
     }
 
     pub(super) fn handle_platform_output(
+        channels: &super::MainThreadChannels,
+        canvas: &web_sys::HtmlCanvasElement,
         screen_reader: Option<&mut super::screen_reader::ScreenReader>,
         platform_output: egui::PlatformOutput,
     ) {
@@ -264,7 +266,7 @@ impl AppRunner {
             open_url,
             copied_text,
             events: _, // already handled
-            mutable_text_under_cursor: _,
+            mutable_text_under_cursor,
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
@@ -283,10 +285,14 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        //if self.text_cursor_pos != text_cursor_pos {
-        //    super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
-        //    self.text_cursor_pos = text_cursor_pos;
-        //}
+        if let Ok(mut state) = channels.state.try_borrow_mut() {
+            state.mutable_text_under_cursor = mutable_text_under_cursor;
+
+            if state.text_cursor_pos != text_cursor_pos {
+                super::text_agent::move_text_cursor(text_cursor_pos, canvas);
+                state.text_cursor_pos = text_cursor_pos;
+            }
+        }
     }
 }
 
