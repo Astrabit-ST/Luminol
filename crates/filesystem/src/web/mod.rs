@@ -89,6 +89,22 @@ fn filesystem_tx_or_die() -> &'static flume::Sender<FileSystemCommand> {
     FILESYSTEM_TX.get().expect("FileSystem sender has not been initialized! Please call `FileSystem::initialize_sender` before calling this function.")
 }
 
+fn send_and_recv<R>(f: impl FnOnce(oneshot::Sender<R>) -> FileSystemCommandInner) -> R {
+    let (oneshot_tx, oneshot_rx) = oneshot::channel();
+    filesystem_tx_or_die()
+        .send(FileSystemCommand(f(oneshot_tx)))
+        .unwrap();
+    oneshot_rx.recv().unwrap()
+}
+
+async fn send_and_await<R>(f: impl FnOnce(oneshot::Sender<R>) -> FileSystemCommandInner) -> R {
+    let (oneshot_tx, oneshot_rx) = oneshot::channel();
+    filesystem_tx_or_die()
+        .send(FileSystemCommand(f(oneshot_tx)))
+        .unwrap();
+    oneshot_rx.await.unwrap()
+}
+
 impl FileSystem {
     /// Initializes the sender that we use to send filesystem commands to the main thread.
     /// This must be called before performing any filesystem operations.
@@ -100,13 +116,7 @@ impl FileSystem {
 
     /// Returns whether or not the user's browser supports the JavaScript File System API.
     pub fn filesystem_supported() -> bool {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::Supported(
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| FileSystemCommandInner::Supported(tx))
     }
 
     /// Attempts to prompt the user to choose a directory from their local machine using the
@@ -118,15 +128,8 @@ impl FileSystem {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported);
         }
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirPicker(
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx
+        send_and_await(|tx| FileSystemCommandInner::DirPicker(tx))
             .await
-            .unwrap()
             .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
             .ok_or(Error::CancelledLoading)
     }
@@ -136,16 +139,8 @@ impl FileSystem {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported);
         }
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirFromIdb(
-                idb_key.clone(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx
+        send_and_await(|tx| FileSystemCommandInner::DirFromIdb(idb_key.clone(), tx))
             .await
-            .unwrap()
             .map(|(key, name)| FileSystem {
                 key,
                 name,
@@ -156,29 +151,15 @@ impl FileSystem {
 
     /// Creates a new `FileSystem` from a subdirectory of this one.
     pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirSubdir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx
-            .recv()
-            .unwrap()
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirSubdir(self.key, path.as_ref().to_path_buf(), tx)
+        })
+        .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
     }
 
     /// Drops the directory with the given key from IndexedDB if it exists in there.
     pub fn idb_drop(idb_key: String) -> bool {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirIdbDrop(
-                idb_key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| FileSystemCommandInner::DirIdbDrop(idb_key, tx))
     }
 
     /// Returns a path consisting of a single element: the name of the root directory of this
@@ -195,26 +176,14 @@ impl FileSystem {
 
 impl Drop for FileSystem {
     fn drop(&mut self) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirDrop(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap();
+        let _ = send_and_recv(|tx| FileSystemCommandInner::DirDrop(self.key, tx));
     }
 }
 
 impl Clone for FileSystem {
     fn clone(&self) -> Self {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirClone(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
         Self {
-            key: oneshot_rx.recv().unwrap(),
+            key: send_and_recv(|tx| FileSystemCommandInner::DirClone(self.key, tx)),
             name: self.name.clone(),
             idb_key: self.idb_key.clone(),
         }
@@ -229,31 +198,16 @@ impl FileSystemTrait for FileSystem {
         path: impl AsRef<camino::Utf8Path>,
         mut flags: OpenFlags,
     ) -> Result<Self::File> {
-        if flags.contains(OpenFlags::Truncate) || flags.contains(OpenFlags::Create) {
-            flags |= OpenFlags::Write;
-        }
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirOpenFile(
-                self.key,
-                path.as_ref().to_path_buf(),
-                flags,
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap().map(|key| File { key })
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirOpenFile(self.key, path.as_ref().to_path_buf(), flags, tx)
+        })
+        .map(|key| File { key })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirEntryMetadata(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirEntryMetadata(self.key, path.as_ref().to_path_buf(), tx)
+        })
     }
 
     fn rename(
@@ -265,87 +219,45 @@ impl FileSystemTrait for FileSystem {
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirEntryExists(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        Ok(oneshot_rx.recv().unwrap())
+        Ok(send_and_recv(|tx| {
+            FileSystemCommandInner::DirEntryExists(self.key, path.as_ref().to_path_buf(), tx)
+        }))
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirCreateDir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirCreateDir(self.key, path.as_ref().to_path_buf(), tx)
+        })
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirRemoveDir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirRemoveDir(self.key, path.as_ref().to_path_buf(), tx)
+        })
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirRemoveFile(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirRemoveFile(self.key, path.as_ref().to_path_buf(), tx)
+        })
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::DirReadDir(
-                self.key,
-                path.as_ref().to_path_buf(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| {
+            FileSystemCommandInner::DirReadDir(self.key, path.as_ref().to_path_buf(), tx)
+        })
     }
 }
 
 impl Drop for File {
     fn drop(&mut self) {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileDrop(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap();
+        let _ = send_and_recv(|tx| FileSystemCommandInner::FileDrop(self.key, tx));
     }
 }
 
 impl crate::File for File {
     fn metadata(&self) -> crate::Result<Metadata> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileSize(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        let size = oneshot_rx.recv().unwrap();
+        let size = send_and_recv(|tx| FileSystemCommandInner::FileSize(self.key, tx));
         Ok(Metadata {
             is_file: true,
             size,
@@ -355,15 +267,7 @@ impl crate::File for File {
 
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileRead(
-                self.key,
-                buf.len(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        let vec = oneshot_rx.recv().unwrap()?;
+        let vec = send_and_recv(|tx| FileSystemCommandInner::FileRead(self.key, buf.len(), tx))?;
         let length = vec.len();
         buf[..length].copy_from_slice(&vec[..]);
         Ok(length)
@@ -372,37 +276,17 @@ impl std::io::Read for File {
 
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileWrite(
-                self.key,
-                buf.to_vec(),
-                oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()?;
+        send_and_recv(|tx| FileSystemCommandInner::FileWrite(self.key, buf.to_vec(), tx))?;
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileFlush(
-                self.key, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| FileSystemCommandInner::FileFlush(self.key, tx))
     }
 }
 
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        filesystem_tx_or_die()
-            .send(FileSystemCommand(FileSystemCommandInner::FileSeek(
-                self.key, pos, oneshot_tx,
-            )))
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        send_and_recv(|tx| FileSystemCommandInner::FileSeek(self.key, pos, tx))
     }
 }
