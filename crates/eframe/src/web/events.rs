@@ -207,7 +207,10 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
                 // Always prevent moving cursor to url bar.
                 // egui wants to use tab to move to the next text field.
                 true
-            } else if egui_key == Some(egui::Key::P) {
+            } else if matches!(
+                egui_key,
+                Some(egui::Key::P | egui::Key::S | egui::Key::O | egui::Key::F)
+            ) {
                 #[allow(clippy::needless_bool)]
                 if modifiers.ctrl || modifiers.command || modifiers.mac_cmd {
                     true // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.
