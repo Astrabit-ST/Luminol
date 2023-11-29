@@ -26,9 +26,9 @@ impl super::CommandView {
     #[allow(clippy::ptr_arg)]
     pub fn ui(
         &mut self,
-        ui: &mut egui::Ui,
-        db: &luminol_config::command_db::CommandDB,
-        commands: &mut Vec<luminol_data::rpg::EventCommand>,
+        _ui: &mut egui::Ui,
+        _db: &luminol_config::command_db::CommandDB,
+        _commands: &mut Vec<luminol_data::rpg::EventCommand>,
     ) {
         todo!()
     }

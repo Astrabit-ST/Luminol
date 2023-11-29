@@ -44,7 +44,7 @@ impl Tab {
 }
 
 impl luminol_core::Tab for Tab {
-    fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
+    fn name(&self, _update_state: &luminol_core::UpdateState<'_>) -> String {
         "Get Started".to_string()
     }
 

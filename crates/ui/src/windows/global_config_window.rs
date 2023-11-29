@@ -38,8 +38,8 @@ impl luminol_core::Window for Window {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {});
+        egui::Window::new(self.name()).open(open).show(ctx, |_ui| {});
     }
 }

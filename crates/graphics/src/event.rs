@@ -41,9 +41,9 @@ unsafe impl Sync for Callback {}
 impl egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(1, render_pass);
         self.resources

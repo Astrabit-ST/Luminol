@@ -305,13 +305,13 @@ where
 
     fn rename(
         &self,
-        from: impl AsRef<camino::Utf8Path>,
-        to: impl AsRef<camino::Utf8Path>,
+        _from: impl AsRef<camino::Utf8Path>,
+        _to: impl AsRef<camino::Utf8Path>,
     ) -> std::result::Result<(), Error> {
         Err(Error::NotSupported)
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn create_dir(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         Err(Error::NotSupported)
     }
 
@@ -320,11 +320,11 @@ where
         Ok(self.files.contains_key(path) || self.directories.contains_key(path))
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_dir(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         Err(Error::NotSupported)
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_file(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         Err(Error::NotSupported)
     }
 

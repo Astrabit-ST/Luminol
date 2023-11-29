@@ -72,9 +72,9 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let _selected_item = &self.items[self.selected_item];
-        let animations = update_state.data.animations();
+        let _animations = update_state.data.animations();
 
-        let common_events = update_state.data.common_events();
+        let _common_events = update_state.data.common_events();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations

@@ -55,7 +55,7 @@ impl luminol_core::Window for Window {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")

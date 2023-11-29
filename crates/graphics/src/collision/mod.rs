@@ -144,7 +144,7 @@ impl Collision {
         passages: &luminol_data::Table2,
         use_push_constants: bool,
     ) -> Self {
-        let instances = Instances::new(&graphics_state.render_state, &passages);
+        let instances = Instances::new(&graphics_state.render_state, passages);
 
         Self {
             instances,

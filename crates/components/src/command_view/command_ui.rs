@@ -25,10 +25,10 @@
 impl super::CommandView {
     pub fn command_ui<'i, I>(
         &mut self,
-        ui: &mut egui::Ui,
-        db: &luminol_config::command_db::CommandDB,
-        (index, command): (usize, &'i mut luminol_data::rpg::EventCommand),
-        iter: &mut std::iter::Peekable<I>,
+        _ui: &mut egui::Ui,
+        _db: &luminol_config::command_db::CommandDB,
+        (_index, _command): (usize, &'i mut luminol_data::rpg::EventCommand),
+        _iter: &mut std::iter::Peekable<I>,
     ) where
         I: Iterator<Item = (usize, &'i mut luminol_data::rpg::EventCommand)>,
     {
@@ -37,9 +37,9 @@ impl super::CommandView {
 }
 
 fn parameter_label(
-    string: &mut String,
-    parameter: &luminol_data::commands::Parameter,
-    command: &mut luminol_data::rpg::EventCommand,
+    _string: &mut String,
+    _parameter: &luminol_data::commands::Parameter,
+    _command: &mut luminol_data::rpg::EventCommand,
 ) -> std::fmt::Result {
     todo!()
 }

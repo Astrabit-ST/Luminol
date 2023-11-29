@@ -279,10 +279,8 @@ impl Atlas {
         let is_under_autotiles =
             !is_autotile && tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT < max_tiles_under_autotiles;
 
-        let atlas_tile_position = if tile_u32 < AUTOTILE_ID_AMOUNT
-            || tile_u32
-                >= (MAX_SIZE / TILESET_WIDTH) * ROWS_UNDER_AUTOTILES_TIMES_COLUMNS
-                    + TOTAL_AUTOTILE_ID_AMOUNT
+        let atlas_tile_position = if !(AUTOTILE_ID_AMOUNT..(MAX_SIZE / TILESET_WIDTH) * ROWS_UNDER_AUTOTILES_TIMES_COLUMNS
+                    + TOTAL_AUTOTILE_ID_AMOUNT).contains(&tile_u32)
         {
             egui::pos2(0., 0.)
         } else if is_autotile {
