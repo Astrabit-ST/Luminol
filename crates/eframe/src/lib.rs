@@ -7,22 +7,22 @@
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
 //! In short, you implement [`App`] (especially [`App::update`]) and then
-//! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
+//! call [`crate::run_native`] from your `main.rs`, and/or use `luminol_eframe::WebRunner` from your `lib.rs`.
 //!
 //! ## Usage, native:
 //! ``` no_run
-//! use eframe::egui;
+//! use luminol_eframe::egui;
 //!
 //! fn main() {
-//!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+//!     let native_options = luminol_eframe::NativeOptions::default();
+//!     luminol_eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
 //! }
 //!
 //! #[derive(Default)]
 //! struct MyEguiApp {}
 //!
 //! impl MyEguiApp {
-//!     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+//!     fn new(cc: &luminol_eframe::CreationContext<'_>) -> Self {
 //!         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
 //!         // Restore app state using cc.storage (requires the "persistence" feature).
 //!         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -31,8 +31,8 @@
 //!     }
 //! }
 //!
-//! impl eframe::App for MyEguiApp {
-//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+//! impl luminol_eframe::App for MyEguiApp {
+//!    fn update(&mut self, ctx: &egui::Context, frame: &mut luminol_eframe::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -50,7 +50,7 @@
 //! #[derive(Clone)]
 //! #[wasm_bindgen]
 //! pub struct WebHandle {
-//!     runner: eframe::WebRunner,
+//!     runner: luminol_eframe::WebRunner,
 //! }
 //!
 //! # #[cfg(target_arch = "wasm32")]
@@ -61,10 +61,10 @@
 //!     #[wasm_bindgen(constructor)]
 //!     pub fn new() -> Self {
 //!         // Redirect [`log`] message to `console.log` and friends:
-//!         eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+//!         luminol_eframe::WebLogger::init(log::LevelFilter::Debug).ok();
 //!
 //!         Self {
-//!             runner: eframe::WebRunner::new(),
+//!             runner: luminol_eframe::WebRunner::new(),
 //!         }
 //!     }
 //!
@@ -74,7 +74,7 @@
 //!         self.runner
 //!             .start(
 //!                 canvas_id,
-//!                 eframe::WebOptions::default(),
+//!                 luminol_eframe::WebOptions::default(),
 //!                 Box::new(|cc| Box::new(MyEguiApp::new(cc))),
 //!             )
 //!             .await
@@ -175,18 +175,18 @@ pub use native::file_storage::storage_dir;
 ///
 /// Call from `fn main` like this:
 /// ``` no_run
-/// use eframe::egui;
+/// use luminol_eframe::egui;
 ///
-/// fn main() -> eframe::Result<()> {
-///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
+/// fn main() -> luminol_eframe::Result<()> {
+///     let native_options = luminol_eframe::NativeOptions::default();
+///     luminol_eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 ///
 /// #[derive(Default)]
 /// struct MyEguiApp {}
 ///
 /// impl MyEguiApp {
-///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+///     fn new(cc: &luminol_eframe::CreationContext<'_>) -> Self {
 ///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
 ///         // Restore app state using cc.storage (requires the "persistence" feature).
 ///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -195,8 +195,8 @@ pub use native::file_storage::storage_dir;
 ///     }
 /// }
 ///
-/// impl eframe::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+/// impl luminol_eframe::App for MyEguiApp {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut luminol_eframe::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
@@ -245,13 +245,13 @@ pub fn run_native(
 ///
 /// # Example
 /// ``` no_run
-/// fn main() -> eframe::Result<()> {
+/// fn main() -> luminol_eframe::Result<()> {
 ///     // Our application state:
 ///     let mut name = "Arthur".to_owned();
 ///     let mut age = 42;
 ///
-///     let options = eframe::NativeOptions::default();
-///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+///     let options = luminol_eframe::NativeOptions::default();
+///     luminol_eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
 ///         egui::CentralPanel::default().show(ctx, |ui| {
 ///             ui.heading("My egui Application");
 ///             ui.horizontal(|ui| {
@@ -321,7 +321,7 @@ pub enum Error {
     Wgpu(#[from] luminol_egui_wgpu::WgpuError),
 }
 
-/// Short for `Result<T, eframe::Error>`.
+/// Short for `Result<T, luminol_eframe::Error>`.
 pub type Result<T> = std::result::Result<T, Error>;
 
 // ---------------------------------------------------------------------------

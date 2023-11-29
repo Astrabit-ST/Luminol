@@ -443,16 +443,16 @@ pub struct NativeOptions {
     ///
     /// # Example
     /// ``` no_run
-    /// fn main() -> eframe::Result<()> {
+    /// fn main() -> luminol_eframe::Result<()> {
     ///
-    ///     let mut options = eframe::NativeOptions::default();
+    ///     let mut options = luminol_eframe::NativeOptions::default();
     ///     // Set the application ID for Wayland only on Linux
     ///     #[cfg(target_os = "linux")]
     ///     {
     ///         options.app_id = Some("egui-example".to_string());
     ///     }
     ///
-    ///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+    ///     luminol_eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
     ///         egui::CentralPanel::default().show(ctx, |ui| {
     ///             ui.heading("My egui Application");
     ///         });
@@ -824,15 +824,15 @@ impl Frame {
     /// ```
     /// struct MyApp;
     ///
-    /// impl eframe::App for MyApp {
-    ///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    /// impl luminol_eframe::App for MyApp {
+    ///     fn update(&mut self, ctx: &egui::Context, frame: &mut luminol_eframe::Frame) {
     ///         // In real code the app would render something here
     ///         frame.request_screenshot();
     ///         // Things that are added to the frame after the call to
     ///         // request_screenshot() will still be included.
     ///     }
     ///
-    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
+    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &luminol_eframe::Frame) {
     ///         if let Some(screenshot) = frame.screenshot() {
     ///             let pixels_per_point = frame.info().native_pixels_per_point;
     ///             let region = egui::Rect::from_two_pos(
