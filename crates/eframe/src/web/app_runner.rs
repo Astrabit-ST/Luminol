@@ -260,11 +260,8 @@ impl AppRunner {
         wants_keyboard_input: bool,
     ) {
         if screen_reader_enabled {
-            {
-                let mut inner = state.inner.borrow_mut();
-                if let Some(screen_reader) = &mut inner.screen_reader {
-                    screen_reader.speak(&platform_output.events_description());
-                }
+            if let Some(screen_reader) = &mut state.inner.borrow_mut().screen_reader {
+                screen_reader.speak(&platform_output.events_description());
             }
         }
 
