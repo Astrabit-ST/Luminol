@@ -121,7 +121,7 @@ pub fn install_text_agent(state: &super::MainState) -> Result<(), JsValue> {
 
 /// Focus or blur text agent to toggle mobile keyboard.
 pub fn update_text_agent(state: &super::MainState) -> Option<()> {
-    let inner = state.inner.try_borrow().ok()?;
+    let inner = state.inner.borrow();
 
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;

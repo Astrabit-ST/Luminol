@@ -196,11 +196,7 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
             }
             //runner.needs_repaint.repaint_asap();
 
-            let egui_wants_keyboard = if let Ok(inner) = state.inner.try_borrow() {
-                inner.wants_keyboard_input
-            } else {
-                true
-            };
+            let egui_wants_keyboard = state.inner.borrow().wants_keyboard_input;
 
             #[allow(clippy::if_same_then_else)]
             let prevent_default = if egui_key == Some(egui::Key::Tab) {
@@ -478,23 +474,23 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "touchstart",
         |event: web_sys::TouchEvent, state| {
-            if let Ok(mut inner) = state.inner.try_borrow_mut() {
-                inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
-                state.channels.send_custom(WebRunnerCustomEventInner::Touch(
-                    inner.touch_id,
-                    inner.touch_pos,
-                ));
-                let modifiers = modifiers_from_touch_event(&event);
-                state.channels.send(egui::Event::PointerButton {
-                    pos: inner.touch_pos,
-                    button: egui::PointerButton::Primary,
-                    pressed: true,
-                    modifiers,
-                });
+            let mut inner = state.inner.borrow_mut();
 
-                push_touches(state, egui::TouchPhase::Start, &event);
-                //runner.needs_repaint.repaint_asap();
-            }
+            inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
+            state.channels.send_custom(WebRunnerCustomEventInner::Touch(
+                inner.touch_id,
+                inner.touch_pos,
+            ));
+            let modifiers = modifiers_from_touch_event(&event);
+            state.channels.send(egui::Event::PointerButton {
+                pos: inner.touch_pos,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers,
+            });
+
+            push_touches(state, egui::TouchPhase::Start, &event);
+            //runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -504,19 +500,19 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "touchmove",
         |event: web_sys::TouchEvent, state| {
-            if let Ok(mut inner) = state.inner.try_borrow_mut() {
-                inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
-                state.channels.send_custom(WebRunnerCustomEventInner::Touch(
-                    inner.touch_id,
-                    inner.touch_pos,
-                ));
-                state
-                    .channels
-                    .send(egui::Event::PointerMoved(inner.touch_pos));
+            let mut inner = state.inner.borrow_mut();
 
-                push_touches(state, egui::TouchPhase::Move, &event);
-                //runner.needs_repaint.repaint_asap();
-            }
+            inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
+            state.channels.send_custom(WebRunnerCustomEventInner::Touch(
+                inner.touch_id,
+                inner.touch_pos,
+            ));
+            state
+                .channels
+                .send(egui::Event::PointerMoved(inner.touch_pos));
+
+            push_touches(state, egui::TouchPhase::Move, &event);
+            //runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -526,22 +522,22 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "touchend",
         |event: web_sys::TouchEvent, state| {
-            if let Ok(inner) = state.inner.try_borrow().as_ref() {
-                if inner.touch_id.is_some() {
-                    let modifiers = modifiers_from_touch_event(&event);
-                    // First release mouse to click:
-                    state.channels.send(egui::Event::PointerButton {
-                        pos: inner.touch_pos,
-                        button: egui::PointerButton::Primary,
-                        pressed: false,
-                        modifiers,
-                    });
-                    // Then remove hover effect:
-                    state.channels.send(egui::Event::PointerGone);
+            let inner = state.inner.borrow();
 
-                    push_touches(state, egui::TouchPhase::End, &event);
-                    //runner.needs_repaint.repaint_asap();
-                }
+            if inner.touch_id.is_some() {
+                let modifiers = modifiers_from_touch_event(&event);
+                // First release mouse to click:
+                state.channels.send(egui::Event::PointerButton {
+                    pos: inner.touch_pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers,
+                });
+                // Then remove hover effect:
+                state.channels.send(egui::Event::PointerGone);
+
+                push_touches(state, egui::TouchPhase::End, &event);
+                //runner.needs_repaint.repaint_asap();
             }
             event.stop_propagation();
             event.prevent_default();

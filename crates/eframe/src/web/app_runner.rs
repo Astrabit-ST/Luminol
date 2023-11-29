@@ -260,7 +260,8 @@ impl AppRunner {
         wants_keyboard_input: bool,
     ) {
         if screen_reader_enabled {
-            if let Ok(mut inner) = state.inner.try_borrow_mut() {
+            {
+                let mut inner = state.inner.borrow_mut();
                 if let Some(screen_reader) = &mut inner.screen_reader {
                     screen_reader.speak(&platform_output.events_description());
                 }
@@ -291,7 +292,8 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        if let Ok(mut inner) = state.inner.try_borrow_mut() {
+        {
+            let mut inner = state.inner.borrow_mut();
             inner.mutable_text_under_cursor = mutable_text_under_cursor;
             inner.wants_keyboard_input = wants_keyboard_input;
 
