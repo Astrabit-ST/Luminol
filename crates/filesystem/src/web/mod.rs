@@ -21,6 +21,7 @@ pub use events::setup_main_thread_hooks;
 
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
+use util::{send_and_await, send_and_recv};
 
 static FILESYSTEM_TX: once_cell::sync::OnceCell<flume::Sender<FileSystemCommand>> =
     once_cell::sync::OnceCell::new();
@@ -81,28 +82,12 @@ enum FileSystemCommandInner {
         std::io::SeekFrom,
         oneshot::Sender<std::io::Result<u64>>,
     ),
+    FileSize(usize, oneshot::Sender<std::io::Result<u64>>),
     FileDrop(usize, oneshot::Sender<bool>),
-    FileSize(usize, oneshot::Sender<u64>),
 }
 
-fn filesystem_tx_or_die() -> &'static flume::Sender<FileSystemCommand> {
+pub(self) fn filesystem_tx_or_die() -> &'static flume::Sender<FileSystemCommand> {
     FILESYSTEM_TX.get().expect("FileSystem sender has not been initialized! Please call `FileSystem::initialize_sender` before calling this function.")
-}
-
-fn send_and_recv<R>(f: impl FnOnce(oneshot::Sender<R>) -> FileSystemCommandInner) -> R {
-    let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    filesystem_tx_or_die()
-        .send(FileSystemCommand(f(oneshot_tx)))
-        .unwrap();
-    oneshot_rx.recv().unwrap()
-}
-
-async fn send_and_await<R>(f: impl FnOnce(oneshot::Sender<R>) -> FileSystemCommandInner) -> R {
-    let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    filesystem_tx_or_die()
-        .send(FileSystemCommand(f(oneshot_tx)))
-        .unwrap();
-    oneshot_rx.await.unwrap()
 }
 
 impl FileSystem {
@@ -257,7 +242,7 @@ impl Drop for File {
 
 impl crate::File for File {
     fn metadata(&self) -> crate::Result<Metadata> {
-        let size = send_and_recv(|tx| FileSystemCommandInner::FileSize(self.key, tx));
+        let size = send_and_recv(|tx| FileSystemCommandInner::FileSize(self.key, tx))?;
         Ok(Metadata {
             is_file: true,
             size,

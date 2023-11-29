@@ -85,3 +85,38 @@ pub(super) async fn idb<R>(
     tx.await.into_result()?;
     r
 }
+
+/// Wrapper function for handling filesystem events on the worker thread.
+/// You can insert logging into this function for debug purposes.
+pub(super) async fn handle_event<R>(
+    tx: oneshot::Sender<R>,
+    f: impl std::future::Future<Output = R>,
+) {
+    tx.send(f.await).unwrap();
+}
+
+fn send<R>(
+    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommandInner,
+) -> oneshot::Receiver<R> {
+    let (oneshot_tx, oneshot_rx) = oneshot::channel();
+    super::filesystem_tx_or_die()
+        .send(super::FileSystemCommand(f(oneshot_tx)))
+        .unwrap();
+    oneshot_rx
+}
+
+/// Helper function to send a filesystem command from the worker thread to the main thread and then
+/// block the worker thread to wait for the result.
+pub(super) fn send_and_recv<R>(
+    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommandInner,
+) -> R {
+    send(f).recv().unwrap()
+}
+
+/// Helper function to send a filesystem command from the worker thread to the main thread and then
+/// wait asynchronously on the worker thread for the result.
+pub(super) async fn send_and_await<R>(
+    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommandInner,
+) -> R {
+    send(f).await.unwrap()
+}
