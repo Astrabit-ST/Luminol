@@ -301,7 +301,7 @@ pub struct WorkerChannels {
 
 impl WorkerChannels {
     /// Send an output to the main thread.
-    pub(self) fn send(&self, output: WebRunnerOutput) {
+    fn send(&self, output: WebRunnerOutput) {
         let _ = self.output_tx.send(output);
     }
 }
@@ -322,19 +322,19 @@ pub struct MainState {
 pub struct MainStateInner {
     /// If the user is currently interacting with the touchscreen, this is the ID of the touch,
     /// measured with `Touch.identifier` in JavaScript.
-    pub(self) touch_id: Option<egui::TouchId>,
+    touch_id: Option<egui::TouchId>,
     /// The position relative to the canvas of the last received touch event. If no touch event has
     /// been received yet, this will be (0, 0).
-    pub(self) touch_pos: egui::Pos2,
+    touch_pos: egui::Pos2,
     /// If the user is typing something, the position of the text cursor (for IME) in screen
     /// coordinates.
-    pub(self) text_cursor_pos: Option<egui::Pos2>,
+    text_cursor_pos: Option<egui::Pos2>,
     /// Whether or not the user is editing a mutable egui text box.
-    pub(self) mutable_text_under_cursor: bool,
+    mutable_text_under_cursor: bool,
     /// The screen reader used for reading text aloud.
-    pub(self) screen_reader: Option<screen_reader::ScreenReader>,
+    screen_reader: Option<screen_reader::ScreenReader>,
     /// Whether or not egui is trying to receive text input.
-    pub(self) wants_keyboard_input: bool,
+    wants_keyboard_input: bool,
 }
 
 /// The halves of the web runner channels that are used in the main thread.
@@ -350,7 +350,7 @@ pub struct MainChannels {
 
 impl MainState {
     /// Add an event listener to the given JavaScript `EventTarget`.
-    pub(self) fn add_event_listener<E: wasm_bindgen::JsCast>(
+    fn add_event_listener<E: wasm_bindgen::JsCast>(
         &self,
         target: &web_sys::EventTarget,
         event_name: &'static str,
@@ -378,12 +378,12 @@ impl MainState {
 
 impl MainChannels {
     /// Send an egui event to the worker thread.
-    pub(self) fn send(&self, event: egui::Event) {
+    fn send(&self, event: egui::Event) {
         let _ = self.event_tx.send(event);
     }
 
     /// Send a custom event to the worker thread.
-    pub(self) fn send_custom(&self, event: WebRunnerCustomEvent) {
+    fn send_custom(&self, event: WebRunnerCustomEvent) {
         let _ = self.custom_event_tx.send(event);
     }
 }
@@ -408,7 +408,7 @@ pub fn channels() -> (WorkerChannels, MainChannels) {
 }
 
 /// A custom event that can be sent from the main thread to the worker thread.
-pub(self) enum WebRunnerCustomEvent {
+enum WebRunnerCustomEvent {
     /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
     ScreenResize(u32, u32, f32),
     /// This should be sent whenever the modifiers change
@@ -420,7 +420,7 @@ pub(self) enum WebRunnerCustomEvent {
 }
 
 /// A custom output that can be sent from the worker thread to the main thread.
-pub(self) enum WebRunnerOutput {
+enum WebRunnerOutput {
     /// Miscellaneous egui output events
     PlatformOutput(egui::PlatformOutput, bool, bool),
     /// The runner wants to read a key from storage

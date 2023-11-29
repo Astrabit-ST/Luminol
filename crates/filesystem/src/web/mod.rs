@@ -32,7 +32,7 @@ pub struct WorkerChannels {
 }
 
 impl WorkerChannels {
-    pub(self) fn send(&self, command: FileSystemCommand) {
+    fn send(&self, command: FileSystemCommand) {
         self.command_tx.send(command).unwrap();
     }
 }
@@ -105,7 +105,7 @@ enum FileSystemCommand {
     FileDrop(usize, oneshot::Sender<bool>),
 }
 
-pub(self) fn worker_channels_or_die() -> &'static WorkerChannels {
+fn worker_channels_or_die() -> &'static WorkerChannels {
     WORKER_CHANNELS.get().expect("FileSystem worker channels have not been initialized! Please call `FileSystem::setup_worker_channels` before calling this function.")
 }
 
