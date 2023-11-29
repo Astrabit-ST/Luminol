@@ -26,10 +26,7 @@ use dashmap::{DashMap, DashSet};
 
 use egui::load::{LoadError, SizedTexture, TextureLoadResult, TexturePoll};
 
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use std::sync::Arc;
 
 use wgpu::util::DeviceExt;
 
@@ -37,8 +34,6 @@ pub struct TextureLoader {
     loaded_textures: DashMap<String, Arc<Texture>>,
     load_errors: DashMap<String, anyhow::Error>,
     unloaded_textures: DashSet<String>,
-
-    loaded_bytes: AtomicUsize,
 
     render_state: egui_wgpu::RenderState,
 }
@@ -96,8 +91,6 @@ impl TextureLoader {
             load_errors: DashMap::new(),
             unloaded_textures: DashSet::with_capacity(64),
 
-            loaded_bytes: AtomicUsize::new(0),
-
             render_state,
         }
     }
@@ -119,11 +112,6 @@ impl TextureLoader {
                     continue;
                 }
             };
-
-            self.loaded_bytes.fetch_add(
-                texture_size_bytes(&wgpu_texture) as usize,
-                Ordering::Relaxed,
-            );
 
             let texture_id = renderer.register_native_texture(
                 &self.render_state.device,
@@ -163,11 +151,6 @@ impl TextureLoader {
     }
 
     pub fn register_texture(&self, uri: String, wgpu_texture: wgpu::Texture) -> Arc<Texture> {
-        self.loaded_bytes.fetch_add(
-            texture_size_bytes(&wgpu_texture) as usize,
-            Ordering::Relaxed,
-        );
-
         // todo maybe use custom sampler descriptor?
         // would allow for better texture names in debuggers
         let texture_id = self.render_state.renderer.write().register_native_texture(
@@ -218,7 +201,11 @@ impl egui::load::TextureLoader for TextureLoader {
         }
 
         if let Some(error) = self.load_errors.get(uri) {
-            return Err(LoadError::Loading(error.to_string()));
+            if error.is::<image::ImageError>() {
+                return Err(LoadError::NotSupported);
+            } else {
+                return Err(LoadError::Loading(error.to_string()));
+            }
         }
 
         self.unloaded_textures.insert(uri.to_string());
@@ -227,20 +214,18 @@ impl egui::load::TextureLoader for TextureLoader {
     }
 
     fn forget(&self, uri: &str) {
-        if let Some((_, texture)) = self.loaded_textures.remove(uri) {
-            self.loaded_bytes.fetch_sub(
-                texture_size_bytes(&texture.wgpu) as usize,
-                Ordering::Relaxed,
-            );
-        }
+        self.loaded_textures.remove(uri);
     }
 
     fn forget_all(&self) {
         self.loaded_textures.clear();
-        self.loaded_bytes.store(0, Ordering::Relaxed);
+        self.load_errors.clear();
     }
 
     fn byte_size(&self) -> usize {
-        self.loaded_bytes.load(Ordering::Relaxed)
+        self.loaded_textures
+            .iter()
+            .map(|texture| texture_size_bytes(&texture.wgpu) as usize)
+            .sum()
     }
 }
