@@ -95,20 +95,16 @@ pub(super) async fn handle_event<R>(
     tx.send(f.await).unwrap();
 }
 
-fn send<R>(
-    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommandInner,
-) -> oneshot::Receiver<R> {
+fn send<R>(f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommand) -> oneshot::Receiver<R> {
     let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    super::filesystem_tx_or_die()
-        .send(super::FileSystemCommand(f(oneshot_tx)))
-        .unwrap();
+    super::worker_channels_or_die().send(f(oneshot_tx));
     oneshot_rx
 }
 
 /// Helper function to send a filesystem command from the worker thread to the main thread and then
 /// block the worker thread to wait for the result.
 pub(super) fn send_and_recv<R>(
-    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommandInner,
+    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommand,
 ) -> R {
     send(f).recv().unwrap()
 }
@@ -116,7 +112,7 @@ pub(super) fn send_and_recv<R>(
 /// Helper function to send a filesystem command from the worker thread to the main thread and then
 /// wait asynchronously on the worker thread for the result.
 pub(super) async fn send_and_await<R>(
-    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommandInner,
+    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommand,
 ) -> R {
     send(f).await.unwrap()
 }

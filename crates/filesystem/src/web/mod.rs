@@ -23,8 +23,30 @@ use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
 use util::{send_and_await, send_and_recv};
 
-static FILESYSTEM_TX: once_cell::sync::OnceCell<flume::Sender<FileSystemCommand>> =
+static WORKER_CHANNELS: once_cell::sync::OnceCell<WorkerChannels> =
     once_cell::sync::OnceCell::new();
+
+#[derive(Debug)]
+pub struct WorkerChannels {
+    command_tx: flume::Sender<FileSystemCommand>,
+}
+
+impl WorkerChannels {
+    pub(self) fn send(&self, command: FileSystemCommand) {
+        self.command_tx.send(command).unwrap();
+    }
+}
+
+#[derive(Debug)]
+pub struct MainChannels {
+    command_rx: flume::Receiver<FileSystemCommand>,
+}
+
+/// Creates a new connected `(WorkerChannels, MainChannels)` pair for initializing filesystems.
+pub fn channels() -> (WorkerChannels, MainChannels) {
+    let (command_tx, command_rx) = flume::unbounded();
+    (WorkerChannels { command_tx }, MainChannels { command_rx })
+}
 
 #[derive(Debug)]
 pub struct FileSystem {
@@ -39,10 +61,7 @@ pub struct File {
 }
 
 #[derive(Debug)]
-pub struct FileSystemCommand(FileSystemCommandInner);
-
-#[derive(Debug)]
-enum FileSystemCommandInner {
+enum FileSystemCommand {
     Supported(oneshot::Sender<bool>),
     DirEntryMetadata(
         usize,
@@ -86,22 +105,22 @@ enum FileSystemCommandInner {
     FileDrop(usize, oneshot::Sender<bool>),
 }
 
-pub(self) fn filesystem_tx_or_die() -> &'static flume::Sender<FileSystemCommand> {
-    FILESYSTEM_TX.get().expect("FileSystem sender has not been initialized! Please call `FileSystem::initialize_sender` before calling this function.")
+pub(self) fn worker_channels_or_die() -> &'static WorkerChannels {
+    WORKER_CHANNELS.get().expect("FileSystem worker channels have not been initialized! Please call `FileSystem::setup_worker_channels` before calling this function.")
 }
 
 impl FileSystem {
-    /// Initializes the sender that we use to send filesystem commands to the main thread.
+    /// Initializes the channels that we use to send filesystem commands to the main thread.
     /// This must be called before performing any filesystem operations.
-    pub fn setup_filesystem_sender(filesystem_tx: flume::Sender<FileSystemCommand>) {
-        FILESYSTEM_TX
-            .set(filesystem_tx)
-            .expect("FileSystem sender cannot be initialized twice");
+    pub fn setup_worker_channels(worker_channels: WorkerChannels) {
+        WORKER_CHANNELS
+            .set(worker_channels)
+            .expect("FileSystem worker channels cannot be initialized twice");
     }
 
     /// Returns whether or not the user's browser supports the JavaScript File System API.
     pub fn filesystem_supported() -> bool {
-        send_and_recv(|tx| FileSystemCommandInner::Supported(tx))
+        send_and_recv(|tx| FileSystemCommand::Supported(tx))
     }
 
     /// Attempts to prompt the user to choose a directory from their local machine using the
@@ -113,7 +132,7 @@ impl FileSystem {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported);
         }
-        send_and_await(|tx| FileSystemCommandInner::DirPicker(tx))
+        send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
             .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
             .ok_or(Error::CancelledLoading)
@@ -124,7 +143,7 @@ impl FileSystem {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported);
         }
-        send_and_await(|tx| FileSystemCommandInner::DirFromIdb(idb_key.clone(), tx))
+        send_and_await(|tx| FileSystemCommand::DirFromIdb(idb_key.clone(), tx))
             .await
             .map(|(key, name)| FileSystem {
                 key,
@@ -136,15 +155,13 @@ impl FileSystem {
 
     /// Creates a new `FileSystem` from a subdirectory of this one.
     pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
-        send_and_recv(|tx| {
-            FileSystemCommandInner::DirSubdir(self.key, path.as_ref().to_path_buf(), tx)
-        })
-        .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+        send_and_recv(|tx| FileSystemCommand::DirSubdir(self.key, path.as_ref().to_path_buf(), tx))
+            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
     }
 
     /// Drops the directory with the given key from IndexedDB if it exists in there.
     pub fn idb_drop(idb_key: String) -> bool {
-        send_and_recv(|tx| FileSystemCommandInner::DirIdbDrop(idb_key, tx))
+        send_and_recv(|tx| FileSystemCommand::DirIdbDrop(idb_key, tx))
     }
 
     /// Returns a path consisting of a single element: the name of the root directory of this
@@ -161,14 +178,14 @@ impl FileSystem {
 
 impl Drop for FileSystem {
     fn drop(&mut self) {
-        let _ = send_and_recv(|tx| FileSystemCommandInner::DirDrop(self.key, tx));
+        let _ = send_and_recv(|tx| FileSystemCommand::DirDrop(self.key, tx));
     }
 }
 
 impl Clone for FileSystem {
     fn clone(&self) -> Self {
         Self {
-            key: send_and_recv(|tx| FileSystemCommandInner::DirClone(self.key, tx)),
+            key: send_and_recv(|tx| FileSystemCommand::DirClone(self.key, tx)),
             name: self.name.clone(),
             idb_key: self.idb_key.clone(),
         }
@@ -184,14 +201,14 @@ impl FileSystemTrait for FileSystem {
         flags: OpenFlags,
     ) -> Result<Self::File> {
         send_and_recv(|tx| {
-            FileSystemCommandInner::DirOpenFile(self.key, path.as_ref().to_path_buf(), flags, tx)
+            FileSystemCommand::DirOpenFile(self.key, path.as_ref().to_path_buf(), flags, tx)
         })
         .map(|key| File { key })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         send_and_recv(|tx| {
-            FileSystemCommandInner::DirEntryMetadata(self.key, path.as_ref().to_path_buf(), tx)
+            FileSystemCommand::DirEntryMetadata(self.key, path.as_ref().to_path_buf(), tx)
         })
     }
 
@@ -205,44 +222,42 @@ impl FileSystemTrait for FileSystem {
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         Ok(send_and_recv(|tx| {
-            FileSystemCommandInner::DirEntryExists(self.key, path.as_ref().to_path_buf(), tx)
+            FileSystemCommand::DirEntryExists(self.key, path.as_ref().to_path_buf(), tx)
         }))
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         send_and_recv(|tx| {
-            FileSystemCommandInner::DirCreateDir(self.key, path.as_ref().to_path_buf(), tx)
+            FileSystemCommand::DirCreateDir(self.key, path.as_ref().to_path_buf(), tx)
         })
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         send_and_recv(|tx| {
-            FileSystemCommandInner::DirRemoveDir(self.key, path.as_ref().to_path_buf(), tx)
+            FileSystemCommand::DirRemoveDir(self.key, path.as_ref().to_path_buf(), tx)
         })
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         send_and_recv(|tx| {
-            FileSystemCommandInner::DirRemoveFile(self.key, path.as_ref().to_path_buf(), tx)
+            FileSystemCommand::DirRemoveFile(self.key, path.as_ref().to_path_buf(), tx)
         })
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
-        send_and_recv(|tx| {
-            FileSystemCommandInner::DirReadDir(self.key, path.as_ref().to_path_buf(), tx)
-        })
+        send_and_recv(|tx| FileSystemCommand::DirReadDir(self.key, path.as_ref().to_path_buf(), tx))
     }
 }
 
 impl Drop for File {
     fn drop(&mut self) {
-        let _ = send_and_recv(|tx| FileSystemCommandInner::FileDrop(self.key, tx));
+        let _ = send_and_recv(|tx| FileSystemCommand::FileDrop(self.key, tx));
     }
 }
 
 impl crate::File for File {
     fn metadata(&self) -> crate::Result<Metadata> {
-        let size = send_and_recv(|tx| FileSystemCommandInner::FileSize(self.key, tx))?;
+        let size = send_and_recv(|tx| FileSystemCommand::FileSize(self.key, tx))?;
         Ok(Metadata {
             is_file: true,
             size,
@@ -252,7 +267,7 @@ impl crate::File for File {
 
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let vec = send_and_recv(|tx| FileSystemCommandInner::FileRead(self.key, buf.len(), tx))?;
+        let vec = send_and_recv(|tx| FileSystemCommand::FileRead(self.key, buf.len(), tx))?;
         let length = vec.len();
         buf[..length].copy_from_slice(&vec[..]);
         Ok(length)
@@ -261,17 +276,17 @@ impl std::io::Read for File {
 
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        send_and_recv(|tx| FileSystemCommandInner::FileWrite(self.key, buf.to_vec(), tx))?;
+        send_and_recv(|tx| FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx))?;
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        send_and_recv(|tx| FileSystemCommandInner::FileFlush(self.key, tx))
+        send_and_recv(|tx| FileSystemCommand::FileFlush(self.key, tx))
     }
 }
 
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        send_and_recv(|tx| FileSystemCommandInner::FileSeek(self.key, pos, tx))
+        send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx))
     }
 }

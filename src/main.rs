@@ -170,7 +170,7 @@ const CANVAS_ID: &str = "luminol-canvas";
 struct WorkerData {
     audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
-    filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
+    fs_worker_channels: luminol_filesystem::web::WorkerChannels,
     runner_worker_channels: luminol_eframe::web::WorkerChannels,
 }
 
@@ -231,10 +231,10 @@ pub fn luminol_main_start(fallback: bool) {
         return;
     }
 
-    let (filesystem_tx, filesystem_rx) = flume::unbounded();
+    let (fs_worker_channels, fs_main_channels) = luminol_filesystem::web::channels();
     let (runner_worker_channels, runner_main_channels) = luminol_eframe::web::channels();
 
-    luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
+    luminol_filesystem::host::setup_main_thread_hooks(fs_main_channels);
     luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
         inner: Default::default(),
         canvas: canvas.clone(),
@@ -245,7 +245,7 @@ pub fn luminol_main_start(fallback: bool) {
     *WORKER_DATA.lock() = Some(WorkerData {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
-        filesystem_tx,
+        fs_worker_channels,
         runner_worker_channels,
     });
 
@@ -272,11 +272,11 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let WorkerData {
         audio,
         prefers_color_scheme_dark,
-        filesystem_tx,
+        fs_worker_channels,
         runner_worker_channels,
     } = WORKER_DATA.lock().take().unwrap();
 
-    luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
+    luminol_filesystem::host::FileSystem::setup_worker_channels(fs_worker_channels);
 
     let web_options = luminol_eframe::WebOptions::default();
 

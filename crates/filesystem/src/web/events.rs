@@ -16,13 +16,13 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::util::{generate_key, get_subdir, handle_event, idb, to_future};
-use super::{FileSystemCommand, FileSystemCommandInner};
+use super::FileSystemCommand;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
 use std::io::ErrorKind::{AlreadyExists, InvalidInput, PermissionDenied};
 use wasm_bindgen::prelude::*;
 
-pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>) {
+pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
     wasm_bindgen_futures::spawn_local(async move {
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
 
@@ -37,20 +37,20 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
         let mut files: slab::Slab<FileHandle> = slab::Slab::new();
 
         loop {
-            let Ok(command) = filesystem_rx.recv_async().await else {
+            let Ok(command) = main_channels.command_rx.recv_async().await else {
                 tracing::warn!(
                     "FileSystem main thread loop is stopping! This is not supposed to happen."
                 );
                 return;
             };
-            tracing::debug!("Main thread received FS command: {:?}", command.0);
+            tracing::debug!("Main thread received FS command: {:?}", command);
 
-            match command.0 {
-                FileSystemCommandInner::Supported(tx) => {
+            match command {
+                FileSystemCommand::Supported(tx) => {
                     handle_event(tx, async { luminol_web::bindings::filesystem_supported() }).await;
                 }
 
-                FileSystemCommandInner::DirEntryMetadata(key, path, tx) => {
+                FileSystemCommand::DirEntryMetadata(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let Some(name) = iter.next_back() else {
@@ -94,7 +94,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirPicker(tx) => {
+                FileSystemCommand::DirPicker(tx) => {
                     handle_event(tx, async {
                         let dir = luminol_web::bindings::show_directory_picker().await.ok()?;
 
@@ -115,7 +115,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirFromIdb(idb_key, tx) => {
+                FileSystemCommand::DirFromIdb(idb_key, tx) => {
                     handle_event(tx, async {
                         let dir = idb(IdbTransactionMode::Readonly, |store| {
                             store.get_owned(&idb_key)
@@ -136,7 +136,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirSubdir(key, path, tx) => {
+                FileSystemCommand::DirSubdir(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let dir = get_subdir(dirs.get(key).unwrap(), &mut iter)
@@ -160,7 +160,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirIdbDrop(idb_key, tx) => {
+                FileSystemCommand::DirIdbDrop(idb_key, tx) => {
                     handle_event(tx, async {
                         idb(IdbTransactionMode::Readwrite, |store| {
                             store.delete_owned(&idb_key)
@@ -171,7 +171,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirOpenFile(key, path, flags, tx) => {
+                FileSystemCommand::DirOpenFile(key, path, flags, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let filename = iter
@@ -255,7 +255,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirEntryExists(key, path, tx) => {
+                FileSystemCommand::DirEntryExists(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let Some(name) = iter.next_back() else {
@@ -277,7 +277,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirCreateDir(key, path, tx) => {
+                FileSystemCommand::DirCreateDir(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let dirname = iter
@@ -314,7 +314,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirRemoveDir(key, path, tx) => {
+                FileSystemCommand::DirRemoveDir(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let dirname = iter
@@ -355,7 +355,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirRemoveFile(key, path, tx) => {
+                FileSystemCommand::DirRemoveFile(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let filename = iter
@@ -392,7 +392,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirReadDir(key, path, tx) => {
+                FileSystemCommand::DirReadDir(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
                         let subdir = get_subdir(dirs.get(key).unwrap(), &mut iter)
@@ -446,7 +446,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirDrop(key, tx) => {
+                FileSystemCommand::DirDrop(key, tx) => {
                     handle_event(tx, async {
                         if dirs.contains(key) {
                             dirs.remove(key);
@@ -458,11 +458,11 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::DirClone(key, tx) => {
+                FileSystemCommand::DirClone(key, tx) => {
                     handle_event(tx, async { dirs.insert(dirs.get(key).unwrap().clone()) }).await;
                 }
 
-                FileSystemCommandInner::FileRead(key, max_length, tx) => {
+                FileSystemCommand::FileRead(key, max_length, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
 
@@ -494,7 +494,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::FileWrite(key, vec, tx) => {
+                FileSystemCommand::FileWrite(key, vec, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
                         let write_handle = file.write_handle.as_ref().ok_or(PermissionDenied)?;
@@ -523,7 +523,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::FileFlush(key, tx) => {
+                FileSystemCommand::FileFlush(key, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
 
@@ -549,7 +549,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::FileSeek(key, seek_from, tx) => {
+                FileSystemCommand::FileSeek(key, seek_from, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
                         let read_handle = (if file.read_allowed {
@@ -577,7 +577,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::FileSize(key, tx) => {
+                FileSystemCommand::FileSize(key, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
                         to_future::<web_sys::File>(file.file_handle.get_file())
@@ -588,7 +588,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                     .await;
                 }
 
-                FileSystemCommandInner::FileDrop(key, tx) => {
+                FileSystemCommand::FileDrop(key, tx) => {
                     handle_event(tx, async {
                         if files.contains(key) {
                             let file = files.remove(key);
