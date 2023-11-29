@@ -62,7 +62,8 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                         let subdir = get_subdir(dirs.get(key).unwrap(), &mut iter)
                             .await
                             .ok_or(Error::NotExist)?;
-                        return if let Ok(file) =
+
+                        if let Ok(file) =
                             to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(name))
                                 .await
                         {
@@ -88,7 +89,7 @@ pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>
                         } else {
                             // If the path is neither a file nor a directory
                             Err(Error::NotExist)
-                        };
+                        }
                     })
                     .await;
                 }
