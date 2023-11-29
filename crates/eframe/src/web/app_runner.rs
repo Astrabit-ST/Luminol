@@ -221,7 +221,7 @@ impl AppRunner {
         self.mutable_text_under_cursor = platform_output.mutable_text_under_cursor;
         self.worker_options
             .channels
-            .send(super::WebRunnerOutputInner::PlatformOutput(
+            .send(super::WebRunnerOutput::PlatformOutput(
                 platform_output,
                 self.egui_ctx.options(|o| o.screen_reader),
                 self.egui_ctx.wants_keyboard_input(),
@@ -311,7 +311,7 @@ struct LocalStorage {
 impl epi::Storage for LocalStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.channels.send(super::WebRunnerOutputInner::StorageGet(
+        self.channels.send(super::WebRunnerOutput::StorageGet(
             key.to_string(),
             oneshot_tx,
         ));
@@ -320,7 +320,7 @@ impl epi::Storage for LocalStorage {
 
     fn set_string(&mut self, key: &str, value: String) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.channels.send(super::WebRunnerOutputInner::StorageSet(
+        self.channels.send(super::WebRunnerOutput::StorageSet(
             key.to_string(),
             value,
             oneshot_tx,

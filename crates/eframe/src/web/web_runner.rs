@@ -70,8 +70,8 @@ impl WebRunner {
                     return;
                 };
 
-                match command.0 {
-                    super::WebRunnerOutputInner::PlatformOutput(
+                match command {
+                    super::WebRunnerOutput::PlatformOutput(
                         output,
                         screen_reader_enabled,
                         wants_keyboard_input,
@@ -84,11 +84,11 @@ impl WebRunner {
                         );
                     }
 
-                    super::WebRunnerOutputInner::StorageGet(key, oneshot_tx) => {
+                    super::WebRunnerOutput::StorageGet(key, oneshot_tx) => {
                         let _ = oneshot_tx.send(super::storage::local_storage_get(&key));
                     }
 
-                    super::WebRunnerOutputInner::StorageSet(key, value, oneshot_tx) => {
+                    super::WebRunnerOutput::StorageSet(key, value, oneshot_tx) => {
                         if super::storage::local_storage().is_none() {
                             let _ = oneshot_tx.send(false);
                         } else {

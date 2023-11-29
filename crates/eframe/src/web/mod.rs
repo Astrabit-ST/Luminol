@@ -292,17 +292,17 @@ pub struct WorkerOptions {
 #[derive(Clone)]
 pub struct WorkerChannels {
     /// The receiver used to receive egui events from the main thread.
-    pub event_rx: flume::Receiver<egui::Event>,
+    event_rx: flume::Receiver<egui::Event>,
     /// The receiver used to receive custom events from the main thread.
-    pub custom_event_rx: flume::Receiver<WebRunnerCustomEvent>,
+    custom_event_rx: flume::Receiver<WebRunnerCustomEvent>,
     /// The sender used to send outputs to the main thread.
-    pub output_tx: flume::Sender<WebRunnerOutput>,
+    output_tx: flume::Sender<WebRunnerOutput>,
 }
 
 impl WorkerChannels {
     /// Send an output to the main thread.
-    pub(self) fn send(&self, output: WebRunnerOutputInner) {
-        let _ = self.output_tx.send(WebRunnerOutput(output));
+    pub(self) fn send(&self, output: WebRunnerOutput) {
+        let _ = self.output_tx.send(output);
     }
 }
 
@@ -341,11 +341,11 @@ pub struct MainStateInner {
 #[derive(Clone)]
 pub struct MainChannels {
     /// The sender used to send egui events to the worker thread.
-    pub event_tx: flume::Sender<egui::Event>,
+    event_tx: flume::Sender<egui::Event>,
     /// The sender used to send custom events to the worker thread.
-    pub custom_event_tx: flume::Sender<WebRunnerCustomEvent>,
+    custom_event_tx: flume::Sender<WebRunnerCustomEvent>,
     /// The receiver used to receive outputs from the worker thread.
-    pub output_rx: flume::Receiver<WebRunnerOutput>,
+    output_rx: flume::Receiver<WebRunnerOutput>,
 }
 
 impl MainState {
@@ -383,15 +383,32 @@ impl MainChannels {
     }
 
     /// Send a custom event to the worker thread.
-    pub(self) fn send_custom(&self, event: WebRunnerCustomEventInner) {
-        let _ = self.custom_event_tx.send(WebRunnerCustomEvent(event));
+    pub(self) fn send_custom(&self, event: WebRunnerCustomEvent) {
+        let _ = self.custom_event_tx.send(event);
     }
 }
 
-/// A custom event that can be sent from the main thread to the worker thread.
-pub struct WebRunnerCustomEvent(WebRunnerCustomEventInner);
+/// Create a new connected `(WorkerChannels, MainChannels)` pair for initializing a web runner.
+pub fn channels() -> (WorkerChannels, MainChannels) {
+    let (event_tx, event_rx) = flume::unbounded();
+    let (custom_event_tx, custom_event_rx) = flume::unbounded();
+    let (output_tx, output_rx) = flume::unbounded();
+    (
+        WorkerChannels {
+            event_rx,
+            custom_event_rx,
+            output_tx,
+        },
+        MainChannels {
+            event_tx,
+            custom_event_tx,
+            output_rx,
+        },
+    )
+}
 
-pub(self) enum WebRunnerCustomEventInner {
+/// A custom event that can be sent from the main thread to the worker thread.
+pub(self) enum WebRunnerCustomEvent {
     /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
     ScreenResize(u32, u32, f32),
     /// This should be sent whenever the modifiers change
@@ -403,9 +420,7 @@ pub(self) enum WebRunnerCustomEventInner {
 }
 
 /// A custom output that can be sent from the worker thread to the main thread.
-pub struct WebRunnerOutput(WebRunnerOutputInner);
-
-pub(self) enum WebRunnerOutputInner {
+pub(self) enum WebRunnerOutput {
     /// Miscellaneous egui output events
     PlatformOutput(egui::PlatformOutput, bool, bool),
     /// The runner wants to read a key from storage

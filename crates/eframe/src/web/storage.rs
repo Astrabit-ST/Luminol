@@ -15,7 +15,7 @@ pub fn local_storage_set(key: &str, value: &str) {
 #[cfg(feature = "persistence")]
 pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {
     let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    channels.send(super::WebRunnerOutputInner::StorageGet(
+    channels.send(super::WebRunnerOutput::StorageGet(
         String::from("egui_memory_ron"),
         oneshot_tx,
     ));
@@ -37,7 +37,7 @@ pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WorkerChannels)
     match ctx.memory(|mem| ron::to_string(mem)) {
         Ok(ron) => {
             let (oneshot_tx, oneshot_rx) = oneshot::channel();
-            channels.send(super::WebRunnerOutputInner::StorageSet(
+            channels.send(super::WebRunnerOutput::StorageSet(
                 String::from("egui_memory_ron"),
                 ron,
                 oneshot_tx,

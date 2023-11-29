@@ -21,22 +21,22 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
             .custom_event_rx
             .try_iter()
         {
-            match event.0 {
-                WebRunnerCustomEventInner::ScreenResize(new_width, new_height, new_pixel_ratio) => {
+            match event {
+                WebRunnerCustomEvent::ScreenResize(new_width, new_height, new_pixel_ratio) => {
                     width = new_width;
                     height = new_height;
                     pixel_ratio = new_pixel_ratio;
                 }
 
-                WebRunnerCustomEventInner::Modifiers(new_modifiers) => {
+                WebRunnerCustomEvent::Modifiers(new_modifiers) => {
                     modifiers = new_modifiers;
                 }
 
-                WebRunnerCustomEventInner::Save => {
+                WebRunnerCustomEvent::Save => {
                     should_save = true;
                 }
 
-                WebRunnerCustomEventInner::Touch(touch_id, touch_pos) => {
+                WebRunnerCustomEvent::Touch(touch_id, touch_pos) => {
                     touch = Some((touch_id, touch_pos));
                 }
             }
@@ -143,18 +143,16 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
 
                 if !has_focus {
                     // We lost focus - good idea to save
-                    state.channels.send_custom(WebRunnerCustomEventInner::Save);
+                    state.channels.send_custom(WebRunnerCustomEvent::Save);
                 }
 
                 //runner.input.on_web_page_focus_change(has_focus);
                 //runner.egui_ctx().request_repaint();
                 // log::debug!("{event_name:?}");
 
-                state
-                    .channels
-                    .send_custom(WebRunnerCustomEventInner::Modifiers(
-                        modifiers_from_mouse_event(&event),
-                    ));
+                state.channels.send_custom(WebRunnerCustomEvent::Modifiers(
+                    modifiers_from_mouse_event(&event),
+                ));
             };
 
             state.add_event_listener(&document, event_name, closure)?;
@@ -173,7 +171,7 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
             let modifiers = modifiers_from_event(&event);
             state
                 .channels
-                .send_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
+                .send_custom(WebRunnerCustomEvent::Modifiers(modifiers));
 
             let key = event.key();
             let egui_key = translate_key(&key);
@@ -248,7 +246,7 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
             let modifiers = modifiers_from_event(&event);
             state
                 .channels
-                .send_custom(WebRunnerCustomEventInner::Modifiers(modifiers));
+                .send_custom(WebRunnerCustomEvent::Modifiers(modifiers));
             if let Some(key) = translate_key(&event.key()) {
                 state.channels.send(egui::Event::Key {
                     key,
@@ -337,7 +335,7 @@ pub(crate) fn install_window_events(state: &MainState) -> Result<(), JsValue> {
                 .set_attribute("height", height.to_string().as_str());
             state
                 .channels
-                .send_custom(WebRunnerCustomEventInner::ScreenResize(
+                .send_custom(WebRunnerCustomEvent::ScreenResize(
                     width,
                     height,
                     pixel_ratio,
@@ -461,7 +459,7 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "mouseleave",
         |event: web_sys::MouseEvent, state| {
-            state.channels.send_custom(WebRunnerCustomEventInner::Save);
+            state.channels.send_custom(WebRunnerCustomEvent::Save);
 
             state.channels.send(egui::Event::PointerGone);
             //runner.needs_repaint.repaint_asap();
@@ -477,10 +475,9 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
             let mut inner = state.inner.borrow_mut();
 
             inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
-            state.channels.send_custom(WebRunnerCustomEventInner::Touch(
-                inner.touch_id,
-                inner.touch_pos,
-            ));
+            state
+                .channels
+                .send_custom(WebRunnerCustomEvent::Touch(inner.touch_id, inner.touch_pos));
             let modifiers = modifiers_from_touch_event(&event);
             state.channels.send(egui::Event::PointerButton {
                 pos: inner.touch_pos,
@@ -503,10 +500,9 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
             let mut inner = state.inner.borrow_mut();
 
             inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
-            state.channels.send_custom(WebRunnerCustomEventInner::Touch(
-                inner.touch_id,
-                inner.touch_pos,
-            ));
+            state
+                .channels
+                .send_custom(WebRunnerCustomEvent::Touch(inner.touch_id, inner.touch_pos));
             state
                 .channels
                 .send(egui::Event::PointerMoved(inner.touch_pos));

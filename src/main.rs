@@ -171,7 +171,7 @@ struct WorkerData {
     audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
     filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
-    web_runner_channels: luminol_eframe::web::WorkerChannels,
+    runner_worker_channels: luminol_eframe::web::WorkerChannels,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -232,19 +232,13 @@ pub fn luminol_main_start(fallback: bool) {
     }
 
     let (filesystem_tx, filesystem_rx) = flume::unbounded();
-    let (output_tx, output_rx) = flume::unbounded();
-    let (event_tx, event_rx) = flume::unbounded();
-    let (custom_event_tx, custom_event_rx) = flume::unbounded();
+    let (runner_worker_channels, runner_main_channels) = luminol_eframe::web::channels();
 
     luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
     luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
         inner: Default::default(),
         canvas: canvas.clone(),
-        channels: luminol_eframe::web::MainChannels {
-            event_tx,
-            custom_event_tx,
-            output_rx,
-        },
+        channels: runner_main_channels,
     })
     .expect("unable to setup web runner main thread hooks");
 
@@ -252,11 +246,7 @@ pub fn luminol_main_start(fallback: bool) {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
-        web_runner_channels: luminol_eframe::web::WorkerChannels {
-            event_rx,
-            custom_event_rx,
-            output_tx,
-        },
+        runner_worker_channels,
     });
 
     let mut worker_options = web_sys::WorkerOptions::new();
@@ -283,7 +273,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         audio,
         prefers_color_scheme_dark,
         filesystem_tx,
-        web_runner_channels,
+        runner_worker_channels,
     } = WORKER_DATA.lock().take().unwrap();
 
     luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
@@ -297,7 +287,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
             Box::new(|cc| Box::new(app::App::new(cc, audio))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
-                channels: web_runner_channels,
+                channels: runner_worker_channels,
             },
         )
         .await
