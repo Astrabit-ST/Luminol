@@ -28,10 +28,13 @@ pub mod plane;
 
 pub mod atlas_cache;
 pub mod image_cache;
+pub mod texture_loader;
 
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;
+
+pub use texture_loader::TextureLoader;
 
 pub struct GraphicsState {
     pub image_cache: image_cache::Cache,
