@@ -80,7 +80,7 @@ parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
 once_cell = "1.18.0"
 crossbeam = "0.8.2"
 dashmap = "5.5.3"
-flume = { version = "0.11.0", features = ["spin"] }
+flume = "0.11.0"
 oneshot = "0.1.6"
 
 poll-promise = { version = "0.3.0" }
@@ -254,7 +254,7 @@ cpal = { git = "https://github.com/DouglasDwyer/cpal.git", rev = "91aeb4d6b02c25
 
 # flume's global spinlock uses `thread::sleep` which doesn't work in the main thread in WebAssembly.
 # This is a patched version with `thread::sleep` removed in WebAssembly builds.
-flume = { path = "crates/flume/" }
+flume = { git = "https://github.com/Astrabit-ST/flume", rev = "d323799efea329c87a3a5a5b45cc76f46da278c2" }
 
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
