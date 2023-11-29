@@ -27,6 +27,8 @@
 
 #![deny(missing_docs)]
 
+#[allow(clippy::all)]
+
 #[cfg(feature = "select")]
 pub mod select;
 #[cfg(feature = "async")]
