@@ -392,7 +392,13 @@ impl<T> Hook<T, SyncSignal> {
     }
 }
 
-#[cfg(feature = "spin")]
+#[cfg(all(feature = "spin", target_arch = "wasm32"))]
+#[inline]
+fn wait_lock<T>(lock: &Spinlock<T>) -> SpinlockGuard<T> {
+    lock.lock()
+}
+
+#[cfg(all(feature = "spin", not(target_arch = "wasm32")))]
 #[inline]
 fn wait_lock<T>(lock: &Spinlock<T>) -> SpinlockGuard<T> {
     let mut i = 4;

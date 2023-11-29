@@ -21,7 +21,7 @@ spin = []
 select = []
 async = ["futures-sink", "futures-core"]
 eventual-fairness = ["select", "nanorand"]
-default = ["async", "select", "eventual-fairness"]
+default = ["spin", "async", "select", "eventual-fairness"]
 
 [dependencies]
 spin1 = { package = "spin", version = "0.9.8", features = ["mutex"] }
