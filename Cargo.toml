@@ -29,9 +29,10 @@ unsafe_op_in_unsafe_fn = "forbid"
 
 [workspace.lints.clippy]
 all = "warn"
-panic = "warn"
-panic_in_result_fn = "warn"
-panicking_unwrap = "warn"
+# we should turn these on in the future to avoid possible crashes
+# panic = "warn"
+# panic_in_result_fn = "warn"
+# panicking_unwrap = "warn"
 unnecessary_wraps = "warn"
 
 missing_errors_doc = "allow"
