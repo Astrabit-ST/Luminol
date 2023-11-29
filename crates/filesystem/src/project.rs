@@ -19,6 +19,7 @@ use crate::FileSystem as _;
 use crate::{archiver, host, list, path_cache};
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
+#[cfg(target_arch = "wasm32")]
 use itertools::Itertools;
 
 #[derive(Default)]
