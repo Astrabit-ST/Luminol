@@ -1,3 +1,28 @@
+> [!IMPORTANT]
+> flume is currently based on zesterer/flume@ee6fe6adb98856edbda47d1cc867cbc255ff0d88
+
+> [!NOTE]
+> This is Luminol's modified version of flume. The original version is dual-licensed under MIT and Apache 2.0.
+>
+> To merge changes from upstream into this crate, first add flume as a remote:
+>
+> ```
+> git remote add -f --no-tags flume https://github.com/zesterer/flume
+> ```
+>
+> Now, decide on which upstream flume commit you want to merge from and figure out the flume commit that the previous upstream merge was based on. The basis of the previous upstream merge should be written at the top of this README. **Please update the top of this README after merging.**
+>
+> In this example, we are merging from commit `fcf384956a7badd003c4eca43da5174f4e0c86a0` and the previous merge was based on commit `ee6fe6adb98856edbda47d1cc867cbc255ff0d88`.
+>
+> ```
+> git diff \
+>     ee6fe6adb98856edbda47d1cc867cbc255ff0d88 \
+>     fcf384956a7badd003c4eca43da5174f4e0c86a0 |
+>     git apply -3 --directory=crates/flume
+> ```
+>
+> Fix any merge conflicts, and then do `git commit`.
+
 # Flume
 
 A blazingly fast multi-producer, multi-consumer channel.
