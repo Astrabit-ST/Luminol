@@ -3163,13 +3163,8 @@ name = "luminol-web"
 version = "0.4.0"
 dependencies = [
  "egui",
- "flume",
  "js-sys",
  "luminol-egui-wgpu",
- "once_cell",
- "oneshot",
- "ron",
- "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

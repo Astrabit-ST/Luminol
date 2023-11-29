@@ -186,7 +186,12 @@ tracing-wasm = "0.2"
 tracing-log = "0.1.3"
 tracing.workspace = true
 
-web-sys = { version = "0.3", features = ["Window"] }
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Worker",
+    "WorkerOptions",
+    "WorkerType",
+] }
 
 # Enable wgpu's `webgl` feature if Luminol's `webgl` feature is enabled,
 # enabling its WebGL backend and disabling its WebGPU backend

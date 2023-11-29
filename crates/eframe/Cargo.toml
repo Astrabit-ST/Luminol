@@ -107,7 +107,7 @@ document-features = { version = "0.2", optional = true }
 
 egui_glow = { workspace = true, optional = true }
 glow = { version = "0.12", optional = true }
-ron = { version = "0.8", optional = true, features = ["integer128"] }
+ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 
 # -------------------------------------------
@@ -196,6 +196,13 @@ web-sys = { version = "0.3.58", features = [
   "WebGlRenderingContext",
   "WheelEvent",
   "Window",
+
+  # Unique to Luminol
+  "MutationObserver",
+  "MutationObserverInit",
+  "MutationRecord",
+  "WorkerLocation",
+  "WorkerNavigator",
 ] }
 
 once_cell.workspace = true
