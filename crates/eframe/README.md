@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> luminol-eframe is currently based on emilk/egui@0.23.0
+
 > [!NOTE]
 > This is Luminol's modified version of eframe. The original version is dual-licensed under MIT and Apache 2.0.
 >
@@ -7,7 +10,7 @@
 > git remote add -f --no-tags egui https://github.com/emilk/egui
 > ```
 >
-> Now, decide on which upstream egui commit you want to merge from and figure out the egui commit that the previous upstream merge was based on. Hopefully whoever did the previous merge told you what commit the previous merge was based on!
+> Now, decide on which upstream egui commit you want to merge from and figure out the egui commit that the previous upstream merge was based on. The basis of the previous upstream merge should be written at the top of this README. **Please update the top of this README after merging.**
 >
 > In this example, we are merging from commit `bd087ffb8d7467e0b5aa06d17dd600d511d6a5e8` (egui 0.24.0) and the previous merge was based on commit `5a0186fa2b2324ab437099e456e55e281234ca99` (egui 0.23.0).
 >
