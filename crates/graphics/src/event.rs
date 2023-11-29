@@ -34,8 +34,12 @@ struct Callback {
     graphics_state: Arc<crate::GraphicsState>,
 }
 
-// FIXME
+//? SAFETY:
+//? wgpu resources are not Send + Sync on wasm, but egui_wgpu::CallbackTrait requires Send + Sync (because egui::Context is Send + Sync)
+//? as long as this callback does not leave the thread it was created on on wasm (which it shouldn't be) these are ok.
+#[allow(unsafe_code)]
 unsafe impl Send for Callback {}
+#[allow(unsafe_code)]
 unsafe impl Sync for Callback {}
 
 impl egui_wgpu::CallbackTrait for Callback {

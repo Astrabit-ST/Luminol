@@ -53,7 +53,7 @@ pub struct App {
     toolbar: luminol_core::ToolbarState,
 
     #[cfg(not(target_arch = "wasm32"))]
-    runtime: tokio::runtime::Runtime,
+    _runtime: tokio::runtime::Runtime,
 
     #[cfg(feature = "steamworks")]
     steamworks: Steamworks,
@@ -181,7 +181,7 @@ impl App {
             toolbar: luminol_core::ToolbarState::default(),
 
             #[cfg(not(target_arch = "wasm32"))]
-            runtime,
+            _runtime: runtime,
 
             #[cfg(feature = "steamworks")]
             steamworks,

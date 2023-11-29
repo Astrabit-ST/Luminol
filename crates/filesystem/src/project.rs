@@ -19,8 +19,6 @@ use crate::FileSystem as _;
 use crate::{archiver, host, list, path_cache};
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
-use itertools::Itertools;
-
 #[derive(Default)]
 pub enum FileSystem {
     #[default]

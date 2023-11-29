@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub struct Modal {
-    tab: luminol_components::SoundTab,
+    _tab: luminol_components::SoundTab,
 }
 
 impl luminol_core::Modal for Modal {

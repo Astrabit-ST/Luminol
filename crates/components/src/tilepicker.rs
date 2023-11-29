@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-use slab::Slab;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -47,8 +46,12 @@ struct Callback {
     coll_enabled: bool,
 }
 
-// FIXME
+//? SAFETY:
+//? wgpu resources are not Send + Sync on wasm, but egui_wgpu::CallbackTrait requires Send + Sync (because egui::Context is Send + Sync)
+//? as long as this callback does not leave the thread it was created on on wasm (which it shouldn't be) these are ok.
+#[allow(unsafe_code)]
 unsafe impl Send for Callback {}
+#[allow(unsafe_code)]
 unsafe impl Sync for Callback {}
 
 impl egui_wgpu::CallbackTrait for Callback {
@@ -106,8 +109,6 @@ impl Default for SelectedTile {
         SelectedTile::Autotile(0)
     }
 }
-
-type ResourcesSlab = Slab<Arc<Resources>>;
 
 impl Tilepicker {
     pub fn new(

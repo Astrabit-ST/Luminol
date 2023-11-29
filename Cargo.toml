@@ -26,6 +26,8 @@ rust_2018_idioms = "warn"
 unsafe_code = "warn"
 # clearly denote where you are using unsafe code in unsafe fns. in a future rust edition this will become a hard error.
 unsafe_op_in_unsafe_fn = "forbid"
+# will become a hard error in a future rust edition
+elided_lifetimes_in_paths = "forbid"
 
 [workspace.lints.clippy]
 all = "warn"

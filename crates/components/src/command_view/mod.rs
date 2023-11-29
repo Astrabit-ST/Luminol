@@ -31,25 +31,23 @@ mod ui;
 use std::collections::HashMap;
 
 pub struct CommandView {
-    selected_index: usize,
-    window_state: WindowState,
-    id: egui::Id,
-    modals: HashMap<u64, bool>, // todo find a better way to handle modals
+    _selected_index: usize,
+    _window_state: WindowState,
+    _id: egui::Id,
+    _modals: HashMap<u64, bool>, // todo find a better way to handle modals
 }
 
 enum WindowState {
-    Insert { index: usize, tab: usize },
-    Edit { index: usize },
     None,
 }
 
 impl Default for CommandView {
     fn default() -> Self {
         Self {
-            selected_index: 0,
-            window_state: WindowState::None,
-            id: egui::Id::new("command_view"),
-            modals: HashMap::new(),
+            _selected_index: 0,
+            _window_state: WindowState::None,
+            _id: egui::Id::new("command_view"),
+            _modals: HashMap::new(),
         }
     }
 }
@@ -57,7 +55,7 @@ impl Default for CommandView {
 impl CommandView {
     pub fn new(id: impl std::hash::Hash) -> Self {
         Self {
-            id: egui::Id::new(id),
+            _id: egui::Id::new(id),
             ..Default::default()
         }
     }

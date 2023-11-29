@@ -21,7 +21,8 @@ pub struct Plane {
 }
 
 impl Plane {
-    // FIXME: holy SHIT
+    // FIXME lots of arguments
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         graphics_state: &crate::GraphicsState,
         texture: std::sync::Arc<crate::image_cache::WgpuTexture>,

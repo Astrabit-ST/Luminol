@@ -159,7 +159,8 @@ impl MapView {
         })
     }
 
-    // FIXME
+    // FIXME lots of arguments
+    #[allow(clippy::too_many_arguments)]
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
