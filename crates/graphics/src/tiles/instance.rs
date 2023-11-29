@@ -44,7 +44,7 @@ const TILE_QUAD: crate::quad::Quad = crate::quad::Quad::new(
 
 impl Instances {
     pub fn new(
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         map_data: &luminol_data::Table3,
         atlas_size: wgpu::Extent3d,
     ) -> Self {
@@ -73,7 +73,7 @@ impl Instances {
     // I thought we didn't need the z? Well.. we do! To calculate the offset into the instance buffer.
     pub fn set_tile(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {

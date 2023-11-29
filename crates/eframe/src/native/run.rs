@@ -1135,7 +1135,7 @@ mod wgpu_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
-        painter: egui_wgpu::winit::Painter,
+        painter: luminol_egui_wgpu::winit::Painter,
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
     }
@@ -1205,7 +1205,7 @@ mod wgpu_integration {
         fn set_window(
             &mut self,
             window: winit::window::Window,
-        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
+        ) -> std::result::Result<(), luminol_egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 crate::profile_function!();
@@ -1216,7 +1216,7 @@ mod wgpu_integration {
 
         #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
-        fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
+        fn drop_window(&mut self) -> std::result::Result<(), luminol_egui_wgpu::WgpuError> {
             self.window = None;
             if let Some(running) = &mut self.running {
                 pollster::block_on(running.painter.set_window(None))?;
@@ -1229,14 +1229,14 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
-        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
+        ) -> std::result::Result<(), luminol_egui_wgpu::WgpuError> {
             crate::profile_function!();
 
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
-            let mut painter = egui_wgpu::winit::Painter::new(
+            let mut painter = luminol_egui_wgpu::winit::Painter::new(
                 self.native_options.wgpu_options.clone(),
                 self.native_options.multisampling.max(1) as _,
-                egui_wgpu::depth_format_from_bits(
+                luminol_egui_wgpu::depth_format_from_bits(
                     self.native_options.depth_buffer,
                     self.native_options.stencil_buffer,
                 ),

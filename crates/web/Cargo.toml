@@ -14,7 +14,7 @@ categories.workspace = true
 
 [dependencies]
 egui.workspace = true
-egui-wgpu.workspace = true
+luminol-egui-wgpu.workspace = true
 wgpu.workspace = true
 
 ron.workspace = true

@@ -63,12 +63,12 @@ unsafe impl Sync for Callback {}
 unsafe impl Send for OverlayCallback {}
 unsafe impl Sync for OverlayCallback {}
 
-impl egui_wgpu::CallbackTrait for Callback {
+impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
         _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(1, render_pass);
 
@@ -88,12 +88,12 @@ impl egui_wgpu::CallbackTrait for Callback {
     }
 }
 
-impl egui_wgpu::CallbackTrait for OverlayCallback {
+impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
     fn paint<'a>(
         &'a self,
         _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(1, render_pass);
 
@@ -204,7 +204,7 @@ impl Map {
 
     pub fn set_tile(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {
@@ -215,7 +215,7 @@ impl Map {
 
     pub fn set_passage(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         passage: i16,
         position: (usize, usize),
     ) {
@@ -224,7 +224,7 @@ impl Map {
             .set_passage(render_state, passage, position);
     }
 
-    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
         self.resources.viewport.set_proj(render_state, proj);
     }
 
@@ -252,7 +252,7 @@ impl Map {
             .ctx()
             .request_repaint_after(Duration::from_secs_f64(16. / 60.));
 
-        painter.add(egui_wgpu::Callback::new_paint_callback(
+        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
                 resources: self.resources.clone(),
@@ -271,7 +271,7 @@ impl Map {
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
-        painter.add(egui_wgpu::Callback::new_paint_callback(
+        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             OverlayCallback {
                 resources: self.resources.clone(),

@@ -1397,48 +1397,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eframe"
-version = "0.23.0"
-dependencies = [
- "bytemuck",
- "cocoa",
- "directories-next",
- "document-features",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "egui_glow",
- "flume",
- "glow 0.12.3",
- "glutin",
- "glutin-winit",
- "image 0.24.7",
- "js-sys",
- "log",
- "luminol-web",
- "objc",
- "once_cell",
- "oneshot",
- "parking_lot",
- "percent-encoding",
- "pollster",
- "portable-atomic",
- "puffin",
- "raw-window-handle",
- "ron",
- "serde",
- "static_assertions",
- "thiserror",
- "tts",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "wgpu",
- "winapi",
- "winit",
-]
-
-[[package]]
 name = "egui"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1461,21 +1419,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc3b10f21c7bb2afaecb8d98677cdb233a8b1f336b9b95abd610a33aeced04fc"
 dependencies = [
  "egui",
-]
-
-[[package]]
-name = "egui-wgpu"
-version = "0.23.0"
-dependencies = [
- "bytemuck",
- "document-features",
- "epaint",
- "log",
- "puffin",
- "thiserror",
- "type-map",
- "wgpu",
- "winit",
 ]
 
 [[package]]
@@ -2921,7 +2864,6 @@ dependencies = [
  "camino",
  "color-backtrace",
  "crc",
- "eframe",
  "egui",
  "egui_extras",
  "epaint",
@@ -2932,6 +2874,8 @@ dependencies = [
  "luminol-config",
  "luminol-core",
  "luminol-data",
+ "luminol-eframe",
+ "luminol-egui-wgpu",
  "luminol-filesystem",
  "luminol-graphics",
  "luminol-term",
@@ -2980,13 +2924,13 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "egui",
- "egui-wgpu",
  "glam",
  "itertools",
  "luminol-audio",
  "luminol-config",
  "luminol-core",
  "luminol-data",
+ "luminol-egui-wgpu",
  "luminol-filesystem",
  "luminol-graphics",
  "once_cell",
@@ -3052,6 +2996,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "luminol-eframe"
+version = "0.23.0"
+dependencies = [
+ "bytemuck",
+ "cocoa",
+ "directories-next",
+ "document-features",
+ "egui",
+ "egui-winit",
+ "egui_glow",
+ "flume",
+ "glow 0.12.3",
+ "glutin",
+ "glutin-winit",
+ "image 0.24.7",
+ "js-sys",
+ "log",
+ "luminol-egui-wgpu",
+ "luminol-web",
+ "objc",
+ "once_cell",
+ "oneshot",
+ "parking_lot",
+ "percent-encoding",
+ "pollster",
+ "portable-atomic",
+ "puffin",
+ "raw-window-handle",
+ "ron",
+ "serde",
+ "static_assertions",
+ "thiserror",
+ "tts",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+ "winapi",
+ "winit",
+]
+
+[[package]]
+name = "luminol-egui-wgpu"
+version = "0.23.0"
+dependencies = [
+ "bytemuck",
+ "document-features",
+ "epaint",
+ "log",
+ "puffin",
+ "thiserror",
+ "type-map",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "luminol-filesystem"
 version = "0.4.0"
 dependencies = [
@@ -3092,12 +3093,12 @@ dependencies = [
  "crossbeam",
  "dashmap",
  "egui",
- "egui-wgpu",
  "egui_extras",
  "glam",
  "image 0.24.7",
  "itertools",
  "luminol-data",
+ "luminol-egui-wgpu",
  "luminol-filesystem",
  "naga",
  "naga_oil",
@@ -3163,9 +3164,9 @@ name = "luminol-web"
 version = "0.4.0"
 dependencies = [
  "egui",
- "egui-wgpu",
  "flume",
  "js-sys",
+ "luminol-egui-wgpu",
  "once_cell",
  "oneshot",
  "ron",

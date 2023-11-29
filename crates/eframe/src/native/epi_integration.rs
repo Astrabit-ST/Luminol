@@ -373,7 +373,7 @@ impl EpiIntegration {
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
-        #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
+        #[cfg(feature = "wgpu")] wgpu_render_state: Option<luminol_egui_wgpu::RenderState>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 

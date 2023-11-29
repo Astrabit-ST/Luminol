@@ -54,7 +54,7 @@ impl Sprite {
 
     pub fn reupload_verts(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         quads: &[crate::quad::Quad],
     ) {
         let vertices = crate::quad::Quad::into_vertices(quads, self.texture.size());

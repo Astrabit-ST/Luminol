@@ -78,7 +78,7 @@ pub struct CreationContext<'s> {
     ///
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub wgpu_render_state: Option<egui_wgpu::RenderState>,
+    pub wgpu_render_state: Option<luminol_egui_wgpu::RenderState>,
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
@@ -418,7 +418,7 @@ pub struct NativeOptions {
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
-    pub wgpu_options: egui_wgpu::WgpuConfiguration,
+    pub wgpu_options: luminol_egui_wgpu::WgpuConfiguration,
 
     /// The application id, used for determining the folder to persist the app to.
     ///
@@ -541,7 +541,7 @@ impl Default for NativeOptions {
             centered: false,
 
             #[cfg(feature = "wgpu")]
-            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+            wgpu_options: luminol_egui_wgpu::WgpuConfiguration::default(),
 
             app_id: None,
 
@@ -582,7 +582,7 @@ pub struct WebOptions {
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
-    pub wgpu_options: egui_wgpu::WgpuConfiguration,
+    pub wgpu_options: luminol_egui_wgpu::WgpuConfiguration,
 
     /// The size limit of the web app canvas.
     ///
@@ -602,7 +602,7 @@ impl Default for WebOptions {
             webgl_context_option: WebGlContextOption::BestFirst,
 
             #[cfg(feature = "wgpu")]
-            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+            wgpu_options: luminol_egui_wgpu::WgpuConfiguration::default(),
 
             max_size_points: egui::Vec2::INFINITY,
         }
@@ -740,7 +740,7 @@ pub struct Frame {
 
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
+    pub(crate) wgpu_render_state: Option<luminol_egui_wgpu::RenderState>,
 
     /// If [`Frame::request_screenshot`] was called during a frame, this field will store the screenshot
     /// such that it can be retrieved during [`App::post_rendering`] with [`Frame::screenshot`]
@@ -884,7 +884,7 @@ impl Frame {
     ///
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
+    pub fn wgpu_render_state(&self) -> Option<&luminol_egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
     }
 

@@ -68,7 +68,12 @@ impl Opacity {
         self.data.load()[layer]
     }
 
-    pub fn set_opacity(&self, render_state: &egui_wgpu::RenderState, layer: usize, opacity: f32) {
+    pub fn set_opacity(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        layer: usize,
+        opacity: f32,
+    ) {
         let mut data = self.data.load();
         if data[layer] != opacity {
             data[layer] = opacity;
@@ -77,7 +82,7 @@ impl Opacity {
         }
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state.queue.write_buffer(
                 &uniform.buffer,
@@ -94,7 +99,9 @@ impl Opacity {
     }
 }
 
-pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(
+    render_state: &luminol_egui_wgpu::RenderState,
+) -> wgpu::BindGroupLayout {
     render_state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

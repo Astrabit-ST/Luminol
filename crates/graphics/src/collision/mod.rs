@@ -154,7 +154,7 @@ impl Collision {
 
     pub fn set_passage(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         passage: i16,
         position: (usize, usize),
     ) {

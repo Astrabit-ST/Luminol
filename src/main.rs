@@ -119,23 +119,23 @@ fn main() {
 
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
-    let native_options = eframe::NativeOptions {
+    let native_options = luminol_eframe::NativeOptions {
         drag_and_drop_support: true,
         transparent: true,
-        icon_data: Some(eframe::IconData {
+        icon_data: Some(luminol_eframe::IconData {
             width: image.width(),
             height: image.height(),
             rgba: image.to_rgba8().into_vec(),
         }),
-        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
-            supported_backends: eframe::wgpu::util::backend_bits_from_env()
-                .unwrap_or(eframe::wgpu::Backends::PRIMARY),
-            device_descriptor: std::sync::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
+        wgpu_options: luminol_egui_wgpu::WgpuConfiguration {
+            supported_backends: wgpu::util::backend_bits_from_env()
+                .unwrap_or(wgpu::Backends::PRIMARY),
+            device_descriptor: std::sync::Arc::new(|_| wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
-                features: eframe::wgpu::Features::PUSH_CONSTANTS,
-                limits: eframe::wgpu::Limits {
+                features: wgpu::Features::PUSH_CONSTANTS,
+                limits: wgpu::Limits {
                     max_push_constant_size: 128,
-                    ..eframe::wgpu::Limits::default()
+                    ..wgpu::Limits::default()
                 },
             }),
             ..Default::default()
@@ -145,7 +145,7 @@ fn main() {
         ..Default::default()
     };
 
-    eframe::run_native(
+    luminol_eframe::run_native(
         "Luminol",
         native_options,
         Box::new(|cc| {
@@ -171,7 +171,7 @@ struct WorkerData {
     audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
     filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
-    web_runner_channels: eframe::web::WorkerChannels,
+    web_runner_channels: luminol_eframe::web::WorkerChannels,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -237,10 +237,10 @@ pub fn luminol_main_start(fallback: bool) {
     let (custom_event_tx, custom_event_rx) = flume::unbounded();
 
     luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
-    eframe::WebRunner::setup_main_thread_hooks(eframe::web::MainState {
+    luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
         inner: Default::default(),
         canvas: canvas.clone(),
-        channels: eframe::web::MainChannels {
+        channels: luminol_eframe::web::MainChannels {
             event_tx,
             custom_event_tx,
             output_rx,
@@ -252,7 +252,7 @@ pub fn luminol_main_start(fallback: bool) {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
         filesystem_tx,
-        web_runner_channels: eframe::web::WorkerChannels {
+        web_runner_channels: luminol_eframe::web::WorkerChannels {
             event_rx,
             custom_event_rx,
             output_tx,
@@ -288,14 +288,14 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
 
     luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
 
-    let web_options = eframe::WebOptions::default();
+    let web_options = luminol_eframe::WebOptions::default();
 
-    eframe::WebRunner::new()
+    luminol_eframe::WebRunner::new()
         .start(
             canvas,
             web_options,
             Box::new(|cc| Box::new(app::App::new(cc, audio))),
-            eframe::web::WorkerOptions {
+            luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: web_runner_channels,
             },

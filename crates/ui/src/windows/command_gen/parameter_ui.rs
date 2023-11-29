@@ -23,7 +23,6 @@
 // Program grant you additional permission to convey the resulting work.
 
 use command_lib::{Index, Parameter, ParameterKind};
-use eframe::egui;
 
 use strum::IntoEnumIterator;
 

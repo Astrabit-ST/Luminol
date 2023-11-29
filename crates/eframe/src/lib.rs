@@ -134,7 +134,7 @@ pub use {egui, egui::emath, egui::epaint};
 pub use {egui_glow, glow};
 
 #[cfg(feature = "wgpu")]
-pub use {egui_wgpu, wgpu};
+pub use {luminol_egui_wgpu, wgpu};
 
 mod epi;
 
@@ -318,7 +318,7 @@ pub enum Error {
     /// An error from [`wgpu`].
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
-    Wgpu(#[from] egui_wgpu::WgpuError),
+    Wgpu(#[from] luminol_egui_wgpu::WgpuError),
 }
 
 /// Short for `Result<T, eframe::Error>`.

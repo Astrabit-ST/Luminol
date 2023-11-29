@@ -1,5 +1,5 @@
 [package]
-name = "egui-wgpu"
+name = "luminol-egui-wgpu"
 version = "0.23.0"
 description = "Bindings for using egui natively using the wgpu library"
 authors = [

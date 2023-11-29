@@ -38,12 +38,12 @@ struct Callback {
 unsafe impl Send for Callback {}
 unsafe impl Sync for Callback {}
 
-impl egui_wgpu::CallbackTrait for Callback {
+impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
         info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(1, render_pass);
         self.resources
@@ -139,7 +139,7 @@ impl Event {
         &self.resources.sprite
     }
 
-    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
         self.resources.viewport.set_proj(render_state, proj);
     }
 
@@ -149,7 +149,7 @@ impl Event {
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
-        painter.add(egui_wgpu::Callback::new_paint_callback(
+        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
                 resources: self.resources.clone(),

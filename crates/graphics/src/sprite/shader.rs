@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 fn create_shader(
-    render_state: &egui_wgpu::RenderState,
+    render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &crate::BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> wgpu::RenderPipeline {
@@ -108,7 +108,7 @@ fn create_shader(
 }
 
 pub fn create_sprite_shaders(
-    render_state: &egui_wgpu::RenderState,
+    render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &crate::BindGroupLayouts,
 ) -> std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline> {
     [
