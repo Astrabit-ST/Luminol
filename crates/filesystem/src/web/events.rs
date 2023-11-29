@@ -17,11 +17,11 @@
 
 use super::util::{generate_key, get_subdir, idb, to_future};
 use super::{FileSystemCommand, FileSystemCommandInner};
-use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
+use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
 use wasm_bindgen::prelude::*;
 
-pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemCommand>) {
+pub fn setup_main_thread_hooks(filesystem_rx: flume::Receiver<FileSystemCommand>) {
     wasm_bindgen_futures::spawn_local(async move {
         web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
 
@@ -107,7 +107,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                         let idb_key = generate_key();
                         let idb_ok = {
                             let idb_key = idb_key.as_str();
-                            super::util::idb(IdbTransactionMode::Readwrite, |store| {
+                            idb(IdbTransactionMode::Readwrite, |store| {
                                 store.put_key_val_owned(idb_key, &dir)
                             })
                             .await
@@ -129,7 +129,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
 
                 FileSystemCommandInner::DirFromIdb(idb_key, oneshot_tx) => {
                     let idb_key = idb_key.as_str();
-                    if let Ok(future) = super::util::idb(IdbTransactionMode::Readonly, |store| {
+                    if let Ok(future) = idb(IdbTransactionMode::Readonly, |store| {
                         store.get_owned(idb_key)
                     })
                     .await
@@ -161,7 +161,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                     let idb_key = generate_key();
                     let idb_ok = {
                         let idb_key = idb_key.as_str();
-                        super::util::idb(IdbTransactionMode::Readwrite, |store| {
+                        idb(IdbTransactionMode::Readwrite, |store| {
                             store.put_key_val_owned(idb_key, &dir)
                         })
                         .await
@@ -182,7 +182,7 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                     let idb_key = idb_key.as_str();
                     oneshot_tx
                         .send(
-                            super::util::idb(IdbTransactionMode::Readwrite, |store| {
+                            idb(IdbTransactionMode::Readwrite, |store| {
                                 store.delete_owned(idb_key)
                             })
                             .await
@@ -374,10 +374,11 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                                 std::io::ErrorKind::PermissionDenied.into(),
                             )))
                             .unwrap();
-                    } else if let Ok(dir) = to_future::<web_sys::FileSystemDirectoryHandle>(
+                    } else if to_future::<web_sys::FileSystemDirectoryHandle>(
                         subdir.get_directory_handle(dirname),
                     )
                     .await
+                    .is_ok()
                     {
                         let mut options = web_sys::FileSystemRemoveOptions::new();
                         options.recursive(true);
@@ -412,9 +413,9 @@ pub fn setup_main_thread_hooks(mut filesystem_rx: flume::Receiver<FileSystemComm
                         oneshot_tx.send(Err(Error::NotExist)).unwrap();
                         continue;
                     };
-                    if let Ok(file) =
-                        to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(filename))
-                            .await
+                    if to_future::<web_sys::FileSystemFileHandle>(subdir.get_file_handle(filename))
+                        .await
+                        .is_ok()
                     {
                         if to_future::<JsValue>(subdir.remove_entry(filename))
                             .await

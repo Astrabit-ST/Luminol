@@ -196,7 +196,7 @@ impl FileSystemTrait for FileSystem {
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-        mut flags: OpenFlags,
+        flags: OpenFlags,
     ) -> Result<Self::File> {
         send_and_recv(|tx| {
             FileSystemCommandInner::DirOpenFile(self.key, path.as_ref().to_path_buf(), flags, tx)
@@ -212,8 +212,8 @@ impl FileSystemTrait for FileSystem {
 
     fn rename(
         &self,
-        from: impl AsRef<camino::Utf8Path>,
-        to: impl AsRef<camino::Utf8Path>,
+        _from: impl AsRef<camino::Utf8Path>,
+        _to: impl AsRef<camino::Utf8Path>,
     ) -> Result<()> {
         Err(Error::NotSupported)
     }
