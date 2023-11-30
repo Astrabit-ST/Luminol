@@ -25,7 +25,7 @@
 /// A basic about window.
 /// Shows some info on Luminol, along with an icon.
 pub struct Window {
-    icon: egui_extras::RetainedImage,
+    icon: egui::Image<'static>,
 }
 
 const ICON: &[u8] = include_bytes!("../../../../assets/icon-256.png");
@@ -36,8 +36,7 @@ impl Default for Window {
             // We load the icon here so it isn't loaded every frame. That would be bad if we did.
             // It would be better to load the image at compile time and only use one image instance
             // (as we load the image once at start for the icon) but this is the best I can do.
-            icon: egui_extras::RetainedImage::from_image_bytes("icon", ICON)
-                .expect("Failed to load Icon data."),
+            icon: egui::Image::from_bytes("assets/icon-256.png", ICON).fit_to_original_size(0.5),
         }
     }
 }
@@ -65,7 +64,7 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 // Center the widgets vertically for cleanliness.
                 ui.vertical_centered(|ui| {
-                    self.icon.show_scaled(ui, 0.5); // We scale the icon down since it's pretty huge.
+                    ui.add(self.icon.clone());
                     ui.heading("Luminol");
 
                     ui.separator();

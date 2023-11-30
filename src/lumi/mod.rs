@@ -26,49 +26,13 @@ mod state;
 
 #[allow(dead_code)]
 pub struct Lumi {
-    speak: egui_extras::RetainedImage,
-    idle: egui_extras::RetainedImage,
     enabled: bool,
 }
 
 impl Lumi {
     pub fn new() -> Result<Self, String> {
-        let idle = egui_extras::RetainedImage::from_svg_bytes(
-            "lumi_idle",
-            include_bytes!("assets/lumi-idle.svg"),
-        )?
-        .with_options(epaint::textures::TextureOptions::LINEAR);
-        let speak = egui_extras::RetainedImage::from_svg_bytes(
-            "lumi_speak",
-            include_bytes!("assets/lumi-speak.svg"),
-        )?
-        .with_options(epaint::textures::TextureOptions::LINEAR);
-
-        Ok(Lumi {
-            idle,
-            speak,
-            enabled: false,
-        })
+        Ok(Lumi { enabled: false })
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context) {
-        if !self.enabled {
-            return;
-        }
-
-        let painter = ctx.layer_painter(egui::LayerId::new(
-            egui::Order::Tooltip,
-            "lumi_layer".into(),
-        ));
-
-        let size = self.idle.size_vec2() / 4.0;
-        let pos = ctx.screen_rect().max - size;
-
-        painter.image(
-            self.idle.texture_id(ctx),
-            egui::Rect::from_min_size(pos, size),
-            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            egui::Color32::WHITE,
-        );
-    }
+    pub fn ui(&mut self, _ctx: &egui::Context) {}
 }
