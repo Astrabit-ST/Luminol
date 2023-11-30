@@ -62,7 +62,7 @@ impl Tiles {
         bind_group_builder
             .append_texture_view(&atlas.atlas_texture.view)
             .append_sampler(&graphics_state.nearest_sampler);
-        if crate::push_constants_supported(&graphics_state.render_state) {
+        if !graphics_state.push_constants_supported() {
             bind_group_builder
                 .append_buffer(viewport.as_buffer().unwrap())
                 .append_buffer(autotiles.as_buffer().unwrap())
@@ -151,7 +151,7 @@ pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::
     let mut builder = BindGroupLayoutBuilder::new();
     builder
         .append(
-            wgpu::ShaderStages::FRAGMENT,
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
             wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: false },
                 view_dimension: wgpu::TextureViewDimension::D2,
@@ -165,7 +165,7 @@ pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::
             None,
         );
 
-    if crate::push_constants_supported(render_state) {
+    if !crate::push_constants_supported(render_state) {
         viewport::add_to_bind_group_layout(&mut builder);
         autotiles::add_to_bind_group_layout(&mut builder);
         opacity::add_to_bind_group_layout(&mut builder);

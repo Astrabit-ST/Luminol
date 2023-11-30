@@ -54,7 +54,7 @@ impl Sprite {
         bind_group_builder
             .append_texture_view(&texture.view)
             .append_sampler(&graphics_state.nearest_sampler);
-        if crate::push_constants_supported(&graphics_state.render_state) {
+        if !graphics_state.push_constants_supported() {
             bind_group_builder
                 .append_buffer(viewport.as_buffer().unwrap())
                 .append_buffer(graphic.as_buffer().unwrap());
@@ -62,7 +62,7 @@ impl Sprite {
         let bind_group = bind_group_builder.build(
             &graphics_state.render_state.device,
             Some("sprite bind group"),
-            &graphics_state.bind_group_layouts.tiles,
+            &graphics_state.bind_group_layouts.sprite,
         );
 
         Self {
@@ -127,7 +127,7 @@ pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::
             None,
         );
 
-    if crate::push_constants_supported(render_state) {
+    if !crate::push_constants_supported(render_state) {
         viewport::add_to_bind_group_layout(&mut builder);
         graphic::add_to_bind_group_layout(&mut builder);
     }

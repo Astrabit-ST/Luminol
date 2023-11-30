@@ -115,6 +115,10 @@ impl App {
 
         let graphics = std::sync::Arc::new(luminol_graphics::GraphicsState::new(render_state));
 
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+        cc.egui_ctx
+            .add_texture_loader(graphics.texture_loader.clone());
+
         let storage = cc.storage.unwrap();
 
         let mut global_config = eframe::get_value(storage, "SavedState").unwrap_or_default();
@@ -270,6 +274,10 @@ impl luminol_app::CustomApp for App {
         self.toasts.show(ctx);
 
         self.lumi.ui(ctx);
+
+        self.graphics
+            .texture_loader
+            .load_unloaded_textures(ctx, &self.filesystem);
 
         #[cfg(feature = "steamworks")]
         self.steamworks.update()

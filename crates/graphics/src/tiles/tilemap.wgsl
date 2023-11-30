@@ -43,7 +43,7 @@ var<push_constant> push_constants: PushConstants;
 var<uniform> viewport: Viewport;
 @group(0) @binding(3)
 var<uniform> autotiles: Autotiles;
-@group(1) @binding(4)
+@group(0) @binding(4)
 var<uniform> opacity: array<vec4<f32>, 1>;
 #endif
 

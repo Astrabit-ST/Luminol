@@ -152,13 +152,13 @@ impl Collision {
         let instances = Instances::new(&graphics_state.render_state, passages);
 
         let mut bind_group_builder = BindGroupBuilder::new();
-        if graphics_state.push_constants_supported() {
+        if !graphics_state.push_constants_supported() {
             bind_group_builder.append_buffer(viewport.as_buffer().unwrap());
         }
         let bind_group = bind_group_builder.build(
             &graphics_state.render_state.device,
             Some("collision bind group"),
-            &graphics_state.bind_group_layouts.tiles,
+            &graphics_state.bind_group_layouts.collision,
         );
 
         Self {
@@ -207,7 +207,7 @@ impl Collision {
 pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
 
-    if crate::push_constants_supported(render_state) {
+    if !crate::push_constants_supported(render_state) {
         viewport::add_to_bind_group_layout(&mut builder);
     }
 
