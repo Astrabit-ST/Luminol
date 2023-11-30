@@ -1,6 +1,1 @@
 merge_derives = false
-
-# flume isn't using rustfmt so we need to skip it to reduce merge conflicts
-ignore = [
-    "crates/flume/",
-]
