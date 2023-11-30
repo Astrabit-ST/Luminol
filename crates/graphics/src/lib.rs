@@ -113,8 +113,10 @@ impl GraphicsState {
 }
 
 pub fn push_constants_supported(render_state: &egui_wgpu::RenderState) -> bool {
-    render_state
+    let feature_supported = render_state
         .device
         .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS)
+        .contains(wgpu::Features::PUSH_CONSTANTS);
+    let is_dx_12 = render_state.adapter.get_info().backend == wgpu::Backend::Dx12;
+    feature_supported && !is_dx_12
 }

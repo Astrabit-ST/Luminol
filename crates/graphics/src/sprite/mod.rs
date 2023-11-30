@@ -91,6 +91,7 @@ impl Sprite {
         graphics_state: &'rpass GraphicsState,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
+        render_pass.push_debug_group("sprite render");
         render_pass.set_pipeline(&graphics_state.pipelines.sprites[&self.blend_mode]);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
@@ -108,6 +109,7 @@ impl Sprite {
         }
 
         self.vertices.draw(render_pass);
+        render_pass.pop_debug_group();
     }
 }
 
