@@ -18,6 +18,8 @@
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
+use crate::{BindGroupLayoutBuilder, GraphicsState};
+
 #[derive(Debug)]
 pub struct Autotiles {
     data: AtomicCell<Data>,
@@ -35,7 +37,7 @@ struct Data {
 }
 
 impl Autotiles {
-    pub fn new(graphics_state: &crate::GraphicsState, atlas: &super::Atlas) -> Self {
+    pub fn new(graphics_state: &GraphicsState, atlas: &super::Atlas) -> Self {
         let autotiles = Data {
             autotile_frames: atlas.autotile_frames,
             autotile_region_width: atlas.autotile_width,
@@ -87,8 +89,8 @@ impl Autotiles {
 }
 
 pub fn add_to_bind_group_layout(
-    layout_builder: &mut crate::BindGroupLayoutBuilder,
-) -> &mut crate::BindGroupLayoutBuilder {
+    layout_builder: &mut BindGroupLayoutBuilder,
+) -> &mut BindGroupLayoutBuilder {
     layout_builder.append(
         wgpu::ShaderStages::VERTEX_FRAGMENT,
         wgpu::BindingType::Buffer {

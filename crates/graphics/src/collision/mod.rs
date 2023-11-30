@@ -15,9 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use crate::{
     viewport::{self, Viewport},
-    BindGroupBuilder, BindGroupLayoutBuilder,
+    BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState,
 };
 
 use instance::Instances;
@@ -31,6 +33,7 @@ mod vertex;
 #[derive(Debug)]
 pub struct Collision {
     pub instances: Instances,
+    pub viewport: Arc<Viewport>,
     pub bind_group: wgpu::BindGroup,
 }
 
@@ -145,8 +148,8 @@ pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16, CollisionType)>
 
 impl Collision {
     pub fn new(
-        graphics_state: &crate::GraphicsState,
-        viewport: &Viewport,
+        graphics_state: &GraphicsState,
+        viewport: Arc<Viewport>,
         passages: &luminol_data::Table2,
     ) -> Self {
         let instances = Instances::new(&graphics_state.render_state, passages);
@@ -163,6 +166,7 @@ impl Collision {
 
         Self {
             instances,
+            viewport,
             bind_group,
         }
     }
@@ -178,25 +182,16 @@ impl Collision {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        graphics_state: &'rpass crate::GraphicsState,
-        viewport: &crate::viewport::Viewport,
+        graphics_state: &'rpass GraphicsState,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        #[repr(C)]
-        #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-        struct VertexPushConstant {
-            viewport: [u8; 64],
-        }
-
         render_pass.push_debug_group("tilemap collision renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.collision);
         if graphics_state.push_constants_supported() {
             render_pass.set_push_constants(
                 wgpu::ShaderStages::VERTEX,
                 0,
-                bytemuck::bytes_of(&VertexPushConstant {
-                    viewport: viewport.as_bytes(),
-                }),
+                &self.viewport.as_bytes(),
             );
         }
         self.instances.draw(render_pass);

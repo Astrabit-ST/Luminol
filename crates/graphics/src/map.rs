@@ -24,6 +24,7 @@ use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsStat
 #[derive(Debug)]
 pub struct Map {
     resources: Arc<Resources>,
+    viewport: Arc<Viewport>,
     ani_time: Option<f64>,
 
     pub fog_enabled: bool,
@@ -35,7 +36,6 @@ pub struct Map {
 #[derive(Debug)]
 struct Resources {
     tiles: Tiles,
-    viewport: Viewport,
     panorama: Option<Plane>,
     fog: Option<Plane>,
     collision: Collision,
@@ -52,7 +52,7 @@ struct Callback {
 
 struct OverlayCallback {
     resources: Arc<Resources>,
-    graphics_state: Arc<crate::GraphicsState>,
+    graphics_state: Arc<GraphicsState>,
 
     fog_enabled: bool,
     coll_enabled: bool,
@@ -79,13 +79,12 @@ impl egui_wgpu::CallbackTrait for Callback {
     ) {
         if self.pano_enabled {
             if let Some(panorama) = &self.resources.panorama {
-                panorama.draw(&self.graphics_state, &self.resources.viewport, render_pass);
+                panorama.draw(&self.graphics_state, render_pass);
             }
         }
 
         self.resources.tiles.draw(
             &self.graphics_state,
-            &self.resources.viewport,
             &self.enabled_layers,
             self.selected_layer,
             render_pass,
@@ -102,23 +101,21 @@ impl egui_wgpu::CallbackTrait for OverlayCallback {
     ) {
         if self.fog_enabled {
             if let Some(fog) = &self.resources.fog {
-                fog.draw(&self.graphics_state, &self.resources.viewport, render_pass);
+                fog.draw(&self.graphics_state, render_pass);
             }
         }
 
         if self.coll_enabled {
-            self.resources.collision.draw(
-                &self.graphics_state,
-                &self.resources.viewport,
-                render_pass,
-            );
+            self.resources
+                .collision
+                .draw(&self.graphics_state, render_pass);
         }
     }
 }
 
 impl Map {
     pub fn new(
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
@@ -128,19 +125,19 @@ impl Map {
             .atlas_cache
             .load_atlas(graphics_state, filesystem, tileset)?;
 
-        let viewport = crate::viewport::Viewport::new(
+        let viewport = Arc::new(Viewport::new(
             graphics_state,
             map.width as f32 * 32.,
             map.height as f32 * 32.,
-        );
+        ));
 
-        let tiles = Tiles::new(graphics_state, &viewport, atlas, &map.data);
-        let collision = Collision::new(graphics_state, &viewport, passages);
+        let tiles = Tiles::new(graphics_state, viewport.clone(), atlas, &map.data);
+        let collision = Collision::new(graphics_state, viewport.clone(), passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
                 graphics_state,
-                &viewport,
+                viewport.clone(),
                 graphics_state.texture_loader.load_now_dir(
                     filesystem,
                     "Graphics/Panoramas",
@@ -159,7 +156,7 @@ impl Map {
         let fog = if let Some(ref fog_name) = tileset.fog_name {
             Some(Plane::new(
                 graphics_state,
-                &viewport,
+                viewport.clone(),
                 graphics_state.texture_loader.load_now_dir(
                     filesystem,
                     "Graphics/Fogs",
@@ -179,11 +176,11 @@ impl Map {
         Ok(Self {
             resources: std::sync::Arc::new(Resources {
                 tiles,
-                viewport,
                 panorama,
                 fog,
                 collision,
             }),
+            viewport,
 
             ani_time: None,
 
@@ -217,12 +214,12 @@ impl Map {
     }
 
     pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
-        self.resources.viewport.set_proj(render_state, proj);
+        self.viewport.set_proj(render_state, proj);
     }
 
     pub fn paint(
         &mut self,
-        graphics_state: Arc<crate::GraphicsState>,
+        graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
         selected_layer: Option<usize>,
         rect: egui::Rect,
@@ -259,7 +256,7 @@ impl Map {
 
     pub fn paint_overlay(
         &mut self,
-        graphics_state: Arc<crate::GraphicsState>,
+        graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {

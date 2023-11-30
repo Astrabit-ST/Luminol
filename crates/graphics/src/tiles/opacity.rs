@@ -18,6 +18,8 @@
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
+use crate::{BindGroupLayoutBuilder, GraphicsState};
+
 #[derive(Debug)]
 pub struct Opacity {
     data: AtomicCell<[f32; 4]>, // length has to be a multiple of 4
@@ -25,7 +27,7 @@ pub struct Opacity {
 }
 
 impl Opacity {
-    pub fn new(graphics_state: &crate::GraphicsState) -> Self {
+    pub fn new(graphics_state: &GraphicsState) -> Self {
         let opacity = [1.; 4];
 
         let uniform = (!graphics_state.push_constants_supported()).then(|| {
@@ -71,8 +73,8 @@ impl Opacity {
 }
 
 pub fn add_to_bind_group_layout(
-    layout_builder: &mut crate::BindGroupLayoutBuilder,
-) -> &mut crate::BindGroupLayoutBuilder {
+    layout_builder: &mut BindGroupLayoutBuilder,
+) -> &mut BindGroupLayoutBuilder {
     layout_builder.append(
         wgpu::ShaderStages::VERTEX_FRAGMENT,
         wgpu::BindingType::Buffer {

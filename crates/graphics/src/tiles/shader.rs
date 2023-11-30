@@ -16,11 +16,11 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::instance::Instances;
-use crate::vertex::Vertex;
+use crate::{vertex::Vertex, BindGroupLayouts};
 
 pub fn create_render_pipeline(
     render_state: &egui_wgpu::RenderState,
-    bind_group_layouts: &crate::BindGroupLayouts,
+    bind_group_layouts: &BindGroupLayouts,
 ) -> wgpu::RenderPipeline {
     let push_constants_supported = crate::push_constants_supported(render_state);
 

@@ -17,22 +17,17 @@
 
 use std::sync::Arc;
 
-use crate::{sprite::Sprite, viewport::Viewport, GraphicsState};
+use crate::{quad::Quad, sprite::Sprite, tiles::Atlas, viewport::Viewport, GraphicsState};
 
 #[derive(Debug)]
 pub struct Event {
-    resources: Arc<Resources>,
+    sprite: Arc<Sprite>,
+    viewport: Arc<Viewport>,
     pub sprite_size: egui::Vec2,
 }
 
-#[derive(Debug)]
-struct Resources {
-    sprite: Sprite,
-    viewport: Viewport,
-}
-
 struct Callback {
-    resources: Arc<Resources>,
+    sprite: Arc<Sprite>,
     graphics_state: Arc<GraphicsState>,
 }
 
@@ -51,19 +46,17 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources
-            .sprite
-            .draw(&self.graphics_state, &self.resources.viewport, render_pass);
+        self.sprite.draw(&self.graphics_state, render_pass);
     }
 }
 
 impl Event {
     // code smell, fix
     pub fn new(
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         event: &luminol_data::rpg::Event,
-        atlas: &crate::tiles::Atlas,
+        atlas: &Atlas,
     ) -> anyhow::Result<Option<Self>> {
         let Some(page) = event.pages.first() else {
             anyhow::bail!("event does not have first page");
@@ -85,7 +78,7 @@ impl Event {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport = Viewport::new(graphics_state, 32., 32.);
+            let viewport = Arc::new(Viewport::new(graphics_state, 32., 32.));
 
             (quad, viewport, egui::vec2(32., 32.))
         } else {
@@ -107,47 +100,48 @@ impl Event {
                 ),
                 egui::vec2(cw - 0.02, ch - 0.02),
             );
-            let quad = crate::quad::Quad::new(pos, tex_coords, 0.0);
+            let quad = Quad::new(pos, tex_coords, 0.0);
 
-            let viewport = Viewport::new(graphics_state, cw, ch);
+            let viewport = Arc::new(Viewport::new(graphics_state, cw, ch));
 
             (quad, viewport, egui::vec2(cw, ch))
         };
 
-        let sprite = Sprite::new(
+        let sprite = Arc::new(Sprite::new(
             graphics_state,
-            &viewport,
+            viewport.clone(),
             quads,
             texture,
             page.graphic.blend_type,
             page.graphic.character_hue,
             page.graphic.opacity,
-        );
+        ));
 
         Ok(Some(Self {
-            resources: Arc::new(Resources { sprite, viewport }),
+            sprite,
+            viewport,
             sprite_size,
         }))
     }
 
-    pub fn sprite(&self) -> &crate::sprite::Sprite {
-        &self.resources.sprite
+    pub fn sprite(&self) -> &Sprite {
+        &self.sprite
     }
 
     pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
-        self.resources.viewport.set_proj(render_state, proj);
+        self.viewport.set_proj(render_state, proj);
     }
 
     pub fn paint(
         &self,
-        graphics_state: Arc<crate::GraphicsState>,
+        graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
         painter.add(egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
-                resources: self.resources.clone(),
+                sprite: self.sprite.clone(),
                 graphics_state,
             },
         ));

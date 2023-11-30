@@ -15,9 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::{vertex::Vertex, BindGroupLayouts};
+
 fn create_shader(
     render_state: &egui_wgpu::RenderState,
-    bind_group_layouts: &crate::BindGroupLayouts,
+    bind_group_layouts: &BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> wgpu::RenderPipeline {
     let push_constants_supported = crate::push_constants_supported(render_state);
@@ -86,7 +88,7 @@ fn create_shader(
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: "vs_main",
-                buffers: &[crate::vertex::Vertex::desc()],
+                buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
@@ -108,7 +110,7 @@ fn create_shader(
 
 pub fn create_sprite_shaders(
     render_state: &egui_wgpu::RenderState,
-    bind_group_layouts: &crate::BindGroupLayouts,
+    bind_group_layouts: &BindGroupLayouts,
 ) -> std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline> {
     [
         (

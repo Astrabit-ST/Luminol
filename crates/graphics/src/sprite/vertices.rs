@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::quad::Quad;
+
 #[derive(Debug)]
 pub struct Vertices {
     pub vertex_buffer: wgpu::Buffer,
@@ -23,10 +25,10 @@ pub struct Vertices {
 impl Vertices {
     pub fn from_quads(
         render_state: &egui_wgpu::RenderState,
-        quads: &[crate::quad::Quad],
+        quads: &[Quad],
         extents: wgpu::Extent3d,
     ) -> Self {
-        let (vertex_buffer, _) = crate::quad::Quad::into_buffer(render_state, quads, extents);
+        let (vertex_buffer, _) = Quad::into_buffer(render_state, quads, extents);
         Self { vertex_buffer }
     }
 

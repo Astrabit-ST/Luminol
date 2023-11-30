@@ -28,7 +28,7 @@ impl Plane {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: &Viewport,
+        viewport: Arc<Viewport>,
         texture: Arc<Texture>,
         hue: i32,
         zoom: i32,
@@ -67,10 +67,9 @@ impl Plane {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        graphics_state: &'rpass crate::GraphicsState,
-        viewport: &crate::viewport::Viewport,
+        graphics_state: &'rpass GraphicsState,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        self.sprite.draw(graphics_state, viewport, render_pass);
+        self.sprite.draw(graphics_state, render_pass);
     }
 }

@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use crate::{
     viewport::{self, Viewport},
     BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState,
@@ -39,6 +41,7 @@ pub struct Tiles {
     pub atlas: Atlas,
     pub instances: Instances,
     pub opacity: Opacity,
+    pub viewport: Arc<Viewport>,
 
     pub bind_group: wgpu::BindGroup,
 }
@@ -46,7 +49,7 @@ pub struct Tiles {
 impl Tiles {
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: &Viewport,
+        viewport: Arc<Viewport>,
         atlas: Atlas,
         tiles: &luminol_data::Table3,
     ) -> Self {
@@ -81,6 +84,7 @@ impl Tiles {
             opacity,
 
             bind_group,
+            viewport,
         }
     }
 
@@ -95,8 +99,7 @@ impl Tiles {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        graphics_state: &'rpass crate::GraphicsState,
-        viewport: &crate::viewport::Viewport,
+        graphics_state: &'rpass GraphicsState,
         enabled_layers: &[bool],
         selected_layer: Option<usize>,
         render_pass: &mut wgpu::RenderPass<'rpass>,
@@ -117,7 +120,7 @@ impl Tiles {
                 wgpu::ShaderStages::VERTEX,
                 0,
                 bytemuck::bytes_of(&VertexPushConstant {
-                    viewport: viewport.as_bytes(),
+                    viewport: self.viewport.as_bytes(),
                     autotiles: self.autotiles.as_bytes(),
                 }),
             );

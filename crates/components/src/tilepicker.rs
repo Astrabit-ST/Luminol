@@ -29,6 +29,7 @@ pub struct Tilepicker {
     drag_origin: Option<egui::Pos2>,
 
     resources: Arc<Resources>,
+    viewport: Arc<luminol_graphics::viewport::Viewport>,
     ani_time: Option<f64>,
 }
 
@@ -36,7 +37,6 @@ pub struct Tilepicker {
 struct Resources {
     tiles: luminol_graphics::tiles::Tiles,
     collision: luminol_graphics::collision::Collision,
-    viewport: luminol_graphics::viewport::Viewport,
 }
 
 struct Callback {
@@ -61,20 +61,14 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.tiles.draw(
-            &self.graphics_state,
-            &self.resources.viewport,
-            &[true],
-            None,
-            render_pass,
-        );
+        self.resources
+            .tiles
+            .draw(&self.graphics_state, &[true], None, render_pass);
 
         if self.coll_enabled {
-            self.resources.collision.draw(
-                &self.graphics_state,
-                &self.resources.viewport,
-                render_pass,
-            );
+            self.resources
+                .collision
+                .draw(&self.graphics_state, render_pass);
         }
     }
 }
@@ -136,15 +130,15 @@ impl Tilepicker {
             tilepicker_data,
         );
 
-        let viewport = luminol_graphics::viewport::Viewport::new(
+        let viewport = Arc::new(luminol_graphics::viewport::Viewport::new(
             &update_state.graphics,
             256.,
             atlas.tileset_height as f32 + 32.,
-        );
+        ));
 
         let tiles = luminol_graphics::tiles::Tiles::new(
             &update_state.graphics,
-            &viewport,
+            viewport.clone(),
             atlas,
             &tilepicker_data,
         );
@@ -167,16 +161,13 @@ impl Tilepicker {
             .copy_from_slice(&tileset.passages.as_slice()[384..384 + length]);
         let collision = luminol_graphics::collision::Collision::new(
             &update_state.graphics,
-            &viewport,
+            viewport.clone(),
             &passages,
         );
 
         Ok(Self {
-            resources: Arc::new(Resources {
-                tiles,
-                collision,
-                viewport,
-            }),
+            resources: Arc::new(Resources { tiles, collision }),
+            viewport,
             ani_time: None,
             selected_tiles_left: 0,
             selected_tiles_top: 0,
@@ -233,7 +224,7 @@ impl Tilepicker {
             .intersect(scroll_rect.translate(canvas_rect.min.to_vec2()));
         let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
 
-        self.resources.viewport.set_proj(
+        self.viewport.set_proj(
             &graphics_state.render_state,
             glam::Mat4::orthographic_rh(
                 scroll_rect.left(),

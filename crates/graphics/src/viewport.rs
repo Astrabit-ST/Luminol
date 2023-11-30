@@ -18,6 +18,8 @@
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
+use crate::{BindGroupLayoutBuilder, GraphicsState};
+
 #[derive(Debug)]
 pub struct Viewport {
     data: AtomicCell<glam::Mat4>,
@@ -25,14 +27,14 @@ pub struct Viewport {
 }
 
 impl Viewport {
-    pub fn new(graphics_state: &crate::GraphicsState, width: f32, height: f32) -> Self {
+    pub fn new(graphics_state: &GraphicsState, width: f32, height: f32) -> Self {
         Self::new_proj(
             graphics_state,
             glam::Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0),
         )
     }
 
-    pub fn new_proj(graphics_state: &crate::GraphicsState, proj: glam::Mat4) -> Self {
+    pub fn new_proj(graphics_state: &GraphicsState, proj: glam::Mat4) -> Self {
         let uniform = (!graphics_state.push_constants_supported()).then(|| {
             graphics_state.render_state.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
@@ -82,8 +84,8 @@ impl Viewport {
 }
 
 pub fn add_to_bind_group_layout(
-    layout_builder: &mut crate::BindGroupLayoutBuilder,
-) -> &mut crate::BindGroupLayoutBuilder {
+    layout_builder: &mut BindGroupLayoutBuilder,
+) -> &mut BindGroupLayoutBuilder {
     layout_builder.append(
         wgpu::ShaderStages::VERTEX_FRAGMENT,
         wgpu::BindingType::Buffer {

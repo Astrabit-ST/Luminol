@@ -32,6 +32,7 @@ pub struct Sprite {
     pub graphic: graphic::Graphic,
     pub vertices: vertices::Vertices,
     pub blend_mode: luminol_data::BlendMode,
+    pub viewport: Arc<Viewport>,
 
     pub bind_group: wgpu::BindGroup,
 }
@@ -39,7 +40,7 @@ pub struct Sprite {
 impl Sprite {
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: &Viewport,
+        viewport: Arc<Viewport>,
         quad: Quad,
         texture: Arc<Texture>,
         blend_mode: luminol_data::BlendMode,
@@ -70,16 +71,14 @@ impl Sprite {
             graphic,
             vertices,
             blend_mode,
+            viewport,
+
             bind_group,
         }
     }
 
-    pub fn reupload_verts(
-        &self,
-        render_state: &egui_wgpu::RenderState,
-        quads: &[crate::quad::Quad],
-    ) {
-        let vertices = crate::quad::Quad::into_vertices(quads, self.texture.size());
+    pub fn reupload_verts(&self, render_state: &egui_wgpu::RenderState, quads: &[Quad]) {
+        let vertices = Quad::into_vertices(quads, self.texture.size());
         render_state.queue.write_buffer(
             &self.vertices.vertex_buffer,
             0,
@@ -89,15 +88,18 @@ impl Sprite {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        graphics_state: &'rpass crate::GraphicsState,
-        viewport: &crate::viewport::Viewport,
+        graphics_state: &'rpass GraphicsState,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
         render_pass.set_pipeline(&graphics_state.pipelines.sprites[&self.blend_mode]);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
         if graphics_state.push_constants_supported() {
-            render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());
+            render_pass.set_push_constants(
+                wgpu::ShaderStages::VERTEX,
+                0,
+                &self.viewport.as_bytes(),
+            );
             render_pass.set_push_constants(
                 wgpu::ShaderStages::FRAGMENT,
                 64,

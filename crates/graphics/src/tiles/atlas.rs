@@ -18,8 +18,7 @@ use anyhow::Context;
 use itertools::Itertools;
 
 use super::autotile_ids::AUTOTILES;
-use crate::quad::Quad;
-use crate::{GraphicsState, Texture};
+use crate::{quad::Quad, GraphicsState, Texture};
 
 pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
