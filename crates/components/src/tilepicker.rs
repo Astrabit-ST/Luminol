@@ -19,7 +19,6 @@ use itertools::Itertools;
 use std::sync::Arc;
 use std::time::Duration;
 
-#[derive(Debug)]
 pub struct Tilepicker {
     pub selected_tiles_left: i16,
     pub selected_tiles_top: i16,
@@ -33,7 +32,6 @@ pub struct Tilepicker {
     ani_time: Option<f64>,
 }
 
-#[derive(Debug)]
 struct Resources {
     tiles: luminol_graphics::tiles::Tiles,
     collision: luminol_graphics::collision::Collision,

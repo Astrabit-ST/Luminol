@@ -35,7 +35,6 @@ mod instance;
 pub(crate) mod opacity;
 pub(crate) mod shader;
 
-#[derive(Debug)]
 pub struct Tiles {
     pub autotiles: Autotiles,
     pub atlas: Atlas,

@@ -19,7 +19,6 @@ use std::sync::Arc;
 
 use crate::{quad::Quad, sprite::Sprite, tiles::Atlas, viewport::Viewport, GraphicsState};
 
-#[derive(Debug)]
 pub struct Event {
     sprite: Arc<Sprite>,
     viewport: Arc<Viewport>,

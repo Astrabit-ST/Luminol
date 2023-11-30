@@ -17,7 +17,6 @@
 
 use itertools::Itertools;
 
-#[derive(Debug)]
 pub struct MapView {
     /// Toggle to display the visible region in-game.
     pub visible_display: bool,
@@ -92,25 +91,20 @@ impl MapView {
         let events = map
             .events
             .iter()
-            .map(|(id, e)| {
+            .map(|(id, e)| -> anyhow::Result<_> {
                 let sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,
                     e,
                     &atlas,
-                );
+                )?;
                 let preview_sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,
                     e,
                     &atlas,
-                );
-                let Ok(sprite) = sprite else {
-                    return Err(sprite.unwrap_err());
-                };
-                let Ok(preview_sprite) = preview_sprite else {
-                    return Err(preview_sprite.unwrap_err());
-                };
+                )?;
+
                 Ok(if let Some(sprite) = sprite {
                     preview_sprite.map(|preview_sprite| (id, (sprite, preview_sprite)))
                 } else {

@@ -26,7 +26,6 @@ pub(crate) mod graphic;
 pub(crate) mod shader;
 mod vertices;
 
-#[derive(Debug)]
 pub struct Sprite {
     pub texture: Arc<Texture>,
     pub graphic: graphic::Graphic,

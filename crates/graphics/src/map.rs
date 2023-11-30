@@ -21,7 +21,6 @@ use std::time::Duration;
 
 use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsState, Plane};
 
-#[derive(Debug)]
 pub struct Map {
     resources: Arc<Resources>,
     viewport: Arc<Viewport>,
@@ -33,7 +32,6 @@ pub struct Map {
     pub enabled_layers: Vec<bool>,
 }
 
-#[derive(Debug)]
 struct Resources {
     tiles: Tiles,
     panorama: Option<Plane>,

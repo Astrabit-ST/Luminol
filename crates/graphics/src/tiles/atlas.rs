@@ -43,7 +43,7 @@ pub const AUTOTILE_FRAME_WIDTH: u32 = AUTOTILE_FRAME_COLS * TILE_SIZE; // This i
 use image::GenericImageView;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Atlas {
     pub atlas_texture: Arc<Texture>,
     pub autotile_width: u32,

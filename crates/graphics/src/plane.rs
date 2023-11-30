@@ -18,7 +18,6 @@
 use crate::{quad::Quad, sprite::Sprite, viewport::Viewport, GraphicsState, Texture};
 use std::sync::Arc;
 
-#[derive(Debug)]
 pub struct Plane {
     sprite: Sprite,
 }

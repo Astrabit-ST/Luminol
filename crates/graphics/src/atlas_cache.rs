@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::{tiles::Atlas, GraphicsState};
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct Cache {
     atlases: dashmap::DashMap<usize, Atlas>,
 }

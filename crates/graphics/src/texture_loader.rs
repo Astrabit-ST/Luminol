@@ -39,11 +39,19 @@ pub struct TextureLoader {
     render_state: egui_wgpu::RenderState,
 }
 
-#[derive(Debug)]
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub texture_id: egui::TextureId,
+
+    render_state: egui_wgpu::RenderState,
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        let mut renderer = self.render_state.renderer.write();
+        renderer.free_texture(&self.texture_id);
+    }
 }
 
 pub const TEXTURE_LOADER_ID: &str = egui::load::generate_loader_id!(TextureLoader);
@@ -165,6 +173,8 @@ impl TextureLoader {
                     texture,
                     view,
                     texture_id,
+
+                    render_state: self.render_state.clone(),
                 }),
             );
         }
@@ -227,6 +237,8 @@ impl TextureLoader {
             texture,
             view,
             texture_id,
+
+            render_state: self.render_state.clone(),
         });
         self.loaded_textures.insert(path, texture.clone());
         texture
