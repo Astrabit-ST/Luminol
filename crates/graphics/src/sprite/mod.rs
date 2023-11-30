@@ -32,7 +32,6 @@ pub struct Sprite {
     pub graphic: graphic::Graphic,
     pub vertices: vertices::Vertices,
     pub blend_mode: luminol_data::BlendMode,
-    pub use_push_constants: bool,
 
     pub bind_group: wgpu::BindGroup,
 }
@@ -46,11 +45,10 @@ impl Sprite {
         blend_mode: luminol_data::BlendMode,
         hue: i32,
         opacity: i32,
-        use_push_constants: bool,
     ) -> Self {
         let vertices =
             vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
-        let graphic = graphic::Graphic::new(graphics_state, hue, opacity, use_push_constants);
+        let graphic = graphic::Graphic::new(graphics_state, hue, opacity);
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
@@ -72,7 +70,6 @@ impl Sprite {
             graphic,
             vertices,
             blend_mode,
-            use_push_constants,
             bind_group,
         }
     }
@@ -99,7 +96,7 @@ impl Sprite {
         render_pass.set_pipeline(&graphics_state.pipelines.sprites[&self.blend_mode]);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
-        if self.use_push_constants {
+        if graphics_state.push_constants_supported() {
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, &viewport.as_bytes());
             render_pass.set_push_constants(
                 wgpu::ShaderStages::FRAGMENT,

@@ -32,7 +32,6 @@ mod vertex;
 pub struct Collision {
     pub instances: Instances,
     pub bind_group: wgpu::BindGroup,
-    pub use_push_constants: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -149,12 +148,11 @@ impl Collision {
         graphics_state: &crate::GraphicsState,
         viewport: &Viewport,
         passages: &luminol_data::Table2,
-        use_push_constants: bool,
     ) -> Self {
         let instances = Instances::new(&graphics_state.render_state, passages);
 
         let mut bind_group_builder = BindGroupBuilder::new();
-        if use_push_constants {
+        if graphics_state.push_constants_supported() {
             bind_group_builder.append_buffer(viewport.as_buffer().unwrap());
         }
         let bind_group = bind_group_builder.build(
@@ -166,7 +164,6 @@ impl Collision {
         Self {
             instances,
             bind_group,
-            use_push_constants,
         }
     }
 
@@ -193,7 +190,7 @@ impl Collision {
 
         render_pass.push_debug_group("tilemap collision renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.collision);
-        if self.use_push_constants {
+        if graphics_state.push_constants_supported() {
             render_pass.set_push_constants(
                 wgpu::ShaderStages::VERTEX,
                 0,

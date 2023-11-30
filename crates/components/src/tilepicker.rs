@@ -138,15 +138,8 @@ impl Tilepicker {
 
         let viewport = luminol_graphics::viewport::Viewport::new(
             &update_state.graphics,
-            glam::Mat4::orthographic_rh(
-                0.0,
-                256.,
-                atlas.tileset_height as f32 + 32.,
-                0.0,
-                -1.0,
-                1.0,
-            ),
-            update_state.graphics.push_constants_supported(),
+            256.,
+            atlas.tileset_height as f32 + 32.,
         );
 
         let tiles = luminol_graphics::tiles::Tiles::new(
@@ -154,7 +147,6 @@ impl Tilepicker {
             &viewport,
             atlas,
             &tilepicker_data,
-            update_state.graphics.push_constants_supported(),
         );
 
         let mut passages =
@@ -177,7 +169,6 @@ impl Tilepicker {
             &update_state.graphics,
             &viewport,
             &passages,
-            update_state.graphics.push_constants_supported(),
         );
 
         Ok(Self {

@@ -25,10 +25,10 @@ pub struct Opacity {
 }
 
 impl Opacity {
-    pub fn new(graphics_state: &crate::GraphicsState, use_push_constants: bool) -> Self {
+    pub fn new(graphics_state: &crate::GraphicsState) -> Self {
         let opacity = [1.; 4];
 
-        let uniform = (!use_push_constants).then(|| {
+        let uniform = (!graphics_state.push_constants_supported()).then(|| {
             graphics_state.render_state.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
                     label: Some("tilemap opacity buffer"),

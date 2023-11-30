@@ -39,7 +39,6 @@ pub struct Tiles {
     pub atlas: Atlas,
     pub instances: Instances,
     pub opacity: Opacity,
-    pub use_push_constants: bool,
 
     pub bind_group: wgpu::BindGroup,
 }
@@ -50,15 +49,14 @@ impl Tiles {
         viewport: &Viewport,
         atlas: Atlas,
         tiles: &luminol_data::Table3,
-        use_push_constants: bool,
     ) -> Self {
-        let autotiles = Autotiles::new(graphics_state, &atlas, use_push_constants);
+        let autotiles = Autotiles::new(graphics_state, &atlas);
         let instances = Instances::new(
             &graphics_state.render_state,
             tiles,
             atlas.atlas_texture.size(),
         );
-        let opacity = Opacity::new(graphics_state, use_push_constants);
+        let opacity = Opacity::new(graphics_state);
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
@@ -81,7 +79,6 @@ impl Tiles {
             atlas,
             instances,
             opacity,
-            use_push_constants,
 
             bind_group,
         }
@@ -115,7 +112,7 @@ impl Tiles {
         render_pass.set_pipeline(&graphics_state.pipelines.tiles);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
-        if self.use_push_constants {
+        if graphics_state.push_constants_supported() {
             render_pass.set_push_constants(
                 wgpu::ShaderStages::VERTEX,
                 0,
@@ -135,7 +132,7 @@ impl Tiles {
             if enabled {
                 self.opacity
                     .set_opacity(&graphics_state.render_state, layer, opacity);
-                if self.use_push_constants {
+                if graphics_state.push_constants_supported() {
                     render_pass.set_push_constants(
                         wgpu::ShaderStages::FRAGMENT,
                         64 + 48,

@@ -25,12 +25,15 @@ pub struct Viewport {
 }
 
 impl Viewport {
-    pub fn new(
-        graphics_state: &crate::GraphicsState,
-        proj: glam::Mat4,
-        use_push_constants: bool,
-    ) -> Self {
-        let uniform = (!use_push_constants).then(|| {
+    pub fn new(graphics_state: &crate::GraphicsState, width: f32, height: f32) -> Self {
+        Self::new_proj(
+            graphics_state,
+            glam::Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0),
+        )
+    }
+
+    pub fn new_proj(graphics_state: &crate::GraphicsState, proj: glam::Mat4) -> Self {
+        let uniform = (!graphics_state.push_constants_supported()).then(|| {
             graphics_state.render_state.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
                     label: Some("tilemap viewport buffer"),
@@ -44,6 +47,13 @@ impl Viewport {
             data: AtomicCell::new(proj),
             uniform,
         }
+    }
+
+    pub fn set_width_height(&self, render_state: &egui_wgpu::RenderState, width: f32, height: f32) {
+        self.set_proj(
+            render_state,
+            glam::Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0),
+        )
     }
 
     pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {

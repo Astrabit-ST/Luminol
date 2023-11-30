@@ -35,11 +35,7 @@ struct Data {
 }
 
 impl Autotiles {
-    pub fn new(
-        graphics_state: &crate::GraphicsState,
-        atlas: &super::Atlas,
-        use_push_constants: bool,
-    ) -> Self {
+    pub fn new(graphics_state: &crate::GraphicsState, atlas: &super::Atlas) -> Self {
         let autotiles = Data {
             autotile_frames: atlas.autotile_frames,
             autotile_region_width: atlas.autotile_width,
@@ -48,7 +44,7 @@ impl Autotiles {
             _end_padding: 0,
         };
 
-        let uniform = (!use_push_constants).then(|| {
+        let uniform = (!graphics_state.push_constants_supported()).then(|| {
             graphics_state.render_state.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
                     label: Some("tilemap autotile buffer"),

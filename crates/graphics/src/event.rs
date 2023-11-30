@@ -64,7 +64,6 @@ impl Event {
         filesystem: &impl luminol_filesystem::FileSystem,
         event: &luminol_data::rpg::Event,
         atlas: &crate::tiles::Atlas,
-        use_push_constants: bool,
     ) -> anyhow::Result<Option<Self>> {
         let Some(page) = event.pages.first() else {
             anyhow::bail!("event does not have first page");
@@ -86,11 +85,7 @@ impl Event {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport = crate::viewport::Viewport::new(
-                graphics_state,
-                glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.),
-                use_push_constants,
-            );
+            let viewport = Viewport::new(graphics_state, 32., 32.);
 
             (quad, viewport, egui::vec2(32., 32.))
         } else {
@@ -114,16 +109,12 @@ impl Event {
             );
             let quad = crate::quad::Quad::new(pos, tex_coords, 0.0);
 
-            let viewport = crate::viewport::Viewport::new(
-                graphics_state,
-                glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.),
-                use_push_constants,
-            );
+            let viewport = Viewport::new(graphics_state, cw, ch);
 
             (quad, viewport, egui::vec2(cw, ch))
         };
 
-        let sprite = crate::sprite::Sprite::new(
+        let sprite = Sprite::new(
             graphics_state,
             &viewport,
             quads,
@@ -131,7 +122,6 @@ impl Event {
             page.graphic.blend_type,
             page.graphic.character_hue,
             page.graphic.opacity,
-            use_push_constants,
         );
 
         Ok(Some(Self {

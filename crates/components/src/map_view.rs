@@ -98,14 +98,12 @@ impl MapView {
                     update_state.filesystem,
                     e,
                     &atlas,
-                    update_state.graphics.push_constants_supported(),
                 );
                 let preview_sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,
                     e,
                     &atlas,
-                    update_state.graphics.push_constants_supported(),
                 );
                 let Ok(sprite) = sprite else {
                     return Err(sprite.unwrap_err());
@@ -127,7 +125,6 @@ impl MapView {
             &map,
             tileset,
             &passages,
-            update_state.graphics.push_constants_supported(),
         )?;
 
         Ok(Self {

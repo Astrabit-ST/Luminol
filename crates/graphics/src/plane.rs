@@ -36,7 +36,6 @@ impl Plane {
         opacity: i32,
         map_width: usize,
         map_height: usize,
-        use_push_constants: bool,
     ) -> Self {
         let zoom = zoom as f32 / 100.;
         let map_width = map_width as f32 * 32.;
@@ -61,7 +60,6 @@ impl Plane {
             blend_mode,
             hue,
             opacity,
-            use_push_constants,
         );
 
         Self { sprite }

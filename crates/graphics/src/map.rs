@@ -123,7 +123,6 @@ impl Map {
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
         passages: &luminol_data::Table2,
-        use_push_constants: bool,
     ) -> anyhow::Result<Self> {
         let atlas = graphics_state
             .atlas_cache
@@ -131,30 +130,12 @@ impl Map {
 
         let viewport = crate::viewport::Viewport::new(
             graphics_state,
-            glam::Mat4::orthographic_rh(
-                0.0,
-                map.width as f32 * 32.,
-                map.height as f32 * 32.,
-                0.0,
-                -1.0,
-                1.0,
-            ),
-            use_push_constants,
+            map.width as f32 * 32.,
+            map.height as f32 * 32.,
         );
 
-        let tiles = Tiles::new(
-            graphics_state,
-            &viewport,
-            atlas,
-            &map.data,
-            use_push_constants,
-        );
-        let collision = crate::collision::Collision::new(
-            graphics_state,
-            &viewport,
-            passages,
-            use_push_constants,
-        );
+        let tiles = Tiles::new(graphics_state, &viewport, atlas, &map.data);
+        let collision = Collision::new(graphics_state, &viewport, passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
@@ -171,7 +152,6 @@ impl Map {
                 255,
                 map.width,
                 map.height,
-                use_push_constants,
             ))
         } else {
             None
@@ -191,7 +171,6 @@ impl Map {
                 tileset.fog_opacity,
                 map.width,
                 map.height,
-                use_push_constants,
             ))
         } else {
             None

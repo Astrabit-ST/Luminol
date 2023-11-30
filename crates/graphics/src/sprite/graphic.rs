@@ -34,12 +34,7 @@ struct Data {
 }
 
 impl Graphic {
-    pub fn new(
-        graphics_state: &crate::GraphicsState,
-        hue: i32,
-        opacity: i32,
-        use_push_constants: bool,
-    ) -> Self {
+    pub fn new(graphics_state: &crate::GraphicsState, hue: i32, opacity: i32) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
         let opacity = opacity as f32 / 255.;
         let data = Data {
@@ -49,7 +44,7 @@ impl Graphic {
             _padding: 0,
         };
 
-        let uniform = (!use_push_constants).then(|| {
+        let uniform = (!graphics_state.push_constants_supported()).then(|| {
             graphics_state.render_state.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
                     label: Some("tilemap sprite graphic buffer"),

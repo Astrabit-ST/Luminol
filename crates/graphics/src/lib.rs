@@ -87,7 +87,7 @@ impl GraphicsState {
         let nearest_sampler = render_state
             .device
             .create_sampler(&wgpu::SamplerDescriptor {
-                label: Some("luminol tileset atlas sampler"),
+                label: Some("luminol nearest texture sampler"),
                 mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
                 ..Default::default()
