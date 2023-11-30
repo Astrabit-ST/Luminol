@@ -34,7 +34,7 @@ mod vertex;
 pub struct Collision {
     pub instances: Instances,
     pub viewport: Arc<Viewport>,
-    pub bind_group: wgpu::BindGroup,
+    pub bind_group: Option<wgpu::BindGroup>,
 }
 
 #[derive(Debug, Clone)]
@@ -154,15 +154,15 @@ impl Collision {
     ) -> Self {
         let instances = Instances::new(&graphics_state.render_state, passages);
 
-        let mut bind_group_builder = BindGroupBuilder::new();
-        if !graphics_state.push_constants_supported() {
+        let bind_group = (!graphics_state.push_constants_supported()).then(|| {
+            let mut bind_group_builder = BindGroupBuilder::new();
             bind_group_builder.append_buffer(viewport.as_buffer().unwrap());
-        }
-        let bind_group = bind_group_builder.build(
-            &graphics_state.render_state.device,
-            Some("collision bind group"),
-            &graphics_state.bind_group_layouts.collision,
-        );
+            bind_group_builder.build(
+                &graphics_state.render_state.device,
+                Some("collision bind group"),
+                &graphics_state.bind_group_layouts.collision,
+            )
+        });
 
         Self {
             instances,
@@ -187,13 +187,17 @@ impl Collision {
     ) {
         render_pass.push_debug_group("tilemap collision renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.collision);
-        if graphics_state.push_constants_supported() {
+
+        if let Some(bind_group) = &self.bind_group {
+            render_pass.set_bind_group(0, bind_group, &[])
+        } else {
             render_pass.set_push_constants(
                 wgpu::ShaderStages::VERTEX,
                 0,
                 &self.viewport.as_bytes(),
             );
         }
+
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();
     }
