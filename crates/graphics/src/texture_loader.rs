@@ -31,19 +31,22 @@ use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
 pub struct TextureLoader {
-    loaded_textures: DashMap<String, Arc<Texture>>,
-    load_errors: DashMap<String, anyhow::Error>,
-    unloaded_textures: DashSet<String>,
+    // todo: add a load state enum for loading textures (waiting on file -> file read -> image loaded -> texture loaded)
+    loaded_textures: DashMap<camino::Utf8PathBuf, Arc<Texture>>,
+    load_errors: DashMap<camino::Utf8PathBuf, anyhow::Error>,
+    unloaded_textures: DashSet<camino::Utf8PathBuf>,
 
     render_state: egui_wgpu::RenderState,
 }
 
 pub struct Texture {
-    wgpu: wgpu::Texture,
-    egui: egui::TextureId,
+    pub wgpu: wgpu::Texture,
+    pub egui: egui::TextureId,
 }
 
-pub const LOADER_ID: &str = egui::load::generate_loader_id!(TextureLoader);
+pub const TEXTURE_LOADER_ID: &str = egui::load::generate_loader_id!(TextureLoader);
+
+pub const PROTOCOL: &str = "project://";
 
 // NOTE blindly assumes texture components are 1 byte
 fn texture_size_bytes(texture: &wgpu::Texture) -> u32 {
@@ -84,6 +87,30 @@ fn load_wgpu_texture_from_path(
     ))
 }
 
+fn supported_uri_to_path(uri: &str) -> Option<&camino::Utf8Path> {
+    uri.strip_prefix(PROTOCOL)
+        .map(camino::Utf8Path::new)
+        .filter(|path| path.extension().filter(|&ext| ext != "svg").is_some())
+}
+
+impl Texture {
+    pub fn size(&self) -> wgpu::Extent3d {
+        self.wgpu.size()
+    }
+
+    pub fn size_vec2(&self) -> egui::Vec2 {
+        egui::vec2(self.wgpu.width() as _, self.wgpu.height() as _)
+    }
+
+    pub fn width(&self) -> u32 {
+        self.wgpu.width()
+    }
+
+    pub fn height(&self) -> u32 {
+        self.wgpu.height()
+    }
+}
+
 impl TextureLoader {
     pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         Self {
@@ -95,7 +122,11 @@ impl TextureLoader {
         }
     }
 
-    pub fn load_unloaded_textures(&self, filesystem: &impl luminol_filesystem::FileSystem) {
+    pub fn load_unloaded_textures(
+        &self,
+        ctx: &egui::Context,
+        filesystem: &impl luminol_filesystem::FileSystem,
+    ) {
         // dashmap has no drain method so this is the best we can do
         let mut renderer = self.render_state.renderer.write();
         for path in self.unloaded_textures.iter() {
@@ -107,7 +138,7 @@ impl TextureLoader {
             ) {
                 Ok(t) => t,
                 Err(error) => {
-                    self.load_errors.insert(path.to_string(), error);
+                    self.load_errors.insert(path.clone(), error);
 
                     continue;
                 }
@@ -116,20 +147,25 @@ impl TextureLoader {
             let texture_id = renderer.register_native_texture(
                 &self.render_state.device,
                 &wgpu_texture.create_view(&wgpu::TextureViewDescriptor {
-                    label: Some(&path),
+                    label: Some(path.as_str()),
                     ..Default::default()
                 }),
                 wgpu::FilterMode::Nearest,
             );
 
             self.loaded_textures.insert(
-                path.to_string(),
+                path.clone(),
                 Arc::new(Texture {
                     wgpu: wgpu_texture,
                     egui: texture_id,
                 }),
             );
         }
+
+        if !self.unloaded_textures.is_empty() {
+            ctx.request_repaint(); // if we've loaded textures
+        }
+
         self.unloaded_textures.clear();
     }
 
@@ -150,13 +186,19 @@ impl TextureLoader {
         Ok(self.register_texture(path.to_string(), wgpu_texture))
     }
 
-    pub fn register_texture(&self, uri: String, wgpu_texture: wgpu::Texture) -> Arc<Texture> {
+    pub fn register_texture(
+        &self,
+        path: impl Into<camino::Utf8PathBuf>,
+        wgpu_texture: wgpu::Texture,
+    ) -> Arc<Texture> {
+        let path = path.into();
+
         // todo maybe use custom sampler descriptor?
         // would allow for better texture names in debuggers
         let texture_id = self.render_state.renderer.write().register_native_texture(
             &self.render_state.device,
             &wgpu_texture.create_view(&wgpu::TextureViewDescriptor {
-                label: Some(&uri),
+                label: Some(path.as_str()),
                 ..Default::default()
             }),
             wgpu::FilterMode::Nearest,
@@ -166,21 +208,18 @@ impl TextureLoader {
             wgpu: wgpu_texture,
             egui: texture_id,
         });
-        self.loaded_textures.insert(uri, texture.clone());
+        self.loaded_textures.insert(path, texture.clone());
         texture
     }
 
     pub fn get(&self, path: impl AsRef<camino::Utf8Path>) -> Option<Arc<Texture>> {
-        self.loaded_textures
-            .get(path.as_ref().as_str())
-            .as_deref()
-            .cloned()
+        self.loaded_textures.get(path.as_ref()).as_deref().cloned()
     }
 }
 
 impl egui::load::TextureLoader for TextureLoader {
     fn id(&self) -> &str {
-        LOADER_ID
+        TEXTURE_LOADER_ID
     }
 
     fn load(
@@ -190,31 +229,41 @@ impl egui::load::TextureLoader for TextureLoader {
         _: egui::TextureOptions,
         _: egui::SizeHint,
     ) -> TextureLoadResult {
-        if let Some(texture) = self.loaded_textures.get(uri).as_deref() {
-            let extents = texture.wgpu.size();
+        // check if the uri is supported (starts with project:// and does not end with ".svg")
+        let Some(path) = supported_uri_to_path(uri) else {
+            return Err(LoadError::NotSupported);
+        };
+
+        if let Some(texture) = self.loaded_textures.get(path).as_deref() {
             return Ok(TexturePoll::Ready {
-                texture: SizedTexture::new(
-                    texture.egui,
-                    egui::vec2(extents.width as f32, extents.height as f32),
-                ),
+                texture: SizedTexture::new(texture.egui, texture.size_vec2()),
             });
         }
 
-        if let Some(error) = self.load_errors.get(uri) {
-            if error.is::<image::ImageError>() {
-                return Err(LoadError::NotSupported);
-            } else {
-                return Err(LoadError::Loading(error.to_string()));
+        // if during loading we errored, check if it's because the image crate doesn't support loading this file format
+        if let Some(error) = self.load_errors.get(path) {
+            match error.downcast_ref::<image::ImageError>() {
+                Some(image::ImageError::Decoding(error))
+                    if matches!(error.format_hint(), image::error::ImageFormatHint::Unknown) =>
+                {
+                    return Err(LoadError::NotSupported)
+                }
+                Some(image::ImageError::Unsupported(_)) => return Err(LoadError::NotSupported),
+                _ => return Err(LoadError::Loading(error.to_string())),
             }
         }
 
-        self.unloaded_textures.insert(uri.to_string());
+        self.unloaded_textures.insert(path.to_path_buf());
 
         Ok(TexturePoll::Pending { size: None })
     }
 
     fn forget(&self, uri: &str) {
-        self.loaded_textures.remove(uri);
+        let Some(path) = supported_uri_to_path(uri) else {
+            return;
+        };
+
+        self.loaded_textures.remove(path);
     }
 
     fn forget_all(&self) {
