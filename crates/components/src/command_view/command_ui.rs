@@ -35,11 +35,3 @@ impl super::CommandView {
         todo!()
     }
 }
-
-fn parameter_label(
-    _string: &mut String,
-    _parameter: &luminol_data::commands::Parameter,
-    _command: &mut luminol_data::rpg::EventCommand,
-) -> std::fmt::Result {
-    todo!()
-}

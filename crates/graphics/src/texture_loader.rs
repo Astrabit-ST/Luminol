@@ -39,9 +39,11 @@ pub struct TextureLoader {
     render_state: egui_wgpu::RenderState,
 }
 
+#[derive(Debug)]
 pub struct Texture {
-    pub wgpu: wgpu::Texture,
-    pub egui: egui::TextureId,
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub texture_id: egui::TextureId,
 }
 
 pub const TEXTURE_LOADER_ID: &str = egui::load::generate_loader_id!(TextureLoader);
@@ -95,19 +97,19 @@ fn supported_uri_to_path(uri: &str) -> Option<&camino::Utf8Path> {
 
 impl Texture {
     pub fn size(&self) -> wgpu::Extent3d {
-        self.wgpu.size()
+        self.texture.size()
     }
 
     pub fn size_vec2(&self) -> egui::Vec2 {
-        egui::vec2(self.wgpu.width() as _, self.wgpu.height() as _)
+        egui::vec2(self.texture.width() as _, self.texture.height() as _)
     }
 
     pub fn width(&self) -> u32 {
-        self.wgpu.width()
+        self.texture.width()
     }
 
     pub fn height(&self) -> u32 {
-        self.wgpu.height()
+        self.texture.height()
     }
 }
 
@@ -130,7 +132,7 @@ impl TextureLoader {
         // dashmap has no drain method so this is the best we can do
         let mut renderer = self.render_state.renderer.write();
         for path in self.unloaded_textures.iter() {
-            let wgpu_texture = match load_wgpu_texture_from_path(
+            let texture = match load_wgpu_texture_from_path(
                 filesystem,
                 &self.render_state.device,
                 &self.render_state.queue,
@@ -143,21 +145,23 @@ impl TextureLoader {
                     continue;
                 }
             };
+            let view = texture.create_view(&wgpu::TextureViewDescriptor {
+                label: Some(path.as_str()),
+                ..Default::default()
+            });
 
             let texture_id = renderer.register_native_texture(
                 &self.render_state.device,
-                &wgpu_texture.create_view(&wgpu::TextureViewDescriptor {
-                    label: Some(path.as_str()),
-                    ..Default::default()
-                }),
+                &view,
                 wgpu::FilterMode::Nearest,
             );
 
             self.loaded_textures.insert(
                 path.clone(),
                 Arc::new(Texture {
-                    wgpu: wgpu_texture,
-                    egui: texture_id,
+                    texture,
+                    view,
+                    texture_id,
                 }),
             );
         }
@@ -169,6 +173,16 @@ impl TextureLoader {
         self.unloaded_textures.clear();
     }
 
+    pub fn load_now_dir(
+        &self,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        directory: impl AsRef<camino::Utf8Path>,
+        file: impl AsRef<camino::Utf8Path>,
+    ) -> anyhow::Result<Arc<Texture>> {
+        let path = directory.as_ref().join(file.as_ref());
+        self.load_now(filesystem, path)
+    }
+
     pub fn load_now(
         &self,
         filesystem: &impl luminol_filesystem::FileSystem,
@@ -176,37 +190,40 @@ impl TextureLoader {
     ) -> anyhow::Result<Arc<Texture>> {
         let path = path.as_ref().as_str();
 
-        let wgpu_texture = load_wgpu_texture_from_path(
+        let texture = load_wgpu_texture_from_path(
             filesystem,
             &self.render_state.device,
             &self.render_state.queue,
             path,
         )?;
 
-        Ok(self.register_texture(path.to_string(), wgpu_texture))
+        Ok(self.register_texture(path.to_string(), texture))
     }
 
     pub fn register_texture(
         &self,
         path: impl Into<camino::Utf8PathBuf>,
-        wgpu_texture: wgpu::Texture,
+        texture: wgpu::Texture,
     ) -> Arc<Texture> {
         let path = path.into();
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            label: Some(path.as_str()),
+            ..Default::default()
+        });
 
         // todo maybe use custom sampler descriptor?
         // would allow for better texture names in debuggers
         let texture_id = self.render_state.renderer.write().register_native_texture(
             &self.render_state.device,
-            &wgpu_texture.create_view(&wgpu::TextureViewDescriptor {
-                label: Some(path.as_str()),
-                ..Default::default()
-            }),
+            &view,
             wgpu::FilterMode::Nearest,
         );
 
         let texture = Arc::new(Texture {
-            wgpu: wgpu_texture,
-            egui: texture_id,
+            texture,
+            view,
+            texture_id,
         });
         self.loaded_textures.insert(path, texture.clone());
         texture
@@ -236,7 +253,7 @@ impl egui::load::TextureLoader for TextureLoader {
 
         if let Some(texture) = self.loaded_textures.get(path).as_deref() {
             return Ok(TexturePoll::Ready {
-                texture: SizedTexture::new(texture.egui, texture.size_vec2()),
+                texture: SizedTexture::new(texture.texture_id, texture.size_vec2()),
             });
         }
 
@@ -274,7 +291,7 @@ impl egui::load::TextureLoader for TextureLoader {
     fn byte_size(&self) -> usize {
         self.loaded_textures
             .iter()
-            .map(|texture| texture_size_bytes(&texture.wgpu) as usize)
+            .map(|texture| texture_size_bytes(&texture.texture) as usize)
             .sum()
     }
 }

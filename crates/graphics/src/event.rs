@@ -17,6 +17,8 @@
 
 use std::sync::Arc;
 
+use crate::{sprite::Sprite, viewport::Viewport, GraphicsState};
+
 #[derive(Debug)]
 pub struct Event {
     resources: Arc<Resources>,
@@ -25,13 +27,13 @@ pub struct Event {
 
 #[derive(Debug)]
 struct Resources {
-    sprite: crate::sprite::Sprite,
-    viewport: crate::viewport::Viewport,
+    sprite: Sprite,
+    viewport: Viewport,
 }
 
 struct Callback {
     resources: Arc<Resources>,
-    graphics_state: Arc<crate::GraphicsState>,
+    graphics_state: Arc<GraphicsState>,
 }
 
 //? SAFETY:
@@ -49,7 +51,6 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(1, render_pass);
         self.resources
             .sprite
             .draw(&self.graphics_state, &self.resources.viewport, render_pass);
@@ -70,8 +71,7 @@ impl Event {
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {
-            graphics_state.image_cache.load_wgpu_image(
-                graphics_state,
+            graphics_state.texture_loader.load_now_dir(
                 filesystem,
                 "Graphics/Characters",
                 filename,
@@ -125,6 +125,7 @@ impl Event {
 
         let sprite = crate::sprite::Sprite::new(
             graphics_state,
+            &viewport,
             quads,
             texture,
             page.graphic.blend_type,

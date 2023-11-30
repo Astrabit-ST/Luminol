@@ -21,42 +21,22 @@ use wgpu::util::DeviceExt;
 #[derive(Debug)]
 pub struct Opacity {
     data: AtomicCell<[f32; 4]>, // length has to be a multiple of 4
-    uniform: Option<OpacityUniform>,
-}
-
-#[derive(Debug)]
-struct OpacityUniform {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
+    uniform: Option<wgpu::Buffer>,
 }
 
 impl Opacity {
     pub fn new(graphics_state: &crate::GraphicsState, use_push_constants: bool) -> Self {
         let opacity = [1.; 4];
 
-        let uniform =
-            if !use_push_constants {
-                let buffer = graphics_state.render_state.device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
-                        label: Some("tilemap opacity buffer"),
-                        contents: bytemuck::cast_slice(&[opacity]),
-                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                    },
-                );
-                let bind_group = graphics_state.render_state.device.create_bind_group(
-                    &wgpu::BindGroupDescriptor {
-                        label: Some("tilemap opacity bind group"),
-                        layout: &graphics_state.bind_group_layouts.tile_layer_opacity,
-                        entries: &[wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: buffer.as_entire_binding(),
-                        }],
-                    },
-                );
-                Some(OpacityUniform { buffer, bind_group })
-            } else {
-                None
-            };
+        let uniform = (!use_push_constants).then(|| {
+            graphics_state.render_state.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("tilemap opacity buffer"),
+                    contents: bytemuck::cast_slice(&[opacity]),
+                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+                },
+            )
+        });
 
         Self {
             data: AtomicCell::new(opacity),
@@ -66,6 +46,10 @@ impl Opacity {
 
     pub fn opacity(&self, layer: usize) -> f32 {
         self.data.load()[layer]
+    }
+
+    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
+        self.uniform.as_ref()
     }
 
     pub fn set_opacity(&self, render_state: &egui_wgpu::RenderState, layer: usize, opacity: f32) {
@@ -79,35 +63,23 @@ impl Opacity {
 
     fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
-            render_state.queue.write_buffer(
-                &uniform.buffer,
-                0,
-                bytemuck::cast_slice(&[self.data.load()]),
-            );
-        }
-    }
-
-    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        if let Some(uniform) = &self.uniform {
-            render_pass.set_bind_group(3, &uniform.bind_group, &[]);
+            render_state
+                .queue
+                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
         }
     }
 }
 
-pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
-    render_state
-        .device
-        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("tilemap opacity bind group layout"),
-        })
+pub fn add_to_bind_group_layout(
+    layout_builder: &mut crate::BindGroupLayoutBuilder,
+) -> &mut crate::BindGroupLayoutBuilder {
+    layout_builder.append(
+        wgpu::ShaderStages::VERTEX_FRAGMENT,
+        wgpu::BindingType::Buffer {
+            ty: wgpu::BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        },
+        None,
+    )
 }

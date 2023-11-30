@@ -15,14 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::Plane;
 use std::sync::Arc;
 
 use std::time::Duration;
 
+use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsState, Plane};
+
 #[derive(Debug)]
 pub struct Map {
-    resources: std::sync::Arc<Resources>,
+    resources: Arc<Resources>,
     ani_time: Option<f64>,
 
     pub fog_enabled: bool,
@@ -33,16 +34,16 @@ pub struct Map {
 
 #[derive(Debug)]
 struct Resources {
-    tiles: crate::tiles::Tiles,
-    viewport: crate::viewport::Viewport,
+    tiles: Tiles,
+    viewport: Viewport,
     panorama: Option<Plane>,
     fog: Option<Plane>,
-    collision: crate::collision::Collision,
+    collision: Collision,
 }
 
 struct Callback {
     resources: Arc<Resources>,
-    graphics_state: Arc<crate::GraphicsState>,
+    graphics_state: Arc<GraphicsState>,
 
     pano_enabled: bool,
     enabled_layers: Vec<bool>,
@@ -76,8 +77,6 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(1, render_pass);
-
         if self.pano_enabled {
             if let Some(panorama) = &self.resources.panorama {
                 panorama.draw(&self.graphics_state, &self.resources.viewport, render_pass);
@@ -101,8 +100,6 @@ impl egui_wgpu::CallbackTrait for OverlayCallback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(1, render_pass);
-
         if self.fog_enabled {
             if let Some(fog) = &self.resources.fog {
                 fog.draw(&self.graphics_state, &self.resources.viewport, render_pass);
@@ -110,7 +107,6 @@ impl egui_wgpu::CallbackTrait for OverlayCallback {
         }
 
         if self.coll_enabled {
-            self.resources.viewport.bind(0, render_pass);
             self.resources.collision.draw(
                 &self.graphics_state,
                 &self.resources.viewport,
@@ -133,15 +129,38 @@ impl Map {
             .atlas_cache
             .load_atlas(graphics_state, filesystem, tileset)?;
 
-        let tiles = crate::tiles::Tiles::new(graphics_state, atlas, &map.data, use_push_constants);
-        let collision =
-            crate::collision::Collision::new(graphics_state, passages, use_push_constants);
+        let viewport = crate::viewport::Viewport::new(
+            graphics_state,
+            glam::Mat4::orthographic_rh(
+                0.0,
+                map.width as f32 * 32.,
+                map.height as f32 * 32.,
+                0.0,
+                -1.0,
+                1.0,
+            ),
+            use_push_constants,
+        );
+
+        let tiles = Tiles::new(
+            graphics_state,
+            &viewport,
+            atlas,
+            &map.data,
+            use_push_constants,
+        );
+        let collision = crate::collision::Collision::new(
+            graphics_state,
+            &viewport,
+            passages,
+            use_push_constants,
+        );
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             Some(Plane::new(
                 graphics_state,
-                graphics_state.image_cache.load_wgpu_image(
-                    graphics_state,
+                &viewport,
+                graphics_state.texture_loader.load_now_dir(
                     filesystem,
                     "Graphics/Panoramas",
                     panorama_name,
@@ -160,8 +179,8 @@ impl Map {
         let fog = if let Some(ref fog_name) = tileset.fog_name {
             Some(Plane::new(
                 graphics_state,
-                graphics_state.image_cache.load_wgpu_image(
-                    graphics_state,
+                &viewport,
+                graphics_state.texture_loader.load_now_dir(
                     filesystem,
                     "Graphics/Fogs",
                     fog_name,
@@ -177,18 +196,6 @@ impl Map {
         } else {
             None
         };
-        let viewport = crate::viewport::Viewport::new(
-            graphics_state,
-            glam::Mat4::orthographic_rh(
-                0.0,
-                map.width as f32 * 32.,
-                map.height as f32 * 32.,
-                0.0,
-                -1.0,
-                1.0,
-            ),
-            use_push_constants,
-        );
 
         Ok(Self {
             resources: std::sync::Arc::new(Resources {

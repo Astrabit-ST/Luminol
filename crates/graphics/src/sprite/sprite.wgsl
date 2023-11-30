@@ -20,6 +20,11 @@ struct Graphic {
     _padding: u32,
 }
 
+@group(0) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(0) @binding(1)
+var s_diffuse: sampler;
+
 #if USE_PUSH_CONSTANTS == true
 struct PushConstants {
     viewport: Viewport,
@@ -27,16 +32,12 @@ struct PushConstants {
 }
 var<push_constant> push_constants: PushConstants;
 #else
-@group(1) @binding(0)
+@group(0) @binding(2)
 var<uniform> viewport: Viewport;
-@group(2) @binding(0)
+@group(0) @binding(3)
 var<uniform> graphic: Graphic;
 #endif
 
-@group(0) @binding(0)
-var t_diffuse: texture_2d<f32>;
-@group(0) @binding(1)
-var s_diffuse: sampler;
 
 fn rgb_to_hsv(c: vec3<f32>) -> vec3<f32> {
     let K = vec4<f32>(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);

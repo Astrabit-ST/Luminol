@@ -21,13 +21,7 @@ use wgpu::util::DeviceExt;
 #[derive(Debug)]
 pub struct Graphic {
     data: AtomicCell<Data>,
-    uniform: Option<GraphicUniform>,
-}
-
-#[derive(Debug)]
-struct GraphicUniform {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
+    uniform: Option<wgpu::Buffer>,
 }
 
 #[repr(C)]
@@ -55,29 +49,15 @@ impl Graphic {
             _padding: 0,
         };
 
-        let uniform =
-            if !use_push_constants {
-                let buffer = graphics_state.render_state.device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
-                        label: Some("tilemap sprite graphic buffer"),
-                        contents: bytemuck::cast_slice(&[data]),
-                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                    },
-                );
-                let bind_group = graphics_state.render_state.device.create_bind_group(
-                    &wgpu::BindGroupDescriptor {
-                        label: Some("tilemap sprite graphic bind group"),
-                        layout: &graphics_state.bind_group_layouts.sprite_graphic,
-                        entries: &[wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: buffer.as_entire_binding(),
-                        }],
-                    },
-                );
-                Some(GraphicUniform { buffer, bind_group })
-            } else {
-                None
-            };
+        let uniform = (!use_push_constants).then(|| {
+            graphics_state.render_state.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("tilemap sprite graphic buffer"),
+                    contents: bytemuck::cast_slice(&[data]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                },
+            )
+        });
 
         Self {
             data: AtomicCell::new(data),
@@ -137,37 +117,29 @@ impl Graphic {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state.queue.write_buffer(
-                &uniform.buffer,
-                0,
-                bytemuck::cast_slice(&[self.data.load()]),
-            );
-        }
+    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
+        self.uniform.as_ref()
     }
 
-    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
-            render_pass.set_bind_group(2, &uniform.bind_group, &[]);
+            render_state
+                .queue
+                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
         }
     }
 }
 
-pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
-    render_state
-        .device
-        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("tilemap sprite graphic bind group layout"),
-        })
+pub fn add_to_bind_group_layout(
+    layout_builder: &mut crate::BindGroupLayoutBuilder,
+) -> &mut crate::BindGroupLayoutBuilder {
+    layout_builder.append(
+        wgpu::ShaderStages::VERTEX_FRAGMENT,
+        wgpu::BindingType::Buffer {
+            ty: wgpu::BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        },
+        None,
+    )
 }

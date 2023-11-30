@@ -55,29 +55,31 @@ pub fn create_render_pipeline(
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
-    let pipeline_layout = if crate::push_constants_supported(render_state) {
-        render_state
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Collision Render Pipeline Layout (push constants)"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[
-                    // Viewport
-                    wgpu::PushConstantRange {
-                        stages: wgpu::ShaderStages::VERTEX,
-                        range: 0..64,
-                    },
-                ],
-            })
+    let push_constant_ranges: &[_] = if push_constants_supported {
+        &[
+            // Viewport
+            wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::VERTEX,
+                range: 0..64,
+            },
+        ]
     } else {
+        &[]
+    };
+    let label = if push_constants_supported {
+        "Tilemap Collision Render Pipeline Layout (push constants)"
+    } else {
+        "Tilemap Collision Render Pipeline Layout (uniforms)"
+    };
+
+    let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Collision Render Pipeline Layout (uniforms)"),
-                bind_group_layouts: &[&bind_group_layouts.viewport],
-                push_constant_ranges: &[],
-            })
-    };
+                label: Some(label),
+                bind_group_layouts: &[&bind_group_layouts.collision],
+                push_constant_ranges,
+            });
 
     render_state
         .device

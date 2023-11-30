@@ -15,6 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::{
+    viewport::{self, Viewport},
+    BindGroupBuilder, BindGroupLayoutBuilder,
+};
+
 use instance::Instances;
 use itertools::Itertools;
 use vertex::Vertex;
@@ -26,6 +31,7 @@ mod vertex;
 #[derive(Debug)]
 pub struct Collision {
     pub instances: Instances,
+    pub bind_group: wgpu::BindGroup,
     pub use_push_constants: bool,
 }
 
@@ -141,13 +147,25 @@ pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16, CollisionType)>
 impl Collision {
     pub fn new(
         graphics_state: &crate::GraphicsState,
+        viewport: &Viewport,
         passages: &luminol_data::Table2,
         use_push_constants: bool,
     ) -> Self {
         let instances = Instances::new(&graphics_state.render_state, passages);
 
+        let mut bind_group_builder = BindGroupBuilder::new();
+        if use_push_constants {
+            bind_group_builder.append_buffer(viewport.as_buffer().unwrap());
+        }
+        let bind_group = bind_group_builder.build(
+            &graphics_state.render_state.device,
+            Some("collision bind group"),
+            &graphics_state.bind_group_layouts.tiles,
+        );
+
         Self {
             instances,
+            bind_group,
             use_push_constants,
         }
     }
@@ -187,4 +205,14 @@ impl Collision {
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();
     }
+}
+
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
+    let mut builder = BindGroupLayoutBuilder::new();
+
+    if crate::push_constants_supported(render_state) {
+        viewport::add_to_bind_group_layout(&mut builder);
+    }
+
+    builder.build(&render_state.device, Some("collision bind group layout"))
 }

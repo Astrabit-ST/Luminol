@@ -26,6 +26,11 @@ struct Autotiles {
     max_frame_count: u32,
 }
 
+@group(0) @binding(0)
+var atlas: texture_2d<f32>;
+@group(0) @binding(1)
+var atlas_sampler: sampler;
+
 #if USE_PUSH_CONSTANTS == true
 struct PushConstants {
     viewport: Viewport,
@@ -34,11 +39,11 @@ struct PushConstants {
 }
 var<push_constant> push_constants: PushConstants;
 #else
-@group(1) @binding(0)
+@group(0) @binding(2)
 var<uniform> viewport: Viewport;
-@group(2) @binding(0)
+@group(0) @binding(3)
 var<uniform> autotiles: Autotiles;
-@group(3) @binding(0)
+@group(1) @binding(4)
 var<uniform> opacity: array<vec4<f32>, 1>;
 #endif
 
@@ -107,10 +112,6 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     return out;
 }
 
-@group(0) @binding(0)
-var atlas: texture_2d<f32>;
-@group(0) @binding(1)
-var atlas_sampler: sampler;
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {

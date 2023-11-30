@@ -48,37 +48,36 @@ fn create_shader(
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
-    let pipeline_layout = if push_constants_supported {
-        render_state
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Sprite Pipeline Layout (push constants)"),
-                bind_group_layouts: &[&bind_group_layouts.image_cache_texture],
-                push_constant_ranges: &[
-                    // Viewport
-                    wgpu::PushConstantRange {
-                        stages: wgpu::ShaderStages::VERTEX,
-                        range: 0..64,
-                    },
-                    wgpu::PushConstantRange {
-                        stages: wgpu::ShaderStages::FRAGMENT,
-                        range: 64..(64 + 16),
-                    },
-                ],
-            })
+    let push_constant_ranges: &[_] = if push_constants_supported {
+        &[
+            // Viewport
+            wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::VERTEX,
+                range: 0..64,
+            },
+            wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::FRAGMENT,
+                range: 64..(64 + 16),
+            },
+        ]
     } else {
+        &[]
+    };
+    let label = if push_constants_supported {
+        "Sprite Pipeline Layout (push constants)"
+    } else {
+        "Sprite Pipeline Layout (uniforms)"
+    };
+
+    let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Sprite Pipeline Layout (uniforms)"),
-                bind_group_layouts: &[
-                    &bind_group_layouts.image_cache_texture,
-                    &bind_group_layouts.viewport,
-                    &bind_group_layouts.sprite_graphic,
-                ],
-                push_constant_ranges: &[],
-            })
-    };
+                label: Some(label),
+                bind_group_layouts: &[&bind_group_layouts.sprite],
+                push_constant_ranges,
+            });
+
     render_state
         .device
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {

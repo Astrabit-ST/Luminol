@@ -61,7 +61,6 @@ impl egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(1, render_pass);
         self.resources.tiles.draw(
             &self.graphics_state,
             &self.resources.viewport,
@@ -71,7 +70,6 @@ impl egui_wgpu::CallbackTrait for Callback {
         );
 
         if self.coll_enabled {
-            self.resources.viewport.bind(0, render_pass);
             self.resources.collision.draw(
                 &self.graphics_state,
                 &self.resources.viewport,
@@ -153,6 +151,7 @@ impl Tilepicker {
 
         let tiles = luminol_graphics::tiles::Tiles::new(
             &update_state.graphics,
+            &viewport,
             atlas,
             &tilepicker_data,
             update_state.graphics.push_constants_supported(),
@@ -176,6 +175,7 @@ impl Tilepicker {
             .copy_from_slice(&tileset.passages.as_slice()[384..384 + length]);
         let collision = luminol_graphics::collision::Collision::new(
             &update_state.graphics,
+            &viewport,
             &passages,
             update_state.graphics.push_constants_supported(),
         );

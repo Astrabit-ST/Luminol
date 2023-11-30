@@ -55,39 +55,36 @@ pub fn create_render_pipeline(
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
-    let pipeline_layout = if crate::push_constants_supported(render_state) {
-        render_state
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Render Pipeline Layout (push constants)"),
-                bind_group_layouts: &[&bind_group_layouts.image_cache_texture],
-                push_constant_ranges: &[
-                    // Viewport + Autotiles
-                    wgpu::PushConstantRange {
-                        stages: wgpu::ShaderStages::VERTEX,
-                        range: 0..(64 + 48),
-                    },
-                    // Fragment
-                    wgpu::PushConstantRange {
-                        stages: wgpu::ShaderStages::FRAGMENT,
-                        range: (64 + 48)..(64 + 48 + 4),
-                    },
-                ],
-            })
+    let push_constant_ranges: &[_] = if push_constants_supported {
+        &[
+            // Viewport + Autotiles
+            wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::VERTEX,
+                range: 0..(64 + 48),
+            },
+            // Fragment
+            wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::FRAGMENT,
+                range: (64 + 48)..(64 + 48 + 4),
+            },
+        ]
     } else {
+        &[]
+    };
+    let label = if push_constants_supported {
+        "Tilemap Render Pipeline Layout (push constants)"
+    } else {
+        "Tilemap Render Pipeline Layout (uniforms)"
+    };
+
+    let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Tilemap Render Pipeline Layout (uniforms)"),
-                bind_group_layouts: &[
-                    &bind_group_layouts.image_cache_texture,
-                    &bind_group_layouts.viewport,
-                    &bind_group_layouts.atlas_autotiles,
-                    &bind_group_layouts.tile_layer_opacity,
-                ],
-                push_constant_ranges: &[],
-            })
-    };
+                label: Some(label),
+                bind_group_layouts: &[&bind_group_layouts.tiles],
+                push_constant_ranges,
+            });
 
     render_state
         .device

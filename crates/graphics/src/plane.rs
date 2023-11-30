@@ -15,17 +15,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::{quad::Quad, sprite::Sprite, viewport::Viewport, GraphicsState, Texture};
+use std::sync::Arc;
+
 #[derive(Debug)]
 pub struct Plane {
-    sprite: crate::sprite::Sprite,
+    sprite: Sprite,
 }
 
 impl Plane {
     // FIXME lots of arguments
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        graphics_state: &crate::GraphicsState,
-        texture: std::sync::Arc<crate::image_cache::WgpuTexture>,
+        graphics_state: &GraphicsState,
+        viewport: &Viewport,
+        texture: Arc<Texture>,
         hue: i32,
         zoom: i32,
         blend_mode: luminol_data::BlendMode,
@@ -43,14 +47,15 @@ impl Plane {
             egui::vec2(map_width / zoom, map_height / zoom),
         );
 
-        let quad = crate::quad::Quad::new(
+        let quad = Quad::new(
             egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(map_width, map_height)),
             tex_coords,
             0.0,
         );
 
-        let sprite = crate::sprite::Sprite::new(
+        let sprite = Sprite::new(
             graphics_state,
+            viewport,
             quad,
             texture,
             blend_mode,
