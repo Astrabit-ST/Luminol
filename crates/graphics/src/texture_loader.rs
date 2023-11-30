@@ -79,7 +79,7 @@ fn load_wgpu_texture_from_path(
             dimension: wgpu::TextureDimension::D2,
             mip_level_count: 1,
             sample_count: 1,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -92,7 +92,10 @@ fn load_wgpu_texture_from_path(
 fn supported_uri_to_path(uri: &str) -> Option<&camino::Utf8Path> {
     uri.strip_prefix(PROTOCOL)
         .map(camino::Utf8Path::new)
-        .filter(|path| path.extension().filter(|&ext| ext != "svg").is_some())
+        .filter(|path| {
+            let extension = path.extension();
+            extension.is_some_and(|ext| ext != "svg") || extension.is_none()
+        })
 }
 
 impl Texture {
