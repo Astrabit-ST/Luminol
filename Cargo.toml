@@ -259,6 +259,7 @@ cpal = { git = "https://github.com/DouglasDwyer/cpal.git", rev = "91aeb4d6b02c25
 
 # flume's global spinlock uses `thread::sleep` which doesn't work in the main thread in WebAssembly.
 # This is a patched version with `thread::sleep` removed in WebAssembly builds.
+# See https://github.com/zesterer/flume/issues/137.
 flume = { git = "https://github.com/Astrabit-ST/flume", rev = "d323799efea329c87a3a5a5b45cc76f46da278c2" }
 
 # If you want to use the bleeding edge version of egui and eframe:
