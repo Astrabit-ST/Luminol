@@ -77,7 +77,10 @@ impl App {
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             String::from("Source Han Sans Regular"),
-            egui::FontData::from_static(include_bytes!("../../assets/SourceHanSans-Regular.ttc")),
+            egui::FontData::from_owned(include_bytes_zstd::include_bytes_zstd!(
+                "assets/SourceHanSans-Regular.ttc",
+                20
+            )),
         );
         fonts
             .families
