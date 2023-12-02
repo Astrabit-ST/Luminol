@@ -371,51 +371,108 @@ impl Data {
             panic!("project not loaded")
         };
 
-        write_nil_padded(&actors.borrow().data, filesystem, "Actors.rxdata")
-            .context("while saving actor data")?;
-        write_nil_padded(&animations.borrow().data, filesystem, "Animations.rxdata")
-            .context("while saving animation data")?;
-        write_nil_padded(&armors.borrow().data, filesystem, "Armors.rxdata")
-            .context("while saving armor data")?;
-        write_nil_padded(&classes.borrow().data, filesystem, "Classes.rxdata")
-            .context("while saving class data")?;
-        write_nil_padded(
-            &common_events.borrow().data,
-            filesystem,
-            "CommonEvents.rxdata",
-        )
-        .context("while saving common event data")?;
-        write_nil_padded(&enemies.borrow().data, filesystem, "Enemies.rxdata")
-            .context("while saving enemy data")?;
-        write_nil_padded(&items.borrow().data, filesystem, "Items.rxdata")
-            .context("while saving item data")?;
-        write_nil_padded(&skills.borrow().data, filesystem, "Skills.rxdata")
-            .context("while saving skill data")?;
-        write_nil_padded(&states.borrow().data, filesystem, "States.rxdata")
-            .context("while saving state data")?;
-        write_nil_padded(&tilesets.borrow().data, filesystem, "Tilesets.rxdata")
-            .context("while saving tileset data")?;
-        write_nil_padded(&troops.borrow().data, filesystem, "Troops.rxdata")
-            .context("while saving troop data")?;
-        write_nil_padded(&weapons.borrow().data, filesystem, "Weapons.rxdata")
-            .context("while saving weapons data")?;
+        let mut actors = actors.borrow_mut();
+        if actors.modified {
+            actors.modified = false;
+            write_nil_padded(&actors.data, filesystem, "Actors.rxdata")
+                .context("while saving actor data")?;
+        }
+        let mut animations = animations.borrow_mut();
+        if animations.modified {
+            animations.modified = false;
+            write_nil_padded(&animations.data, filesystem, "Animations.rxdata")
+                .context("while saving animation data")?;
+        }
+        let mut armors = armors.borrow_mut();
+        if armors.modified {
+            armors.modified = false;
+            write_nil_padded(&armors.data, filesystem, "Armors.rxdata")
+                .context("while saving armor data")?;
+        }
+        let mut classes = classes.borrow_mut();
+        if classes.modified {
+            classes.modified = false;
+            write_nil_padded(&classes.data, filesystem, "Classes.rxdata")
+                .context("while saving class data")?;
+        }
+        let mut common_events = common_events.borrow_mut();
+        if common_events.modified {
+            common_events.modified = false;
+            write_nil_padded(&common_events.data, filesystem, "CommonEvents.rxdata")
+                .context("while saving common event data")?;
+        }
+        let mut enemies = enemies.borrow_mut();
+        if enemies.modified {
+            enemies.modified = false;
+            write_nil_padded(&enemies.data, filesystem, "Enemies.rxdata")
+                .context("while saving enemy data")?;
+        }
+        let mut items = items.borrow_mut();
+        if items.modified {
+            items.modified = false;
+            write_nil_padded(&items.data, filesystem, "Items.rxdata")
+                .context("while saving item data")?;
+        }
+        let mut skills = skills.borrow_mut();
+        if skills.modified {
+            skills.modified = false;
+            write_nil_padded(&skills.data, filesystem, "Skills.rxdata")
+                .context("while saving skill data")?;
+        }
+        let mut states = states.borrow_mut();
+        if states.modified {
+            states.modified = false;
+            write_nil_padded(&states.data, filesystem, "States.rxdata")
+                .context("while saving state data")?;
+        }
+        let mut tilesets = tilesets.borrow_mut();
+        if tilesets.modified {
+            tilesets.modified = false;
+            write_nil_padded(&tilesets.data, filesystem, "Tilesets.rxdata")
+                .context("while saving tileset data")?;
+        }
+        let mut troops = troops.borrow_mut();
+        if troops.modified {
+            troops.modified = false;
+            write_nil_padded(&troops.data, filesystem, "Troops.rxdata")
+                .context("while saving troop data")?;
+        }
+        let mut weapons = weapons.borrow_mut();
+        if weapons.modified {
+            weapons.modified = false;
+            write_nil_padded(&weapons.data, filesystem, "Weapons.rxdata")
+                .context("while saving weapons data")?;
+        }
 
-        write_data(&map_infos.borrow().data, filesystem, "MapInfos.rxdata")
-            .context("while saving map infos")?;
+        let mut map_infos = map_infos.borrow_mut();
+        if map_infos.modified {
+            map_infos.modified = false;
+            write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
+                .context("while saving map infos")?;
+        }
 
         let system = system.get_mut();
         system.magic_number = rand::random();
         write_data(system, filesystem, "System.rxdata").context("while saving system")?;
 
-        write_data(
-            &scripts.borrow().data,
-            filesystem,
-            format!("{}.rxdata", config.project.scripts_path),
-        )?;
+        let mut scripts = scripts.borrow_mut();
+        if scripts.modified {
+            scripts.modified = false;
+            write_data(
+                &scripts.data,
+                filesystem,
+                format!("{}.rxdata", config.project.scripts_path),
+            )?;
+        }
 
-        maps.borrow().iter().try_for_each(|(id, map)| {
-            write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
-                .with_context(|| format!("while saving map {id:0>3}"))
+        let mut maps = maps.borrow_mut();
+        maps.iter_mut().try_for_each(|(id, map)| {
+            if map.modified {
+                map.modified = false;
+                write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
+                    .with_context(|| format!("while saving map {id:0>3}"))?
+            }
+            Ok(())
         })
     }
 }

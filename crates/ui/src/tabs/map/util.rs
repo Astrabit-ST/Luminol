@@ -222,4 +222,16 @@ impl super::Tab {
             ));
         Some(new_event_id)
     }
+
+    pub(super) fn push_to_history(
+        &mut self,
+        map: &mut luminol_data::rpg::Map,
+        entry: super::HistoryEntry,
+    ) {
+        map.modified = true;
+        self.redo_history.clear();
+        if self.history.len() == super::HISTORY_SIZE {
+            self.history.pop_front();
+        }
+    }
 }
