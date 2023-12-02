@@ -121,7 +121,7 @@ impl Tab {
             .data
             .get_or_load_map(id, update_state.filesystem);
         let tilesets = update_state.data.tilesets();
-        let tileset = &tilesets[map.tileset_id];
+        let tileset = &tilesets.data[map.tileset_id];
 
         let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
         luminol_graphics::collision::calculate_passages(
@@ -164,7 +164,7 @@ impl Tab {
 impl luminol_core::Tab for Tab {
     fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
         let map_infos = update_state.data.map_infos();
-        format!("Map {}: {}", self.id, map_infos[&self.id].name)
+        format!("Map {}: {}", self.id, map_infos.data[&self.id].name)
     }
 
     fn id(&self) -> egui::Id {
@@ -298,7 +298,7 @@ impl luminol_core::Tab for Tab {
                 // Get the map.
                 let mut map = update_state.data.get_map(self.id);
                 let tilesets = update_state.data.tilesets();
-                let tileset = &tilesets[map.tileset_id];
+                let tileset = &tilesets.data[map.tileset_id];
 
                 // Save the state of the selected layer into the cache
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =

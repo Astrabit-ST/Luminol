@@ -23,19 +23,89 @@ pub mod rpg {
     pub use crate::rmxp::*;
     pub use crate::shared::*;
 
-    pub type Actors = Vec<Actor>;
-    pub type Animations = Vec<Animation>;
-    pub type Armors = Vec<Armor>;
-    pub type Classes = Vec<Class>;
-    pub type CommonEvents = Vec<CommonEvent>;
-    pub type Enemies = Vec<Enemy>;
-    pub type Items = Vec<Item>;
-    pub type MapInfos = std::collections::HashMap<usize, MapInfo>;
-    pub type Skills = Vec<Skill>;
-    pub type States = Vec<State>;
-    pub type Tilesets = Vec<Tileset>;
-    pub type Troops = Vec<Troop>;
-    pub type Weapons = Vec<Weapon>;
+    #[derive(Debug, Default)]
+    pub struct Actors {
+        pub data: Vec<Actor>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Animations {
+        pub data: Vec<Animation>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Armors {
+        pub data: Vec<Armor>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Classes {
+        pub data: Vec<Class>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct CommonEvents {
+        pub data: Vec<CommonEvent>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Enemies {
+        pub data: Vec<Enemy>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Items {
+        pub data: Vec<Item>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct MapInfos {
+        pub data: std::collections::HashMap<usize, MapInfo>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Scripts {
+        pub data: Vec<Script>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Skills {
+        pub data: Vec<Skill>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct States {
+        pub data: Vec<State>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Tilesets {
+        pub data: Vec<Tileset>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Troops {
+        pub data: Vec<Troop>,
+        pub modified: bool,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Weapons {
+        pub data: Vec<Weapon>,
+        pub modified: bool,
+    }
 }
 
 pub use shared::BlendMode;

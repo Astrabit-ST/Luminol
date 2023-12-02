@@ -39,7 +39,7 @@ impl Window {
         ui: &mut egui::Ui,
     ) {
         // We get the map name. It's assumed that there is in fact a map with this ID in mapinfos.
-        let map_info = mapinfos.get_mut(&id).unwrap();
+        let map_info = mapinfos.data.get_mut(&id).unwrap();
 
         // Does this map have children?
         if children_data.contains_key(&id) {
@@ -102,7 +102,7 @@ impl luminol_core::Window for Window {
                         // We preprocess maps to figure out what has nodes and what doesn't.
                         // This should result in an ordered hashmap of all the maps and their children.
                         let mut children_data: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
-                        for (&id, map) in mapinfos.iter() {
+                        for (&id, map) in mapinfos.data.iter() {
                             // Is there an entry for our parent?
                             // If not, then just add a blank vector to it.
                             let children = children_data.entry(map.parent_id).or_default(); // FIXME: this doesn't handle sorting properly

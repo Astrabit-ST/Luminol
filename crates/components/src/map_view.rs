@@ -72,7 +72,7 @@ impl MapView {
             .data
             .get_or_load_map(map_id, update_state.filesystem);
         let tilesets = update_state.data.tilesets();
-        let tileset = &tilesets[map.tileset_id];
+        let tileset = &tilesets.data[map.tileset_id];
 
         let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
         luminol_graphics::collision::calculate_passages(

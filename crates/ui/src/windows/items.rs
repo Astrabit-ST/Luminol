@@ -27,7 +27,7 @@ use luminol_core::Modal;
 /// Database - Items management window.
 pub struct Window {
     // ? Items ?
-    items: luminol_data::rpg::Items,
+    items: Vec<luminol_data::rpg::Item>,
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
@@ -39,7 +39,7 @@ pub struct Window {
 
 impl Window {
     pub fn new(data_cache: &luminol_core::Data) -> Self {
-        let items = data_cache.items().clone();
+        let items = data_cache.items().data.clone();
 
         Self {
             items,
