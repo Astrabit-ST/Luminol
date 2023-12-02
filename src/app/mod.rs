@@ -76,6 +76,27 @@ impl App {
             .clone()
             .expect("wgpu backend not enabled");
 
+        // Add custom fallback fonts for glyphs that egui's default font doesn't support
+        let mut fonts = egui::FontDefinitions::default();
+        fonts.font_data.insert(
+            String::from("Source Han Sans Regular"),
+            egui::FontData::from_owned(include_bytes_zstd::include_bytes_zstd!(
+                "assets/SourceHanSans-Regular.ttc",
+                20
+            )),
+        );
+        fonts
+            .families
+            .get_mut(&egui::FontFamily::Proportional)
+            .unwrap()
+            .push("Source Han Sans Regular".to_owned());
+        fonts
+            .families
+            .get_mut(&egui::FontFamily::Monospace)
+            .unwrap()
+            .push("Source Han Sans Regular".to_owned());
+        cc.egui_ctx.set_fonts(fonts);
+
         #[cfg(not(debug_assertions))]
         render_state.device.on_uncaptured_error(Box::new(|e| {
             use std::fmt::Write;
