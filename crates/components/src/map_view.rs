@@ -83,7 +83,7 @@ impl MapView {
             |x, y, passage| passages[(x, y)] = passage,
         );
 
-        let atlas = update_state.graphics.atlas_cache.load_atlas(
+        let atlas = update_state.graphics.atlas_loader.load_atlas(
             &update_state.graphics,
             update_state.filesystem,
             tileset,

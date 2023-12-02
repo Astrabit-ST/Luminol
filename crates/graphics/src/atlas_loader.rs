@@ -17,11 +17,11 @@
 use crate::{tiles::Atlas, GraphicsState};
 
 #[derive(Default)]
-pub struct Cache {
+pub struct Loader {
     atlases: dashmap::DashMap<usize, Atlas>,
 }
 
-impl Cache {
+impl Loader {
     pub fn load_atlas(
         &self,
         graphics_state: &GraphicsState,

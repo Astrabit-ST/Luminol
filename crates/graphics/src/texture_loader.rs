@@ -28,7 +28,7 @@ use std::sync::Arc;
 
 use wgpu::util::DeviceExt;
 
-pub struct TextureLoader {
+pub struct Loader {
     loaded_textures: DashMap<camino::Utf8PathBuf, Arc<Texture>>,
 
     render_state: egui_wgpu::RenderState,
@@ -98,7 +98,7 @@ impl Texture {
     }
 }
 
-impl TextureLoader {
+impl Loader {
     pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         Self {
             loaded_textures: DashMap::with_capacity(64),

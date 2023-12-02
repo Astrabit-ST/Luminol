@@ -29,21 +29,19 @@ pub mod event;
 pub mod map;
 pub mod plane;
 
-pub mod atlas_cache;
+pub mod atlas_loader;
 
 pub mod texture_loader;
-
-use std::sync::Arc;
 
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;
 
-pub use texture_loader::{Texture, TextureLoader};
+pub use texture_loader::Texture;
 
 pub struct GraphicsState {
-    pub texture_loader: Arc<TextureLoader>,
-    pub atlas_cache: atlas_cache::Cache,
+    pub texture_loader: texture_loader::Loader,
+    pub atlas_loader: atlas_loader::Loader,
     pub render_state: egui_wgpu::RenderState,
 
     pub nearest_sampler: wgpu::Sampler,
@@ -81,8 +79,8 @@ impl GraphicsState {
             ),
         };
 
-        let texture_loader = Arc::new(TextureLoader::new(render_state.clone()));
-        let atlas_cache = atlas_cache::Cache::default();
+        let texture_loader = texture_loader::Loader::new(render_state.clone());
+        let atlas_cache = atlas_loader::Loader::default();
 
         let nearest_sampler = render_state
             .device
@@ -97,7 +95,7 @@ impl GraphicsState {
 
         Self {
             texture_loader,
-            atlas_cache,
+            atlas_loader: atlas_cache,
             render_state,
 
             nearest_sampler,

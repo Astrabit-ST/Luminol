@@ -98,7 +98,7 @@ impl luminol_core::Window for Window {
                 .clicked()
             {
                 update_state.graphics.texture_loader.clear();
-                update_state.graphics.atlas_cache.clear();
+                update_state.graphics.atlas_loader.clear();
                 update_state.bytes_loader.forget_all();
             }
         });

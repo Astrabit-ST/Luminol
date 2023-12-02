@@ -120,7 +120,7 @@ impl Map {
         passages: &luminol_data::Table2,
     ) -> anyhow::Result<Self> {
         let atlas = graphics_state
-            .atlas_cache
+            .atlas_loader
             .load_atlas(graphics_state, filesystem, tileset)?;
 
         let viewport = Arc::new(Viewport::new(
