@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use std::sync::Arc;
+
 use crate::lumi::Lumi;
 #[cfg(feature = "steamworks")]
 use crate::steam::Steamworks;
@@ -38,9 +40,10 @@ pub struct App {
     #[cfg(target_arch = "wasm32")]
     audio: luminol_audio::AudioWrapper,
 
-    graphics: std::sync::Arc<luminol_graphics::GraphicsState>,
+    graphics: Arc<luminol_graphics::GraphicsState>,
     filesystem: luminol_filesystem::project::FileSystem,
     data: luminol_core::Data,
+    bytes_loader: Arc<luminol_filesystem::egui_bytes_loader::Loader>,
 
     toasts: luminol_core::Toasts,
 
@@ -116,8 +119,6 @@ impl App {
         let graphics = std::sync::Arc::new(luminol_graphics::GraphicsState::new(render_state));
 
         egui_extras::install_image_loaders(&cc.egui_ctx);
-        cc.egui_ctx
-            .add_texture_loader(graphics.texture_loader.clone());
 
         let storage = cc.storage.unwrap();
 
@@ -148,6 +149,9 @@ impl App {
             eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
+        let bytes_loader = Arc::new(luminol_filesystem::egui_bytes_loader::Loader::new());
+        cc.egui_ctx.add_bytes_loader(bytes_loader.clone());
+
         let lumi = Lumi::new().expect("failed to load lumi images");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -173,6 +177,8 @@ impl App {
             graphics,
             filesystem,
             data,
+            bytes_loader,
+
             toasts,
             windows: luminol_core::Windows::default(),
             tabs: luminol_core::Tabs::new_with_tabs(
@@ -227,6 +233,7 @@ impl luminol_app::CustomApp for App {
             graphics: self.graphics.clone(),
             filesystem: &mut self.filesystem,
             data: &mut self.data,
+            bytes_loader: self.bytes_loader.clone(),
             edit_windows: &mut luminol_core::EditWindows::default(),
             edit_tabs: &mut luminol_core::EditTabs::default(),
             toasts: &mut self.toasts,
@@ -275,9 +282,7 @@ impl luminol_app::CustomApp for App {
 
         self.lumi.ui(ctx);
 
-        self.graphics
-            .texture_loader
-            .load_unloaded_textures(ctx, &self.filesystem);
+        self.bytes_loader.load_unloaded_files(ctx, &self.filesystem);
 
         #[cfg(feature = "steamworks")]
         self.steamworks.update()

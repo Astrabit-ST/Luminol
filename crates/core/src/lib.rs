@@ -49,6 +49,7 @@ pub struct UpdateState<'res> {
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
     pub data: &'res mut Data, // FIXME: this is also probably wrong
+    pub bytes_loader: Arc<luminol_filesystem::egui_bytes_loader::Loader>,
 
     // TODO: look into std::any?
     // we're using generics here to allow specialization on the type of window
@@ -90,6 +91,7 @@ impl<'res> UpdateState<'res> {
             graphics: self.graphics.clone(),
             filesystem: self.filesystem,
             data: self.data,
+            bytes_loader: self.bytes_loader.clone(),
             edit_tabs: self.edit_tabs,
             edit_windows,
             toasts: self.toasts,
@@ -108,6 +110,7 @@ impl<'res> UpdateState<'res> {
             graphics: self.graphics.clone(),
             filesystem: self.filesystem,
             data: self.data,
+            bytes_loader: self.bytes_loader.clone(),
             edit_tabs,
             edit_windows: self.edit_windows,
             toasts: self.toasts,

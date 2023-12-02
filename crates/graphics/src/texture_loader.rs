@@ -22,19 +22,14 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use dashmap::{DashMap, DashSet};
-
-use egui::load::{LoadError, SizedTexture, TextureLoadResult, TexturePoll};
+use dashmap::DashMap;
 
 use std::sync::Arc;
 
 use wgpu::util::DeviceExt;
 
 pub struct TextureLoader {
-    // todo: add a load state enum for loading textures (waiting on file -> file read -> image loaded -> texture loaded)
     loaded_textures: DashMap<camino::Utf8PathBuf, Arc<Texture>>,
-    load_errors: DashMap<camino::Utf8PathBuf, anyhow::Error>,
-    unloaded_textures: DashSet<camino::Utf8PathBuf>,
 
     render_state: egui_wgpu::RenderState,
 }
@@ -52,18 +47,6 @@ impl Drop for Texture {
         let mut renderer = self.render_state.renderer.write();
         renderer.free_texture(&self.texture_id);
     }
-}
-
-pub const TEXTURE_LOADER_ID: &str = egui::load::generate_loader_id!(TextureLoader);
-
-pub const PROTOCOL: &str = "project://";
-
-// NOTE blindly assumes texture components are 1 byte
-fn texture_size_bytes(texture: &wgpu::Texture) -> u32 {
-    texture.width()
-        * texture.height()
-        * texture.depth_or_array_layers()
-        * texture.format().components() as u32
 }
 
 fn load_wgpu_texture_from_path(
@@ -97,15 +80,6 @@ fn load_wgpu_texture_from_path(
     ))
 }
 
-fn supported_uri_to_path(uri: &str) -> Option<&camino::Utf8Path> {
-    uri.strip_prefix(PROTOCOL)
-        .map(camino::Utf8Path::new)
-        .filter(|path| {
-            let extension = path.extension();
-            extension.is_some_and(|ext| ext != "svg") || extension.is_none()
-        })
-}
-
 impl Texture {
     pub fn size(&self) -> wgpu::Extent3d {
         self.texture.size()
@@ -128,62 +102,9 @@ impl TextureLoader {
     pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         Self {
             loaded_textures: DashMap::with_capacity(64),
-            load_errors: DashMap::new(),
-            unloaded_textures: DashSet::with_capacity(64),
 
             render_state,
         }
-    }
-
-    pub fn load_unloaded_textures(
-        &self,
-        ctx: &egui::Context,
-        filesystem: &impl luminol_filesystem::FileSystem,
-    ) {
-        // dashmap has no drain method so this is the best we can do
-        let mut renderer = self.render_state.renderer.write();
-        for path in self.unloaded_textures.iter() {
-            let texture = match load_wgpu_texture_from_path(
-                filesystem,
-                &self.render_state.device,
-                &self.render_state.queue,
-                path.as_str(),
-            ) {
-                Ok(t) => t,
-                Err(error) => {
-                    self.load_errors.insert(path.clone(), error);
-
-                    continue;
-                }
-            };
-            let view = texture.create_view(&wgpu::TextureViewDescriptor {
-                label: Some(path.as_str()),
-                ..Default::default()
-            });
-
-            let texture_id = renderer.register_native_texture(
-                &self.render_state.device,
-                &view,
-                wgpu::FilterMode::Nearest,
-            );
-
-            self.loaded_textures.insert(
-                path.clone(),
-                Arc::new(Texture {
-                    texture,
-                    view,
-                    texture_id,
-
-                    render_state: self.render_state.clone(),
-                }),
-            );
-        }
-
-        if !self.unloaded_textures.is_empty() {
-            ctx.request_repaint(); // if we've loaded textures
-        }
-
-        self.unloaded_textures.clear();
     }
 
     pub fn load_now_dir(
@@ -247,66 +168,14 @@ impl TextureLoader {
     pub fn get(&self, path: impl AsRef<camino::Utf8Path>) -> Option<Arc<Texture>> {
         self.loaded_textures.get(path.as_ref()).as_deref().cloned()
     }
-}
 
-impl egui::load::TextureLoader for TextureLoader {
-    fn id(&self) -> &str {
-        TEXTURE_LOADER_ID
-    }
-
-    fn load(
-        &self,
-        _: &egui::Context,
-        uri: &str,
-        _: egui::TextureOptions,
-        _: egui::SizeHint,
-    ) -> TextureLoadResult {
-        // check if the uri is supported (starts with project:// and does not end with ".svg")
-        let Some(path) = supported_uri_to_path(uri) else {
-            return Err(LoadError::NotSupported);
-        };
-
-        if let Some(texture) = self.loaded_textures.get(path).as_deref() {
-            return Ok(TexturePoll::Ready {
-                texture: SizedTexture::new(texture.texture_id, texture.size_vec2()),
-            });
-        }
-
-        // if during loading we errored, check if it's because the image crate doesn't support loading this file format
-        if let Some(error) = self.load_errors.get(path) {
-            match error.downcast_ref::<image::ImageError>() {
-                Some(image::ImageError::Decoding(error))
-                    if matches!(error.format_hint(), image::error::ImageFormatHint::Unknown) =>
-                {
-                    return Err(LoadError::NotSupported)
-                }
-                Some(image::ImageError::Unsupported(_)) => return Err(LoadError::NotSupported),
-                _ => return Err(LoadError::Loading(error.to_string())),
-            }
-        }
-
-        self.unloaded_textures.insert(path.to_path_buf());
-
-        Ok(TexturePoll::Pending { size: None })
-    }
-
-    fn forget(&self, uri: &str) {
-        let Some(path) = supported_uri_to_path(uri) else {
-            return;
-        };
-
-        self.loaded_textures.remove(path);
-    }
-
-    fn forget_all(&self) {
-        self.loaded_textures.clear();
-        self.load_errors.clear();
-    }
-
-    fn byte_size(&self) -> usize {
+    pub fn remove(&self, path: impl AsRef<camino::Utf8Path>) -> Option<Arc<Texture>> {
         self.loaded_textures
-            .iter()
-            .map(|texture| texture_size_bytes(&texture.texture) as usize)
-            .sum()
+            .remove(path.as_ref())
+            .map(|(_, value)| value)
+    }
+
+    pub fn clear(&self) {
+        self.loaded_textures.clear();
     }
 }
