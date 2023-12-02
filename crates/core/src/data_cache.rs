@@ -413,7 +413,7 @@ impl Data {
             format!("{}.rxdata", config.project.scripts_path),
         )?;
 
-        maps.get_mut().iter().try_for_each(|(id, map)| {
+        maps.borrow().iter().try_for_each(|(id, map)| {
             write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
                 .with_context(|| format!("while saving map {id:0>3}"))
         })
