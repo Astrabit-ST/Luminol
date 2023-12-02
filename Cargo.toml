@@ -251,6 +251,8 @@ opt-level = 3
 # is merged.
 cpal = { git = "https://github.com/DouglasDwyer/cpal.git", rev = "91aeb4d6b02c25791f636fdf92a73637597c077a" }
 
+alox-48 = { git = "https://github.com/Speak2Erase/alox-48", rev = "50ecb9d9b0a89c1398a11e6de3303f39a01cc69f" }
+
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
 # eframe = { git = "https://github.com/emilk/egui", branch = "master" }
