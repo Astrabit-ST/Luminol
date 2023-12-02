@@ -51,7 +51,9 @@ impl From<AudioFile> for alox_48::Object {
         let mut fields = alox_48::value::RbFields::with_capacity(3);
         fields.insert(
             "name".into(),
-            a.name.map(camino::Utf8PathBuf::into_string).into(),
+            a.name
+                .map_or("".into(), camino::Utf8PathBuf::into_string)
+                .into(),
         );
         fields.insert("volume".into(), alox_48::Value::Integer(a.volume as _));
         fields.insert("pitch".into(), alox_48::Value::Integer(a.pitch as _));
