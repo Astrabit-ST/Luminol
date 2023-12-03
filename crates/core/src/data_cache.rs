@@ -129,14 +129,14 @@ macro_rules! from_defaults {
 }
 
 macro_rules! save {
-    ($fs:ident, $type:ident, $field:ident) => {
+    ($fs:ident, $type:ident, $field:ident) => {{
         let mut borrowed = $field.borrow_mut();
         if borrowed.modified {
             borrowed.modified = false;
             write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
                 .context(format!("while saving {}.rxdata", stringify!($type)))?;
         }
-    };
+    }};
 }
 impl Data {
     /// Load all data required when opening a project.
@@ -298,7 +298,6 @@ impl Data {
         save!(filesystem, CommonEvents, common_events);
         save!(filesystem, Enemies, enemies);
         save!(filesystem, Items, items);
-        save!(filesystem, Scripts, scripts);
         save!(filesystem, Skills, skills);
         save!(filesystem, States, states);
         save!(filesystem, Tilesets, tilesets);
