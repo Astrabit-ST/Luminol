@@ -110,6 +110,34 @@ fn write_nil_padded(
         .map_err(anyhow::Error::from)
 }
 
+macro_rules! load {
+    ($fs:ident, $type:ident) => {
+        RefCell::new(rpg::$type {
+            data: read_nil_padded($fs, format!("{}.rxdata", stringify!($type)))
+                .context(format!("while reading {}.rxdata", stringify!($type)))?,
+            ..Default::default()
+        })
+    };
+}
+macro_rules! from_defaults {
+    ($parent:ident, $child:ident) => {
+        RefCell::new(rpg::$parent {
+            data: vec![rpg::$child::default()],
+            ..Default::default()
+        })
+    };
+}
+
+macro_rules! save {
+    ($fs:ident, $type:ident, $field:ident) => {
+        let mut borrowed = $field.borrow_mut();
+        if borrowed.modified {
+            borrowed.modified = false;
+            write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
+                .context(format!("while saving {}.rxdata", stringify!($type)))?;
+        }
+    };
+}
 impl Data {
     /// Load all data required when opening a project.
     /// Does not load config. That is expected to have been loaded beforehand.
@@ -118,73 +146,14 @@ impl Data {
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &mut luminol_config::project::Config,
     ) -> anyhow::Result<()> {
-        let actors = RefCell::new(rpg::Actors {
-            data: read_nil_padded(filesystem, "Actors.rxdata")
-                .context("while reading actor data")?,
-            ..Default::default()
-        });
-        let animations = RefCell::new(rpg::Animations {
-            data: read_nil_padded(filesystem, "Animations.rxdata")
-                .context("while reading animation data")?,
-            ..Default::default()
-        });
-        let armors = RefCell::new(rpg::Armors {
-            data: read_nil_padded(filesystem, "Armors.rxdata")
-                .context("while reading armor data")?,
-            ..Default::default()
-        });
-        let classes = RefCell::new(rpg::Classes {
-            data: read_nil_padded(filesystem, "Classes.rxdata")
-                .context("while reading class data")?,
-            ..Default::default()
-        });
-        let common_events = RefCell::new(rpg::CommonEvents {
-            data: read_nil_padded(filesystem, "CommonEvents.rxdata")
-                .context("while reading common events")?,
-            ..Default::default()
-        });
-        let enemies = RefCell::new(rpg::Enemies {
-            data: read_nil_padded(filesystem, "Enemies.rxdata")
-                .context("while reading enemy data")?,
-            ..Default::default()
-        });
-        let items = RefCell::new(rpg::Items {
-            data: read_nil_padded(filesystem, "Items.rxdata").context("while reading item data")?,
-            ..Default::default()
-        });
-        let skills = RefCell::new(rpg::Skills {
-            data: read_nil_padded(filesystem, "Skills.rxdata")
-                .context("while reading skill data")?,
-            ..Default::default()
-        });
-        let states = RefCell::new(rpg::States {
-            data: read_nil_padded(filesystem, "States.rxdata")
-                .context("while reading state data")?,
-            ..Default::default()
-        });
-        let tilesets = RefCell::new(rpg::Tilesets {
-            data: read_nil_padded(filesystem, "Tilesets.rxdata")
-                .context("while reading tileset data")?,
-            ..Default::default()
-        });
-        let troops = RefCell::new(rpg::Troops {
-            data: read_nil_padded(filesystem, "Troops.rxdata")
-                .context("while reading troop data")?,
-            ..Default::default()
-        });
-        let weapons = RefCell::new(rpg::Weapons {
-            data: read_nil_padded(filesystem, "Weapons.rxdata")
-                .context("while reading weapon data")?,
-            ..Default::default()
-        });
-
         let map_infos = RefCell::new(rpg::MapInfos {
-            data: read_data(filesystem, "MapInfos.rxdata").context("while reading map infos")?,
+            data: read_data(filesystem, "MapInfos.rxdata")
+                .context("while reading MapInfos.rxdata")?,
             ..Default::default()
         });
 
         let mut system = read_data::<rpg::System>(filesystem, "System.rxdata")
-            .context("while reading system")?;
+            .context("while reading System.rxdata")?;
         system.magic_number = rand::random();
 
         let system = RefCell::new(system);
@@ -220,21 +189,21 @@ impl Data {
         let maps = RefCell::new(std::collections::HashMap::with_capacity(32));
 
         *self = Self::Loaded {
-            actors,
-            animations,
-            armors,
-            classes,
-            common_events,
-            enemies,
-            items,
+            actors: load!(filesystem, Actors),
+            animations: load!(filesystem, Animations),
+            armors: load!(filesystem, Armors),
+            classes: load!(filesystem, Classes),
+            common_events: load!(filesystem, CommonEvents),
+            enemies: load!(filesystem, Enemies),
+            items: load!(filesystem, Items),
+            skills: load!(filesystem, Skills),
+            states: load!(filesystem, States),
+            tilesets: load!(filesystem, Tilesets),
+            troops: load!(filesystem, Troops),
+            weapons: load!(filesystem, Weapons),
             map_infos,
-            scripts,
-            skills,
-            states,
             system,
-            tilesets,
-            troops,
-            weapons,
+            scripts,
             maps,
         };
 
@@ -246,55 +215,6 @@ impl Data {
     }
 
     pub fn from_defaults() -> Self {
-        let actors = RefCell::new(rpg::Actors {
-            data: vec![rpg::Actor::default()],
-            ..Default::default()
-        });
-        let animations = RefCell::new(rpg::Animations {
-            data: vec![rpg::Animation::default()],
-            ..Default::default()
-        });
-        let armors = RefCell::new(rpg::Armors {
-            data: vec![rpg::Armor::default()],
-            ..Default::default()
-        });
-        let classes = RefCell::new(rpg::Classes {
-            data: vec![rpg::Class::default()],
-            ..Default::default()
-        });
-        let common_events = RefCell::new(rpg::CommonEvents {
-            data: vec![rpg::CommonEvent::default()],
-            ..Default::default()
-        });
-        let enemies = RefCell::new(rpg::Enemies {
-            data: vec![rpg::Enemy::default()],
-            ..Default::default()
-        });
-        let items = RefCell::new(rpg::Items {
-            data: vec![rpg::Item::default()],
-            ..Default::default()
-        });
-        let skills = RefCell::new(rpg::Skills {
-            data: vec![rpg::Skill::default()],
-            ..Default::default()
-        });
-        let states = RefCell::new(rpg::States {
-            data: vec![rpg::State::default()],
-            ..Default::default()
-        });
-        let tilesets = RefCell::new(rpg::Tilesets {
-            data: vec![rpg::Tileset::default()],
-            ..Default::default()
-        });
-        let troops = RefCell::new(rpg::Troops {
-            data: vec![rpg::Troop::default()],
-            ..Default::default()
-        });
-        let weapons = RefCell::new(rpg::Weapons {
-            data: vec![rpg::Weapon::default()],
-            ..Default::default()
-        });
-
         let mut map_infos = std::collections::HashMap::with_capacity(16);
         map_infos.insert(1, rpg::MapInfo::default());
         let map_infos = RefCell::new(rpg::MapInfos {
@@ -319,21 +239,21 @@ impl Data {
         let maps = RefCell::new(maps);
 
         Self::Loaded {
-            actors,
-            animations,
-            armors,
-            classes,
-            common_events,
-            enemies,
-            items,
+            actors: from_defaults!(Actors, Actor),
+            animations: from_defaults!(Animations, Animation),
+            armors: from_defaults!(Armors, Armor),
+            classes: from_defaults!(Classes, Class),
+            common_events: from_defaults!(CommonEvents, CommonEvent),
+            enemies: from_defaults!(Enemies, Enemy),
+            items: from_defaults!(Items, Item),
+            skills: from_defaults!(Skills, Skill),
+            states: from_defaults!(States, State),
+            tilesets: from_defaults!(Tilesets, Tileset),
+            troops: from_defaults!(Troops, Troop),
+            weapons: from_defaults!(Weapons, Weapon),
             map_infos,
-            scripts,
-            skills,
-            states,
             system,
-            tilesets,
-            troops,
-            weapons,
+            scripts,
             maps,
         }
     }
@@ -361,119 +281,69 @@ impl Data {
             scripts,
             skills,
             states,
-            system,
             tilesets,
             troops,
             weapons,
+            system,
             maps,
         } = self
         else {
             panic!("project not loaded")
         };
 
-        let mut actors = actors.borrow_mut();
-        if actors.modified {
-            actors.modified = false;
-            write_nil_padded(&actors.data, filesystem, "Actors.rxdata")
-                .context("while saving actor data")?;
-        }
-        let mut animations = animations.borrow_mut();
-        if animations.modified {
-            animations.modified = false;
-            write_nil_padded(&animations.data, filesystem, "Animations.rxdata")
-                .context("while saving animation data")?;
-        }
-        let mut armors = armors.borrow_mut();
-        if armors.modified {
-            armors.modified = false;
-            write_nil_padded(&armors.data, filesystem, "Armors.rxdata")
-                .context("while saving armor data")?;
-        }
-        let mut classes = classes.borrow_mut();
-        if classes.modified {
-            classes.modified = false;
-            write_nil_padded(&classes.data, filesystem, "Classes.rxdata")
-                .context("while saving class data")?;
-        }
-        let mut common_events = common_events.borrow_mut();
-        if common_events.modified {
-            common_events.modified = false;
-            write_nil_padded(&common_events.data, filesystem, "CommonEvents.rxdata")
-                .context("while saving common event data")?;
-        }
-        let mut enemies = enemies.borrow_mut();
-        if enemies.modified {
-            enemies.modified = false;
-            write_nil_padded(&enemies.data, filesystem, "Enemies.rxdata")
-                .context("while saving enemy data")?;
-        }
-        let mut items = items.borrow_mut();
-        if items.modified {
-            items.modified = false;
-            write_nil_padded(&items.data, filesystem, "Items.rxdata")
-                .context("while saving item data")?;
-        }
-        let mut skills = skills.borrow_mut();
-        if skills.modified {
-            skills.modified = false;
-            write_nil_padded(&skills.data, filesystem, "Skills.rxdata")
-                .context("while saving skill data")?;
-        }
-        let mut states = states.borrow_mut();
-        if states.modified {
-            states.modified = false;
-            write_nil_padded(&states.data, filesystem, "States.rxdata")
-                .context("while saving state data")?;
-        }
-        let mut tilesets = tilesets.borrow_mut();
-        if tilesets.modified {
-            tilesets.modified = false;
-            write_nil_padded(&tilesets.data, filesystem, "Tilesets.rxdata")
-                .context("while saving tileset data")?;
-        }
-        let mut troops = troops.borrow_mut();
-        if troops.modified {
-            troops.modified = false;
-            write_nil_padded(&troops.data, filesystem, "Troops.rxdata")
-                .context("while saving troop data")?;
-        }
-        let mut weapons = weapons.borrow_mut();
-        if weapons.modified {
-            weapons.modified = false;
-            write_nil_padded(&weapons.data, filesystem, "Weapons.rxdata")
-                .context("while saving weapons data")?;
-        }
+        save!(filesystem, Actors, actors);
+        save!(filesystem, Animations, animations);
+        save!(filesystem, Armors, armors);
+        save!(filesystem, Classes, classes);
+        save!(filesystem, CommonEvents, common_events);
+        save!(filesystem, Enemies, enemies);
+        save!(filesystem, Items, items);
+        save!(filesystem, Scripts, scripts);
+        save!(filesystem, Skills, skills);
+        save!(filesystem, States, states);
+        save!(filesystem, Tilesets, tilesets);
+        save!(filesystem, Troops, troops);
+        save!(filesystem, Weapons, weapons);
 
-        let mut map_infos = map_infos.borrow_mut();
-        if map_infos.modified {
-            map_infos.modified = false;
-            write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
-                .context("while saving map infos")?;
-        }
-
-        let system = system.get_mut();
-        system.magic_number = rand::random();
-        write_data(system, filesystem, "System.rxdata").context("while saving system")?;
-
-        let mut scripts = scripts.borrow_mut();
-        if scripts.modified {
-            scripts.modified = false;
-            write_data(
-                &scripts.data,
-                filesystem,
-                format!("{}.rxdata", config.project.scripts_path),
-            )?;
-        }
-
-        let mut maps = maps.borrow_mut();
-        maps.iter_mut().try_for_each(|(id, map)| {
-            if map.modified {
-                map.modified = false;
-                write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
-                    .with_context(|| format!("while saving map {id:0>3}"))?
+        {
+            let mut map_infos = map_infos.borrow_mut();
+            if map_infos.modified {
+                map_infos.modified = false;
+                write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
+                    .context("while saving MapInfos.rxdata")?;
             }
-            Ok(())
-        })
+        }
+
+        {
+            let system = system.get_mut();
+            system.magic_number = rand::random();
+            write_data(system, filesystem, "System.rxdata")
+                .context("while saving System.rxdata")?;
+        }
+
+        {
+            let mut scripts = scripts.borrow_mut();
+            if scripts.modified {
+                scripts.modified = false;
+                write_data(
+                    &scripts.data,
+                    filesystem,
+                    format!("{}.rxdata", config.project.scripts_path),
+                )?;
+            }
+        }
+
+        {
+            let mut maps = maps.borrow_mut();
+            maps.iter_mut().try_for_each(|(id, map)| {
+                if map.modified {
+                    map.modified = false;
+                    write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
+                        .with_context(|| format!("while saving map {id:0>3}"))?
+                }
+                Ok(())
+            })
+        }
     }
 }
 

@@ -23,87 +23,37 @@ pub mod rpg {
     pub use crate::rmxp::*;
     pub use crate::shared::*;
 
-    #[derive(Debug, Default)]
-    pub struct Actors {
-        pub data: Vec<Actor>,
-        pub modified: bool,
-    }
+    macro_rules! basic_container {
+    ($($parent:ident, $child:ident),* $(,)?) => {
+        $(
+            #[derive(Debug, Default)]
+            pub struct $parent {
+                pub data: Vec<$child>,
+                pub modified: bool,
+            }
+         )*
+    };
+}
 
-    #[derive(Debug, Default)]
-    pub struct Animations {
-        pub data: Vec<Animation>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Armors {
-        pub data: Vec<Armor>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Classes {
-        pub data: Vec<Class>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct CommonEvents {
-        pub data: Vec<CommonEvent>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Enemies {
-        pub data: Vec<Enemy>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Items {
-        pub data: Vec<Item>,
-        pub modified: bool,
+    basic_container! {
+        Actors, Actor,
+        Animations, Animation,
+        Armors, Armor,
+        Classes, Class,
+        CommonEvents, CommonEvent,
+        Enemies, Enemy,
+        Items, Item,
+        Scripts, Script,
+        Skills, Skill,
+        States, State,
+        Tilesets, Tileset,
+        Troops, Troop,
+        Weapons, Weapon,
     }
 
     #[derive(Debug, Default)]
     pub struct MapInfos {
         pub data: std::collections::HashMap<usize, MapInfo>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Scripts {
-        pub data: Vec<Script>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Skills {
-        pub data: Vec<Skill>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct States {
-        pub data: Vec<State>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Tilesets {
-        pub data: Vec<Tileset>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Troops {
-        pub data: Vec<Troop>,
-        pub modified: bool,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Weapons {
-        pub data: Vec<Weapon>,
         pub modified: bool,
     }
 }
