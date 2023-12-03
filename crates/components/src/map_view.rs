@@ -17,7 +17,6 @@
 
 use itertools::Itertools;
 
-#[derive(Debug)]
 pub struct MapView {
     /// Toggle to display the visible region in-game.
     pub visible_display: bool,
@@ -84,7 +83,7 @@ impl MapView {
             |x, y, passage| passages[(x, y)] = passage,
         );
 
-        let atlas = update_state.graphics.atlas_cache.load_atlas(
+        let atlas = update_state.graphics.atlas_loader.load_atlas(
             &update_state.graphics,
             update_state.filesystem,
             tileset,
@@ -92,27 +91,20 @@ impl MapView {
         let events = map
             .events
             .iter()
-            .map(|(id, e)| {
+            .map(|(id, e)| -> anyhow::Result<_> {
                 let sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,
                     e,
                     &atlas,
-                    update_state.graphics.push_constants_supported(),
-                );
+                )?;
                 let preview_sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,
                     e,
                     &atlas,
-                    update_state.graphics.push_constants_supported(),
-                );
-                let Ok(sprite) = sprite else {
-                    return Err(sprite.unwrap_err());
-                };
-                let Ok(preview_sprite) = preview_sprite else {
-                    return Err(preview_sprite.unwrap_err());
-                };
+                )?;
+
                 Ok(if let Some(sprite) = sprite {
                     preview_sprite.map(|preview_sprite| (id, (sprite, preview_sprite)))
                 } else {
@@ -127,7 +119,6 @@ impl MapView {
             &map,
             tileset,
             &passages,
-            update_state.graphics.push_constants_supported(),
         )?;
 
         Ok(Self {
@@ -159,7 +150,8 @@ impl MapView {
         })
     }
 
-    // FIXME
+    // FIXME lots of arguments
+    #[allow(clippy::too_many_arguments)]
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,

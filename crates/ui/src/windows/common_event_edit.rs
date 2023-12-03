@@ -116,7 +116,7 @@ struct CommonEventTab {
 }
 
 impl luminol_core::Tab for CommonEventTab {
-    fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
+    fn name(&self, _update_state: &luminol_core::UpdateState<'_>) -> String {
         format!("{}: {}", self.event.name, self.event.id)
     }
 

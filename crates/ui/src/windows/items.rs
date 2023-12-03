@@ -22,8 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_core::Modal;
-
 /// Database - Items management window.
 pub struct Window {
     // ? Items ?
@@ -31,10 +29,10 @@ pub struct Window {
     selected_item: usize,
 
     // ? Icon Graphic Picker ?
-    icon_picker: Option<luminol_modals::graphic_picker::Modal>,
+    _icon_picker: Option<luminol_modals::graphic_picker::Modal>,
 
     // ? Menu Sound Effect Picker ?
-    menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
+    _menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
 }
 
 impl Window {
@@ -45,9 +43,9 @@ impl Window {
             items,
             selected_item: 0,
 
-            icon_picker: None,
+            _icon_picker: None,
 
-            menu_se_picker: None,
+            _menu_se_picker: None,
         }
     }
 }
@@ -72,9 +70,9 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let _selected_item = &self.items[self.selected_item];
-        let animations = update_state.data.animations();
+        let _animations = update_state.data.animations();
 
-        let common_events = update_state.data.common_events();
+        let _common_events = update_state.data.common_events();
 
         /*#[allow(clippy::cast_sign_loss)]
         if animations

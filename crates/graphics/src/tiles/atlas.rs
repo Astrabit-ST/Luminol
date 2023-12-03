@@ -18,7 +18,7 @@ use anyhow::Context;
 use itertools::Itertools;
 
 use super::autotile_ids::AUTOTILES;
-use crate::quad::Quad;
+use crate::{quad::Quad, GraphicsState, Texture};
 
 pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32
@@ -43,9 +43,9 @@ pub const AUTOTILE_FRAME_WIDTH: u32 = AUTOTILE_FRAME_COLS * TILE_SIZE; // This i
 use image::GenericImageView;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Atlas {
-    pub atlas_texture: Arc<crate::image_cache::WgpuTexture>,
+    pub atlas_texture: Arc<Texture>,
     pub autotile_width: u32,
     pub tileset_height: u32,
     pub autotile_frames: [u32; AUTOTILE_AMOUNT as usize],
@@ -53,16 +53,15 @@ pub struct Atlas {
 
 impl Atlas {
     pub fn new(
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
     ) -> anyhow::Result<Atlas> {
         let tileset_img = match &tileset.tileset_name {
             Some(tileset_name) => {
-                let tileset_img = graphics_state
-                    .image_cache
-                    .load_image(filesystem, "Graphics/Tilesets", tileset_name)
-                    .context("while loading atlas tileset")?;
+                let file = filesystem
+                    .read(camino::Utf8Path::new("Graphics/Tilesets").join(tileset_name))?;
+                let tileset_img = image::load_from_memory(&file)?;
                 Some(tileset_img.to_rgba8())
             }
             None => None,
@@ -81,8 +80,8 @@ impl Atlas {
                     Ok(None)
                 } else {
                     graphics_state
-                        .image_cache
-                        .load_wgpu_image(graphics_state, filesystem, "Graphics/Autotiles", s)
+                        .texture_loader
+                        .load_now_dir(filesystem, "Graphics/Autotiles", s)
                         .map(Some)
                 }
             })
@@ -92,7 +91,7 @@ impl Atlas {
         let autotile_frames = std::array::from_fn(|i| {
             autotiles[i]
                 .as_deref()
-                .map(crate::image_cache::WgpuTexture::width)
+                .map(Texture::width)
                 // Why unwrap with a width of 96? Even though the autotile doesn't exist, it still has an effective width on the atlas of one frame.
                 // Further rendering code breaks down with an autotile width of 0, anyway.
                 .unwrap_or(96)
@@ -154,7 +153,7 @@ impl Atlas {
                     dimension: wgpu::TextureDimension::D2,
                     mip_level_count: 1,
                     sample_count: 1,
-                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     usage: wgpu::TextureUsages::COPY_SRC
                         | wgpu::TextureUsages::COPY_DST
                         | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -254,17 +253,13 @@ impl Atlas {
             }
         }
 
-        let bind_group =
-            crate::image_cache::Cache::create_texture_bind_group(graphics_state, &atlas_texture);
-        let atlas_texture = Arc::new(crate::image_cache::WgpuTexture::new(
-            atlas_texture,
-            bind_group,
-        ));
+        let atlas_texture = graphics_state
+            .texture_loader
+            .register_texture(format!("tileset_atlases/{}", tileset.id), atlas_texture);
 
         Ok(Atlas {
             atlas_texture,
             autotile_width,
-
             tileset_height,
             autotile_frames,
         })
@@ -279,10 +274,10 @@ impl Atlas {
         let is_under_autotiles =
             !is_autotile && tile_u32 - TOTAL_AUTOTILE_ID_AMOUNT < max_tiles_under_autotiles;
 
-        let atlas_tile_position = if tile_u32 < AUTOTILE_ID_AMOUNT
-            || tile_u32
-                >= (MAX_SIZE / TILESET_WIDTH) * ROWS_UNDER_AUTOTILES_TIMES_COLUMNS
-                    + TOTAL_AUTOTILE_ID_AMOUNT
+        let atlas_tile_position = if !(AUTOTILE_ID_AMOUNT
+            ..(MAX_SIZE / TILESET_WIDTH) * ROWS_UNDER_AUTOTILES_TIMES_COLUMNS
+                + TOTAL_AUTOTILE_ID_AMOUNT)
+            .contains(&tile_u32)
         {
             egui::pos2(0., 0.)
         } else if is_autotile {
@@ -327,10 +322,6 @@ impl Atlas {
             ),
             0.0,
         )
-    }
-
-    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        self.atlas_texture.bind(render_pass);
     }
 }
 

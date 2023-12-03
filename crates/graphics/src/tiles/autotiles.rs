@@ -18,16 +18,12 @@
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
+use crate::{BindGroupLayoutBuilder, GraphicsState};
+
 #[derive(Debug)]
 pub struct Autotiles {
     data: AtomicCell<Data>,
-    uniform: Option<AutotilesUniform>,
-}
-
-#[derive(Debug)]
-struct AutotilesUniform {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
+    uniform: Option<wgpu::Buffer>,
 }
 
 #[repr(C, align(16))]
@@ -41,11 +37,7 @@ struct Data {
 }
 
 impl Autotiles {
-    pub fn new(
-        graphics_state: &crate::GraphicsState,
-        atlas: &super::Atlas,
-        use_push_constants: bool,
-    ) -> Self {
+    pub fn new(graphics_state: &GraphicsState, atlas: &super::Atlas) -> Self {
         let autotiles = Data {
             autotile_frames: atlas.autotile_frames,
             autotile_region_width: atlas.autotile_width,
@@ -54,29 +46,15 @@ impl Autotiles {
             _end_padding: 0,
         };
 
-        let uniform =
-            if !use_push_constants {
-                let buffer = graphics_state.render_state.device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
-                        label: Some("tilemap autotile buffer"),
-                        contents: bytemuck::cast_slice(&[autotiles]),
-                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                    },
-                );
-                let bind_group = graphics_state.render_state.device.create_bind_group(
-                    &wgpu::BindGroupDescriptor {
-                        label: Some("tilemap autotiles bind group"),
-                        layout: &graphics_state.bind_group_layouts.atlas_autotiles,
-                        entries: &[wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: buffer.as_entire_binding(),
-                        }],
-                    },
-                );
-                Some(AutotilesUniform { buffer, bind_group })
-            } else {
-                None
-            };
+        let uniform = (!graphics_state.push_constants_supported()).then(|| {
+            graphics_state.render_state.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("tilemap autotile buffer"),
+                    contents: bytemuck::cast_slice(&[autotiles]),
+                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+                },
+            )
+        });
 
         Autotiles {
             data: AtomicCell::new(autotiles),
@@ -97,39 +75,29 @@ impl Autotiles {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state.queue.write_buffer(
-                &uniform.buffer,
-                0,
-                bytemuck::cast_slice(&[self.data.load()]),
-            );
-        }
+    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
+        self.uniform.as_ref()
     }
 
-    pub fn bind<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
-            render_pass.set_bind_group(2, &uniform.bind_group, &[]);
+            render_state
+                .queue
+                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
         }
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
-    render_state
-        .device
-        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("tilemap autotiles bind group layout"),
-        })
+pub fn add_to_bind_group_layout(
+    layout_builder: &mut BindGroupLayoutBuilder,
+) -> &mut BindGroupLayoutBuilder {
+    layout_builder.append(
+        wgpu::ShaderStages::VERTEX_FRAGMENT,
+        wgpu::BindingType::Buffer {
+            ty: wgpu::BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        },
+        None,
+    )
 }

@@ -15,6 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
+use crate::{
+    viewport::{self, Viewport},
+    BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState,
+};
+
 use instance::Instances;
 use itertools::Itertools;
 use vertex::Vertex;
@@ -26,7 +33,8 @@ mod vertex;
 #[derive(Debug)]
 pub struct Collision {
     pub instances: Instances,
-    pub use_push_constants: bool,
+    pub viewport: Arc<Viewport>,
+    pub bind_group: Option<wgpu::BindGroup>,
 }
 
 #[derive(Debug, Clone)]
@@ -140,15 +148,26 @@ pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16, CollisionType)>
 
 impl Collision {
     pub fn new(
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
+        viewport: Arc<Viewport>,
         passages: &luminol_data::Table2,
-        use_push_constants: bool,
     ) -> Self {
-        let instances = Instances::new(&graphics_state.render_state, &passages);
+        let instances = Instances::new(&graphics_state.render_state, passages);
+
+        let bind_group = (!graphics_state.push_constants_supported()).then(|| {
+            let mut bind_group_builder = BindGroupBuilder::new();
+            bind_group_builder.append_buffer(viewport.as_buffer().unwrap());
+            bind_group_builder.build(
+                &graphics_state.render_state.device,
+                Some("collision bind group"),
+                &graphics_state.bind_group_layouts.collision,
+            )
+        });
 
         Self {
             instances,
-            use_push_constants,
+            viewport,
+            bind_group,
         }
     }
 
@@ -163,28 +182,35 @@ impl Collision {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        graphics_state: &'rpass crate::GraphicsState,
-        viewport: &crate::viewport::Viewport,
+        graphics_state: &'rpass GraphicsState,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        #[repr(C)]
-        #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-        struct VertexPushConstant {
-            viewport: [u8; 64],
-        }
-
         render_pass.push_debug_group("tilemap collision renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.collision);
-        if self.use_push_constants {
+
+        if let Some(bind_group) = &self.bind_group {
+            render_pass.set_bind_group(0, bind_group, &[])
+        } else {
             render_pass.set_push_constants(
                 wgpu::ShaderStages::VERTEX,
                 0,
-                bytemuck::bytes_of(&VertexPushConstant {
-                    viewport: viewport.as_bytes(),
-                }),
+                &self.viewport.as_bytes(),
             );
         }
+
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();
     }
+}
+
+pub fn create_bind_group_layout(
+    render_state: &luminol_egui_wgpu::RenderState,
+) -> wgpu::BindGroupLayout {
+    let mut builder = BindGroupLayoutBuilder::new();
+
+    if !crate::push_constants_supported(render_state) {
+        viewport::add_to_bind_group_layout(&mut builder);
+    }
+
+    builder.build(&render_state.device, Some("collision bind group layout"))
 }

@@ -305,7 +305,7 @@ impl luminol_core::Tab for Tab {
                     self.view.selected_layer
                 {
                     self.layer_cache
-                        .copy_from_slice(&map.data.layer_as_slice(tile_layer));
+                        .copy_from_slice(map.data.layer_as_slice(tile_layer));
                 }
 
                 let response = self.view.ui(
@@ -320,7 +320,7 @@ impl luminol_core::Tab for Tab {
                     is_focused,
                 );
 
-                let layers_max = map.data.zsize();
+                let _layers_max = map.data.zsize();
                 let map_x = self.view.cursor_pos.x as i32;
                 let map_y = self.view.cursor_pos.y as i32;
 

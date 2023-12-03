@@ -18,52 +18,49 @@
 use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
+use crate::{BindGroupLayoutBuilder, GraphicsState};
+
 #[derive(Debug)]
 pub struct Viewport {
     data: AtomicCell<glam::Mat4>,
-    uniform: Option<ViewportUniform>,
-}
-
-#[derive(Debug)]
-struct ViewportUniform {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
+    uniform: Option<wgpu::Buffer>,
 }
 
 impl Viewport {
-    pub fn new(
-        graphics_state: &crate::GraphicsState,
-        proj: glam::Mat4,
-        use_push_constants: bool,
-    ) -> Self {
-        let uniform =
-            if !use_push_constants {
-                let buffer = graphics_state.render_state.device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
-                        label: Some("tilemap viewport buffer"),
-                        contents: bytemuck::cast_slice(&[proj]),
-                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                    },
-                );
-                let bind_group = graphics_state.render_state.device.create_bind_group(
-                    &wgpu::BindGroupDescriptor {
-                        label: Some("tilemap viewport uniform bind group"),
-                        layout: &graphics_state.bind_group_layouts.viewport,
-                        entries: &[wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: buffer.as_entire_binding(),
-                        }],
-                    },
-                );
-                Some(ViewportUniform { buffer, bind_group })
-            } else {
-                None
-            };
+    pub fn new(graphics_state: &GraphicsState, width: f32, height: f32) -> Self {
+        Self::new_proj(
+            graphics_state,
+            glam::Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0),
+        )
+    }
+
+    pub fn new_proj(graphics_state: &GraphicsState, proj: glam::Mat4) -> Self {
+        let uniform = (!graphics_state.push_constants_supported()).then(|| {
+            graphics_state.render_state.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("tilemap viewport buffer"),
+                    contents: bytemuck::cast_slice(&[proj]),
+                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+                },
+            )
+        });
 
         Self {
             data: AtomicCell::new(proj),
             uniform,
         }
+    }
+
+    pub fn set_width_height(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        width: f32,
+        height: f32,
+    ) {
+        self.set_proj(
+            render_state,
+            glam::Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0),
+        )
     }
 
     pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
@@ -78,43 +75,29 @@ impl Viewport {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state.queue.write_buffer(
-                &uniform.buffer,
-                0,
-                bytemuck::cast_slice(&[self.data.load()]),
-            );
-        }
+    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
+        self.uniform.as_ref()
     }
 
-    pub fn bind<'rpass>(
-        &'rpass self,
-        group_index: u32,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
-            render_pass.set_bind_group(group_index, &uniform.bind_group, &[]);
+            render_state
+                .queue
+                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
         }
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
-    render_state
-        .device
-        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("tilemap viewport bind group layout"),
-        })
+pub fn add_to_bind_group_layout(
+    layout_builder: &mut BindGroupLayoutBuilder,
+) -> &mut BindGroupLayoutBuilder {
+    layout_builder.append(
+        wgpu::ShaderStages::VERTEX_FRAGMENT,
+        wgpu::BindingType::Buffer {
+            ty: wgpu::BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        },
+        None,
+    )
 }

@@ -132,7 +132,7 @@ impl ScriptTab {
 }
 
 impl luminol_core::Tab for ScriptTab {
-    fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
+    fn name(&self, _update_state: &luminol_core::UpdateState<'_>) -> String {
         self.index.to_string()
     }
 

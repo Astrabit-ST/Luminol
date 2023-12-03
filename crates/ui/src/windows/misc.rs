@@ -39,7 +39,7 @@ impl luminol_core::Window for EguiInspection {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
             .open(open)
@@ -64,7 +64,7 @@ impl luminol_core::Window for EguiMemory {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
             .open(open)

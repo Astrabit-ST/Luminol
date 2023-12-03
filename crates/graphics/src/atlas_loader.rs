@@ -14,18 +14,17 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::{tiles::Atlas, GraphicsState};
 
-use crate::tiles::Atlas;
-
-#[derive(Default, Debug)]
-pub struct Cache {
+#[derive(Default)]
+pub struct Loader {
     atlases: dashmap::DashMap<usize, Atlas>,
 }
 
-impl Cache {
+impl Loader {
     pub fn load_atlas(
         &self,
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
     ) -> anyhow::Result<Atlas> {
@@ -38,7 +37,7 @@ impl Cache {
 
     pub fn reload_atlas(
         &self,
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
     ) -> anyhow::Result<Atlas> {

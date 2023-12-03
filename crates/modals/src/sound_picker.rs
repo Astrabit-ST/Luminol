@@ -23,26 +23,26 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub struct Modal {
-    tab: luminol_components::SoundTab,
+    _tab: luminol_components::SoundTab,
 }
 
 impl luminol_core::Modal for Modal {
     type Data = luminol_data::rpg::AudioFile;
 
     fn button(
-        this: &mut Option<Self>,
-        ui: &mut egui::Ui,
-        data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _this: &mut Option<Self>,
+        _ui: &mut egui::Ui,
+        _data: &mut Self::Data,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         todo!()
     }
 
     fn show(
-        this: &mut Option<Self>,
-        ctx: &egui::Context,
-        data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _this: &mut Option<Self>,
+        _ctx: &egui::Context,
+        _data: &mut Self::Data,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         todo!()
     }

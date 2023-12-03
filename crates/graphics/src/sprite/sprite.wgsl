@@ -20,6 +20,11 @@ struct Graphic {
     _padding: u32,
 }
 
+@group(0) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(0) @binding(1)
+var s_diffuse: sampler;
+
 #if USE_PUSH_CONSTANTS == true
 struct PushConstants {
     viewport: Viewport,
@@ -27,16 +32,12 @@ struct PushConstants {
 }
 var<push_constant> push_constants: PushConstants;
 #else
-@group(1) @binding(0)
+@group(0) @binding(2)
 var<uniform> viewport: Viewport;
-@group(2) @binding(0)
+@group(0) @binding(3)
 var<uniform> graphic: Graphic;
 #endif
 
-@group(0) @binding(0)
-var t_diffuse: texture_2d<f32>;
-@group(0) @binding(1)
-var s_diffuse: sampler;
 
 fn rgb_to_hsv(c: vec3<f32>) -> vec3<f32> {
     let K = vec4<f32>(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -77,6 +78,19 @@ fn vs_main(
     return out;
 }
 
+// 0-1 sRGB gamma  from  0-1 linear
+fn gamma_from_linear_rgb(rgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = rgb < vec3<f32>(0.0031308);
+    let lower = rgb * vec3<f32>(12.92);
+    let higher = vec3<f32>(1.055) * pow(rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
+    return select(higher, lower, cutoff);
+}
+
+// 0-1 sRGBA gamma  from  0-1 linear
+fn gamma_from_linear_rgba(linear_rgba: vec4<f32>) -> vec4<f32> {
+    return vec4<f32>(gamma_from_linear_rgb(linear_rgba.rgb), linear_rgba.a);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
@@ -97,5 +111,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         tex_sample = vec4<f32>(hsv_to_rgb(hsv), tex_sample.a);
     }
 
-    return tex_sample;
+    return gamma_from_linear_rgba(tex_sample);
 }

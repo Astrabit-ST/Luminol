@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use std::sync::Arc;
+
 use crate::lumi::Lumi;
 #[cfg(feature = "steamworks")]
 use crate::steam::Steamworks;
@@ -38,9 +40,10 @@ pub struct App {
     #[cfg(target_arch = "wasm32")]
     audio: luminol_audio::AudioWrapper,
 
-    graphics: std::sync::Arc<luminol_graphics::GraphicsState>,
+    graphics: Arc<luminol_graphics::GraphicsState>,
     filesystem: luminol_filesystem::project::FileSystem,
     data: luminol_core::Data,
+    bytes_loader: Arc<luminol_filesystem::egui_bytes_loader::Loader>,
 
     toasts: luminol_core::Toasts,
 
@@ -53,7 +56,7 @@ pub struct App {
     toolbar: luminol_core::ToolbarState,
 
     #[cfg(not(target_arch = "wasm32"))]
-    runtime: tokio::runtime::Runtime,
+    _runtime: tokio::runtime::Runtime,
 
     #[cfg(feature = "steamworks")]
     steamworks: Steamworks,
@@ -136,6 +139,8 @@ impl App {
 
         let graphics = std::sync::Arc::new(luminol_graphics::GraphicsState::new(render_state));
 
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         let storage = cc.storage.unwrap();
 
         let mut global_config =
@@ -166,6 +171,9 @@ impl App {
             .map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
+        let bytes_loader = Arc::new(luminol_filesystem::egui_bytes_loader::Loader::new());
+        cc.egui_ctx.add_bytes_loader(bytes_loader.clone());
+
         let lumi = Lumi::new().expect("failed to load lumi images");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -191,6 +199,8 @@ impl App {
             graphics,
             filesystem,
             data,
+            bytes_loader,
+
             toasts,
             windows: luminol_core::Windows::default(),
             tabs: luminol_core::Tabs::new_with_tabs(
@@ -203,7 +213,7 @@ impl App {
             toolbar: luminol_core::ToolbarState::default(),
 
             #[cfg(not(target_arch = "wasm32"))]
-            runtime,
+            _runtime: runtime,
 
             #[cfg(feature = "steamworks")]
             steamworks,
@@ -241,6 +251,7 @@ impl luminol_eframe::App for App {
             graphics: self.graphics.clone(),
             filesystem: &mut self.filesystem,
             data: &mut self.data,
+            bytes_loader: self.bytes_loader.clone(),
             edit_windows: &mut luminol_core::EditWindows::default(),
             edit_tabs: &mut luminol_core::EditTabs::default(),
             toasts: &mut self.toasts,
@@ -288,6 +299,8 @@ impl luminol_eframe::App for App {
         self.toasts.show(ctx);
 
         self.lumi.ui(ctx);
+
+        self.bytes_loader.load_unloaded_files(ctx, &self.filesystem);
 
         #[cfg(feature = "steamworks")]
         self.steamworks.update()

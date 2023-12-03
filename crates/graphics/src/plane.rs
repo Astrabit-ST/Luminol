@@ -15,23 +15,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-#[derive(Debug)]
+use crate::{quad::Quad, sprite::Sprite, viewport::Viewport, GraphicsState, Texture};
+use std::sync::Arc;
+
 pub struct Plane {
-    sprite: crate::sprite::Sprite,
+    sprite: Sprite,
 }
 
 impl Plane {
-    // FIXME: holy SHIT
+    // FIXME lots of arguments
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        graphics_state: &crate::GraphicsState,
-        texture: std::sync::Arc<crate::image_cache::WgpuTexture>,
+        graphics_state: &GraphicsState,
+        viewport: Arc<Viewport>,
+        texture: Arc<Texture>,
         hue: i32,
         zoom: i32,
         blend_mode: luminol_data::BlendMode,
         opacity: i32,
         map_width: usize,
         map_height: usize,
-        use_push_constants: bool,
     ) -> Self {
         let zoom = zoom as f32 / 100.;
         let map_width = map_width as f32 * 32.;
@@ -42,20 +45,20 @@ impl Plane {
             egui::vec2(map_width / zoom, map_height / zoom),
         );
 
-        let quad = crate::quad::Quad::new(
+        let quad = Quad::new(
             egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(map_width, map_height)),
             tex_coords,
             0.0,
         );
 
-        let sprite = crate::sprite::Sprite::new(
+        let sprite = Sprite::new(
             graphics_state,
+            viewport,
             quad,
             texture,
             blend_mode,
             hue,
             opacity,
-            use_push_constants,
         );
 
         Self { sprite }
@@ -63,10 +66,9 @@ impl Plane {
 
     pub fn draw<'rpass>(
         &'rpass self,
-        graphics_state: &'rpass crate::GraphicsState,
-        viewport: &crate::viewport::Viewport,
+        graphics_state: &'rpass GraphicsState,
         render_pass: &mut wgpu::RenderPass<'rpass>,
     ) {
-        self.sprite.draw(graphics_state, viewport, render_pass);
+        self.sprite.draw(graphics_state, render_pass);
     }
 }
