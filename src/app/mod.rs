@@ -63,7 +63,7 @@ impl App {
     /// Called once before the first frame.
     #[must_use]
     pub fn new(
-        cc: &eframe::CreationContext<'_>,
+        cc: &luminol_eframe::CreationContext<'_>,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -100,11 +100,11 @@ impl App {
 
             let mut message_description = String::new();
             match e {
-                eframe::wgpu::Error::OutOfMemory { source } => {
+                wgpu::Error::OutOfMemory { source } => {
                     message_description.push_str("wgpu error: Out of memory\n");
                     writeln!(message_description, "{source:#?}").unwrap();
                 }
-                eframe::wgpu::Error::Validation {
+                wgpu::Error::Validation {
                     source,
                     description,
                 } => {
@@ -138,7 +138,8 @@ impl App {
 
         let storage = cc.storage.unwrap();
 
-        let mut global_config = eframe::get_value(storage, "SavedState").unwrap_or_default();
+        let mut global_config =
+            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default();
         let mut project_config = None;
 
         let mut filesystem = luminol_filesystem::project::FileSystem::new();
@@ -161,8 +162,8 @@ impl App {
             }
         }
 
-        let style =
-            eframe::get_value(storage, "EguiStyle").map_or_else(|| cc.egui_ctx.style(), |s| s);
+        let style = luminol_eframe::get_value(storage, "EguiStyle")
+            .map_or_else(|| cc.egui_ctx.style(), |s| s);
         cc.egui_ctx.set_style(style.clone());
 
         let lumi = Lumi::new().expect("failed to load lumi images");
@@ -210,13 +211,9 @@ impl App {
     }
 }
 
-impl luminol_app::CustomApp for App {
+impl luminol_eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn custom_update(
-        &mut self,
-        ctx: &eframe::egui::Context,
-        frame: &mut luminol_app::CustomFrame<'_>,
-    ) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut luminol_eframe::Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
@@ -295,14 +292,10 @@ impl luminol_app::CustomApp for App {
         #[cfg(feature = "steamworks")]
         self.steamworks.update()
     }
-}
-
-impl eframe::App for App {
-    luminol_app::app_use_custom_update!();
 
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, "SavedState", &self.global_config);
+    fn save(&mut self, storage: &mut dyn luminol_eframe::Storage) {
+        luminol_eframe::set_value(storage, "SavedState", &self.global_config);
     }
 
     fn persist_egui_memory(&self) -> bool {

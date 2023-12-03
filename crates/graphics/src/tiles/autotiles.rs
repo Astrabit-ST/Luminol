@@ -84,7 +84,7 @@ impl Autotiles {
         }
     }
 
-    pub fn inc_ani_index(&self, render_state: &egui_wgpu::RenderState) {
+    pub fn inc_ani_index(&self, render_state: &luminol_egui_wgpu::RenderState) {
         let data = self.data.load();
         self.data.store(Data {
             ani_index: data.ani_index.wrapping_add(1),
@@ -97,7 +97,7 @@ impl Autotiles {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state.queue.write_buffer(
                 &uniform.buffer,
@@ -114,7 +114,9 @@ impl Autotiles {
     }
 }
 
-pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(
+    render_state: &luminol_egui_wgpu::RenderState,
+) -> wgpu::BindGroupLayout {
     render_state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

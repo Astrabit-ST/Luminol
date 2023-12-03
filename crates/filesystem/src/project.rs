@@ -19,6 +19,7 @@ use crate::FileSystem as _;
 use crate::{archiver, host, list, path_cache};
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
+#[cfg(target_arch = "wasm32")]
 use itertools::Itertools;
 
 #[derive(Default)]
@@ -482,7 +483,7 @@ impl FileSystem {
                 .filter(|(_, k)| k.as_str() != idb_key.as_str())
                 .cloned()
                 .collect();
-            projects.push_front((root_path.join(&entry.path).to_string(), idb_key));
+            projects.push_front((root_path.to_string(), idb_key));
             global_config.recent_projects = projects;
         }
 

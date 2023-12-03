@@ -66,7 +66,7 @@ impl Viewport {
         }
     }
 
-    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
         let data = self.data.load();
         if data != proj {
             self.data.store(proj);
@@ -78,7 +78,7 @@ impl Viewport {
         bytemuck::cast(self.data.load())
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state.queue.write_buffer(
                 &uniform.buffer,
@@ -99,7 +99,9 @@ impl Viewport {
     }
 }
 
-pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(
+    render_state: &luminol_egui_wgpu::RenderState,
+) -> wgpu::BindGroupLayout {
     render_state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
