@@ -27,7 +27,7 @@ luminol-filesystem.workspace = true
 egui.workspace = true
 strum.workspace = true
 
-egui-wgpu.workspace = true
+luminol-egui-wgpu.workspace = true
 
 wgpu.workspace = true
 glam.workspace = true

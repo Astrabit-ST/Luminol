@@ -62,7 +62,7 @@ impl Autotiles {
         }
     }
 
-    pub fn inc_ani_index(&self, render_state: &egui_wgpu::RenderState) {
+    pub fn inc_ani_index(&self, render_state: &luminol_egui_wgpu::RenderState) {
         let data = self.data.load();
         self.data.store(Data {
             ani_index: data.ani_index.wrapping_add(1),
@@ -79,7 +79,7 @@ impl Autotiles {
         self.uniform.as_ref()
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state
                 .queue

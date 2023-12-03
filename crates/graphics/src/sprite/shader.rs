@@ -18,7 +18,7 @@
 use crate::{vertex::Vertex, BindGroupLayouts};
 
 fn create_shader(
-    render_state: &egui_wgpu::RenderState,
+    render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> wgpu::RenderPipeline {
@@ -109,7 +109,7 @@ fn create_shader(
 }
 
 pub fn create_sprite_shaders(
-    render_state: &egui_wgpu::RenderState,
+    render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
 ) -> std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline> {
     [

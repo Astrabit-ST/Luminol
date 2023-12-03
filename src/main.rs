@@ -99,23 +99,23 @@ fn main() {
 
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
-    let native_options = eframe::NativeOptions {
+    let native_options = luminol_eframe::NativeOptions {
         drag_and_drop_support: true,
         transparent: true,
-        icon_data: Some(eframe::IconData {
+        icon_data: Some(luminol_eframe::IconData {
             width: image.width(),
             height: image.height(),
             rgba: image.to_rgba8().into_vec(),
         }),
-        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
-            supported_backends: eframe::wgpu::util::backend_bits_from_env()
-                .unwrap_or(eframe::wgpu::Backends::PRIMARY),
-            device_descriptor: std::sync::Arc::new(|_| eframe::wgpu::DeviceDescriptor {
+        wgpu_options: luminol_egui_wgpu::WgpuConfiguration {
+            supported_backends: wgpu::util::backend_bits_from_env()
+                .unwrap_or(wgpu::Backends::PRIMARY),
+            device_descriptor: std::sync::Arc::new(|_| wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
-                features: eframe::wgpu::Features::PUSH_CONSTANTS,
-                limits: eframe::wgpu::Limits {
+                features: wgpu::Features::PUSH_CONSTANTS,
+                limits: wgpu::Limits {
                     max_push_constant_size: 128,
-                    ..eframe::wgpu::Limits::default()
+                    ..wgpu::Limits::default()
                 },
             }),
             ..Default::default()
@@ -125,7 +125,7 @@ fn main() {
         ..Default::default()
     };
 
-    eframe::run_native(
+    luminol_eframe::run_native(
         "Luminol",
         native_options,
         Box::new(|cc| {
@@ -150,19 +150,17 @@ const CANVAS_ID: &str = "luminol-canvas";
 struct WorkerData {
     audio: luminol_audio::AudioWrapper,
     prefers_color_scheme_dark: Option<bool>,
-    filesystem_tx: flume::Sender<luminol_filesystem::host::FileSystemCommand>,
-    output_tx: flume::Sender<luminol_web::WebWorkerRunnerOutput>,
-    event_rx: flume::Receiver<egui::Event>,
-    custom_event_rx: flume::Receiver<luminol_web::WebWorkerRunnerEvent>,
+    fs_worker_channels: luminol_filesystem::web::WorkerChannels,
+    runner_worker_channels: luminol_eframe::web::WorkerChannels,
 }
 
 #[cfg(target_arch = "wasm32")]
-static WORKER_DATA: parking_lot::RwLock<Option<WorkerData>> = parking_lot::RwLock::new(None);
+static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex::new(None);
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
-    let (panic_tx, mut panic_rx) = flume::unbounded::<()>();
+    let (panic_tx, panic_rx) = flume::unbounded();
 
     wasm_bindgen_futures::spawn_local(async move {
         if panic_rx.recv_async().await.is_ok() {
@@ -171,12 +169,10 @@ pub fn luminol_main_start(fallback: bool) {
     });
 
     std::panic::set_hook(Box::new(move |info| {
-        luminol_web::web_worker_runner::panic_hook();
-
         let backtrace_printer =
             color_backtrace::BacktracePrinter::new().verbosity(color_backtrace::Verbosity::Full);
         let mut buffer = color_backtrace::termcolor::Ansi::new(vec![]);
-        backtrace_printer.print_panic_info(info, &mut buffer);
+        let _ = backtrace_printer.print_panic_info(info, &mut buffer);
         let report = String::from_utf8(buffer.into_inner()).expect("panic report not valid utf-8");
 
         web_sys::console::log_1(&js_sys::JsString::from(report));
@@ -215,26 +211,22 @@ pub fn luminol_main_start(fallback: bool) {
         return;
     }
 
-    let (filesystem_tx, filesystem_rx) = flume::unbounded();
-    let (output_tx, output_rx) = flume::unbounded();
-    let (event_tx, event_rx) = flume::unbounded();
-    let (custom_event_tx, custom_event_rx) = flume::unbounded();
+    let (fs_worker_channels, fs_main_channels) = luminol_filesystem::web::channels();
+    let (runner_worker_channels, runner_main_channels) = luminol_eframe::web::channels();
 
-    luminol_filesystem::host::setup_main_thread_hooks(filesystem_rx);
-    luminol_web::web_worker_runner::setup_main_thread_hooks(
-        canvas,
-        event_tx.clone(),
-        custom_event_tx.clone(),
-        output_rx,
-    );
+    luminol_filesystem::host::setup_main_thread_hooks(fs_main_channels);
+    luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
+        inner: Default::default(),
+        canvas: canvas.clone(),
+        channels: runner_main_channels,
+    })
+    .expect("unable to setup web runner main thread hooks");
 
-    *WORKER_DATA.write() = Some(WorkerData {
+    *WORKER_DATA.lock() = Some(WorkerData {
         audio: luminol_audio::Audio::default().into(),
         prefers_color_scheme_dark,
-        filesystem_tx,
-        output_tx,
-        event_rx,
-        custom_event_rx,
+        fs_worker_channels,
+        runner_worker_channels,
     });
 
     let mut worker_options = web_sys::WorkerOptions::new();
@@ -260,26 +252,24 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let WorkerData {
         audio,
         prefers_color_scheme_dark,
-        filesystem_tx,
-        output_tx,
-        event_rx,
-        custom_event_rx,
-    } = WORKER_DATA.write().take().unwrap();
+        fs_worker_channels,
+        runner_worker_channels,
+    } = WORKER_DATA.lock().take().unwrap();
 
-    luminol_filesystem::host::FileSystem::setup_filesystem_sender(filesystem_tx);
+    luminol_filesystem::host::FileSystem::setup_worker_channels(fs_worker_channels);
 
-    let web_options = eframe::WebOptions::default();
+    let web_options = luminol_eframe::WebOptions::default();
 
-    let runner = luminol_web::WebWorkerRunner::new(
-        Box::new(|cc| Box::new(app::App::new(cc, audio))),
-        canvas,
-        web_options,
-        "astrabit.luminol",
-        prefers_color_scheme_dark,
-        Some(event_rx),
-        Some(custom_event_rx),
-        Some(output_tx),
-    )
-    .await;
-    runner.setup_render_hooks();
+    luminol_eframe::WebRunner::new()
+        .start(
+            canvas,
+            web_options,
+            Box::new(|cc| Box::new(app::App::new(cc, audio))),
+            luminol_eframe::web::WorkerOptions {
+                prefers_color_scheme_dark,
+                channels: runner_worker_channels,
+            },
+        )
+        .await
+        .expect("failed to start eframe");
 }

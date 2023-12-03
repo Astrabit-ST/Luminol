@@ -31,7 +31,7 @@ use wgpu::util::DeviceExt;
 pub struct Loader {
     loaded_textures: DashMap<camino::Utf8PathBuf, Arc<Texture>>,
 
-    render_state: egui_wgpu::RenderState,
+    render_state: luminol_egui_wgpu::RenderState,
 }
 
 pub struct Texture {
@@ -39,7 +39,7 @@ pub struct Texture {
     pub view: wgpu::TextureView,
     pub texture_id: egui::TextureId,
 
-    render_state: egui_wgpu::RenderState,
+    render_state: luminol_egui_wgpu::RenderState,
 }
 
 impl Drop for Texture {
@@ -99,7 +99,7 @@ impl Texture {
 }
 
 impl Loader {
-    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
+    pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
         Self {
             loaded_textures: DashMap::with_capacity(64),
 

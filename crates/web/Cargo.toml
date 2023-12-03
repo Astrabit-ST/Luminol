@@ -17,66 +17,16 @@ workspace = true
 
 [dependencies]
 egui.workspace = true
-eframe.workspace = true
-egui-wgpu.workspace = true
+luminol-egui-wgpu.workspace = true
 wgpu.workspace = true
-
-ron.workspace = true
-
-once_cell.workspace = true
-
-tracing.workspace = true
-
-luminol-app.workspace = true
-
-flume.workspace = true
-oneshot.workspace = true
 
 wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"
 
-portable-atomic = { version = "1.5.1", features = ["float"] }
-
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
-    "console",
-    "Window",
-    "Document",
-    "Element",
-    "DomException",
-
-    "EventTarget",
-    "EventListener",
-    "AddEventListenerOptions",
-
-    "Event",
-    "MouseEvent",
-    "WheelEvent",
-
     "DedicatedWorkerGlobalScope",
-    "WorkerGlobalScope",
-
-    "Worker",
-    "WorkerOptions",
-    "WorkerType",
-
+    "FileSystemDirectoryHandle",
+    "FileSystemHandle",
     "Performance",
-
-    "HtmlCanvasElement",
-    "OffscreenCanvas",
-    "OffscreenCanvasRenderingContext2d",
-
-    "MutationObserver",
-    "MutationObserverInit",
-    "MutationRecord",
-    "Node",
-
-    "Clipboard",
-
-    "Storage",
-
-    "WorkerLocation",
-    "Location",
-    "WorkerNavigator",
-    "Navigator",
 ] }

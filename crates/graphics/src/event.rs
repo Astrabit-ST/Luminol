@@ -38,12 +38,12 @@ unsafe impl Send for Callback {}
 #[allow(unsafe_code)]
 unsafe impl Sync for Callback {}
 
-impl egui_wgpu::CallbackTrait for Callback {
+impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
         _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
         self.sprite.draw(&self.graphics_state, render_pass);
     }
@@ -127,7 +127,7 @@ impl Event {
         &self.sprite
     }
 
-    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
         self.viewport.set_proj(render_state, proj);
     }
 
@@ -137,7 +137,7 @@ impl Event {
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
-        painter.add(egui_wgpu::Callback::new_paint_callback(
+        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
                 sprite: self.sprite.clone(),

@@ -66,7 +66,7 @@ impl Graphic {
         (self.data.load().hue * 360.) as i32
     }
 
-    pub fn set_hue(&self, render_state: &egui_wgpu::RenderState, hue: i32) {
+    pub fn set_hue(&self, render_state: &luminol_egui_wgpu::RenderState, hue: i32) {
         let hue = (hue % 360) as f32 / 360.0;
         let data = self.data.load();
 
@@ -80,7 +80,7 @@ impl Graphic {
         (self.data.load().opacity * 255.) as i32
     }
 
-    pub fn set_opacity(&self, render_state: &egui_wgpu::RenderState, opacity: i32) {
+    pub fn set_opacity(&self, render_state: &luminol_egui_wgpu::RenderState, opacity: i32) {
         let opacity = opacity as f32 / 255.0;
         let data = self.data.load();
 
@@ -96,7 +96,7 @@ impl Graphic {
 
     pub fn set_opacity_multiplier(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         opacity_multiplier: f32,
     ) {
         let data = self.data.load();
@@ -118,7 +118,7 @@ impl Graphic {
         self.uniform.as_ref()
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state
                 .queue

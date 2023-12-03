@@ -54,7 +54,12 @@ impl Opacity {
         self.uniform.as_ref()
     }
 
-    pub fn set_opacity(&self, render_state: &egui_wgpu::RenderState, layer: usize, opacity: f32) {
+    pub fn set_opacity(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        layer: usize,
+        opacity: f32,
+    ) {
         let mut data = self.data.load();
         if data[layer] != opacity {
             data[layer] = opacity;
@@ -63,7 +68,7 @@ impl Opacity {
         }
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state
                 .queue

@@ -23,7 +23,6 @@
 // Program grant you additional permission to convey the resulting work.
 
 use command_lib::{CommandDescription, CommandKind, Parameter, ParameterKind};
-use eframe::egui;
 
 pub struct UiExample {
     command: CommandDescription,

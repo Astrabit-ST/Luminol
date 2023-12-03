@@ -326,7 +326,7 @@ impl Atlas {
 }
 
 fn write_texture_region<P>(
-    render_state: &egui_wgpu::RenderState,
+    render_state: &luminol_egui_wgpu::RenderState,
     texture: &wgpu::Texture,
     image: image::SubImage<&image::ImageBuffer<P, Vec<P::Subpixel>>>,
     (dest_x, dest_y): (u32, u32),

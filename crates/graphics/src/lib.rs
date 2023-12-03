@@ -42,7 +42,7 @@ pub use texture_loader::Texture;
 pub struct GraphicsState {
     pub texture_loader: texture_loader::Loader,
     pub atlas_loader: atlas_loader::Loader,
-    pub render_state: egui_wgpu::RenderState,
+    pub render_state: luminol_egui_wgpu::RenderState,
 
     pub nearest_sampler: wgpu::Sampler,
 
@@ -63,7 +63,7 @@ pub struct Pipelines {
 }
 
 impl GraphicsState {
-    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
+    pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
         let bind_group_layouts = BindGroupLayouts {
             sprite: sprite::create_bind_group_layout(&render_state),
             tiles: tiles::create_bind_group_layout(&render_state),
@@ -110,7 +110,7 @@ impl GraphicsState {
     }
 }
 
-pub fn push_constants_supported(render_state: &egui_wgpu::RenderState) -> bool {
+pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
     let feature_supported = render_state
         .device
         .features()

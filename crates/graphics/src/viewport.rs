@@ -51,14 +51,19 @@ impl Viewport {
         }
     }
 
-    pub fn set_width_height(&self, render_state: &egui_wgpu::RenderState, width: f32, height: f32) {
+    pub fn set_width_height(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        width: f32,
+        height: f32,
+    ) {
         self.set_proj(
             render_state,
             glam::Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0),
         )
     }
 
-    pub fn set_proj(&self, render_state: &egui_wgpu::RenderState, proj: glam::Mat4) {
+    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
         let data = self.data.load();
         if data != proj {
             self.data.store(proj);
@@ -74,7 +79,7 @@ impl Viewport {
         self.uniform.as_ref()
     }
 
-    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         if let Some(uniform) = &self.uniform {
             render_state
                 .queue

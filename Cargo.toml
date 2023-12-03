@@ -64,7 +64,7 @@ egui = "0.23.0"
 egui_extras = { version = "0.23.0", features = ["svg", "image"] }
 epaint = "0.23.0"
 
-eframe = { version = "0.23.0", features = [
+luminol-eframe = { version = "0.23.0", path = "crates/eframe/", features = [
     "wgpu",
     "accesskit",
     "persistence",
@@ -72,9 +72,11 @@ eframe = { version = "0.23.0", features = [
     "x11",
     "wayland",
 ], default-features = false }
-egui-wgpu = "0.23.0"
+luminol-egui-wgpu = { version = "0.23.0", path = "crates/egui-wgpu/" }
+egui_glow = "0.23.0"
+egui-winit = "0.23.0"
 
-wgpu = { version = "0.17.2", features = ["naga"] }
+wgpu = { version = "0.18.0", features = ["naga"] }
 glam = { version = "0.24.2", features = ["bytemuck"] }
 image = "0.24.7"
 
@@ -119,7 +121,6 @@ rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
-luminol-app = { version = "0.4.0", path = "crates/app/" }
 luminol-components = { version = "0.4.0", path = "crates/components/" }
 luminol-config = { version = "0.4.0", path = "crates/config/" }
 luminol-core = { version = "0.4.0", path = "crates/core/" }
@@ -134,10 +135,13 @@ luminol-ui = { version = "0.4.0", path = "crates/ui/" }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe.workspace = true
+luminol-eframe.workspace = true
+luminol-egui-wgpu.workspace = true
 egui.workspace = true
 egui_extras.workspace = true
 epaint.workspace = true
+
+wgpu.workspace = true
 
 rfd.workspace = true
 
@@ -151,7 +155,6 @@ crc = { version = "3.0.1", optional = true }
 tracing-subscriber = "0.3.17"
 color-backtrace = "0.6.0"
 
-luminol-app.workspace = true
 luminol-audio.workspace = true
 luminol-core.workspace = true
 luminol-config.workspace = true
@@ -209,7 +212,12 @@ tracing-wasm = "0.2"
 tracing-log = "0.1.3"
 tracing.workspace = true
 
-web-sys = { version = "0.3", features = ["Window"] }
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Worker",
+    "WorkerOptions",
+    "WorkerType",
+] }
 
 # Enable wgpu's `webgl` feature if Luminol's `webgl` feature is enabled,
 # enabling its WebGL backend and disabling its WebGPU backend
@@ -246,7 +254,7 @@ opt-level = 1
 [profile.dev.package.egui]
 opt-level = 3
 
-[profile.dev.package.eframe]
+[profile.dev.package.luminol-eframe]
 opt-level = 3
 
 # Audio
@@ -274,6 +282,11 @@ opt-level = 3
 # https://github.com/RustAudio/cpal/pull/774
 # is merged.
 cpal = { git = "https://github.com/DouglasDwyer/cpal.git", rev = "91aeb4d6b02c25791f636fdf92a73637597c077a" }
+
+# flume's global spinlock uses `thread::sleep` which doesn't work in the main thread in WebAssembly.
+# This is a patched version with `thread::sleep` removed in WebAssembly builds.
+# See https://github.com/zesterer/flume/issues/137.
+flume = { git = "https://github.com/Astrabit-ST/flume", rev = "d323799efea329c87a3a5a5b45cc76f46da278c2" }
 
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }

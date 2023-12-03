@@ -76,7 +76,7 @@ impl Sprite {
         }
     }
 
-    pub fn reupload_verts(&self, render_state: &egui_wgpu::RenderState, quads: &[Quad]) {
+    pub fn reupload_verts(&self, render_state: &luminol_egui_wgpu::RenderState, quads: &[Quad]) {
         let vertices = Quad::into_vertices(quads, self.texture.size());
         render_state.queue.write_buffer(
             &self.vertices.vertex_buffer,
@@ -112,7 +112,9 @@ impl Sprite {
     }
 }
 
-pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(
+    render_state: &luminol_egui_wgpu::RenderState,
+) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
     builder
         .append(
