@@ -353,7 +353,7 @@ macro_rules! nested_ref_getter {
     ($($typ:ty, $name:ident),* $(,)?) => {
         $(
             #[allow(unsafe_code, dead_code)]
-            pub fn $name(&self) -> RefMut<$typ> {
+            pub fn $name(&self) -> RefMut<'_, $typ> {
                 match self {
                     Self::Unloaded => panic!("data cache unloaded"),
                     Self::Loaded { $name, ..} => $name.borrow_mut(),
@@ -389,7 +389,7 @@ impl Data {
         &self,
         id: usize,
         filesystem: &impl luminol_filesystem::FileSystem,
-    ) -> RefMut<rpg::Map> {
+    ) -> RefMut<'_, rpg::Map> {
         let maps_ref = match self {
             Self::Loaded { maps, .. } => maps.borrow_mut(),
             Self::Unloaded => panic!("project not loaded"),
@@ -402,7 +402,7 @@ impl Data {
         })
     }
 
-    pub fn get_map(&self, id: usize) -> RefMut<rpg::Map> {
+    pub fn get_map(&self, id: usize) -> RefMut<'_, rpg::Map> {
         let maps_ref = match self {
             Self::Loaded { maps, .. } => maps.borrow_mut(),
             Self::Unloaded => panic!("project not loaded"),

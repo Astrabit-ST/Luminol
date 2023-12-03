@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod archiver;
+pub mod egui_bytes_loader;
 pub mod erased;
 pub mod list;
 pub mod path_cache;

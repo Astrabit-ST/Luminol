@@ -28,9 +28,9 @@ impl CommandView {
     #[allow(clippy::only_used_in_recursion)]
     pub fn parameter_ui(
         &mut self,
-        ui: &mut egui::Ui,
-        parameter: &luminol_data::commands::Parameter,
-        command: &mut luminol_data::rpg::EventCommand,
+        _ui: &mut egui::Ui,
+        _parameter: &luminol_data::commands::Parameter,
+        _command: &mut luminol_data::rpg::EventCommand,
     ) {
         todo!()
     }

@@ -20,6 +20,30 @@ categories.workspace = true
 members = ["crates/*"]
 resolver = "2"
 
+[workspace.lints.rust]
+rust_2018_idioms = "warn"
+# unsafe code is sometimes fine but in general we don't want to use it.
+unsafe_code = "warn"
+# clearly denote where you are using unsafe code in unsafe fns. in a future rust edition this will become a hard error.
+unsafe_op_in_unsafe_fn = "forbid"
+# will become a hard error in a future rust edition
+elided_lifetimes_in_paths = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+# we should turn these on in the future to avoid possible crashes
+# panic = "warn"
+# panic_in_result_fn = "warn"
+# panicking_unwrap = "warn"
+unnecessary_wraps = "warn"
+
+missing_errors_doc = "allow"
+doc_markdown = "allow"
+missing_panics_doc = "allow"
+too_many_lines = "allow"
+# you must provide a safety doc.
+missing_safety_doc = "forbid"
+
 [workspace.package]
 version = "0.4.0"
 authors = [

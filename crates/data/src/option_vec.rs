@@ -207,7 +207,7 @@ where
 {
     type Value = OptionVec<T>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("a key-value mapping")
     }
 

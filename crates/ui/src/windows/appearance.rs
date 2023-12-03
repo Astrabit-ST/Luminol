@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use egui::load::BytesLoader;
 use strum::IntoEnumIterator;
 
 #[derive(Default)]
@@ -96,8 +97,9 @@ impl luminol_core::Window for Window {
                 )
                 .clicked()
             {
-                update_state.graphics.image_cache.clear();
-                update_state.graphics.atlas_cache.clear();
+                update_state.graphics.texture_loader.clear();
+                update_state.graphics.atlas_loader.clear();
+                update_state.bytes_loader.forget_all();
             }
         });
     }

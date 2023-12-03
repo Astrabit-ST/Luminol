@@ -35,7 +35,7 @@ where
     impl serde::de::Visitor<'_> for Visitor {
         type Value = Option<Utf8PathBuf>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             formatter.write_str("a string")
         }
 

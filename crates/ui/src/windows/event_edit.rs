@@ -22,19 +22,17 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_core::Modal;
-
 /// The event editor window.
 pub struct Window {
     id: usize,
     map_id: usize,
-    selected_page: usize,
+    _selected_page: usize,
     name: String,
-    viewed_tab: u8,
+    _viewed_tab: u8,
 
-    switch_modal_1: Option<luminol_modals::switch::Modal>,
-    switch_modal_2: Option<luminol_modals::switch::Modal>,
-    variable_modal: Option<luminol_modals::variable::Modal>,
+    _switch_modal_1: Option<luminol_modals::switch::Modal>,
+    _switch_modal_2: Option<luminol_modals::switch::Modal>,
+    _variable_modal: Option<luminol_modals::variable::Modal>,
 }
 
 impl Window {
@@ -43,13 +41,13 @@ impl Window {
         Self {
             id,
             map_id,
-            selected_page: 0,
+            _selected_page: 0,
             name: String::from("(unknown)"),
-            viewed_tab: 2,
+            _viewed_tab: 2,
 
-            switch_modal_1: None,
-            switch_modal_2: None,
-            variable_modal: None,
+            _switch_modal_1: None,
+            _switch_modal_2: None,
+            _variable_modal: None,
         }
     }
 }
@@ -68,9 +66,9 @@ impl luminol_core::Window for Window {
     // This needs an overhaul
     fn show(
         &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _ctx: &egui::Context,
+        _open: &mut bool,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         todo!()
     }

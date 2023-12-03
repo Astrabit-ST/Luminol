@@ -17,57 +17,52 @@
 
 use std::sync::Arc;
 
-#[derive(Debug)]
+use crate::{quad::Quad, sprite::Sprite, tiles::Atlas, viewport::Viewport, GraphicsState};
+
 pub struct Event {
-    resources: Arc<Resources>,
+    sprite: Arc<Sprite>,
+    viewport: Arc<Viewport>,
     pub sprite_size: egui::Vec2,
 }
 
-#[derive(Debug)]
-struct Resources {
-    sprite: crate::sprite::Sprite,
-    viewport: crate::viewport::Viewport,
-}
-
 struct Callback {
-    resources: Arc<Resources>,
-    graphics_state: Arc<crate::GraphicsState>,
+    sprite: Arc<Sprite>,
+    graphics_state: Arc<GraphicsState>,
 }
 
-// FIXME
+//? SAFETY:
+//? wgpu resources are not Send + Sync on wasm, but egui_wgpu::CallbackTrait requires Send + Sync (because egui::Context is Send + Sync)
+//? as long as this callback does not leave the thread it was created on on wasm (which it shouldn't be) these are ok.
+#[allow(unsafe_code)]
 unsafe impl Send for Callback {}
+#[allow(unsafe_code)]
 unsafe impl Sync for Callback {}
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a luminol_egui_wgpu::CallbackResources,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
-        self.resources.viewport.bind(1, render_pass);
-        self.resources
-            .sprite
-            .draw(&self.graphics_state, &self.resources.viewport, render_pass);
+        self.sprite.draw(&self.graphics_state, render_pass);
     }
 }
 
 impl Event {
     // code smell, fix
     pub fn new(
-        graphics_state: &crate::GraphicsState,
+        graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         event: &luminol_data::rpg::Event,
-        atlas: &crate::tiles::Atlas,
-        use_push_constants: bool,
+        atlas: &Atlas,
     ) -> anyhow::Result<Option<Self>> {
         let Some(page) = event.pages.first() else {
             anyhow::bail!("event does not have first page");
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {
-            graphics_state.image_cache.load_wgpu_image(
-                graphics_state,
+            graphics_state.texture_loader.load_now_dir(
                 filesystem,
                 "Graphics/Characters",
                 filename,
@@ -82,11 +77,7 @@ impl Event {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport = crate::viewport::Viewport::new(
-                graphics_state,
-                glam::Mat4::orthographic_rh(0.0, 32., 32., 0., -1., 1.),
-                use_push_constants,
-            );
+            let viewport = Arc::new(Viewport::new(graphics_state, 32., 32.));
 
             (quad, viewport, egui::vec2(32., 32.))
         } else {
@@ -108,51 +99,48 @@ impl Event {
                 ),
                 egui::vec2(cw - 0.02, ch - 0.02),
             );
-            let quad = crate::quad::Quad::new(pos, tex_coords, 0.0);
+            let quad = Quad::new(pos, tex_coords, 0.0);
 
-            let viewport = crate::viewport::Viewport::new(
-                graphics_state,
-                glam::Mat4::orthographic_rh(0.0, cw, ch, 0., -1., 1.),
-                use_push_constants,
-            );
+            let viewport = Arc::new(Viewport::new(graphics_state, cw, ch));
 
             (quad, viewport, egui::vec2(cw, ch))
         };
 
-        let sprite = crate::sprite::Sprite::new(
+        let sprite = Arc::new(Sprite::new(
             graphics_state,
+            viewport.clone(),
             quads,
             texture,
             page.graphic.blend_type,
             page.graphic.character_hue,
             page.graphic.opacity,
-            use_push_constants,
-        );
+        ));
 
         Ok(Some(Self {
-            resources: Arc::new(Resources { sprite, viewport }),
+            sprite,
+            viewport,
             sprite_size,
         }))
     }
 
-    pub fn sprite(&self) -> &crate::sprite::Sprite {
-        &self.resources.sprite
+    pub fn sprite(&self) -> &Sprite {
+        &self.sprite
     }
 
     pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
-        self.resources.viewport.set_proj(render_state, proj);
+        self.viewport.set_proj(render_state, proj);
     }
 
     pub fn paint(
         &self,
-        graphics_state: Arc<crate::GraphicsState>,
+        graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
         rect: egui::Rect,
     ) {
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
-                resources: self.resources.clone(),
+                sprite: self.sprite.clone(),
                 graphics_state,
             },
         ));

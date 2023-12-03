@@ -54,7 +54,7 @@ impl SoundTab {
             .show_inside(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        if ui.button("Play").clicked() && !self.selected_track.as_str().is_empty() {
+                        if ui.button("Play").clicked() && !self.selected_track.is_empty() {
                             let path = format!("Audio/{}/{}", self.source, &self.selected_track);
                             let pitch = self.pitch;
                             let volume = self.volume;

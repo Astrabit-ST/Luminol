@@ -112,7 +112,7 @@ impl Tabs {
     }
 
     /// Display all tabs.
-    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut crate::UpdateState<'_>) {
         let mut edit_tabs = EditTabs::default();
         let mut update_state = update_state.reborrow_with_edit_tabs(&mut edit_tabs);
         self.ui_without_edit(ui, &mut update_state);

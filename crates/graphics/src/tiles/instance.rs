@@ -18,6 +18,8 @@
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
+use crate::quad::Quad;
+
 #[derive(Debug)]
 pub struct Instances {
     instance_buffer: wgpu::Buffer,
@@ -35,7 +37,7 @@ struct Instance {
     layer: u32,
 }
 
-const TILE_QUAD: crate::quad::Quad = crate::quad::Quad::new(
+const TILE_QUAD: Quad = Quad::new(
     egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
     // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
     egui::Rect::from_min_max(egui::pos2(0.01, 0.01), egui::pos2(31.99, 31.99)),
@@ -58,8 +60,7 @@ impl Instances {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let (vertex_buffer, _) =
-            crate::quad::Quad::into_buffer(render_state, &[TILE_QUAD], atlas_size);
+        let (vertex_buffer, _) = Quad::into_buffer(render_state, &[TILE_QUAD], atlas_size);
 
         Self {
             instance_buffer,

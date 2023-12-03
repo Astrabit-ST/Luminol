@@ -15,6 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+pub mod binding_helpers;
+pub use binding_helpers::{BindGroupBuilder, BindGroupLayoutBuilder};
+
 pub mod collision;
 pub mod quad;
 pub mod sprite;
@@ -26,28 +29,31 @@ pub mod event;
 pub mod map;
 pub mod plane;
 
-pub mod atlas_cache;
-pub mod image_cache;
+pub mod atlas_loader;
+
+pub mod texture_loader;
 
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;
 
+pub use texture_loader::Texture;
+
 pub struct GraphicsState {
-    pub image_cache: image_cache::Cache,
-    pub atlas_cache: atlas_cache::Cache,
+    pub texture_loader: texture_loader::Loader,
+    pub atlas_loader: atlas_loader::Loader,
     pub render_state: luminol_egui_wgpu::RenderState,
+
+    pub nearest_sampler: wgpu::Sampler,
 
     pipelines: Pipelines,
     bind_group_layouts: BindGroupLayouts,
 }
 
 pub struct BindGroupLayouts {
-    image_cache_texture: wgpu::BindGroupLayout,
-    viewport: wgpu::BindGroupLayout,
-    sprite_graphic: wgpu::BindGroupLayout,
-    atlas_autotiles: wgpu::BindGroupLayout,
-    tile_layer_opacity: wgpu::BindGroupLayout,
+    sprite: wgpu::BindGroupLayout,
+    tiles: wgpu::BindGroupLayout,
+    collision: wgpu::BindGroupLayout,
 }
 
 pub struct Pipelines {
@@ -59,11 +65,9 @@ pub struct Pipelines {
 impl GraphicsState {
     pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
         let bind_group_layouts = BindGroupLayouts {
-            image_cache_texture: image_cache::create_bind_group_layout(&render_state),
-            viewport: viewport::create_bind_group_layout(&render_state),
-            sprite_graphic: sprite::graphic::create_bind_group_layout(&render_state),
-            atlas_autotiles: tiles::autotiles::create_bind_group_layout(&render_state),
-            tile_layer_opacity: tiles::opacity::create_bind_group_layout(&render_state),
+            sprite: sprite::create_bind_group_layout(&render_state),
+            tiles: tiles::create_bind_group_layout(&render_state),
+            collision: collision::create_bind_group_layout(&render_state),
         };
 
         let pipelines = Pipelines {
@@ -75,13 +79,27 @@ impl GraphicsState {
             ),
         };
 
-        let image_cache = image_cache::Cache::default();
-        let atlas_cache = atlas_cache::Cache::default();
+        let texture_loader = texture_loader::Loader::new(render_state.clone());
+        let atlas_cache = atlas_loader::Loader::default();
+
+        let nearest_sampler = render_state
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor {
+                label: Some("luminol nearest texture sampler"),
+                mag_filter: wgpu::FilterMode::Nearest,
+                min_filter: wgpu::FilterMode::Nearest,
+                address_mode_u: wgpu::AddressMode::Repeat,
+                address_mode_v: wgpu::AddressMode::Repeat,
+                ..Default::default()
+            });
 
         Self {
-            image_cache,
-            atlas_cache,
+            texture_loader,
+            atlas_loader: atlas_cache,
             render_state,
+
+            nearest_sampler,
+
             pipelines,
             bind_group_layouts,
         }
@@ -93,8 +111,10 @@ impl GraphicsState {
 }
 
 pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
-    render_state
+    let feature_supported = render_state
         .device
         .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS)
+        .contains(wgpu::Features::PUSH_CONSTANTS);
+    let is_dx_12 = render_state.adapter.get_info().backend == wgpu::Backend::Dx12;
+    feature_supported && !is_dx_12
 }
