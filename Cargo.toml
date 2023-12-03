@@ -57,7 +57,7 @@ glam = { version = "0.24.2", features = ["bytemuck"] }
 image = "0.24.7"
 
 serde = { version = "1.0", features = ["derive"] }
-alox-48 = { version = "0.4.1", default-features = false }
+alox-48 = { version = "0.4.2", default-features = false }
 ron = "0.8.1"
 serde_json = "1.0"
 rust-ini = "0.20.0"
@@ -263,8 +263,6 @@ cpal = { git = "https://github.com/DouglasDwyer/cpal.git", rev = "91aeb4d6b02c25
 # This is a patched version with `thread::sleep` removed in WebAssembly builds.
 # See https://github.com/zesterer/flume/issues/137.
 flume = { git = "https://github.com/Astrabit-ST/flume", rev = "d323799efea329c87a3a5a5b45cc76f46da278c2" }
-
-alox-48 = { git = "https://github.com/Speak2Erase/alox-48", rev = "50ecb9d9b0a89c1398a11e6de3303f39a01cc69f" }
 
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }
