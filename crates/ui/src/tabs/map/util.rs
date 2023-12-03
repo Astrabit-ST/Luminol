@@ -233,5 +233,6 @@ impl super::Tab {
         if self.history.len() == super::HISTORY_SIZE {
             self.history.pop_front();
         }
+        self.history.push_back(entry);
     }
 }
