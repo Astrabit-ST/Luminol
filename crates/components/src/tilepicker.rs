@@ -51,12 +51,12 @@ struct Callback {
 unsafe impl Send for Callback {}
 unsafe impl Sync for Callback {}
 
-impl egui_wgpu::CallbackTrait for Callback {
+impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
         &'a self,
         _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a egui_wgpu::CallbackResources,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
         self.resources.viewport.bind(1, render_pass);
         self.resources.tiles.draw(
@@ -253,14 +253,15 @@ impl Tilepicker {
             ),
         );
         // FIXME: move this into graphics
-        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-            absolute_scroll_rect,
-            Callback {
-                resources: self.resources.clone(),
-                graphics_state: graphics_state.clone(),
-                coll_enabled,
-            },
-        ));
+        ui.painter()
+            .add(luminol_egui_wgpu::Callback::new_paint_callback(
+                absolute_scroll_rect,
+                Callback {
+                    resources: self.resources.clone(),
+                    graphics_state: graphics_state.clone(),
+                    coll_enabled,
+                },
+            ));
 
         let rect = egui::Rect::from_x_y_ranges(
             (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,

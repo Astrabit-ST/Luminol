@@ -63,7 +63,7 @@ impl Tiles {
 
     pub fn set_tile(
         &self,
-        render_state: &egui_wgpu::RenderState,
+        render_state: &luminol_egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {

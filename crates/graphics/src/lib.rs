@@ -36,7 +36,7 @@ pub use plane::Plane;
 pub struct GraphicsState {
     pub image_cache: image_cache::Cache,
     pub atlas_cache: atlas_cache::Cache,
-    pub render_state: egui_wgpu::RenderState,
+    pub render_state: luminol_egui_wgpu::RenderState,
 
     pipelines: Pipelines,
     bind_group_layouts: BindGroupLayouts,
@@ -57,7 +57,7 @@ pub struct Pipelines {
 }
 
 impl GraphicsState {
-    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
+    pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
         let bind_group_layouts = BindGroupLayouts {
             image_cache_texture: image_cache::create_bind_group_layout(&render_state),
             viewport: viewport::create_bind_group_layout(&render_state),
@@ -92,7 +92,7 @@ impl GraphicsState {
     }
 }
 
-pub fn push_constants_supported(render_state: &egui_wgpu::RenderState) -> bool {
+pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
     render_state
         .device
         .features()
