@@ -72,12 +72,20 @@ pub fn create_render_pipeline(
         "Tilemap Collision Render Pipeline Layout (uniforms)"
     };
 
+    let collision_bgl: &wgpu::BindGroupLayout = &bind_group_layouts.collision;
+    let bind_group_layout_slice = std::slice::from_ref(&collision_bgl);
+    let bind_group_layouts: &[&wgpu::BindGroupLayout] = if push_constants_supported {
+        &[]
+    } else {
+        bind_group_layout_slice
+    };
+
     let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some(label),
-                bind_group_layouts: &[&bind_group_layouts.collision],
+                bind_group_layouts,
                 push_constant_ranges,
             });
 
