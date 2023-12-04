@@ -73,31 +73,39 @@ pub struct UpdateState<'res> {
     pub modified: ModifiedState,
 }
 
+/// This stores whether or not there are unsaved changes in any file in the current project and is
+/// used to determine whether we should show a "you have unsaved changes" modal when the user tries
+/// to close the current project or the application window.
+///
+/// This must be thread safe in wasm because the `beforeunload` event handler resides on the main
+/// thread but state is written to from the worker thread.
 #[derive(Debug, Default, Clone)]
-pub struct ModifiedState(
-    #[cfg(not(target_arch = "wasm32"))] std::rc::Rc<std::cell::Cell<bool>>,
-    #[cfg(target_arch = "wasm32")] Arc<portable_atomic::AtomicBool>,
-);
+pub struct ModifiedState {
+    #[cfg(not(target_arch = "wasm32"))]
+    modified: std::rc::Rc<std::cell::Cell<bool>>,
+    #[cfg(target_arch = "wasm32")]
+    modified: Arc<portable_atomic::AtomicBool>,
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl ModifiedState {
     pub fn get(&self) -> bool {
-        self.0.get()
+        self.modified.get()
     }
 
     pub fn set(&self, val: bool) {
-        self.0.set(val);
+        self.modified.set(val);
     }
 }
 
 #[cfg(target_arch = "wasm32")]
 impl ModifiedState {
     pub fn get(&self) -> bool {
-        self.0.load(portable_atomic::Ordering::Relaxed)
+        self.modified.load(portable_atomic::Ordering::Relaxed)
     }
 
     pub fn set(&self, val: bool) {
-        self.0.store(val, portable_atomic::Ordering::Relaxed);
+        self.modified.store(val, portable_atomic::Ordering::Relaxed);
     }
 }
 
