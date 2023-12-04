@@ -171,7 +171,7 @@ camino.workspace = true
 
 strum.workspace = true
 
-include-bytes-zstd = "0.1.0"
+zstd = "0.13.0"
 
 # Native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
