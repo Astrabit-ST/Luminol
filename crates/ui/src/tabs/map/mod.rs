@@ -164,7 +164,16 @@ impl Tab {
 impl luminol_core::Tab for Tab {
     fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
         let map_infos = update_state.data.map_infos();
-        format!("Map {}: {}", self.id, map_infos.data[&self.id].name)
+        format!(
+            "{}Map {}: {}",
+            if update_state.data.get_map(self.id).modified {
+                "*"
+            } else {
+                ""
+            },
+            self.id,
+            map_infos.data[&self.id].name,
+        )
     }
 
     fn id(&self) -> egui::Id {
