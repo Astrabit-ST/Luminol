@@ -131,11 +131,13 @@ macro_rules! from_defaults {
 macro_rules! save {
     ($fs:ident, $type:ident, $field:ident) => {{
         let mut borrowed = $field.borrow_mut();
-        if borrowed.modified {
+        let modified = borrowed.modified;
+        if modified {
             borrowed.modified = false;
             write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
                 .context(format!("while saving {}.rxdata", stringify!($type)))?;
         }
+        modified
     }};
 }
 impl Data {
@@ -291,22 +293,25 @@ impl Data {
             panic!("project not loaded")
         };
 
-        save!(filesystem, Actors, actors);
-        save!(filesystem, Animations, animations);
-        save!(filesystem, Armors, armors);
-        save!(filesystem, Classes, classes);
-        save!(filesystem, CommonEvents, common_events);
-        save!(filesystem, Enemies, enemies);
-        save!(filesystem, Items, items);
-        save!(filesystem, Skills, skills);
-        save!(filesystem, States, states);
-        save!(filesystem, Tilesets, tilesets);
-        save!(filesystem, Troops, troops);
-        save!(filesystem, Weapons, weapons);
+        let mut modified = false;
+
+        modified |= save!(filesystem, Actors, actors);
+        modified |= save!(filesystem, Animations, animations);
+        modified |= save!(filesystem, Armors, armors);
+        modified |= save!(filesystem, Classes, classes);
+        modified |= save!(filesystem, CommonEvents, common_events);
+        modified |= save!(filesystem, Enemies, enemies);
+        modified |= save!(filesystem, Items, items);
+        modified |= save!(filesystem, Skills, skills);
+        modified |= save!(filesystem, States, states);
+        modified |= save!(filesystem, Tilesets, tilesets);
+        modified |= save!(filesystem, Troops, troops);
+        modified |= save!(filesystem, Weapons, weapons);
 
         {
             let mut map_infos = map_infos.borrow_mut();
             if map_infos.modified {
+                modified = true;
                 map_infos.modified = false;
                 write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
                     .context("while saving MapInfos.rxdata")?;
@@ -314,15 +319,9 @@ impl Data {
         }
 
         {
-            let system = system.get_mut();
-            system.magic_number = rand::random();
-            write_data(system, filesystem, "System.rxdata")
-                .context("while saving System.rxdata")?;
-        }
-
-        {
             let mut scripts = scripts.borrow_mut();
             if scripts.modified {
+                modified = true;
                 scripts.modified = false;
                 write_data(
                     &scripts.data,
@@ -336,13 +335,24 @@ impl Data {
             let mut maps = maps.borrow_mut();
             maps.iter_mut().try_for_each(|(id, map)| {
                 if map.modified {
+                    modified = true;
                     map.modified = false;
                     write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
-                        .with_context(|| format!("while saving map {id:0>3}"))?
+                        .with_context(|| format!("while saving map {id:0>3}"))
+                } else {
+                    Ok(())
                 }
-                Ok(())
-            })
+            })?
         }
+
+        if modified {
+            let system = system.get_mut();
+            system.magic_number = rand::random();
+            write_data(system, filesystem, "System.rxdata")
+                .context("while saving System.rxdata")?;
+        }
+
+        Ok(())
     }
 }
 
