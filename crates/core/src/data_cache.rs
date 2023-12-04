@@ -345,11 +345,14 @@ impl Data {
             })?
         }
 
-        if modified {
+        {
             let system = system.get_mut();
-            system.magic_number = rand::random();
-            write_data(system, filesystem, "System.rxdata")
-                .context("while saving System.rxdata")?;
+            if system.modified || modified {
+                system.modified = false;
+                system.magic_number = rand::random();
+                write_data(system, filesystem, "System.rxdata")
+                    .context("while saving System.rxdata")?;
+            }
         }
 
         Ok(())
