@@ -165,6 +165,8 @@ impl luminol_core::Tab for ScriptTab {
             }
 
             if save_script {
+                update_state.modified.set(true);
+
                 let mut scripts = update_state.data.scripts();
                 scripts.modified = true;
 

@@ -3002,6 +3002,7 @@ dependencies = [
  "luminol-filesystem",
  "luminol-graphics",
  "parking_lot",
+ "portable-atomic",
  "rand",
  "serde",
  "strum",

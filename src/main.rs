@@ -131,6 +131,7 @@ fn main() {
         Box::new(|cc| {
             Box::new(app::App::new(
                 cc,
+                Default::default(),
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
@@ -264,7 +265,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         .start(
             canvas,
             web_options,
-            Box::new(|cc| Box::new(app::App::new(cc, audio))),
+            Box::new(|cc| Box::new(app::App::new(cc, Default::default(), audio))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: runner_worker_channels,

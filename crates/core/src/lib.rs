@@ -22,6 +22,13 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+#[cfg(target_arch = "wasm32")]
+// ensure that AtomicF64 is using atomic ops (otherwise it would use global locks, and that would be bad)
+const _: [(); 0 - !{
+    const ASSERT: bool = portable_atomic::AtomicF64::is_always_lock_free();
+    ASSERT
+} as usize] = [];
+
 use std::sync::Arc;
 
 mod tab;
@@ -62,6 +69,36 @@ pub struct UpdateState<'res> {
     pub global_config: &'res mut luminol_config::global::Config,
 
     pub toolbar: &'res mut ToolbarState,
+
+    pub modified: ModifiedState,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ModifiedState(
+    #[cfg(not(target_arch = "wasm32"))] std::rc::Rc<std::cell::Cell<bool>>,
+    #[cfg(target_arch = "wasm32")] Arc<portable_atomic::AtomicBool>,
+);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl ModifiedState {
+    pub fn get(&self) -> bool {
+        self.0.get()
+    }
+
+    pub fn set(&self, val: bool) {
+        self.0.set(val);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl ModifiedState {
+    pub fn get(&self) -> bool {
+        self.0.load(portable_atomic::Ordering::Relaxed)
+    }
+
+    pub fn set(&self, val: bool) {
+        self.0.store(val, portable_atomic::Ordering::Relaxed);
+    }
 }
 
 #[allow(missing_docs)]
@@ -98,6 +135,7 @@ impl<'res> UpdateState<'res> {
             project_config: self.project_config,
             global_config: self.global_config,
             toolbar: self.toolbar,
+            modified: self.modified.clone(),
         }
     }
 
@@ -117,6 +155,7 @@ impl<'res> UpdateState<'res> {
             project_config: self.project_config,
             global_config: self.global_config,
             toolbar: self.toolbar,
+            modified: self.modified.clone(),
         }
     }
 }

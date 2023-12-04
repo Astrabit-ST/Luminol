@@ -55,6 +55,8 @@ pub struct App {
 
     toolbar: luminol_core::ToolbarState,
 
+    modified: luminol_core::ModifiedState,
+
     #[cfg(not(target_arch = "wasm32"))]
     _runtime: tokio::runtime::Runtime,
 
@@ -67,6 +69,7 @@ impl App {
     #[must_use]
     pub fn new(
         cc: &luminol_eframe::CreationContext<'_>,
+        modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -212,6 +215,8 @@ impl App {
             project_config,
             toolbar: luminol_core::ToolbarState::default(),
 
+            modified,
+
             #[cfg(not(target_arch = "wasm32"))]
             _runtime: runtime,
 
@@ -258,6 +263,7 @@ impl luminol_eframe::App for App {
             project_config: &mut self.project_config,
             global_config: &mut self.global_config,
             toolbar: &mut self.toolbar,
+            modified: self.modified.clone(),
         };
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {

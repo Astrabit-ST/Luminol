@@ -219,6 +219,7 @@ impl luminol_core::Window for Window {
 
                     match result {
                         Ok(_) => {
+                            update_state.modified.set(false);
                             *update_state.data = data_cache;
                             update_state.project_config.replace(config);
                         }

@@ -225,9 +225,11 @@ impl super::Tab {
 
     pub(super) fn push_to_history(
         &mut self,
+        update_state: &luminol_core::UpdateState<'_>,
         map: &mut luminol_data::rpg::Map,
         entry: super::HistoryEntry,
     ) {
+        update_state.modified.set(true);
         map.modified = true;
         self.redo_history.clear();
         if self.history.len() == super::HISTORY_SIZE {
