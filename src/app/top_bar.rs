@@ -299,7 +299,6 @@ impl TopBar {
 
         if save_project {
             if let Some(config) = update_state.project_config {
-                update_state.toasts.info("Saving project...");
                 match update_state.data.save(update_state.filesystem, config) {
                     Ok(_) => {
                         update_state.modified.set(false);
