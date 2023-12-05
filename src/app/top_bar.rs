@@ -289,7 +289,7 @@ impl TopBar {
         }
 
         if open_project {
-            update_state.project_manager.load_project();
+            update_state.project_manager.open_project_picker();
         }
 
         if save_project {

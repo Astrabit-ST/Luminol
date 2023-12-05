@@ -233,7 +233,6 @@ impl<'res> UpdateState<'res> {
             if should_run_closure {
                 if let Some(closure) = self.project_manager.closure.take() {
                     closure(self, frame);
-                    self.project_manager.closure = Some(closure);
                 }
             }
 
@@ -263,6 +262,10 @@ impl<'res> UpdateState<'res> {
                 Ok(Err(error)) => self.toasts.error(error.to_string()),
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
             }
+        }
+
+        if let Some(r) = self.project_manager.filesystem_open_result.take() {
+            filesystem_open_result = Some(r);
         }
 
         match filesystem_open_result {

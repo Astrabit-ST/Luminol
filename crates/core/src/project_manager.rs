@@ -25,19 +25,22 @@
 pub struct ProjectManager {
     pub(crate) modal: egui_modal::Modal,
     pub(crate) closure:
-        Option<Box<dyn Fn(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame)>>,
+        Option<Box<dyn FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame)>>,
 
     pub load_filesystem_promise: Option<poll_promise::Promise<FileSystemPromiseResult>>,
+    pub filesystem_open_result: Option<FileSystemOpenResult>,
 }
 
 type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
+type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
 
 impl ProjectManager {
     pub fn new(ctx: &egui::Context) -> Self {
         Self {
             modal: egui_modal::Modal::new(ctx, "luminol_save_modal"),
             closure: None,
-            load_filesystem_promise: Default::default(),
+            load_filesystem_promise: None,
+            filesystem_open_result: None,
         }
     }
 
@@ -53,7 +56,7 @@ impl ProjectManager {
     }
 
     /// Opens a project picker after asking the user to save unsaved changes.
-    pub fn load_project(&mut self) {
+    pub fn open_project_picker(&mut self) {
         self.closure = Some(Box::new(|update_state, _frame| {
             // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
             #[cfg(not(target_arch = "wasm32"))]
@@ -68,6 +71,32 @@ impl ProjectManager {
                 update_state.project_manager.load_filesystem_promise =
                     Some(poll_promise::Promise::spawn_local(
                         luminol_filesystem::host::FileSystem::from_folder_picker(),
+                    ));
+            }
+        }));
+    }
+
+    /// Opens a recent project after asking the user to save unsaved changes.
+    ///
+    /// On native, `key` should be the absolute path to the project folder.
+    /// On web, `key` should be the IndexedDB key of the project folder.
+    pub fn load_recent_project(&mut self, key: String) {
+        self.closure = Some(Box::new(|update_state, _frame| {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                update_state.project_manager.filesystem_open_result =
+                    Some(update_state.filesystem.load_project_from_path(
+                        update_state.project_config,
+                        update_state.global_config,
+                        key,
+                    ));
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                update_state.project_manager.load_filesystem_promise =
+                    Some(poll_promise::Promise::spawn_local(
+                        luminol_filesystem::host::FileSystem::from_idb_key(key),
                     ));
             }
         }));

@@ -94,7 +94,7 @@ impl luminol_core::Tab for Tab {
                     .button(egui::RichText::new("Open Project").size(20.))
                     .clicked()
                 {
-                    update_state.project_manager.load_project();
+                    update_state.project_manager.open_project_picker();
                 }
             },
         );
@@ -103,32 +103,15 @@ impl luminol_core::Tab for Tab {
 
         ui.heading("Recent");
 
-        // FIXME this logic is shared with the top bar
-        // We should probably join the two
         for path in update_state.global_config.recent_projects.clone() {
             #[cfg(target_arch = "wasm32")]
             let (path, idb_key) = path;
 
             if ui.button(&path).clicked() {
-                todo!();
-
                 #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let filesystem_open_result =
-                        Some(update_state.filesystem.load_project_from_path(
-                            update_state.project_config,
-                            update_state.global_config,
-                            path,
-                        ));
-                }
-
+                update_state.project_manager.load_recent_project(path);
                 #[cfg(target_arch = "wasm32")]
-                {
-                    update_state.project_manager.load_filesystem_promise =
-                        Some(poll_promise::Promise::spawn_local(
-                            luminol_filesystem::host::FileSystem::from_idb_key(idb_key),
-                        ));
-                }
+                update_state.project_manager.load_recent_project(idb_key);
             }
         }
     }
