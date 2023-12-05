@@ -68,12 +68,19 @@ impl luminol_core::Tab for Tab {
 
         ui.heading("Start");
 
-        if update_state.projman_state.load_filesystem_promise.is_some() {
+        if update_state
+            .project_manager
+            .load_filesystem_promise
+            .is_some()
+        {
             ui.spinner();
         }
 
         ui.add_enabled_ui(
-            update_state.projman_state.load_filesystem_promise.is_none(),
+            update_state
+                .project_manager
+                .load_filesystem_promise
+                .is_none(),
             |ui| {
                 if ui
                     .button(egui::RichText::new("New Project").size(20.))
@@ -117,7 +124,7 @@ impl luminol_core::Tab for Tab {
 
                 #[cfg(target_arch = "wasm32")]
                 {
-                    update_state.projman_state.load_filesystem_promise =
+                    update_state.project_manager.load_filesystem_promise =
                         Some(poll_promise::Promise::spawn_local(
                             luminol_filesystem::host::FileSystem::from_idb_key(idb_key),
                         ));

@@ -71,7 +71,10 @@ impl TopBar {
             });
 
             ui.add_enabled_ui(
-                update_state.projman_state.load_filesystem_promise.is_none(),
+                update_state
+                    .project_manager
+                    .load_filesystem_promise
+                    .is_none(),
                 |ui| {
                     if ui.button("New Project").clicked() {
                         update_state
@@ -301,7 +304,11 @@ impl TopBar {
             }
         }
 
-        if update_state.projman_state.load_filesystem_promise.is_some() {
+        if update_state
+            .project_manager
+            .load_filesystem_promise
+            .is_some()
+        {
             ui.spinner();
         }
     }

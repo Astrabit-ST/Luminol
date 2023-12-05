@@ -49,7 +49,6 @@ pub use toasts::Toasts;
 
 mod project_manager;
 pub use project_manager::ProjectManager;
-pub use project_manager::ProjectManagerState;
 
 pub struct UpdateState<'res> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -76,7 +75,6 @@ pub struct UpdateState<'res> {
 
     pub modified: ModifiedState,
     pub project_manager: &'res mut ProjectManager,
-    pub projman_state: &'res mut ProjectManagerState,
 }
 
 /// This stores whether or not there are unsaved changes in any file in the current project and is
@@ -151,7 +149,6 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
-            projman_state: self.projman_state,
         }
     }
 
@@ -173,7 +170,142 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
-            projman_state: self.projman_state,
+        }
+    }
+
+    pub fn show_unsaved_changes_modal(&mut self, frame: &mut luminol_eframe::Frame) {
+        let mut should_close = false;
+        let mut should_save = false;
+        let mut should_run_closure = false;
+
+        if self.project_manager.closure.is_some() {
+            if !self.modified.get() {
+                should_close = true;
+                should_run_closure = true;
+            } else if !self.project_manager.modal.is_open() {
+                self.project_manager.modal.open();
+            }
+        }
+
+        self.project_manager.modal.show(|ui| {
+            self.project_manager.modal.title(ui, "Unsaved Changes");
+            self.project_manager.modal.frame(ui, |ui| {
+                self.project_manager
+                    .modal
+                    .body(ui, "Do you want to save your changes to this project?");
+            });
+
+            self.project_manager.modal.buttons(ui, |ui| {
+                if self.project_manager.modal.button(ui, "Cancel").clicked() {
+                    should_close = true;
+                } else if self
+                    .project_manager
+                    .modal
+                    .caution_button(ui, "Discard")
+                    .clicked()
+                {
+                    should_close = true;
+                    should_run_closure = true;
+                } else if self
+                    .project_manager
+                    .modal
+                    .suggested_button(ui, "Save")
+                    .clicked()
+                {
+                    should_close = true;
+                    should_save = true;
+                    should_run_closure = true;
+                }
+            });
+        });
+
+        if should_close {
+            if should_save {
+                if let Err(_err) = self
+                    .data
+                    .save(self.filesystem, self.project_config.as_ref().unwrap())
+                {
+                    todo!()
+                }
+                self.modified.set(false);
+            }
+
+            if should_run_closure {
+                if let Some(closure) = self.project_manager.closure.take() {
+                    closure(self, frame);
+                    self.project_manager.closure = Some(closure);
+                }
+            }
+
+            self.project_manager.closure = None;
+        }
+    }
+
+    pub fn handle_project_loading(&mut self) {
+        let mut filesystem_open_result = None;
+        #[cfg(target_arch = "wasm32")]
+        let mut idb_key = None;
+
+        if let Some(p) = self.project_manager.load_filesystem_promise.take() {
+            match p.try_take() {
+                Ok(Ok(host)) => {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        idb_key = host.idb_key().map(str::to_string);
+                    }
+
+                    filesystem_open_result = Some(self.filesystem.load_project(
+                        host,
+                        self.project_config,
+                        self.global_config,
+                    ));
+                }
+                Ok(Err(error)) => self.toasts.error(error.to_string()),
+                Err(p) => self.project_manager.load_filesystem_promise = Some(p),
+            }
+        }
+
+        match filesystem_open_result {
+            Some(Ok(load_result)) => {
+                for missing_rtp in load_result.missing_rtps {
+                    self.toasts.warning(format!(
+                        "Failed to find suitable path for the RTP {missing_rtp}"
+                    ));
+                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
+                    #[cfg(not(target_arch = "wasm32"))]
+                    self.toasts
+                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
+                    #[cfg(target_arch = "wasm32")]
+                    self
+                        .toasts
+                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
+                }
+
+                if let Err(why) = self.data.load(
+                    self.filesystem,
+                    // TODO code jank
+                    self.project_config.as_mut().unwrap(),
+                ) {
+                    self.toasts
+                        .error(format!("Error loading the project data: {why}"));
+
+                    #[cfg(target_arch = "wasm32")]
+                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
+                } else {
+                    self.toasts.info(format!(
+                        "Successfully opened {:?}",
+                        self.filesystem.project_path().expect("project not open")
+                    ));
+                }
+            }
+            Some(Err(why)) => {
+                self.toasts
+                    .error(format!("Error opening the project: {why}"));
+
+                #[cfg(target_arch = "wasm32")]
+                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
+            }
+            None => {}
         }
     }
 }
