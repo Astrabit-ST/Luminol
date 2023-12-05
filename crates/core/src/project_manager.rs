@@ -22,12 +22,12 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct ProjectHandler {
+pub struct ProjectManager {
     modal: egui_modal::Modal,
     closure: Option<Box<dyn Fn(&mut luminol_eframe::Frame, &mut crate::UpdateState<'_>)>>,
 }
 
-impl ProjectHandler {
+impl ProjectManager {
     pub fn new(ctx: &egui::Context) -> Self {
         Self {
             modal: egui_modal::Modal::new(ctx, "luminol_save_modal"),

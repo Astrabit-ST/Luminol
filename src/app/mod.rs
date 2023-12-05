@@ -56,7 +56,7 @@ pub struct App {
     toolbar: luminol_core::ToolbarState,
 
     modified: luminol_core::ModifiedState,
-    project_handler: luminol_core::ProjectHandler,
+    project_manager: luminol_core::ProjectManager,
 
     #[cfg(not(target_arch = "wasm32"))]
     _runtime: tokio::runtime::Runtime,
@@ -220,7 +220,7 @@ impl App {
             toolbar: luminol_core::ToolbarState::default(),
 
             modified,
-            project_handler: luminol_core::ProjectHandler::new(&cc.egui_ctx),
+            project_manager: luminol_core::ProjectManager::new(&cc.egui_ctx),
 
             #[cfg(not(target_arch = "wasm32"))]
             _runtime: runtime,
@@ -307,7 +307,7 @@ impl luminol_eframe::App for App {
             .process_edit_windows(std::mem::take(update_state.edit_windows));
 
         // If needed, show the modal for asking the user to save their changes.
-        self.project_handler
+        self.project_manager
             .show_unsaved_changes_modal(frame, &mut update_state);
 
         // Show toasts.
@@ -327,7 +327,7 @@ impl luminol_eframe::App for App {
             return true;
         }
 
-        self.project_handler.quit();
+        self.project_manager.quit();
         false
     }
 

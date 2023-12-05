@@ -47,8 +47,8 @@ pub use data_cache::Data;
 mod toasts;
 pub use toasts::Toasts;
 
-mod project_handler;
-pub use project_handler::ProjectHandler;
+mod project_manager;
+pub use project_manager::ProjectManager;
 
 pub struct UpdateState<'res> {
     #[cfg(not(target_arch = "wasm32"))]
