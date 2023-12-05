@@ -43,6 +43,3 @@ luminol-config.workspace = true
 luminol-data.workspace = true
 luminol-filesystem.workspace = true
 luminol-graphics.workspace = true
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-portable-atomic.workspace = true

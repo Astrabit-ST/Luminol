@@ -34,6 +34,12 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
+// ensure that AtomicF64 is using atomic ops (otherwise it would use global locks, and that would be bad)
+const _: [(); 0 - !{
+    const ASSERT: bool = portable_atomic::AtomicF64::is_always_lock_free();
+    ASSERT
+} as usize] = [];
+
 /// Stores when to do the next repaint.
 pub(crate) struct NeedRepaint(portable_atomic::AtomicF64);
 

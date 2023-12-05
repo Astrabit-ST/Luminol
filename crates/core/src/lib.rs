@@ -22,13 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-#[cfg(target_arch = "wasm32")]
-// ensure that AtomicF64 is using atomic ops (otherwise it would use global locks, and that would be bad)
-const _: [(); 0 - !{
-    const ASSERT: bool = portable_atomic::AtomicF64::is_always_lock_free();
-    ASSERT
-} as usize] = [];
-
 use std::sync::Arc;
 
 mod tab;
@@ -88,7 +81,7 @@ pub struct ModifiedState {
     #[cfg(not(target_arch = "wasm32"))]
     modified: std::rc::Rc<std::cell::Cell<bool>>,
     #[cfg(target_arch = "wasm32")]
-    modified: Arc<portable_atomic::AtomicBool>,
+    modified: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -105,11 +98,12 @@ impl ModifiedState {
 #[cfg(target_arch = "wasm32")]
 impl ModifiedState {
     pub fn get(&self) -> bool {
-        self.modified.load(portable_atomic::Ordering::Relaxed)
+        self.modified.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn set(&self, val: bool) {
-        self.modified.store(val, portable_atomic::Ordering::Relaxed);
+        self.modified
+            .store(val, std::sync::atomic::Ordering::Relaxed);
     }
 }
 

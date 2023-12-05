@@ -2993,7 +2993,6 @@ dependencies = [
  "luminol-graphics",
  "parking_lot",
  "poll-promise",
- "portable-atomic",
  "rand",
  "serde",
  "strum",
