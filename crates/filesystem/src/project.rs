@@ -424,17 +424,21 @@ impl FileSystem {
         global_config: &mut luminol_config::global::Config,
     ) -> Result<LoadResult> {
         let entries = host.read_dir("")?;
-        let Some(entry) = entries.iter().find(|e| {
-            if let Some(extension) = e.path.extension() {
-                e.metadata.is_file
-                    && (extension == "rxproj"
-                        || extension == "rvproj"
-                        || extension == "rvproj2"
-                        || extension == "lumproj")
-            } else {
-                false
-            }
-        }) else {
+        if entries
+            .iter()
+            .find(|e| {
+                if let Some(extension) = e.path.extension() {
+                    e.metadata.is_file
+                        && (extension == "rxproj"
+                            || extension == "rvproj"
+                            || extension == "rvproj2"
+                            || extension == "lumproj")
+                } else {
+                    false
+                }
+            })
+            .is_none()
+        {
             return Err(Error::InvalidProjectFolder);
         };
 

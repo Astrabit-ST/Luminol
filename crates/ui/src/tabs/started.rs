@@ -24,16 +24,7 @@
 
 /// The Luminol "get started screen" similar to vscode's.
 #[derive(Default)]
-pub struct Tab {
-    // now this is a type
-    load_filesystem_promise: Option<poll_promise::Promise<PromiseResult>>,
-}
-
-type PromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
-
-// FIXME
-#[allow(unsafe_code)]
-unsafe impl Send for Tab {}
+pub struct Tab {}
 
 impl Tab {
     /// Create a new starting screen.

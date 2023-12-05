@@ -27,12 +27,9 @@ use strum::IntoEnumIterator;
 /// The top bar for managing the project.
 #[derive(Default)]
 pub struct TopBar {
-    load_filesystem_promise: Option<poll_promise::Promise<PromiseResult>>,
-
+    #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
 }
-
-type PromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 
 impl TopBar {
     /// Display the top bar.

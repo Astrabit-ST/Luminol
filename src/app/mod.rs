@@ -65,6 +65,15 @@ pub struct App {
     steamworks: Steamworks,
 }
 
+macro_rules! let_with_mut_on_native {
+    ($name:ident, $value:expr) => {
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut $name = $value;
+        #[cfg(target_arch = "wasm32")]
+        let $name = $value;
+    };
+}
+
 impl App {
     /// Called once before the first frame.
     #[must_use]
@@ -150,14 +159,16 @@ impl App {
 
         let storage = cc.storage.unwrap();
 
-        let mut global_config =
-            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default();
-        let mut project_config = None;
+        let_with_mut_on_native!(
+            global_config,
+            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default()
+        );
+        let_with_mut_on_native!(project_config, None);
 
-        let mut filesystem = luminol_filesystem::project::FileSystem::new();
-        let mut data = luminol_core::Data::default();
+        let_with_mut_on_native!(filesystem, luminol_filesystem::project::FileSystem::new());
+        let_with_mut_on_native!(data, luminol_core::Data::default());
 
-        let mut toasts = luminol_core::Toasts::default();
+        let_with_mut_on_native!(toasts, luminol_core::Toasts::default());
 
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
