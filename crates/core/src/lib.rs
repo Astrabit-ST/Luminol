@@ -248,6 +248,8 @@ impl<'res> UpdateState<'res> {
         if let Some(p) = self.project_manager.load_filesystem_promise.take() {
             match p.try_take() {
                 Ok(Ok(host)) => {
+                    self.close_project();
+
                     #[cfg(target_arch = "wasm32")]
                     {
                         idb_key = host.idb_key().map(str::to_string);
@@ -310,5 +312,15 @@ impl<'res> UpdateState<'res> {
             }
             None => {}
         }
+    }
+
+    fn close_project(&mut self) {
+        self.edit_windows.clean(|w| !w.requires_filesystem());
+        self.edit_tabs.clean(|t| !t.requires_filesystem());
+        self.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
+        self.filesystem.unload_project();
+        *self.project_config = None;
+        self.data.unload();
+        self.modified.set(false);
     }
 }
