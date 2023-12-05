@@ -64,7 +64,7 @@ impl ProjectHandler {
         let mut should_run_closure = false;
 
         self.modal.show(|ui| {
-            self.modal.title(ui, "Unsaved changes");
+            self.modal.title(ui, "Unsaved Changes");
             self.modal.frame(ui, |ui| {
                 self.modal
                     .body(ui, "Do you want to save your changes to this project?");
