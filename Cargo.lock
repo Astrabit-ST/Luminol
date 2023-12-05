@@ -1412,6 +1412,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-modal"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "930210dbd95b65bdd9251e0ab2e9db7572d58675f018c611d7e500b7ff5226b2"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "egui-notify"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2972,12 +2981,14 @@ dependencies = [
  "bitflags 2.4.1",
  "camino",
  "egui",
+ "egui-modal",
  "egui-notify",
  "egui_dock",
  "getrandom",
  "luminol-audio",
  "luminol-config",
  "luminol-data",
+ "luminol-eframe",
  "luminol-filesystem",
  "luminol-graphics",
  "parking_lot",

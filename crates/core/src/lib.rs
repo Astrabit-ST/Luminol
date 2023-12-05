@@ -47,6 +47,9 @@ pub use data_cache::Data;
 mod toasts;
 pub use toasts::Toasts;
 
+mod project_handler;
+pub use project_handler::ProjectHandler;
+
 pub struct UpdateState<'res> {
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: &'res mut luminol_audio::Audio,
@@ -77,7 +80,7 @@ pub struct UpdateState<'res> {
 /// used to determine whether we should show a "you have unsaved changes" modal when the user tries
 /// to close the current project or the application window.
 ///
-/// This must be thread safe in wasm because the `beforeunload` event handler resides on the main
+/// This must be thread-safe in wasm because the `beforeunload` event handler resides on the main
 /// thread but state is written to from the worker thread.
 #[derive(Debug, Default, Clone)]
 pub struct ModifiedState {

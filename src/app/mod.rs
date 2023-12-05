@@ -56,6 +56,7 @@ pub struct App {
     toolbar: luminol_core::ToolbarState,
 
     modified: luminol_core::ModifiedState,
+    project_handler: luminol_core::ProjectHandler,
 
     #[cfg(not(target_arch = "wasm32"))]
     _runtime: tokio::runtime::Runtime,
@@ -219,6 +220,7 @@ impl App {
             toolbar: luminol_core::ToolbarState::default(),
 
             modified,
+            project_handler: luminol_core::ProjectHandler::new(&cc.egui_ctx),
 
             #[cfg(not(target_arch = "wasm32"))]
             _runtime: runtime,
@@ -304,6 +306,10 @@ impl luminol_eframe::App for App {
         self.windows
             .process_edit_windows(std::mem::take(update_state.edit_windows));
 
+        // If needed, show the modal for asking the user to save their changes.
+        self.project_handler
+            .show_unsaved_changes_modal(frame, &mut update_state);
+
         // Show toasts.
         self.toasts.show(ctx);
 
@@ -313,6 +319,16 @@ impl luminol_eframe::App for App {
 
         #[cfg(feature = "steamworks")]
         self.steamworks.update()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn on_close_event(&mut self) -> bool {
+        if !self.modified.get() {
+            return true;
+        }
+
+        self.project_handler.quit();
+        false
     }
 
     /// Called by the frame work to save state before shutdown.
