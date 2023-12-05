@@ -101,4 +101,18 @@ impl ProjectManager {
             }
         }));
     }
+
+    pub fn close_project(&mut self) {
+        self.closure = Some(Box::new(|update_state, _frame| {
+            update_state
+                .edit_windows
+                .clean(|w| !w.requires_filesystem());
+            update_state.edit_tabs.clean(|t| !t.requires_filesystem());
+            update_state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
+            update_state.filesystem.unload_project();
+            *update_state.project_config = None;
+            update_state.data.unload();
+            update_state.modified.set(false);
+        }))
+    }
 }

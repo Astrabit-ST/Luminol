@@ -272,6 +272,11 @@ impl luminol_eframe::App for App {
             project_manager: &mut self.project_manager,
         };
 
+        // If needed, show the modal for asking the user to save their changes.
+        update_state.show_unsaved_changes_modal(frame);
+
+        update_state.handle_project_loading();
+
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
@@ -306,11 +311,6 @@ impl luminol_eframe::App for App {
             .process_edit_tabs(std::mem::take(update_state.edit_tabs));
         self.windows
             .process_edit_windows(std::mem::take(update_state.edit_windows));
-
-        // If needed, show the modal for asking the user to save their changes.
-        update_state.show_unsaved_changes_modal(frame);
-
-        update_state.handle_project_loading();
 
         // Show toasts.
         self.toasts.show(ctx);
