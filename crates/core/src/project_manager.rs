@@ -27,37 +27,54 @@ pub struct ProjectManager {
     pub(crate) closure:
         Option<Box<dyn FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame)>>,
 
+    pub create_project_promise: Option<poll_promise::Promise<CreateProjectPromiseResult>>,
     pub load_filesystem_promise: Option<poll_promise::Promise<FileSystemPromiseResult>>,
     pub filesystem_open_result: Option<FileSystemOpenResult>,
 }
 
-type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
-type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
+pub struct CreateProjectResult {
+    pub data_cache: crate::Data,
+    pub config: luminol_config::project::Config,
+    pub host_fs: luminol_filesystem::host::FileSystem,
+}
+
+pub type CreateProjectPromiseResult = anyhow::Result<CreateProjectResult>;
+pub type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
+pub type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
 
 impl ProjectManager {
     pub fn new(ctx: &egui::Context) -> Self {
         Self {
             modal: egui_modal::Modal::new(ctx, "luminol_save_modal"),
             closure: None,
+            create_project_promise: None,
             load_filesystem_promise: None,
             filesystem_open_result: None,
         }
     }
 
+    /// Runs a closure after asking the user to save unsaved changes.
+    pub fn run_custom(
+        &mut self,
+        closure: impl FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame) + 'static,
+    ) {
+        self.closure = Some(Box::new(closure));
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     /// Closes the application after asking the user to save unsaved changes.
     pub fn quit(&mut self) {
-        self.closure = Some(Box::new(|update_state, frame| {
+        self.run_custom(|update_state, frame| {
             // Disable the modified flag so `luminol_eframe::App::on_close_event` doesn't recurse
             update_state.modified.set(false);
 
             frame.close();
-        }));
+        });
     }
 
     /// Opens a project picker after asking the user to save unsaved changes.
     pub fn open_project_picker(&mut self) {
-        self.closure = Some(Box::new(|update_state, _frame| {
+        self.run_custom(|update_state, _frame| {
             // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -73,7 +90,7 @@ impl ProjectManager {
                         luminol_filesystem::host::FileSystem::from_folder_picker(),
                     ));
             }
-        }));
+        });
     }
 
     /// Opens a recent project after asking the user to save unsaved changes.
@@ -81,7 +98,7 @@ impl ProjectManager {
     /// On native, `key` should be the absolute path to the project folder.
     /// On web, `key` should be the IndexedDB key of the project folder.
     pub fn load_recent_project(&mut self, key: String) {
-        self.closure = Some(Box::new(|update_state, _frame| {
+        self.run_custom(|update_state, _frame| {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 update_state.close_project();
@@ -100,13 +117,13 @@ impl ProjectManager {
                         luminol_filesystem::host::FileSystem::from_idb_key(key),
                     ));
             }
-        }));
+        });
     }
 
     /// Closes the current project after asking the user to save unsaved changes.
     pub fn close_project(&mut self) {
-        self.closure = Some(Box::new(|update_state, _frame| {
+        self.run_custom(|update_state, _frame| {
             update_state.close_project();
-        }))
+        });
     }
 }

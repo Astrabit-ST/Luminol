@@ -47,7 +47,7 @@ pub use data_cache::Data;
 mod toasts;
 pub use toasts::Toasts;
 
-mod project_manager;
+pub mod project_manager;
 pub use project_manager::ProjectManager;
 
 pub struct UpdateState<'res> {
@@ -311,6 +311,33 @@ impl<'res> UpdateState<'res> {
                 idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
             }
             None => {}
+        }
+
+        if let Some(p) = self.project_manager.create_project_promise.take() {
+            match p.try_take() {
+                Ok(Ok(project_manager::CreateProjectResult {
+                    data_cache,
+                    config,
+                    host_fs,
+                })) => {
+                    let result = self.filesystem.load_partially_loaded_project(
+                        host_fs,
+                        &config,
+                        self.global_config,
+                    );
+
+                    match result {
+                        Ok(_) => {
+                            self.close_project();
+                            *self.data = data_cache;
+                            self.project_config.replace(config);
+                        }
+                        Err(error) => self.toasts.error(format!("{error:#}")),
+                    }
+                }
+                Ok(Err(error)) => self.toasts.error(format!("{error:#}")),
+                Err(p) => self.project_manager.create_project_promise = Some(p),
+            }
         }
     }
 
