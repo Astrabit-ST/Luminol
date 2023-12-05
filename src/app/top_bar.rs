@@ -70,15 +70,18 @@ impl TopBar {
                 "No project open".to_string()
             });
 
-            ui.add_enabled_ui(self.load_filesystem_promise.is_none(), |ui| {
-                if ui.button("New Project").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::new_project::Window::default());
-                }
+            ui.add_enabled_ui(
+                update_state.projman_state.load_filesystem_promise.is_none(),
+                |ui| {
+                    if ui.button("New Project").clicked() {
+                        update_state
+                            .edit_windows
+                            .add_window(luminol_ui::windows::new_project::Window::default());
+                    }
 
-                open_project |= ui.button("Open Project").clicked();
-            });
+                    open_project |= ui.button("Open Project").clicked();
+                },
+            );
 
             ui.separator();
 
@@ -283,18 +286,7 @@ impl TopBar {
         }
 
         if open_project {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                self.load_filesystem_promise = Some(poll_promise::Promise::spawn_async(
-                    luminol_filesystem::host::FileSystem::from_file_picker(),
-                ));
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                self.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
-                    luminol_filesystem::host::FileSystem::from_folder_picker(),
-                ));
-            }
+            update_state.project_manager.load_project();
         }
 
         if save_project {
@@ -309,78 +301,8 @@ impl TopBar {
             }
         }
 
-        let mut filesystem_open_result = None;
-        #[cfg(target_arch = "wasm32")]
-        let mut idb_key = None;
-
-        if let Some(p) = self.load_filesystem_promise.take() {
-            match p.try_take() {
-                Ok(Ok(host)) => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        idb_key = host.idb_key().map(str::to_string);
-                    }
-
-                    filesystem_open_result = Some(update_state.filesystem.load_project(
-                        host,
-                        update_state.project_config,
-                        update_state.global_config,
-                    ));
-                }
-                Ok(Err(error)) => update_state.toasts.error(error.to_string()),
-                Err(p) => self.load_filesystem_promise = Some(p),
-            }
-
+        if update_state.projman_state.load_filesystem_promise.is_some() {
             ui.spinner();
-        }
-
-        match filesystem_open_result {
-            Some(Ok(load_result)) => {
-                for missing_rtp in load_result.missing_rtps {
-                    update_state.toasts.warning(format!(
-                        "Failed to find suitable path for the RTP {missing_rtp}"
-                    ));
-                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
-                    #[cfg(not(target_arch = "wasm32"))]
-                    update_state
-                        .toasts
-                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
-                    #[cfg(target_arch = "wasm32")]
-                    update_state
-                        .toasts
-                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
-                }
-
-                if let Err(why) = update_state.data.load(
-                    update_state.filesystem,
-                    // TODO code jank
-                    update_state.project_config.as_mut().unwrap(),
-                ) {
-                    update_state
-                        .toasts
-                        .error(format!("Error loading the project data: {why}"));
-
-                    #[cfg(target_arch = "wasm32")]
-                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
-                } else {
-                    update_state.toasts.info(format!(
-                        "Successfully opened {:?}",
-                        update_state
-                            .filesystem
-                            .project_path()
-                            .expect("project not open")
-                    ));
-                }
-            }
-            Some(Err(why)) => {
-                update_state
-                    .toasts
-                    .error(format!("Error opening the project: {why}"));
-
-                #[cfg(target_arch = "wasm32")]
-                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
-            }
-            None => {}
         }
     }
 }

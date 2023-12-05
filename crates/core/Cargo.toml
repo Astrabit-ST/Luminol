@@ -25,6 +25,7 @@ egui-notify = "0.10.0"
 egui-modal = "0.2.5"
 
 parking_lot.workspace = true
+poll-promise.workspace = true
 
 anyhow.workspace = true
 camino.workspace = true

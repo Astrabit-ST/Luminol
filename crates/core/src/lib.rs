@@ -49,6 +49,7 @@ pub use toasts::Toasts;
 
 mod project_manager;
 pub use project_manager::ProjectManager;
+pub use project_manager::ProjectManagerState;
 
 pub struct UpdateState<'res> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -74,6 +75,8 @@ pub struct UpdateState<'res> {
     pub toolbar: &'res mut ToolbarState,
 
     pub modified: ModifiedState,
+    pub project_manager: &'res mut ProjectManager,
+    pub projman_state: &'res mut ProjectManagerState,
 }
 
 /// This stores whether or not there are unsaved changes in any file in the current project and is
@@ -147,6 +150,8 @@ impl<'res> UpdateState<'res> {
             global_config: self.global_config,
             toolbar: self.toolbar,
             modified: self.modified.clone(),
+            project_manager: self.project_manager,
+            projman_state: self.projman_state,
         }
     }
 
@@ -167,6 +172,8 @@ impl<'res> UpdateState<'res> {
             global_config: self.global_config,
             toolbar: self.toolbar,
             modified: self.modified.clone(),
+            project_manager: self.project_manager,
+            projman_state: self.projman_state,
         }
     }
 }

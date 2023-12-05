@@ -24,8 +24,19 @@
 
 pub struct ProjectManager {
     modal: egui_modal::Modal,
-    closure: Option<Box<dyn Fn(&mut luminol_eframe::Frame, &mut crate::UpdateState<'_>)>>,
+    closure: Option<
+        Box<
+            dyn Fn(&mut ProjectManagerState, &mut crate::ModifiedState, &mut luminol_eframe::Frame),
+        >,
+    >,
 }
+
+#[derive(Default)]
+pub struct ProjectManagerState {
+    pub load_filesystem_promise: Option<poll_promise::Promise<FileSystemPromiseResult>>,
+}
+
+type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 
 impl ProjectManager {
     pub fn new(ctx: &egui::Context) -> Self {
@@ -35,33 +46,58 @@ impl ProjectManager {
         }
     }
 
-    fn check_and_then(
-        &mut self,
-        closure: impl Fn(&mut luminol_eframe::Frame, &mut crate::UpdateState<'_>) + 'static,
-    ) {
-        self.closure = Some(Box::new(closure));
-        self.modal.open();
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     /// Closes the application after asking the user to save unsaved changes.
     pub fn quit(&mut self) {
-        self.check_and_then(|frame, update_state| {
+        self.closure = Some(Box::new(|_projman_state, modified, frame| {
             // Disable the modified flag so `luminol_eframe::App::on_close_event` doesn't recurse
-            update_state.modified.set(false);
+            modified.set(false);
 
             frame.close();
-        });
+        }));
     }
 
+    /// Opens a project picker after asking the user to save unsaved changes.
+    pub fn load_project(&mut self) {
+        self.closure = Some(Box::new(|projman_state, _modified, _frame| {
+            // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                projman_state.load_filesystem_promise = Some(poll_promise::Promise::spawn_async(
+                    luminol_filesystem::host::FileSystem::from_file_picker(),
+                ));
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                projman_state.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
+                    luminol_filesystem::host::FileSystem::from_folder_picker(),
+                ));
+            }
+        }));
+    }
+
+    // FIXME maybe make a struct inside of UpdateState that contains only these fields?
     pub fn show_unsaved_changes_modal(
         &mut self,
+        data: &mut crate::Data,
+        filesystem: &mut luminol_filesystem::project::FileSystem,
+        project_config: &Option<luminol_config::project::Config>,
+        modified: &mut crate::ModifiedState,
+        projman_state: &mut ProjectManagerState,
         frame: &mut luminol_eframe::Frame,
-        update_state: &mut crate::UpdateState<'_>,
     ) {
         let mut should_close = false;
         let mut should_save = false;
         let mut should_run_closure = false;
+
+        if self.closure.is_some() {
+            if !modified.get() {
+                should_close = true;
+                should_run_closure = true;
+            } else if !self.modal.is_open() {
+                self.modal.open();
+            }
+        }
 
         self.modal.show(|ui| {
             self.modal.title(ui, "Unsaved Changes");
@@ -86,21 +122,93 @@ impl ProjectManager {
 
         if should_close {
             if should_save {
-                if let Err(_err) = update_state.data.save(
-                    update_state.filesystem,
-                    update_state.project_config.as_ref().unwrap(),
-                ) {
+                if let Err(_err) = data.save(filesystem, project_config.as_ref().unwrap()) {
                     todo!()
                 }
+                modified.set(false);
             }
 
             if should_run_closure {
                 if let Some(closure) = &self.closure {
-                    closure(frame, update_state);
+                    closure(projman_state, modified, frame);
                 }
             }
 
             self.closure = None;
+        }
+    }
+
+    pub fn handle_project_loading(update_state: &mut crate::UpdateState<'_>) {
+        let mut filesystem_open_result = None;
+        #[cfg(target_arch = "wasm32")]
+        let mut idb_key = None;
+
+        if let Some(p) = update_state.projman_state.load_filesystem_promise.take() {
+            match p.try_take() {
+                Ok(Ok(host)) => {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        idb_key = host.idb_key().map(str::to_string);
+                    }
+
+                    filesystem_open_result = Some(update_state.filesystem.load_project(
+                        host,
+                        update_state.project_config,
+                        update_state.global_config,
+                    ));
+                }
+                Ok(Err(error)) => update_state.toasts.error(error.to_string()),
+                Err(p) => update_state.projman_state.load_filesystem_promise = Some(p),
+            }
+        }
+
+        match filesystem_open_result {
+            Some(Ok(load_result)) => {
+                for missing_rtp in load_result.missing_rtps {
+                    update_state.toasts.warning(format!(
+                        "Failed to find suitable path for the RTP {missing_rtp}"
+                    ));
+                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
+                    #[cfg(not(target_arch = "wasm32"))]
+                    update_state
+                        .toasts
+                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
+                    #[cfg(target_arch = "wasm32")]
+                    update_state
+                        .toasts
+                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
+                }
+
+                if let Err(why) = update_state.data.load(
+                    update_state.filesystem,
+                    // TODO code jank
+                    update_state.project_config.as_mut().unwrap(),
+                ) {
+                    update_state
+                        .toasts
+                        .error(format!("Error loading the project data: {why}"));
+
+                    #[cfg(target_arch = "wasm32")]
+                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
+                } else {
+                    update_state.toasts.info(format!(
+                        "Successfully opened {:?}",
+                        update_state
+                            .filesystem
+                            .project_path()
+                            .expect("project not open")
+                    ));
+                }
+            }
+            Some(Err(why)) => {
+                update_state
+                    .toasts
+                    .error(format!("Error opening the project: {why}"));
+
+                #[cfg(target_arch = "wasm32")]
+                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
+            }
+            None => {}
         }
     }
 }
