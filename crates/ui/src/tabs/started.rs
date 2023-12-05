@@ -105,7 +105,6 @@ impl luminol_core::Tab for Tab {
 
         // FIXME this logic is shared with the top bar
         // We should probably join the two
-        let mut filesystem_open_result = None;
         for path in update_state.global_config.recent_projects.clone() {
             #[cfg(target_arch = "wasm32")]
             let (path, idb_key) = path;
@@ -115,11 +114,12 @@ impl luminol_core::Tab for Tab {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    filesystem_open_result = Some(update_state.filesystem.load_project_from_path(
-                        update_state.project_config,
-                        update_state.global_config,
-                        path,
-                    ));
+                    let filesystem_open_result =
+                        Some(update_state.filesystem.load_project_from_path(
+                            update_state.project_config,
+                            update_state.global_config,
+                            path,
+                        ));
                 }
 
                 #[cfg(target_arch = "wasm32")]
