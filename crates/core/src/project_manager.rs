@@ -24,8 +24,7 @@
 
 pub struct ProjectManager {
     pub(crate) modal: egui_modal::Modal,
-    pub(crate) closure:
-        Option<Box<dyn FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame)>>,
+    pub(crate) closure: Option<Box<dyn ProjectManagerClosure>>,
 
     pub create_project_promise: Option<poll_promise::Promise<CreateProjectPromiseResult>>,
     pub load_filesystem_promise: Option<poll_promise::Promise<FileSystemPromiseResult>>,
@@ -38,6 +37,7 @@ pub struct CreateProjectResult {
     pub host_fs: luminol_filesystem::host::FileSystem,
 }
 
+pub trait ProjectManagerClosure = FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame);
 pub type CreateProjectPromiseResult = anyhow::Result<CreateProjectResult>;
 pub type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 pub type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
@@ -54,10 +54,7 @@ impl ProjectManager {
     }
 
     /// Runs a closure after asking the user to save unsaved changes.
-    pub fn run_custom(
-        &mut self,
-        closure: impl FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame) + 'static,
-    ) {
+    pub fn run_custom(&mut self, closure: impl ProjectManagerClosure + 'static) {
         self.closure = Some(Box::new(closure));
     }
 

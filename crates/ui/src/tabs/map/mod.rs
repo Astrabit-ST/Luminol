@@ -356,7 +356,7 @@ impl luminol_core::Tab for Tab {
                         .is_some_and(|event| event.x != info.x || event.y != info.y)
                     {
                         self.push_to_history(
-                            &update_state,
+                            update_state,
                             &mut map,
                             HistoryEntry::EventMoved {
                                 id: info.id,
@@ -383,7 +383,7 @@ impl luminol_core::Tab for Tab {
                             })
                             .collect();
                         self.push_to_history(
-                            &update_state,
+                            update_state,
                             &mut map,
                             HistoryEntry::Tiles {
                                 layer: self.tilemap_undo_cache_layer,
@@ -435,7 +435,7 @@ impl luminol_core::Tab for Tab {
                         let event = map.events.remove(selected_event_id);
                         let sprites = self.view.events.try_remove(selected_event_id).ok();
                         self.push_to_history(
-                            &update_state,
+                            update_state,
                             &mut map,
                             HistoryEntry::EventDeleted { event, sprites },
                         );
@@ -500,7 +500,7 @@ impl luminol_core::Tab for Tab {
                     {
                         if let Some(id) = self.add_event(&mut map) {
                             self.push_to_history(
-                                &update_state,
+                                update_state,
                                 &mut map,
                                 HistoryEntry::EventCreated(id),
                             );
