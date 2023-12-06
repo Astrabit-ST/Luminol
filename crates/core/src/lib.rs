@@ -194,9 +194,9 @@ impl<'res> UpdateState<'res> {
                 });
 
                 self.project_manager.modal.buttons(ui, |ui| {
-                    let cancel_button = self.project_manager.modal.button(ui, "Cancel");
-                    let discard_button = self.project_manager.modal.caution_button(ui, "Discard");
                     let save_button = self.project_manager.modal.suggested_button(ui, "Save");
+                    let discard_button = self.project_manager.modal.caution_button(ui, "Discard");
+                    let cancel_button = self.project_manager.modal.button(ui, "Cancel");
 
                     if cancel_button.clicked() {
                         should_close = true;
