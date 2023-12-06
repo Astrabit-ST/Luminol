@@ -172,6 +172,7 @@ impl<'res> UpdateState<'res> {
         let mut should_close = false;
         let mut should_save = false;
         let mut should_run_closure = false;
+        let mut should_focus_save_button = false;
 
         if self.project_manager.closure.is_some() {
             if !self.modified.get() {
@@ -179,6 +180,7 @@ impl<'res> UpdateState<'res> {
                 should_run_closure = true;
             } else if !self.project_manager.modal.is_open() {
                 self.project_manager.modal.open();
+                should_focus_save_button = true;
             }
         }
 
@@ -191,25 +193,26 @@ impl<'res> UpdateState<'res> {
             });
 
             self.project_manager.modal.buttons(ui, |ui| {
-                if self.project_manager.modal.button(ui, "Cancel").clicked() {
+                let cancel_button = self.project_manager.modal.button(ui, "Cancel");
+                let discard_button = self.project_manager.modal.caution_button(ui, "Discard");
+                let save_button = self.project_manager.modal.suggested_button(ui, "Save");
+
+                if cancel_button.clicked() {
                     should_close = true;
-                } else if self
-                    .project_manager
-                    .modal
-                    .caution_button(ui, "Discard")
-                    .clicked()
-                {
+                } else if discard_button.clicked() {
                     should_close = true;
                     should_run_closure = true;
-                } else if self
-                    .project_manager
-                    .modal
-                    .suggested_button(ui, "Save")
-                    .clicked()
-                {
+                } else if save_button.clicked() {
                     should_close = true;
                     should_save = true;
                     should_run_closure = true;
+                } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    should_close = true;
+                    self.project_manager.modal.close();
+                }
+
+                if should_focus_save_button {
+                    save_button.request_focus();
                 }
             });
         });

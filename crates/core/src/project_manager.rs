@@ -53,6 +53,11 @@ impl ProjectManager {
         }
     }
 
+    /// Returns whether or not the unsaved changes modal is currently open.
+    pub fn is_modal_open(&self) -> bool {
+        self.modal.is_open()
+    }
+
     /// Runs a closure after asking the user to save unsaved changes.
     pub fn run_custom(&mut self, closure: impl ProjectManagerClosure + 'static) {
         self.closure = Some(Box::new(closure));

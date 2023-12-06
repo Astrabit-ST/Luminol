@@ -61,6 +61,11 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("File", |ui| {
+            // Hide this menu if the unsaved changes modal is open
+            if update_state.project_manager.is_modal_open() {
+                ui.close_menu();
+            }
+
             ui.label(if let Some(path) = update_state.filesystem.project_path() {
                 format!("Current project:\n{}", path)
             } else {
@@ -122,7 +127,11 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Edit", |ui| {
-            //
+            // Hide this menu if the unsaved changes modal is open
+            if update_state.project_manager.is_modal_open() {
+                ui.close_menu();
+            }
+
             if ui.button("Preferences").clicked() {
                 update_state
                     .edit_windows
@@ -139,6 +148,11 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Data", |ui| {
+            // Hide this menu if the unsaved changes modal is open
+            if update_state.project_manager.is_modal_open() {
+                ui.close_menu();
+            }
+
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
                     update_state
@@ -175,6 +189,11 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Help", |ui| {
+            // Hide this menu if the unsaved changes modal is open
+            if update_state.project_manager.is_modal_open() {
+                ui.close_menu();
+            }
+
             ui.button("Contents").clicked();
 
             if ui.button("About...").clicked() {
@@ -185,6 +204,11 @@ impl TopBar {
         });
 
         ui.menu_button("Debug", |ui| {
+            // Hide this menu if the unsaved changes modal is open
+            if update_state.project_manager.is_modal_open() {
+                ui.close_menu();
+            }
+
             if ui.button("Egui Inspection").clicked() {
                 update_state
                     .edit_windows
