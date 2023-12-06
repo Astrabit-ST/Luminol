@@ -221,13 +221,19 @@ impl<'res> UpdateState<'res> {
 
         if should_close {
             if should_save {
-                if let Err(_err) = self
+                match self
                     .data
                     .save(self.filesystem, self.project_config.as_ref().unwrap())
                 {
-                    todo!()
+                    Ok(_) => {
+                        self.modified.set(false);
+                        self.toasts.info("Saved project sucessfully!")
+                    }
+                    Err(e) => {
+                        should_run_closure = false;
+                        self.toasts.error(e.to_string())
+                    }
                 }
-                self.modified.set(false);
             }
 
             if should_run_closure {
