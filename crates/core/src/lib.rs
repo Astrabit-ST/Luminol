@@ -227,7 +227,7 @@ impl<'res> UpdateState<'res> {
                 {
                     Ok(_) => {
                         self.modified.set(false);
-                        self.toasts.info("Saved project sucessfully!")
+                        self.toasts.info("Saved project successfully!")
                     }
                     Err(e) => {
                         should_run_closure = false;

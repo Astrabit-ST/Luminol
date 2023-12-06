@@ -321,7 +321,7 @@ impl TopBar {
                 match update_state.data.save(update_state.filesystem, config) {
                     Ok(_) => {
                         update_state.modified.set(false);
-                        update_state.toasts.info("Saved project sucessfully!")
+                        update_state.toasts.info("Saved project successfully!")
                     }
                     Err(e) => update_state.toasts.error(e.to_string()),
                 }
