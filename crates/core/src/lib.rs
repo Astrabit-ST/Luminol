@@ -167,7 +167,7 @@ impl<'res> UpdateState<'res> {
         }
     }
 
-    pub fn show_unsaved_changes_modal(&mut self, frame: &mut luminol_eframe::Frame) {
+    pub fn manage_projects(&mut self, frame: &mut luminol_eframe::Frame) {
         let mut should_close = false;
         let mut should_save = false;
         let mut should_run_closure = false;
@@ -232,9 +232,11 @@ impl<'res> UpdateState<'res> {
 
             self.project_manager.closure = None;
         }
+
+        self.handle_project_loading();
     }
 
-    pub fn handle_project_loading(&mut self) {
+    fn handle_project_loading(&mut self) {
         let mut filesystem_open_result = None;
         #[cfg(target_arch = "wasm32")]
         let mut idb_key = None;

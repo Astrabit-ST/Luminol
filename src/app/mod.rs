@@ -283,10 +283,9 @@ impl luminol_eframe::App for App {
             project_manager: &mut self.project_manager,
         };
 
-        // If needed, show the modal for asking the user to save their changes.
-        update_state.show_unsaved_changes_modal(frame);
-
-        update_state.handle_project_loading();
+        // Handle loading and closing projects, and if applicable, show the modal asking the user
+        // if they want to save their changes.
+        update_state.manage_projects(frame);
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
