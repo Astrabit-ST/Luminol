@@ -283,6 +283,17 @@ impl luminol_eframe::App for App {
             project_manager: &mut self.project_manager,
         };
 
+        // If a file/folder picker is open, prevent the user from interacting with the application
+        // with the mouse.
+        if update_state.project_manager.is_picker_open() {
+            egui::Area::new("luminol_picker_overlay").show(&ctx, |ui| {
+                ui.allocate_response(
+                    ui.ctx().input(|i| i.screen_rect.size()),
+                    egui::Sense::click_and_drag(),
+                );
+            });
+        }
+
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {

@@ -61,8 +61,10 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("File", |ui| {
-            // Hide this menu if the unsaved changes modal is open
-            if update_state.project_manager.is_modal_open() {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
                 ui.close_menu();
             }
 
@@ -127,8 +129,10 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Edit", |ui| {
-            // Hide this menu if the unsaved changes modal is open
-            if update_state.project_manager.is_modal_open() {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
                 ui.close_menu();
             }
 
@@ -148,8 +152,10 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Data", |ui| {
-            // Hide this menu if the unsaved changes modal is open
-            if update_state.project_manager.is_modal_open() {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
                 ui.close_menu();
             }
 
@@ -189,8 +195,10 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Help", |ui| {
-            // Hide this menu if the unsaved changes modal is open
-            if update_state.project_manager.is_modal_open() {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
                 ui.close_menu();
             }
 
@@ -204,8 +212,10 @@ impl TopBar {
         });
 
         ui.menu_button("Debug", |ui| {
-            // Hide this menu if the unsaved changes modal is open
-            if update_state.project_manager.is_modal_open() {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
                 ui.close_menu();
             }
 

@@ -58,6 +58,13 @@ impl ProjectManager {
         self.modal.is_open()
     }
 
+    /// Returns whether or not a file or filder picker is currently open.
+    pub fn is_picker_open(&self) -> bool {
+        self.filesystem_open_result.is_some()
+            || self.create_project_promise.is_some()
+            || self.load_filesystem_promise.is_some()
+    }
+
     /// Runs a closure after asking the user to save unsaved changes.
     pub fn run_custom(&mut self, closure: impl ProjectManagerClosure + 'static) {
         self.closure = Some(Box::new(closure));
