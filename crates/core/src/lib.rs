@@ -168,7 +168,7 @@ impl<'res> UpdateState<'res> {
         }
     }
 
-    pub fn manage_projects(&mut self, frame: &mut luminol_eframe::Frame) {
+    pub fn manage_projects(&mut self, frame: &mut luminol_eframe::Frame, show_modal: bool) {
         let mut should_close = false;
         let mut should_save = false;
         let mut should_run_closure = false;
@@ -178,44 +178,46 @@ impl<'res> UpdateState<'res> {
             if !self.modified.get() {
                 should_close = true;
                 should_run_closure = true;
-            } else if !self.project_manager.modal.is_open() {
+            } else if show_modal && !self.project_manager.modal.is_open() {
                 self.project_manager.modal.open();
                 should_focus_save_button = true;
             }
         }
 
-        self.project_manager.modal.show(|ui| {
-            self.project_manager.modal.title(ui, "Unsaved Changes");
-            self.project_manager.modal.frame(ui, |ui| {
-                self.project_manager
-                    .modal
-                    .body(ui, "Do you want to save your changes to this project?");
+        if show_modal {
+            self.project_manager.modal.show(|ui| {
+                self.project_manager.modal.title(ui, "Unsaved Changes");
+                self.project_manager.modal.frame(ui, |ui| {
+                    self.project_manager
+                        .modal
+                        .body(ui, "Do you want to save your changes to this project?");
+                });
+
+                self.project_manager.modal.buttons(ui, |ui| {
+                    let cancel_button = self.project_manager.modal.button(ui, "Cancel");
+                    let discard_button = self.project_manager.modal.caution_button(ui, "Discard");
+                    let save_button = self.project_manager.modal.suggested_button(ui, "Save");
+
+                    if cancel_button.clicked() {
+                        should_close = true;
+                    } else if discard_button.clicked() {
+                        should_close = true;
+                        should_run_closure = true;
+                    } else if save_button.clicked() {
+                        should_close = true;
+                        should_save = true;
+                        should_run_closure = true;
+                    } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                        should_close = true;
+                        self.project_manager.modal.close();
+                    }
+
+                    if should_focus_save_button {
+                        save_button.request_focus();
+                    }
+                });
             });
-
-            self.project_manager.modal.buttons(ui, |ui| {
-                let cancel_button = self.project_manager.modal.button(ui, "Cancel");
-                let discard_button = self.project_manager.modal.caution_button(ui, "Discard");
-                let save_button = self.project_manager.modal.suggested_button(ui, "Save");
-
-                if cancel_button.clicked() {
-                    should_close = true;
-                } else if discard_button.clicked() {
-                    should_close = true;
-                    should_run_closure = true;
-                } else if save_button.clicked() {
-                    should_close = true;
-                    should_save = true;
-                    should_run_closure = true;
-                } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                    should_close = true;
-                    self.project_manager.modal.close();
-                }
-
-                if should_focus_save_button {
-                    save_button.request_focus();
-                }
-            });
-        });
+        }
 
         if should_close {
             if should_save {

@@ -283,10 +283,6 @@ impl luminol_eframe::App for App {
             project_manager: &mut self.project_manager,
         };
 
-        // Handle loading and closing projects, and if applicable, show the modal asking the user
-        // if they want to save their changes.
-        update_state.manage_projects(frame);
-
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
             ui.horizontal_wrapped(|ui| {
@@ -294,6 +290,12 @@ impl luminol_eframe::App for App {
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
                 self.top_bar.ui(ui, frame, &mut update_state);
+
+                // Handle loading and closing projects but don't show the unsaved changes modal
+                // because we're going to do that after the windows and tabs are also displayed so
+                // that it doesn't take an extra frame for the modal to be shown if the windows or
+                // tabs load or close a project.
+                update_state.manage_projects(frame, false);
 
                 // Process edit tabs for any changes made by top bar.
                 // If we don't do this before displaying windows and tabs, any changes made by the top bar will be delayed a frame.
@@ -314,6 +316,10 @@ impl luminol_eframe::App for App {
 
         // Update all windows.
         self.windows.display_without_edit(ctx, &mut update_state);
+
+        // Handle loading and closing projects, and if applicable, show the modal asking the user
+        // if they want to save their changes.
+        update_state.manage_projects(frame, true);
 
         // If we don't do this tabs added by windows won't be added.
         // It also cleans up code nicely.
