@@ -67,8 +67,8 @@ impl luminol_core::Window for Window {
                             let mut insert_index = None;
                             let mut del_index = None;
 
-                            let scripts_len = scripts.len();
-                            for (index, script) in scripts.iter_mut().enumerate() {
+                            let scripts_len = scripts.data.len();
+                            for (index, script) in scripts.data.iter_mut().enumerate() {
                                 let response = ui
                                     .text_edit_singleline(&mut script.name)
                                     .context_menu(|ui| {
@@ -90,7 +90,7 @@ impl luminol_core::Window for Window {
                             }
 
                             if let Some(index) = insert_index {
-                                scripts.insert(
+                                scripts.data.insert(
                                     index,
                                     luminol_data::rpg::Script {
                                         name: "New Script".to_string(),
@@ -100,7 +100,7 @@ impl luminol_core::Window for Window {
                             }
 
                             if let Some(index) = del_index {
-                                scripts.remove(index);
+                                scripts.data.remove(index);
                             }
                         });
                 });
@@ -165,9 +165,12 @@ impl luminol_core::Tab for ScriptTab {
             }
 
             if save_script {
-                let mut scripts = update_state.data.scripts();
+                update_state.modified.set(true);
 
-                scripts[self.index].script_text = self.script_text.clone();
+                let mut scripts = update_state.data.scripts();
+                scripts.modified = true;
+
+                scripts.data[self.index].script_text = self.script_text.clone();
             }
         });
 

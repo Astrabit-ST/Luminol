@@ -27,12 +27,9 @@ use strum::IntoEnumIterator;
 /// The top bar for managing the project.
 #[derive(Default)]
 pub struct TopBar {
-    load_filesystem_promise: Option<poll_promise::Promise<PromiseResult>>,
-
+    #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
 }
-
-type PromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 
 impl TopBar {
     /// Display the top bar.
@@ -64,21 +61,34 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("File", |ui| {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
+                ui.close_menu();
+            }
+
             ui.label(if let Some(path) = update_state.filesystem.project_path() {
                 format!("Current project:\n{}", path)
             } else {
                 "No project open".to_string()
             });
 
-            ui.add_enabled_ui(self.load_filesystem_promise.is_none(), |ui| {
-                if ui.button("New Project").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::new_project::Window::default());
-                }
+            ui.add_enabled_ui(
+                update_state
+                    .project_manager
+                    .load_filesystem_promise
+                    .is_none(),
+                |ui| {
+                    if ui.button("New Project").clicked() {
+                        update_state
+                            .edit_windows
+                            .add_window(luminol_ui::windows::new_project::Window::default());
+                    }
 
-                open_project |= ui.button("Open Project").clicked();
-            });
+                    open_project |= ui.button("Open Project").clicked();
+                },
+            );
 
             ui.separator();
 
@@ -90,14 +100,7 @@ impl TopBar {
                 }
 
                 if ui.button("Close Project").clicked() {
-                    update_state
-                        .edit_windows
-                        .clean(|w| !w.requires_filesystem());
-                    update_state.edit_tabs.clean(|t| !t.requires_filesystem());
-                    update_state.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
-                    update_state.filesystem.unload_project();
-                    *update_state.project_config = None;
-                    update_state.data.unload();
+                    update_state.project_manager.close_project();
                 }
 
                 save_project |= ui.button("Save Project").clicked();
@@ -126,7 +129,13 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Edit", |ui| {
-            //
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
+                ui.close_menu();
+            }
+
             if ui.button("Preferences").clicked() {
                 update_state
                     .edit_windows
@@ -143,6 +152,13 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Data", |ui| {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
+                ui.close_menu();
+            }
+
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Maps").clicked() {
                     update_state
@@ -179,6 +195,13 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Help", |ui| {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
+                ui.close_menu();
+            }
+
             ui.button("Contents").clicked();
 
             if ui.button("About...").clicked() {
@@ -189,6 +212,13 @@ impl TopBar {
         });
 
         ui.menu_button("Debug", |ui| {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
+                ui.close_menu();
+            }
+
             if ui.button("Egui Inspection").clicked() {
                 update_state
                     .edit_windows
@@ -283,102 +313,27 @@ impl TopBar {
         }
 
         if open_project {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                self.load_filesystem_promise = Some(poll_promise::Promise::spawn_async(
-                    luminol_filesystem::host::FileSystem::from_file_picker(),
-                ));
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                self.load_filesystem_promise = Some(poll_promise::Promise::spawn_local(
-                    luminol_filesystem::host::FileSystem::from_folder_picker(),
-                ));
-            }
+            update_state.project_manager.open_project_picker();
         }
 
         if save_project {
             if let Some(config) = update_state.project_config {
-                update_state.toasts.info("Saving project...");
                 match update_state.data.save(update_state.filesystem, config) {
-                    Ok(_) => update_state.toasts.info("Saved project sucessfully!"),
+                    Ok(_) => {
+                        update_state.modified.set(false);
+                        update_state.toasts.info("Saved project successfully!")
+                    }
                     Err(e) => update_state.toasts.error(e.to_string()),
                 }
             }
         }
 
-        let mut filesystem_open_result = None;
-        #[cfg(target_arch = "wasm32")]
-        let mut idb_key = None;
-
-        if let Some(p) = self.load_filesystem_promise.take() {
-            match p.try_take() {
-                Ok(Ok(host)) => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        idb_key = host.idb_key().map(str::to_string);
-                    }
-
-                    filesystem_open_result = Some(update_state.filesystem.load_project(
-                        host,
-                        update_state.project_config,
-                        update_state.global_config,
-                    ));
-                }
-                Ok(Err(error)) => update_state.toasts.error(error.to_string()),
-                Err(p) => self.load_filesystem_promise = Some(p),
-            }
-
+        if update_state
+            .project_manager
+            .load_filesystem_promise
+            .is_some()
+        {
             ui.spinner();
-        }
-
-        match filesystem_open_result {
-            Some(Ok(load_result)) => {
-                for missing_rtp in load_result.missing_rtps {
-                    update_state.toasts.warning(format!(
-                        "Failed to find suitable path for the RTP {missing_rtp}"
-                    ));
-                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
-                    #[cfg(not(target_arch = "wasm32"))]
-                    update_state
-                        .toasts
-                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
-                    #[cfg(target_arch = "wasm32")]
-                    update_state
-                        .toasts
-                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
-                }
-
-                if let Err(why) = update_state.data.load(
-                    update_state.filesystem,
-                    // TODO code jank
-                    update_state.project_config.as_mut().unwrap(),
-                ) {
-                    update_state
-                        .toasts
-                        .error(format!("Error loading the project data: {why}"));
-
-                    #[cfg(target_arch = "wasm32")]
-                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
-                } else {
-                    update_state.toasts.info(format!(
-                        "Successfully opened {:?}",
-                        update_state
-                            .filesystem
-                            .project_path()
-                            .expect("project not open")
-                    ));
-                }
-            }
-            Some(Err(why)) => {
-                update_state
-                    .toasts
-                    .error(format!("Error opening the project: {why}"));
-
-                #[cfg(target_arch = "wasm32")]
-                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
-            }
-            None => {}
         }
     }
 }

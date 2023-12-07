@@ -55,6 +55,9 @@ pub struct App {
 
     toolbar: luminol_core::ToolbarState,
 
+    modified: luminol_core::ModifiedState,
+    project_manager: luminol_core::ProjectManager,
+
     #[cfg(not(target_arch = "wasm32"))]
     _runtime: tokio::runtime::Runtime,
 
@@ -62,11 +65,21 @@ pub struct App {
     steamworks: Steamworks,
 }
 
+macro_rules! let_with_mut_on_native {
+    ($name:ident, $value:expr) => {
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut $name = $value;
+        #[cfg(target_arch = "wasm32")]
+        let $name = $value;
+    };
+}
+
 impl App {
     /// Called once before the first frame.
     #[must_use]
     pub fn new(
         cc: &luminol_eframe::CreationContext<'_>,
+        modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -146,14 +159,16 @@ impl App {
 
         let storage = cc.storage.unwrap();
 
-        let mut global_config =
-            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default();
-        let mut project_config = None;
+        let_with_mut_on_native!(
+            global_config,
+            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default()
+        );
+        let_with_mut_on_native!(project_config, None);
 
-        let mut filesystem = luminol_filesystem::project::FileSystem::new();
-        let mut data = luminol_core::Data::default();
+        let_with_mut_on_native!(filesystem, luminol_filesystem::project::FileSystem::new());
+        let_with_mut_on_native!(data, luminol_core::Data::default());
 
-        let mut toasts = luminol_core::Toasts::default();
+        let_with_mut_on_native!(toasts, luminol_core::Toasts::default());
 
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = try_load_path {
@@ -215,6 +230,9 @@ impl App {
             project_config,
             toolbar: luminol_core::ToolbarState::default(),
 
+            modified,
+            project_manager: luminol_core::ProjectManager::new(&cc.egui_ctx),
+
             #[cfg(not(target_arch = "wasm32"))]
             _runtime: runtime,
 
@@ -261,7 +279,20 @@ impl luminol_eframe::App for App {
             project_config: &mut self.project_config,
             global_config: &mut self.global_config,
             toolbar: &mut self.toolbar,
+            modified: self.modified.clone(),
+            project_manager: &mut self.project_manager,
         };
+
+        // If a file/folder picker is open, prevent the user from interacting with the application
+        // with the mouse.
+        if update_state.project_manager.is_picker_open() {
+            egui::Area::new("luminol_picker_overlay").show(ctx, |ui| {
+                ui.allocate_response(
+                    ui.ctx().input(|i| i.screen_rect.size()),
+                    egui::Sense::click_and_drag(),
+                );
+            });
+        }
 
         egui::TopBottomPanel::top("top_toolbar").show(ctx, |ui| {
             // We want the top menubar to be horizontal. Without this it would fill up vertically.
@@ -270,6 +301,12 @@ impl luminol_eframe::App for App {
                 ui.visuals_mut().button_frame = false;
                 // Show the bar
                 self.top_bar.ui(ui, frame, &mut update_state);
+
+                // Handle loading and closing projects but don't show the unsaved changes modal
+                // because we're going to do that after the windows and tabs are also displayed so
+                // that it doesn't take an extra frame for the modal to be shown if the windows or
+                // tabs load or close a project.
+                update_state.manage_projects(frame, false);
 
                 // Process edit tabs for any changes made by top bar.
                 // If we don't do this before displaying windows and tabs, any changes made by the top bar will be delayed a frame.
@@ -291,6 +328,10 @@ impl luminol_eframe::App for App {
         // Update all windows.
         self.windows.display_without_edit(ctx, &mut update_state);
 
+        // Handle loading and closing projects, and if applicable, show the modal asking the user
+        // if they want to save their changes.
+        update_state.manage_projects(frame, true);
+
         // If we don't do this tabs added by windows won't be added.
         // It also cleans up code nicely.
         self.tabs
@@ -307,6 +348,16 @@ impl luminol_eframe::App for App {
 
         #[cfg(feature = "steamworks")]
         self.steamworks.update()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn on_close_event(&mut self) -> bool {
+        if !self.modified.get() {
+            return true;
+        }
+
+        self.project_manager.quit();
+        false
     }
 
     /// Called by the frame work to save state before shutdown.

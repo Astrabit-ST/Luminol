@@ -121,7 +121,7 @@ impl Tab {
             .data
             .get_or_load_map(id, update_state.filesystem);
         let tilesets = update_state.data.tilesets();
-        let tileset = &tilesets[map.tileset_id];
+        let tileset = &tilesets.data[map.tileset_id];
 
         let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
         luminol_graphics::collision::calculate_passages(
@@ -164,7 +164,16 @@ impl Tab {
 impl luminol_core::Tab for Tab {
     fn name(&self, update_state: &luminol_core::UpdateState<'_>) -> String {
         let map_infos = update_state.data.map_infos();
-        format!("Map {}: {}", self.id, map_infos[&self.id].name)
+        format!(
+            "{}Map {}: {}",
+            if update_state.data.get_map(self.id).modified {
+                "*"
+            } else {
+                ""
+            },
+            self.id,
+            map_infos.data[&self.id].name,
+        )
     }
 
     fn id(&self) -> egui::Id {
@@ -298,7 +307,7 @@ impl luminol_core::Tab for Tab {
                 // Get the map.
                 let mut map = update_state.data.get_map(self.id);
                 let tilesets = update_state.data.tilesets();
-                let tileset = &tilesets[map.tileset_id];
+                let tileset = &tilesets.data[map.tileset_id];
 
                 // Save the state of the selected layer into the cache
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =
@@ -346,15 +355,15 @@ impl luminol_core::Tab for Tab {
                         .get(info.id)
                         .is_some_and(|event| event.x != info.x || event.y != info.y)
                     {
-                        self.redo_history.clear();
-                        if self.history.len() == HISTORY_SIZE {
-                            self.history.pop_front();
-                        }
-                        self.history.push_back(HistoryEntry::EventMoved {
-                            id: info.id,
-                            x: info.x,
-                            y: info.y,
-                        });
+                        self.push_to_history(
+                            update_state,
+                            &mut map,
+                            HistoryEntry::EventMoved {
+                                id: info.id,
+                                x: info.x,
+                                y: info.y,
+                            },
+                        );
                     }
                 }
 
@@ -365,24 +374,22 @@ impl luminol_core::Tab for Tab {
 
                     if self.drawing_shape_pos.is_some() {
                         self.drawing_shape_pos = None;
-                        self.redo_history.clear();
-                        if self.history.len() == HISTORY_SIZE {
-                            self.history.pop_front();
-                        }
-                        self.history.push_back(HistoryEntry::Tiles {
-                            layer: self.tilemap_undo_cache_layer,
-                            delta: (0..map.data.ysize())
-                                .cartesian_product(0..map.data.xsize())
-                                .filter_map(|(y, x)| {
-                                    let old_id = self.tilemap_undo_cache[x + y * map.data.xsize()];
-                                    if map.data[(x, y, self.tilemap_undo_cache_layer)] != old_id {
-                                        Some((x, y, old_id))
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect(),
-                        });
+                        let delta = (0..map.data.ysize())
+                            .cartesian_product(0..map.data.xsize())
+                            .filter_map(|(y, x)| {
+                                let old_id = self.tilemap_undo_cache[x + y * map.data.xsize()];
+                                (map.data[(x, y, self.tilemap_undo_cache_layer)] != old_id)
+                                    .then_some((x, y, old_id))
+                            })
+                            .collect();
+                        self.push_to_history(
+                            update_state,
+                            &mut map,
+                            HistoryEntry::Tiles {
+                                layer: self.tilemap_undo_cache_layer,
+                                delta,
+                            },
+                        );
                     }
                 }
 
@@ -427,12 +434,11 @@ impl luminol_core::Tab for Tab {
                     if is_delete_pressed {
                         let event = map.events.remove(selected_event_id);
                         let sprites = self.view.events.try_remove(selected_event_id).ok();
-                        self.redo_history.clear();
-                        if self.history.len() == HISTORY_SIZE {
-                            self.history.pop_front();
-                        }
-                        self.history
-                            .push_back(HistoryEntry::EventDeleted { event, sprites });
+                        self.push_to_history(
+                            update_state,
+                            &mut map,
+                            HistoryEntry::EventDeleted { event, sprites },
+                        );
                     }
 
                     if let Some(hover_tile) = self.view.hover_tile {
@@ -493,11 +499,11 @@ impl luminol_core::Tab for Tab {
                         || (is_focused && ui.input(|i| i.key_pressed(egui::Key::Enter)))
                     {
                         if let Some(id) = self.add_event(&mut map) {
-                            self.redo_history.clear();
-                            if self.history.len() == HISTORY_SIZE {
-                                self.history.pop_front();
-                            }
-                            self.history.push_back(HistoryEntry::EventCreated(id));
+                            self.push_to_history(
+                                update_state,
+                                &mut map,
+                                HistoryEntry::EventCreated(id),
+                            );
                         }
                     }
                 }
@@ -566,6 +572,8 @@ impl luminol_core::Tab for Tab {
                     };
 
                     if let Some(new_entry) = new_entry {
+                        update_state.modified.set(true);
+                        map.modified = true;
                         if is_undo_pressed {
                             self.redo_history.push(new_entry);
                         } else {

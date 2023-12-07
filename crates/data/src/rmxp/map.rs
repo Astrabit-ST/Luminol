@@ -32,4 +32,7 @@ pub struct Map {
     pub encounter_step: i32,
     pub data: Table3,
     pub events: option_vec::OptionVec<Event>,
+
+    #[serde(skip)]
+    pub modified: bool,
 }

@@ -23,19 +23,39 @@ pub mod rpg {
     pub use crate::rmxp::*;
     pub use crate::shared::*;
 
-    pub type Actors = Vec<Actor>;
-    pub type Animations = Vec<Animation>;
-    pub type Armors = Vec<Armor>;
-    pub type Classes = Vec<Class>;
-    pub type CommonEvents = Vec<CommonEvent>;
-    pub type Enemies = Vec<Enemy>;
-    pub type Items = Vec<Item>;
-    pub type MapInfos = std::collections::HashMap<usize, MapInfo>;
-    pub type Skills = Vec<Skill>;
-    pub type States = Vec<State>;
-    pub type Tilesets = Vec<Tileset>;
-    pub type Troops = Vec<Troop>;
-    pub type Weapons = Vec<Weapon>;
+    macro_rules! basic_container {
+    ($($parent:ident, $child:ident),* $(,)?) => {
+        $(
+            #[derive(Debug, Default)]
+            pub struct $parent {
+                pub data: Vec<$child>,
+                pub modified: bool,
+            }
+         )*
+    };
+}
+
+    basic_container! {
+        Actors, Actor,
+        Animations, Animation,
+        Armors, Armor,
+        Classes, Class,
+        CommonEvents, CommonEvent,
+        Enemies, Enemy,
+        Items, Item,
+        Scripts, Script,
+        Skills, Skill,
+        States, State,
+        Tilesets, Tileset,
+        Troops, Troop,
+        Weapons, Weapon,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct MapInfos {
+        pub data: std::collections::HashMap<usize, MapInfo>,
+        pub modified: bool,
+    }
 }
 
 pub use shared::BlendMode;

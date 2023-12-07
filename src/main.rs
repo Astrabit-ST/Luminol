@@ -26,6 +26,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(not(target_arch = "wasm32"))]
 /// Embedded icon 256x256 in size.
 const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 
@@ -131,6 +132,7 @@ fn main() {
         Box::new(|cc| {
             Box::new(app::App::new(
                 cc,
+                Default::default(),
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
@@ -149,6 +151,7 @@ const CANVAS_ID: &str = "luminol-canvas";
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
     audio: luminol_audio::AudioWrapper,
+    modified: luminol_core::ModifiedState,
     prefers_color_scheme_dark: Option<bool>,
     fs_worker_channels: luminol_filesystem::web::WorkerChannels,
     runner_worker_channels: luminol_eframe::web::WorkerChannels,
@@ -222,12 +225,32 @@ pub fn luminol_main_start(fallback: bool) {
     })
     .expect("unable to setup web runner main thread hooks");
 
+    let modified = luminol_core::ModifiedState::default();
+
     *WORKER_DATA.lock() = Some(WorkerData {
         audio: luminol_audio::Audio::default().into(),
+        modified: modified.clone(),
         prefers_color_scheme_dark,
         fs_worker_channels,
         runner_worker_channels,
     });
+
+    // Show confirmation dialogue if the user tries to close the browser tab while there are
+    // unsaved changes in the current project
+    {
+        let closure: Closure<dyn Fn(_)> = Closure::new(move |e: web_sys::BeforeUnloadEvent| {
+            if modified.get() {
+                // Recommended method of activating the confirmation dialogue
+                e.prevent_default();
+                // Fallback for Chromium < 119
+                e.set_return_value("arbitrary non-empty string");
+            }
+        });
+        window
+            .add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref())
+            .expect("failed to add beforeunload listener");
+        closure.forget();
+    }
 
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
@@ -251,6 +274,7 @@ pub fn luminol_main_start(fallback: bool) {
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let WorkerData {
         audio,
+        modified,
         prefers_color_scheme_dark,
         fs_worker_channels,
         runner_worker_channels,
@@ -264,7 +288,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         .start(
             canvas,
             web_options,
-            Box::new(|cc| Box::new(app::App::new(cc, audio))),
+            Box::new(|cc| Box::new(app::App::new(cc, modified, audio))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: runner_worker_channels,

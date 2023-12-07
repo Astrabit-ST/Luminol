@@ -109,7 +109,7 @@ impl Tilepicker {
             .data
             .get_or_load_map(map_id, update_state.filesystem);
         let tilesets = update_state.data.tilesets();
-        let tileset = &tilesets[map.tileset_id];
+        let tileset = &tilesets.data[map.tileset_id];
 
         let atlas = update_state.graphics.atlas_loader.load_atlas(
             &update_state.graphics,
