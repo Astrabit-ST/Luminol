@@ -34,18 +34,13 @@ pub struct TopBar {
 impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
-    pub fn ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        frame: &mut luminol_eframe::Frame,
-        update_state: &mut luminol_core::UpdateState<'_>,
-    ) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         #[cfg(not(target_arch = "wasm32"))]
         {
             ui.checkbox(&mut self.fullscreen, "Fullscreen");
-            frame.set_fullscreen(self.fullscreen);
+            update_state.frame.set_fullscreen(self.fullscreen);
         }
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
@@ -121,7 +116,7 @@ impl TopBar {
                 ui.separator();
 
                 if ui.button("Quit").clicked() {
-                    frame.close();
+                    update_state.frame.close();
                 }
             }
         });

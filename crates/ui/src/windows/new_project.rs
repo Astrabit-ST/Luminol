@@ -181,8 +181,9 @@ impl luminol_core::Window for Window {
 
                                 let branch_name = self.git_branch_name.clone();
 
-                                update_state.project_manager.run_custom(
-                                    move |update_state, _frame| {
+                                update_state
+                                    .project_manager
+                                    .run_custom(move |update_state| {
                                         update_state.project_manager.create_project_promise =
                                             Some(luminol_core::spawn_future(Self::setup_project(
                                                 config,
@@ -190,8 +191,7 @@ impl luminol_core::Window for Window {
                                                 init_git.then_some(branch_name),
                                                 progress,
                                             )));
-                                    },
-                                );
+                                    });
                             }
                             if ui.button("Cancel").clicked() {
                                 *open = false;

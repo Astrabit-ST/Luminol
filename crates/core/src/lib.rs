@@ -45,6 +45,8 @@ pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
 pub struct UpdateState<'res> {
+    pub frame: &'res mut luminol_eframe::Frame,
+
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: &'res mut luminol_audio::Audio,
     #[cfg(target_arch = "wasm32")]
@@ -131,6 +133,7 @@ impl<'res> UpdateState<'res> {
         edit_windows: &'this mut window::EditWindows,
     ) -> UpdateState<'this> {
         UpdateState {
+            frame: self.frame,
             audio: self.audio,
             graphics: self.graphics.clone(),
             filesystem: self.filesystem,
@@ -152,6 +155,7 @@ impl<'res> UpdateState<'res> {
         edit_tabs: &'this mut tab::EditTabs,
     ) -> UpdateState<'this> {
         UpdateState {
+            frame: self.frame,
             audio: self.audio,
             graphics: self.graphics.clone(),
             filesystem: self.filesystem,
@@ -168,7 +172,7 @@ impl<'res> UpdateState<'res> {
         }
     }
 
-    pub fn manage_projects(&mut self, frame: &mut luminol_eframe::Frame, show_modal: bool) {
+    pub fn manage_projects(&mut self, show_modal: bool) {
         let mut should_close = false;
         let mut should_save = false;
         let mut should_run_closure = false;
@@ -238,7 +242,7 @@ impl<'res> UpdateState<'res> {
 
             if should_run_closure {
                 if let Some(closure) = self.project_manager.closure.take() {
-                    closure(self, frame);
+                    closure(self);
                 }
             }
 
