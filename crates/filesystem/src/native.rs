@@ -80,7 +80,7 @@ impl crate::FileSystem for FileSystem {
             .truncate(flags.contains(OpenFlags::Truncate))
             .open(path)
             .map_err(Into::into)
-            .map(|f| File(f))
+            .map(File)
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
@@ -163,7 +163,7 @@ impl File {
             let f = std::fs::OpenOptions::new()
                 .read(true)
                 .open(path.path())
-                .map_err(|e| crate::Error::IoError(e))?;
+                .map_err(crate::Error::IoError)?;
             Ok((
                 File(f),
                 path.path()
