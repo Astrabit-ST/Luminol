@@ -126,24 +126,12 @@ impl luminol_core::Window for Window {
                             },
                             |ui| {
                                 if load_promise.is_none() && ui.button("Select archive").clicked() {
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    {
-                                        *load_promise = Some(poll_promise::Promise::spawn_async(
-                                            luminol_filesystem::host::File::from_file_picker(
-                                                "RGSSAD archives",
-                                                &["rgssad", "rgss2a", "rgss3a"],
-                                            ),
-                                        ));
-                                    }
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        *load_promise = Some(poll_promise::Promise::spawn_local(
-                                            luminol_filesystem::host::File::from_file_picker(
-                                                "RGSSAD archives",
-                                                &["rgssad", "rgss2a", "rgss3a"],
-                                            ),
-                                        ));
-                                    }
+                                    *load_promise = Some(luminol_core::spawn_future(
+                                        luminol_filesystem::host::File::from_file_picker(
+                                            "RGSSAD archives",
+                                            &["rgssad", "rgss2a", "rgss3a"],
+                                        ),
+                                    ));
                                 } else if load_promise.is_some() {
                                     ui.spinner();
                                 }
@@ -197,18 +185,9 @@ impl luminol_core::Window for Window {
                                         )
                                         .clicked()
                                 {
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    {
-                                        self.save_promise = Some(poll_promise::Promise::spawn_async(
-                                            luminol_filesystem::host::FileSystem::from_folder_picker(),
-                                        ));
-                                    }
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        self.save_promise = Some(poll_promise::Promise::spawn_local(
-                                            luminol_filesystem::host::FileSystem::from_folder_picker(),
-                                        ));
-                                    }
+                                    self.save_promise = Some(luminol_core::spawn_future(
+                                        luminol_filesystem::host::FileSystem::from_folder_picker(),
+                                    ));
                                 } else if self.save_promise.is_some() {
                                     ui.spinner();
                                 }

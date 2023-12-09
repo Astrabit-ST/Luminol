@@ -21,7 +21,6 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
-#![feature(trait_alias)]
 
 use std::sync::Arc;
 
@@ -42,6 +41,7 @@ mod toasts;
 pub use toasts::Toasts;
 
 pub mod project_manager;
+pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
 pub struct UpdateState<'res> {

@@ -24,7 +24,7 @@
 
 pub struct ProjectManager {
     pub(crate) modal: egui_modal::Modal,
-    pub(crate) closure: Option<Box<dyn ProjectManagerClosure>>,
+    pub(crate) closure: Option<Box<ProjectManagerClosure>>,
 
     pub create_project_promise: Option<poll_promise::Promise<CreateProjectPromiseResult>>,
     pub load_filesystem_promise: Option<poll_promise::Promise<FileSystemPromiseResult>>,
@@ -37,10 +37,28 @@ pub struct CreateProjectResult {
     pub host_fs: luminol_filesystem::host::FileSystem,
 }
 
-pub trait ProjectManagerClosure = FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame);
+type ProjectManagerClosure = dyn FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame);
 pub type CreateProjectPromiseResult = anyhow::Result<CreateProjectResult>;
 pub type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 pub type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Spawns a future using `poll_promise::Promise::spawn_async` on native or
+/// `poll_promise::Promise::spawn_local` on web.
+pub fn spawn_future<T: Send>(
+    future: impl std::future::Future<Output = T> + Send + 'static,
+) -> poll_promise::Promise<T> {
+    poll_promise::Promise::spawn_async(future)
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Spawns a future using `poll_promise::Promise::spawn_async` on native or
+/// `poll_promise::Promise::spawn_local` on web.
+pub fn spawn_future<T: Send>(
+    future: impl std::future::Future<Output = T> + 'static,
+) -> poll_promise::Promise<T> {
+    poll_promise::Promise::spawn_local(future)
+}
 
 impl ProjectManager {
     pub fn new(ctx: &egui::Context) -> Self {
@@ -66,7 +84,10 @@ impl ProjectManager {
     }
 
     /// Runs a closure after asking the user to save unsaved changes.
-    pub fn run_custom(&mut self, closure: impl ProjectManagerClosure + 'static) {
+    pub fn run_custom(
+        &mut self,
+        closure: impl FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame) + 'static,
+    ) {
         self.closure = Some(Box::new(closure));
     }
 
@@ -84,21 +105,12 @@ impl ProjectManager {
     /// Opens a project picker after asking the user to save unsaved changes.
     pub fn open_project_picker(&mut self) {
         self.run_custom(|update_state, _frame| {
-            // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
             #[cfg(not(target_arch = "wasm32"))]
-            {
-                update_state.project_manager.load_filesystem_promise =
-                    Some(poll_promise::Promise::spawn_async(
-                        luminol_filesystem::host::FileSystem::from_file_picker(),
-                    ));
-            }
+            let promise = spawn_future(luminol_filesystem::host::FileSystem::from_file_picker());
             #[cfg(target_arch = "wasm32")]
-            {
-                update_state.project_manager.load_filesystem_promise =
-                    Some(poll_promise::Promise::spawn_local(
-                        luminol_filesystem::host::FileSystem::from_folder_picker(),
-                    ));
-            }
+            let promise = spawn_future(luminol_filesystem::host::FileSystem::from_folder_picker());
+
+            update_state.project_manager.load_filesystem_promise = Some(promise);
         });
     }
 
@@ -121,10 +133,9 @@ impl ProjectManager {
 
             #[cfg(target_arch = "wasm32")]
             {
-                update_state.project_manager.load_filesystem_promise =
-                    Some(poll_promise::Promise::spawn_local(
-                        luminol_filesystem::host::FileSystem::from_idb_key(key),
-                    ));
+                update_state.project_manager.load_filesystem_promise = Some(spawn_future(
+                    luminol_filesystem::host::FileSystem::from_idb_key(key),
+                ));
             }
         });
     }
