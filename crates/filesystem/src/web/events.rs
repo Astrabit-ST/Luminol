@@ -462,6 +462,27 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     handle_event(tx, async { dirs.insert(dirs.get(key).unwrap().clone()) }).await;
                 }
 
+                FileSystemCommand::FilePicker(filter_name, extensions, tx) => {
+                    handle_event(tx, async {
+                        let file_handle =
+                            luminol_web::bindings::show_file_picker(&filter_name, &extensions)
+                                .await
+                                .ok()?;
+                        let name = file_handle.name();
+
+                        Some((
+                            files.insert(FileHandle {
+                                offset: 0,
+                                file_handle,
+                                read_allowed: true,
+                                write_handle: None,
+                            }),
+                            name,
+                        ))
+                    })
+                    .await;
+                }
+
                 FileSystemCommand::FileRead(key, max_length, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();

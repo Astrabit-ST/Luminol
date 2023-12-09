@@ -23,6 +23,11 @@ extern "C" {
     pub fn filesystem_supported() -> bool;
     #[wasm_bindgen(catch)]
     async fn _show_directory_picker() -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(catch)]
+    async fn _show_file_picker(
+        filter_name: &str,
+        extensions: &js_sys::Array,
+    ) -> Result<JsValue, JsValue>;
     pub fn dir_values(dir: &web_sys::FileSystemDirectoryHandle) -> js_sys::AsyncIterator;
     async fn _request_permission(handle: &web_sys::FileSystemHandle) -> JsValue;
     pub fn cross_origin_isolated() -> bool;
@@ -30,6 +35,20 @@ extern "C" {
 
 pub async fn show_directory_picker() -> Result<web_sys::FileSystemDirectoryHandle, js_sys::Error> {
     _show_directory_picker()
+        .await
+        .map(|o| o.unchecked_into())
+        .map_err(|e| e.unchecked_into())
+}
+
+pub async fn show_file_picker(
+    filter_name: &str,
+    extensions: &[impl AsRef<str>],
+) -> Result<web_sys::FileSystemFileHandle, js_sys::Error> {
+    let array = js_sys::Array::new();
+    for extension in extensions {
+        array.push(&JsValue::from(format!(".{}", extension.as_ref())));
+    }
+    _show_file_picker(filter_name, &array)
         .await
         .map(|o| o.unchecked_into())
         .map_err(|e| e.unchecked_into())

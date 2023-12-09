@@ -42,6 +42,8 @@ pub enum Error {
     IoError(#[from] std::io::Error),
     #[error("UTF-8 Error {0}")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+    #[error("Path is not valid UTF-8")]
+    PathUtf8Error,
     #[error("Project not loaded")]
     NotLoaded,
     #[error("Operation not supported by this filesystem")]

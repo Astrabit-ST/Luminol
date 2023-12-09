@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use itertools::Itertools;
+
 mod events;
 mod util;
 pub use events::setup_main_thread_hooks;
@@ -93,6 +95,11 @@ enum FileSystemCommand {
     ),
     DirDrop(usize, oneshot::Sender<bool>),
     DirClone(usize, oneshot::Sender<usize>),
+    FilePicker(
+        String,
+        Vec<String>,
+        oneshot::Sender<Option<(usize, String)>>,
+    ),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -134,7 +141,7 @@ impl FileSystem {
         }
         send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+            .map(|(key, name, idb_key)| Self { key, name, idb_key })
             .ok_or(Error::CancelledLoading)
     }
 
@@ -246,6 +253,35 @@ impl FileSystemTrait for FileSystem {
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         send_and_recv(|tx| FileSystemCommand::DirReadDir(self.key, path.as_ref().to_path_buf(), tx))
+    }
+}
+
+impl File {
+    /// Attempts to prompt the user to choose a file from their local machine using the
+    /// JavaScript File System API.
+    /// Then creates a `File` allowing read access to that file if they chose one
+    /// successfully.
+    /// If the File System API is not supported, this always returns `None` without doing anything.
+    ///
+    /// `extensions` should be a list of accepted file extensions for the file, without the leading
+    /// `.`
+    pub async fn from_file_picker(
+        filter_name: &str,
+        extensions: &[impl ToString],
+    ) -> Result<(Self, String)> {
+        if !FileSystem::filesystem_supported() {
+            return Err(Error::Wasm32FilesystemNotSupported);
+        }
+        send_and_await(|tx| {
+            FileSystemCommand::FilePicker(
+                filter_name.to_string(),
+                extensions.iter().map(|e| e.to_string()).collect_vec(),
+                tx,
+            )
+        })
+        .await
+        .map(|(key, name)| (Self { key }, name))
+        .ok_or(Error::CancelledLoading)
     }
 }
 
