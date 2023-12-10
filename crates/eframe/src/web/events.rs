@@ -77,19 +77,13 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
             || runner_lock.painter.height != height
             || runner_lock.painter.pixel_ratio != pixel_ratio
         {
-            // Make sure that the height and width are always even numbers.
-            // otherwise, the page renders blurry on some platforms.
-            // See https://github.com/emilk/egui/issues/103
-            fn round_to_even(v: f32) -> f32 {
-                (v / 2.0).round() * 2.0
-            }
             runner_lock.painter.pixel_ratio = pixel_ratio;
             runner_lock.painter.width = width;
             runner_lock.painter.height = height;
             runner_lock.painter.surface_configuration.width =
-                round_to_even(width as f32 * pixel_ratio) as u32;
+                (width as f32 * pixel_ratio).round() as u32;
             runner_lock.painter.surface_configuration.height =
-                round_to_even(height as f32 * pixel_ratio) as u32;
+                (height as f32 * pixel_ratio).round() as u32;
             runner_lock
                 .canvas
                 .set_width(runner_lock.painter.surface_configuration.width);
