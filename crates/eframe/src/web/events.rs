@@ -101,25 +101,36 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
             runner_lock.needs_repaint.repaint_asap();
         }
 
-        paint_if_needed(&mut runner_lock)?;
+        paint_if_needed(&mut runner_lock);
         drop(runner_lock);
         request_animation_frame(runner_ref.clone())?;
     }
-
     Ok(())
 }
 
-fn paint_if_needed(runner: &mut AppRunner) -> Result<(), JsValue> {
-    if runner.needs_repaint.when_to_repaint() <= now_sec() {
-        runner.needs_repaint.clear();
-        let (repaint_after, clipped_primitives) = runner.logic();
-        runner.paint(&clipped_primitives)?;
-        runner
-            .needs_repaint
-            .repaint_after(repaint_after.as_secs_f64());
-        runner.auto_save_if_needed();
+fn paint_if_needed(runner: &mut AppRunner) {
+    if runner.needs_repaint.needs_repaint() {
+        if runner.has_outstanding_paint_data() {
+            // We have already run the logic, e.g. in an on-click event,
+            // so let's only present the results:
+            runner.paint();
+
+            // We schedule another repaint asap, so that we can run the actual logic
+            // again, which may schedule a new repaint (if there's animations):
+            runner.needs_repaint.repaint_asap();
+        } else {
+            // Clear the `needs_repaint` flags _before_
+            // running the logic, as the logic could cause it to be set again.
+            runner.needs_repaint.clear();
+
+            // Run user code…
+            runner.logic();
+
+            // …and paint the result.
+            runner.paint();
+        }
     }
-    Ok(())
+    runner.auto_save_if_needed();
 }
 
 pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
@@ -279,16 +290,38 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    state.add_event_listener(&document, "cut", |_: web_sys::ClipboardEvent, state| {
+    state.add_event_listener(&document, "cut", |event: web_sys::ClipboardEvent, state| {
         state.channels.send(egui::Event::Cut);
+
+        // In Safari we are only allowed to write to the clipboard during the
+        // event callback, which is why we run the app logic here and now:
+        //runner.logic();
+
+        // Make sure we paint the output of the above logic call asap:
         //runner.needs_repaint.repaint_asap();
+
+        event.stop_propagation();
+        event.prevent_default();
     })?;
 
     #[cfg(web_sys_unstable_apis)]
-    state.add_event_listener(&document, "copy", |_: web_sys::ClipboardEvent, state| {
-        state.channels.send(egui::Event::Copy);
-        //runner.needs_repaint.repaint_asap();
-    })?;
+    state.add_event_listener(
+        &document,
+        "copy",
+        |event: web_sys::ClipboardEvent, state| {
+            state.channels.send(egui::Event::Copy);
+
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            //runner.logic();
+
+            // Make sure we paint the output of the above logic call asap:
+            //runner.needs_repaint.repaint_asap();
+
+            event.stop_propagation();
+            event.prevent_default();
+        },
+    )?;
 
     Ok(())
 }
@@ -434,11 +467,12 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         |event: web_sys::MouseEvent, state| {
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(&state.canvas, &event);
+                let modifiers = modifiers_from_mouse_event(&event);
                 state.channels.send(egui::Event::PointerButton {
                     pos,
                     button,
                     pressed: false,
-                    modifiers: modifiers_from_mouse_event(&event),
+                    modifiers,
                 });
 
                 // In Safari we are only allowed to write to the clipboard during the

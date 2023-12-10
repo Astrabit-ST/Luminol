@@ -117,7 +117,6 @@ impl WebRunner {
         self.destroy();
 
         let mut runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
-        runner.warm_up();
         self.runner.replace(Some(runner));
 
         {
@@ -145,7 +144,10 @@ impl WebRunner {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
             for x in events_to_unsubscribe {
                 if let Err(err) = x.unsubscribe() {
-                    log::warn!("Failed to unsubscribe from event: {err:?}");
+                    log::warn!(
+                        "Failed to unsubscribe from event: {}",
+                        super::string_from_js_value(&err)
+                    );
                 }
             }
         }

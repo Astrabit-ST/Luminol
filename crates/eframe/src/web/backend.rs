@@ -25,10 +25,15 @@ impl WebInput {
     pub fn new_frame(&mut self, canvas_size: egui::Vec2, pixels_per_point: f32) -> egui::RawInput {
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
-            pixels_per_point: Some(pixels_per_point),
             time: Some(super::now_sec()),
             ..self.raw.take()
-        }
+        };
+        raw_input
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default()
+            .native_pixels_per_point = Some(super::native_pixels_per_point());
+        raw_input
     }
 }
 
@@ -67,6 +72,10 @@ impl NeedRepaint {
             super::now_sec() + num_seconds,
             portable_atomic::Ordering::Relaxed,
         );
+    }
+
+    pub fn needs_repaint(&self) -> bool {
+        self.when_to_repaint() <= super::now_sec()
     }
 
     pub fn repaint_asap(&self) {
