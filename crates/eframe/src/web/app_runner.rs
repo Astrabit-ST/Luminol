@@ -152,13 +152,6 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
-        runner
-            .input
-            .raw
-            .viewports
-            .entry(egui::ViewportId::ROOT)
-            .or_default()
-            .native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }
@@ -277,10 +270,10 @@ impl AppRunner {
     ) {
         #[cfg(feature = "web_screen_reader")]
         if screen_reader_enabled {
-            if let Some(screen_reader) = &mut state.inner.borrow_mut().screen_reader {
-                screen_reader.speak(&platform_output.events_description());
-            }
+            super::screen_reader::speak(&platform_output.events_description());
         }
+        #[cfg(not(feature = "web_screen_reader"))]
+        let _ = screen_reader_enabled;
 
         let egui::PlatformOutput {
             cursor_icon,

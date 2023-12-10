@@ -994,13 +994,15 @@ fn handle_viewport_output(
     }
 }
 
+type ViewportUiCallback = dyn Fn(&egui::Context) + Send + Sync;
+
 fn initialize_or_update_viewport<'vp>(
     egui_ctx: &egui::Context,
     viewports: &'vp mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
     focused_viewport: Option<ViewportId>,
 ) -> &'vp mut Viewport {
     crate::profile_function!();

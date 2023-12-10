@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 egui.workspace = true
-luminol-eframe.workspace = true
 
 egui_dock = "0.9.0"
 egui-notify = "0.11.0"

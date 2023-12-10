@@ -336,8 +336,6 @@ pub struct MainStateInner {
     text_cursor_pos: Option<egui::Pos2>,
     /// Whether or not the user is editing a mutable egui text box.
     mutable_text_under_cursor: bool,
-    /// The screen reader used for reading text aloud.
-    screen_reader: Option<screen_reader::ScreenReader>,
     /// Whether or not egui is trying to receive text input.
     wants_keyboard_input: bool,
 }

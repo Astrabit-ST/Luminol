@@ -2946,7 +2946,6 @@ dependencies = [
  "luminol-audio",
  "luminol-config",
  "luminol-data",
- "luminol-eframe",
  "luminol-filesystem",
  "luminol-graphics",
  "parking_lot",

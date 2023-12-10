@@ -48,13 +48,6 @@ impl WebRunner {
     /// mouse events and resize the canvas to fill the screen.
     pub fn setup_main_thread_hooks(state: super::MainState) -> Result<(), JsValue> {
         {
-            let mut inner = state.inner.borrow_mut();
-            if inner.screen_reader.is_none() {
-                inner.screen_reader = Some(Default::default());
-            }
-        }
-
-        {
             events::install_canvas_events(&state)?;
             events::install_document_events(&state)?;
             events::install_window_events(&state)?;
@@ -116,7 +109,7 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let mut runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
+        let runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
         self.runner.replace(Some(runner));
 
         {
