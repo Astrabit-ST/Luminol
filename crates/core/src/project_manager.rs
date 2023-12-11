@@ -95,7 +95,9 @@ impl ProjectManager {
             // Disable the modified flag so `luminol_eframe::App::on_close_event` doesn't recurse
             update_state.modified.set(false);
 
-            update_state.frame.close();
+            update_state
+                .ctx
+                .send_viewport_cmd(egui::ViewportCommand::Close);
         });
     }
 

@@ -126,7 +126,7 @@ impl Tabs {
 
     fn add_boxed_tab(&mut self, tab: Box<dyn Tab>) {
         // FIXME O(n)
-        for node in self.dock_state.iter_nodes() {
+        for (_, node) in self.dock_state.iter_all_nodes() {
             if let egui_dock::Node::Leaf { tabs, .. } = node {
                 if tabs.iter().any(|t| t.id() == tab.id()) {
                     return;

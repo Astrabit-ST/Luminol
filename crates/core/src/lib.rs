@@ -45,7 +45,7 @@ pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
 pub struct UpdateState<'res> {
-    pub frame: &'res mut luminol_eframe::Frame,
+    pub ctx: &'res egui::Context,
 
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: &'res mut luminol_audio::Audio,
@@ -133,7 +133,7 @@ impl<'res> UpdateState<'res> {
         edit_windows: &'this mut window::EditWindows,
     ) -> UpdateState<'this> {
         UpdateState {
-            frame: self.frame,
+            ctx: self.ctx,
             audio: self.audio,
             graphics: self.graphics.clone(),
             filesystem: self.filesystem,
@@ -155,7 +155,7 @@ impl<'res> UpdateState<'res> {
         edit_tabs: &'this mut tab::EditTabs,
     ) -> UpdateState<'this> {
         UpdateState {
-            frame: self.frame,
+            ctx: self.ctx,
             audio: self.audio,
             graphics: self.graphics.clone(),
             filesystem: self.filesystem,

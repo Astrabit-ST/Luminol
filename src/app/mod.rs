@@ -244,7 +244,7 @@ impl App {
 
 impl luminol_eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, frame: &mut luminol_eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut luminol_eframe::Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
@@ -268,7 +268,7 @@ impl luminol_eframe::App for App {
         });
 
         let mut update_state = luminol_core::UpdateState {
-            frame,
+            ctx,
             audio: &mut self.audio,
             graphics: self.graphics.clone(),
             filesystem: &mut self.filesystem,
@@ -348,17 +348,14 @@ impl luminol_eframe::App for App {
         self.bytes_loader.load_unloaded_files(ctx, &self.filesystem);
 
         #[cfg(feature = "steamworks")]
-        self.steamworks.update()
-    }
+        self.steamworks.update();
 
-    #[cfg(not(target_arch = "wasm32"))]
-    fn on_close_event(&mut self) -> bool {
-        if !self.modified.get() {
-            return true;
+        // Call the exit handler if the user or the app requested to close the window.
+        #[cfg(not(target_arch = "wasm32"))]
+        if ctx.input(|i| i.viewport().close_requested()) && self.modified.get() {
+            self.project_manager.quit();
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
         }
-
-        self.project_manager.quit();
-        false
     }
 
     /// Called by the frame work to save state before shutdown.

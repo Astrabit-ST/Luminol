@@ -5,6 +5,9 @@
 //!
 
 #![allow(unsafe_code)]
+// Luminol's wgpu resources are not Send or Sync on web.
+// We are doing this here to reduce merge conflicts, since it's likely wgpu will fix this.
+#![allow(clippy::arc_with_non_send_sync)]
 
 pub use wgpu;
 
@@ -67,21 +70,32 @@ impl RenderState {
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
     ) -> Result<Self, WgpuError> {
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: config.power_preference,
-                compatible_surface: Some(surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .ok_or(WgpuError::NoSuitableAdapterFound)?;
+        crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
-        let target_format =
-            crate::preferred_framebuffer_format(&surface.get_capabilities(&adapter).formats)?;
+        let adapter = {
+            crate::profile_scope!("request_adapter");
+            instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: config.power_preference,
+                    compatible_surface: Some(surface),
+                    force_fallback_adapter: false,
+                })
+                .await
+                .ok_or(WgpuError::NoSuitableAdapterFound)?
+        };
 
-        let (device, queue) = adapter
-            .request_device(&(*config.device_descriptor)(&adapter), None)
-            .await?;
+        let capabilities = {
+            crate::profile_scope!("get_capabilities");
+            surface.get_capabilities(&adapter).formats
+        };
+        let target_format = crate::preferred_framebuffer_format(&capabilities)?;
+
+        let (device, queue) = {
+            crate::profile_scope!("request_device");
+            adapter
+                .request_device(&(*config.device_descriptor)(&adapter), None)
+                .await?
+        };
 
         let renderer = Renderer::new(&device, target_format, depth_format, msaa_samples);
 

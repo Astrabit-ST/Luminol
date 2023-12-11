@@ -1,5 +1,4 @@
 use egui::TexturesDelta;
-use wasm_bindgen::JsValue;
 
 use crate::{epi, App};
 
@@ -16,7 +15,10 @@ pub struct AppRunner {
     last_save_time: f64,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
+
+    // Output for the last run:
     textures_delta: TexturesDelta,
+    clipped_primitives: Option<Vec<egui::ClippedPrimitive>>,
 
     pub(super) canvas: web_sys::OffscreenCanvas,
     pub(super) worker_options: super::WorkerOptions,
@@ -78,7 +80,6 @@ impl AppRunner {
             },
             system_theme,
             cpu_usage: None,
-            native_pixels_per_point: Some(1.),
         };
         let storage = LocalStorage {
             channels: worker_options.channels.clone(),
@@ -87,6 +88,12 @@ impl AppRunner {
         let egui_ctx = egui::Context::default();
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(&user_agent));
         super::storage::load_memory(&egui_ctx, &worker_options.channels).await;
+
+        egui_ctx.options_mut(|o| {
+            // On web, the browser controls the zoom factor:
+            o.zoom_with_keyboard = false;
+            o.zoom_factor = 1.0;
+        });
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
@@ -107,7 +114,6 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
-            output: Default::default(),
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
@@ -123,7 +129,7 @@ impl AppRunner {
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move |info| {
-                needs_repaint.repaint_after(info.after.as_secs_f64());
+                needs_repaint.repaint_after(info.delay.as_secs_f64());
             });
         }
 
@@ -139,6 +145,7 @@ impl AppRunner {
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
+            clipped_primitives: None,
 
             worker_options,
             canvas,
@@ -181,26 +188,19 @@ impl AppRunner {
         self.last_save_time = now_sec();
     }
 
-    pub fn warm_up(&mut self) {
-        if self.app.warm_up_enabled() {
-            let saved_memory: egui::Memory = self.egui_ctx.memory(|m| m.clone());
-            self.egui_ctx
-                .memory_mut(|m| m.set_everything_is_visible(true));
-            self.logic();
-            self.egui_ctx.memory_mut(|m| *m = saved_memory); // We don't want to remember that windows were huge.
-            self.egui_ctx.clear_animations();
-        }
-    }
-
     pub fn destroy(mut self) {
         log::debug!("Destroying AppRunner");
         self.painter.destroy();
     }
 
-    /// Returns how long to wait until the next repaint.
+    pub fn has_outstanding_paint_data(&self) -> bool {
+        self.clipped_primitives.is_some()
+    }
+
+    /// Runs the logic, but doesn't paint the result.
     ///
-    /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> (std::time::Duration, Vec<egui::ClippedPrimitive>) {
+    /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
+    pub fn logic(&mut self) {
         let frame_start = now_sec();
 
         let raw_input = self.input.new_frame(
@@ -213,10 +213,23 @@ impl AppRunner {
         });
         let egui::FullOutput {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
+            pixels_per_point,
+            viewport_output,
         } = full_output;
+
+        if viewport_output.len() > 1 {
+            log::warn!("Multiple viewports not yet supported on the web");
+        }
+        for viewport_output in viewport_output.values() {
+            for command in &viewport_output.commands {
+                // TODO(emilk): handle some of the commands
+                log::warn!(
+                    "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                );
+            }
+        }
 
         self.mutable_text_under_cursor = platform_output.mutable_text_under_cursor;
         self.worker_options
@@ -227,30 +240,26 @@ impl AppRunner {
                 self.egui_ctx.wants_keyboard_input(),
             ));
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes);
-
-        {
-            let app_output = self.frame.take_app_output();
-            let epi::backend::AppOutput {} = app_output;
-        }
+        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
-
-        (repaint_after, clipped_primitives)
     }
 
     /// Paint the results of the last call to [`Self::logic`].
-    pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
+    pub fn paint(&mut self) {
         let textures_delta = std::mem::take(&mut self.textures_delta);
+        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
-        self.painter.paint_and_update_textures(
-            self.app.clear_color(&self.egui_ctx.style().visuals),
-            clipped_primitives,
-            self.egui_ctx.pixels_per_point(),
-            &textures_delta,
-        )?;
-
-        Ok(())
+        if let Some(clipped_primitives) = clipped_primitives {
+            if let Err(err) = self.painter.paint_and_update_textures(
+                self.app.clear_color(&self.egui_ctx.style().visuals),
+                &clipped_primitives,
+                self.egui_ctx.pixels_per_point(),
+                &textures_delta,
+            ) {
+                log::error!("Failed to paint: {}", super::string_from_js_value(&err));
+            }
+        }
     }
 
     pub(super) fn handle_platform_output(
@@ -259,11 +268,12 @@ impl AppRunner {
         screen_reader_enabled: bool,
         wants_keyboard_input: bool,
     ) {
+        #[cfg(feature = "web_screen_reader")]
         if screen_reader_enabled {
-            if let Some(screen_reader) = &mut state.inner.borrow_mut().screen_reader {
-                screen_reader.speak(&platform_output.events_description());
-            }
+            super::screen_reader::speak(&platform_output.events_description());
         }
+        #[cfg(not(feature = "web_screen_reader"))]
+        let _ = screen_reader_enabled;
 
         let egui::PlatformOutput {
             cursor_icon,
