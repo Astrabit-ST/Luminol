@@ -62,7 +62,7 @@ pub(super) fn generate_key() -> String {
 /// `IdbTransactionMode`.
 pub(super) async fn idb<R>(
     mode: IdbTransactionMode,
-    f: impl Fn(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
+    f: impl FnOnce(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
 ) -> std::result::Result<R, web_sys::DomException> {
     let mut db_req = IdbDatabase::open_u32("astrabit.luminol", 1)?;
 

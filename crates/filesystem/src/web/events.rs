@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::util::{generate_key, get_subdir, handle_event, idb, to_future};
+use super::util::{get_subdir, handle_event, idb, to_future};
 use super::FileSystemCommand;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
@@ -97,20 +97,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                 FileSystemCommand::DirPicker(tx) => {
                     handle_event(tx, async {
                         let dir = luminol_web::bindings::show_directory_picker().await.ok()?;
-
-                        // Try to insert the handle into IndexedDB
-                        let idb_key = generate_key();
-                        let idb_ok = {
-                            let idb_key = idb_key.as_str();
-                            idb(IdbTransactionMode::Readwrite, |store| {
-                                store.put_key_val_owned(idb_key, &dir)
-                            })
-                            .await
-                            .is_ok()
-                        };
-
                         let name = dir.name();
-                        Some((dirs.insert(dir), name, idb_ok.then_some(idb_key)))
+                        Some((dirs.insert(dir), name))
                     })
                     .await;
                 }
@@ -126,12 +114,31 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .ok()
                         .flatten()?;
                         let dir = dir.unchecked_into::<web_sys::FileSystemDirectoryHandle>();
-                        luminol_web::bindings::request_permission(&dir)
-                            .await
-                            .then(|| {
-                                let name = dir.name();
-                                (dirs.insert(dir), name)
-                            })
+                        let key =
+                            luminol_web::bindings::request_permission(&dir)
+                                .await
+                                .then(|| {
+                                    let name = dir.name();
+                                    (dirs.insert(dir), name)
+                                })?;
+                        idb(IdbTransactionMode::Readwrite, |store| {
+                            store.delete_owned(&idb_key)
+                        })
+                        .await
+                        .ok()?;
+                        Some(key)
+                    })
+                    .await;
+                }
+
+                FileSystemCommand::DirToIdb(key, idb_key, tx) => {
+                    handle_event(tx, async {
+                        let dir = dirs.get(key).unwrap();
+                        idb(IdbTransactionMode::Readwrite, |store| {
+                            store.put_key_val_owned(idb_key, dir)
+                        })
+                        .await
+                        .is_ok()
                     })
                     .await;
                 }
@@ -142,31 +149,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         let dir = get_subdir(dirs.get(key).unwrap(), &mut iter)
                             .await
                             .ok_or(Error::NotExist)?;
-
-                        // Try to insert the handle into IndexedDB
-                        let idb_key = generate_key();
-                        let idb_ok = {
-                            let idb_key = idb_key.as_str();
-                            idb(IdbTransactionMode::Readwrite, |store| {
-                                store.put_key_val_owned(idb_key, &dir)
-                            })
-                            .await
-                            .is_ok()
-                        };
-
                         let name = dir.name();
-                        Ok((dirs.insert(dir), name, idb_ok.then_some(idb_key)))
-                    })
-                    .await;
-                }
-
-                FileSystemCommand::DirIdbDrop(idb_key, tx) => {
-                    handle_event(tx, async {
-                        idb(IdbTransactionMode::Readwrite, |store| {
-                            store.delete_owned(&idb_key)
-                        })
-                        .await
-                        .is_ok()
+                        Ok((dirs.insert(dir), name))
                     })
                     .await;
                 }

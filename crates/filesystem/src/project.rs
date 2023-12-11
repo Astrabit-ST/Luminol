@@ -443,7 +443,6 @@ impl FileSystem {
         };
 
         let root_path = host.root_path().to_path_buf();
-        let idb_key = host.idb_key().map(|k| k.to_string());
 
         let mut list = list::FileSystem::new();
 
@@ -465,7 +464,7 @@ impl FileSystem {
             .map(archiver::FileSystem::new)
             .transpose()?;
 
-        list.push(host);
+        list.push(host.clone());
         for filesystem in rtp_filesystems {
             list.push(filesystem)
         }
@@ -480,14 +479,14 @@ impl FileSystem {
             project_path: root_path.clone(),
         };
 
-        if let Some(idb_key) = idb_key {
+        if let Ok(idb_key) = host.save_to_idb() {
             let mut projects: std::collections::VecDeque<_> = global_config
                 .recent_projects
                 .iter()
-                .filter(|(_, k)| k.as_str() != idb_key.as_str())
+                .filter(|(_, k)| k.as_str() != idb_key)
                 .cloned()
                 .collect();
-            projects.push_front((root_path.to_string(), idb_key));
+            projects.push_front((root_path.to_string(), idb_key.to_string()));
             global_config.recent_projects = projects;
         }
 

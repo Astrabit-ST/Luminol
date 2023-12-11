@@ -23,7 +23,7 @@ pub use events::setup_main_thread_hooks;
 
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
-use util::{send_and_await, send_and_recv};
+use util::{generate_key, send_and_await, send_and_recv};
 
 static WORKER_CHANNELS: once_cell::sync::OnceCell<WorkerChannels> =
     once_cell::sync::OnceCell::new();
@@ -70,14 +70,14 @@ enum FileSystemCommand {
         camino::Utf8PathBuf,
         oneshot::Sender<Result<Metadata>>,
     ),
-    DirPicker(oneshot::Sender<Option<(usize, String, Option<String>)>>),
+    DirPicker(oneshot::Sender<Option<(usize, String)>>),
     DirFromIdb(String, oneshot::Sender<Option<(usize, String)>>),
+    DirToIdb(usize, String, oneshot::Sender<bool>),
     DirSubdir(
         usize,
         camino::Utf8PathBuf,
-        oneshot::Sender<Result<(usize, String, Option<String>)>>,
+        oneshot::Sender<Result<(usize, String)>>,
     ),
-    DirIdbDrop(String, oneshot::Sender<bool>),
     DirOpenFile(
         usize,
         camino::Utf8PathBuf,
@@ -141,11 +141,16 @@ impl FileSystem {
         }
         send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
-            .map(|(key, name, idb_key)| Self { key, name, idb_key })
+            .map(|(key, name)| Self {
+                key,
+                name,
+                idb_key: None,
+            })
             .ok_or(Error::CancelledLoading)
     }
 
-    /// Attempts to restore a previously created `FileSystem` using its `.idb_key()`.
+    /// Attempts to restore a previously created `FileSystem` using its IndexedDB key returned by
+    /// `.save_to_idb()`.
     pub async fn from_idb_key(idb_key: String) -> Result<Self> {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported);
@@ -163,23 +168,31 @@ impl FileSystem {
     /// Creates a new `FileSystem` from a subdirectory of this one.
     pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
         send_and_recv(|tx| FileSystemCommand::DirSubdir(self.key, path.as_ref().to_path_buf(), tx))
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+            .map(|(key, name)| FileSystem {
+                key,
+                name,
+                idb_key: None,
+            })
     }
 
-    /// Drops the directory with the given key from IndexedDB if it exists in there.
-    pub fn idb_drop(idb_key: String) -> bool {
-        send_and_recv(|tx| FileSystemCommand::DirIdbDrop(idb_key, tx))
+    /// Stores this `FileSystem` to IndexedDB. If successful, consumes this `Filesystem` and
+    /// returns the key needed to restore this `FileSystem` using `FileSystem::from_idb()`.
+    /// Otherwise, returns ownership of this `FileSystem`.
+    pub fn save_to_idb(mut self) -> std::result::Result<String, Self> {
+        let idb_key_is_some = self.idb_key.is_some();
+        let idb_key = self.idb_key.take().unwrap_or_else(generate_key);
+        if send_and_recv(|tx| FileSystemCommand::DirToIdb(self.key, idb_key.clone(), tx)) {
+            Ok(idb_key)
+        } else {
+            self.idb_key = idb_key_is_some.then_some(idb_key);
+            Err(self)
+        }
     }
 
     /// Returns a path consisting of a single element: the name of the root directory of this
     /// filesystem.
     pub fn root_path(&self) -> &camino::Utf8Path {
         self.name.as_str().into()
-    }
-
-    /// Returns the key needed to restore this `FileSystem` using `FileSystem::from_idb()`.
-    pub fn idb_key(&self) -> Option<&str> {
-        self.idb_key.as_deref()
     }
 }
 
@@ -194,7 +207,7 @@ impl Clone for FileSystem {
         Self {
             key: send_and_recv(|tx| FileSystemCommand::DirClone(self.key, tx)),
             name: self.name.clone(),
-            idb_key: self.idb_key.clone(),
+            idb_key: None,
         }
     }
 }
