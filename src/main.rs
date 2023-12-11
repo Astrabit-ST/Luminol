@@ -101,13 +101,15 @@ fn main() {
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
     let native_options = luminol_eframe::NativeOptions {
-        drag_and_drop_support: true,
-        transparent: true,
-        icon_data: Some(luminol_eframe::IconData {
-            width: image.width(),
-            height: image.height(),
-            rgba: image.to_rgba8().into_vec(),
-        }),
+        viewport: egui::ViewportBuilder::default()
+            .with_drag_and_drop(true)
+            .with_transparent(true)
+            .with_icon(egui::IconData {
+                width: image.width(),
+                height: image.height(),
+                rgba: image.to_rgba8().into_vec(),
+            })
+            .with_app_id("astrabit.luminol"),
         wgpu_options: luminol_egui_wgpu::WgpuConfiguration {
             supported_backends: wgpu::util::backend_bits_from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY),
@@ -121,7 +123,6 @@ fn main() {
             }),
             ..Default::default()
         },
-        app_id: Some("astrabit.luminol".to_string()),
         persist_window: true,
         ..Default::default()
     };

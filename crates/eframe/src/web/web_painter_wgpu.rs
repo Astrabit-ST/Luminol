@@ -204,8 +204,7 @@ impl WebPainter for WebPainterWgpu {
 
             let frame = match self.surface.get_current_texture() {
                 Ok(frame) => frame,
-                #[allow(clippy::single_match_else)]
-                Err(e) => match (*self.on_surface_error)(e) {
+                Err(err) => match (*self.on_surface_error)(err) {
                     SurfaceErrorAction::RecreateSurface => {
                         self.surface
                             .configure(&render_state.device, &self.surface_configuration);
@@ -267,11 +266,9 @@ impl WebPainter for WebPainterWgpu {
         }
 
         // Submit the commands: both the main buffer and user-defined ones.
-        render_state.queue.submit(
-            user_cmd_bufs
-                .into_iter()
-                .chain(std::iter::once(encoder.finish())),
-        );
+        render_state
+            .queue
+            .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
         if let Some(frame) = frame {
             frame.present();

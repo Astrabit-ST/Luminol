@@ -48,13 +48,6 @@ impl WebRunner {
     /// mouse events and resize the canvas to fill the screen.
     pub fn setup_main_thread_hooks(state: super::MainState) -> Result<(), JsValue> {
         {
-            let mut inner = state.inner.borrow_mut();
-            if inner.screen_reader.is_none() {
-                inner.screen_reader = Some(Default::default());
-            }
-        }
-
-        {
             events::install_canvas_events(&state)?;
             events::install_document_events(&state)?;
             events::install_window_events(&state)?;
@@ -116,8 +109,7 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let mut runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
-        runner.warm_up();
+        let runner = AppRunner::new(canvas, web_options, app_creator, worker_options).await?;
         self.runner.replace(Some(runner));
 
         {
@@ -145,7 +137,10 @@ impl WebRunner {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
             for x in events_to_unsubscribe {
                 if let Err(err) = x.unsubscribe() {
-                    log::warn!("Failed to unsubscribe from event: {err:?}");
+                    log::warn!(
+                        "Failed to unsubscribe from event: {}",
+                        super::string_from_js_value(&err)
+                    );
                 }
             }
         }

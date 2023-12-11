@@ -24,7 +24,7 @@
 
 pub struct ProjectManager {
     pub(crate) modal: egui_modal::Modal,
-    pub(crate) closure: Option<Box<dyn ProjectManagerClosure>>,
+    pub(crate) closure: Option<Box<ProjectManagerClosure>>,
 
     pub create_project_promise: Option<poll_promise::Promise<CreateProjectPromiseResult>>,
     pub load_filesystem_promise: Option<poll_promise::Promise<FileSystemPromiseResult>>,
@@ -37,7 +37,7 @@ pub struct CreateProjectResult {
     pub host_fs: luminol_filesystem::host::FileSystem,
 }
 
-pub trait ProjectManagerClosure = FnOnce(&mut crate::UpdateState<'_>, &mut luminol_eframe::Frame);
+type ProjectManagerClosure = dyn FnOnce(&mut crate::UpdateState<'_>);
 pub type CreateProjectPromiseResult = anyhow::Result<CreateProjectResult>;
 pub type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 pub type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
@@ -66,24 +66,26 @@ impl ProjectManager {
     }
 
     /// Runs a closure after asking the user to save unsaved changes.
-    pub fn run_custom(&mut self, closure: impl ProjectManagerClosure + 'static) {
+    pub fn run_custom(&mut self, closure: impl FnOnce(&mut crate::UpdateState<'_>) + 'static) {
         self.closure = Some(Box::new(closure));
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     /// Closes the application after asking the user to save unsaved changes.
     pub fn quit(&mut self) {
-        self.run_custom(|update_state, frame| {
+        self.run_custom(|update_state| {
             // Disable the modified flag so `luminol_eframe::App::on_close_event` doesn't recurse
             update_state.modified.set(false);
 
-            frame.close();
+            update_state
+                .ctx
+                .send_viewport_cmd(egui::ViewportCommand::Close);
         });
     }
 
     /// Opens a project picker after asking the user to save unsaved changes.
     pub fn open_project_picker(&mut self) {
-        self.run_custom(|update_state, _frame| {
+        self.run_custom(|update_state| {
             // maybe worthwhile to make an extension trait to select spawn_async or spawn_local based on the target?
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -107,7 +109,7 @@ impl ProjectManager {
     /// On native, `key` should be the absolute path to the project folder.
     /// On web, `key` should be the IndexedDB key of the project folder.
     pub fn load_recent_project(&mut self, key: String) {
-        self.run_custom(|update_state, _frame| {
+        self.run_custom(|update_state| {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 update_state.close_project();
@@ -131,7 +133,7 @@ impl ProjectManager {
 
     /// Closes the current project after asking the user to save unsaved changes.
     pub fn close_project(&mut self) {
-        self.run_custom(|update_state, _frame| {
+        self.run_custom(|update_state| {
             update_state.close_project();
         });
     }

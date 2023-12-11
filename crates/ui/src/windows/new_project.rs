@@ -183,8 +183,9 @@ impl luminol_core::Window for Window {
 
                                 #[cfg(not(target_arch = "wasm32"))]
                                 {
-                                    update_state.project_manager.run_custom(
-                                        move |update_state, _frame| {
+                                    update_state
+                                        .project_manager
+                                        .run_custom(move |update_state| {
                                             update_state.project_manager.create_project_promise =
                                                 Some(poll_promise::Promise::spawn_async(
                                                     Self::setup_project(
@@ -194,13 +195,13 @@ impl luminol_core::Window for Window {
                                                         progress,
                                                     ),
                                                 ));
-                                        },
-                                    );
+                                        });
                                 }
                                 #[cfg(target_arch = "wasm32")]
                                 {
-                                    update_state.project_manager.run_custom(
-                                        move |update_state, _frame| {
+                                    update_state
+                                        .project_manager
+                                        .run_custom(move |update_state| {
                                             update_state.project_manager.create_project_promise =
                                                 Some(poll_promise::Promise::spawn_local(
                                                     Self::setup_project(
@@ -210,8 +211,7 @@ impl luminol_core::Window for Window {
                                                         progress,
                                                     ),
                                                 ));
-                                        },
-                                    );
+                                        });
                                 }
                             }
                             if ui.button("Cancel").clicked() {
