@@ -37,6 +37,9 @@ pub use sound_tab::SoundTab;
 mod command_view;
 pub use command_view::CommandView;
 
+mod filesystem_view;
+pub use filesystem_view::FileSystemView;
+
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,
     id: egui::Id,

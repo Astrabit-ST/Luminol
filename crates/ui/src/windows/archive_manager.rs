@@ -23,7 +23,6 @@
 // Program grant you additional permission to convey the resulting work.
 
 /// The archive manager for creating and extracting RGSSAD archives.
-#[derive(Default)]
 pub struct Window {
     mode: Mode,
     save_promise: Option<
@@ -33,7 +32,11 @@ pub struct Window {
 
 enum Mode {
     Extract {
-        archive: Option<(luminol_filesystem::host::File, String)>,
+        view: Option<
+            luminol_components::FileSystemView<
+                luminol_filesystem::archiver::FileSystem<luminol_filesystem::host::File>,
+            >,
+        >,
         load_promise: Option<
             poll_promise::Promise<
                 luminol_filesystem::Result<(luminol_filesystem::host::File, String)>,
@@ -41,18 +44,21 @@ enum Mode {
         >,
     },
     Create {
-        input_folder: Option<(luminol_filesystem::host::FileSystem, String)>,
+        view: Option<luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>>,
         load_promise: Option<
             poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
         >,
     },
 }
 
-impl Default for Mode {
+impl Default for Window {
     fn default() -> Self {
-        Self::Extract {
-            archive: None,
-            load_promise: None,
+        Self {
+            mode: Mode::Extract {
+                view: None,
+                load_promise: None,
+            },
+            save_promise: None,
         }
     }
 }
@@ -81,7 +87,7 @@ impl luminol_core::Window for Window {
                         .clicked()
                     {
                         self.mode = Mode::Extract {
-                            archive: None,
+                            view: None,
                             load_promise: None,
                         };
                     }
@@ -93,7 +99,7 @@ impl luminol_core::Window for Window {
                         .clicked()
                     {
                         self.mode = Mode::Create {
-                            input_folder: None,
+                            view: None,
                             load_promise: None,
                         };
                     }
@@ -102,13 +108,21 @@ impl luminol_core::Window for Window {
                 ui.separator();
 
                 match &mut self.mode {
-                    Mode::Extract {
-                        archive,
-                        load_promise,
-                    } => {
+                    Mode::Extract { view, load_promise } => {
                         if let Some(p) = load_promise.take() {
                             match p.try_take() {
-                                Ok(Ok((handle, name))) => *archive = Some((handle, name)),
+                                Ok(Ok((handle, name))) => {
+                                    match luminol_filesystem::archiver::FileSystem::new(handle) {
+                                        Ok(archiver) => {
+                                            *view = Some(luminol_components::FileSystemView::new(
+                                                "luminol_archive_manager_extract_view".into(),
+                                                archiver,
+                                                name,
+                                            ))
+                                        }
+                                        Err(e) => update_state.toasts.error(e.to_string()),
+                                    }
+                                }
                                 Ok(Err(e)) => {
                                     if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
                                         update_state.toasts.error(e.to_string())
@@ -137,27 +151,37 @@ impl luminol_core::Window for Window {
                                 }
                             },
                         );
-
-                        ui.add(
-                            egui::Label::new(if let Some((_, name)) = archive {
-                                format!("Archive: {}", name)
-                            } else {
-                                "No archive selected".into()
-                            })
-                            .truncate(true),
-                        );
                     }
 
                     _ => todo!("archive creation"),
                 }
 
-                ui.colored_label(egui::Color32::RED, "TODO: Put an archive viewer here");
+                ui.with_layout(
+                    egui::Layout {
+                        cross_justify: true,
+                        ..Default::default()
+                    },
+                    |ui| {
+                        ui.group(|ui| {
+                            egui::ScrollArea::both().show(ui, |ui| match &mut self.mode {
+                                Mode::Extract { view, .. } => {
+                                    if let Some(v) = view {
+                                        if let Err(e) = v.ui(ui) {
+                                            update_state.toasts.error(e.to_string());
+                                            *view = None
+                                        }
+                                    } else {
+                                        ui.add(egui::Label::new("No archive selected").wrap(false));
+                                    }
+                                }
+                                Mode::Create { .. } => todo!("archive creation"),
+                            });
+                        });
+                    },
+                );
 
                 match &mut self.mode {
-                    Mode::Extract {
-                        archive,
-                        load_promise,
-                    } => {
+                    Mode::Extract { view, load_promise } => {
                         if let Some(p) = self.save_promise.take() {
                             match p.try_take() {
                                 Ok(Ok(_handle)) => todo!("extract files"),
@@ -180,7 +204,7 @@ impl luminol_core::Window for Window {
                                 if self.save_promise.is_none()
                                     && ui
                                         .add_enabled(
-                                            archive.is_some() && load_promise.is_none(),
+                                            view.is_some() && load_promise.is_none(),
                                             egui::Button::new("Extract"),
                                         )
                                         .clicked()
