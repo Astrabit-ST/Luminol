@@ -102,11 +102,17 @@ where
         node_id: indextree::NodeId,
         name: &str,
     ) -> luminol_filesystem::Result<()> {
-        match self.arena[node_id].get() {
+        match self.arena[node_id].get_mut() {
             Entry::Dir {
-                initialized: false, ..
+                initialized: initialized @ false,
+                ..
             } => {
-                let mut ancestors = node_id.ancestors(&self.arena).skip(1).collect_vec();
+                *initialized = true;
+
+                let mut ancestors = node_id
+                    .ancestors(&self.arena)
+                    .filter(|p| !self.arena[*p].get().name().is_empty())
+                    .collect_vec();
                 ancestors.reverse();
                 let path = ancestors
                     .into_iter()
@@ -123,17 +129,23 @@ where
                 for subentry in subentries {
                     let subentry_name = subentry.path.iter().last().unwrap().to_string();
                     if subentry.metadata.is_file {
-                        self.arena.new_node(Entry::File {
-                            name: subentry_name,
-                            selected: false,
-                        });
+                        node_id.append_value(
+                            Entry::File {
+                                name: subentry_name,
+                                selected: false,
+                            },
+                            &mut self.arena,
+                        );
                     } else {
-                        self.arena.new_node(Entry::Dir {
-                            name: subentry_name,
-                            initialized: false,
-                            selected: Some(false),
-                            expanded: false,
-                        });
+                        node_id.append_value(
+                            Entry::Dir {
+                                name: subentry_name,
+                                initialized: false,
+                                selected: Some(false),
+                                expanded: false,
+                            },
+                            &mut self.arena,
+                        );
                     }
                 }
             }
@@ -164,9 +176,9 @@ where
                             format!(
                                 "{}{}",
                                 match *selected {
-                                    Some(true) => '▣',
-                                    Some(false) => '☐',
-                                    None => '⊟',
+                                    Some(true) => "▣   ",
+                                    Some(false) => "☐   ",
+                                    None => "⊟   ",
                                 },
                                 name
                             ),
