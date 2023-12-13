@@ -236,6 +236,10 @@ impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
         tab.name(self.update_state).into()
     }
 
+    fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
+        tab.id()
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         let id = tab.id();
         ui.push_id(id, |ui| {
