@@ -286,11 +286,7 @@ impl luminol_core::Tab for Tab {
 
         // Display the tilepicker.
         let spacing = ui.spacing();
-        let tilepicker_default_width = 256.
-            + spacing.indent
-            + spacing.scroll.bar_inner_margin
-            + spacing.scroll.bar_width
-            + spacing.scroll.bar_outer_margin;
+        let tilepicker_default_width = 256. + spacing.indent;
         egui::SidePanel::left(format!("map_{}_tilepicker", self.id))
             .default_width(tilepicker_default_width)
             .max_width(tilepicker_default_width)
