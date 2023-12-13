@@ -106,6 +106,7 @@ where
         match self.arena[node_id].get_mut() {
             Entry::Dir {
                 initialized: initialized @ false,
+                expanded: true,
                 ..
             } => {
                 *initialized = true;
@@ -176,7 +177,7 @@ where
                     *expanded,
                 );
 
-                *expanded = header.openness(ui.ctx()) >= 1.;
+                *expanded = header.openness(ui.ctx()) >= 0.2;
 
                 let layout = *ui.layout();
                 let (_response, _header_response, body_response) = header
