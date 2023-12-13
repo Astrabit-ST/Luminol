@@ -26,7 +26,7 @@ use itertools::Itertools;
 
 pub struct FileSystemView<T> {
     arena: indextree::Arena<Entry>,
-    first_run: bool,
+    depersisted_ids: std::collections::HashSet<egui::Id>,
     id: egui::Id,
     filesystem: T,
     root_name: String,
@@ -77,7 +77,7 @@ where
         });
         Self {
             arena,
-            first_run: true,
+            depersisted_ids: Default::default(),
             id,
             filesystem,
             root_name,
@@ -94,10 +94,7 @@ where
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> luminol_filesystem::Result<()> {
-        let result =
-            self.render_subtree(ui, self.id, self.root_node_id, &self.root_name.to_string());
-        self.first_run = false;
-        result
+        self.render_subtree(ui, self.id, self.root_node_id, &self.root_name.to_string())
     }
 
     fn render_subtree(
@@ -166,18 +163,19 @@ where
             } => {
                 let id = id.with(name);
 
-                let mut header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                // De-persist state of the collapsing headers since the underlying filesystem may
+                // have changed since this view was last used
+                if self.depersisted_ids.insert(id) {
+                    egui::collapsing_header::CollapsingState::load(ui.ctx(), id)
+                        .map(|h| h.remove(ui.ctx()));
+                    ui.ctx().animate_bool_with_time(id, *expanded, 0.);
+                }
+
+                let header = egui::collapsing_header::CollapsingState::load_with_default_open(
                     ui.ctx(),
                     id,
                     *expanded,
                 );
-
-                // De-persist state of the collapsing headers since the underlying filesystem may
-                // have changed since this view was last used
-                if self.first_run {
-                    header.remove(ui.ctx());
-                    header.set_open(*expanded);
-                }
 
                 *expanded = header.openness(ui.ctx()) >= 1.;
 
