@@ -132,25 +132,51 @@ impl luminol_core::Window for Window {
                             }
                         }
 
-                        ui.with_layout(
-                            egui::Layout {
-                                cross_align: egui::Align::Center,
-                                cross_justify: true,
-                                ..Default::default()
-                            },
-                            |ui| {
-                                if load_promise.is_none() && ui.button("Select archive").clicked() {
-                                    *load_promise = Some(luminol_core::spawn_future(
-                                        luminol_filesystem::host::File::from_file_picker(
-                                            "RGSSAD archives",
-                                            &["rgssad", "rgss2a", "rgss3a"],
-                                        ),
-                                    ));
-                                } else if load_promise.is_some() {
-                                    ui.spinner();
-                                }
-                            },
-                        );
+                        ui.columns(2, |columns| {
+                            columns[0].with_layout(
+                                egui::Layout {
+                                    cross_align: egui::Align::Center,
+                                    cross_justify: true,
+                                    ..Default::default()
+                                },
+                                |ui| {
+                                    if load_promise.is_none() && ui.button("Select archive").clicked() {
+                                        *load_promise = Some(luminol_core::spawn_future(
+                                            luminol_filesystem::host::File::from_file_picker(
+                                                "RGSSAD archives",
+                                                &["rgssad", "rgss2a", "rgss3a"],
+                                            ),
+                                        ));
+                                    } else if load_promise.is_some() {
+                                        ui.spinner();
+                                    }
+                                },
+                            );
+
+                            columns[1].with_layout(
+                                egui::Layout {
+                                    cross_align: egui::Align::Center,
+                                    cross_justify: true,
+                                    ..Default::default()
+                                },
+                                |ui| {
+                                    if self.save_promise.is_none()
+                                        && ui
+                                            .add_enabled(
+                                                view.is_some() && load_promise.is_none(),
+                                                egui::Button::new("Extract"),
+                                            )
+                                            .clicked()
+                                    {
+                                        self.save_promise = Some(luminol_core::spawn_future(
+                                            luminol_filesystem::host::FileSystem::from_folder_picker(),
+                                        ));
+                                    } else if self.save_promise.is_some() {
+                                        ui.spinner();
+                                    }
+                                },
+                            );
+                        });
                     }
 
                     _ => todo!("archive creation"),
@@ -163,6 +189,8 @@ impl luminol_core::Window for Window {
                     },
                     |ui| {
                         ui.group(|ui| {
+                            ui.set_width(ui.available_width());
+                            ui.set_height(ui.available_height());
                             egui::ScrollArea::both().show(ui, |ui| match &mut self.mode {
                                 Mode::Extract { view, .. } => {
                                     if let Some(v) = view {
@@ -179,48 +207,6 @@ impl luminol_core::Window for Window {
                         });
                     },
                 );
-
-                match &mut self.mode {
-                    Mode::Extract { view, load_promise } => {
-                        if let Some(p) = self.save_promise.take() {
-                            match p.try_take() {
-                                Ok(Ok(_handle)) => todo!("extract files"),
-                                Ok(Err(e)) => {
-                                    if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
-                                        update_state.toasts.error(e.to_string())
-                                    }
-                                }
-                                Err(p) => self.save_promise = Some(p),
-                            }
-                        }
-
-                        ui.with_layout(
-                            egui::Layout {
-                                cross_align: egui::Align::Center,
-                                cross_justify: true,
-                                ..Default::default()
-                            },
-                            |ui| {
-                                if self.save_promise.is_none()
-                                    && ui
-                                        .add_enabled(
-                                            view.is_some() && load_promise.is_none(),
-                                            egui::Button::new("Extract"),
-                                        )
-                                        .clicked()
-                                {
-                                    self.save_promise = Some(luminol_core::spawn_future(
-                                        luminol_filesystem::host::FileSystem::from_folder_picker(),
-                                    ));
-                                } else if self.save_promise.is_some() {
-                                    ui.spinner();
-                                }
-                            },
-                        );
-                    }
-
-                    _ => todo!("archive creation"),
-                }
             });
         *open = window_open;
     }

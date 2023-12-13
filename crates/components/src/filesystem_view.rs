@@ -111,23 +111,23 @@ where
 
                 let mut ancestors = node_id
                     .ancestors(&self.arena)
-                    .filter(|p| !self.arena[*p].get().name().is_empty())
+                    .filter_map(|n| {
+                        let name = self.arena[n].get().name();
+                        (!name.is_empty()).then_some(name)
+                    })
                     .collect_vec();
                 ancestors.reverse();
-                let path = ancestors
-                    .into_iter()
-                    .map(|n| self.arena[n].get().name())
-                    .join("/");
+                let path = ancestors.join("/");
 
                 let mut subentries = self.filesystem.read_dir(path)?;
                 subentries.sort_unstable_by(|a, b| {
-                    let path_a = a.path.iter().last().unwrap();
-                    let path_b = b.path.iter().last().unwrap();
+                    let path_a = a.path.iter().next_back().unwrap();
+                    let path_b = b.path.iter().next_back().unwrap();
                     path_a.partial_cmp(path_b).unwrap()
                 });
 
                 for subentry in subentries {
-                    let subentry_name = subentry.path.iter().last().unwrap().to_string();
+                    let subentry_name = subentry.path.iter().next_back().unwrap().to_string();
                     if subentry.metadata.is_file {
                         node_id.append_value(
                             Entry::File {
@@ -169,20 +169,23 @@ where
 
                 *expanded = header.openness(ui.ctx()) >= 1.;
 
+                let layout = *ui.layout();
                 let response = header
                     .show_header(ui, |ui| {
-                        ui.add(egui::SelectableLabel::new(
-                            selected.is_some_and(|s| s),
-                            format!(
-                                "{}{}",
-                                match *selected {
-                                    Some(true) => "▣   ",
-                                    Some(false) => "☐   ",
-                                    None => "⊟   ",
-                                },
-                                name
-                            ),
-                        ));
+                        ui.with_layout(layout, |ui| {
+                            ui.add(egui::SelectableLabel::new(
+                                selected.is_some_and(|s| s),
+                                format!(
+                                    "{}{}",
+                                    match *selected {
+                                        Some(true) => "▣   ",
+                                        Some(false) => "☐   ",
+                                        None => "⊟   ",
+                                    },
+                                    name
+                                ),
+                            ));
+                        });
                     })
                     .body::<luminol_filesystem::Result<()>>(|ui| {
                         for node_id in node_id.children(&self.arena).collect_vec() {
