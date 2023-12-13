@@ -94,13 +94,12 @@ where
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> luminol_filesystem::Result<()> {
-        self.render_subtree(ui, self.id, self.root_node_id, &self.root_name.to_string())
+        self.render_subtree(ui, self.root_node_id, &self.root_name.to_string())
     }
 
     fn render_subtree(
         &mut self,
         ui: &mut egui::Ui,
-        id: egui::Id,
         node_id: indextree::NodeId,
         name: &str,
     ) -> luminol_filesystem::Result<()> {
@@ -161,7 +160,7 @@ where
             Entry::Dir {
                 selected, expanded, ..
             } => {
-                let id = id.with(name);
+                let id = self.id.with(node_id);
 
                 // De-persist state of the collapsing headers since the underlying filesystem may
                 // have changed since this view was last used
@@ -180,7 +179,7 @@ where
                 *expanded = header.openness(ui.ctx()) >= 1.;
 
                 let layout = *ui.layout();
-                let response = header
+                let (_response, _header_response, body_response) = header
                     .show_header(ui, |ui| {
                         ui.with_layout(layout, |ui| {
                             ui.add(egui::SelectableLabel::new(
@@ -201,7 +200,6 @@ where
                         for node_id in node_id.children(&self.arena).collect_vec() {
                             self.render_subtree(
                                 ui,
-                                id,
                                 node_id,
                                 &self.arena[node_id].get().name().to_string(),
                             )?;
@@ -209,8 +207,8 @@ where
                         Ok(())
                     });
 
-                if let Some(o) = response.2 {
-                    o.inner?;
+                if let Some(body_response) = body_response {
+                    body_response.inner?;
                 }
             }
         }
