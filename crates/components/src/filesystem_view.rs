@@ -45,12 +45,19 @@ enum Entry {
         name: String,
         /// Whether or not we've cached the contents of this directory.
         initialized: bool,
-        /// If all of this directory's contents are selected, this will be `Some(true)`.
-        /// If all of this directory's contents are deselected this will be `Some(false)`.
-        /// Otherwise, this will be `None`.
-        selected: Option<bool>,
+        /// Whether or not this directory is fully selected in the filesystem view.
+        selected: bool,
         /// Whether or not the subtree for this directory is expanded.
         expanded: bool,
+        /// Number of files and directories that are subentries of this one. Only includes direct
+        /// children, not indirect descendants.
+        total_children: usize,
+        /// Number of file and directories that are subentries of this one and are (fully)
+        /// selected. Only includes direct children, not indirect descendants.
+        selected_children: usize,
+        /// Number of subdirectories that are partially selected. Only includes direct children,
+        /// not indirect descendants.
+        partial_children: usize,
     },
 }
 
@@ -72,8 +79,11 @@ where
         let root_node_id = arena.new_node(Entry::Dir {
             name: "".to_string(),
             initialized: false,
-            selected: Some(false),
+            selected: false,
             expanded: true,
+            total_children: 0,
+            selected_children: 0,
+            partial_children: 0,
         });
         Self {
             arena,
@@ -103,63 +113,95 @@ where
         node_id: indextree::NodeId,
         name: &str,
     ) -> luminol_filesystem::Result<()> {
-        match self.arena[node_id].get_mut() {
-            Entry::Dir {
-                initialized: initialized @ false,
-                expanded: true,
-                ..
-            } => {
-                *initialized = true;
+        let mut length = None;
 
-                let mut ancestors = node_id
-                    .ancestors(&self.arena)
-                    .filter_map(|n| {
-                        let name = self.arena[n].get().name();
-                        (!name.is_empty()).then_some(name)
-                    })
-                    .collect_vec();
-                ancestors.reverse();
-                let path = ancestors.join("/");
+        if let Entry::Dir {
+            initialized: initialized @ false,
+            selected,
+            expanded: true,
+            ..
+        } = self.arena[node_id].get_mut()
+        {
+            let selected = *selected;
+            *initialized = true;
 
-                let mut subentries = self.filesystem.read_dir(path)?;
-                subentries.sort_unstable_by(|a, b| {
-                    let path_a = a.path.iter().next_back().unwrap();
-                    let path_b = b.path.iter().next_back().unwrap();
-                    path_a.partial_cmp(path_b).unwrap()
-                });
+            let mut ancestors = node_id
+                .ancestors(&self.arena)
+                .filter_map(|n| {
+                    let name = self.arena[n].get().name();
+                    (!name.is_empty()).then_some(name)
+                })
+                .collect_vec();
+            ancestors.reverse();
+            let path = ancestors.join("/");
 
-                for subentry in subentries {
-                    let subentry_name = subentry.path.iter().next_back().unwrap().to_string();
-                    if subentry.metadata.is_file {
-                        node_id.append_value(
-                            Entry::File {
-                                name: subentry_name,
-                                selected: false,
-                            },
-                            &mut self.arena,
-                        );
-                    } else {
-                        node_id.append_value(
-                            Entry::Dir {
-                                name: subentry_name,
-                                initialized: false,
-                                selected: Some(false),
-                                expanded: false,
-                            },
-                            &mut self.arena,
-                        );
-                    }
+            let mut subentries = self.filesystem.read_dir(path)?;
+            subentries.sort_unstable_by(|a, b| {
+                let path_a = a.path.iter().next_back().unwrap();
+                let path_b = b.path.iter().next_back().unwrap();
+                path_a.partial_cmp(path_b).unwrap()
+            });
+            length = Some(subentries.len());
+
+            for subentry in subentries {
+                let subentry_name = subentry.path.iter().next_back().unwrap().to_string();
+                if subentry.metadata.is_file {
+                    node_id.append_value(
+                        Entry::File {
+                            name: subentry_name,
+                            selected,
+                        },
+                        &mut self.arena,
+                    );
+                } else {
+                    node_id.append_value(
+                        Entry::Dir {
+                            name: subentry_name,
+                            initialized: false,
+                            selected,
+                            expanded: false,
+                            total_children: 0,
+                            selected_children: 0,
+                            partial_children: 0,
+                        },
+                        &mut self.arena,
+                    );
                 }
             }
-            _ => {}
         }
+
+        if let Some(length) = length {
+            if let Entry::Dir {
+                selected,
+                total_children,
+                selected_children,
+                ..
+            } = self.arena[node_id].get_mut()
+            {
+                *total_children = length;
+                if *selected {
+                    *selected_children = length;
+                }
+            }
+        }
+
+        let mut should_toggle = false;
 
         match self.arena[node_id].get_mut() {
             Entry::File { name, selected } => {
-                ui.add(egui::SelectableLabel::new(*selected, name.to_string()));
+                if ui
+                    .add(egui::SelectableLabel::new(*selected, name.to_string()))
+                    .clicked()
+                {
+                    should_toggle = true;
+                };
             }
             Entry::Dir {
-                selected, expanded, ..
+                selected,
+                expanded,
+                selected_children,
+                partial_children,
+                ..
             } => {
                 let id = self.id.with(node_id);
 
@@ -183,18 +225,26 @@ where
                 let (_response, _header_response, body_response) = header
                     .show_header(ui, |ui| {
                         ui.with_layout(layout, |ui| {
-                            ui.add(egui::SelectableLabel::new(
-                                selected.is_some_and(|s| s),
-                                format!(
-                                    "{}{}",
-                                    match *selected {
-                                        Some(true) => "▣   ",
-                                        Some(false) => "☐   ",
-                                        None => "⊟   ",
-                                    },
-                                    name
-                                ),
-                            ));
+                            if ui
+                                .add(egui::SelectableLabel::new(
+                                    *selected,
+                                    format!(
+                                        "{}{}",
+                                        if *selected {
+                                            "▣   "
+                                        } else if *selected_children == 0 && *partial_children == 0
+                                        {
+                                            "☐   "
+                                        } else {
+                                            "⊟   "
+                                        },
+                                        name
+                                    ),
+                                ))
+                                .clicked()
+                            {
+                                should_toggle = true;
+                            };
                         });
                     })
                     .body::<luminol_filesystem::Result<()>>(|ui| {
@@ -214,6 +264,200 @@ where
             }
         }
 
+        if should_toggle {
+            self.toggle(node_id);
+        }
+
         Ok(())
+    }
+
+    fn toggle(&mut self, node_id: indextree::NodeId) {
+        match self.arena[node_id].get() {
+            Entry::File { selected, .. } => {
+                if *selected {
+                    self.deselect(node_id)
+                } else {
+                    self.select(node_id)
+                }
+            }
+            Entry::Dir { selected, .. } => {
+                if *selected {
+                    self.deselect(node_id)
+                } else {
+                    self.select(node_id)
+                }
+            }
+        }
+    }
+
+    /// Marks the given node as (completely) selected. Also marks all descendant nodes as selected
+    /// and updates ancestor nodes correspondingly.
+    ///
+    /// When run m times in a row (without running `deselect`) on arbitrary nodes in a tree with n
+    /// nodes, this takes worst case O(m + n) time thanks to memoization.
+    fn select(&mut self, node_id: indextree::NodeId) {
+        // We can skip nodes that are marked as selected because they're guaranteed to have all of
+        // their subentries selected as well
+        if matches!(self.arena[node_id].get(), Entry::Dir { selected: true, .. }) {
+            return;
+        }
+
+        // Select all of this node's descendants in a postorder traversal
+        for node_id in node_id.children(&self.arena).collect_vec() {
+            self.select(node_id);
+        }
+
+        let mut child_is_selected = true;
+        let mut child_was_partial = false;
+
+        // Select this node
+        match self.arena[node_id].get_mut() {
+            Entry::File { selected, .. } => {
+                if *selected {
+                    return;
+                }
+                *selected = true;
+            }
+            Entry::Dir {
+                selected,
+                total_children,
+                selected_children,
+                partial_children,
+                ..
+            } => {
+                if *selected {
+                    return;
+                }
+                *selected = true;
+                child_was_partial = *selected_children != 0 || *partial_children != 0;
+                *selected_children = *total_children;
+                *partial_children = 0;
+            }
+        }
+
+        // Visit and update ancestor nodes until we either reach the root node or we reach an
+        // ancestor that does not change state (not selected / completely selected / partially
+        // selected) after updating it (that implies that the ancestors of *that* node will also
+        // not change state after updating, so visiting them would be redundant)
+        for node_id in node_id.ancestors(&self.arena).skip(1).collect_vec() {
+            if let Entry::Dir {
+                selected,
+                total_children,
+                selected_children,
+                partial_children,
+                ..
+            } = self.arena[node_id].get_mut()
+            {
+                let was_partial = *selected_children != 0 || *partial_children != 0;
+                if child_is_selected {
+                    *selected_children += 1;
+                    if child_was_partial {
+                        *partial_children -= 1;
+                    }
+                } else if !child_was_partial {
+                    *partial_children += 1;
+                }
+                let is_selected = *selected_children == *total_children;
+                if is_selected {
+                    *selected = true;
+                } else if was_partial {
+                    break;
+                }
+                child_is_selected = is_selected;
+                child_was_partial = was_partial;
+            }
+        }
+    }
+
+    /// Marks the given node as (completely) deselected. Also marks all descendant nodes as
+    /// deselected and updates ancestor nodes correspondingly.
+    ///
+    /// When run m times in a row (without running `select`) on arbitrary nodes in a tree with n
+    /// nodes, this takes worst case O(m + n) time thanks to memoization.
+    fn deselect(&mut self, node_id: indextree::NodeId) {
+        // We can skip nodes that are not marked as completely selected and have zero selected or
+        // partially selected children
+        match self.arena[node_id].get() {
+            Entry::File { selected, .. } => {
+                if !*selected {
+                    return;
+                }
+            }
+            Entry::Dir {
+                selected,
+                selected_children,
+                partial_children,
+                ..
+            } => {
+                if !*selected && *selected_children == 0 && *partial_children == 0 {
+                    return;
+                }
+            }
+        }
+
+        // Deelect all of this node's descendants in a postorder traversal
+        for node_id in node_id.children(&self.arena).collect_vec() {
+            self.deselect(node_id);
+        }
+
+        let mut child_is_deselected = true;
+        let mut child_was_partial = false;
+
+        // Deselect this node
+        match self.arena[node_id].get_mut() {
+            Entry::File { selected, .. } => {
+                if !*selected {
+                    return;
+                }
+                *selected = false;
+            }
+            Entry::Dir {
+                selected,
+                total_children,
+                selected_children,
+                partial_children,
+                ..
+            } => {
+                if !*selected && *selected_children == 0 && *partial_children == 0 {
+                    return;
+                }
+                *selected = false;
+                child_was_partial = *selected_children != *total_children;
+                *selected_children = 0;
+                *partial_children = 0;
+            }
+        }
+
+        // Visit and update ancestor nodes until we either reach the root node or we reach an
+        // ancestor that does not change state (not selected / completely selected / partially
+        // selected) after updating it (that implies that the ancestors of *that* node will also
+        // not change state after updating, so visiting them would be redundant)
+        for node_id in node_id.ancestors(&self.arena).skip(1).collect_vec() {
+            if let Entry::Dir {
+                selected,
+                total_children,
+                selected_children,
+                partial_children,
+                ..
+            } = self.arena[node_id].get_mut()
+            {
+                *selected = false;
+                let was_partial = *selected_children != *total_children;
+                if child_was_partial {
+                    *partial_children -= 1;
+                } else {
+                    *selected_children -= 1;
+                    if !child_is_deselected {
+                        *partial_children += 1;
+                    }
+                }
+                let is_deselected = *selected_children == 0 && *partial_children == 0;
+                if !is_deselected && was_partial {
+                    break;
+                }
+                child_is_deselected = is_deselected;
+                child_was_partial = was_partial;
+            }
+        }
     }
 }
