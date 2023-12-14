@@ -26,7 +26,6 @@ use itertools::Itertools;
 
 pub struct FileSystemView<T> {
     arena: indextree::Arena<Entry>,
-    depersisted_ids: std::collections::HashSet<egui::Id>,
     id: egui::Id,
     filesystem: T,
     root_name: String,
@@ -45,6 +44,8 @@ enum Entry {
         name: String,
         /// Whether or not we've cached the contents of this directory.
         initialized: bool,
+        /// Whether or not the memory for this subtree's collapsing header has been deleted.
+        depersisted: bool,
         /// Whether or not this directory is fully selected in the filesystem view.
         selected: bool,
         /// Whether or not the subtree for this directory is expanded.
@@ -79,6 +80,7 @@ where
         let root_node_id = arena.new_node(Entry::Dir {
             name: "".to_string(),
             initialized: false,
+            depersisted: false,
             selected: false,
             expanded: true,
             total_children: 0,
@@ -87,7 +89,6 @@ where
         });
         Self {
             arena,
-            depersisted_ids: Default::default(),
             id,
             filesystem,
             root_name,
@@ -158,6 +159,7 @@ where
                         Entry::Dir {
                             name: subentry_name,
                             initialized: false,
+                            depersisted: false,
                             selected,
                             expanded: false,
                             total_children: 0,
@@ -197,6 +199,7 @@ where
                 };
             }
             Entry::Dir {
+                depersisted,
                 selected,
                 expanded,
                 selected_children,
@@ -207,7 +210,8 @@ where
 
                 // De-persist state of the collapsing headers since the underlying filesystem may
                 // have changed since this view was last used
-                if self.depersisted_ids.insert(id) {
+                if !*depersisted {
+                    *depersisted = true;
                     egui::collapsing_header::CollapsingState::load(ui.ctx(), id)
                         .map(|h| h.remove(ui.ctx()));
                     ui.ctx().animate_bool_with_time(id, *expanded, 0.);
@@ -229,14 +233,14 @@ where
                                 .add(egui::SelectableLabel::new(
                                     *selected,
                                     format!(
-                                        "{}{}",
+                                        "{}   {}",
                                         if *selected {
-                                            "▣   "
+                                            '▣'
                                         } else if *selected_children == 0 && *partial_children == 0
                                         {
-                                            "☐   "
+                                            '☐'
                                         } else {
-                                            "⊟   "
+                                            '⊟'
                                         },
                                         name
                                     ),
