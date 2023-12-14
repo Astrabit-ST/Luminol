@@ -30,6 +30,7 @@ pub struct FileSystemView<T> {
     filesystem: T,
     root_name: String,
     root_node_id: indextree::NodeId,
+    row_index: usize,
 }
 
 enum Entry {
@@ -93,6 +94,7 @@ where
             filesystem,
             root_name,
             root_node_id,
+            row_index: 0,
         }
     }
 
@@ -105,6 +107,7 @@ where
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> luminol_filesystem::Result<()> {
+        self.row_index = 0;
         self.render_subtree(ui, self.root_node_id, &self.root_name.to_string())
     }
 
@@ -189,14 +192,22 @@ where
 
         let mut should_toggle = false;
 
+        let mut frame = egui::containers::Frame::none();
+        if self.row_index % 2 != 0 {
+            frame = frame.fill(ui.visuals().faint_bg_color);
+        }
+        self.row_index += 1;
+
         match self.arena[node_id].get_mut() {
             Entry::File { name, selected } => {
-                if ui
-                    .add(egui::SelectableLabel::new(*selected, name.to_string()))
-                    .clicked()
-                {
-                    should_toggle = true;
-                };
+                frame.show(ui, |ui| {
+                    if ui
+                        .add(egui::SelectableLabel::new(*selected, name.to_string()))
+                        .clicked()
+                    {
+                        should_toggle = true;
+                    };
+                });
             }
             Entry::Dir {
                 depersisted,
@@ -229,26 +240,29 @@ where
                 let (_response, _header_response, body_response) = header
                     .show_header(ui, |ui| {
                         ui.with_layout(layout, |ui| {
-                            if ui
-                                .add(egui::SelectableLabel::new(
-                                    *selected,
-                                    format!(
-                                        "{}   {}",
-                                        if *selected {
-                                            '▣'
-                                        } else if *selected_children == 0 && *partial_children == 0
-                                        {
-                                            '☐'
-                                        } else {
-                                            '⊟'
-                                        },
-                                        name
-                                    ),
-                                ))
-                                .clicked()
-                            {
-                                should_toggle = true;
-                            };
+                            frame.show(ui, |ui| {
+                                if ui
+                                    .add(egui::SelectableLabel::new(
+                                        *selected,
+                                        format!(
+                                            "{}   {}",
+                                            if *selected {
+                                                '▣'
+                                            } else if *selected_children == 0
+                                                && *partial_children == 0
+                                            {
+                                                '☐'
+                                            } else {
+                                                '⊟'
+                                            },
+                                            name
+                                        ),
+                                    ))
+                                    .clicked()
+                                {
+                                    should_toggle = true;
+                                };
+                            });
                         });
                     })
                     .body::<luminol_filesystem::Result<()>>(|ui| {
