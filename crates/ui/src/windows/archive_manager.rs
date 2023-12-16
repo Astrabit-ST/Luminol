@@ -208,10 +208,89 @@ impl luminol_core::Window for Window {
                     },
                 );
             });
+
+        if let Some(p) = self.save_promise.take() {
+            match p.try_take() {
+                Ok(Ok(filesystem)) => {
+                    if let Err(e) = self.copy_files(&filesystem) {
+                        update_state.toasts.error(e.to_string());
+                    } else {
+                        update_state.toasts.info(match &self.mode {
+                            Mode::Extract { .. } => "Extracted successfully!",
+                            Mode::Create { .. } => "Created archive successfully!",
+                        });
+                    }
+                }
+                Ok(Err(e)) => {
+                    if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                        update_state.toasts.error(e.to_string())
+                    }
+                }
+                Err(p) => self.save_promise = Some(p),
+            }
+        }
+
         *open = window_open;
     }
 
     fn requires_filesystem(&self) -> bool {
         false
+    }
+}
+
+impl Window {
+    fn copy_files(
+        &self,
+        dest_fs: &impl luminol_filesystem::FileSystem,
+    ) -> luminol_filesystem::Result<()> {
+        match &self.mode {
+            Mode::Extract {
+                view: Some(view), ..
+            } => {
+                for metadata in view {
+                    let path: &camino::Utf8Path = metadata.path.as_str().into();
+                    if metadata.is_file {
+                        if let Some(parent) = path.parent() {
+                            let _ = dest_fs.create_dir(parent);
+                        }
+                    }
+                    Self::copy_files_recurse(
+                        view.filesystem(),
+                        dest_fs,
+                        metadata.path.as_str().into(),
+                        metadata.is_file,
+                    )?;
+                }
+                Ok(())
+            }
+
+            _ => todo!("archive creation"),
+        }
+    }
+
+    fn copy_files_recurse(
+        src_fs: &impl luminol_filesystem::FileSystem,
+        dest_fs: &impl luminol_filesystem::FileSystem,
+        path: &camino::Utf8Path,
+        is_file: bool,
+    ) -> luminol_filesystem::Result<()> {
+        if is_file {
+            let mut src_file = src_fs.open_file(path, luminol_filesystem::OpenFlags::Read)?;
+            let mut dest_file = dest_fs.open_file(
+                path,
+                luminol_filesystem::OpenFlags::Read
+                    | luminol_filesystem::OpenFlags::Write
+                    | luminol_filesystem::OpenFlags::Create
+                    | luminol_filesystem::OpenFlags::Truncate,
+            )?;
+            std::io::copy(&mut src_file, &mut dest_file)
+                .map_err(|e| luminol_filesystem::Error::IoError(e))?;
+        } else {
+            dest_fs.create_dir(path)?;
+            for entry in src_fs.read_dir(path)? {
+                Self::copy_files_recurse(src_fs, dest_fs, &entry.path, entry.metadata.is_file)?;
+            }
+        }
+        Ok(())
     }
 }
