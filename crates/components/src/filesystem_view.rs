@@ -70,6 +70,13 @@ impl Entry {
             Entry::Dir { name, .. } => name,
         }
     }
+
+    fn selected(&self) -> bool {
+        match self {
+            Entry::File { selected, .. } => *selected,
+            Entry::Dir { selected, .. } => *selected,
+        }
+    }
 }
 
 impl<T> FileSystemView<T>
@@ -104,6 +111,15 @@ where
 
     pub fn root_name(&self) -> &str {
         &self.root_name
+    }
+
+    /// Returns an iterator over the selected entries in this view from top to bottom.
+    ///
+    /// The iterator does not recurse into directories that are completely selected - that is, if a
+    /// directory is completely selected, then this iterator will iterate over the directory but
+    /// none of its contents.
+    pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+        self.into_iter()
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> luminol_filesystem::Result<()> {
@@ -476,6 +492,104 @@ where
                 child_is_deselected = is_deselected;
                 child_was_partial = was_partial;
             }
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Metadata {
+    pub path: String,
+    pub is_file: bool,
+}
+
+/// An iterator over the selected entries of a `FileSystemView` from top to bottom.
+///
+/// The iterator does not recurse into directories that are completely selected - that is, if a
+/// directory is completely selected, then this iterator will iterate over the directory but
+/// none of its contents.
+pub struct SelectedIter<'a, T>
+where
+    T: luminol_filesystem::FileSystem,
+{
+    view: &'a FileSystemView<T>,
+    edge: Option<indextree::NodeEdge>,
+}
+
+impl<'a, T> std::iter::FusedIterator for SelectedIter<'a, T> where T: luminol_filesystem::FileSystem {}
+
+impl<'a, T> Iterator for SelectedIter<'a, T>
+where
+    T: luminol_filesystem::FileSystem,
+{
+    type Item = Metadata;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.edge {
+                None => {
+                    return None;
+                }
+
+                Some(indextree::NodeEdge::Start(node_id)) => {
+                    let selected = self.view.arena[node_id].get().selected();
+                    let first_child_id = if selected {
+                        None
+                    } else {
+                        node_id.children(&self.view.arena).next()
+                    };
+
+                    self.edge = Some(if let Some(first_child_id) = first_child_id {
+                        indextree::NodeEdge::Start(first_child_id)
+                    } else {
+                        indextree::NodeEdge::End(node_id)
+                    });
+
+                    if selected {
+                        let entry = self.view.arena[node_id].get();
+                        let mut ancestors = node_id
+                            .ancestors(&self.view.arena)
+                            .filter_map(|n| {
+                                let name = self.view.arena[n].get().name();
+                                (!name.is_empty()).then_some(name)
+                            })
+                            .collect_vec();
+                        ancestors.reverse();
+
+                        return Some(Metadata {
+                            path: ancestors.join("/"),
+                            is_file: matches!(entry, Entry::File { .. }),
+                        });
+                    }
+                }
+
+                Some(indextree::NodeEdge::End(node_id)) => {
+                    let next_sibling_id =
+                        node_id.following_siblings(&self.view.arena).skip(1).next();
+
+                    self.edge = if let Some(next_sibling_id) = next_sibling_id {
+                        Some(indextree::NodeEdge::Start(next_sibling_id))
+                    } else {
+                        node_id
+                            .ancestors(&self.view.arena)
+                            .skip(1)
+                            .next()
+                            .map(|p| indextree::NodeEdge::End(p))
+                    };
+                }
+            }
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a FileSystemView<T>
+where
+    T: luminol_filesystem::FileSystem,
+{
+    type Item = Metadata;
+    type IntoIter = SelectedIter<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        SelectedIter {
+            view: self,
+            edge: Some(indextree::NodeEdge::Start(self.root_node_id)),
         }
     }
 }
