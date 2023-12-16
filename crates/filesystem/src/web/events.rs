@@ -15,11 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::util::{get_subdir, handle_event, idb, to_future};
+use super::util::{get_subdir, get_subdir_create, handle_event, idb, to_future};
 use super::FileSystemCommand;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
-use std::io::ErrorKind::{AlreadyExists, InvalidInput, PermissionDenied};
+use std::io::ErrorKind::{InvalidInput, PermissionDenied};
 use wasm_bindgen::prelude::*;
 
 pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
@@ -264,36 +264,10 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                 FileSystemCommand::DirCreateDir(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
-                        let dirname = iter
-                            .next_back()
-                            .ok_or(Error::IoError(AlreadyExists.into()))?;
-                        let subdir = get_subdir(dirs.get(key).unwrap(), &mut iter)
+                        get_subdir_create(dirs.get(key).unwrap(), &mut iter)
                             .await
-                            .ok_or(Error::NotExist)?;
-
-                        if to_future::<web_sys::FileSystemFileHandle>(
-                            subdir.get_file_handle(dirname),
-                        )
-                        .await
-                        .is_ok()
-                            || to_future::<web_sys::FileSystemDirectoryHandle>(
-                                subdir.get_directory_handle(dirname),
-                            )
-                            .await
-                            .is_ok()
-                        {
-                            // If there is already a file or directory at the given path
-                            return Err(Error::IoError(PermissionDenied.into()));
-                        }
-
-                        let mut options = web_sys::FileSystemGetDirectoryOptions::new();
-                        options.create(true);
-                        to_future::<web_sys::FileSystemDirectoryHandle>(
-                            subdir.get_directory_handle_with_options(dirname, &options),
-                        )
-                        .await
-                        .map(|_| ())
-                        .map_err(|_| Error::IoError(PermissionDenied.into()))
+                            .ok_or(Error::IoError(PermissionDenied.into()))?;
+                        Ok(())
                     })
                     .await;
                 }

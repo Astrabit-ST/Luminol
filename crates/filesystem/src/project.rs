@@ -99,9 +99,7 @@ impl FileSystem {
     }
 
     fn load_project_config(&self) -> Result<luminol_config::project::Config> {
-        if !self.exists(".luminol")? {
-            self.create_dir(".luminol")?;
-        }
+        self.create_dir(".luminol")?;
 
         let project = match self
             .read_to_string(".luminol/config")

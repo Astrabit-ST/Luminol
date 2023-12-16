@@ -109,7 +109,7 @@ impl crate::FileSystem for FileSystem {
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = self.root_path.join(path);
-        std::fs::create_dir(path).map_err(Into::into)
+        std::fs::create_dir_all(path).map_err(Into::into)
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
