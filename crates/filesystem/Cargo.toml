@@ -42,6 +42,9 @@ luminol-config.workspace = true
 [target.'cfg(windows)'.dependencies]
 winreg = "0.51.0"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tempfile = "3.8.1"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 once_cell.workspace = true
 rand.workspace = true
@@ -69,4 +72,8 @@ web-sys = { version = "0.3", features = [
     "FileSystemRemoveOptions",
     "FileSystemWritableFileStream",
     "WritableStream",
+
+    "Navigator",
+    "StorageManager",
+    "Window",
 ] }

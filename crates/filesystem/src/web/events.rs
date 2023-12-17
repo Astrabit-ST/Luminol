@@ -17,6 +17,7 @@
 
 use super::util::{generate_key, get_subdir, handle_event, idb, to_future};
 use super::FileSystemCommand;
+use crate::host::util::get_tmp_dir;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
 use std::io::ErrorKind::{AlreadyExists, InvalidInput, PermissionDenied};
@@ -24,7 +25,10 @@ use wasm_bindgen::prelude::*;
 
 pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
     wasm_bindgen_futures::spawn_local(async move {
-        web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        let storage = web_sys::window()
+            .expect("cannot run `setup_main_thread_hooks()` outside of main thread")
+            .navigator()
+            .storage();
 
         struct FileHandle {
             offset: usize,
@@ -462,6 +466,39 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     handle_event(tx, async { dirs.insert(dirs.get(key).unwrap().clone()) }).await;
                 }
 
+                FileSystemCommand::FileCreateTemp(tx) => {
+                    handle_event(tx, async {
+                        let tmp_dir = get_tmp_dir(&storage)
+                            .await
+                            .ok_or(Error::IoError(PermissionDenied.into()))?;
+
+                        let filename = generate_key();
+
+                        let mut options = web_sys::FileSystemGetFileOptions::new();
+                        options.create(true);
+                        let file_handle = to_future::<web_sys::FileSystemFileHandle>(
+                            tmp_dir.get_file_handle_with_options(&filename, &options),
+                        )
+                        .await
+                        .map_err(|_| Error::IoError(PermissionDenied.into()))?;
+
+                        let write_handle = to_future(file_handle.create_writable())
+                            .await
+                            .map_err(|_| Error::IoError(PermissionDenied.into()))?;
+
+                        Ok((
+                            files.insert(FileHandle {
+                                offset: 0,
+                                file_handle,
+                                read_allowed: true,
+                                write_handle: Some(write_handle),
+                            }),
+                            filename,
+                        ))
+                    })
+                    .await;
+                }
+
                 FileSystemCommand::FileRead(key, max_length, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
@@ -588,7 +625,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     .await;
                 }
 
-                FileSystemCommand::FileDrop(key, tx) => {
+                FileSystemCommand::FileDrop(key, temp_file_name, tx) => {
                     handle_event(tx, async {
                         if files.contains(key) {
                             let file = files.remove(key);
@@ -596,6 +633,14 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             // made to the file
                             if let Some(write_handle) = &file.write_handle {
                                 let _ = to_future::<JsValue>(write_handle.close()).await;
+                            }
+
+                            if let Some(temp_file_name) = temp_file_name {
+                                if let Some(tmp_dir) = get_tmp_dir(&storage).await {
+                                    let _ =
+                                        to_future::<JsValue>(tmp_dir.remove_entry(&temp_file_name))
+                                            .await;
+                                }
                             }
                             true
                         } else {

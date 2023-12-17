@@ -16,12 +16,15 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use itertools::Itertools;
 
-use crate::{DirEntry, File, Metadata, OpenFlags, Result};
+use crate::{DirEntry, Metadata, OpenFlags, Result};
 
 #[derive(Debug, Clone)]
 pub struct FileSystem {
     root_path: camino::Utf8PathBuf,
 }
+
+#[derive(Debug)]
+pub struct File(std::fs::File);
 
 impl FileSystem {
     pub fn new(root_path: impl AsRef<camino::Utf8Path>) -> Self {
@@ -61,7 +64,7 @@ impl FileSystem {
 }
 
 impl crate::FileSystem for FileSystem {
-    type File = std::fs::File;
+    type File = File;
 
     fn open_file(
         &self,
@@ -76,6 +79,7 @@ impl crate::FileSystem for FileSystem {
             .truncate(flags.contains(OpenFlags::Truncate))
             .open(path)
             .map_err(Into::into)
+            .map(File)
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
@@ -139,12 +143,51 @@ impl crate::FileSystem for FileSystem {
     }
 }
 
-impl File for std::fs::File {
+impl File {
+    /// Creates a new empty temporary file with read-write permissions.
+    pub fn new() -> Result<Self> {
+        tempfile::tempfile()
+            .map(File)
+            .map_err(|e| crate::Error::IoError(e))
+    }
+}
+
+impl crate::File for File {
     fn metadata(&self) -> Result<Metadata> {
-        let metdata = self.metadata()?;
+        let metdata = self.0.metadata()?;
         Ok(Metadata {
             is_file: metdata.is_file(),
             size: metdata.len(),
         })
+    }
+}
+
+impl std::io::Read for File {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.0.read(buf)
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
+        self.0.read_vectored(bufs)
+    }
+}
+
+impl std::io::Write for File {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
+    }
+
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
+        self.0.write_vectored(bufs)
+    }
+}
+
+impl std::io::Seek for File {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.0.seek(pos)
     }
 }

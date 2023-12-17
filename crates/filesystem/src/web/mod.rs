@@ -58,6 +58,7 @@ pub struct FileSystem {
 #[derive(Debug)]
 pub struct File {
     key: usize,
+    temp_file_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -93,6 +94,7 @@ enum FileSystemCommand {
     ),
     DirDrop(usize, oneshot::Sender<bool>),
     DirClone(usize, oneshot::Sender<usize>),
+    FileCreateTemp(oneshot::Sender<Result<(usize, String)>>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -102,7 +104,7 @@ enum FileSystemCommand {
         oneshot::Sender<std::io::Result<u64>>,
     ),
     FileSize(usize, oneshot::Sender<std::io::Result<u64>>),
-    FileDrop(usize, oneshot::Sender<bool>),
+    FileDrop(usize, Option<String>, oneshot::Sender<bool>),
 }
 
 fn worker_channels_or_die() -> &'static WorkerChannels {
@@ -203,7 +205,10 @@ impl FileSystemTrait for FileSystem {
         send_and_recv(|tx| {
             FileSystemCommand::DirOpenFile(self.key, path.as_ref().to_path_buf(), flags, tx)
         })
-        .map(|key| File { key })
+        .map(|key| File {
+            key,
+            temp_file_name: None,
+        })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
@@ -249,9 +254,23 @@ impl FileSystemTrait for FileSystem {
     }
 }
 
+impl File {
+    /// Creates a new empty temporary file with read-write permissions.
+    pub fn new() -> Result<Self> {
+        send_and_recv(|tx| FileSystemCommand::FileCreateTemp(tx)).map(|(key, temp_file_name)| {
+            Self {
+                key,
+                temp_file_name: Some(temp_file_name),
+            }
+        })
+    }
+}
+
 impl Drop for File {
     fn drop(&mut self) {
-        let _ = send_and_recv(|tx| FileSystemCommand::FileDrop(self.key, tx));
+        let _ = send_and_recv(|tx| {
+            FileSystemCommand::FileDrop(self.key, self.temp_file_name.take(), tx)
+        });
     }
 }
 
