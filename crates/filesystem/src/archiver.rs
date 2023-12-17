@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-use std::io::{prelude::*, Cursor, SeekFrom};
+use std::io::{prelude::*, BufReader, SeekFrom};
 
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 
@@ -193,16 +193,16 @@ where
 
 #[derive(Debug)]
 pub struct File {
-    cursor: Cursor<Vec<u8>>, // TODO WRITE
+    tmp: crate::host::File,
 }
 
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.cursor.write(buf)
+        self.tmp.write(buf)
     }
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
-        self.cursor.write_vectored(bufs)
+        self.tmp.write_vectored(bufs)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -212,34 +212,31 @@ impl std::io::Write for File {
 
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.cursor.read(buf)
+        self.tmp.read(buf)
     }
 
     fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
-        self.cursor.read_vectored(bufs)
+        self.tmp.read_vectored(bufs)
     }
 
     fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-        self.cursor.read_exact(buf)
+        self.tmp.read_exact(buf)
     }
 }
 
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.cursor.seek(pos)
+        self.tmp.seek(pos)
     }
 
     fn stream_position(&mut self) -> std::io::Result<u64> {
-        self.cursor.stream_position()
+        self.tmp.stream_position()
     }
 }
 
 impl crate::File for File {
     fn metadata(&self) -> crate::Result<Metadata> {
-        Ok(Metadata {
-            is_file: true,
-            size: self.cursor.get_ref().len() as u64,
-        })
+        self.tmp.metadata()
     }
 }
 
@@ -259,29 +256,36 @@ where
         }
 
         let entry = self.files.get(path.as_ref()).ok_or(Error::NotExist)?;
-        let mut buf = vec![0; entry.size as usize];
+        let mut tmp = crate::host::File::new()?;
 
         {
             let mut archive = self.archive.lock();
             archive.seek(SeekFrom::Start(entry.offset))?;
-            archive.read_exact(&mut buf)?;
+
+            let adapter = BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
+            let iter = adapter
+                .bytes()
+                .scan((entry.start_magic, 0), |state, maybe_byte| {
+                    let Ok(byte) = maybe_byte else { return None };
+                    let (mut magic, mut j) = *state;
+
+                    if j == 4 {
+                        j = 0;
+                        magic = magic.wrapping_mul(7).wrapping_add(3);
+                    }
+                    let byte = byte ^ magic.to_le_bytes()[j];
+                    j += 1;
+
+                    *state = (magic, j);
+                    Some(byte)
+                });
+
+            std::io::copy(&mut iter_read::IterRead::new(iter), &mut tmp)?;
         }
 
-        let mut magic = entry.start_magic;
-        let mut j = 0;
-        for byte in buf.iter_mut() {
-            if j == 4 {
-                j = 0;
-                magic = magic.wrapping_mul(7).wrapping_add(3);
-            }
-
-            *byte ^= magic.to_le_bytes()[j];
-
-            j += 1;
-        }
-
-        let cursor = Cursor::new(buf);
-        Ok(File { cursor })
+        tmp.flush()?;
+        tmp.seek(SeekFrom::Start(0))?;
+        Ok(File { tmp })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {

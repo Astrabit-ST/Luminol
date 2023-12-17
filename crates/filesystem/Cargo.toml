@@ -39,6 +39,8 @@ tracing.workspace = true
 
 luminol-config.workspace = true
 
+iter-read = "1.0.1"
+
 [target.'cfg(windows)'.dependencies]
 winreg = "0.51.0"
 
