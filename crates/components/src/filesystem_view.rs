@@ -530,8 +530,21 @@ where
                 }
 
                 Some(indextree::NodeEdge::Start(node_id)) => {
-                    let selected = self.view.arena[node_id].get().selected();
-                    let first_child_id = if selected {
+                    let entry = self.view.arena[node_id].get();
+                    let first_child_id = if entry.selected()
+                        || matches!(
+                            entry,
+                            Entry::Dir {
+                                selected: false,
+                                selected_children: 0,
+                                partial_children: 0,
+                                ..
+                            }
+                        ) {
+                        // No need to recurse into directories that are completely selected because
+                        // we know all of its contents are selected too.
+                        // No need to recurse into directories that are completely deselected
+                        // either because all of its contents are deselected.
                         None
                     } else {
                         node_id.children(&self.view.arena).next()
@@ -543,8 +556,7 @@ where
                         indextree::NodeEdge::End(node_id)
                     });
 
-                    if selected {
-                        let entry = self.view.arena[node_id].get();
+                    if entry.selected() {
                         let mut ancestors = node_id
                             .ancestors(&self.view.arena)
                             .filter_map(|n| {
