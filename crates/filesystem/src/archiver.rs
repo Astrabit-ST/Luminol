@@ -21,11 +21,8 @@ use std::io::{prelude::*, BufReader, SeekFrom};
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Default)]
-pub struct FileSystem<T>
-where
-    T: Read + Write + Seek + Send + Sync,
-{
-    trie: std::sync::Arc<parking_lot::RwLock<crate::FileSystemTrie<Entry>>>,
+pub struct FileSystem<T> {
+    trie: parking_lot::RwLock<crate::FileSystemTrie<Entry>>,
     archive: parking_lot::Mutex<T>,
 }
 
@@ -145,7 +142,7 @@ where
         */
 
         Ok(FileSystem {
-            trie: std::sync::Arc::new(parking_lot::RwLock::new(trie)),
+            trie: parking_lot::RwLock::new(trie),
             archive: parking_lot::Mutex::new(file),
         })
     }
