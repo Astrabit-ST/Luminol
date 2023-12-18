@@ -25,8 +25,7 @@ pub struct FileSystem<T>
 where
     T: Read + Write + Seek + Send + Sync,
 {
-    files: dashmap::DashMap<camino::Utf8PathBuf, Entry>,
-    directories: dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
+    trie: std::sync::Arc<parking_lot::RwLock<crate::FileSystemTrie<Entry>>>,
     archive: parking_lot::Mutex<T>,
 }
 
@@ -47,8 +46,7 @@ where
     pub fn new(mut file: T) -> Result<Self, Error> {
         let version = Self::read_header(&mut file)?;
 
-        let files = dashmap::DashMap::new();
-        let directories = dashmap::DashMap::new();
+        let mut trie = crate::FileSystemTrie::new();
 
         fn read_u32<F>(file: &mut F) -> Result<u32, Error>
         where
@@ -84,8 +82,6 @@ where
                     }
                     let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
 
-                    Self::process_path(&directories, &name);
-
                     let entry_len = read_u32_xor(&mut file, Self::advance_magic(&mut magic))?;
 
                     let entry = Entry {
@@ -93,8 +89,7 @@ where
                         offset: file.stream_position()?,
                         start_magic: magic,
                     };
-
-                    files.insert(name, entry);
+                    trie.create_file(&name, entry);
 
                     file.seek(SeekFrom::Start(entry.offset + entry.size))?;
                 }
@@ -127,14 +122,12 @@ where
                     }
                     let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
 
-                    Self::process_path(&directories, &name);
-
                     let entry = Entry {
                         size: entry_len as u64,
                         offset: offset as u64,
                         start_magic: magic,
                     };
-                    files.insert(name, entry);
+                    trie.create_file(&name, entry);
                 }
             }
             _ => return Err(Error::InvalidHeader),
@@ -152,22 +145,9 @@ where
         */
 
         Ok(FileSystem {
-            files,
-            directories,
+            trie: std::sync::Arc::new(parking_lot::RwLock::new(trie)),
             archive: parking_lot::Mutex::new(file),
         })
-    }
-
-    fn process_path(
-        directories: &dashmap::DashMap<camino::Utf8PathBuf, dashmap::DashSet<camino::Utf8PathBuf>>,
-        path: impl AsRef<camino::Utf8Path>,
-    ) {
-        for (a, b) in path.as_ref().ancestors().tuple_windows() {
-            directories
-                .entry(b.to_path_buf())
-                .or_default()
-                .insert(a.strip_prefix(b).unwrap_or(a).to_path_buf());
-        }
     }
 
     fn advance_magic(magic: &mut u32) -> u32 {
@@ -255,7 +235,9 @@ where
             return Err(Error::NotSupported);
         }
 
-        let entry = self.files.get(path.as_ref()).ok_or(Error::NotExist)?;
+        let path = path.as_ref();
+        let trie = self.trie.read();
+        let entry = trie.get_file(path).ok_or(Error::NotExist)?;
         let mut tmp = crate::host::File::new()?;
 
         {
@@ -290,21 +272,20 @@ where
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
         let path = path.as_ref();
-        if let Some(entry) = self.files.get(path) {
-            return Ok(Metadata {
+        let trie = self.trie.read();
+        if let Some(entry) = trie.get_file(path) {
+            Ok(Metadata {
                 is_file: true,
                 size: entry.size,
-            });
-        }
-
-        if let Some(directory) = self.directories.get(path) {
-            return Ok(Metadata {
+            })
+        } else if let Some(size) = trie.get_dir_size(path) {
+            Ok(Metadata {
                 is_file: false,
-                size: directory.len() as u64,
-            });
+                size: size as u64,
+            })
+        } else {
+            Err(Error::NotExist)
         }
-
-        Err(Error::NotExist)
     }
 
     fn rename(
@@ -320,8 +301,8 @@ where
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
-        let path = path.as_ref();
-        Ok(self.files.contains_key(path) || self.directories.contains_key(path))
+        let trie = self.trie.read();
+        Ok(trie.contains(path))
     }
 
     fn remove_dir(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
@@ -334,14 +315,16 @@ where
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = path.as_ref();
-        let directory = self.directories.get(path).ok_or(Error::NotExist)?;
-        directory
-            .iter()
-            .map(|entry| {
-                let path = path.join(&*entry);
+        let trie = self.trie.read();
+        if let Some(iter) = trie.iter(path) {
+            iter.map(|(name, _)| {
+                let path = path.join(name);
                 let metadata = self.metadata(&path)?;
                 Ok(DirEntry { path, metadata })
             })
             .try_collect()
+        } else {
+            Err(Error::NotExist)
+        }
     }
 }
