@@ -15,9 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::util::{generate_key, get_subdir, handle_event, idb, to_future};
+use super::util::{generate_key, get_subdir, get_tmp_dir, handle_event, idb, to_future};
 use super::FileSystemCommand;
-use crate::host::util::get_tmp_dir;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
 use std::io::ErrorKind::{AlreadyExists, InvalidInput, PermissionDenied};
