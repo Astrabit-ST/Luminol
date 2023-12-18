@@ -72,7 +72,17 @@ impl<T> FileSystemTrie<T> {
         // Check if the trie already contains an entry for this prefix, and if not, create one
         if !self.0.contains_key_str(&prefix) {
             let mut dir_trie = DirTrie::new();
-            if let Some((child_path, _)) = self.0.iter_prefix_str(&prefix).skip(1).next() {
+            let prefix_with_trailing_slash = format!("{}/", &prefix);
+            if let Some((child_path, _)) = self
+                .0
+                .iter_prefix_str(if prefix.is_empty() {
+                    ""
+                } else {
+                    &prefix_with_trailing_slash
+                })
+                .skip(1)
+                .next()
+            {
                 // If there is a different path in the trie that has this as a prefix (there can be
                 // at most one), add it to this directory entry
                 dir_trie.insert_str(
@@ -129,6 +139,7 @@ impl<T> FileSystemTrie<T> {
             return true;
         }
         self.0.contains_key_str(path)
+            || (path.is_empty() && self.0.count() != 0)
             || self
                 .0
                 .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
@@ -159,12 +170,13 @@ impl<T> FileSystemTrie<T> {
         let path = path.as_ref().as_str();
         if let Some(dir_trie) = self.0.get_str(path) {
             Some(dir_trie.count())
-        } else if self
-            .0
-            .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
-            .as_str()
-            .len()
-            == path.len() + 1
+        } else if (path.is_empty() && self.0.count() != 0)
+            || self
+                .0
+                .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
+                .as_str()
+                .len()
+                == path.len() + 1
         {
             Some(1)
         } else {
@@ -213,7 +225,7 @@ impl<T> FileSystemTrie<T> {
         }
         let prefix = self
             .0
-            .longest_common_prefix::<BStr>(format!("{}/", path).as_str().into())
+            .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
             .as_str();
         let prefix = if !self.0.contains_key_str(prefix) {
             prefix.rsplit_once('/').map(|(s, _)| s).unwrap_or(prefix)
@@ -242,6 +254,7 @@ impl<T> FileSystemTrie<T> {
         let path = path.as_ref();
         let path_str = path.as_str();
         if path_str.is_empty() {
+            self.0.clear();
             true
         } else if self.0.contains_key_str(path_str) {
             self.0.remove_prefix_str(&format!("{path_str}/"));
@@ -272,11 +285,20 @@ impl<T> FileSystemTrie<T> {
     /// `&str` and `value` is the data of the child if it's a file, as `Option<&T>`.
     pub fn iter(&self, path: impl AsRef<camino::Utf8Path>) -> Option<FileSystemTrieIter<'_, T>> {
         let path = path.as_ref();
+        let prefix_with_trailing_slash = format!("{}/", path.as_str());
         if let Some(dir_trie) = self.0.get_str(path.as_str()) {
             Some(FileSystemTrieIter(FileSystemTrieIterInner::Direct(
                 dir_trie.iter(),
             )))
-        } else if let Some((key, _)) = self.0.iter_prefix_str(path.as_str()).next() {
+        } else if let Some((key, _)) = self
+            .0
+            .iter_prefix_str(if path.as_str().is_empty() {
+                ""
+            } else {
+                &prefix_with_trailing_slash
+            })
+            .next()
+        {
             Some(FileSystemTrieIter(FileSystemTrieIterInner::Prefix(
                 std::iter::once((
                     camino::Utf8Path::new(key.as_str())
