@@ -239,21 +239,28 @@ impl<T> FileSystemTrie<T> {
     /// Removes the directory at the given path and all of its contents if it exists, and returns
     /// whether or not it existed.
     pub fn remove_dir(&mut self, path: impl AsRef<camino::Utf8Path>) -> bool {
-        let path = path.as_ref().as_str();
-        if path.is_empty() {
+        let path = path.as_ref();
+        let path_str = path.as_str();
+        if path_str.is_empty() {
             true
-        } else if self.0.contains_key_str(path) {
-            self.0.remove_prefix_str(&format!("{path}/"));
-            self.0.remove_str(path);
+        } else if self.0.contains_key_str(path_str) {
+            self.0.remove_prefix_str(&format!("{path_str}/"));
+            self.0.remove_str(path_str);
+            if let Some(parent) = path.parent() {
+                self.create_dir(parent);
+            }
             true
         } else if self
             .0
-            .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
+            .longest_common_prefix::<BStr>(format!("{path_str}/").as_str().into())
             .as_str()
             .len()
-            == path.len() + 1
+            == path_str.len() + 1
         {
-            self.0.remove_prefix_str(&format!("{path}/"));
+            self.0.remove_prefix_str(&format!("{path_str}/"));
+            if let Some(parent) = path.parent() {
+                self.create_dir(parent);
+            }
             true
         } else {
             false
