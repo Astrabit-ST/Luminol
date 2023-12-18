@@ -469,7 +469,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     handle_event(tx, async {
                         let tmp_dir = get_tmp_dir(&storage)
                             .await
-                            .ok_or(Error::IoError(PermissionDenied.into()))?;
+                            .ok_or(PermissionDenied.into())?;
 
                         let filename = generate_key();
 
@@ -479,11 +479,11 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             tmp_dir.get_file_handle_with_options(&filename, &options),
                         )
                         .await
-                        .map_err(|_| Error::IoError(PermissionDenied.into()))?;
+                        .map_err(|_| PermissionDenied.into())?;
 
                         let write_handle = to_future(file_handle.create_writable())
                             .await
-                            .map_err(|_| Error::IoError(PermissionDenied.into()))?;
+                            .map_err(|_| PermissionDenied.into())?;
 
                         Ok((
                             files.insert(FileHandle {

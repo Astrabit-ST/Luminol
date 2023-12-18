@@ -145,10 +145,9 @@ impl crate::FileSystem for FileSystem {
 
 impl File {
     /// Creates a new empty temporary file with read-write permissions.
-    pub fn new() -> Result<Self> {
+    pub fn new() -> std::io::Result<Self> {
         tempfile::tempfile()
             .map(File)
-            .map_err(|e| crate::Error::IoError(e))
     }
 }
 

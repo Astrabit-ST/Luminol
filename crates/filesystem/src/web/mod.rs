@@ -84,7 +84,7 @@ enum FileSystemCommand {
         oneshot::Sender<Result<usize>>,
     ),
     DirEntryExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
-    DirCreateDir(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
+    DirCreateDir(usize, camino::Utf8PathBuf, oneshot::Sender<std::io::Result<()>>),
     DirRemoveDir(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
     DirRemoveFile(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
     DirReadDir(
@@ -256,7 +256,7 @@ impl FileSystemTrait for FileSystem {
 
 impl File {
     /// Creates a new empty temporary file with read-write permissions.
-    pub fn new() -> Result<Self> {
+    pub fn new() -> std::io::Result<Self> {
         send_and_recv(|tx| FileSystemCommand::FileCreateTemp(tx)).map(|(key, temp_file_name)| {
             Self {
                 key,
