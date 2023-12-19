@@ -218,6 +218,7 @@ where
     path: camino::Utf8PathBuf,
     read_allowed: bool,
     tmp: crate::host::File,
+    modified: bool,
 }
 
 impl<T> Drop for File<T>
@@ -237,7 +238,11 @@ where
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if self.archive.is_some() {
-            self.tmp.write(buf)
+            let count = self.tmp.write(buf)?;
+            if count != 0 {
+                self.modified = true;
+            }
+            Ok(count)
         } else {
             Err(PermissionDenied.into())
         }
@@ -245,13 +250,21 @@ where
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
         if self.archive.is_some() {
-            self.tmp.write_vectored(bufs)
+            let count = self.tmp.write_vectored(bufs)?;
+            if count != 0 {
+                self.modified = true;
+            }
+            Ok(count)
         } else {
             Err(PermissionDenied.into())
         }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
+        if !self.modified {
+            return Ok(());
+        }
+
         let Some(archive) = &self.archive else {
             return Err(PermissionDenied.into());
         };
@@ -414,6 +427,7 @@ where
         }
         archive.flush()?;
         archive.seek(SeekFrom::Start(stream_position))?;
+        self.modified = false;
         Ok(())
     }
 }
@@ -516,6 +530,7 @@ where
             path: path.to_owned(),
             read_allowed: flags.contains(OpenFlags::Read),
             tmp,
+            modified: false,
         })
     }
 
