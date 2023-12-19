@@ -157,11 +157,11 @@ where
     Ok(entries)
 }
 
-fn read_file_xor<T>(archive: &mut T, start_magic: u32) -> impl Read + '_
+fn read_file_xor<T>(file: &mut T, start_magic: u32) -> impl Read + '_
 where
     T: Read,
 {
-    let iter = archive.bytes().scan((start_magic, 0), |state, maybe_byte| {
+    let iter = file.bytes().scan((start_magic, 0), |state, maybe_byte| {
         let Ok(byte) = maybe_byte else { return None };
         let (mut magic, mut j) = *state;
 
