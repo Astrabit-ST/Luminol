@@ -276,22 +276,9 @@ where
         let old_size = entry.size;
         let new_size = self.tmp.metadata().map_err(|_| PermissionDenied)?.size;
         if old_size != new_size {
-            let mut tmp = crate::host::File::new()?;
-
             match version {
-                1 | 2 => {
-                    // Write the decrypted version of all the data after the modified
-                    // file in the archive into a temporary file
-                    for (_, entry) in entries[entry_position + 1..].iter() {
-                        archive.seek(SeekFrom::Start(entry.offset))?;
-                        let mut adapter =
-                            BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
-                        std::io::copy(
-                            &mut read_file_xor(&mut adapter, entry.start_magic),
-                            &mut tmp,
-                        )?;
-                    }
-                    tmp.flush()?;
+                1 | 2 if entry_position + 1 != entries.len() => {
+                    let mut tmp = crate::host::File::new()?;
 
                     // Determine what the magic value was for the beginning of the modified file's
                     // header
@@ -302,21 +289,14 @@ where
                         regress_magic(&mut magic);
                     }
 
-                    // Encrypt the headers and data for the files after the modified file and write
-                    // them where the beginning of the modified file's header was
-                    archive.seek(SeekFrom::Start(
-                        entry
-                            .offset
-                            .checked_sub(path.as_str().as_bytes().len() as u64 + 8)
-                            .ok_or(InvalidData)?,
-                    ))?;
-                    tmp.seek(SeekFrom::Start(0))?;
+                    // Re-encrypt the headers and data for the files after the modified file into a
+                    // temporary file
                     for (path, entry) in entries[entry_position + 1..].iter() {
-                        archive.write_all(
+                        tmp.write_all(
                             &(path.as_str().as_bytes().len() as u32 ^ advance_magic(&mut magic))
                                 .to_le_bytes(),
                         )?;
-                        archive.write_all(
+                        tmp.write_all(
                             &path
                                 .as_str()
                                 .bytes()
@@ -326,36 +306,68 @@ where
                                 })
                                 .collect_vec(),
                         )?;
-                        archive.write_all(
+                        tmp.write_all(
                             &(entry.size as u32 ^ advance_magic(&mut magic)).to_le_bytes(),
                         )?;
 
-                        let mut adapter = BufReader::new((&mut tmp).take(entry.size));
+                        archive.seek(SeekFrom::Start(entry.offset))?;
+                        let mut adapter =
+                            BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
                         std::io::copy(
-                            &mut read_file_xor(&mut adapter, magic),
-                            &mut <T as Write>::by_ref(&mut archive),
+                            &mut read_file_xor(
+                                &mut read_file_xor(&mut adapter, entry.start_magic),
+                                magic,
+                            ),
+                            &mut tmp,
                         )?;
                     }
 
-                    // Write the header of the modified file at the end
-                    archive.write_all(
+                    // Write the header of the modified file at the end of the temporary file
+                    tmp.write_all(
                         &(path.as_str().as_bytes().len() as u32 ^ advance_magic(&mut magic))
                             .to_le_bytes(),
                     )?;
-                    archive.write_all(
+                    tmp.write_all(
                         &path
                             .as_str()
                             .bytes()
-                            .map(|b| b ^ advance_magic(&mut magic) as u8)
+                            .map(|b| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ advance_magic(&mut magic) as u8
+                            })
                             .collect_vec(),
                     )?;
-                    archive
-                        .write_all(&(new_size as u32 ^ advance_magic(&mut magic)).to_le_bytes())?;
+                    tmp.write_all(&(new_size as u32 ^ advance_magic(&mut magic)).to_le_bytes())?;
+
+                    // Write the contents of the temporary file into the archive, starting from
+                    // where the modified file's header was
+                    tmp.flush()?;
+                    tmp.seek(SeekFrom::Start(0))?;
+                    archive.seek(SeekFrom::Start(
+                        entry
+                            .offset
+                            .checked_sub(path.as_str().bytes().len() as u64 + 8)
+                            .ok_or(InvalidData)?,
+                    ))?;
+                    std::io::copy(&mut tmp, &mut <T as Write>::by_ref(&mut archive))?;
 
                     entry.start_magic = magic;
                 }
 
-                3 => {
+                1 | 2 => {
+                    // The file is already at the end of the archive, so we just need to change the
+                    // length of the file
+                    let mut magic = entry.start_magic;
+                    regress_magic(&mut magic);
+                    archive.seek(SeekFrom::Start(
+                        entry.offset.checked_sub(4).ok_or(InvalidData)?,
+                    ))?;
+                    archive.write_all(&(new_size as u32 ^ magic).to_le_bytes())?;
+                }
+
+                3 if entry_position + 1 != entries.len() => {
+                    let mut tmp = crate::host::File::new()?;
+
                     archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
                     std::io::copy(&mut <T as Read>::by_ref(&mut archive), &mut tmp)?;
                     tmp.flush()?;
@@ -371,6 +383,8 @@ where
                         }
                     }
                 }
+
+                3 => {}
 
                 _ => return Err(InvalidData.into()),
             }
