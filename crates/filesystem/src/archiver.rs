@@ -157,11 +157,11 @@ where
     Ok(entries)
 }
 
-fn decrypt_file<T>(archive: &mut T, start_magic: u32) -> impl Iterator<Item = u8> + '_
+fn read_file_xor<T>(archive: &mut T, start_magic: u32) -> impl Read + '_
 where
     T: Read,
 {
-    archive.bytes().scan((start_magic, 0), |state, maybe_byte| {
+    let iter = archive.bytes().scan((start_magic, 0), |state, maybe_byte| {
         let Ok(byte) = maybe_byte else { return None };
         let (mut magic, mut j) = *state;
 
@@ -174,7 +174,8 @@ where
 
         *state = (magic, j);
         Some(byte)
-    })
+    });
+    iter_read::IterRead::new(iter)
 }
 
 fn advance_magic(magic: &mut u32) -> u32 {
@@ -285,10 +286,7 @@ where
                         let mut adapter =
                             BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
                         std::io::copy(
-                            &mut iter_read::IterRead::new(decrypt_file(
-                                &mut adapter,
-                                entry.start_magic,
-                            )),
+                            &mut read_file_xor(&mut adapter, entry.start_magic),
                             &mut tmp,
                         )?;
                     }
@@ -333,7 +331,7 @@ where
 
                         let mut adapter = BufReader::new((&mut tmp).take(entry.size));
                         std::io::copy(
-                            &mut iter_read::IterRead::new(decrypt_file(&mut adapter, magic)),
+                            &mut read_file_xor(&mut adapter, magic),
                             &mut <T as Write>::by_ref(&mut archive),
                         )?;
                     }
@@ -385,7 +383,7 @@ where
         archive.seek(SeekFrom::Start(entry.offset))?;
         let mut adapter = BufReader::new(&mut self.tmp);
         std::io::copy(
-            &mut iter_read::IterRead::new(decrypt_file(&mut adapter, entry.start_magic)),
+            &mut read_file_xor(&mut adapter, entry.start_magic),
             &mut <T as Write>::by_ref(&mut archive),
         )?;
         self.tmp.seek(SeekFrom::Start(tmp_stream_position))?;
@@ -477,7 +475,7 @@ where
                 let mut adapter =
                     BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
                 std::io::copy(
-                    &mut iter_read::IterRead::new(decrypt_file(&mut adapter, entry.start_magic)),
+                    &mut read_file_xor(&mut adapter, entry.start_magic),
                     &mut tmp,
                 )?;
             }
