@@ -496,6 +496,22 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     .await;
                 }
 
+                FileSystemCommand::FileSetLength(key, new_size, tx) => {
+                    handle_event(tx, async {
+                        let file = files.get_mut(key).unwrap();
+                        let write_handle = file.write_handle.as_ref().ok_or(PermissionDenied)?;
+                        to_future::<JsValue>(
+                            write_handle
+                                .truncate_with_f64(new_size as f64)
+                                .map_err(|_| PermissionDenied)?,
+                        )
+                        .await
+                        .map_err(|_| PermissionDenied)?;
+                        Ok(())
+                    })
+                    .await;
+                }
+
                 FileSystemCommand::FileRead(key, max_length, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
@@ -538,12 +554,16 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             js_sys::Uint8Array::new(&JsValue::from_f64(vec.len() as f64));
                         u8_array.copy_from(&vec[..]);
                         if to_future::<JsValue>(
-                            write_handle.seek_with_f64(file.offset as f64).unwrap(),
+                            write_handle
+                                .seek_with_f64(file.offset as f64)
+                                .map_err(|_| PermissionDenied)?,
                         )
                         .await
                         .is_ok()
                             && to_future::<JsValue>(
-                                write_handle.write_with_buffer_source(&u8_array).unwrap(),
+                                write_handle
+                                    .write_with_buffer_source(&u8_array)
+                                    .map_err(|_| PermissionDenied)?,
                             )
                             .await
                             .is_ok()

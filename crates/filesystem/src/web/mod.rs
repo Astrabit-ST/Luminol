@@ -95,6 +95,7 @@ enum FileSystemCommand {
     DirDrop(usize, oneshot::Sender<bool>),
     DirClone(usize, oneshot::Sender<usize>),
     FileCreateTemp(oneshot::Sender<std::io::Result<(usize, String)>>),
+    FileSetLength(usize, u64, oneshot::Sender<std::io::Result<()>>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -281,6 +282,10 @@ impl crate::File for File {
             is_file: true,
             size,
         })
+    }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        send_and_recv(|tx| FileSystemCommand::FileSetLength(self.key, new_size, tx))
     }
 }
 

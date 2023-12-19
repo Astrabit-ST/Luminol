@@ -564,6 +564,13 @@ impl crate::File for File {
             File::Loaded(l) => l.metadata(),
         }
     }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        match self {
+            File::Host(f) => f.set_len(new_size),
+            File::Loaded(f) => f.set_len(new_size),
+        }
+    }
 }
 
 impl crate::FileSystem for FileSystem {

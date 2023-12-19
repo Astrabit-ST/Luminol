@@ -158,6 +158,10 @@ impl crate::File for File {
             size: metdata.len(),
         })
     }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        self.0.set_len(new_size)
+    }
 }
 
 impl std::io::Read for File {

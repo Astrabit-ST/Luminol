@@ -115,6 +115,11 @@ bitflags::bitflags! {
 
 pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + 'static {
     fn metadata(&self) -> Result<Metadata>;
+
+    /// Truncates or extends the size of the file. If the file is extended, the file will be
+    /// null-padded at the end. The file cursor never changes when truncating or extending, even if
+    /// the cursor would be put outside the file bounds by this operation.
+    fn set_len(&self, new_size: u64) -> std::io::Result<()>;
 }
 
 pub trait FileSystem: Send + Sync + 'static {

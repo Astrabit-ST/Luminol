@@ -273,8 +273,9 @@ where
 
         // If the size of the file has changed, rotate the archive to place the file at the end of
         // the archive before writing the new contents of the file
+        let old_size = entry.size;
         let new_size = self.tmp.metadata().map_err(|_| PermissionDenied)?.size;
-        if entry.size != new_size {
+        if old_size != new_size {
             let mut tmp = crate::host::File::new()?;
 
             match version {
@@ -374,7 +375,7 @@ where
                 _ => return Err(InvalidData.into()),
             }
 
-            entry.offset = archive_length.checked_sub(entry.size).ok_or(InvalidData)?;
+            entry.offset = archive_length.checked_sub(old_size).ok_or(InvalidData)?;
         }
 
         let tmp_stream_position = self.tmp.stream_position()?;
@@ -388,8 +389,15 @@ where
         )?;
         self.tmp.seek(SeekFrom::Start(tmp_stream_position))?;
 
-        // TODO truncate the archive to the correct length
-
+        if old_size > new_size {
+            archive.set_len(
+                archive_length
+                    .checked_sub(old_size)
+                    .ok_or(InvalidData)?
+                    .checked_add(new_size)
+                    .ok_or(InvalidData)?,
+            )?;
+        }
         archive.flush()?;
         archive.seek(SeekFrom::Start(stream_position))?;
         Ok(())
@@ -444,6 +452,10 @@ where
 {
     fn metadata(&self) -> crate::Result<Metadata> {
         self.tmp.metadata()
+    }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        self.tmp.set_len(new_size)
     }
 }
 
