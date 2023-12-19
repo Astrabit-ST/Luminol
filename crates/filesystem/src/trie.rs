@@ -23,17 +23,26 @@ type DirTrie<T> = qp_trie::Trie<BString, Option<T>>;
 pub struct FileSystemTrieIter<'a, T>(FileSystemTrieIterInner<'a, T>);
 
 enum FileSystemTrieIterInner<'a, T> {
-    Direct(qp_trie::Iter<'a, BString, Option<T>>),
+    Direct(qp_trie::Iter<'a, BString, Option<T>>, usize),
     Prefix(std::iter::Once<(&'a str, Option<&'a T>)>),
 }
 
 impl<'a, T> std::iter::FusedIterator for FileSystemTrieIter<'a, T> {}
 
+impl<'a, T> std::iter::ExactSizeIterator for FileSystemTrieIter<'a, T> {
+    fn len(&self) -> usize {
+        match &self.0 {
+            FileSystemTrieIterInner::Direct(_, len) => *len,
+            FileSystemTrieIterInner::Prefix(_) => 1,
+        }
+    }
+}
+
 impl<'a, T> Iterator for FileSystemTrieIter<'a, T> {
     type Item = (&'a str, Option<&'a T>);
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.0 {
-            FileSystemTrieIterInner::Direct(iter) => iter
+            FileSystemTrieIterInner::Direct(iter, _) => iter
                 .next()
                 .map(|(key, value)| (key.as_str(), value.as_ref())),
             FileSystemTrieIterInner::Prefix(iter) => iter.next(),
@@ -289,6 +298,7 @@ impl<T> FileSystemTrie<T> {
         if let Some(dir_trie) = self.0.get_str(path.as_str()) {
             Some(FileSystemTrieIter(FileSystemTrieIterInner::Direct(
                 dir_trie.iter(),
+                dir_trie.count(),
             )))
         } else if let Some((key, _)) = self
             .0
