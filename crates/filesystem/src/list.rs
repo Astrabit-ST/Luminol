@@ -42,8 +42,9 @@ impl crate::FileSystem for FileSystem {
         flags: OpenFlags,
     ) -> Result<Self::File, Error> {
         let path = path.as_ref();
+        let parent = path.parent().unwrap_or(path);
         for fs in self.filesystems.iter() {
-            if fs.exists(path)? || flags.contains(OpenFlags::Create) {
+            if fs.exists(path)? || (flags.contains(OpenFlags::Create) && fs.exists(parent)?) {
                 return fs.open_file(path, flags);
             }
         }
