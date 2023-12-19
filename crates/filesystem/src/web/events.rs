@@ -405,8 +405,12 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                         let mut vec = Vec::new();
                         loop {
-                            let Ok(entry) =
-                                to_future::<js_sys::IteratorNext>(entry_iter.next().unwrap()).await
+                            let Ok(entry) = to_future::<js_sys::IteratorNext>(
+                                entry_iter
+                                    .next()
+                                    .map_err(|_| Error::IoError(PermissionDenied.into()))?,
+                            )
+                            .await
                             else {
                                 break;
                             };
@@ -583,9 +587,11 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                         // Closing and reopening the handle is the only way to flush
                         if file.write_handle.is_none()
-                            || to_future::<JsValue>(file.write_handle.as_ref().unwrap().close())
-                                .await
-                                .is_err()
+                            || to_future::<JsValue>(
+                                file.write_handle.as_ref().ok_or(PermissionDenied)?.close(),
+                            )
+                            .await
+                            .is_err()
                         {
                             return Err(PermissionDenied.into());
                         }
