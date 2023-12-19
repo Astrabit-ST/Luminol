@@ -558,7 +558,7 @@ impl std::io::Seek for File {
 }
 
 impl crate::File for File {
-    fn metadata(&self) -> Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         match self {
             File::Host(h) => crate::File::metadata(h),
             File::Loaded(l) => l.metadata(),

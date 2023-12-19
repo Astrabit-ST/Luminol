@@ -271,7 +271,7 @@ where
 
         let mut archive = archive.lock();
         let stream_position = archive.stream_position()?;
-        let archive_length = archive.metadata().map_err(|_| PermissionDenied)?.size;
+        let archive_length = archive.metadata()?.size;
         archive.seek(SeekFrom::Start(0))?;
 
         let version =
@@ -287,7 +287,7 @@ where
         // If the size of the file has changed, rotate the archive to place the file at the end of
         // the archive before writing the new contents of the file
         let old_size = entry.size;
-        let new_size = self.tmp.metadata().map_err(|_| PermissionDenied)?.size;
+        let new_size = self.tmp.metadata()?.size;
         if old_size != new_size {
             match version {
                 1 | 2 if entry_position + 1 != entries.len() => {
@@ -478,7 +478,7 @@ impl<T> crate::File for File<T>
 where
     T: crate::File,
 {
-    fn metadata(&self) -> crate::Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         self.tmp.metadata()
     }
 

@@ -276,7 +276,7 @@ impl Drop for File {
 }
 
 impl crate::File for File {
-    fn metadata(&self) -> crate::Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         let size = send_and_recv(|tx| FileSystemCommand::FileSize(self.key, tx))?;
         Ok(Metadata {
             is_file: true,

@@ -151,7 +151,7 @@ impl File {
 }
 
 impl crate::File for File {
-    fn metadata(&self) -> Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         let metdata = self.0.metadata()?;
         Ok(Metadata {
             is_file: metdata.is_file(),

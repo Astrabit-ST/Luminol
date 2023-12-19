@@ -98,7 +98,7 @@ where
 }
 
 impl File for Box<dyn File> {
-    fn metadata(&self) -> Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         self.as_ref().metadata()
     }
 
