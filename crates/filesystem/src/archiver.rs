@@ -51,7 +51,8 @@ where
 
         let mut trie = crate::FileSystemTrie::new();
 
-        for (name, entry) in read_file_table(&mut file, version)? {
+        let (entries, _) = read_file_table(&mut file, version)?;
+        for (name, entry) in entries {
             trie.create_file(name, entry);
         }
 
@@ -79,7 +80,10 @@ where
     Ok(result ^ key)
 }
 
-fn read_file_table<T>(file: &mut T, version: u8) -> Result<Vec<(camino::Utf8PathBuf, Entry)>, Error>
+fn read_file_table<T>(
+    file: &mut T,
+    version: u8,
+) -> Result<(Vec<(camino::Utf8PathBuf, Entry)>, u32), Error>
 where
     T: Read + Seek,
 {
@@ -114,6 +118,8 @@ where
 
                 file.seek(SeekFrom::Start(entry.offset + entry.size))?;
             }
+
+            Ok((entries, MAGIC))
         }
         3 => {
             let mut u32_buf = [0; 4];
@@ -150,11 +156,11 @@ where
                 };
                 entries.push((name, entry));
             }
-        }
-        _ => return Err(Error::InvalidHeader),
-    }
 
-    Ok(entries)
+            Ok((entries, base_magic))
+        }
+        _ => Err(Error::InvalidHeader),
+    }
 }
 
 fn read_file_xor<T>(file: &mut T, start_magic: u32) -> impl Read + '_
@@ -276,8 +282,9 @@ where
 
         let version =
             read_header(&mut <T as Read>::by_ref(&mut archive)).map_err(|_| InvalidData)?;
-        let mut entries = read_file_table(&mut <T as Read>::by_ref(&mut archive), version)
-            .map_err(|_| InvalidData)?;
+        let (mut entries, base_magic) =
+            read_file_table(&mut <T as Read>::by_ref(&mut archive), version)
+                .map_err(|_| InvalidData)?;
         let (entry_position, (path, mut entry)) = entries
             .iter()
             .find_position(|(path, _)| path == &self.path)
@@ -298,7 +305,7 @@ where
                     let mut magic = entry.start_magic;
                     regress_magic(&mut magic);
                     regress_magic(&mut magic);
-                    for _ in path.as_str().as_bytes() {
+                    for _ in path.as_str().bytes() {
                         regress_magic(&mut magic);
                     }
 
@@ -389,11 +396,14 @@ where
                     tmp.seek(SeekFrom::Start(0))?;
                     std::io::copy(&mut tmp, &mut <T as Write>::by_ref(&mut archive))?;
 
-                    // TODO write these modified offsets to the archive
-                    for (_, e) in entries.iter_mut() {
+                    let mut offset = 12;
+                    for (p, e) in entries.iter_mut() {
                         if e.offset > entry.offset {
                             e.offset = e.offset.checked_sub(entry.size).ok_or(InvalidData)?;
+                            archive.seek(SeekFrom::Start(offset))?;
+                            archive.write_all(&mut (e.offset as u32 ^ base_magic).to_le_bytes())?;
                         }
+                        offset += 16 + p.as_str().bytes().len() as u64;
                     }
                 }
 
