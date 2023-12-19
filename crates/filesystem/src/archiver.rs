@@ -16,14 +16,20 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-use std::io::{prelude::*, BufReader, SeekFrom};
+use std::io::{
+    prelude::*,
+    BufReader,
+    ErrorKind::{InvalidData, PermissionDenied},
+    SeekFrom,
+};
 
+use crate::File as _;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Default)]
 pub struct FileSystem<T> {
     trie: parking_lot::RwLock<crate::FileSystemTrie<Entry>>,
-    archive: parking_lot::Mutex<T>,
+    archive: std::sync::Arc<parking_lot::Mutex<T>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -38,170 +44,391 @@ const HEADER: &[u8] = b"RGSSAD\0";
 
 impl<T> FileSystem<T>
 where
-    T: Read + Write + Seek + Send + Sync,
+    T: crate::File,
 {
     pub fn new(mut file: T) -> Result<Self, Error> {
-        let version = Self::read_header(&mut file)?;
+        let version = read_header(&mut file)?;
 
         let mut trie = crate::FileSystemTrie::new();
 
-        fn read_u32<F>(file: &mut F) -> Result<u32, Error>
-        where
-            F: Read + Write + Seek + Send + Sync,
-        {
-            let mut buffer = [0; 4];
-            file.read_exact(&mut buffer)?;
-            Ok(u32::from_le_bytes(buffer))
+        for (name, entry) in read_file_table(&mut file, version)? {
+            trie.create_file(name, entry);
         }
-
-        fn read_u32_xor<F>(file: &mut F, key: u32) -> Result<u32, Error>
-        where
-            F: Read + Write + Seek + Send + Sync,
-        {
-            let result = read_u32(file)?;
-            Ok(result ^ key)
-        }
-
-        match version {
-            1 | 2 => {
-                let mut magic = MAGIC;
-
-                while let Ok(name_len) = read_u32_xor(&mut file, Self::advance_magic(&mut magic)) {
-                    let mut name = vec![0; name_len as usize];
-                    file.read_exact(&mut name).unwrap();
-                    for byte in name.iter_mut() {
-                        let char = *byte ^ Self::advance_magic(&mut magic) as u8;
-                        if char == b'\\' {
-                            *byte = b'/';
-                        } else {
-                            *byte = char;
-                        }
-                    }
-                    let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
-
-                    let entry_len = read_u32_xor(&mut file, Self::advance_magic(&mut magic))?;
-
-                    let entry = Entry {
-                        size: entry_len as u64,
-                        offset: file.stream_position()?,
-                        start_magic: magic,
-                    };
-                    trie.create_file(&name, entry);
-
-                    file.seek(SeekFrom::Start(entry.offset + entry.size))?;
-                }
-            }
-            3 => {
-                let mut u32_buf = [0; 4];
-                file.read_exact(&mut u32_buf)?;
-
-                let base_magic = u32::from_le_bytes(u32_buf);
-                let base_magic = (base_magic * 9) + 3;
-
-                while let Ok(offset) = read_u32_xor(&mut file, base_magic) {
-                    if offset == 0 {
-                        break;
-                    }
-
-                    let entry_len = read_u32_xor(&mut file, base_magic)?;
-                    let magic = read_u32_xor(&mut file, base_magic)?;
-                    let name_len = read_u32_xor(&mut file, base_magic)?;
-
-                    let mut name = vec![0; name_len as usize];
-                    file.read_exact(&mut name)?;
-                    for (i, byte) in name.iter_mut().enumerate() {
-                        let char = *byte ^ (base_magic >> (8 * (i % 4))) as u8;
-                        if char == b'\\' {
-                            *byte = b'/';
-                        } else {
-                            *byte = char;
-                        }
-                    }
-                    let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
-
-                    let entry = Entry {
-                        size: entry_len as u64,
-                        offset: offset as u64,
-                        start_magic: magic,
-                    };
-                    trie.create_file(&name, entry);
-                }
-            }
-            _ => return Err(Error::InvalidHeader),
-        }
-
-        /*
-        for dir in directories.iter() {
-            println!("===========");
-            println!("{}", dir.key());
-            for i in dir.value().iter() {
-                println!("{}", &*i);
-            }
-            println!("----------");
-        }
-        */
 
         Ok(FileSystem {
             trie: parking_lot::RwLock::new(trie),
-            archive: parking_lot::Mutex::new(file),
+            archive: std::sync::Arc::new(parking_lot::Mutex::new(file)),
         })
     }
+}
 
-    fn advance_magic(magic: &mut u32) -> u32 {
-        let old = *magic;
+fn read_u32<F>(file: &mut F) -> Result<u32, Error>
+where
+    F: Read,
+{
+    let mut buffer = [0; 4];
+    file.read_exact(&mut buffer)?;
+    Ok(u32::from_le_bytes(buffer))
+}
 
-        *magic = magic.wrapping_mul(7).wrapping_add(3);
+fn read_u32_xor<F>(file: &mut F, key: u32) -> Result<u32, Error>
+where
+    F: Read,
+{
+    let result = read_u32(file)?;
+    Ok(result ^ key)
+}
 
-        old
-    }
+fn read_file_table<T>(file: &mut T, version: u8) -> Result<Vec<(camino::Utf8PathBuf, Entry)>, Error>
+where
+    T: Read + Seek,
+{
+    let mut entries = Vec::new();
 
-    fn read_header(file: &mut T) -> Result<u8, Error> {
-        let mut header_buf = [0; 8];
+    match version {
+        1 | 2 => {
+            let mut magic = MAGIC;
 
-        file.read_exact(&mut header_buf)?;
+            while let Ok(name_len) = read_u32_xor(file, advance_magic(&mut magic)) {
+                let mut name = vec![0; name_len as usize];
+                file.read_exact(&mut name)?;
+                for byte in name.iter_mut() {
+                    let char = *byte ^ advance_magic(&mut magic) as u8;
+                    if char == b'\\' {
+                        *byte = b'/';
+                    } else {
+                        *byte = char;
+                    }
+                }
+                let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
 
-        if !header_buf.starts_with(HEADER) {
-            return Err(Error::InvalidHeader);
+                let entry_len = read_u32_xor(file, advance_magic(&mut magic))?;
+
+                let entry = Entry {
+                    size: entry_len as u64,
+                    offset: file.stream_position()?,
+                    start_magic: magic,
+                };
+
+                entries.push((name, entry));
+
+                file.seek(SeekFrom::Start(entry.offset + entry.size))?;
+            }
         }
+        3 => {
+            let mut u32_buf = [0; 4];
+            file.read_exact(&mut u32_buf)?;
 
-        Ok(header_buf[7])
+            let base_magic = u32::from_le_bytes(u32_buf);
+            let base_magic = (base_magic * 9) + 3;
+
+            while let Ok(offset) = read_u32_xor(file, base_magic) {
+                if offset == 0 {
+                    break;
+                }
+
+                let entry_len = read_u32_xor(file, base_magic)?;
+                let magic = read_u32_xor(file, base_magic)?;
+                let name_len = read_u32_xor(file, base_magic)?;
+
+                let mut name = vec![0; name_len as usize];
+                file.read_exact(&mut name)?;
+                for (i, byte) in name.iter_mut().enumerate() {
+                    let char = *byte ^ (base_magic >> (8 * (i % 4))) as u8;
+                    if char == b'\\' {
+                        *byte = b'/';
+                    } else {
+                        *byte = char;
+                    }
+                }
+                let name = camino::Utf8PathBuf::from(String::from_utf8(name)?);
+
+                let entry = Entry {
+                    size: entry_len as u64,
+                    offset: offset as u64,
+                    start_magic: magic,
+                };
+                entries.push((name, entry));
+            }
+        }
+        _ => return Err(Error::InvalidHeader),
     }
+
+    Ok(entries)
+}
+
+fn decrypt_file<T>(archive: &mut T, start_magic: u32) -> impl Iterator<Item = u8> + '_
+where
+    T: Read,
+{
+    archive.bytes().scan((start_magic, 0), |state, maybe_byte| {
+        let Ok(byte) = maybe_byte else { return None };
+        let (mut magic, mut j) = *state;
+
+        if j == 4 {
+            j = 0;
+            magic = magic.wrapping_mul(7).wrapping_add(3);
+        }
+        let byte = byte ^ magic.to_le_bytes()[j];
+        j += 1;
+
+        *state = (magic, j);
+        Some(byte)
+    })
+}
+
+fn advance_magic(magic: &mut u32) -> u32 {
+    let old = *magic;
+
+    *magic = magic.wrapping_mul(7).wrapping_add(3);
+
+    old
+}
+
+fn regress_magic(magic: &mut u32) -> u32 {
+    let old = *magic;
+
+    *magic = magic.wrapping_sub(3).wrapping_mul(3067833783);
+
+    old
+}
+
+fn read_header<T>(file: &mut T) -> Result<u8, Error>
+where
+    T: Read,
+{
+    let mut header_buf = [0; 8];
+
+    file.read_exact(&mut header_buf)?;
+
+    if !header_buf.starts_with(HEADER) {
+        return Err(Error::InvalidHeader);
+    }
+
+    Ok(header_buf[7])
 }
 
 #[derive(Debug)]
-pub struct File {
+pub struct File<T>
+where
+    T: crate::File,
+{
+    archive: Option<std::sync::Arc<parking_lot::Mutex<T>>>,
+    path: camino::Utf8PathBuf,
+    read_allowed: bool,
     tmp: crate::host::File,
 }
 
-impl std::io::Write for File {
+impl<T> Drop for File<T>
+where
+    T: crate::File,
+{
+    fn drop(&mut self) {
+        if self.archive.is_some() {
+            let _ = self.flush();
+        }
+    }
+}
+
+impl<T> std::io::Write for File<T>
+where
+    T: crate::File,
+{
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.tmp.write(buf)
+        if self.archive.is_some() {
+            self.tmp.write(buf)
+        } else {
+            Err(PermissionDenied.into())
+        }
     }
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
-        self.tmp.write_vectored(bufs)
+        if self.archive.is_some() {
+            self.tmp.write_vectored(bufs)
+        } else {
+            Err(PermissionDenied.into())
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
+        let Some(archive) = &self.archive else {
+            return Err(PermissionDenied.into());
+        };
+
+        let mut archive = archive.lock();
+        let stream_position = archive.stream_position()?;
+        let archive_length = archive.metadata().map_err(|_| PermissionDenied)?.size;
+        archive.seek(SeekFrom::Start(0))?;
+
+        let version =
+            read_header(&mut <T as Read>::by_ref(&mut archive)).map_err(|_| InvalidData)?;
+        let mut entries = read_file_table(&mut <T as Read>::by_ref(&mut archive), version)
+            .map_err(|_| InvalidData)?;
+        let (entry_position, (path, mut entry)) = entries
+            .iter()
+            .find_position(|(path, _)| path == &self.path)
+            .ok_or(InvalidData)?
+            .clone();
+
+        // If the size of the file has changed, rotate the archive to place the file at the end of
+        // the archive before writing the new contents of the file
+        let new_size = self.tmp.metadata().map_err(|_| PermissionDenied)?.size;
+        if entry.size != new_size {
+            let mut tmp = crate::host::File::new()?;
+
+            match version {
+                1 | 2 => {
+                    // Write the decrypted version of all the data after the modified
+                    // file in the archive into a temporary file
+                    for (_, entry) in entries[entry_position + 1..].iter() {
+                        archive.seek(SeekFrom::Start(entry.offset))?;
+                        let mut adapter =
+                            BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
+                        std::io::copy(
+                            &mut iter_read::IterRead::new(decrypt_file(
+                                &mut adapter,
+                                entry.start_magic,
+                            )),
+                            &mut tmp,
+                        )?;
+                    }
+                    tmp.flush()?;
+
+                    // Determine what the magic value was for the beginning of the modified file's
+                    // header
+                    let mut magic = entry.start_magic;
+                    regress_magic(&mut magic);
+                    regress_magic(&mut magic);
+                    for _ in path.as_str().as_bytes() {
+                        regress_magic(&mut magic);
+                    }
+
+                    // Encrypt the headers and data for the files after the modified file and write
+                    // them where the beginning of the modified file's header was
+                    archive.seek(SeekFrom::Start(
+                        entry
+                            .offset
+                            .checked_sub(path.as_str().as_bytes().len() as u64 + 8)
+                            .ok_or(InvalidData)?,
+                    ))?;
+                    tmp.seek(SeekFrom::Start(0))?;
+                    for (path, entry) in entries[entry_position + 1..].iter() {
+                        archive.write_all(
+                            &(path.as_str().as_bytes().len() as u32 ^ advance_magic(&mut magic))
+                                .to_le_bytes(),
+                        )?;
+                        archive.write_all(
+                            &path
+                                .as_str()
+                                .bytes()
+                                .map(|b| {
+                                    let b = if b == b'/' { b'\\' } else { b };
+                                    b ^ advance_magic(&mut magic) as u8
+                                })
+                                .collect_vec(),
+                        )?;
+                        archive.write_all(
+                            &(entry.size as u32 ^ advance_magic(&mut magic)).to_le_bytes(),
+                        )?;
+
+                        let mut adapter = BufReader::new((&mut tmp).take(entry.size));
+                        std::io::copy(
+                            &mut iter_read::IterRead::new(decrypt_file(&mut adapter, magic)),
+                            &mut <T as Write>::by_ref(&mut archive),
+                        )?;
+                    }
+
+                    // Write the header of the modified file at the end
+                    archive.write_all(
+                        &(path.as_str().as_bytes().len() as u32 ^ advance_magic(&mut magic))
+                            .to_le_bytes(),
+                    )?;
+                    archive.write_all(
+                        &path
+                            .as_str()
+                            .bytes()
+                            .map(|b| b ^ advance_magic(&mut magic) as u8)
+                            .collect_vec(),
+                    )?;
+                    archive
+                        .write_all(&(new_size as u32 ^ advance_magic(&mut magic)).to_le_bytes())?;
+
+                    entry.start_magic = magic;
+                }
+
+                3 => {
+                    archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
+                    std::io::copy(&mut <T as Read>::by_ref(&mut archive), &mut tmp)?;
+                    tmp.flush()?;
+
+                    archive.seek(SeekFrom::Start(entry.offset))?;
+                    tmp.seek(SeekFrom::Start(0))?;
+                    std::io::copy(&mut tmp, &mut <T as Write>::by_ref(&mut archive))?;
+
+                    // TODO write these modified offsets to the archive
+                    for (_, e) in entries.iter_mut() {
+                        if e.offset > entry.offset {
+                            e.offset = e.offset.checked_sub(entry.size).ok_or(InvalidData)?;
+                        }
+                    }
+                }
+
+                _ => return Err(InvalidData.into()),
+            }
+
+            entry.offset = archive_length.checked_sub(entry.size).ok_or(InvalidData)?;
+        }
+
+        self.tmp.flush()?;
+        self.tmp.seek(SeekFrom::Start(0))?;
+        archive.seek(SeekFrom::Start(entry.offset))?;
+        let mut adapter = BufReader::new(&mut self.tmp);
+        std::io::copy(
+            &mut iter_read::IterRead::new(decrypt_file(&mut adapter, entry.start_magic)),
+            &mut <T as Write>::by_ref(&mut archive),
+        )?;
+
+        // TODO truncate the archive to the correct length
+
+        archive.flush()?;
+        archive.seek(SeekFrom::Start(stream_position))?;
         Ok(())
     }
 }
 
-impl std::io::Read for File {
+impl<T> std::io::Read for File<T>
+where
+    T: crate::File,
+{
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.tmp.read(buf)
+        if self.read_allowed {
+            self.tmp.read(buf)
+        } else {
+            Err(PermissionDenied.into())
+        }
     }
 
     fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
-        self.tmp.read_vectored(bufs)
+        if self.read_allowed {
+            self.tmp.read_vectored(bufs)
+        } else {
+            Err(PermissionDenied.into())
+        }
     }
 
     fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-        self.tmp.read_exact(buf)
+        if self.read_allowed {
+            self.tmp.read_exact(buf)
+        } else {
+            Err(PermissionDenied.into())
+        }
     }
 }
 
-impl std::io::Seek for File {
+impl<T> std::io::Seek for File<T>
+where
+    T: crate::File,
+{
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         self.tmp.seek(pos)
     }
@@ -211,7 +438,10 @@ impl std::io::Seek for File {
     }
 }
 
-impl crate::File for File {
+impl<T> crate::File for File<T>
+where
+    T: crate::File,
+{
     fn metadata(&self) -> crate::Result<Metadata> {
         self.tmp.metadata()
     }
@@ -219,16 +449,16 @@ impl crate::File for File {
 
 impl<T> crate::FileSystem for FileSystem<T>
 where
-    T: Read + Write + Seek + Send + Sync + 'static,
+    T: crate::File,
 {
-    type File = File;
+    type File = File<T>;
 
     fn open_file(
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File, Error> {
-        if flags.contains(OpenFlags::Write) {
+        if flags.contains(OpenFlags::Create) {
             return Err(Error::NotSupported);
         }
 
@@ -241,30 +471,26 @@ where
             let mut archive = self.archive.lock();
             archive.seek(SeekFrom::Start(entry.offset))?;
 
-            let adapter = BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
-            let iter = adapter
-                .bytes()
-                .scan((entry.start_magic, 0), |state, maybe_byte| {
-                    let Ok(byte) = maybe_byte else { return None };
-                    let (mut magic, mut j) = *state;
-
-                    if j == 4 {
-                        j = 0;
-                        magic = magic.wrapping_mul(7).wrapping_add(3);
-                    }
-                    let byte = byte ^ magic.to_le_bytes()[j];
-                    j += 1;
-
-                    *state = (magic, j);
-                    Some(byte)
-                });
-
-            std::io::copy(&mut iter_read::IterRead::new(iter), &mut tmp)?;
+            if !flags.contains(OpenFlags::Truncate) {
+                let mut adapter =
+                    BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
+                std::io::copy(
+                    &mut iter_read::IterRead::new(decrypt_file(&mut adapter, entry.start_magic)),
+                    &mut tmp,
+                )?;
+            }
         }
 
         tmp.flush()?;
         tmp.seek(SeekFrom::Start(0))?;
-        Ok(File { tmp })
+        Ok(File {
+            archive: flags
+                .contains(OpenFlags::Write)
+                .then(|| self.archive.clone()),
+            path: path.to_owned(),
+            read_allowed: flags.contains(OpenFlags::Read),
+            tmp,
+        })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
