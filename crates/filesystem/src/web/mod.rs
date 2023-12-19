@@ -84,7 +84,7 @@ enum FileSystemCommand {
         oneshot::Sender<Result<usize>>,
     ),
     DirEntryExists(usize, camino::Utf8PathBuf, oneshot::Sender<bool>),
-    DirCreateDir(usize, camino::Utf8PathBuf, oneshot::Sender<std::io::Result<()>>),
+    DirCreateDir(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
     DirRemoveDir(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
     DirRemoveFile(usize, camino::Utf8PathBuf, oneshot::Sender<Result<()>>),
     DirReadDir(
@@ -94,7 +94,7 @@ enum FileSystemCommand {
     ),
     DirDrop(usize, oneshot::Sender<bool>),
     DirClone(usize, oneshot::Sender<usize>),
-    FileCreateTemp(oneshot::Sender<Result<(usize, String)>>),
+    FileCreateTemp(oneshot::Sender<std::io::Result<(usize, String)>>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),

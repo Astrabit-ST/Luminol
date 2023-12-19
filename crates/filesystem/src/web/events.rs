@@ -467,9 +467,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                 FileSystemCommand::FileCreateTemp(tx) => {
                     handle_event(tx, async {
-                        let tmp_dir = get_tmp_dir(&storage)
-                            .await
-                            .ok_or(PermissionDenied.into())?;
+                        let tmp_dir = get_tmp_dir(&storage).await.ok_or(PermissionDenied)?;
 
                         let filename = generate_key();
 
@@ -479,11 +477,11 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             tmp_dir.get_file_handle_with_options(&filename, &options),
                         )
                         .await
-                        .map_err(|_| PermissionDenied.into())?;
+                        .map_err(|_| PermissionDenied)?;
 
                         let write_handle = to_future(file_handle.create_writable())
                             .await
-                            .map_err(|_| PermissionDenied.into())?;
+                            .map_err(|_| PermissionDenied)?;
 
                         Ok((
                             files.insert(FileHandle {
