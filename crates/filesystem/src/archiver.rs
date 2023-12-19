@@ -379,6 +379,7 @@ where
             entry.offset = archive_length.checked_sub(entry.size).ok_or(InvalidData)?;
         }
 
+        let tmp_stream_position = self.tmp.stream_position()?;
         self.tmp.flush()?;
         self.tmp.seek(SeekFrom::Start(0))?;
         archive.seek(SeekFrom::Start(entry.offset))?;
@@ -387,6 +388,7 @@ where
             &mut iter_read::IterRead::new(decrypt_file(&mut adapter, entry.start_magic)),
             &mut <T as Write>::by_ref(&mut archive),
         )?;
+        self.tmp.seek(SeekFrom::Start(tmp_stream_position))?;
 
         // TODO truncate the archive to the correct length
 
