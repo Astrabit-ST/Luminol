@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
+use rand::Rng;
 use std::io::{
     prelude::*,
     BufReader, BufWriter,
@@ -275,6 +276,10 @@ where
         let archive_len = archive.metadata()?.size;
         archive.seek(SeekFrom::Start(0))?;
 
+        let tmp_stream_position = self.tmp.stream_position()?;
+        self.tmp.flush()?;
+        self.tmp.seek(SeekFrom::Start(0))?;
+
         // If the size of the file has changed, rotate the archive to place the file at the end of
         // the archive before writing the new contents of the file
         let mut entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
@@ -471,10 +476,6 @@ where
             *trie.get_mut_file(&self.path).ok_or(InvalidData)? = entry;
         }
 
-        let tmp_stream_position = self.tmp.stream_position()?;
-        self.tmp.flush()?;
-        self.tmp.seek(SeekFrom::Start(0))?;
-
         archive.seek(SeekFrom::Start(entry.offset))?;
         let mut reader = BufReader::new(&mut self.tmp);
         let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
@@ -482,6 +483,7 @@ where
             &mut read_file_xor(&mut reader, entry.start_magic),
             &mut writer,
         )?;
+        writer.flush()?;
         drop(reader);
         drop(writer);
 
@@ -571,20 +573,134 @@ where
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File, Error> {
-        if flags.contains(OpenFlags::Create) {
-            return Err(Error::NotSupported);
-        }
-
         let path = path.as_ref();
         let mut tmp = crate::host::File::new()?;
+        let mut created = false;
 
         {
-            let trie = self.trie.read();
             let mut archive = self.archive.lock();
-            let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
+            let entry = *self.trie.read().get_file(path).ok_or(Error::NotExist)?;
             archive.seek(SeekFrom::Start(entry.offset))?;
 
-            if !flags.contains(OpenFlags::Truncate) {
+            if flags.contains(OpenFlags::Create) && !self.exists(path)? {
+                created = true;
+                match self.version {
+                    1 | 2 => {
+                        archive.seek(SeekFrom::Start(8))?;
+                        let mut reader = BufReader::new(<T as Read>::by_ref(&mut archive));
+                        let mut magic = MAGIC;
+                        while let Ok(path_len) =
+                            read_u32_xor(&mut reader, advance_magic(&mut magic))
+                        {
+                            for _ in 0..path_len {
+                                advance_magic(&mut magic);
+                            }
+                            reader.seek(SeekFrom::Current(path_len as i64))?;
+                            let entry_len = read_u32_xor(&mut reader, advance_magic(&mut magic))?;
+                            reader.seek(SeekFrom::Current(entry_len as i64))?;
+                        }
+                        drop(reader);
+
+                        let archive_len = archive.seek(SeekFrom::End(0))?;
+                        let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
+                        writer.write_all(
+                            &mut (path.as_str().bytes().len() as u32 ^ advance_magic(&mut magic))
+                                .to_le_bytes(),
+                        )?;
+                        writer.write_all(
+                            &path
+                                .as_str()
+                                .bytes()
+                                .map(|b| {
+                                    let b = if b == b'/' { b'\\' } else { b };
+                                    b ^ advance_magic(&mut magic) as u8
+                                })
+                                .collect_vec(),
+                        )?;
+                        writer.write_all(&mut advance_magic(&mut magic).to_le_bytes())?;
+                        writer.flush()?;
+                        drop(writer);
+
+                        self.trie.write().create_file(
+                            path,
+                            Entry {
+                                offset: archive_len + path.as_str().bytes().len() as u64 + 8,
+                                size: 0,
+                                start_magic: magic,
+                            },
+                        );
+                    }
+
+                    3 => {
+                        let mut tmp = crate::host::File::new()?;
+
+                        let extra_data_len = path.as_str().bytes().len() as u32 + 16;
+                        let mut headers = Vec::new();
+
+                        archive.seek(SeekFrom::Start(12))?;
+                        let mut reader = BufReader::new(<T as Read>::by_ref(&mut archive));
+                        let mut position = 12;
+                        while let Ok(offset) = read_u32_xor(&mut reader, self.base_magic) {
+                            if offset == 0 {
+                                break;
+                            }
+                            headers.push((position, offset));
+                            reader.seek(SeekFrom::Current(8))?;
+                            let path_len = read_u32_xor(&mut reader, self.base_magic)?;
+                            position = reader.seek(SeekFrom::Current(path_len as i64))?;
+                        }
+                        drop(reader);
+
+                        archive.seek(SeekFrom::Start(position))?;
+                        std::io::copy(<T as Read>::by_ref(&mut archive), &mut tmp)?;
+                        tmp.flush()?;
+
+                        let magic: u32 = rand::thread_rng().gen();
+                        let archive_len = archive.metadata()?.size as u32 + extra_data_len;
+                        let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
+                        for (position, offset) in headers {
+                            writer.seek(SeekFrom::Start(position))?;
+                            writer.write_all(
+                                &mut ((offset + extra_data_len) ^ self.base_magic).to_le_bytes(),
+                            )?;
+                        }
+                        writer.seek(SeekFrom::Start(position))?;
+                        writer.write_all(&mut (archive_len ^ self.base_magic).to_le_bytes())?;
+                        writer.write_all(&mut self.base_magic.to_le_bytes())?;
+                        writer.write_all(&mut (magic ^ self.base_magic).to_le_bytes())?;
+                        writer.write_all(
+                            &mut (path.as_str().bytes().len() as u32 ^ self.base_magic)
+                                .to_le_bytes(),
+                        )?;
+                        writer.write_all(
+                            &path
+                                .as_str()
+                                .bytes()
+                                .enumerate()
+                                .map(|(i, b)| {
+                                    let b = if b == b'/' { b'\\' } else { b };
+                                    b ^ (self.base_magic >> (8 * (i % 4))) as u8
+                                })
+                                .collect_vec(),
+                        )?;
+                        tmp.seek(SeekFrom::Start(0))?;
+                        std::io::copy(&mut tmp, &mut writer)?;
+                        writer.flush()?;
+                        drop(writer);
+
+                        self.trie.write().create_file(
+                            path,
+                            Entry {
+                                offset: archive_len as u64,
+                                size: 0,
+                                start_magic: magic,
+                            },
+                        );
+                    }
+
+                    _ => return Err(Error::NotSupported),
+                }
+            } else if !flags.contains(OpenFlags::Truncate) {
                 let mut adapter =
                     BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
                 std::io::copy(
@@ -605,7 +721,7 @@ where
             read_allowed: flags.contains(OpenFlags::Read),
             tmp,
             modified: parking_lot::Mutex::new(
-                flags.contains(OpenFlags::Write) && flags.contains(OpenFlags::Truncate),
+                !created && flags.contains(OpenFlags::Write) && flags.contains(OpenFlags::Truncate),
             ),
             version: self.version,
             base_magic: self.base_magic,
