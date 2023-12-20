@@ -27,9 +27,11 @@ use std::io::{
 use crate::File as _;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 
+type Trie = crate::FileSystemTrie<Entry>;
+
 #[derive(Debug, Default)]
 pub struct FileSystem<T> {
-    trie: std::sync::Arc<parking_lot::RwLock<crate::FileSystemTrie<Entry>>>,
+    trie: std::sync::Arc<parking_lot::RwLock<Trie>>,
     archive: std::sync::Arc<parking_lot::Mutex<T>>,
     version: u8,
     base_magic: u32,
@@ -211,7 +213,7 @@ where
     T: crate::File,
 {
     archive: Option<std::sync::Arc<parking_lot::Mutex<T>>>,
-    trie: Option<std::sync::Arc<parking_lot::RwLock<crate::FileSystemTrie<Entry>>>>,
+    trie: Option<std::sync::Arc<parking_lot::RwLock<Trie>>>,
     path: camino::Utf8PathBuf,
     read_allowed: bool,
     tmp: crate::host::File,
@@ -228,6 +230,221 @@ where
         if self.archive.is_some() {
             let _ = self.flush();
         }
+    }
+}
+
+/// Moves a file within an archive to the end of the archive and truncates the file's length to 0.
+/// Does NOT truncate the actual archive to the correct length afterwards.
+///
+/// If the version of the archive is 1 or 2, returns the new magic value of the file's contents and
+/// the new offset of the start of the file's contents.
+/// If the version of the archive is 3, returns the offset of the start of the file's header and
+/// the new offset of the start of the file's contents.
+fn move_file_and_truncate<T>(
+    archive: &mut parking_lot::MutexGuard<'_, T>,
+    trie: &mut parking_lot::RwLockWriteGuard<'_, Trie>,
+    path: impl AsRef<camino::Utf8Path>,
+    version: u8,
+    base_magic: u32,
+) -> std::io::Result<(u32, u64)>
+where
+    T: crate::File,
+{
+    let path = path.as_ref();
+    let path_len = path.as_str().bytes().len() as u64;
+    let archive_len = archive.metadata()?.size;
+    archive.seek(SeekFrom::Start(0))?;
+
+    let mut entry = *trie.get_file(&path).ok_or(InvalidData)?;
+    match version {
+        1 | 2 => {
+            let mut tmp = crate::host::File::new()?;
+            archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
+            let mut reader = BufReader::new(<T as Read>::by_ref(archive));
+            let mut writer = BufWriter::new(&mut tmp);
+
+            let mut reader_magic = entry.start_magic;
+
+            // Determine what the magic value was for the beginning of the modified file's
+            // header
+            let mut writer_magic = entry.start_magic;
+            regress_magic(&mut writer_magic);
+            regress_magic(&mut writer_magic);
+            for _ in path.as_str().bytes() {
+                regress_magic(&mut writer_magic);
+            }
+
+            // Re-encrypt the headers and data for the files after the modified file into a
+            // temporary file
+            while let Ok(current_path_len) =
+                read_u32_xor(&mut reader, advance_magic(&mut reader_magic))
+            {
+                let mut current_path = vec![0; current_path_len as usize];
+                reader.read_exact(&mut current_path)?;
+                for byte in current_path.iter_mut() {
+                    let char = *byte ^ advance_magic(&mut reader_magic) as u8;
+                    if char == b'\\' {
+                        *byte = b'/';
+                    } else {
+                        *byte = char;
+                    }
+                }
+                let current_path = String::from_utf8(current_path).map_err(|_| InvalidData)?;
+                let current_entry = trie.get_mut_file(&current_path).ok_or(InvalidData)?;
+                reader.seek(SeekFrom::Start(current_entry.offset))?;
+                advance_magic(&mut reader_magic);
+
+                writer.write_all(
+                    &(current_path_len ^ advance_magic(&mut writer_magic)).to_le_bytes(),
+                )?;
+                writer.write_all(
+                    &current_path
+                        .as_str()
+                        .bytes()
+                        .map(|b| {
+                            let b = if b == b'/' { b'\\' } else { b };
+                            b ^ advance_magic(&mut writer_magic) as u8
+                        })
+                        .collect_vec(),
+                )?;
+                writer.write_all(
+                    &(current_entry.size as u32 ^ advance_magic(&mut writer_magic)).to_le_bytes(),
+                )?;
+                std::io::copy(
+                    &mut read_file_xor(
+                        &mut read_file_xor(
+                            &mut (&mut reader).take(current_entry.size),
+                            reader_magic,
+                        ),
+                        writer_magic,
+                    ),
+                    &mut writer,
+                )?;
+
+                current_entry.offset = current_entry
+                    .offset
+                    .checked_sub(entry.size + path_len + 8)
+                    .ok_or(InvalidData)?;
+                current_entry.start_magic = writer_magic;
+            }
+
+            // Write the header of the modified file at the end of the temporary file
+            writer
+                .write_all(&(path_len as u32 ^ advance_magic(&mut writer_magic)).to_le_bytes())?;
+            writer.write_all(
+                &path
+                    .as_str()
+                    .bytes()
+                    .map(|b| {
+                        let b = if b == b'/' { b'\\' } else { b };
+                        b ^ advance_magic(&mut writer_magic) as u8
+                    })
+                    .collect_vec(),
+            )?;
+            writer.write_all(&advance_magic(&mut writer_magic).to_le_bytes())?;
+            writer.flush()?;
+            drop(reader);
+            drop(writer);
+
+            // Write the contents of the temporary file into the archive, starting from
+            // where the modified file's header was
+            tmp.seek(SeekFrom::Start(0))?;
+            archive.seek(SeekFrom::Start(
+                entry.offset.checked_sub(path_len + 8).ok_or(InvalidData)?,
+            ))?;
+            std::io::copy(&mut tmp, <T as Write>::by_ref(archive))?;
+
+            entry.start_magic = writer_magic;
+            entry.offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
+            entry.size = 0;
+            *trie.get_mut_file(&path).ok_or(InvalidData)? = entry;
+
+            Ok((entry.start_magic, entry.offset))
+        }
+
+        3 => {
+            let mut tmp = crate::host::File::new()?;
+
+            // Copy the contents of the files after the modified file into a temporary file
+            archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
+            std::io::copy(<T as Read>::by_ref(archive), &mut tmp)?;
+            tmp.flush()?;
+
+            // Copy the contents of the temporary file back into the archive starting from where
+            // the modified file was
+            tmp.seek(SeekFrom::Start(0))?;
+            archive.seek(SeekFrom::Start(entry.offset))?;
+            std::io::copy(&mut tmp, <T as Write>::by_ref(archive))?;
+
+            // Find all of the files in the archive with offsets greater than the original
+            // offset of the modified file and decrement them accordingly
+            archive.seek(SeekFrom::Start(12))?;
+            let mut reader = BufReader::new(<T as Read>::by_ref(archive));
+            let mut headers = Vec::new();
+            while let Ok(current_offset) = read_u32_xor(&mut reader, base_magic) {
+                if current_offset == 0 {
+                    break;
+                }
+                let current_offset = current_offset as u64;
+                reader.seek(SeekFrom::Current(8))?;
+                let current_path_len = read_u32_xor(&mut reader, base_magic)?;
+                if current_offset < entry.offset {
+                    reader.seek(SeekFrom::Current(current_path_len as i64))?;
+                    continue;
+                }
+
+                let mut current_path = vec![0; current_path_len as usize];
+                reader.read_exact(&mut current_path)?;
+                for (i, byte) in current_path.iter_mut().enumerate() {
+                    let char = *byte ^ (base_magic >> (8 * (i % 4))) as u8;
+                    if char == b'\\' {
+                        *byte = b'/';
+                    } else {
+                        *byte = char;
+                    }
+                }
+                let current_path = String::from_utf8(current_path).map_err(|_| InvalidData)?;
+
+                let should_truncate =
+                    current_offset == entry.offset && &current_path == path.as_str();
+                let current_offset = if should_truncate {
+                    archive_len.checked_sub(entry.size).ok_or(InvalidData)?
+                } else {
+                    current_offset.checked_sub(entry.size).ok_or(InvalidData)?
+                };
+
+                trie.get_mut_file(current_path).ok_or(InvalidData)?.offset = current_offset;
+                headers.push((
+                    reader
+                        .stream_position()?
+                        .checked_sub(current_path_len as u64 + 16)
+                        .ok_or(InvalidData)?,
+                    current_offset as u32,
+                    should_truncate,
+                ));
+            }
+            drop(reader);
+            let mut modified_file_position = 0;
+            let mut writer = BufWriter::new(<T as Write>::by_ref(archive));
+            for (position, offset, should_truncate) in headers {
+                writer.seek(SeekFrom::Start(position))?;
+                writer.write_all(&(offset ^ base_magic).to_le_bytes())?;
+                if should_truncate {
+                    modified_file_position = position as u32;
+                    writer.write_all(&base_magic.to_le_bytes())?;
+                }
+            }
+            writer.flush()?;
+            drop(writer);
+
+            entry.offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
+            entry.size = 0;
+            *trie.get_mut_file(&path).ok_or(InvalidData)? = entry;
+
+            Ok((modified_file_position, entry.offset))
+        }
+
+        _ => Err(InvalidData.into()),
     }
 }
 
@@ -271,10 +488,7 @@ where
         };
         let mut archive = archive.lock();
         let mut trie = trie.write();
-        let path_len = self.path.as_str().bytes().len() as u64;
-        let stream_position = archive.stream_position()?;
         let archive_len = archive.metadata()?.size;
-        archive.seek(SeekFrom::Start(0))?;
 
         let tmp_stream_position = self.tmp.stream_position()?;
         self.tmp.flush()?;
@@ -282,211 +496,49 @@ where
 
         // If the size of the file has changed, rotate the archive to place the file at the end of
         // the archive before writing the new contents of the file
-        let mut entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
+        let entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
         let old_size = entry.size;
         let new_size = self.tmp.metadata()?.size;
         if old_size != new_size {
-            let is_last = entry.offset + entry.size >= archive_len;
+            let result = move_file_and_truncate(
+                &mut archive,
+                &mut trie,
+                &self.path,
+                self.version,
+                self.base_magic,
+            )?;
+
+            // Write the new length of the file to the archive
             match self.version {
-                1 | 2 if !is_last => {
-                    let mut tmp = crate::host::File::new()?;
-                    archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
-                    let mut reader = BufReader::new(<T as Read>::by_ref(&mut archive));
-                    let mut writer = BufWriter::new(&mut tmp);
-
-                    let mut reader_magic = entry.start_magic;
-
-                    // Determine what the magic value was for the beginning of the modified file's
-                    // header
-                    let mut writer_magic = entry.start_magic;
-                    regress_magic(&mut writer_magic);
-                    regress_magic(&mut writer_magic);
-                    for _ in self.path.as_str().bytes() {
-                        regress_magic(&mut writer_magic);
-                    }
-
-                    // Re-encrypt the headers and data for the files after the modified file into a
-                    // temporary file
-                    while let Ok(current_path_len) =
-                        read_u32_xor(&mut reader, advance_magic(&mut reader_magic))
-                    {
-                        let mut current_path = vec![0; current_path_len as usize];
-                        reader.read_exact(&mut current_path)?;
-                        for byte in current_path.iter_mut() {
-                            let char = *byte ^ advance_magic(&mut reader_magic) as u8;
-                            if char == b'\\' {
-                                *byte = b'/';
-                            } else {
-                                *byte = char;
-                            }
-                        }
-                        let current_path =
-                            String::from_utf8(current_path).map_err(|_| InvalidData)?;
-                        let current_entry = trie.get_mut_file(&current_path).ok_or(InvalidData)?;
-                        reader.seek(SeekFrom::Start(current_entry.offset))?;
-                        advance_magic(&mut reader_magic);
-
-                        writer.write_all(
-                            &(current_path_len ^ advance_magic(&mut writer_magic)).to_le_bytes(),
-                        )?;
-                        writer.write_all(
-                            &current_path
-                                .as_str()
-                                .bytes()
-                                .map(|b| {
-                                    let b = if b == b'/' { b'\\' } else { b };
-                                    b ^ advance_magic(&mut writer_magic) as u8
-                                })
-                                .collect_vec(),
-                        )?;
-                        writer.write_all(
-                            &(current_entry.size as u32 ^ advance_magic(&mut writer_magic))
-                                .to_le_bytes(),
-                        )?;
-                        std::io::copy(
-                            &mut read_file_xor(
-                                &mut read_file_xor(
-                                    &mut (&mut reader).take(current_entry.size),
-                                    reader_magic,
-                                ),
-                                writer_magic,
-                            ),
-                            &mut writer,
-                        )?;
-
-                        current_entry.offset = current_entry
-                            .offset
-                            .checked_sub(entry.size + path_len + 8)
-                            .ok_or(InvalidData)?;
-                        current_entry.start_magic = writer_magic;
-                    }
-
-                    // Write the header of the modified file at the end of the temporary file
-                    writer.write_all(
-                        &(path_len as u32 ^ advance_magic(&mut writer_magic)).to_le_bytes(),
-                    )?;
-                    writer.write_all(
-                        &self
-                            .path
-                            .as_str()
-                            .bytes()
-                            .map(|b| {
-                                let b = if b == b'/' { b'\\' } else { b };
-                                b ^ advance_magic(&mut writer_magic) as u8
-                            })
-                            .collect_vec(),
-                    )?;
-                    writer.write_all(
-                        &(new_size as u32 ^ advance_magic(&mut writer_magic)).to_le_bytes(),
-                    )?;
-                    writer.flush()?;
-                    drop(reader);
-                    drop(writer);
-
-                    // Write the contents of the temporary file into the archive, starting from
-                    // where the modified file's header was
-                    tmp.seek(SeekFrom::Start(0))?;
-                    archive.seek(SeekFrom::Start(
-                        entry.offset.checked_sub(path_len + 8).ok_or(InvalidData)?,
-                    ))?;
-                    std::io::copy(&mut tmp, <T as Write>::by_ref(&mut archive))?;
-
-                    entry.start_magic = writer_magic;
-                }
-
                 1 | 2 => {
-                    // The file is already at the end of the archive, so we just need to change the
-                    // length of the file
-                    let mut magic = entry.start_magic;
+                    let (mut magic, offset) = result;
                     regress_magic(&mut magic);
-                    archive.seek(SeekFrom::Start(
-                        entry.offset.checked_sub(4).ok_or(InvalidData)?,
-                    ))?;
+                    archive.seek(SeekFrom::Start(offset.checked_sub(4).ok_or(InvalidData)?))?;
                     archive.write_all(&(new_size as u32 ^ magic).to_le_bytes())?;
                 }
 
-                3 if !is_last => {
-                    let mut tmp = crate::host::File::new()?;
-
-                    archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
-                    std::io::copy(<T as Read>::by_ref(&mut archive), &mut tmp)?;
-                    tmp.flush()?;
-
-                    tmp.seek(SeekFrom::Start(0))?;
-                    archive.seek(SeekFrom::Start(entry.offset))?;
-                    std::io::copy(&mut tmp, <T as Write>::by_ref(&mut archive))?;
-
-                    // Find all of the files in the archive with offsets greater than the original
-                    // offset of the modified file and decrement them accordingly
-                    archive.seek(SeekFrom::Start(12))?;
-                    let mut reader = BufReader::new(<T as Read>::by_ref(&mut archive));
-                    let mut headers = Vec::new();
-                    while let Ok(current_offset) = read_u32_xor(&mut reader, self.base_magic) {
-                        if current_offset == 0 {
-                            break;
-                        }
-                        let current_offset = current_offset as u64;
-                        reader.seek(SeekFrom::Current(8))?;
-                        let current_path_len = read_u32_xor(&mut reader, self.base_magic)?;
-                        if current_offset <= entry.offset {
-                            reader.seek(SeekFrom::Current(current_path_len as i64))?;
-                            continue;
-                        }
-                        let current_offset =
-                            current_offset.checked_sub(entry.size).ok_or(InvalidData)?;
-
-                        let mut current_path = vec![0; current_path_len as usize];
-                        reader.read_exact(&mut current_path)?;
-                        for (i, byte) in current_path.iter_mut().enumerate() {
-                            let char = *byte ^ (self.base_magic >> (8 * (i % 4))) as u8;
-                            if char == b'\\' {
-                                *byte = b'/';
-                            } else {
-                                *byte = char;
-                            }
-                        }
-                        let current_path =
-                            String::from_utf8(current_path).map_err(|_| InvalidData)?;
-                        trie.get_mut_file(current_path).ok_or(InvalidData)?.offset = current_offset;
-                        headers.push((
-                            reader
-                                .stream_position()?
-                                .checked_sub(current_path_len as u64 + 16)
-                                .ok_or(InvalidData)?,
-                            current_offset as u32,
-                        ));
-                    }
-                    drop(reader);
-                    let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
-                    for (position, offset) in headers {
-                        writer.seek(SeekFrom::Start(position))?;
-                        writer.write_all(&(offset ^ self.base_magic).to_le_bytes())?;
-                    }
-                    writer.flush()?;
-                    drop(writer);
+                3 => {
+                    let (header_offset, _) = result;
+                    archive.seek(SeekFrom::Start(header_offset as u64 + 4))?;
+                    archive.write_all(&(new_size as u32 ^ self.base_magic).to_le_bytes())?;
                 }
-
-                3 => {}
 
                 _ => return Err(InvalidData.into()),
             }
 
-            entry.offset = archive_len.checked_sub(old_size).ok_or(InvalidData)?;
-            entry.size = new_size;
-            *trie.get_mut_file(&self.path).ok_or(InvalidData)? = entry;
+            // Write the new length of the file to the trie
+            trie.get_mut_file(&self.path).ok_or(InvalidData)?.size = new_size;
         }
 
+        // Now write the new contents of the file
+        let entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
         archive.seek(SeekFrom::Start(entry.offset))?;
         let mut reader = BufReader::new(&mut self.tmp);
-        let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
         std::io::copy(
             &mut read_file_xor(&mut reader, entry.start_magic),
-            &mut writer,
+            <T as Write>::by_ref(&mut archive),
         )?;
-        writer.flush()?;
         drop(reader);
-        drop(writer);
-
         self.tmp.seek(SeekFrom::Start(tmp_stream_position))?;
 
         if old_size > new_size {
@@ -499,7 +551,6 @@ where
             )?;
         }
         archive.flush()?;
-        archive.seek(SeekFrom::Start(stream_position))?;
         *modified = false;
         Ok(())
     }
@@ -579,10 +630,11 @@ where
 
         {
             let mut archive = self.archive.lock();
-            let entry = *self.trie.read().get_file(path).ok_or(Error::NotExist)?;
+            let mut trie = self.trie.write();
+            let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
             archive.seek(SeekFrom::Start(entry.offset))?;
 
-            if flags.contains(OpenFlags::Create) && !self.exists(path)? {
+            if flags.contains(OpenFlags::Create) && !trie.contains_file(&path) {
                 created = true;
                 match self.version {
                     1 | 2 => {
@@ -621,7 +673,7 @@ where
                         writer.flush()?;
                         drop(writer);
 
-                        self.trie.write().create_file(
+                        trie.create_file(
                             path,
                             Entry {
                                 offset: archive_len + path.as_str().bytes().len() as u64 + 8,
@@ -688,7 +740,7 @@ where
                         writer.flush()?;
                         drop(writer);
 
-                        self.trie.write().create_file(
+                        trie.create_file(
                             path,
                             Entry {
                                 offset: archive_len as u64,
@@ -707,10 +759,10 @@ where
                     &mut read_file_xor(&mut adapter, entry.start_magic),
                     &mut tmp,
                 )?;
+                tmp.flush()?;
             }
         }
 
-        tmp.flush()?;
         tmp.seek(SeekFrom::Start(0))?;
         Ok(File {
             archive: flags
