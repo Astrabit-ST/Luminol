@@ -396,10 +396,15 @@ where
                 if current_body_offset == 0 {
                     break;
                 }
+                let current_header_offset = reader
+                    .stream_position()?
+                    .checked_sub(4)
+                    .ok_or(InvalidData)?;
                 let current_body_offset = current_body_offset as u64;
                 reader.seek(SeekFrom::Current(8))?;
                 let current_path_len = read_u32_xor(&mut reader, base_magic)?;
-                if current_body_offset < entry.body_offset {
+                let should_truncate = current_header_offset == entry.header_offset;
+                if current_body_offset <= entry.body_offset && !should_truncate {
                     reader.seek(SeekFrom::Current(current_path_len as i64))?;
                     continue;
                 }
@@ -416,8 +421,6 @@ where
                 }
                 let current_path = String::from_utf8(current_path).map_err(|_| InvalidData)?;
 
-                let should_truncate =
-                    current_body_offset == entry.body_offset && &current_path == path.as_str();
                 let current_body_offset = if should_truncate {
                     archive_len.checked_sub(entry.size).ok_or(InvalidData)?
                 } else {
@@ -430,10 +433,7 @@ where
                     .ok_or(InvalidData)?
                     .body_offset = current_body_offset;
                 headers.push((
-                    reader
-                        .stream_position()?
-                        .checked_sub(current_path_len as u64 + 16)
-                        .ok_or(InvalidData)?,
+                    current_header_offset,
                     current_body_offset as u32,
                     should_truncate,
                 ));
@@ -450,9 +450,7 @@ where
             writer.flush()?;
             drop(writer);
 
-            entry.body_offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
-            entry.size = 0;
-            *trie.get_mut_file(&path).ok_or(InvalidData)? = entry;
+            trie.get_mut_file(&path).ok_or(InvalidData)?.size = 0;
 
             Ok(())
         }
