@@ -221,8 +221,7 @@ impl<T> FileSystemTrie<T> {
             .flatten()
     }
 
-    /// Gets the longest prefix of the given path that is a prefix of the path of a directory in
-    /// the trie.
+    /// Gets the longest prefix of the given path that is the path of a directory in the trie.
     pub fn get_dir_prefix(&self, path: impl AsRef<camino::Utf8Path>) -> &camino::Utf8Path {
         let path = path.as_ref().as_str();
         if self.0.contains_key_str(path) {
