@@ -214,7 +214,7 @@ where
     path: camino::Utf8PathBuf,
     read_allowed: bool,
     tmp: crate::host::File,
-    modified: bool,
+    modified: parking_lot::Mutex<bool>,
     version: u8,
     base_magic: u32,
 }
@@ -236,10 +236,9 @@ where
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if self.archive.is_some() {
+            let mut modified = self.modified.lock();
+            *modified = true;
             let count = self.tmp.write(buf)?;
-            if count != 0 {
-                self.modified = true;
-            }
             Ok(count)
         } else {
             Err(PermissionDenied.into())
@@ -248,10 +247,9 @@ where
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
         if self.archive.is_some() {
+            let mut modified = self.modified.lock();
+            *modified = true;
             let count = self.tmp.write_vectored(bufs)?;
-            if count != 0 {
-                self.modified = true;
-            }
             Ok(count)
         } else {
             Err(PermissionDenied.into())
@@ -259,7 +257,8 @@ where
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        if !self.modified {
+        let mut modified = self.modified.lock();
+        if !*modified {
             return Ok(());
         }
 
@@ -499,7 +498,7 @@ where
         }
         archive.flush()?;
         archive.seek(SeekFrom::Start(stream_position))?;
-        self.modified = false;
+        *modified = false;
         Ok(())
     }
 }
@@ -555,6 +554,8 @@ where
     }
 
     fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        let mut modified = self.modified.lock();
+        *modified = true;
         self.tmp.set_len(new_size)
     }
 }
@@ -603,7 +604,9 @@ where
             path: path.to_owned(),
             read_allowed: flags.contains(OpenFlags::Read),
             tmp,
-            modified: false,
+            modified: parking_lot::Mutex::new(
+                flags.contains(OpenFlags::Write) && flags.contains(OpenFlags::Truncate),
+            ),
             version: self.version,
             base_magic: self.base_magic,
         })
