@@ -120,6 +120,14 @@ pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + '
     /// null-padded at the end. The file cursor never changes when truncating or extending, even if
     /// the cursor would be put outside the file bounds by this operation.
     fn set_len(&self, new_size: u64) -> std::io::Result<()>;
+
+    /// Casts a mutable reference to this file into `&mut luminol_filesystem::File`.
+    fn as_file(&mut self) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 pub trait FileSystem: Send + Sync + 'static {

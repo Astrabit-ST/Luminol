@@ -260,7 +260,7 @@ where
         1 | 2 => {
             let mut tmp = crate::host::File::new()?;
             archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
-            let mut reader = BufReader::new(<T as Read>::by_ref(archive));
+            let mut reader = BufReader::new(archive.as_file());
             let mut writer = BufWriter::new(&mut tmp);
 
             let mut reader_magic = entry.start_magic;
@@ -352,7 +352,7 @@ where
             archive.seek(SeekFrom::Start(
                 entry.offset.checked_sub(path_len + 8).ok_or(InvalidData)?,
             ))?;
-            std::io::copy(&mut tmp, <T as Write>::by_ref(archive))?;
+            std::io::copy(&mut tmp, archive.as_file())?;
 
             entry.start_magic = writer_magic;
             entry.offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
@@ -367,19 +367,19 @@ where
 
             // Copy the contents of the files after the modified file into a temporary file
             archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
-            std::io::copy(<T as Read>::by_ref(archive), &mut tmp)?;
+            std::io::copy(archive.as_file(), &mut tmp)?;
             tmp.flush()?;
 
             // Copy the contents of the temporary file back into the archive starting from where
             // the modified file was
             tmp.seek(SeekFrom::Start(0))?;
             archive.seek(SeekFrom::Start(entry.offset))?;
-            std::io::copy(&mut tmp, <T as Write>::by_ref(archive))?;
+            std::io::copy(&mut tmp, archive.as_file())?;
 
             // Find all of the files in the archive with offsets greater than the original
             // offset of the modified file and decrement them accordingly
             archive.seek(SeekFrom::Start(12))?;
-            let mut reader = BufReader::new(<T as Read>::by_ref(archive));
+            let mut reader = BufReader::new(archive.as_file());
             let mut headers = Vec::new();
             while let Ok(current_offset) = read_u32_xor(&mut reader, base_magic) {
                 if current_offset == 0 {
@@ -425,7 +425,7 @@ where
             }
             drop(reader);
             let mut modified_file_position = 0;
-            let mut writer = BufWriter::new(<T as Write>::by_ref(archive));
+            let mut writer = BufWriter::new(archive.as_file());
             for (position, offset, should_truncate) in headers {
                 writer.seek(SeekFrom::Start(position))?;
                 writer.write_all(&(offset ^ base_magic).to_le_bytes())?;
