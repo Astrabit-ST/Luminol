@@ -39,7 +39,8 @@ pub struct FileSystem<T> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Entry {
-    offset: u64,
+    header_offset: u64,
+    body_offset: u64,
     size: u64,
     start_magic: u32,
 }
@@ -79,15 +80,19 @@ where
 
                     let entry_len = read_u32_xor(&mut reader, advance_magic(&mut magic))?;
 
+                    let stream_position = reader.stream_position()?;
                     let entry = Entry {
                         size: entry_len as u64,
-                        offset: reader.stream_position()?,
+                        header_offset: stream_position
+                            .checked_sub(path_len as u64 + 8)
+                            .ok_or(Error::IoError(InvalidData.into()))?,
+                        body_offset: stream_position,
                         start_magic: magic,
                     };
 
                     trie.create_file(path, entry);
 
-                    reader.seek(SeekFrom::Start(entry.offset + entry.size))?;
+                    reader.seek(SeekFrom::Start(entry.body_offset + entry.size))?;
                 }
             }
             3 => {
@@ -97,10 +102,14 @@ where
                 base_magic = u32::from_le_bytes(u32_buf);
                 base_magic = (base_magic * 9) + 3;
 
-                while let Ok(offset) = read_u32_xor(&mut reader, base_magic) {
-                    if offset == 0 {
+                while let Ok(body_offset) = read_u32_xor(&mut reader, base_magic) {
+                    if body_offset == 0 {
                         break;
                     }
+                    let header_offset = reader
+                        .stream_position()?
+                        .checked_sub(4)
+                        .ok_or(Error::IoError(InvalidData.into()))?;
 
                     let entry_len = read_u32_xor(&mut reader, base_magic)?;
                     let magic = read_u32_xor(&mut reader, base_magic)?;
@@ -120,7 +129,8 @@ where
 
                     let entry = Entry {
                         size: entry_len as u64,
-                        offset: offset as u64,
+                        header_offset,
+                        body_offset: body_offset as u64,
                         start_magic: magic,
                     };
                     trie.create_file(path, entry);
@@ -235,18 +245,13 @@ where
 
 /// Moves a file within an archive to the end of the archive and truncates the file's length to 0.
 /// Does NOT truncate the actual archive to the correct length afterwards.
-///
-/// If the version of the archive is 1 or 2, returns the new magic value of the file's contents and
-/// the new offset of the start of the file's contents.
-/// If the version of the archive is 3, returns the offset of the start of the file's header and
-/// the new offset of the start of the file's contents.
 fn move_file_and_truncate<T>(
     archive: &mut parking_lot::MutexGuard<'_, T>,
     trie: &mut parking_lot::RwLockWriteGuard<'_, Trie>,
     path: impl AsRef<camino::Utf8Path>,
     version: u8,
     base_magic: u32,
-) -> std::io::Result<(u32, u64)>
+) -> std::io::Result<()>
 where
     T: crate::File,
 {
@@ -259,7 +264,7 @@ where
     match version {
         1 | 2 => {
             let mut tmp = crate::host::File::new()?;
-            archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
+            archive.seek(SeekFrom::Start(entry.body_offset + entry.size))?;
             let mut reader = BufReader::new(archive.as_file());
             let mut writer = BufWriter::new(&mut tmp);
 
@@ -291,7 +296,7 @@ where
                 }
                 let current_path = String::from_utf8(current_path).map_err(|_| InvalidData)?;
                 let current_entry = trie.get_mut_file(&current_path).ok_or(InvalidData)?;
-                reader.seek(SeekFrom::Start(current_entry.offset))?;
+                reader.seek(SeekFrom::Start(current_entry.body_offset))?;
                 advance_magic(&mut reader_magic);
 
                 writer.write_all(
@@ -321,8 +326,12 @@ where
                     &mut writer,
                 )?;
 
-                current_entry.offset = current_entry
-                    .offset
+                current_entry.header_offset = current_entry
+                    .header_offset
+                    .checked_sub(entry.size + path_len + 8)
+                    .ok_or(InvalidData)?;
+                current_entry.body_offset = current_entry
+                    .body_offset
                     .checked_sub(entry.size + path_len + 8)
                     .ok_or(InvalidData)?;
                 current_entry.start_magic = writer_magic;
@@ -349,31 +358,33 @@ where
             // Write the contents of the temporary file into the archive, starting from
             // where the modified file's header was
             tmp.seek(SeekFrom::Start(0))?;
-            archive.seek(SeekFrom::Start(
-                entry.offset.checked_sub(path_len + 8).ok_or(InvalidData)?,
-            ))?;
+            archive.seek(SeekFrom::Start(entry.header_offset))?;
             std::io::copy(&mut tmp, archive.as_file())?;
 
             entry.start_magic = writer_magic;
-            entry.offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
+            entry.body_offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
+            entry.header_offset = entry
+                .body_offset
+                .checked_sub(path_len + 8)
+                .ok_or(InvalidData)?;
             entry.size = 0;
             *trie.get_mut_file(&path).ok_or(InvalidData)? = entry;
 
-            Ok((entry.start_magic, entry.offset))
+            Ok(())
         }
 
         3 => {
             let mut tmp = crate::host::File::new()?;
 
             // Copy the contents of the files after the modified file into a temporary file
-            archive.seek(SeekFrom::Start(entry.offset + entry.size))?;
+            archive.seek(SeekFrom::Start(entry.body_offset + entry.size))?;
             std::io::copy(archive.as_file(), &mut tmp)?;
             tmp.flush()?;
 
             // Copy the contents of the temporary file back into the archive starting from where
             // the modified file was
             tmp.seek(SeekFrom::Start(0))?;
-            archive.seek(SeekFrom::Start(entry.offset))?;
+            archive.seek(SeekFrom::Start(entry.body_offset))?;
             std::io::copy(&mut tmp, archive.as_file())?;
 
             // Find all of the files in the archive with offsets greater than the original
@@ -381,14 +392,14 @@ where
             archive.seek(SeekFrom::Start(12))?;
             let mut reader = BufReader::new(archive.as_file());
             let mut headers = Vec::new();
-            while let Ok(current_offset) = read_u32_xor(&mut reader, base_magic) {
-                if current_offset == 0 {
+            while let Ok(current_body_offset) = read_u32_xor(&mut reader, base_magic) {
+                if current_body_offset == 0 {
                     break;
                 }
-                let current_offset = current_offset as u64;
+                let current_body_offset = current_body_offset as u64;
                 reader.seek(SeekFrom::Current(8))?;
                 let current_path_len = read_u32_xor(&mut reader, base_magic)?;
-                if current_offset < entry.offset {
+                if current_body_offset < entry.body_offset {
                     reader.seek(SeekFrom::Current(current_path_len as i64))?;
                     continue;
                 }
@@ -406,42 +417,44 @@ where
                 let current_path = String::from_utf8(current_path).map_err(|_| InvalidData)?;
 
                 let should_truncate =
-                    current_offset == entry.offset && &current_path == path.as_str();
-                let current_offset = if should_truncate {
+                    current_body_offset == entry.body_offset && &current_path == path.as_str();
+                let current_body_offset = if should_truncate {
                     archive_len.checked_sub(entry.size).ok_or(InvalidData)?
                 } else {
-                    current_offset.checked_sub(entry.size).ok_or(InvalidData)?
+                    current_body_offset
+                        .checked_sub(entry.size)
+                        .ok_or(InvalidData)?
                 };
 
-                trie.get_mut_file(current_path).ok_or(InvalidData)?.offset = current_offset;
+                trie.get_mut_file(current_path)
+                    .ok_or(InvalidData)?
+                    .body_offset = current_body_offset;
                 headers.push((
                     reader
                         .stream_position()?
                         .checked_sub(current_path_len as u64 + 16)
                         .ok_or(InvalidData)?,
-                    current_offset as u32,
+                    current_body_offset as u32,
                     should_truncate,
                 ));
             }
             drop(reader);
-            let mut modified_file_position = 0;
             let mut writer = BufWriter::new(archive.as_file());
             for (position, offset, should_truncate) in headers {
                 writer.seek(SeekFrom::Start(position))?;
                 writer.write_all(&(offset ^ base_magic).to_le_bytes())?;
                 if should_truncate {
-                    modified_file_position = position as u32;
                     writer.write_all(&base_magic.to_le_bytes())?;
                 }
             }
             writer.flush()?;
             drop(writer);
 
-            entry.offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
+            entry.body_offset = archive_len.checked_sub(entry.size).ok_or(InvalidData)?;
             entry.size = 0;
             *trie.get_mut_file(&path).ok_or(InvalidData)? = entry;
 
-            Ok((modified_file_position, entry.offset))
+            Ok(())
         }
 
         _ => Err(InvalidData.into()),
@@ -496,30 +509,32 @@ where
 
         // If the size of the file has changed, rotate the archive to place the file at the end of
         // the archive before writing the new contents of the file
-        let entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
+        let mut entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
         let old_size = entry.size;
         let new_size = self.tmp.metadata()?.size;
         if old_size != new_size {
-            let result = move_file_and_truncate(
+            move_file_and_truncate(
                 &mut archive,
                 &mut trie,
                 &self.path,
                 self.version,
                 self.base_magic,
             )?;
+            entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
 
             // Write the new length of the file to the archive
             match self.version {
                 1 | 2 => {
-                    let (mut magic, offset) = result;
+                    let mut magic = entry.start_magic;
                     regress_magic(&mut magic);
-                    archive.seek(SeekFrom::Start(offset.checked_sub(4).ok_or(InvalidData)?))?;
+                    archive.seek(SeekFrom::Start(
+                        entry.body_offset.checked_sub(4).ok_or(InvalidData)?,
+                    ))?;
                     archive.write_all(&(new_size as u32 ^ magic).to_le_bytes())?;
                 }
 
                 3 => {
-                    let (header_offset, _) = result;
-                    archive.seek(SeekFrom::Start(header_offset as u64 + 4))?;
+                    archive.seek(SeekFrom::Start(entry.header_offset as u64 + 4))?;
                     archive.write_all(&(new_size as u32 ^ self.base_magic).to_le_bytes())?;
                 }
 
@@ -531,8 +546,7 @@ where
         }
 
         // Now write the new contents of the file
-        let entry = *trie.get_file(&self.path).ok_or(InvalidData)?;
-        archive.seek(SeekFrom::Start(entry.offset))?;
+        archive.seek(SeekFrom::Start(entry.body_offset))?;
         let mut reader = BufReader::new(&mut self.tmp);
         std::io::copy(
             &mut read_file_xor(&mut reader, entry.start_magic),
@@ -632,7 +646,7 @@ where
             let mut archive = self.archive.lock();
             let mut trie = self.trie.write();
             let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
-            archive.seek(SeekFrom::Start(entry.offset))?;
+            archive.seek(SeekFrom::Start(entry.body_offset))?;
 
             if flags.contains(OpenFlags::Create) && !trie.contains_file(&path) {
                 created = true;
@@ -676,7 +690,8 @@ where
                         trie.create_file(
                             path,
                             Entry {
-                                offset: archive_len + path.as_str().bytes().len() as u64 + 8,
+                                header_offset: archive_len,
+                                body_offset: archive_len + path.as_str().bytes().len() as u64 + 8,
                                 size: 0,
                                 start_magic: magic,
                             },
@@ -743,7 +758,8 @@ where
                         trie.create_file(
                             path,
                             Entry {
-                                offset: archive_len as u64,
+                                header_offset: position,
+                                body_offset: archive_len as u64,
                                 size: 0,
                                 start_magic: magic,
                             },
