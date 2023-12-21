@@ -21,27 +21,18 @@ use std::io::{prelude::*, BufReader, BufWriter, ErrorKind::InvalidData, SeekFrom
 use super::{Trie, HEADER};
 use crate::Error;
 
-fn read_u32<F>(file: &mut F) -> std::io::Result<u32>
-where
-    F: Read,
-{
+fn read_u32(file: &mut impl Read) -> std::io::Result<u32> {
     let mut buffer = [0; 4];
     file.read_exact(&mut buffer)?;
     Ok(u32::from_le_bytes(buffer))
 }
 
-pub(super) fn read_u32_xor<F>(file: &mut F, key: u32) -> std::io::Result<u32>
-where
-    F: Read,
-{
+pub(super) fn read_u32_xor(file: &mut impl Read, key: u32) -> std::io::Result<u32> {
     let result = read_u32(file)?;
     Ok(result ^ key)
 }
 
-pub(super) fn read_file_xor<T>(file: &mut T, start_magic: u32) -> impl Read + '_
-where
-    T: Read,
-{
+pub(super) fn read_file_xor(file: &mut impl Read, start_magic: u32) -> impl Read + '_ {
     let iter = file.bytes().scan((start_magic, 0), |state, maybe_byte| {
         let Ok(byte) = maybe_byte else { return None };
         let (mut magic, mut j) = *state;
@@ -75,10 +66,7 @@ pub(super) fn regress_magic(magic: &mut u32) -> u32 {
     old
 }
 
-pub(super) fn read_header<T>(file: &mut T) -> Result<u8, Error>
-where
-    T: Read,
-{
+pub(super) fn read_header(file: &mut impl Read) -> Result<u8, Error> {
     let mut header_buf = [0; 8];
 
     file.read_exact(&mut header_buf)?;
