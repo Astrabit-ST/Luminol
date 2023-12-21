@@ -32,7 +32,7 @@ pub(super) fn read_u32_xor(file: impl Read, key: u32) -> std::io::Result<u32> {
     Ok(result ^ key)
 }
 
-pub(super) fn read_file_xor(file: &mut impl Read, start_magic: u32) -> impl Read + '_ {
+pub(super) fn read_file_xor(file: impl Read, start_magic: u32) -> impl Read {
     let iter = file.bytes().scan((start_magic, 0), |state, maybe_byte| {
         let Ok(byte) = maybe_byte else { return None };
         let (mut magic, mut j) = *state;
