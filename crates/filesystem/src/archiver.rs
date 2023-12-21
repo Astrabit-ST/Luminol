@@ -829,18 +829,87 @@ where
         Ok(trie.contains(path))
     }
 
-    fn remove_dir(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        Err(Error::NotSupported)
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        let path = path.as_ref();
+        if !self.trie.read().contains_dir(path) {
+            return Err(Error::NotExist);
+        }
+
+        let paths = self
+            .trie
+            .read()
+            .iter_prefix(path)
+            .ok_or(Error::NotExist)?
+            .map(|(k, _)| k)
+            .collect_vec();
+        for file_path in paths {
+            self.remove_file(file_path)?;
+        }
+
+        self.trie
+            .write()
+            .remove_dir(path)
+            .then_some(())
+            .ok_or(Error::NotExist)?;
+        Ok(())
     }
 
-    fn remove_file(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
-        Err(Error::NotSupported)
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+        let path = path.as_ref();
+        let path_len = path.as_str().bytes().len() as u64;
+        let mut archive = self.archive.lock();
+        let mut trie = self.trie.write();
+
+        let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
+        let archive_len = archive.metadata()?.size;
+
+        move_file_and_truncate(
+            &mut archive,
+            &mut trie,
+            &path,
+            self.version,
+            self.base_magic,
+        )?;
+
+        match self.version {
+            1 | 2 => {
+                archive.set_len(
+                    archive_len
+                        .checked_sub(entry.size + path_len + 8)
+                        .ok_or(Error::IoError(InvalidData.into()))?,
+                )?;
+                archive.flush()?;
+            }
+
+            3 => {
+                // Remove the header of the deleted file
+                let mut tmp = crate::host::File::new()?;
+                archive.seek(SeekFrom::Start(entry.header_offset + path_len + 16))?;
+                std::io::copy(archive.as_file(), &mut tmp)?;
+                tmp.flush()?;
+                tmp.seek(SeekFrom::Start(0))?;
+                archive.seek(SeekFrom::Start(entry.header_offset))?;
+                std::io::copy(&mut tmp, archive.as_file())?;
+
+                archive.set_len(
+                    archive_len
+                        .checked_sub(entry.size + path_len + 16)
+                        .ok_or(Error::IoError(InvalidData.into()))?,
+                )?;
+                archive.flush()?;
+            }
+
+            _ => return Err(Error::NotSupported),
+        }
+
+        trie.remove_file(path);
+        Ok(())
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
         let path = path.as_ref();
         let trie = self.trie.read();
-        if let Some(iter) = trie.iter(path) {
+        if let Some(iter) = trie.iter_dir(path) {
             iter.map(|(name, _)| {
                 let path = path.join(name);
                 let metadata = self.metadata(&path)?;

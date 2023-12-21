@@ -20,32 +20,75 @@ use qp_trie::wrapper::{BStr, BString};
 type Trie<T> = qp_trie::Trie<BString, DirTrie<T>>;
 type DirTrie<T> = qp_trie::Trie<BString, Option<T>>;
 
-pub struct FileSystemTrieIter<'a, T>(FileSystemTrieIterInner<'a, T>);
+pub struct FileSystemTrieDirIter<'a, T>(FileSystemTrieDirIterInner<'a, T>);
 
-enum FileSystemTrieIterInner<'a, T> {
+enum FileSystemTrieDirIterInner<'a, T> {
     Direct(qp_trie::Iter<'a, BString, Option<T>>, usize),
     Prefix(std::iter::Once<(&'a str, Option<&'a T>)>),
 }
 
-impl<'a, T> std::iter::FusedIterator for FileSystemTrieIter<'a, T> {}
+impl<'a, T> std::iter::FusedIterator for FileSystemTrieDirIter<'a, T> {}
 
-impl<'a, T> std::iter::ExactSizeIterator for FileSystemTrieIter<'a, T> {
+impl<'a, T> std::iter::ExactSizeIterator for FileSystemTrieDirIter<'a, T> {
     fn len(&self) -> usize {
         match &self.0 {
-            FileSystemTrieIterInner::Direct(_, len) => *len,
-            FileSystemTrieIterInner::Prefix(_) => 1,
+            FileSystemTrieDirIterInner::Direct(_, len) => *len,
+            FileSystemTrieDirIterInner::Prefix(_) => 1,
         }
     }
 }
 
-impl<'a, T> Iterator for FileSystemTrieIter<'a, T> {
+impl<'a, T> Iterator for FileSystemTrieDirIter<'a, T> {
     type Item = (&'a str, Option<&'a T>);
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.0 {
-            FileSystemTrieIterInner::Direct(iter, _) => iter
+            FileSystemTrieDirIterInner::Direct(iter, _) => iter
                 .next()
                 .map(|(key, value)| (key.as_str(), value.as_ref())),
-            FileSystemTrieIterInner::Prefix(iter) => iter.next(),
+            FileSystemTrieDirIterInner::Prefix(iter) => iter.next(),
+        }
+    }
+}
+
+pub struct FileSystemTrieIter<'a, T> {
+    path: camino::Utf8PathBuf,
+    trie: &'a Trie<T>,
+    root_done: bool,
+    trie_iter: Option<qp_trie::Iter<'a, BString, DirTrie<T>>>,
+    dir_iter: Option<(camino::Utf8PathBuf, qp_trie::Iter<'a, BString, Option<T>>)>,
+}
+
+impl<'a, T> std::iter::FusedIterator for FileSystemTrieIter<'a, T> {}
+
+impl<'a, T> Iterator for FileSystemTrieIter<'a, T> {
+    type Item = (camino::Utf8PathBuf, &'a T);
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((prefix, dir_iter)) = &mut self.dir_iter {
+                match dir_iter.next() {
+                    Some((filename, Some(value))) => {
+                        return Some((prefix.join(filename.as_str()), value));
+                    }
+                    None => {
+                        self.dir_iter = None;
+                        self.root_done = true;
+                    }
+                    _ => {}
+                }
+            } else if let Some(trie_iter) = &mut self.trie_iter {
+                let (prefix, dir_trie) = trie_iter.next()?;
+                self.dir_iter = Some((prefix.as_str().to_owned().into(), dir_trie.iter()));
+            } else if self.root_done {
+                self.trie_iter = Some(
+                    self.trie
+                        .iter_prefix::<BStr>(format!("{}/", self.path).as_str().into()),
+                );
+            } else {
+                self.dir_iter = self
+                    .trie
+                    .get_str(self.path.as_str())
+                    .map(|t| (self.path.clone(), t.iter()));
+            }
         }
     }
 }
@@ -291,11 +334,14 @@ impl<T> FileSystemTrie<T> {
     /// Given the path to a directory, returns an iterator over its children if it exists.
     /// The iterator's items are of the form `(key, value)` where `key` is the name of the child as
     /// `&str` and `value` is the data of the child if it's a file, as `Option<&T>`.
-    pub fn iter(&self, path: impl AsRef<camino::Utf8Path>) -> Option<FileSystemTrieIter<'_, T>> {
+    pub fn iter_dir(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+    ) -> Option<FileSystemTrieDirIter<'_, T>> {
         let path = path.as_ref();
         let prefix_with_trailing_slash = format!("{}/", path.as_str());
         if let Some(dir_trie) = self.0.get_str(path.as_str()) {
-            Some(FileSystemTrieIter(FileSystemTrieIterInner::Direct(
+            Some(FileSystemTrieDirIter(FileSystemTrieDirIterInner::Direct(
                 dir_trie.iter(),
                 dir_trie.count(),
             )))
@@ -308,7 +354,7 @@ impl<T> FileSystemTrie<T> {
             })
             .next()
         {
-            Some(FileSystemTrieIter(FileSystemTrieIterInner::Prefix(
+            Some(FileSystemTrieDirIter(FileSystemTrieDirIterInner::Prefix(
                 std::iter::once((
                     camino::Utf8Path::new(key.as_str())
                         .strip_prefix(path)
@@ -319,6 +365,26 @@ impl<T> FileSystemTrie<T> {
                     None,
                 )),
             )))
+        } else {
+            None
+        }
+    }
+
+    /// Given the path to a directory, returns an iterator over immutable references to its
+    /// descendant files if it exists.
+    pub fn iter_prefix(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+    ) -> Option<FileSystemTrieIter<'_, T>> {
+        let path = path.as_ref();
+        if self.contains_dir(path) {
+            Some(FileSystemTrieIter {
+                path: path.to_owned(),
+                trie: &self.0,
+                root_done: false,
+                trie_iter: None,
+                dir_iter: None,
+            })
         } else {
             None
         }
