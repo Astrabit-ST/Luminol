@@ -21,13 +21,13 @@ use std::io::{prelude::*, BufReader, BufWriter, ErrorKind::InvalidData, SeekFrom
 use super::{Trie, HEADER};
 use crate::Error;
 
-fn read_u32(file: &mut impl Read) -> std::io::Result<u32> {
+fn read_u32(mut file: impl Read) -> std::io::Result<u32> {
     let mut buffer = [0; 4];
     file.read_exact(&mut buffer)?;
     Ok(u32::from_le_bytes(buffer))
 }
 
-pub(super) fn read_u32_xor(file: &mut impl Read, key: u32) -> std::io::Result<u32> {
+pub(super) fn read_u32_xor(file: impl Read, key: u32) -> std::io::Result<u32> {
     let result = read_u32(file)?;
     Ok(result ^ key)
 }
@@ -66,7 +66,7 @@ pub(super) fn regress_magic(magic: &mut u32) -> u32 {
     old
 }
 
-pub(super) fn read_header(file: &mut impl Read) -> Result<u8, Error> {
+pub(super) fn read_header(mut file: impl Read) -> Result<u8, Error> {
     let mut header_buf = [0; 8];
 
     file.read_exact(&mut header_buf)?;
