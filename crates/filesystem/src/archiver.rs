@@ -619,9 +619,13 @@ where
     }
 
     fn set_len(&self, new_size: u64) -> std::io::Result<()> {
-        let mut modified = self.modified.lock();
-        *modified = true;
-        self.tmp.set_len(new_size)
+        if self.archive.is_some() {
+            let mut modified = self.modified.lock();
+            *modified = true;
+            self.tmp.set_len(new_size)
+        } else {
+            Err(PermissionDenied.into())
+        }
     }
 }
 
