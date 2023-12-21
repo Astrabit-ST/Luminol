@@ -159,7 +159,7 @@ where
             let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
             archive.seek(SeekFrom::Start(entry.body_offset))?;
 
-            if flags.contains(OpenFlags::Create) && !trie.contains_file(&path) {
+            if flags.contains(OpenFlags::Create) && !trie.contains_file(path) {
                 created = true;
                 match self.version {
                     1 | 2 => {
@@ -181,7 +181,7 @@ where
                         let archive_len = archive.seek(SeekFrom::End(0))?;
                         let mut writer = BufWriter::new(archive.as_file());
                         writer.write_all(
-                            &mut (path.as_str().bytes().len() as u32 ^ advance_magic(&mut magic))
+                            &(path.as_str().bytes().len() as u32 ^ advance_magic(&mut magic))
                                 .to_le_bytes(),
                         )?;
                         writer.write_all(
@@ -194,7 +194,7 @@ where
                                 })
                                 .collect_vec(),
                         )?;
-                        writer.write_all(&mut advance_magic(&mut magic).to_le_bytes())?;
+                        writer.write_all(&advance_magic(&mut magic).to_le_bytes())?;
                         writer.flush()?;
                         drop(writer);
 
@@ -239,16 +239,15 @@ where
                         for (position, offset) in headers {
                             writer.seek(SeekFrom::Start(position))?;
                             writer.write_all(
-                                &mut ((offset + extra_data_len) ^ self.base_magic).to_le_bytes(),
+                                &((offset + extra_data_len) ^ self.base_magic).to_le_bytes(),
                             )?;
                         }
                         writer.seek(SeekFrom::Start(position))?;
-                        writer.write_all(&mut (archive_len ^ self.base_magic).to_le_bytes())?;
-                        writer.write_all(&mut self.base_magic.to_le_bytes())?;
-                        writer.write_all(&mut (magic ^ self.base_magic).to_le_bytes())?;
+                        writer.write_all(&(archive_len ^ self.base_magic).to_le_bytes())?;
+                        writer.write_all(&self.base_magic.to_le_bytes())?;
+                        writer.write_all(&(magic ^ self.base_magic).to_le_bytes())?;
                         writer.write_all(
-                            &mut (path.as_str().bytes().len() as u32 ^ self.base_magic)
-                                .to_le_bytes(),
+                            &(path.as_str().bytes().len() as u32 ^ self.base_magic).to_le_bytes(),
                         )?;
                         writer.write_all(
                             &path
@@ -603,13 +602,7 @@ where
         let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
         let archive_len = archive.metadata()?.size;
 
-        move_file_and_truncate(
-            &mut archive,
-            &mut trie,
-            &path,
-            self.version,
-            self.base_magic,
-        )?;
+        move_file_and_truncate(&mut archive, &mut trie, path, self.version, self.base_magic)?;
 
         match self.version {
             1 | 2 => {

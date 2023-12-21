@@ -95,7 +95,7 @@ where
     let archive_len = archive.metadata()?.size;
     archive.seek(SeekFrom::Start(0))?;
 
-    let mut entry = *trie.get_file(&path).ok_or(InvalidData)?;
+    let mut entry = *trie.get_file(path).ok_or(InvalidData)?;
     match version {
         1 | 2 => {
             let mut tmp = crate::host::File::new()?;
@@ -203,7 +203,7 @@ where
                 .checked_sub(path_len + 8)
                 .ok_or(InvalidData)?;
             entry.size = 0;
-            *trie.get_mut_file(&path).ok_or(InvalidData)? = entry;
+            *trie.get_mut_file(path).ok_or(InvalidData)? = entry;
 
             Ok(())
         }
@@ -285,7 +285,7 @@ where
             writer.flush()?;
             drop(writer);
 
-            trie.get_mut_file(&path).ok_or(InvalidData)?.size = 0;
+            trie.get_mut_file(path).ok_or(InvalidData)?.size = 0;
 
             Ok(())
         }

@@ -126,7 +126,7 @@ where
                 }
 
                 3 => {
-                    archive.seek(SeekFrom::Start(entry.header_offset as u64 + 4))?;
+                    archive.seek(SeekFrom::Start(entry.header_offset + 4))?;
                     archive.write_all(&(new_size as u32 ^ self.base_magic).to_le_bytes())?;
                 }
 

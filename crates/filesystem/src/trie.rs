@@ -135,8 +135,7 @@ impl<T> FileSystemTrie<T> {
                 } else {
                     &prefix_with_trailing_slash
                 })
-                .skip(1)
-                .next()
+                .nth(1)
             {
                 // If there is a different path in the trie that has this as a prefix (there can be
                 // at most one), add it to this directory entry
@@ -249,8 +248,7 @@ impl<T> FileSystemTrie<T> {
         self.0
             .get_str(dir.as_str())
             .and_then(|dir_trie| dir_trie.get_str(filename))
-            .map(|o| o.as_ref())
-            .flatten()
+            .and_then(|o| o.as_ref())
     }
 
     /// Gets a mutable reference to the value in the file at the given path, if it exists.
@@ -263,8 +261,7 @@ impl<T> FileSystemTrie<T> {
         self.0
             .get_mut_str(dir.as_str())
             .and_then(|dir_trie| dir_trie.get_mut_str(filename))
-            .map(|o| o.as_mut())
-            .flatten()
+            .and_then(|o| o.as_mut())
     }
 
     /// Gets the longest prefix of the given path that is the path of a directory in the trie.
