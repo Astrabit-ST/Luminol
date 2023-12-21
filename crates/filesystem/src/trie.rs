@@ -78,6 +78,9 @@ impl<'a, T> Iterator for FileSystemTrieIter<'a, T> {
             } else if let Some(trie_iter) = &mut self.trie_iter {
                 let (prefix, dir_trie) = trie_iter.next()?;
                 self.dir_iter = Some((prefix.as_str().to_owned().into(), dir_trie.iter()));
+            } else if self.path.as_str() == "" {
+                self.root_done = true;
+                self.trie_iter = Some(self.trie.iter())
             } else if self.root_done {
                 self.trie_iter = Some(
                     self.trie
