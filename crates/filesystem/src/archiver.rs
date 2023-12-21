@@ -20,7 +20,7 @@ use rand::Rng;
 use std::io::{
     prelude::*,
     BufReader, BufWriter,
-    ErrorKind::{InvalidData, PermissionDenied},
+    ErrorKind::{AlreadyExists, InvalidData, PermissionDenied},
     SeekFrom,
 };
 
@@ -548,7 +548,7 @@ where
         let mut reader = BufReader::new(&mut self.tmp);
         std::io::copy(
             &mut read_file_xor(&mut reader, entry.start_magic),
-            <T as Write>::by_ref(&mut archive),
+            archive.as_file(),
         )?;
         drop(reader);
         self.tmp.seek(SeekFrom::Start(tmp_stream_position))?;
@@ -655,7 +655,7 @@ where
                 match self.version {
                     1 | 2 => {
                         archive.seek(SeekFrom::Start(8))?;
-                        let mut reader = BufReader::new(<T as Read>::by_ref(&mut archive));
+                        let mut reader = BufReader::new(archive.as_file());
                         let mut magic = MAGIC;
                         while let Ok(path_len) =
                             read_u32_xor(&mut reader, advance_magic(&mut magic))
@@ -670,7 +670,7 @@ where
                         drop(reader);
 
                         let archive_len = archive.seek(SeekFrom::End(0))?;
-                        let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
+                        let mut writer = BufWriter::new(archive.as_file());
                         writer.write_all(
                             &mut (path.as_str().bytes().len() as u32 ^ advance_magic(&mut magic))
                                 .to_le_bytes(),
@@ -707,7 +707,7 @@ where
                         let mut headers = Vec::new();
 
                         archive.seek(SeekFrom::Start(12))?;
-                        let mut reader = BufReader::new(<T as Read>::by_ref(&mut archive));
+                        let mut reader = BufReader::new(archive.as_file());
                         let mut position = 12;
                         while let Ok(offset) = read_u32_xor(&mut reader, self.base_magic) {
                             if offset == 0 {
@@ -721,12 +721,12 @@ where
                         drop(reader);
 
                         archive.seek(SeekFrom::Start(position))?;
-                        std::io::copy(<T as Read>::by_ref(&mut archive), &mut tmp)?;
+                        std::io::copy(archive.as_file(), &mut tmp)?;
                         tmp.flush()?;
 
                         let magic: u32 = rand::thread_rng().gen();
                         let archive_len = archive.metadata()?.size as u32 + extra_data_len;
-                        let mut writer = BufWriter::new(<T as Write>::by_ref(&mut archive));
+                        let mut writer = BufWriter::new(archive.as_file());
                         for (position, offset) in headers {
                             writer.seek(SeekFrom::Start(position))?;
                             writer.write_all(
@@ -771,8 +771,7 @@ where
                     _ => return Err(Error::NotSupported),
                 }
             } else if !flags.contains(OpenFlags::Truncate) {
-                let mut adapter =
-                    BufReader::new(<T as Read>::by_ref(&mut archive).take(entry.size));
+                let mut adapter = BufReader::new(archive.as_file().take(entry.size));
                 std::io::copy(
                     &mut read_file_xor(&mut adapter, entry.start_magic),
                     &mut tmp,
@@ -818,10 +817,227 @@ where
 
     fn rename(
         &self,
-        _from: impl AsRef<camino::Utf8Path>,
-        _to: impl AsRef<camino::Utf8Path>,
+        from: impl AsRef<camino::Utf8Path>,
+        to: impl AsRef<camino::Utf8Path>,
     ) -> std::result::Result<(), Error> {
-        Err(Error::NotSupported)
+        let from = from.as_ref();
+        let to = to.as_ref();
+
+        let mut archive = self.archive.lock();
+        let mut trie = self.trie.write();
+
+        if trie.contains_dir(from) {
+            return Err(Error::NotSupported);
+        }
+        if trie.contains(to) {
+            return Err(Error::IoError(AlreadyExists.into()));
+        }
+        if !trie.contains_dir(from.parent().ok_or(Error::NotExist)?) {
+            return Err(Error::NotExist);
+        }
+        let Some(old_entry) = trie.get_file(from).copied() else {
+            return Err(Error::NotExist);
+        };
+
+        let archive_len = archive.metadata()?.size;
+        let from_len = from.as_str().bytes().len();
+        let to_len = to.as_str().bytes().len();
+
+        if from_len != to_len {
+            match self.version {
+                1 | 2 => {
+                    // Move the file contents into a temporary file
+                    let mut tmp = crate::host::File::new()?;
+                    archive.seek(SeekFrom::Start(old_entry.body_offset))?;
+                    let mut reader = BufReader::new(archive.as_file().take(old_entry.size));
+                    std::io::copy(
+                        &mut read_file_xor(&mut reader, old_entry.start_magic),
+                        &mut tmp,
+                    )?;
+                    tmp.flush()?;
+                    drop(reader);
+
+                    // Move the file to the end so that we can change the header size
+                    move_file_and_truncate(
+                        &mut archive,
+                        &mut trie,
+                        from,
+                        self.version,
+                        self.base_magic,
+                    )?;
+                    let mut new_entry = *trie
+                        .get_file(from)
+                        .ok_or(Error::IoError(InvalidData.into()))?;
+                    trie.remove_file(from)
+                        .ok_or(Error::IoError(InvalidData.into()))?;
+                    new_entry.size = old_entry.size;
+
+                    let mut magic = new_entry.start_magic;
+                    regress_magic(&mut magic);
+                    regress_magic(&mut magic);
+                    for _ in from.as_str().bytes() {
+                        regress_magic(&mut magic);
+                    }
+
+                    // Regenerate the header
+                    archive.seek(SeekFrom::Start(new_entry.header_offset))?;
+                    let mut writer = BufWriter::new(archive.as_file());
+                    writer.write_all(&(to_len as u32 ^ advance_magic(&mut magic)).to_le_bytes())?;
+                    writer.write_all(
+                        &to.as_str()
+                            .bytes()
+                            .map(|b| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ advance_magic(&mut magic) as u8
+                            })
+                            .collect_vec(),
+                    )?;
+                    writer.write_all(
+                        &(old_entry.size as u32 ^ advance_magic(&mut magic)).to_le_bytes(),
+                    )?;
+
+                    new_entry.start_magic = magic;
+
+                    // Move the file contents to the end
+                    tmp.seek(SeekFrom::Start(0))?;
+                    let mut reader = BufReader::new(&mut tmp);
+                    std::io::copy(&mut read_file_xor(&mut reader, magic), &mut writer)?;
+                    writer.flush()?;
+                    drop(writer);
+
+                    trie.create_file(to, new_entry);
+                }
+
+                3 => {
+                    // Move everything after the header into a temporary file
+                    let mut tmp = crate::host::File::new()?;
+                    archive.seek(SeekFrom::Start(
+                        old_entry.header_offset + from_len as u64 + 16,
+                    ))?;
+                    std::io::copy(archive.as_file(), &mut tmp)?;
+                    tmp.flush()?;
+
+                    // Change the path
+                    archive.seek(SeekFrom::Start(old_entry.header_offset + 12))?;
+                    let mut writer = BufWriter::new(archive.as_file());
+                    writer.write_all(&(to_len as u32 ^ self.base_magic).to_le_bytes())?;
+                    writer.write_all(
+                        &to.as_str()
+                            .bytes()
+                            .enumerate()
+                            .map(|(i, b)| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ (self.base_magic >> (8 * (i % 4))) as u8
+                            })
+                            .collect_vec(),
+                    )?;
+                    trie.remove_file(from)
+                        .ok_or(Error::IoError(InvalidData.into()))?;
+                    trie.create_file(to, old_entry);
+
+                    // Move everything else back
+                    tmp.seek(SeekFrom::Start(0))?;
+                    std::io::copy(&mut tmp, &mut writer)?;
+                    writer.flush()?;
+                    drop(writer);
+
+                    // Update all of the offsets in the headers
+                    archive.seek(SeekFrom::Start(12))?;
+                    let mut reader = BufReader::new(archive.as_file());
+                    let mut headers = Vec::new();
+                    while let Ok(current_body_offset) = read_u32_xor(&mut reader, self.base_magic) {
+                        if current_body_offset == 0 {
+                            break;
+                        }
+                        let current_header_offset = reader
+                            .stream_position()?
+                            .checked_sub(4)
+                            .ok_or(Error::IoError(InvalidData.into()))?;
+                        reader.seek(SeekFrom::Current(8))?;
+                        let current_path_len = read_u32_xor(&mut reader, self.base_magic)?;
+
+                        let mut current_path = vec![0; current_path_len as usize];
+                        reader.read_exact(&mut current_path)?;
+                        for (i, byte) in current_path.iter_mut().enumerate() {
+                            let char = *byte ^ (self.base_magic >> (8 * (i % 4))) as u8;
+                            if char == b'\\' {
+                                *byte = b'/';
+                            } else {
+                                *byte = char;
+                            }
+                        }
+                        let current_path = String::from_utf8(current_path)
+                            .map_err(|_| Error::IoError(InvalidData.into()))?;
+
+                        let current_body_offset = (current_body_offset as u64)
+                            .checked_add_signed(to_len as i64 - from_len as i64)
+                            .ok_or(Error::IoError(InvalidData.into()))?;
+                        trie.get_mut_file(current_path)
+                            .ok_or(Error::IoError(InvalidData.into()))?
+                            .body_offset = current_body_offset;
+                        headers.push((current_header_offset, current_body_offset as u32));
+                    }
+                    drop(reader);
+                    let mut writer = BufWriter::new(archive.as_file());
+                    for (position, offset) in headers {
+                        writer.seek(SeekFrom::Start(position))?;
+                        writer.write_all(&(offset ^ self.base_magic).to_le_bytes())?;
+                    }
+                    writer.flush()?;
+                    drop(writer);
+                }
+
+                _ => return Err(Error::IoError(InvalidData.into())),
+            }
+
+            if to_len < from_len {
+                archive.set_len(
+                    archive_len
+                        .checked_add_signed(to_len as i64 - from_len as i64)
+                        .ok_or(Error::IoError(InvalidData.into()))?,
+                )?;
+                archive.flush()?;
+            }
+        } else {
+            match self.version {
+                1 | 2 => {
+                    let mut magic = old_entry.start_magic;
+                    for _ in from.as_str().bytes() {
+                        regress_magic(&mut magic);
+                    }
+                    archive.seek(SeekFrom::Start(old_entry.header_offset + 4))?;
+                    archive.write_all(
+                        &to.as_str()
+                            .bytes()
+                            .map(|b| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ advance_magic(&mut magic) as u8
+                            })
+                            .collect_vec(),
+                    )?;
+                    archive.flush()?;
+                }
+
+                3 => {
+                    archive.seek(SeekFrom::Start(old_entry.header_offset + 16))?;
+                    archive.write_all(
+                        &to.as_str()
+                            .bytes()
+                            .enumerate()
+                            .map(|(i, b)| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ (self.base_magic >> (8 * (i % 4))) as u8
+                            })
+                            .collect_vec(),
+                    )?;
+                    archive.flush()?;
+                }
+
+                _ => return Err(Error::IoError(InvalidData.into())),
+            }
+        }
+
+        Ok(())
     }
 
     fn create_dir(&self, _path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
