@@ -145,6 +145,11 @@ impl crate::FileSystem for FileSystem {
 }
 
 impl File {
+    /// Creates a new empty temporary file with read-write permissions.
+    pub fn new() -> std::io::Result<Self> {
+        tempfile::tempfile().map(File)
+    }
+
     /// Attempts to prompt the user to choose a file from their local machine.
     /// Then creates a `File` allowing read-write access to that directory if they chose one
     /// successfully, along with the name of the file including the extension.
@@ -181,12 +186,16 @@ impl File {
 }
 
 impl crate::File for File {
-    fn metadata(&self) -> Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         let metdata = self.0.metadata()?;
         Ok(Metadata {
             is_file: metdata.is_file(),
             size: metdata.len(),
         })
+    }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        self.0.set_len(new_size)
     }
 }
 

@@ -75,6 +75,17 @@ pub(super) async fn get_subdir_create(
     }
 }
 
+/// Returns a handle to a directory for temporary files in the Origin Private File System.
+pub(super) async fn get_tmp_dir(
+    storage: &web_sys::StorageManager,
+) -> Option<web_sys::FileSystemDirectoryHandle> {
+    let opfs_root = to_future::<web_sys::FileSystemDirectoryHandle>(storage.get_directory())
+        .await
+        .ok()?;
+    let mut iter = camino::Utf8Path::new("astrabit.luminol/tmp").iter();
+    get_subdir_create(&opfs_root, &mut iter).await
+}
+
 /// Generates a random string suitable for use as a unique identifier.
 pub(super) fn generate_key() -> String {
     rand::thread_rng()

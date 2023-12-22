@@ -222,8 +222,8 @@ impl MapView {
                 }
             }
 
-            i.modifiers.command && response.dragged_by(egui::PointerButton::Primary)
-        });
+            i.modifiers.command
+        }) && response.dragged_by(egui::PointerButton::Primary);
 
         let panning_map_view = response.dragged_by(egui::PointerButton::Middle) || ctrl_drag;
 
