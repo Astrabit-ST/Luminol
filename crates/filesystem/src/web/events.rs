@@ -26,10 +26,12 @@ use wasm_bindgen::prelude::*;
 
 pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
     wasm_bindgen_futures::spawn_local(async move {
-        let storage = web_sys::window()
-            .expect("cannot run `setup_main_thread_hooks()` outside of main thread")
-            .navigator()
-            .storage();
+        let window = web_sys::window()
+            .expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        let document = window
+            .document()
+            .expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        let storage = window.navigator().storage();
 
         struct FileHandle {
             offset: usize,
@@ -493,6 +495,31 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             }),
                             name,
                         ))
+                    })
+                    .await;
+                }
+
+                FileSystemCommand::FileSave(key, filename, tx) => {
+                    handle_event(tx, async {
+                        let file = files.get(key).unwrap();
+                        let file_handle = file.read_allowed.then_some(&file.file_handle)?;
+
+                        let blob = to_future::<web_sys::File>(file_handle.get_file())
+                            .await
+                            .ok()?;
+                        let url = web_sys::Url::create_object_url_with_blob(&blob).ok()?;
+
+                        let anchor = document
+                            .create_element("a")
+                            .ok()?
+                            .unchecked_into::<web_sys::HtmlAnchorElement>();
+                        anchor.set_href(&url);
+                        anchor.set_download(&filename);
+                        anchor.click();
+                        anchor.remove();
+                        let _ = web_sys::Url::revoke_object_url(&url);
+
+                        Some(())
                     })
                     .await;
                 }

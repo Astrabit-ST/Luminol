@@ -183,6 +183,43 @@ impl File {
             Err(crate::Error::CancelledLoading)
         }
     }
+
+    /// Creates a file, calls a closure to modify the file, and then saves the file to a location
+    /// of the user's choice.
+    ///
+    /// In native, this will open a file picker dialog, wait for the user to choose a location to
+    /// save a file, and then call the closure. If the user chooses to overwrite an existing file,
+    /// it will be cleared before the closure is called.
+    ///
+    /// In web, this will call the closure and then use the browser's native file downloading
+    /// method to save the file, which may or may not open a file picker. The function returns
+    /// immediately after calling the closure without waiting for the download method or its file
+    /// picker to finish.
+    ///
+    /// You must flush the file yourself inside of the closure. It will not be flushed for you
+    /// after the closure is called.
+    pub async fn save_to_disk(
+        filename: &str,
+        filter_name: &str,
+        f: impl FnOnce(&mut Self) -> Result<()>,
+    ) -> Result<()> {
+        let mut dialog = rfd::AsyncFileDialog::default().set_file_name(filename);
+        if let Some((_, extension)) = filename.rsplit_once(".") {
+            dialog = dialog.add_filter(filter_name, &[extension]);
+        }
+        let path = dialog
+            .save_file()
+            .await
+            .ok_or(crate::Error::CancelledLoading)?;
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path.path())
+            .map_err(crate::Error::IoError)?;
+        f(&mut File(file))
+    }
 }
 
 impl crate::File for File {

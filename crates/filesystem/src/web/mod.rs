@@ -23,6 +23,7 @@ pub use events::setup_main_thread_hooks;
 
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
+use std::io::ErrorKind::PermissionDenied;
 use util::{generate_key, send_and_await, send_and_recv};
 
 static WORKER_CHANNELS: once_cell::sync::OnceCell<WorkerChannels> =
@@ -103,6 +104,7 @@ enum FileSystemCommand {
         Vec<String>,
         oneshot::Sender<Option<(usize, String)>>,
     ),
+    FileSave(usize, String, oneshot::Sender<Option<()>>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -319,6 +321,32 @@ impl File {
             )
         })
         .ok_or(Error::CancelledLoading)
+    }
+
+    /// Creates a file, calls a closure to modify the file, and then saves the file to a location
+    /// of the user's choice.
+    ///
+    /// In native, this will open a file picker dialog, wait for the user to choose a location to
+    /// save a file, and then call the closure. If the user chooses to overwrite an existing file,
+    /// it will be cleared before the closure is called.
+    ///
+    /// In web, this will call the closure and then use the browser's native file downloading
+    /// method to save the file, which may or may not open a file picker. The function returns
+    /// immediately after calling the closure without waiting for the download method or its file
+    /// picker to finish.
+    ///
+    /// You must flush the file yourself inside of the closure. It will not be flushed for you
+    /// after the closure is called.
+    pub async fn save_to_disk(
+        filename: &str,
+        _filter_name: &str,
+        f: impl FnOnce(&mut Self) -> Result<()>,
+    ) -> Result<()> {
+        let mut file = Self::new()?;
+        f(&mut file)?;
+        send_and_await(|tx| FileSystemCommand::FileSave(file.key, filename.to_owned(), tx))
+            .await
+            .ok_or(Error::IoError(PermissionDenied.into()))
     }
 }
 
