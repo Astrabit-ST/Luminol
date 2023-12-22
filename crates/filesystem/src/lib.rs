@@ -22,6 +22,9 @@ pub mod list;
 pub mod path_cache;
 pub mod project;
 
+mod trie;
+pub use trie::*;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
 #[cfg(target_arch = "wasm32")]
@@ -111,7 +114,20 @@ bitflags::bitflags! {
 }
 
 pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + 'static {
-    fn metadata(&self) -> Result<Metadata>;
+    fn metadata(&self) -> std::io::Result<Metadata>;
+
+    /// Truncates or extends the size of the file. If the file is extended, the file will be
+    /// null-padded at the end. The file cursor never changes when truncating or extending, even if
+    /// the cursor would be put outside the file bounds by this operation.
+    fn set_len(&self, new_size: u64) -> std::io::Result<()>;
+
+    /// Casts a mutable reference to this file into `&mut luminol_filesystem::File`.
+    fn as_file(&mut self) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 pub trait FileSystem: Send + Sync + 'static {

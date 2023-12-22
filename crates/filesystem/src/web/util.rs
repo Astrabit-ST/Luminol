@@ -32,6 +32,8 @@ where
 }
 
 /// Returns a subdirectory of a given directory given the relative path of the subdirectory.
+/// If one of the parent directories along the path does not exist, this will return `None`.
+/// Use `get_subdir_create` if you want to create the missing parent directories.
 pub(super) async fn get_subdir(
     dir: &web_sys::FileSystemDirectoryHandle,
     path_iter: &mut camino::Iter<'_>,
@@ -47,6 +49,41 @@ pub(super) async fn get_subdir(
             return None;
         }
     }
+}
+
+/// Returns a subdirectory of a given directory given the relative path of the subdirectory.
+/// If one of the parent directories along the path does not exist, this will create the missing
+/// directories.
+pub(super) async fn get_subdir_create(
+    dir: &web_sys::FileSystemDirectoryHandle,
+    path_iter: &mut camino::Iter<'_>,
+) -> Option<web_sys::FileSystemDirectoryHandle> {
+    let mut dir = dir.clone();
+    loop {
+        let Some(path_element) = path_iter.next() else {
+            return Some(dir);
+        };
+        let mut options = web_sys::FileSystemGetDirectoryOptions::new();
+        options.create(true);
+        if let Ok(subdir) =
+            to_future(dir.get_directory_handle_with_options(path_element, &options)).await
+        {
+            dir = subdir;
+        } else {
+            return None;
+        }
+    }
+}
+
+/// Returns a handle to a directory for temporary files in the Origin Private File System.
+pub(super) async fn get_tmp_dir(
+    storage: &web_sys::StorageManager,
+) -> Option<web_sys::FileSystemDirectoryHandle> {
+    let opfs_root = to_future::<web_sys::FileSystemDirectoryHandle>(storage.get_directory())
+        .await
+        .ok()?;
+    let mut iter = camino::Utf8Path::new("astrabit.luminol/tmp").iter();
+    get_subdir_create(&opfs_root, &mut iter).await
 }
 
 /// Generates a random string suitable for use as a unique identifier.

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::util::{generate_key, get_subdir, handle_event, idb, to_future};
+use super::util::{generate_key, get_subdir, get_tmp_dir, handle_event, idb, to_future};
 use super::FileSystemCommand;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
@@ -24,7 +24,10 @@ use wasm_bindgen::prelude::*;
 
 pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
     wasm_bindgen_futures::spawn_local(async move {
-        web_sys::window().expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        let storage = web_sys::window()
+            .expect("cannot run `setup_main_thread_hooks()` outside of main thread")
+            .navigator()
+            .storage();
 
         struct FileHandle {
             offset: usize,
@@ -402,8 +405,12 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                         let mut vec = Vec::new();
                         loop {
-                            let Ok(entry) =
-                                to_future::<js_sys::IteratorNext>(entry_iter.next().unwrap()).await
+                            let Ok(entry) = to_future::<js_sys::IteratorNext>(
+                                entry_iter
+                                    .next()
+                                    .map_err(|_| Error::IoError(PermissionDenied.into()))?,
+                            )
+                            .await
                             else {
                                 break;
                             };
@@ -462,6 +469,53 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     handle_event(tx, async { dirs.insert(dirs.get(key).unwrap().clone()) }).await;
                 }
 
+                FileSystemCommand::FileCreateTemp(tx) => {
+                    handle_event(tx, async {
+                        let tmp_dir = get_tmp_dir(&storage).await.ok_or(PermissionDenied)?;
+
+                        let filename = generate_key();
+
+                        let mut options = web_sys::FileSystemGetFileOptions::new();
+                        options.create(true);
+                        let file_handle = to_future::<web_sys::FileSystemFileHandle>(
+                            tmp_dir.get_file_handle_with_options(&filename, &options),
+                        )
+                        .await
+                        .map_err(|_| PermissionDenied)?;
+
+                        let write_handle = to_future(file_handle.create_writable())
+                            .await
+                            .map_err(|_| PermissionDenied)?;
+
+                        Ok((
+                            files.insert(FileHandle {
+                                offset: 0,
+                                file_handle,
+                                read_allowed: true,
+                                write_handle: Some(write_handle),
+                            }),
+                            filename,
+                        ))
+                    })
+                    .await;
+                }
+
+                FileSystemCommand::FileSetLength(key, new_size, tx) => {
+                    handle_event(tx, async {
+                        let file = files.get_mut(key).unwrap();
+                        let write_handle = file.write_handle.as_ref().ok_or(PermissionDenied)?;
+                        to_future::<JsValue>(
+                            write_handle
+                                .truncate_with_f64(new_size as f64)
+                                .map_err(|_| PermissionDenied)?,
+                        )
+                        .await
+                        .map_err(|_| PermissionDenied)?;
+                        Ok(())
+                    })
+                    .await;
+                }
+
                 FileSystemCommand::FileRead(key, max_length, tx) => {
                     handle_event(tx, async {
                         let file = files.get_mut(key).unwrap();
@@ -504,12 +558,16 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             js_sys::Uint8Array::new(&JsValue::from_f64(vec.len() as f64));
                         u8_array.copy_from(&vec[..]);
                         if to_future::<JsValue>(
-                            write_handle.seek_with_f64(file.offset as f64).unwrap(),
+                            write_handle
+                                .seek_with_f64(file.offset as f64)
+                                .map_err(|_| PermissionDenied)?,
                         )
                         .await
                         .is_ok()
                             && to_future::<JsValue>(
-                                write_handle.write_with_buffer_source(&u8_array).unwrap(),
+                                write_handle
+                                    .write_with_buffer_source(&u8_array)
+                                    .map_err(|_| PermissionDenied)?,
                             )
                             .await
                             .is_ok()
@@ -529,9 +587,11 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                         // Closing and reopening the handle is the only way to flush
                         if file.write_handle.is_none()
-                            || to_future::<JsValue>(file.write_handle.as_ref().unwrap().close())
-                                .await
-                                .is_err()
+                            || to_future::<JsValue>(
+                                file.write_handle.as_ref().ok_or(PermissionDenied)?.close(),
+                            )
+                            .await
+                            .is_err()
                         {
                             return Err(PermissionDenied.into());
                         }
@@ -588,7 +648,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                     .await;
                 }
 
-                FileSystemCommand::FileDrop(key, tx) => {
+                FileSystemCommand::FileDrop(key, temp_file_name, tx) => {
                     handle_event(tx, async {
                         if files.contains(key) {
                             let file = files.remove(key);
@@ -596,6 +656,14 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             // made to the file
                             if let Some(write_handle) = &file.write_handle {
                                 let _ = to_future::<JsValue>(write_handle.close()).await;
+                            }
+
+                            if let Some(temp_file_name) = temp_file_name {
+                                if let Some(tmp_dir) = get_tmp_dir(&storage).await {
+                                    let _ =
+                                        to_future::<JsValue>(tmp_dir.remove_entry(&temp_file_name))
+                                            .await;
+                                }
                             }
                             true
                         } else {

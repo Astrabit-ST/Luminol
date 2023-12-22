@@ -98,8 +98,12 @@ where
 }
 
 impl File for Box<dyn File> {
-    fn metadata(&self) -> Result<Metadata> {
+    fn metadata(&self) -> std::io::Result<Metadata> {
         self.as_ref().metadata()
+    }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        self.as_ref().set_len(new_size)
     }
 }
 
