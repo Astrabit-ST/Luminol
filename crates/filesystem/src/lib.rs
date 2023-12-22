@@ -115,7 +115,7 @@ bitflags::bitflags! {
     }
 }
 
-pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + 'static {
+pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync {
     fn metadata(&self) -> std::io::Result<Metadata>;
 
     /// Truncates or extends the size of the file. If the file is extended, the file will be
@@ -132,7 +132,20 @@ pub trait File: std::io::Read + std::io::Write + std::io::Seek + Send + Sync + '
     }
 }
 
-pub trait FileSystem: Send + Sync + 'static {
+impl<T> File for &mut T
+where
+    T: File + ?Sized,
+{
+    fn metadata(&self) -> std::io::Result<Metadata> {
+        (**self).metadata()
+    }
+
+    fn set_len(&self, new_size: u64) -> std::io::Result<()> {
+        (**self).set_len(new_size)
+    }
+}
+
+pub trait FileSystem: Send + Sync {
     type File: File;
 
     fn open_file(&self, path: impl AsRef<camino::Utf8Path>, flags: OpenFlags)

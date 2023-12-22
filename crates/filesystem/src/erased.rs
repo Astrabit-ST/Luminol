@@ -46,6 +46,7 @@ pub trait ErasedFilesystem: Send + Sync {
 impl<T> ErasedFilesystem for T
 where
     T: crate::FileSystem,
+    T::File: 'static,
 {
     fn open_file(&self, path: &camino::Utf8Path, flags: OpenFlags) -> Result<Box<dyn File>> {
         let file = self.open_file(path, flags)?;
