@@ -135,7 +135,7 @@ impl<T> FileSystemTrie<T> {
                 } else {
                     &prefix_with_trailing_slash
                 })
-                .nth(1)
+                .next()
             {
                 // If there is a different path in the trie that has this as a prefix (there can be
                 // at most one), add it to this directory entry
@@ -145,7 +145,7 @@ impl<T> FileSystemTrie<T> {
                         .unwrap()
                         .iter()
                         .next()
-                        .unwrap(),
+                        .unwrap_or_default(),
                     None,
                 );
             }
