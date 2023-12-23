@@ -143,40 +143,162 @@ where
         })
     }
 
-    /// Creates a new empty archiver filesystem from an empty file.
-    ///
-    /// The file will be truncated if it contains anything.
-    pub fn from_empty_file(mut file: T, version: u8) -> Result<Self, Error> {
-        file.set_len(0)?;
-        file.seek(SeekFrom::Start(0))?;
+    /// Creates a new archiver filesystem from the given files.
+    /// The contents of the archive itself will be stored in `buffer`.
+    pub fn from_buffer_and_files<'a, I, P, R>(
+        mut buffer: T,
+        version: u8,
+        files: I,
+    ) -> Result<Self, Error>
+    where
+        I: Iterator<Item = Result<(&'a P, u32, R), Error>>,
+        P: AsRef<camino::Utf8Path> + 'a,
+        R: Read,
+    {
+        buffer.set_len(0)?;
+        buffer.seek(SeekFrom::Start(0))?;
 
-        let mut writer = BufWriter::new(&mut file);
+        let mut writer = BufWriter::new(&mut buffer);
         writer.write_all(HEADER)?;
         writer.write_all(&[version])?;
 
+        let mut trie = Trie::new();
+
         match version {
             1 | 2 => {
+                let mut magic = MAGIC;
+                let mut header_offset = 8;
+
+                for result in files {
+                    let (path, size, file) = result?;
+                    let reader = BufReader::new(file.take(size as u64));
+                    let path = path.as_ref();
+                    let header_size = path.as_str().bytes().len() as u64 + 8;
+
+                    // Write the header
+                    writer.write_all(
+                        &(path.as_str().bytes().len() as u32 ^ advance_magic(&mut magic))
+                            .to_le_bytes(),
+                    )?;
+                    writer.write_all(
+                        &path
+                            .as_str()
+                            .bytes()
+                            .map(|b| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ advance_magic(&mut magic) as u8
+                            })
+                            .collect_vec(),
+                    )?;
+                    writer.write_all(&(size ^ advance_magic(&mut magic)).to_le_bytes())?;
+
+                    // Write the file contents
+                    std::io::copy(&mut read_file_xor(reader, magic), &mut writer)?;
+
+                    trie.create_file(
+                        path,
+                        Entry {
+                            header_offset,
+                            body_offset: header_offset + header_size,
+                            size: size as u64,
+                            start_magic: magic,
+                        },
+                    );
+
+                    header_offset += header_size + size as u64;
+                }
+
                 writer.flush()?;
                 drop(writer);
                 Ok(Self {
-                    trie: std::sync::Arc::new(parking_lot::RwLock::new(Trie::new())),
-                    archive: std::sync::Arc::new(parking_lot::Mutex::new(file)),
+                    trie: std::sync::Arc::new(parking_lot::RwLock::new(trie)),
+                    archive: std::sync::Arc::new(parking_lot::Mutex::new(buffer)),
                     version,
                     base_magic: MAGIC,
                 })
             }
 
             3 => {
+                let mut tmp = crate::host::File::new()?;
+                let mut tmp_writer = BufWriter::new(&mut tmp);
+                let mut entries = if let (_, Some(upper_bound)) = files.size_hint() {
+                    Vec::with_capacity(upper_bound)
+                } else {
+                    Vec::new()
+                };
+
                 let base_magic: u32 = rand::thread_rng().gen();
                 writer.write_all(
                     &(base_magic.wrapping_sub(3).wrapping_mul(954437177)).to_le_bytes(),
                 )?;
+                let mut header_offset = 12;
+                let mut body_offset = 0;
+
+                for result in files {
+                    let (path, size, file) = result?;
+                    let reader = BufReader::new(file.take(size as u64));
+                    let path = path.as_ref();
+                    let entry_magic: u32 = rand::thread_rng().gen();
+
+                    // Write the header to the buffer, except for the offset
+                    writer.seek(SeekFrom::Current(4))?;
+                    writer.write_all(&(size ^ base_magic).to_le_bytes())?;
+                    writer.write_all(&(entry_magic ^ base_magic).to_le_bytes())?;
+                    writer.write_all(
+                        &(path.as_str().bytes().len() as u32 ^ base_magic).to_le_bytes(),
+                    )?;
+                    writer.write_all(
+                        &path
+                            .as_str()
+                            .bytes()
+                            .enumerate()
+                            .map(|(i, b)| {
+                                let b = if b == b'/' { b'\\' } else { b };
+                                b ^ (base_magic >> (8 * (i % 4))) as u8
+                            })
+                            .collect_vec(),
+                    )?;
+
+                    // Write the actual file contents to a temporary file
+                    std::io::copy(&mut read_file_xor(reader, entry_magic), &mut tmp_writer)?;
+
+                    entries.push((
+                        path.to_owned(),
+                        Entry {
+                            header_offset,
+                            body_offset,
+                            size: size as u64,
+                            start_magic: entry_magic,
+                        },
+                    ));
+
+                    header_offset += path.as_str().bytes().len() as u64 + 16;
+                    body_offset += size as u64;
+                }
+
+                // Write the terminator at the end of the buffer
                 writer.write_all(&base_magic.to_le_bytes())?;
+
+                // Write the contents of the temporary file to the buffer after the terminator
+                tmp_writer.flush()?;
+                drop(tmp_writer);
+                tmp.seek(SeekFrom::Start(0))?;
+                std::io::copy(&mut tmp, &mut writer)?;
+
+                // Write the offsets into the header now that we know the total size of the files
+                let header_size = header_offset + 4;
+                for (path, mut entry) in entries {
+                    entry.body_offset += header_size;
+                    writer.seek(SeekFrom::Start(entry.header_offset))?;
+                    writer.write_all(&(entry.body_offset as u32 ^ base_magic).to_le_bytes())?;
+                    trie.create_file(path, entry);
+                }
+
                 writer.flush()?;
                 drop(writer);
                 Ok(Self {
-                    trie: std::sync::Arc::new(parking_lot::RwLock::new(Trie::new())),
-                    archive: std::sync::Arc::new(parking_lot::Mutex::new(file)),
+                    trie: std::sync::Arc::new(parking_lot::RwLock::new(trie)),
+                    archive: std::sync::Arc::new(parking_lot::Mutex::new(buffer)),
                     version,
                     base_magic,
                 })

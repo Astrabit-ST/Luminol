@@ -24,6 +24,8 @@
 
 use std::io::Write;
 
+use luminol_filesystem::{File, FileSystem, OpenFlags};
+
 /// The archive manager for creating and extracting RGSSAD archives.
 pub struct Window {
     mode: Mode,
@@ -354,15 +356,15 @@ impl Window {
         version: u8,
     ) -> luminol_filesystem::Result<luminol_filesystem::host::File> {
         let mut file = luminol_filesystem::host::File::new()?;
-        let archive =
-            luminol_filesystem::archiver::FileSystem::from_empty_file(&mut file, version)?;
-
-        if version == 3 {
-            // It's more efficient for RGSS3A archives to create all the files as empty files and
-            // then write to them after they're all created
-            Self::copy_files(view, &archive, true)?;
-        }
-        Self::copy_files(view, &archive, false)?;
+        let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
+            &mut file,
+            version,
+            Self::find_files(view)?.iter().map(|path| {
+                let file = view.filesystem().open_file(path, OpenFlags::Read)?;
+                let size = file.metadata()?.size as u32;
+                Ok((path, size, file))
+            }),
+        )?;
 
         Ok(file)
     }
@@ -421,6 +423,37 @@ impl Window {
                     entry.metadata.is_file,
                     create_only,
                 )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn find_files(
+        view: &luminol_components::FileSystemView<impl luminol_filesystem::FileSystem>,
+    ) -> luminol_filesystem::Result<Vec<camino::Utf8PathBuf>> {
+        let mut vec = Vec::new();
+        for metadata in view {
+            Self::find_files_recurse(
+                &mut vec,
+                view.filesystem(),
+                metadata.path.as_str().into(),
+                metadata.is_file,
+            )?;
+        }
+        Ok(vec)
+    }
+
+    fn find_files_recurse(
+        vec: &mut Vec<camino::Utf8PathBuf>,
+        src_fs: &impl luminol_filesystem::FileSystem,
+        path: &camino::Utf8Path,
+        is_file: bool,
+    ) -> luminol_filesystem::Result<()> {
+        if is_file {
+            vec.push(path.to_owned());
+        } else {
+            for entry in src_fs.read_dir(path)? {
+                Self::find_files_recurse(vec, src_fs, &entry.path, entry.metadata.is_file)?;
             }
         }
         Ok(())
