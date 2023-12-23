@@ -155,7 +155,11 @@ impl<T> FileSystemTrie<T> {
         // Add the new path to the entry at this prefix
         let prefix_trie = self.0.get_mut_str(&prefix).unwrap();
         prefix_trie.insert_str(
-            path.strip_prefix(&prefix).unwrap().iter().next().unwrap(),
+            path.strip_prefix(&prefix)
+                .unwrap()
+                .iter()
+                .next()
+                .unwrap_or_default(),
             None,
         );
 
@@ -209,9 +213,12 @@ impl<T> FileSystemTrie<T> {
             return false;
         };
         let dir = path.parent().unwrap_or(camino::Utf8Path::new(""));
-        self.0
-            .get_str(dir.as_str())
-            .map_or(false, |dir_trie| dir_trie.contains_key_str(filename))
+        self.0.get_str(dir.as_str()).map_or(false, |dir_trie| {
+            dir_trie
+                .get_str(filename)
+                .and_then(|o| o.as_ref())
+                .is_some()
+        })
     }
 
     /// Returns whether or not a file or directory exists at the given path.
