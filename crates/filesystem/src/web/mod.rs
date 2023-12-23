@@ -65,6 +65,27 @@ pub struct File {
 }
 
 #[derive(Debug)]
+pub struct FileSaver {
+    file: File,
+    filename: String,
+}
+
+impl FileSaver {
+    /// Returns a mutable reference to the inner file.
+    pub fn file(&mut self) -> &mut File {
+        &mut self.file
+    }
+
+    /// Saves the file.
+    #[must_use]
+    pub async fn save(self) -> Result<()> {
+        send_and_await(|tx| FileSystemCommand::FileSave(self.file.key, self.filename, tx))
+            .await
+            .ok_or(Error::IoError(PermissionDenied.into()))
+    }
+}
+
+#[derive(Debug)]
 enum FileSystemCommand {
     Supported(oneshot::Sender<bool>),
     DirEntryMetadata(
@@ -323,30 +344,22 @@ impl File {
         .ok_or(Error::CancelledLoading)
     }
 
-    /// Creates a file, calls a closure to modify the file, and then saves the file to a location
-    /// of the user's choice.
+    /// Creates a file that will be saved to a location of the user's choice after it is dropped.
     ///
     /// In native, this will open a file picker dialog, wait for the user to choose a location to
-    /// save a file, and then call the closure. If the user chooses to overwrite an existing file,
+    /// save a file, and then return the file. If the user chooses to overwrite an existing file,
     /// it will be cleared before the closure is called.
     ///
-    /// In web, this will call the closure and then use the browser's native file downloading
-    /// method to save the file, which may or may not open a file picker. The function returns
-    /// immediately after calling the closure without waiting for the download method or its file
-    /// picker to finish.
+    /// In web, this will return a file immediately. When the file is saved, it will use the
+    /// browser's native file downloading method to save the file, which may or may not open a
+    /// file picker.
     ///
-    /// You must flush the file yourself inside of the closure. It will not be flushed for you
-    /// after the closure is called.
-    pub async fn save_to_disk(
-        filename: &str,
-        _filter_name: &str,
-        f: impl FnOnce(&mut Self) -> Result<()>,
-    ) -> Result<()> {
-        let mut file = Self::new()?;
-        f(&mut file)?;
-        send_and_await(|tx| FileSystemCommand::FileSave(file.key, filename.to_owned(), tx))
-            .await
-            .ok_or(Error::IoError(PermissionDenied.into()))
+    /// You must flush the file yourself before saving. It will not be flushed for you.
+    pub async fn save_to_disk(filename: &str, _filter_name: &str) -> Result<FileSaver> {
+        Ok(FileSaver {
+            file: Self::new()?,
+            filename: filename.to_string(),
+        })
     }
 }
 

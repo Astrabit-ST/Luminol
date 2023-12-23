@@ -26,6 +26,22 @@ pub struct FileSystem {
 #[derive(Debug)]
 pub struct File(std::fs::File);
 
+#[derive(Debug)]
+pub struct FileSaver(File);
+
+impl FileSaver {
+    /// Returns a mutable reference to the inner file.
+    pub fn file(&mut self) -> &mut File {
+        &mut self.0
+    }
+
+    /// Saves the file.
+    #[must_use]
+    pub async fn save(self) -> Result<()> {
+        Ok(())
+    }
+}
+
 impl FileSystem {
     pub fn new(root_path: impl AsRef<camino::Utf8Path>) -> Self {
         Self {
@@ -184,25 +200,18 @@ impl File {
         }
     }
 
-    /// Creates a file, calls a closure to modify the file, and then saves the file to a location
-    /// of the user's choice.
+    /// Creates a file that will be saved to a location of the user's choice after it is dropped.
     ///
     /// In native, this will open a file picker dialog, wait for the user to choose a location to
-    /// save a file, and then call the closure. If the user chooses to overwrite an existing file,
+    /// save a file, and then return the file. If the user chooses to overwrite an existing file,
     /// it will be cleared before the closure is called.
     ///
-    /// In web, this will call the closure and then use the browser's native file downloading
-    /// method to save the file, which may or may not open a file picker. The function returns
-    /// immediately after calling the closure without waiting for the download method or its file
-    /// picker to finish.
+    /// In web, this will return a file immediately. When the file is saved, it will use the
+    /// browser's native file downloading method to save the file, which may or may not open a
+    /// file picker.
     ///
-    /// You must flush the file yourself inside of the closure. It will not be flushed for you
-    /// after the closure is called.
-    pub async fn save_to_disk(
-        filename: &str,
-        filter_name: &str,
-        f: impl FnOnce(&mut Self) -> Result<()>,
-    ) -> Result<()> {
+    /// You must flush the file yourself before saving. It will not be flushed for you.
+    pub async fn save_to_disk(filename: &str, filter_name: &str) -> Result<FileSaver> {
         let mut dialog = rfd::AsyncFileDialog::default().set_file_name(filename);
         if let Some((_, extension)) = filename.rsplit_once(".") {
             dialog = dialog.add_filter(filter_name, &[extension]);
@@ -218,7 +227,7 @@ impl File {
             .truncate(true)
             .open(path.path())
             .map_err(crate::Error::IoError)?;
-        f(&mut File(file))
+        Ok(FileSaver(File(file)))
     }
 }
 
