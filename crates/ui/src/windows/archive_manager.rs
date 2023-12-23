@@ -352,12 +352,21 @@ impl Window {
                                     .clicked()
                             {
                                 if let Some(view) = view {
-                                    match Self::create_archive(view, *version) {
+                                    let version = *version;
+                                    match Self::create_archive(view, version) {
                                         Ok(file) => {
                                             *save_promise =
                                                 Some(luminol_core::spawn_future(async move {
-                                                    file.save("Game.rgssad", "RGSSAD archives")
-                                                        .await
+                                                    file.save(
+                                                        match version {
+                                                            1 => "Game.rgssad",
+                                                            2 => "Game.rgss2a",
+                                                            3 => "Game.rgss3a",
+                                                            _ => unreachable!(),
+                                                        },
+                                                        "RGSSAD archives",
+                                                    )
+                                                    .await
                                                 }))
                                         }
                                         Err(e) => update_state.toasts.error(e.to_string()),
