@@ -273,11 +273,11 @@ impl<T> FileSystemTrie<T> {
 
     /// Gets the longest prefix of the given path that is the path of a directory in the trie.
     pub fn get_dir_prefix(&self, path: impl AsRef<camino::Utf8Path>) -> &camino::Utf8Path {
-        let path = path.as_ref().as_str();
-        if self.0.contains_key_str(path) {
+        let path = path.as_ref();
+        if self.0.contains_key_str(path.as_str()) {
             return self
                 .0
-                .longest_common_prefix::<BStr>(path.into())
+                .longest_common_prefix::<BStr>(path.as_str().into())
                 .as_str()
                 .into();
         }
@@ -285,8 +285,8 @@ impl<T> FileSystemTrie<T> {
             .0
             .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
             .as_str();
-        let prefix = if !self.0.contains_key_str(prefix) {
-            prefix.rsplit_once('/').map(|(s, _)| s).unwrap_or(prefix)
+        let prefix = if !self.0.contains_key_str(prefix) || !path.starts_with(prefix) {
+            prefix.rsplit_once('/').map(|(s, _)| s).unwrap_or_default()
         } else {
             prefix
         };
