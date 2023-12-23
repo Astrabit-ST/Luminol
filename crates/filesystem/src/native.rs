@@ -17,6 +17,7 @@
 use itertools::Itertools;
 
 use crate::{DirEntry, Metadata, OpenFlags, Result};
+use std::io::ErrorKind::InvalidInput;
 
 #[derive(Debug, Clone)]
 pub struct FileSystem {
@@ -24,22 +25,15 @@ pub struct FileSystem {
 }
 
 #[derive(Debug)]
-pub struct File(std::fs::File);
+pub struct File {
+    file: Inner,
+    path: camino::Utf8PathBuf,
+}
 
 #[derive(Debug)]
-pub struct FileSaver(File);
-
-impl FileSaver {
-    /// Returns a mutable reference to the inner file.
-    pub fn file(&mut self) -> &mut File {
-        &mut self.0
-    }
-
-    /// Saves the file.
-    #[must_use]
-    pub async fn save(self) -> Result<()> {
-        Ok(())
-    }
+enum Inner {
+    StdFsFile(std::fs::File),
+    NamedTempFile(tempfile::NamedTempFile),
 }
 
 impl FileSystem {
@@ -94,9 +88,12 @@ impl crate::FileSystem for FileSystem {
             .write(flags.contains(OpenFlags::Write))
             .read(flags.contains(OpenFlags::Read))
             .truncate(flags.contains(OpenFlags::Truncate))
-            .open(path)
+            .open(&path)
             .map_err(Into::into)
-            .map(File)
+            .map(|file| File {
+                file: Inner::StdFsFile(file),
+                path,
+            })
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
@@ -163,7 +160,12 @@ impl crate::FileSystem for FileSystem {
 impl File {
     /// Creates a new empty temporary file with read-write permissions.
     pub fn new() -> std::io::Result<Self> {
-        tempfile::tempfile().map(File)
+        let file = tempfile::NamedTempFile::new()?;
+        let path = file.path().to_str().ok_or(InvalidInput)?.into();
+        Ok(Self {
+            file: Inner::NamedTempFile(file),
+            path,
+        })
     }
 
     /// Attempts to prompt the user to choose a file from their local machine.
@@ -181,37 +183,48 @@ impl File {
             .pick_file()
             .await
         {
-            let f = std::fs::OpenOptions::new()
+            let file = std::fs::OpenOptions::new()
                 .read(true)
                 .open(path.path())
                 .map_err(crate::Error::IoError)?;
+            let path = path
+                .path()
+                .iter()
+                .last()
+                .unwrap()
+                .to_os_string()
+                .into_string()
+                .map_err(|_| crate::Error::PathUtf8Error)?;
             Ok((
-                File(f),
-                path.path()
-                    .iter()
-                    .last()
-                    .unwrap()
-                    .to_os_string()
-                    .into_string()
-                    .map_err(|_| crate::Error::PathUtf8Error)?,
+                File {
+                    file: Inner::StdFsFile(file),
+                    path: path.clone().into(),
+                },
+                path,
             ))
         } else {
             Err(crate::Error::CancelledLoading)
         }
     }
 
-    /// Creates a file that will be saved to a location of the user's choice after it is dropped.
+    /// Saves this file to a location of the user's choice.
     ///
     /// In native, this will open a file picker dialog, wait for the user to choose a location to
-    /// save a file, and then return the file. If the user chooses to overwrite an existing file,
-    /// it will be cleared before the closure is called.
+    /// save a file, and then copy this file to the new location. This function will wait for the
+    /// user to finish picking a file location before returning.
     ///
-    /// In web, this will return a file immediately. When the file is saved, it will use the
-    /// browser's native file downloading method to save the file, which may or may not open a
-    /// file picker.
+    /// In web, this will use the browser's native file downloading method to save the file, which
+    /// may or may not open a file picker. Due to platform limitations, this function will return
+    /// immediately after making a download request and will not wait for the user to pick a file
+    /// location if a file picker is shown.
     ///
     /// You must flush the file yourself before saving. It will not be flushed for you.
-    pub async fn save_to_disk(filename: &str, filter_name: &str) -> Result<FileSaver> {
+    ///
+    /// `filename` should be the default filename, with extension, to show in the file picker if
+    /// one is shown. `filter_name` should be the name of the file type shown in the part of the
+    /// file picker where the user selects a file extension. `filter_name` works only in native
+    /// builds; it is ignored in web builds.
+    pub async fn save(&self, filename: &str, filter_name: &str) -> Result<()> {
         let mut dialog = rfd::AsyncFileDialog::default().set_file_name(filename);
         if let Some((_, extension)) = filename.rsplit_once(".") {
             dialog = dialog.add_filter(filter_name, &[extension]);
@@ -220,20 +233,14 @@ impl File {
             .save_file()
             .await
             .ok_or(crate::Error::CancelledLoading)?;
-        let file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.path())
-            .map_err(crate::Error::IoError)?;
-        Ok(FileSaver(File(file)))
+        std::fs::copy(&self.path, path.path())?;
+        Ok(())
     }
 }
 
 impl crate::File for File {
     fn metadata(&self) -> std::io::Result<Metadata> {
-        let metdata = self.0.metadata()?;
+        let metdata = self.file.as_file().metadata()?;
         Ok(Metadata {
             is_file: metdata.is_file(),
             size: metdata.len(),
@@ -241,36 +248,45 @@ impl crate::File for File {
     }
 
     fn set_len(&self, new_size: u64) -> std::io::Result<()> {
-        self.0.set_len(new_size)
+        self.file.as_file().set_len(new_size)
     }
 }
 
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.0.read(buf)
+        self.file.as_file().read(buf)
     }
 
     fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
-        self.0.read_vectored(bufs)
+        self.file.as_file().read_vectored(bufs)
     }
 }
 
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.write(buf)
+        self.file.as_file().write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.0.flush()
+        self.file.as_file().flush()
     }
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
-        self.0.write_vectored(bufs)
+        self.file.as_file().write_vectored(bufs)
     }
 }
 
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.0.seek(pos)
+        self.file.as_file().seek(pos)
+    }
+}
+
+impl Inner {
+    fn as_file(&self) -> &std::fs::File {
+        match self {
+            Inner::StdFsFile(file) => file,
+            Inner::NamedTempFile(file) => file.as_file(),
+        }
     }
 }

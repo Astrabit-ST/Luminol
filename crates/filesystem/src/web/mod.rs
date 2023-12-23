@@ -65,27 +65,6 @@ pub struct File {
 }
 
 #[derive(Debug)]
-pub struct FileSaver {
-    file: File,
-    filename: String,
-}
-
-impl FileSaver {
-    /// Returns a mutable reference to the inner file.
-    pub fn file(&mut self) -> &mut File {
-        &mut self.file
-    }
-
-    /// Saves the file.
-    #[must_use]
-    pub async fn save(self) -> Result<()> {
-        send_and_await(|tx| FileSystemCommand::FileSave(self.file.key, self.filename, tx))
-            .await
-            .ok_or(Error::IoError(PermissionDenied.into()))
-    }
-}
-
-#[derive(Debug)]
 enum FileSystemCommand {
     Supported(oneshot::Sender<bool>),
     DirEntryMetadata(
@@ -344,22 +323,27 @@ impl File {
         .ok_or(Error::CancelledLoading)
     }
 
-    /// Creates a file that will be saved to a location of the user's choice after it is dropped.
+    /// Saves this file to a location of the user's choice.
     ///
     /// In native, this will open a file picker dialog, wait for the user to choose a location to
-    /// save a file, and then return the file. If the user chooses to overwrite an existing file,
-    /// it will be cleared before the closure is called.
+    /// save a file, and then copy this file to the new location. This function will wait for the
+    /// user to finish picking a file location before returning.
     ///
-    /// In web, this will return a file immediately. When the file is saved, it will use the
-    /// browser's native file downloading method to save the file, which may or may not open a
-    /// file picker.
+    /// In web, this will use the browser's native file downloading method to save the file, which
+    /// may or may not open a file picker. Due to platform limitations, this function will return
+    /// immediately after making a download request and will not wait for the user to pick a file
+    /// location if a file picker is shown.
     ///
     /// You must flush the file yourself before saving. It will not be flushed for you.
-    pub async fn save_to_disk(filename: &str, _filter_name: &str) -> Result<FileSaver> {
-        Ok(FileSaver {
-            file: Self::new()?,
-            filename: filename.to_string(),
-        })
+    ///
+    /// `filename` should be the default filename, with extension, to show in the file picker if
+    /// one is shown. `filter_name` should be the name of the file type shown in the part of the
+    /// file picker where the user selects a file extension. `filter_name` works only in native
+    /// builds; it is ignored in web builds.
+    pub async fn save(&self, filename: &str, _filter_name: &str) -> Result<()> {
+        send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx))
+            .await
+            .ok_or(Error::IoError(PermissionDenied.into()))
     }
 }
 
