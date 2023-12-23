@@ -175,6 +175,7 @@ where
                             reader.seek(SeekFrom::Current(entry_len as i64))?;
                         }
                         drop(reader);
+                        regress_magic(&mut magic);
 
                         let archive_len = archive.seek(SeekFrom::End(0))?;
                         let mut writer = BufWriter::new(archive.as_file());
