@@ -96,7 +96,7 @@ where
                 reader.read_exact(&mut u32_buf)?;
 
                 base_magic = u32::from_le_bytes(u32_buf);
-                base_magic = (base_magic * 9) + 3;
+                base_magic = base_magic.wrapping_mul(9).wrapping_add(3);
 
                 while let Ok(body_offset) = read_u32_xor(&mut reader, base_magic) {
                     if body_offset == 0 {
@@ -168,7 +168,9 @@ where
 
             3 => {
                 let base_magic: u32 = rand::thread_rng().gen();
-                writer.write_all(&base_magic.to_le_bytes())?;
+                writer.write_all(
+                    &(base_magic.wrapping_sub(3).wrapping_mul(954437177)).to_le_bytes(),
+                )?;
                 writer.write_all(&base_magic.to_le_bytes())?;
                 writer.flush()?;
                 drop(writer);
