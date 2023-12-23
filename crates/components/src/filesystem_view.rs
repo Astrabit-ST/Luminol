@@ -157,9 +157,15 @@ where
 
             let mut subentries = self.filesystem.read_dir(path)?;
             subentries.sort_unstable_by(|a, b| {
-                let path_a = a.path.iter().next_back().unwrap();
-                let path_b = b.path.iter().next_back().unwrap();
-                path_a.partial_cmp(path_b).unwrap()
+                if a.metadata.is_file && !b.metadata.is_file {
+                    std::cmp::Ordering::Greater
+                } else if b.metadata.is_file && !a.metadata.is_file {
+                    std::cmp::Ordering::Less
+                } else {
+                    let path_a = a.path.iter().next_back().unwrap();
+                    let path_b = b.path.iter().next_back().unwrap();
+                    lexical_sort::natural_lexical_cmp(path_a, path_b)
+                }
             });
             length = Some(subentries.len());
 
