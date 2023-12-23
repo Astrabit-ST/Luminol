@@ -24,8 +24,12 @@ use std::io::{
     SeekFrom,
 };
 
-use super::util::{
-    advance_magic, move_file_and_truncate, read_file_xor, read_header, read_u32_xor, regress_magic,
+use super::{
+    util::{
+        advance_magic, move_file_and_truncate, read_file_xor, read_header, read_u32_xor,
+        regress_magic,
+    },
+    HEADER,
 };
 use super::{Entry, File, Trie, MAGIC};
 use crate::{DirEntry, Error, Metadata, OpenFlags};
@@ -42,7 +46,9 @@ impl<T> FileSystem<T>
 where
     T: crate::File,
 {
+    /// Creates a new archiver filesystem from a file containing an existing archive.
     pub fn new(mut file: T) -> Result<Self, Error> {
+        file.seek(SeekFrom::Start(0))?;
         let mut reader = BufReader::new(&mut file);
 
         let version = read_header(&mut reader)?;
@@ -129,12 +135,53 @@ where
             _ => return Err(Error::InvalidHeader),
         }
 
-        Ok(FileSystem {
+        Ok(Self {
             trie: std::sync::Arc::new(parking_lot::RwLock::new(trie)),
             archive: std::sync::Arc::new(parking_lot::Mutex::new(file)),
             version,
             base_magic,
         })
+    }
+
+    /// Creates a new empty archiver filesystem from an empty file.
+    ///
+    /// The file will be truncated if it contains anything.
+    pub fn from_empty_file(mut file: T, version: u8) -> Result<Self, Error> {
+        file.set_len(0)?;
+        file.seek(SeekFrom::Start(0))?;
+
+        let mut writer = BufWriter::new(&mut file);
+        writer.write_all(HEADER)?;
+        writer.write_all(&[version])?;
+
+        match version {
+            1 | 2 => {
+                writer.flush()?;
+                drop(writer);
+                Ok(Self {
+                    trie: std::sync::Arc::new(parking_lot::RwLock::new(Trie::new())),
+                    archive: std::sync::Arc::new(parking_lot::Mutex::new(file)),
+                    version,
+                    base_magic: MAGIC,
+                })
+            }
+
+            3 => {
+                let base_magic: u32 = rand::thread_rng().gen();
+                writer.write_all(&base_magic.to_le_bytes())?;
+                writer.write_all(&base_magic.to_le_bytes())?;
+                writer.flush()?;
+                drop(writer);
+                Ok(Self {
+                    trie: std::sync::Arc::new(parking_lot::RwLock::new(Trie::new())),
+                    archive: std::sync::Arc::new(parking_lot::Mutex::new(file)),
+                    version,
+                    base_magic,
+                })
+            }
+
+            _ => Err(Error::NotSupported),
+        }
     }
 }
 

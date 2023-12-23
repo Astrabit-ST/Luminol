@@ -22,12 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use std::io::Write;
+
 /// The archive manager for creating and extracting RGSSAD archives.
 pub struct Window {
     mode: Mode,
-    save_promise: Option<
-        poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
-    >,
 }
 
 enum Mode {
@@ -42,12 +41,17 @@ enum Mode {
                 luminol_filesystem::Result<(luminol_filesystem::host::File, String)>,
             >,
         >,
+        save_promise: Option<
+            poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
+        >,
     },
     Create {
         view: Option<luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>>,
         load_promise: Option<
             poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
         >,
+        save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
+        version: u8,
     },
 }
 
@@ -57,8 +61,8 @@ impl Default for Window {
             mode: Mode::Extract {
                 view: None,
                 load_promise: None,
+                save_promise: None,
             },
-            save_promise: None,
         }
     }
 }
@@ -89,6 +93,7 @@ impl luminol_core::Window for Window {
                         self.mode = Mode::Extract {
                             view: None,
                             load_promise: None,
+                            save_promise: None,
                         };
                     }
                     if columns[1]
@@ -101,6 +106,8 @@ impl luminol_core::Window for Window {
                         self.mode = Mode::Create {
                             view: None,
                             load_promise: None,
+                            save_promise: None,
+                            version: 1,
                         };
                     }
                 });
@@ -108,7 +115,7 @@ impl luminol_core::Window for Window {
                 ui.separator();
 
                 match &mut self.mode {
-                    Mode::Extract { view, load_promise } => {
+                    Mode::Extract { view, load_promise, save_promise } => {
                         if let Some(p) = load_promise.take() {
                             match p.try_take() {
                                 Ok(Ok((handle, name))) => {
@@ -140,7 +147,7 @@ impl luminol_core::Window for Window {
                                     ..Default::default()
                                 },
                                 |ui| {
-                                    if load_promise.is_none() && ui.button("Select archive").clicked() {
+                                    if load_promise.is_none() && ui.button("Choose archive").clicked() {
                                         *load_promise = Some(luminol_core::spawn_future(
                                             luminol_filesystem::host::File::from_file_picker(
                                                 "RGSSAD archives",
@@ -160,26 +167,141 @@ impl luminol_core::Window for Window {
                                     ..Default::default()
                                 },
                                 |ui| {
-                                    if self.save_promise.is_none()
+                                    if save_promise.is_none()
                                         && ui
                                             .add_enabled(
                                                 view.is_some() && load_promise.is_none(),
-                                                egui::Button::new("Extract"),
+                                                egui::Button::new("Extract selected files"),
                                             )
                                             .clicked()
                                     {
-                                        self.save_promise = Some(luminol_core::spawn_future(
+                                        *save_promise = Some(luminol_core::spawn_future(
                                             luminol_filesystem::host::FileSystem::from_folder_picker(),
                                         ));
-                                    } else if self.save_promise.is_some() {
+                                    } else if save_promise.is_some() {
                                         ui.spinner();
                                     }
                                 },
                             );
                         });
+
+                        if let Some(p) = save_promise.take() {
+                            match p.try_take() {
+                                Ok(Ok(filesystem)) => {
+                                    if let Err(e) = Self::copy_files(view.as_ref().unwrap(), &filesystem, false) {
+                                        update_state.toasts.error(e.to_string());
+                                    } else {
+                                        update_state.toasts.info("Extracted successfully!");
+                                    }
+                                }
+                                Ok(Err(e)) => {
+                                    if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                                        update_state.toasts.error(e.to_string())
+                                    }
+                                }
+                                Err(p) => *save_promise = Some(p),
+                            }
+                        }
                     }
 
-                    _ => todo!("archive creation"),
+                    Mode::Create { view, load_promise, save_promise, version } => {
+                        if let Some(p) = load_promise.take() {
+                            match p.try_take() {
+                                Ok(Ok(handle)) => {
+                                    let name = handle.root_path().to_string();
+                                    *view = Some(luminol_components::FileSystemView::new(
+                                        "luminol_archive_manager_create_view".into(),
+                                        handle,
+                                        name,
+                                    ));
+                                }
+                                Ok(Err(e)) => {
+                                    if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                                        update_state.toasts.error(e.to_string())
+                                    }
+                                }
+                                Err(p) => *load_promise = Some(p),
+                            }
+                        }
+
+                        ui.horizontal(|ui| {
+                            ui.label("Version:");
+                            ui.columns(4, |columns| {
+                                columns[1].radio_value(version, 1, "XP");
+                                columns[2].radio_value(version, 2, "VX");
+                                columns[3].radio_value(version, 3, "VX Ace");
+                            });
+                        });
+
+                        ui.separator();
+
+                        ui.columns(2, |columns| {
+                            columns[0].with_layout(
+                                egui::Layout {
+                                    cross_align: egui::Align::Center,
+                                    cross_justify: true,
+                                    ..Default::default()
+                                },
+                                |ui| {
+                                    if load_promise.is_none() && ui.button("Choose source folder").clicked() {
+                                        *load_promise = Some(
+                                            luminol_core::spawn_future(
+                                                luminol_filesystem::host::FileSystem::from_folder_picker(),
+                                            )
+                                        );
+                                    } else if load_promise.is_some() {
+                                        ui.spinner();
+                                    }
+                                },
+                            );
+
+                            columns[1].with_layout(
+                                egui::Layout {
+                                    cross_align: egui::Align::Center,
+                                    cross_justify: true,
+                                    ..Default::default()
+                                },
+                                |ui| {
+                                    if save_promise.is_none()
+                                        && ui
+                                            .add_enabled(
+                                                view.is_some() && load_promise.is_none(),
+                                                egui::Button::new("Create from selected files"),
+                                            )
+                                            .clicked()
+                                    {
+                                        if let Some(view) = view {
+                                            match Self::create_archive(view, *version) {
+                                                Ok(file) => *save_promise = Some(
+                                                        luminol_core::spawn_future(async move {
+                                                            file.save(
+                                                                "Game.rgssad",
+                                                                "RGSSAD archives",
+                                                            ).await
+                                                        }),
+                                                    ),
+                                                Err(e) => update_state.toasts.error(e.to_string()),
+                                            }
+                                        }
+                                    } else if save_promise.is_some() {
+                                        ui.spinner();
+                                    }
+                                },
+                            );
+                        });
+
+                        if let Some(p) = save_promise.take() {
+                            match p.try_take() {
+                                Ok(Ok(())) => {
+                                    update_state.toasts.info("Created archive successfully!");
+                                }
+                                Ok(Err(e)) => {
+                                    update_state.toasts.error(e.to_string())
+                                }
+                                Err(p) => *save_promise = Some(p),
+                            }
+                        }
+                    }
                 }
 
                 ui.with_layout(
@@ -199,36 +321,24 @@ impl luminol_core::Window for Window {
                                             *view = None
                                         }
                                     } else {
-                                        ui.add(egui::Label::new("No archive selected").wrap(false));
+                                        ui.add(egui::Label::new("No archive chosen").wrap(false));
                                     }
                                 }
-                                Mode::Create { .. } => todo!("archive creation"),
+                                Mode::Create { view, .. } => {
+                                    if let Some(v) = view {
+                                        if let Err(e) = v.ui(ui) {
+                                            update_state.toasts.error(e.to_string());
+                                            *view = None
+                                        }
+                                    } else {
+                                        ui.add(egui::Label::new("No source folder chosen").wrap(false));
+                                    }
+                                }
                             });
                         });
                     },
                 );
             });
-
-        if let Some(p) = self.save_promise.take() {
-            match p.try_take() {
-                Ok(Ok(filesystem)) => {
-                    if let Err(e) = self.copy_files(&filesystem) {
-                        update_state.toasts.error(e.to_string());
-                    } else {
-                        update_state.toasts.info(match &self.mode {
-                            Mode::Extract { .. } => "Extracted successfully!",
-                            Mode::Create { .. } => "Created archive successfully!",
-                        });
-                    }
-                }
-                Ok(Err(e)) => {
-                    if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
-                        update_state.toasts.error(e.to_string())
-                    }
-                }
-                Err(p) => self.save_promise = Some(p),
-            }
-        }
 
         *open = window_open;
     }
@@ -239,33 +349,45 @@ impl luminol_core::Window for Window {
 }
 
 impl Window {
-    fn copy_files(
-        &self,
-        dest_fs: &impl luminol_filesystem::FileSystem,
-    ) -> luminol_filesystem::Result<()> {
-        match &self.mode {
-            Mode::Extract {
-                view: Some(view), ..
-            } => {
-                for metadata in view {
-                    let path: &camino::Utf8Path = metadata.path.as_str().into();
-                    if metadata.is_file {
-                        if let Some(parent) = path.parent() {
-                            let _ = dest_fs.create_dir(parent);
-                        }
-                    }
-                    Self::copy_files_recurse(
-                        view.filesystem(),
-                        dest_fs,
-                        metadata.path.as_str().into(),
-                        metadata.is_file,
-                    )?;
-                }
-                Ok(())
-            }
+    fn create_archive(
+        view: &mut luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>,
+        version: u8,
+    ) -> luminol_filesystem::Result<luminol_filesystem::host::File> {
+        let mut file = luminol_filesystem::host::File::new()?;
+        let archive =
+            luminol_filesystem::archiver::FileSystem::from_empty_file(&mut file, version)?;
 
-            _ => todo!("archive creation"),
+        if version == 3 {
+            // It's more efficient for RGSS3A archives to create all the files as empty files and
+            // then write to them after they're all created
+            Self::copy_files(view, &archive, true)?;
         }
+        Self::copy_files(view, &archive, false)?;
+
+        Ok(file)
+    }
+
+    fn copy_files(
+        view: &luminol_components::FileSystemView<impl luminol_filesystem::FileSystem>,
+        dest_fs: &impl luminol_filesystem::FileSystem,
+        create_only: bool,
+    ) -> luminol_filesystem::Result<()> {
+        for metadata in view {
+            let path: &camino::Utf8Path = metadata.path.as_str().into();
+            if metadata.is_file {
+                if let Some(parent) = path.parent() {
+                    let _ = dest_fs.create_dir(parent);
+                }
+            }
+            Self::copy_files_recurse(
+                view.filesystem(),
+                dest_fs,
+                metadata.path.as_str().into(),
+                metadata.is_file,
+                create_only,
+            )?;
+        }
+        Ok(())
     }
 
     fn copy_files_recurse(
@@ -273,6 +395,7 @@ impl Window {
         dest_fs: &impl luminol_filesystem::FileSystem,
         path: &camino::Utf8Path,
         is_file: bool,
+        create_only: bool,
     ) -> luminol_filesystem::Result<()> {
         if is_file {
             let mut src_file = src_fs.open_file(path, luminol_filesystem::OpenFlags::Read)?;
@@ -283,12 +406,21 @@ impl Window {
                     | luminol_filesystem::OpenFlags::Create
                     | luminol_filesystem::OpenFlags::Truncate,
             )?;
-            std::io::copy(&mut src_file, &mut dest_file)
-                .map_err(|e| luminol_filesystem::Error::IoError(e))?;
+            if !create_only {
+                std::io::copy(&mut src_file, &mut dest_file)
+                    .map_err(|e| luminol_filesystem::Error::IoError(e))?;
+                dest_file.flush()?;
+            }
         } else {
             dest_fs.create_dir(path)?;
             for entry in src_fs.read_dir(path)? {
-                Self::copy_files_recurse(src_fs, dest_fs, &entry.path, entry.metadata.is_file)?;
+                Self::copy_files_recurse(
+                    src_fs,
+                    dest_fs,
+                    &entry.path,
+                    entry.metadata.is_file,
+                    create_only,
+                )?;
             }
         }
         Ok(())
