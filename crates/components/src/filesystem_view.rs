@@ -122,17 +122,23 @@ where
         self.into_iter()
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> luminol_filesystem::Result<()> {
+    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         self.row_index = 0;
-        self.render_subtree(ui, self.root_node_id, &self.root_name.to_string())
+        self.render_subtree(
+            ui,
+            update_state,
+            self.root_node_id,
+            &self.root_name.to_string(),
+        );
     }
 
     fn render_subtree(
         &mut self,
         ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_>,
         node_id: indextree::NodeId,
         name: &str,
-    ) -> luminol_filesystem::Result<()> {
+    ) {
         let mut length = None;
 
         if let Entry::Dir {
@@ -155,7 +161,10 @@ where
             ancestors.reverse();
             let path = ancestors.join("/");
 
-            let mut subentries = self.filesystem.read_dir(path)?;
+            let mut subentries = self.filesystem.read_dir(path).unwrap_or_else(|e| {
+                update_state.toasts.error(e.to_string());
+                Vec::new()
+            });
             subentries.sort_unstable_by(|a, b| {
                 if a.metadata.is_file && !b.metadata.is_file {
                     std::cmp::Ordering::Greater
@@ -259,7 +268,7 @@ where
                 *expanded = header.openness(ui.ctx()) >= 0.2;
 
                 let layout = *ui.layout();
-                let (_response, _header_response, body_response) = header
+                header
                     .show_header(ui, |ui| {
                         ui.with_layout(layout, |ui| {
                             frame.show(ui, |ui| {
@@ -287,28 +296,22 @@ where
                             });
                         });
                     })
-                    .body::<luminol_filesystem::Result<()>>(|ui| {
+                    .body(|ui| {
                         for node_id in node_id.children(&self.arena).collect_vec() {
                             self.render_subtree(
                                 ui,
+                                update_state,
                                 node_id,
                                 &self.arena[node_id].get().name().to_string(),
-                            )?;
+                            );
                         }
-                        Ok(())
                     });
-
-                if let Some(body_response) = body_response {
-                    body_response.inner?;
-                }
             }
         }
 
         if should_toggle {
             self.toggle(node_id);
         }
-
-        Ok(())
     }
 
     fn toggle(&mut self, node_id: indextree::NodeId) {

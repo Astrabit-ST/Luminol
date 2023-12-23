@@ -143,10 +143,7 @@ impl luminol_core::Window for Window {
                                 egui::ScrollArea::both().show(ui, |ui| match &mut self.mode {
                                     Mode::Extract { view, .. } => {
                                         if let Some(v) = view {
-                                            if let Err(e) = v.ui(ui) {
-                                                update_state.toasts.error(e.to_string());
-                                                *view = None
-                                            }
+                                            v.ui(ui, update_state);
                                         } else {
                                             ui.add(
                                                 egui::Label::new("No archive chosen").wrap(false),
@@ -155,10 +152,7 @@ impl luminol_core::Window for Window {
                                     }
                                     Mode::Create { view, .. } => {
                                         if let Some(v) = view {
-                                            if let Err(e) = v.ui(ui) {
-                                                update_state.toasts.error(e.to_string());
-                                                *view = None
-                                            }
+                                            v.ui(ui, update_state);
                                         } else {
                                             ui.add(
                                                 egui::Label::new("No source folder chosen")
