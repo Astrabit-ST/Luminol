@@ -551,13 +551,8 @@ where
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
         let path = path.as_ref();
         let mut trie = self.trie.write();
-        if trie.contains(path) {
+        if trie.contains_file(path) {
             return Err(Error::IoError(AlreadyExists.into()));
-        }
-        if let Some(parent) = path.parent() {
-            if !trie.contains_dir(parent) {
-                return Err(Error::NotExist);
-            }
         }
         trie.create_dir(path);
         Ok(())
