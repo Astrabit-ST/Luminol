@@ -156,8 +156,6 @@ where
         {
             let mut archive = self.archive.lock();
             let mut trie = self.trie.write();
-            let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
-            archive.seek(SeekFrom::Start(entry.body_offset))?;
 
             if flags.contains(OpenFlags::Create) && !trie.contains_file(path) {
                 created = true;
@@ -279,12 +277,17 @@ where
                     _ => return Err(Error::NotSupported),
                 }
             } else if !flags.contains(OpenFlags::Truncate) {
+                let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
+                archive.seek(SeekFrom::Start(entry.body_offset))?;
+
                 let mut adapter = BufReader::new(archive.as_file().take(entry.size));
                 std::io::copy(
                     &mut read_file_xor(&mut adapter, entry.start_magic),
                     &mut tmp,
                 )?;
                 tmp.flush()?;
+            } else if !trie.contains_file(path) {
+                return Err(Error::NotExist);
             }
         }
 
