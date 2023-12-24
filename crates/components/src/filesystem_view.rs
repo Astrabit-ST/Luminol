@@ -279,8 +279,9 @@ where
                 // have changed since this view was last used
                 if !*depersisted {
                     *depersisted = true;
-                    egui::collapsing_header::CollapsingState::load(ui.ctx(), id)
-                        .map(|h| h.remove(ui.ctx()));
+                    if let Some(h) = egui::collapsing_header::CollapsingState::load(ui.ctx(), id) {
+                        h.remove(ui.ctx())
+                    }
                     ui.ctx().animate_bool_with_time(id, *expanded, 0.);
                 }
 
@@ -408,7 +409,7 @@ where
                         ui,
                         update_state,
                         node_id,
-                        &self.arena[node_id].get().name().to_string(),
+                        self.arena[node_id].get().name().to_string().as_str(),
                         default_selected_dirs,
                         is_root,
                     );
@@ -694,7 +695,7 @@ where
                         node_id
                             .ancestors(&self.view.arena)
                             .nth(1)
-                            .map(|p| indextree::NodeEdge::End(p))
+                            .map(indextree::NodeEdge::End)
                     };
                 }
             }

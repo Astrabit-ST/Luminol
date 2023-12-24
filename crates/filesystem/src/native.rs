@@ -226,7 +226,7 @@ impl File {
     /// builds; it is ignored in web builds.
     pub async fn save(&self, filename: &str, filter_name: &str) -> Result<()> {
         let mut dialog = rfd::AsyncFileDialog::default().set_file_name(filename);
-        if let Some((_, extension)) = filename.rsplit_once(".") {
+        if let Some((_, extension)) = filename.rsplit_once('.') {
             dialog = dialog.add_filter(filter_name, &[extension]);
         }
         let path = dialog

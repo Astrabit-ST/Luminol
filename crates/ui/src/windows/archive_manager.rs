@@ -509,7 +509,7 @@ impl Window {
             )?;
             if !create_only {
                 std::io::copy(&mut src_file, &mut dest_file)
-                    .map_err(|e| luminol_filesystem::Error::IoError(e))?;
+                    .map_err(luminol_filesystem::Error::IoError)?;
                 dest_file.flush()?;
             }
         } else {
