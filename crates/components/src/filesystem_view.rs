@@ -308,12 +308,18 @@ where
         }
 
         if should_toggle {
+            let is_pivot_selected = !is_command_held
+                || self
+                    .pivot_id
+                    .is_some_and(|pivot_id| self.arena[pivot_id].get().selected());
+
             // Unless control is held, deselect all the nodes before doing anything
             if !is_command_held {
                 self.deselect(self.root_node_id);
             }
 
-            // Select all the nodes between this one and the pivot node if shift is held
+            // Select all the nodes between this one and the pivot node if shift is held and the
+            // pivot node is selected, or deselect them if the pivot node is deselected
             if is_shift_held && self.pivot_id.is_some() {
                 let pivot_id = *self.pivot_id.as_ref().unwrap();
                 let (starting_id, ending_id) = if self.pivot_visited {
@@ -344,7 +350,11 @@ where
                                         }
                                 )
                             {
-                                self.select(node_id);
+                                if is_pivot_selected {
+                                    self.select(node_id);
+                                } else {
+                                    self.deselect(node_id);
+                                }
                             }
                         }
 
