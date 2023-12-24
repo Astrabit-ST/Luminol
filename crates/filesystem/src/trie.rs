@@ -147,7 +147,7 @@ impl<T> FileSystemTrie<T> {
                         .unwrap()
                         .iter()
                         .next()
-                        .unwrap_or_default(),
+                        .unwrap(),
                     None,
                 );
             }
@@ -155,15 +155,10 @@ impl<T> FileSystemTrie<T> {
         }
 
         // Add the new path to the entry at this prefix
-        let prefix_trie = self.0.get_mut_str(&prefix).unwrap();
-        prefix_trie.insert_str(
-            path.strip_prefix(&prefix)
-                .unwrap()
-                .iter()
-                .next()
-                .unwrap_or_default(),
-            None,
-        );
+        if let Some(dirname) = path.strip_prefix(&prefix).unwrap().iter().next() {
+            let prefix_trie = self.0.get_mut_str(&prefix).unwrap();
+            prefix_trie.insert_str(dirname, None);
+        }
 
         // Add the actual entry for the new path
         self.0.insert_str(path.as_str(), DirTrie::new());
