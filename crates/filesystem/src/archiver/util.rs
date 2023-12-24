@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use async_std::stream::StreamExt;
 use itertools::Itertools;
 use std::io::{prelude::*, BufReader, BufWriter, ErrorKind::InvalidData, SeekFrom};
 
@@ -47,7 +48,32 @@ pub(super) fn read_file_xor(file: impl Read, start_magic: u32) -> impl Read {
         *state = (magic, j);
         Some(byte)
     });
+
     iter_read::IterRead::new(iter)
+}
+
+pub(super) fn read_file_xor_async(
+    file: impl futures_lite::AsyncRead + Unpin,
+    start_magic: u32,
+) -> impl futures_lite::AsyncRead + Unpin {
+    use futures_lite::AsyncReadExt;
+
+    let stream = file.bytes().scan((start_magic, 0), |state, maybe_byte| {
+        let Ok(byte) = maybe_byte else { return None };
+        let (mut magic, mut j) = *state;
+
+        if j == 4 {
+            j = 0;
+            magic = magic.wrapping_mul(7).wrapping_add(3);
+        }
+        let byte = byte ^ magic.to_le_bytes()[j];
+        j += 1;
+
+        *state = (magic, j);
+        Some(Ok(vec![byte]))
+    });
+
+    async_io_stream::IoStream::new(stream)
 }
 
 pub(super) fn advance_magic(magic: &mut u32) -> u32 {
@@ -152,10 +178,7 @@ where
                 )?;
                 std::io::copy(
                     &mut read_file_xor(
-                        &mut read_file_xor(
-                            &mut (&mut reader).take(current_entry.size),
-                            reader_magic,
-                        ),
+                        read_file_xor(&mut (&mut reader).take(current_entry.size), reader_magic),
                         writer_magic,
                     ),
                     &mut writer,
@@ -224,6 +247,7 @@ where
 
             // Find all of the files in the archive with offsets greater than the original
             // offset of the modified file and decrement them accordingly
+            let mut current_header_offset = 12;
             archive.seek(SeekFrom::Start(12))?;
             let mut reader = BufReader::new(archive.as_file());
             let mut headers = Vec::new();
@@ -231,10 +255,6 @@ where
                 if current_body_offset == 0 {
                     break;
                 }
-                let current_header_offset = reader
-                    .stream_position()?
-                    .checked_sub(4)
-                    .ok_or(InvalidData)?;
                 let current_body_offset = current_body_offset as u64;
                 reader.seek(SeekFrom::Current(8))?;
                 let current_path_len = read_u32_xor(&mut reader, base_magic)?;
@@ -272,6 +292,8 @@ where
                     current_body_offset as u32,
                     should_truncate,
                 ));
+
+                current_header_offset += current_path_len as u64 + 16;
             }
             drop(reader);
             let mut writer = BufWriter::new(archive.as_file());

@@ -56,9 +56,9 @@ impl FileSystem {
     }
 
     pub async fn from_folder_picker() -> Result<Self> {
-        if let Some(path) = rfd::AsyncFileDialog::default().pick_folders().await {
-            let path = camino::Utf8Path::from_path(path.first().unwrap().path())
-                .ok_or(crate::Error::PathUtf8Error)?;
+        if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
+            let path =
+                camino::Utf8Path::from_path(path.path()).ok_or(crate::Error::PathUtf8Error)?;
             Ok(Self::new(path))
         } else {
             Err(crate::Error::CancelledLoading)

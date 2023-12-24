@@ -407,10 +407,23 @@ impl Window {
                             {
                                 if let Some(view) = view {
                                     let version = *version;
-                                    match Self::create_archive(view, version) {
-                                        Ok(file) => {
+                                    match Self::find_files(view) {
+                                        Ok(file_paths) => {
+                                            let view_filesystem = view.filesystem().clone();
                                             *save_promise =
                                                 Some(luminol_core::spawn_future(async move {
+                                                    let mut file = luminol_filesystem::host::File::new()?;
+
+                                                    let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
+                                                        &mut file,
+                                                        version,
+                                                        file_paths.iter().map(|path| {
+                                                            let file = view_filesystem.open_file(path, OpenFlags::Read)?;
+                                                            let size = file.metadata()?.size as u32;
+                                                            Ok((path, size, file))
+                                                        }),
+                                                    ).await?;
+
                                                     file.save(
                                                         match version {
                                                             1 => "Game.rgssad",
@@ -448,24 +461,6 @@ impl Window {
                 }
             }
         }
-    }
-
-    fn create_archive(
-        view: &mut luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>,
-        version: u8,
-    ) -> luminol_filesystem::Result<luminol_filesystem::host::File> {
-        let mut file = luminol_filesystem::host::File::new()?;
-        let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
-            &mut file,
-            version,
-            Self::find_files(view)?.iter().map(|path| {
-                let file = view.filesystem().open_file(path, OpenFlags::Read)?;
-                let size = file.metadata()?.size as u32;
-                Ok((path, size, file))
-            }),
-        )?;
-
-        Ok(file)
     }
 
     fn copy_files(
