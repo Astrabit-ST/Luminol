@@ -24,7 +24,8 @@ pub use events::setup_main_thread_hooks;
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
 use std::io::ErrorKind::PermissionDenied;
-use util::{generate_key, send_and_await, send_and_recv};
+use std::task::Poll;
+use util::{generate_key, send_and_await, send_and_recv, send_and_wake};
 
 static WORKER_CHANNELS: once_cell::sync::OnceCell<WorkerChannels> =
     once_cell::sync::OnceCell::new();
@@ -62,6 +63,15 @@ pub struct FileSystem {
 pub struct File {
     key: usize,
     temp_file_name: Option<String>,
+    futures: parking_lot::Mutex<FileFutures>,
+}
+
+#[derive(Debug, Default)]
+pub struct FileFutures {
+    read: Option<oneshot::Receiver<std::io::Result<Vec<u8>>>>,
+    write: Option<oneshot::Receiver<std::io::Result<()>>>,
+    flush: Option<oneshot::Receiver<std::io::Result<()>>>,
+    seek: Option<oneshot::Receiver<std::io::Result<u64>>>,
 }
 
 #[derive(Debug)]
@@ -231,6 +241,7 @@ impl FileSystemTrait for FileSystem {
         .map(|key| File {
             key,
             temp_file_name: None,
+            futures: Default::default(),
         })
     }
 
@@ -284,6 +295,7 @@ impl File {
             Self {
                 key,
                 temp_file_name: Some(temp_file_name),
+                futures: Default::default(),
             }
         })
     }
@@ -316,6 +328,7 @@ impl File {
                 Self {
                     key,
                     temp_file_name: None,
+                    futures: Default::default(),
                 },
                 name,
             )
@@ -378,6 +391,31 @@ impl std::io::Read for File {
     }
 }
 
+impl futures_lite::AsyncRead for File {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let mut futures = self.futures.lock();
+        if futures.read.is_none() {
+            futures.read = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileRead(self.key, buf.len(), tx)
+            }));
+        }
+        match futures.read.as_mut().unwrap().try_recv() {
+            Ok(Ok(vec)) => {
+                futures.read = None;
+                let length = vec.len();
+                buf[..length].copy_from_slice(&vec[..]);
+                Poll::Ready(Ok(length))
+            }
+            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Err(_) => Poll::Pending,
+        }
+    }
+}
+
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         send_and_recv(|tx| FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx))?;
@@ -389,8 +427,81 @@ impl std::io::Write for File {
     }
 }
 
+impl futures_lite::AsyncWrite for File {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let mut futures = self.futures.lock();
+        if futures.write.is_none() {
+            futures.write = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx)
+            }));
+        }
+        match futures.write.as_mut().unwrap().try_recv() {
+            Ok(Ok(())) => {
+                futures.write = None;
+                Poll::Ready(Ok(buf.len()))
+            }
+            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Err(_) => Poll::Pending,
+        }
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let mut futures = self.futures.lock();
+        if futures.flush.is_none() {
+            futures.flush = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileFlush(self.key, tx)
+            }));
+        }
+        match futures.flush.as_mut().unwrap().try_recv() {
+            Ok(Ok(())) => {
+                futures.flush = None;
+                Poll::Ready(Ok(()))
+            }
+            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Err(_) => Poll::Pending,
+        }
+    }
+
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Err(PermissionDenied.into()))
+    }
+}
+
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx))
+    }
+}
+
+impl futures_lite::AsyncSeek for File {
+    fn poll_seek(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        pos: std::io::SeekFrom,
+    ) -> Poll<std::io::Result<u64>> {
+        let mut futures = self.futures.lock();
+        if futures.seek.is_none() {
+            futures.seek = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileSeek(self.key, pos, tx)
+            }));
+        }
+        match futures.seek.as_mut().unwrap().try_recv() {
+            Ok(Ok(offset)) => {
+                futures.seek = None;
+                Poll::Ready(Ok(offset))
+            }
+            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Err(_) => Poll::Pending,
+        }
     }
 }

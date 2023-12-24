@@ -17,7 +17,12 @@
 use itertools::Itertools;
 
 use crate::{DirEntry, Metadata, OpenFlags, Result};
-use std::io::ErrorKind::InvalidInput;
+use pin_project::pin_project;
+use std::{
+    io::ErrorKind::{InvalidInput, PermissionDenied},
+    pin::Pin,
+    task::Poll,
+};
 
 #[derive(Debug, Clone)]
 pub struct FileSystem {
@@ -25,9 +30,12 @@ pub struct FileSystem {
 }
 
 #[derive(Debug)]
+#[pin_project]
 pub struct File {
     file: Inner,
     path: camino::Utf8PathBuf,
+    #[pin]
+    async_file: async_fs::File,
 }
 
 #[derive(Debug)]
@@ -48,9 +56,9 @@ impl FileSystem {
     }
 
     pub async fn from_folder_picker() -> Result<Self> {
-        if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
-            let path =
-                camino::Utf8Path::from_path(path.path()).ok_or(crate::Error::PathUtf8Error)?;
+        if let Some(path) = rfd::AsyncFileDialog::default().pick_folders().await {
+            let path = camino::Utf8Path::from_path(path.first().unwrap().path())
+                .ok_or(crate::Error::PathUtf8Error)?;
             Ok(Self::new(path))
         } else {
             Err(crate::Error::CancelledLoading)
@@ -89,11 +97,14 @@ impl crate::FileSystem for FileSystem {
             .read(flags.contains(OpenFlags::Read))
             .truncate(flags.contains(OpenFlags::Truncate))
             .open(&path)
-            .map_err(Into::into)
-            .map(|file| File {
-                file: Inner::StdFsFile(file),
-                path,
-            })
+            .map(|file| {
+                let clone = file.try_clone()?;
+                Ok(File {
+                    file: Inner::StdFsFile(file),
+                    path,
+                    async_file: clone.into(),
+                })
+            })?
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
@@ -162,9 +173,11 @@ impl File {
     pub fn new() -> std::io::Result<Self> {
         let file = tempfile::NamedTempFile::new()?;
         let path = file.path().to_str().ok_or(InvalidInput)?.into();
+        let clone = file.as_file().try_clone()?;
         Ok(Self {
             file: Inner::NamedTempFile(file),
             path,
+            async_file: clone.into(),
         })
     }
 
@@ -195,10 +208,12 @@ impl File {
                 .to_os_string()
                 .into_string()
                 .map_err(|_| crate::Error::PathUtf8Error)?;
+            let clone = file.try_clone()?;
             Ok((
                 File {
                     file: Inner::StdFsFile(file),
                     path: path.clone().into(),
+                    async_file: clone.into(),
                 },
                 path,
             ))
@@ -262,6 +277,24 @@ impl std::io::Read for File {
     }
 }
 
+impl futures_lite::AsyncRead for File {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        self.project().async_file.poll_read(cx, buf)
+    }
+
+    fn poll_read_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &mut [std::io::IoSliceMut<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        self.project().async_file.poll_read_vectored(cx, bufs)
+    }
+}
+
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.file.as_file().write(buf)
@@ -276,9 +309,51 @@ impl std::io::Write for File {
     }
 }
 
+impl futures_lite::AsyncWrite for File {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        self.project().async_file.poll_write(cx, buf)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        self.project().async_file.poll_write_vectored(cx, bufs)
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        self.project().async_file.poll_flush(cx)
+    }
+
+    fn poll_close(
+        self: Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Err(PermissionDenied.into()))
+    }
+}
+
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         self.file.as_file().seek(pos)
+    }
+}
+
+impl futures_lite::AsyncSeek for File {
+    fn poll_seek(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        pos: std::io::SeekFrom,
+    ) -> Poll<std::io::Result<u64>> {
+        self.project().async_file.poll_seek(cx, pos)
     }
 }
 
