@@ -26,6 +26,15 @@ use std::io::Write;
 
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
+static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
+    qp_trie::Trie<qp_trie::wrapper::BString, ()>,
+> = once_cell::sync::Lazy::new(|| {
+    let mut trie = qp_trie::Trie::new();
+    trie.insert_str("Data", ());
+    trie.insert_str("Graphics", ());
+    trie
+});
+
 /// The archive manager for creating and extracting RGSSAD archives.
 pub struct Window {
     mode: Mode,
@@ -143,7 +152,7 @@ impl luminol_core::Window for Window {
                                 egui::ScrollArea::both().show(ui, |ui| match &mut self.mode {
                                     Mode::Extract { view, .. } => {
                                         if let Some(v) = view {
-                                            v.ui(ui, update_state);
+                                            v.ui(ui, update_state, None);
                                         } else {
                                             ui.add(
                                                 egui::Label::new("No archive chosen").wrap(false),
@@ -152,7 +161,11 @@ impl luminol_core::Window for Window {
                                     }
                                     Mode::Create { view, .. } => {
                                         if let Some(v) = view {
-                                            v.ui(ui, update_state);
+                                            v.ui(
+                                                ui,
+                                                update_state,
+                                                Some(&CREATE_DEFAULT_SELECTED_DIRS),
+                                            );
                                         } else {
                                             ui.add(
                                                 egui::Label::new("No source folder chosen")

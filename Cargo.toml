@@ -117,6 +117,7 @@ poll-promise = { version = "0.3.0" }
 camino = "1.1.6"
 
 slab = { version = "0.4.9", features = ["serde"] }
+qp-trie = "0.8.2"
 
 itertools = "0.11.0"
 

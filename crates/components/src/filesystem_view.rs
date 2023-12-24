@@ -127,7 +127,12 @@ where
         self.into_iter()
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        default_selected_dirs: Option<&qp_trie::Trie<qp_trie::wrapper::BString, ()>>,
+    ) {
         self.row_index = 0;
         self.pivot_visited = false;
         self.render_subtree(
@@ -135,6 +140,8 @@ where
             update_state,
             self.root_node_id,
             &self.root_name.to_string(),
+            default_selected_dirs,
+            true,
         );
     }
 
@@ -144,6 +151,8 @@ where
         update_state: &mut luminol_core::UpdateState<'_>,
         node_id: indextree::NodeId,
         name: &str,
+        default_selected_dirs: Option<&qp_trie::Trie<qp_trie::wrapper::BString, ()>>,
+        is_root: bool,
     ) {
         let is_command_held = ui.input(|i| i.modifiers.command);
         let is_shift_held = ui.input(|i| i.modifiers.shift);
@@ -197,12 +206,15 @@ where
                         &mut self.arena,
                     );
                 } else {
-                    node_id.append_value(
+                    let should_select = is_root
+                        && default_selected_dirs
+                            .is_some_and(|dirs| dirs.contains_key_str(&subentry_name));
+                    let child_id = node_id.append_value(
                         Entry::Dir {
                             name: subentry_name,
+                            selected,
                             initialized: false,
                             depersisted: false,
-                            selected,
                             expanded: false,
                             total_children: 0,
                             selected_children: 0,
@@ -210,6 +222,9 @@ where
                         },
                         &mut self.arena,
                     );
+                    if should_select {
+                        self.select(child_id);
+                    }
                 }
             }
         }
@@ -394,6 +409,8 @@ where
                         update_state,
                         node_id,
                         &self.arena[node_id].get().name().to_string(),
+                        default_selected_dirs,
+                        is_root,
                     );
                 }
             });

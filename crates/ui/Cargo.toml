@@ -43,6 +43,9 @@ reqwest = "0.11.22"
 
 zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
 
+once_cell.workspace = true
+qp-trie.workspace = true
+
 itertools.workspace = true
 
 anyhow.workspace = true
