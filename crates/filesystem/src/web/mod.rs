@@ -410,7 +410,10 @@ impl futures_lite::AsyncRead for File {
                 buf[..length].copy_from_slice(&vec[..]);
                 Poll::Ready(Ok(length))
             }
-            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Ok(Err(e)) => {
+                futures.read = None;
+                Poll::Ready(Err(e))
+            }
             Err(_) => Poll::Pending,
         }
     }
@@ -444,7 +447,10 @@ impl futures_lite::AsyncWrite for File {
                 futures.write = None;
                 Poll::Ready(Ok(buf.len()))
             }
-            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Ok(Err(e)) => {
+                futures.write = None;
+                Poll::Ready(Err(e))
+            }
             Err(_) => Poll::Pending,
         }
     }
@@ -464,7 +470,10 @@ impl futures_lite::AsyncWrite for File {
                 futures.flush = None;
                 Poll::Ready(Ok(()))
             }
-            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Ok(Err(e)) => {
+                futures.flush = None;
+                Poll::Ready(Err(e))
+            }
             Err(_) => Poll::Pending,
         }
     }
@@ -500,7 +509,10 @@ impl futures_lite::AsyncSeek for File {
                 futures.seek = None;
                 Poll::Ready(Ok(offset))
             }
-            Ok(Err(e)) => Poll::Ready(Err(e)),
+            Ok(Err(e)) => {
+                futures.seek = None;
+                Poll::Ready(Err(e))
+            }
             Err(_) => Poll::Pending,
         }
     }
