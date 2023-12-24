@@ -411,7 +411,7 @@ where
                         node_id,
                         self.arena[node_id].get().name().to_string().as_str(),
                         default_selected_dirs,
-                        is_root,
+                        false,
                     );
                 }
             });
