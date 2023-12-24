@@ -31,8 +31,11 @@ pub struct FileSystemView<T> {
     root_name: String,
     root_node_id: indextree::NodeId,
     row_index: usize,
+    pivot_id: Option<indextree::NodeId>,
+    pivot_visited: bool,
 }
 
+#[derive(Debug)]
 enum Entry {
     File {
         /// Name of this file with extension.
@@ -102,6 +105,8 @@ where
             root_name,
             root_node_id,
             row_index: 0,
+            pivot_id: None,
+            pivot_visited: false,
         }
     }
 
@@ -124,6 +129,7 @@ where
 
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
         self.row_index = 0;
+        self.pivot_visited = false;
         self.render_subtree(
             ui,
             update_state,
@@ -139,6 +145,8 @@ where
         node_id: indextree::NodeId,
         name: &str,
     ) {
+        let is_command_held = ui.input(|i| i.modifiers.command);
+        let is_shift_held = ui.input(|i| i.modifiers.shift);
         let mut length = None;
 
         if let Entry::Dir {
@@ -229,6 +237,8 @@ where
         }
         self.row_index += 1;
 
+        let mut header_response = None;
+
         match self.arena[node_id].get_mut() {
             Entry::File { name, selected } => {
                 frame.show(ui, |ui| {
@@ -268,49 +278,113 @@ where
                 *expanded = header.openness(ui.ctx()) >= 0.2;
 
                 let layout = *ui.layout();
-                header
-                    .show_header(ui, |ui| {
-                        ui.with_layout(layout, |ui| {
-                            frame.show(ui, |ui| {
-                                if ui
-                                    .add(egui::SelectableLabel::new(
-                                        *selected,
-                                        format!(
-                                            "{}   {}",
-                                            if *selected {
-                                                '▣'
-                                            } else if *selected_children == 0
-                                                && *partial_children == 0
-                                            {
-                                                '☐'
-                                            } else {
-                                                '⊟'
-                                            },
-                                            name
-                                        ),
-                                    ))
-                                    .clicked()
-                                {
-                                    should_toggle = true;
-                                };
-                            });
+                header_response = Some(header.show_header(ui, |ui| {
+                    ui.with_layout(layout, |ui| {
+                        frame.show(ui, |ui| {
+                            if ui
+                                .add(egui::SelectableLabel::new(
+                                    *selected,
+                                    format!(
+                                        "{}   {}",
+                                        if *selected {
+                                            '▣'
+                                        } else if *selected_children == 0 && *partial_children == 0
+                                        {
+                                            '☐'
+                                        } else {
+                                            '⊟'
+                                        },
+                                        name
+                                    ),
+                                ))
+                                .clicked()
+                            {
+                                should_toggle = true;
+                            };
                         });
-                    })
-                    .body(|ui| {
-                        for node_id in node_id.children(&self.arena).collect_vec() {
-                            self.render_subtree(
-                                ui,
-                                update_state,
-                                node_id,
-                                &self.arena[node_id].get().name().to_string(),
-                            );
-                        }
                     });
+                }));
             }
         }
 
         if should_toggle {
-            self.toggle(node_id);
+            // Unless control is held, deselect all the nodes before doing anything
+            if !is_command_held {
+                self.deselect(self.root_node_id);
+            }
+
+            // Select all the nodes between this one and the pivot node if shift is held
+            if is_shift_held && self.pivot_id.is_some() {
+                let pivot_id = *self.pivot_id.as_ref().unwrap();
+                let (starting_id, ending_id) = if self.pivot_visited {
+                    (pivot_id, node_id)
+                } else {
+                    (node_id, pivot_id)
+                };
+                let mut edge = indextree::NodeEdge::Start(starting_id);
+                let mut dirs = Vec::new();
+
+                loop {
+                    match edge {
+                        indextree::NodeEdge::Start(node_id) => {
+                            let entry = self.arena[node_id].get();
+                            let first_child_id = node_id.children(&self.arena).next();
+                            edge = if let Some(first_child_id) = first_child_id {
+                                indextree::NodeEdge::Start(first_child_id)
+                            } else {
+                                indextree::NodeEdge::End(node_id)
+                            };
+
+                            if matches!(entry, Entry::File { .. }) || node_id == starting_id {
+                                self.select(node_id);
+                            } else {
+                                dirs.push(node_id);
+                            }
+                        }
+
+                        indextree::NodeEdge::End(node_id) => {
+                            let next_sibling_id = node_id.following_siblings(&self.arena).nth(1);
+
+                            if let Some(next_sibling_id) = next_sibling_id {
+                                edge = indextree::NodeEdge::Start(next_sibling_id)
+                            } else if let Some(parent_id) = node_id.ancestors(&self.arena).nth(1) {
+                                edge = indextree::NodeEdge::End(parent_id);
+                            } else {
+                                break;
+                            }
+
+                            if dirs.last().copied() == Some(node_id) {
+                                self.select(node_id);
+                                dirs.pop();
+                            }
+                            if node_id == ending_id {
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                self.pivot_id = Some(node_id);
+                self.toggle(node_id);
+            }
+        }
+
+        if self.pivot_id.is_some_and(|pivot_id| pivot_id == node_id) {
+            self.pivot_visited = true;
+        }
+
+        // Draw the contents of the collapsing subtree if this node is a directory
+        if let Some(header_response) = header_response {
+            header_response.body(|ui| {
+                for node_id in node_id.children(&self.arena).collect_vec() {
+                    self.render_subtree(
+                        ui,
+                        update_state,
+                        node_id,
+                        &self.arena[node_id].get().name().to_string(),
+                    );
+                }
+            });
         }
     }
 
@@ -583,16 +657,14 @@ where
                 }
 
                 Some(indextree::NodeEdge::End(node_id)) => {
-                    let next_sibling_id =
-                        node_id.following_siblings(&self.view.arena).skip(1).next();
+                    let next_sibling_id = node_id.following_siblings(&self.view.arena).nth(1);
 
                     self.edge = if let Some(next_sibling_id) = next_sibling_id {
                         Some(indextree::NodeEdge::Start(next_sibling_id))
                     } else {
                         node_id
                             .ancestors(&self.view.arena)
-                            .skip(1)
-                            .next()
+                            .nth(1)
                             .map(|p| indextree::NodeEdge::End(p))
                     };
                 }
