@@ -29,6 +29,7 @@ pub enum FileSystem {
     HostLoaded(host::FileSystem),
     Loaded {
         filesystem: path_cache::FileSystem<list::FileSystem>,
+        host_filesystem: host::FileSystem,
         project_path: camino::Utf8PathBuf,
     },
 }
@@ -198,6 +199,16 @@ impl FileSystem {
 
         Ok(result)
     }
+
+    pub fn host(&self) -> Option<host::FileSystem> {
+        match self {
+            FileSystem::Unloaded => None,
+            FileSystem::HostLoaded(host) => Some(host.clone()),
+            FileSystem::Loaded {
+                host_filesystem, ..
+            } => Some(host_filesystem.clone()),
+        }
+    }
 }
 
 // Specific to windows
@@ -327,6 +338,7 @@ impl FileSystem {
         project_config: &luminol_config::project::Config,
         global_config: &mut luminol_config::global::Config,
     ) -> Result<LoadResult> {
+        let host_clone = host.clone();
         let project_path = host.root_path().to_path_buf();
 
         let mut list = list::FileSystem::new();
@@ -357,6 +369,7 @@ impl FileSystem {
 
         *self = FileSystem::Loaded {
             filesystem: path_cache,
+            host_filesystem: host_clone,
             project_path: project_path.to_path_buf(),
         };
 
@@ -474,6 +487,7 @@ impl FileSystem {
 
         *self = Self::Loaded {
             filesystem: path_cache,
+            host_filesystem: host.clone(),
             project_path: root_path.clone(),
         };
 

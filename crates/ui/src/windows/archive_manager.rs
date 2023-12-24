@@ -38,6 +38,7 @@ static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
 /// The archive manager for creating and extracting RGSSAD archives.
 pub struct Window {
     mode: Mode,
+    initialized: bool,
 }
 
 enum Mode {
@@ -74,6 +75,7 @@ impl Default for Window {
                 load_promise: None,
                 save_promise: None,
             },
+            initialized: false,
         }
     }
 }
@@ -89,6 +91,49 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
+        // Open the currently loaded project by default
+        if !self.initialized {
+            self.initialized = true;
+            if let Some(host) = update_state.filesystem.host() {
+                match &mut self.mode {
+                    Mode::Extract { view, .. } => {
+                        if let Ok(Some((entry, archive))) = (|| {
+                            host.read_dir("")?
+                                .into_iter()
+                                .find(|entry| {
+                                    entry.metadata.is_file
+                                        && matches!(
+                                            entry.path.extension(),
+                                            Some("rgssad" | "rgss2a" | "rgss3a")
+                                        )
+                                })
+                                .map(|entry| {
+                                    host.open_file(&entry.path, OpenFlags::Read)
+                                        .and_then(luminol_filesystem::archiver::FileSystem::new)
+                                        .map(|archive| (entry, archive))
+                                })
+                                .transpose()
+                        })() {
+                            *view = Some(luminol_components::FileSystemView::new(
+                                "luminol_archive_manager_extract_view".into(),
+                                archive,
+                                entry.path.to_string(),
+                            ))
+                        }
+                    }
+
+                    Mode::Create { view, .. } => {
+                        let name = host.root_path().to_string();
+                        *view = Some(luminol_components::FileSystemView::new(
+                            "luminol_archive_manager_create_view".into(),
+                            host,
+                            name,
+                        ));
+                    }
+                }
+            }
+        }
+
         let mut window_open = true;
         egui::Window::new("RGSSAD Archive Manager")
             .open(&mut window_open)
@@ -114,6 +159,7 @@ impl luminol_core::Window for Window {
                             ))
                             .clicked()
                         {
+                            self.initialized = false;
                             self.mode = Mode::Extract {
                                 view: None,
                                 load_promise: None,
@@ -127,6 +173,7 @@ impl luminol_core::Window for Window {
                             ))
                             .clicked()
                         {
+                            self.initialized = false;
                             self.mode = Mode::Create {
                                 view: None,
                                 load_promise: None,
