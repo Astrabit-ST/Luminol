@@ -42,9 +42,11 @@ impl<'a, T> Iterator for FileSystemTrieDirIter<'a, T> {
     type Item = (&'a str, Option<&'a T>);
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.0 {
-            FileSystemTrieDirIterInner::Direct(iter, _) => iter
-                .next()
-                .map(|(key, value)| (key.as_str(), value.as_ref())),
+            FileSystemTrieDirIterInner::Direct(iter, len) => {
+                *len = len.saturating_sub(1);
+                iter.next()
+                    .map(|(key, value)| (key.as_str(), value.as_ref()))
+            }
             FileSystemTrieDirIterInner::Prefix(iter) => iter.next(),
         }
     }
