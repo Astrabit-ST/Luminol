@@ -322,7 +322,6 @@ where
                     (node_id, pivot_id)
                 };
                 let mut edge = indextree::NodeEdge::Start(starting_id);
-                let mut dirs = Vec::new();
 
                 loop {
                     match edge {
@@ -335,10 +334,17 @@ where
                                 indextree::NodeEdge::End(node_id)
                             };
 
-                            if matches!(entry, Entry::File { .. }) || node_id == starting_id {
+                            if node_id == starting_id
+                                || matches!(
+                                    entry,
+                                    Entry::File { .. }
+                                        | Entry::Dir {
+                                            total_children: 0,
+                                            ..
+                                        }
+                                )
+                            {
                                 self.select(node_id);
-                            } else {
-                                dirs.push(node_id);
                             }
                         }
 
@@ -353,10 +359,6 @@ where
                                 break;
                             }
 
-                            if dirs.last().copied() == Some(node_id) {
-                                self.select(node_id);
-                                dirs.pop();
-                            }
                             if node_id == ending_id {
                                 break;
                             }
