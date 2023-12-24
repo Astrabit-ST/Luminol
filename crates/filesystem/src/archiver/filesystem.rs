@@ -814,7 +814,11 @@ where
         let trie = self.trie.read();
         if let Some(iter) = trie.iter_dir(path) {
             iter.map(|(name, _)| {
-                let path = path.join(name);
+                let path = if path == "" {
+                    name.into()
+                } else {
+                    format!("{path}/{name}").into()
+                };
                 let metadata = self.metadata(&path)?;
                 Ok(DirEntry { path, metadata })
             })
