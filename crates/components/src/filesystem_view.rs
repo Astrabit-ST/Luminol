@@ -33,6 +33,7 @@ pub struct FileSystemView<T> {
     row_index: usize,
     pivot_id: Option<indextree::NodeId>,
     pivot_visited: bool,
+    show_tooltip: bool,
 }
 
 #[derive(Debug)]
@@ -107,6 +108,7 @@ where
             row_index: 0,
             pivot_id: None,
             pivot_visited: false,
+            show_tooltip: true,
         }
     }
 
@@ -135,14 +137,26 @@ where
     ) {
         self.row_index = 0;
         self.pivot_visited = false;
-        self.render_subtree(
-            ui,
-            update_state,
-            self.root_node_id,
-            &self.root_name.to_string(),
-            default_selected_dirs,
-            true,
-        );
+
+        let response = egui::Frame::none().show(ui, |ui| {
+            self.render_subtree(
+                ui,
+                update_state,
+                self.root_node_id,
+                &self.root_name.to_string(),
+                default_selected_dirs,
+                true,
+            );
+        });
+
+        if self.show_tooltip {
+            response.response.on_hover_ui_at_pointer(|ui| {
+                ui.label("Click to select single entries");
+                ui.label("Ctrl+click to select multiple entries or deselect entries");
+                ui.label("Shift+click to select a range");
+                ui.label("To select multiple ranges or deselect a range, Ctrl+click the first endpoint and Ctrl+Shift+click the second endpoint");
+            });
+        }
     }
 
     fn render_subtree(
@@ -324,6 +338,8 @@ where
         }
 
         if should_toggle {
+            self.show_tooltip = false;
+
             let is_pivot_selected = !is_command_held
                 || self
                     .pivot_id
