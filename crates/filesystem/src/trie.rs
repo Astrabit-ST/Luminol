@@ -316,6 +316,11 @@ impl<T> FileSystemTrie<T> {
             self.0.remove_str(path_str);
             if let Some(parent) = path.parent() {
                 self.create_dir(parent);
+                if let (Some(parent_trie), Some(dirname)) =
+                    (self.0.get_mut_str(parent.as_str()), path.iter().next_back())
+                {
+                    parent_trie.remove_str(dirname);
+                }
             }
             true
         } else if self
@@ -328,6 +333,11 @@ impl<T> FileSystemTrie<T> {
             self.0.remove_prefix_str(&format!("{path_str}/"));
             if let Some(parent) = path.parent() {
                 self.create_dir(parent);
+                if let (Some(parent_trie), Some(dirname)) =
+                    (self.0.get_mut_str(parent.as_str()), path.iter().next_back())
+                {
+                    parent_trie.remove_str(dirname);
+                }
             }
             true
         } else {
