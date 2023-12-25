@@ -256,7 +256,7 @@ impl<T> FileSystemTrie<T> {
     }
 
     /// Gets a mutable reference to the value in the file at the given path, if it exists.
-    pub fn get_mut_file(&mut self, path: impl AsRef<camino::Utf8Path>) -> Option<&mut T> {
+    pub fn get_file_mut(&mut self, path: impl AsRef<camino::Utf8Path>) -> Option<&mut T> {
         let path = path.as_ref();
         let Some(filename) = path.iter().next_back() else {
             return None;

@@ -127,7 +127,7 @@ where
             }
 
             // Write the new length of the file to the trie
-            trie.get_mut_file(&self.path).ok_or(InvalidData)?.size = new_size;
+            trie.get_file_mut(&self.path).ok_or(InvalidData)?.size = new_size;
         }
 
         // Now write the new contents of the file

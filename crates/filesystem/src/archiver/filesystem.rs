@@ -687,7 +687,7 @@ where
                         let current_body_offset = (current_body_offset as u64)
                             .checked_add_signed(to_len as i64 - from_len as i64)
                             .ok_or(Error::IoError(InvalidData.into()))?;
-                        trie.get_mut_file(current_path)
+                        trie.get_file_mut(current_path)
                             .ok_or(Error::IoError(InvalidData.into()))?
                             .body_offset = current_body_offset;
                         headers.push((current_header_offset, current_body_offset as u32));

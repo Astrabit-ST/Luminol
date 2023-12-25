@@ -156,7 +156,7 @@ where
                     }
                 }
                 let current_path = String::from_utf8(current_path).map_err(|_| InvalidData)?;
-                let current_entry = trie.get_mut_file(&current_path).ok_or(InvalidData)?;
+                let current_entry = trie.get_file_mut(&current_path).ok_or(InvalidData)?;
                 reader.seek(SeekFrom::Start(current_entry.body_offset))?;
                 advance_magic(&mut reader_magic);
 
@@ -226,7 +226,7 @@ where
                 .checked_sub(path_len + 8)
                 .ok_or(InvalidData)?;
             entry.size = 0;
-            *trie.get_mut_file(path).ok_or(InvalidData)? = entry;
+            *trie.get_file_mut(path).ok_or(InvalidData)? = entry;
 
             Ok(())
         }
@@ -284,7 +284,7 @@ where
                         .ok_or(InvalidData)?
                 };
 
-                trie.get_mut_file(current_path)
+                trie.get_file_mut(current_path)
                     .ok_or(InvalidData)?
                     .body_offset = current_body_offset;
                 headers.push((
@@ -307,7 +307,7 @@ where
             writer.flush()?;
             drop(writer);
 
-            trie.get_mut_file(path).ok_or(InvalidData)?.size = 0;
+            trie.get_file_mut(path).ok_or(InvalidData)?.size = 0;
 
             Ok(())
         }
