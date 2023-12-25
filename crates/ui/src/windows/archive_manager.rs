@@ -37,6 +37,7 @@ static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
 pub struct Window {
     mode: Mode,
     initialized: bool,
+    progress: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 enum Mode {
@@ -52,6 +53,7 @@ enum Mode {
             >,
         >,
         save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
+        progress_total: usize,
     },
     Create {
         view: Option<luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>>,
@@ -60,6 +62,7 @@ enum Mode {
         >,
         save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
         version: u8,
+        progress_total: usize,
     },
 }
 
@@ -70,8 +73,10 @@ impl Default for Window {
                 view: None,
                 load_promise: None,
                 save_promise: None,
+                progress_total: 0,
             },
             initialized: false,
+            progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(usize::MAX)),
         }
     }
 }
@@ -156,10 +161,14 @@ impl luminol_core::Window for Window {
                             .clicked()
                         {
                             self.initialized = false;
+                            self.progress = std::sync::Arc::new(
+                                std::sync::atomic::AtomicUsize::new(usize::MAX),
+                            );
                             self.mode = Mode::Extract {
                                 view: None,
                                 load_promise: None,
                                 save_promise: None,
+                                progress_total: 0,
                             };
                         }
                         if columns[1]
@@ -170,11 +179,15 @@ impl luminol_core::Window for Window {
                             .clicked()
                         {
                             self.initialized = false;
+                            self.progress = std::sync::Arc::new(
+                                std::sync::atomic::AtomicUsize::new(usize::MAX),
+                            );
                             self.mode = Mode::Create {
                                 view: None,
                                 load_promise: None,
                                 save_promise: None,
                                 version: 1,
+                                progress_total: 0,
                             };
                         }
                     });
@@ -233,11 +246,14 @@ impl luminol_core::Window for Window {
 
 impl Window {
     fn show_inner(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+        let progress = self.progress.clone();
+
         match &mut self.mode {
             Mode::Extract {
                 view,
                 load_promise,
                 save_promise,
+                progress_total,
             } => {
                 if let Some(p) = load_promise.take() {
                     match p.try_take() {
@@ -262,70 +278,95 @@ impl Window {
                     }
                 }
 
-                ui.columns(2, |columns| {
-                    columns[0].with_layout(
-                        egui::Layout {
-                            cross_align: egui::Align::Center,
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            if load_promise.is_none() && ui.button("Choose archive").clicked() {
-                                *load_promise = Some(luminol_core::spawn_future(
-                                    luminol_filesystem::host::File::from_file_picker(
-                                        "RGSSAD archives",
-                                        &["rgssad", "rgss2a", "rgss3a"],
-                                    ),
-                                ));
-                            } else if load_promise.is_some() {
-                                ui.spinner();
-                            }
-                        },
-                    );
+                let progress_amount = progress.load(std::sync::atomic::Ordering::Relaxed);
 
-                    columns[1].with_layout(
-                        egui::Layout {
-                            cross_align: egui::Align::Center,
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            if save_promise.is_none()
-                                && ui
-                                    .add_enabled(
-                                        view.as_ref()
-                                            .is_some_and(|view| view.iter().next().is_some()),
-                                        egui::Button::new("Extract selected files"),
-                                    )
-                                    .clicked()
-                            {
-                                let view = view.as_ref().unwrap();
-                                match Self::find_files(view) {
-                                    Ok(file_paths) => {
-                                        let view_filesystem = view.filesystem().clone();
-                                        *save_promise = Some(luminol_core::spawn_future(async move {
-                                            let dest_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
-
-                                            for path in file_paths {
-                                                if let Some(parent) = path.parent() {
-                                                    dest_fs.create_dir(parent)?;
-                                                }
-                                                let mut src_file = view_filesystem.open_file(&path, OpenFlags::Read)?;
-                                                let mut dest_file = dest_fs.open_file(&path, OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
-                                                async_std::io::copy(&mut src_file, &mut dest_file).await?;
-                                            }
-
-                                            Ok(())
-                                        }));
-                                    }
-                                    Err(e) => update_state.toasts.error(e.to_string()),
+                if progress_amount == usize::MAX
+                    || progress_amount == *progress_total
+                    || save_promise.is_none()
+                {
+                    ui.columns(2, |columns| {
+                        columns[0].with_layout(
+                            egui::Layout {
+                                cross_align: egui::Align::Center,
+                                cross_justify: true,
+                                ..Default::default()
+                            },
+                            |ui| {
+                                if load_promise.is_none() && ui.button("Choose archive").clicked() {
+                                    *load_promise = Some(luminol_core::spawn_future(
+                                        luminol_filesystem::host::File::from_file_picker(
+                                            "RGSSAD archives",
+                                            &["rgssad", "rgss2a", "rgss3a"],
+                                        ),
+                                    ));
+                                } else if load_promise.is_some() {
+                                    ui.spinner();
                                 }
-                            } else if save_promise.is_some() {
-                                ui.spinner();
-                            }
-                        },
+                            },
+                        );
+
+                        columns[1].with_layout(
+                            egui::Layout {
+                                cross_align: egui::Align::Center,
+                                cross_justify: true,
+                                ..Default::default()
+                            },
+                            |ui| {
+                                if save_promise.is_none()
+                                    && ui
+                                        .add_enabled(
+                                            view.as_ref()
+                                                .is_some_and(|view| view.iter().next().is_some()),
+                                            egui::Button::new("Extract selected files"),
+                                        )
+                                        .clicked()
+                                {
+                                    let view = view.as_ref().unwrap();
+                                    match Self::find_files(view) {
+                                        Ok(file_paths) => {
+                                            *progress_total = file_paths.len();
+
+                                            let view_filesystem = view.filesystem().clone();
+                                            let progress = progress.clone();
+                                            *progress_total = file_paths.len();
+                                            progress.store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
+
+                                            *save_promise = Some(luminol_core::spawn_future(async move {
+                                                let dest_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
+                                                progress.store(0, std::sync::atomic::Ordering::Relaxed);
+
+                                                for path in file_paths {
+                                                    if let Some(parent) = path.parent() {
+                                                        dest_fs.create_dir(parent)?;
+                                                    }
+                                                    let mut src_file = view_filesystem.open_file(&path, OpenFlags::Read)?;
+                                                    let mut dest_file = dest_fs.open_file(&path, OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
+                                                    async_std::io::copy(&mut src_file, &mut dest_file).await?;
+
+                                                    progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                }
+
+                                                Ok(())
+                                            }));
+                                        }
+                                        Err(e) => update_state.toasts.error(e.to_string()),
+                                    }
+                                } else if save_promise.is_some() {
+                                    ui.spinner();
+                                }
+                            },
+                        );
+                    });
+                } else {
+                    ui.add(
+                        egui::ProgressBar::new(if *progress_total == 0 {
+                            0.
+                        } else {
+                            (progress_amount as f64 / *progress_total as f64) as f32
+                        })
+                        .show_percentage(),
                     );
-                });
+                }
 
                 if let Some(p) = save_promise.take() {
                     match p.try_take() {
@@ -345,6 +386,7 @@ impl Window {
                 load_promise,
                 save_promise,
                 version,
+                progress_total,
             } => {
                 if let Some(p) = load_promise.take() {
                     match p.try_take() {
@@ -376,81 +418,111 @@ impl Window {
 
                 ui.separator();
 
-                ui.columns(2, |columns| {
-                    columns[0].with_layout(
-                        egui::Layout {
-                            cross_align: egui::Align::Center,
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            if load_promise.is_none() && ui.button("Choose source folder").clicked()
-                            {
-                                *load_promise = Some(luminol_core::spawn_future(
-                                    luminol_filesystem::host::FileSystem::from_folder_picker(),
-                                ));
-                            } else if load_promise.is_some() {
-                                ui.spinner();
-                            }
-                        },
-                    );
+                let progress_amount = progress.load(std::sync::atomic::Ordering::Relaxed);
 
-                    columns[1].with_layout(
-                        egui::Layout {
-                            cross_align: egui::Align::Center,
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            if save_promise.is_none()
-                                && ui
-                                    .add_enabled(
-                                        view.as_ref()
-                                            .is_some_and(|view| view.iter().next().is_some()),
-                                        egui::Button::new("Create from selected files"),
-                                    )
-                                    .clicked()
-                            {
-                                if let Some(view) = view {
-                                    let version = *version;
-                                    match Self::find_files(view) {
-                                        Ok(file_paths) => {
-                                            let view_filesystem = view.filesystem().clone();
-                                            *save_promise =
-                                                Some(luminol_core::spawn_future(async move {
-                                                    let mut file = luminol_filesystem::host::File::new()?;
-
-                                                    let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
-                                                        &mut file,
-                                                        version,
-                                                        file_paths.iter().map(|path| {
-                                                            let file = view_filesystem.open_file(path, OpenFlags::Read)?;
-                                                            let size = file.metadata()?.size as u32;
-                                                            Ok((path, size, file))
-                                                        }),
-                                                    ).await?;
-
-                                                    file.save(
-                                                        match version {
-                                                            1 => "Game.rgssad",
-                                                            2 => "Game.rgss2a",
-                                                            3 => "Game.rgss3a",
-                                                            _ => unreachable!(),
-                                                        },
-                                                        "RGSSAD archives",
-                                                    )
-                                                    .await
-                                                }))
-                                        }
-                                        Err(e) => update_state.toasts.error(e.to_string()),
-                                    }
+                if progress_amount == usize::MAX
+                    || progress_amount == *progress_total
+                    || save_promise.is_none()
+                {
+                    ui.columns(2, |columns| {
+                        columns[0].with_layout(
+                            egui::Layout {
+                                cross_align: egui::Align::Center,
+                                cross_justify: true,
+                                ..Default::default()
+                            },
+                            |ui| {
+                                if load_promise.is_none() && ui.button("Choose source folder").clicked()
+                                {
+                                    *load_promise = Some(luminol_core::spawn_future(
+                                        luminol_filesystem::host::FileSystem::from_folder_picker(),
+                                    ));
+                                } else if load_promise.is_some() {
+                                    ui.spinner();
                                 }
-                            } else if save_promise.is_some() {
-                                ui.spinner();
-                            }
-                        },
+                            },
+                        );
+
+                        columns[1].with_layout(
+                            egui::Layout {
+                                cross_align: egui::Align::Center,
+                                cross_justify: true,
+                                ..Default::default()
+                            },
+                            |ui| {
+                                if save_promise.is_none()
+                                    && ui
+                                        .add_enabled(
+                                            view.as_ref()
+                                                .is_some_and(|view| view.iter().next().is_some()),
+                                            egui::Button::new("Create from selected files"),
+                                        )
+                                        .clicked()
+                                {
+                                    if let Some(view) = view {
+                                        let version = *version;
+                                        match Self::find_files(view) {
+                                            Ok(file_paths) => {
+                                                let progress = progress.clone();
+                                                let view_filesystem = view.filesystem().clone();
+                                                *progress_total = file_paths.len();
+                                                progress.store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
+
+                                                *save_promise =
+                                                    Some(luminol_core::spawn_future(async move {
+                                                        let mut file = luminol_filesystem::host::File::new()?;
+
+                                                        let mut is_first = true;
+
+                                                        progress.store(0, std::sync::atomic::Ordering::Relaxed);
+                                                        let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
+                                                            &mut file,
+                                                            version,
+                                                            file_paths.iter().map(|path| {
+                                                                if is_first {
+                                                                    is_first = false;
+                                                                } else {
+                                                                    progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                                }
+
+                                                                let file = view_filesystem.open_file(path, OpenFlags::Read)?;
+                                                                let size = file.metadata()?.size as u32;
+                                                                Ok((path, size, file))
+                                                            }),
+                                                        ).await?;
+                                                        progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                                                        file.save(
+                                                            match version {
+                                                                1 => "Game.rgssad",
+                                                                2 => "Game.rgss2a",
+                                                                3 => "Game.rgss3a",
+                                                                _ => unreachable!(),
+                                                            },
+                                                            "RGSSAD archives",
+                                                        )
+                                                        .await
+                                                    }));
+                                            }
+                                            Err(e) => update_state.toasts.error(e.to_string()),
+                                        }
+                                    }
+                                } else if save_promise.is_some() {
+                                    ui.spinner();
+                                }
+                            },
+                        );
+                    });
+                } else {
+                    ui.add(
+                        egui::ProgressBar::new(if *progress_total == 0 {
+                            0.
+                        } else {
+                            (progress_amount as f64 / *progress_total as f64) as f32
+                        })
+                        .show_percentage(),
                     );
-                });
+                }
 
                 if let Some(p) = save_promise.take() {
                     match p.try_take() {
