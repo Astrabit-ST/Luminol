@@ -70,7 +70,7 @@ pub(super) fn read_file_xor_async(
         j += 1;
 
         *state = (magic, j);
-        Some(Ok(vec![byte]))
+        Some(Ok([byte]))
     });
 
     async_io_stream::IoStream::new(stream)
