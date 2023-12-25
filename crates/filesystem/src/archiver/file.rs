@@ -15,12 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use pin_project::pin_project;
 use std::io::{
     prelude::*,
     BufReader,
     ErrorKind::{InvalidData, PermissionDenied},
     SeekFrom,
 };
+use std::{pin::Pin, task::Poll};
 
 use super::util::{move_file_and_truncate, read_file_xor, regress_magic};
 use super::Trie;
@@ -28,6 +30,7 @@ use crate::File as _;
 use crate::Metadata;
 
 #[derive(Debug)]
+#[pin_project]
 pub struct File<T>
 where
     T: crate::File,
@@ -36,21 +39,11 @@ where
     pub(super) trie: Option<std::sync::Arc<parking_lot::RwLock<Trie>>>,
     pub(super) path: camino::Utf8PathBuf,
     pub(super) read_allowed: bool,
-    pub(super) tmp: crate::host::File,
     pub(super) modified: parking_lot::Mutex<bool>,
     pub(super) version: u8,
     pub(super) base_magic: u32,
-}
-
-impl<T> Drop for File<T>
-where
-    T: crate::File,
-{
-    fn drop(&mut self) {
-        if self.archive.is_some() {
-            let _ = self.flush();
-        }
-    }
+    #[pin]
+    pub(super) tmp: crate::host::File,
 }
 
 impl<T> std::io::Write for File<T>
@@ -191,6 +184,35 @@ where
     }
 }
 
+impl<T> futures_lite::AsyncRead for File<T>
+where
+    T: crate::File + futures_lite::AsyncRead,
+{
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        if self.read_allowed {
+            self.project().tmp.poll_read(cx, buf)
+        } else {
+            Poll::Ready(Err(PermissionDenied.into()))
+        }
+    }
+
+    fn poll_read_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &mut [std::io::IoSliceMut<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        if self.read_allowed {
+            self.project().tmp.poll_read_vectored(cx, bufs)
+        } else {
+            Poll::Ready(Err(PermissionDenied.into()))
+        }
+    }
+}
+
 impl<T> std::io::Seek for File<T>
 where
     T: crate::File,
@@ -201,6 +223,19 @@ where
 
     fn stream_position(&mut self) -> std::io::Result<u64> {
         self.tmp.stream_position()
+    }
+}
+
+impl<T> futures_lite::AsyncSeek for File<T>
+where
+    T: crate::File + futures_lite::AsyncSeek,
+{
+    fn poll_seek(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        pos: SeekFrom,
+    ) -> Poll<std::io::Result<u64>> {
+        self.project().tmp.poll_seek(cx, pos)
     }
 }
 

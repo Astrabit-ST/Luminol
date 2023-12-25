@@ -43,6 +43,17 @@ pub struct FileSystem<T> {
     pub(super) base_magic: u32,
 }
 
+impl<T> Clone for FileSystem<T> {
+    fn clone(&self) -> Self {
+        Self {
+            trie: self.trie.clone(),
+            archive: self.archive.clone(),
+            version: self.version,
+            base_magic: self.base_magic,
+        }
+    }
+}
+
 impl<T> FileSystem<T>
 where
     T: crate::File,

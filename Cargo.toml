@@ -112,6 +112,8 @@ dashmap = "5.5.3"
 flume = "0.11.0"
 oneshot = "0.1.6"
 futures-lite = "2.1.0"
+async-std = "1.12.0"
+pin-project = "1"
 
 poll-promise = { version = "0.3.0" }
 

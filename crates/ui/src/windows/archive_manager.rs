@@ -22,8 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::io::Write;
-
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
 static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
@@ -53,9 +51,7 @@ enum Mode {
                 luminol_filesystem::Result<(luminol_filesystem::host::File, String)>,
             >,
         >,
-        save_promise: Option<
-            poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
-        >,
+        save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
     },
     Create {
         view: Option<luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>>,
@@ -303,9 +299,27 @@ impl Window {
                                     )
                                     .clicked()
                             {
-                                *save_promise = Some(luminol_core::spawn_future(
-                                    luminol_filesystem::host::FileSystem::from_folder_picker(),
-                                ));
+                                let view = view.as_ref().unwrap();
+                                match Self::find_files(view) {
+                                    Ok(file_paths) => {
+                                        let view_filesystem = view.filesystem().clone();
+                                        *save_promise = Some(luminol_core::spawn_future(async move {
+                                            let dest_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
+
+                                            for path in file_paths {
+                                                if let Some(parent) = path.parent() {
+                                                    dest_fs.create_dir(parent)?;
+                                                }
+                                                let mut src_file = view_filesystem.open_file(&path, OpenFlags::Read)?;
+                                                let mut dest_file = dest_fs.open_file(&path, OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
+                                                async_std::io::copy(&mut src_file, &mut dest_file).await?;
+                                            }
+
+                                            Ok(())
+                                        }));
+                                    }
+                                    Err(e) => update_state.toasts.error(e.to_string()),
+                                }
                             } else if save_promise.is_some() {
                                 ui.spinner();
                             }
@@ -315,15 +329,7 @@ impl Window {
 
                 if let Some(p) = save_promise.take() {
                     match p.try_take() {
-                        Ok(Ok(filesystem)) => {
-                            if let Err(e) =
-                                Self::copy_files(view.as_ref().unwrap(), &filesystem, false)
-                            {
-                                update_state.toasts.error(e.to_string());
-                            } else {
-                                update_state.toasts.info("Extracted successfully!");
-                            }
-                        }
+                        Ok(Ok(())) => update_state.toasts.info("Extracted successfully!"),
                         Ok(Err(e)) => {
                             if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
                                 update_state.toasts.error(e.to_string())
@@ -461,65 +467,6 @@ impl Window {
                 }
             }
         }
-    }
-
-    fn copy_files(
-        view: &luminol_components::FileSystemView<impl luminol_filesystem::FileSystem>,
-        dest_fs: &impl luminol_filesystem::FileSystem,
-        create_only: bool,
-    ) -> luminol_filesystem::Result<()> {
-        for metadata in view {
-            let path: &camino::Utf8Path = metadata.path.as_str().into();
-            if metadata.is_file {
-                if let Some(parent) = path.parent() {
-                    let _ = dest_fs.create_dir(parent);
-                }
-            }
-            Self::copy_files_recurse(
-                view.filesystem(),
-                dest_fs,
-                metadata.path.as_str().into(),
-                metadata.is_file,
-                create_only,
-            )?;
-        }
-        Ok(())
-    }
-
-    fn copy_files_recurse(
-        src_fs: &impl luminol_filesystem::FileSystem,
-        dest_fs: &impl luminol_filesystem::FileSystem,
-        path: &camino::Utf8Path,
-        is_file: bool,
-        create_only: bool,
-    ) -> luminol_filesystem::Result<()> {
-        if is_file {
-            let mut src_file = src_fs.open_file(path, luminol_filesystem::OpenFlags::Read)?;
-            let mut dest_file = dest_fs.open_file(
-                path,
-                luminol_filesystem::OpenFlags::Read
-                    | luminol_filesystem::OpenFlags::Write
-                    | luminol_filesystem::OpenFlags::Create
-                    | luminol_filesystem::OpenFlags::Truncate,
-            )?;
-            if !create_only {
-                std::io::copy(&mut src_file, &mut dest_file)
-                    .map_err(luminol_filesystem::Error::IoError)?;
-                dest_file.flush()?;
-            }
-        } else {
-            dest_fs.create_dir(path)?;
-            for entry in src_fs.read_dir(path)? {
-                Self::copy_files_recurse(
-                    src_fs,
-                    dest_fs,
-                    &entry.path,
-                    entry.metadata.is_file,
-                    create_only,
-                )?;
-            }
-        }
-        Ok(())
     }
 
     fn find_files(
