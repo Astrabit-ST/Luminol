@@ -324,16 +324,16 @@ impl Window {
                                     let view = view.as_ref().unwrap();
                                     match Self::find_files(view) {
                                         Ok(file_paths) => {
-                                            *progress_total = file_paths.len();
-
-                                            let view_filesystem = view.filesystem().clone();
+                                            let ctx = ui.ctx().clone();
                                             let progress = progress.clone();
+                                            let view_filesystem = view.filesystem().clone();
                                             *progress_total = file_paths.len();
                                             progress.store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
 
                                             *save_promise = Some(luminol_core::spawn_future(async move {
                                                 let dest_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
                                                 progress.store(0, std::sync::atomic::Ordering::Relaxed);
+                                                ctx.request_repaint();
 
                                                 for path in file_paths {
                                                     if let Some(parent) = path.parent() {
@@ -344,6 +344,7 @@ impl Window {
                                                     async_std::io::copy(&mut src_file, &mut dest_file).await?;
 
                                                     progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                    ctx.request_repaint();
                                                 }
 
                                                 Ok(())
@@ -463,6 +464,7 @@ impl Window {
                                         let version = *version;
                                         match Self::find_files(view) {
                                             Ok(file_paths) => {
+                                                let ctx = ui.ctx().clone();
                                                 let progress = progress.clone();
                                                 let view_filesystem = view.filesystem().clone();
                                                 *progress_total = file_paths.len();
@@ -475,6 +477,8 @@ impl Window {
                                                         let mut is_first = true;
 
                                                         progress.store(0, std::sync::atomic::Ordering::Relaxed);
+                                                        ctx.request_repaint();
+
                                                         let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
                                                             &mut file,
                                                             version,
@@ -483,6 +487,7 @@ impl Window {
                                                                     is_first = false;
                                                                 } else {
                                                                     progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                                    ctx.request_repaint();
                                                                 }
 
                                                                 let file = view_filesystem.open_file(path, OpenFlags::Read)?;
@@ -490,7 +495,9 @@ impl Window {
                                                                 Ok((path, size, file))
                                                             }),
                                                         ).await?;
+
                                                         progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                        ctx.request_repaint();
 
                                                         file.save(
                                                             match version {
