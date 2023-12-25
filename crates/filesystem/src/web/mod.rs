@@ -15,13 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use itertools::Itertools;
+
 mod events;
 mod util;
 pub use events::setup_main_thread_hooks;
 
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
-use util::{send_and_await, send_and_recv};
+use std::io::ErrorKind::PermissionDenied;
+use std::task::Poll;
+use util::{generate_key, send_and_await, send_and_recv, send_and_wake};
 
 static WORKER_CHANNELS: once_cell::sync::OnceCell<WorkerChannels> =
     once_cell::sync::OnceCell::new();
@@ -59,6 +63,15 @@ pub struct FileSystem {
 pub struct File {
     key: usize,
     temp_file_name: Option<String>,
+    futures: parking_lot::Mutex<FileFutures>,
+}
+
+#[derive(Debug, Default)]
+pub struct FileFutures {
+    read: Option<oneshot::Receiver<std::io::Result<Vec<u8>>>>,
+    write: Option<oneshot::Receiver<std::io::Result<()>>>,
+    flush: Option<oneshot::Receiver<std::io::Result<()>>>,
+    seek: Option<oneshot::Receiver<std::io::Result<u64>>>,
 }
 
 #[derive(Debug)]
@@ -69,14 +82,14 @@ enum FileSystemCommand {
         camino::Utf8PathBuf,
         oneshot::Sender<Result<Metadata>>,
     ),
-    DirPicker(oneshot::Sender<Option<(usize, String, Option<String>)>>),
+    DirPicker(oneshot::Sender<Option<(usize, String)>>),
     DirFromIdb(String, oneshot::Sender<Option<(usize, String)>>),
+    DirToIdb(usize, String, oneshot::Sender<bool>),
     DirSubdir(
         usize,
         camino::Utf8PathBuf,
-        oneshot::Sender<Result<(usize, String, Option<String>)>>,
+        oneshot::Sender<Result<(usize, String)>>,
     ),
-    DirIdbDrop(String, oneshot::Sender<bool>),
     DirOpenFile(
         usize,
         camino::Utf8PathBuf,
@@ -96,6 +109,12 @@ enum FileSystemCommand {
     DirClone(usize, oneshot::Sender<usize>),
     FileCreateTemp(oneshot::Sender<std::io::Result<(usize, String)>>),
     FileSetLength(usize, u64, oneshot::Sender<std::io::Result<()>>),
+    FilePicker(
+        String,
+        Vec<String>,
+        oneshot::Sender<Option<(usize, String)>>,
+    ),
+    FileSave(usize, String, oneshot::Sender<Option<()>>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -137,11 +156,16 @@ impl FileSystem {
         }
         send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+            .map(|(key, name)| Self {
+                key,
+                name,
+                idb_key: None,
+            })
             .ok_or(Error::CancelledLoading)
     }
 
-    /// Attempts to restore a previously created `FileSystem` using its `.idb_key()`.
+    /// Attempts to restore a previously created `FileSystem` using its IndexedDB key returned by
+    /// `.save_to_idb()`.
     pub async fn from_idb_key(idb_key: String) -> Result<Self> {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported);
@@ -159,23 +183,31 @@ impl FileSystem {
     /// Creates a new `FileSystem` from a subdirectory of this one.
     pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
         send_and_recv(|tx| FileSystemCommand::DirSubdir(self.key, path.as_ref().to_path_buf(), tx))
-            .map(|(key, name, idb_key)| FileSystem { key, name, idb_key })
+            .map(|(key, name)| FileSystem {
+                key,
+                name,
+                idb_key: None,
+            })
     }
 
-    /// Drops the directory with the given key from IndexedDB if it exists in there.
-    pub fn idb_drop(idb_key: String) -> bool {
-        send_and_recv(|tx| FileSystemCommand::DirIdbDrop(idb_key, tx))
+    /// Stores this `FileSystem` to IndexedDB. If successful, consumes this `Filesystem` and
+    /// returns the key needed to restore this `FileSystem` using `FileSystem::from_idb()`.
+    /// Otherwise, returns ownership of this `FileSystem`.
+    pub fn save_to_idb(mut self) -> std::result::Result<String, Self> {
+        let idb_key_is_some = self.idb_key.is_some();
+        let idb_key = self.idb_key.take().unwrap_or_else(generate_key);
+        if send_and_recv(|tx| FileSystemCommand::DirToIdb(self.key, idb_key.clone(), tx)) {
+            Ok(idb_key)
+        } else {
+            self.idb_key = idb_key_is_some.then_some(idb_key);
+            Err(self)
+        }
     }
 
     /// Returns a path consisting of a single element: the name of the root directory of this
     /// filesystem.
     pub fn root_path(&self) -> &camino::Utf8Path {
         self.name.as_str().into()
-    }
-
-    /// Returns the key needed to restore this `FileSystem` using `FileSystem::from_idb()`.
-    pub fn idb_key(&self) -> Option<&str> {
-        self.idb_key.as_deref()
     }
 }
 
@@ -190,7 +222,7 @@ impl Clone for FileSystem {
         Self {
             key: send_and_recv(|tx| FileSystemCommand::DirClone(self.key, tx)),
             name: self.name.clone(),
-            idb_key: self.idb_key.clone(),
+            idb_key: None,
         }
     }
 }
@@ -209,6 +241,7 @@ impl FileSystemTrait for FileSystem {
         .map(|key| File {
             key,
             temp_file_name: None,
+            futures: Default::default(),
         })
     }
 
@@ -262,8 +295,68 @@ impl File {
             Self {
                 key,
                 temp_file_name: Some(temp_file_name),
+                futures: Default::default(),
             }
         })
+    }
+
+    /// Attempts to prompt the user to choose a file from their local machine using the
+    /// JavaScript File System API.
+    /// Then creates a `File` allowing read access to that file if they chose one
+    /// successfully.
+    /// If the File System API is not supported, this always returns `None` without doing anything.
+    ///
+    /// `extensions` should be a list of accepted file extensions for the file, without the leading
+    /// `.`
+    pub async fn from_file_picker(
+        filter_name: &str,
+        extensions: &[impl ToString],
+    ) -> Result<(Self, String)> {
+        if !FileSystem::filesystem_supported() {
+            return Err(Error::Wasm32FilesystemNotSupported);
+        }
+        send_and_await(|tx| {
+            FileSystemCommand::FilePicker(
+                filter_name.to_string(),
+                extensions.iter().map(|e| e.to_string()).collect_vec(),
+                tx,
+            )
+        })
+        .await
+        .map(|(key, name)| {
+            (
+                Self {
+                    key,
+                    temp_file_name: None,
+                    futures: Default::default(),
+                },
+                name,
+            )
+        })
+        .ok_or(Error::CancelledLoading)
+    }
+
+    /// Saves this file to a location of the user's choice.
+    ///
+    /// In native, this will open a file picker dialog, wait for the user to choose a location to
+    /// save a file, and then copy this file to the new location. This function will wait for the
+    /// user to finish picking a file location before returning.
+    ///
+    /// In web, this will use the browser's native file downloading method to save the file, which
+    /// may or may not open a file picker. Due to platform limitations, this function will return
+    /// immediately after making a download request and will not wait for the user to pick a file
+    /// location if a file picker is shown.
+    ///
+    /// You must flush the file yourself before saving. It will not be flushed for you.
+    ///
+    /// `filename` should be the default filename, with extension, to show in the file picker if
+    /// one is shown. `filter_name` should be the name of the file type shown in the part of the
+    /// file picker where the user selects a file extension. `filter_name` works only in native
+    /// builds; it is ignored in web builds.
+    pub async fn save(&self, filename: &str, _filter_name: &str) -> Result<()> {
+        send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx))
+            .await
+            .ok_or(Error::IoError(PermissionDenied.into()))
     }
 }
 
@@ -298,6 +391,34 @@ impl std::io::Read for File {
     }
 }
 
+impl futures_lite::AsyncRead for File {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let mut futures = self.futures.lock();
+        if futures.read.is_none() {
+            futures.read = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileRead(self.key, buf.len(), tx)
+            }));
+        }
+        match futures.read.as_mut().unwrap().try_recv() {
+            Ok(Ok(vec)) => {
+                futures.read = None;
+                let length = vec.len();
+                buf[..length].copy_from_slice(&vec[..]);
+                Poll::Ready(Ok(length))
+            }
+            Ok(Err(e)) => {
+                futures.read = None;
+                Poll::Ready(Err(e))
+            }
+            Err(_) => Poll::Pending,
+        }
+    }
+}
+
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         send_and_recv(|tx| FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx))?;
@@ -309,8 +430,90 @@ impl std::io::Write for File {
     }
 }
 
+impl futures_lite::AsyncWrite for File {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let mut futures = self.futures.lock();
+        if futures.write.is_none() {
+            futures.write = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx)
+            }));
+        }
+        match futures.write.as_mut().unwrap().try_recv() {
+            Ok(Ok(())) => {
+                futures.write = None;
+                Poll::Ready(Ok(buf.len()))
+            }
+            Ok(Err(e)) => {
+                futures.write = None;
+                Poll::Ready(Err(e))
+            }
+            Err(_) => Poll::Pending,
+        }
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let mut futures = self.futures.lock();
+        if futures.flush.is_none() {
+            futures.flush = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileFlush(self.key, tx)
+            }));
+        }
+        match futures.flush.as_mut().unwrap().try_recv() {
+            Ok(Ok(())) => {
+                futures.flush = None;
+                Poll::Ready(Ok(()))
+            }
+            Ok(Err(e)) => {
+                futures.flush = None;
+                Poll::Ready(Err(e))
+            }
+            Err(_) => Poll::Pending,
+        }
+    }
+
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Err(PermissionDenied.into()))
+    }
+}
+
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx))
+    }
+}
+
+impl futures_lite::AsyncSeek for File {
+    fn poll_seek(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        pos: std::io::SeekFrom,
+    ) -> Poll<std::io::Result<u64>> {
+        let mut futures = self.futures.lock();
+        if futures.seek.is_none() {
+            futures.seek = Some(send_and_wake(cx, |tx| {
+                FileSystemCommand::FileSeek(self.key, pos, tx)
+            }));
+        }
+        match futures.seek.as_mut().unwrap().try_recv() {
+            Ok(Ok(offset)) => {
+                futures.seek = None;
+                Poll::Ready(Ok(offset))
+            }
+            Ok(Err(e)) => {
+                futures.seek = None;
+                Poll::Ready(Err(e))
+            }
+            Err(_) => Poll::Pending,
+        }
     }
 }

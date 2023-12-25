@@ -29,6 +29,7 @@ pub enum FileSystem {
     HostLoaded(host::FileSystem),
     Loaded {
         filesystem: path_cache::FileSystem<list::FileSystem>,
+        host_filesystem: host::FileSystem,
         project_path: camino::Utf8PathBuf,
     },
 }
@@ -99,9 +100,7 @@ impl FileSystem {
     }
 
     fn load_project_config(&self) -> Result<luminol_config::project::Config> {
-        if !self.exists(".luminol")? {
-            self.create_dir(".luminol")?;
-        }
+        self.create_dir(".luminol")?;
 
         let project = match self
             .read_to_string(".luminol/config")
@@ -199,6 +198,16 @@ impl FileSystem {
         *project_config = Some(config);
 
         Ok(result)
+    }
+
+    pub fn host(&self) -> Option<host::FileSystem> {
+        match self {
+            FileSystem::Unloaded => None,
+            FileSystem::HostLoaded(host) => Some(host.clone()),
+            FileSystem::Loaded {
+                host_filesystem, ..
+            } => Some(host_filesystem.clone()),
+        }
     }
 }
 
@@ -329,6 +338,7 @@ impl FileSystem {
         project_config: &luminol_config::project::Config,
         global_config: &mut luminol_config::global::Config,
     ) -> Result<LoadResult> {
+        let host_clone = host.clone();
         let project_path = host.root_path().to_path_buf();
 
         let mut list = list::FileSystem::new();
@@ -359,6 +369,7 @@ impl FileSystem {
 
         *self = FileSystem::Loaded {
             filesystem: path_cache,
+            host_filesystem: host_clone,
             project_path: project_path.to_path_buf(),
         };
 
@@ -443,7 +454,6 @@ impl FileSystem {
         };
 
         let root_path = host.root_path().to_path_buf();
-        let idb_key = host.idb_key().map(|k| k.to_string());
 
         let mut list = list::FileSystem::new();
 
@@ -465,7 +475,7 @@ impl FileSystem {
             .map(archiver::FileSystem::new)
             .transpose()?;
 
-        list.push(host);
+        list.push(host.clone());
         for filesystem in rtp_filesystems {
             list.push(filesystem)
         }
@@ -477,17 +487,18 @@ impl FileSystem {
 
         *self = Self::Loaded {
             filesystem: path_cache,
+            host_filesystem: host.clone(),
             project_path: root_path.clone(),
         };
 
-        if let Some(idb_key) = idb_key {
+        if let Ok(idb_key) = host.save_to_idb() {
             let mut projects: std::collections::VecDeque<_> = global_config
                 .recent_projects
                 .iter()
-                .filter(|(_, k)| k.as_str() != idb_key.as_str())
+                .filter(|(_, k)| k.as_str() != idb_key)
                 .cloned()
                 .collect();
-            projects.push_front((root_path.to_string(), idb_key));
+            projects.push_front((root_path.to_string(), idb_key.to_string()));
             global_config.recent_projects = projects;
         }
 

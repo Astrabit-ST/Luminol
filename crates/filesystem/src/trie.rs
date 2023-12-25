@@ -42,9 +42,11 @@ impl<'a, T> Iterator for FileSystemTrieDirIter<'a, T> {
     type Item = (&'a str, Option<&'a T>);
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.0 {
-            FileSystemTrieDirIterInner::Direct(iter, _) => iter
-                .next()
-                .map(|(key, value)| (key.as_str(), value.as_ref())),
+            FileSystemTrieDirIterInner::Direct(iter, len) => {
+                *len = len.saturating_sub(1);
+                iter.next()
+                    .map(|(key, value)| (key.as_str(), value.as_ref()))
+            }
             FileSystemTrieDirIterInner::Prefix(iter) => iter.next(),
         }
     }
@@ -135,7 +137,7 @@ impl<T> FileSystemTrie<T> {
                 } else {
                     &prefix_with_trailing_slash
                 })
-                .nth(1)
+                .next()
             {
                 // If there is a different path in the trie that has this as a prefix (there can be
                 // at most one), add it to this directory entry
@@ -153,11 +155,10 @@ impl<T> FileSystemTrie<T> {
         }
 
         // Add the new path to the entry at this prefix
-        let prefix_trie = self.0.get_mut_str(&prefix).unwrap();
-        prefix_trie.insert_str(
-            path.strip_prefix(&prefix).unwrap().iter().next().unwrap(),
-            None,
-        );
+        if let Some(dirname) = path.strip_prefix(&prefix).unwrap().iter().next() {
+            let prefix_trie = self.0.get_mut_str(&prefix).unwrap();
+            prefix_trie.insert_str(dirname, None);
+        }
 
         // Add the actual entry for the new path
         self.0.insert_str(path.as_str(), DirTrie::new());
@@ -209,9 +210,12 @@ impl<T> FileSystemTrie<T> {
             return false;
         };
         let dir = path.parent().unwrap_or(camino::Utf8Path::new(""));
-        self.0
-            .get_str(dir.as_str())
-            .map_or(false, |dir_trie| dir_trie.contains_key_str(filename))
+        self.0.get_str(dir.as_str()).map_or(false, |dir_trie| {
+            dir_trie
+                .get_str(filename)
+                .and_then(|o| o.as_ref())
+                .is_some()
+        })
     }
 
     /// Returns whether or not a file or directory exists at the given path.
@@ -252,7 +256,7 @@ impl<T> FileSystemTrie<T> {
     }
 
     /// Gets a mutable reference to the value in the file at the given path, if it exists.
-    pub fn get_mut_file(&mut self, path: impl AsRef<camino::Utf8Path>) -> Option<&mut T> {
+    pub fn get_file_mut(&mut self, path: impl AsRef<camino::Utf8Path>) -> Option<&mut T> {
         let path = path.as_ref();
         let Some(filename) = path.iter().next_back() else {
             return None;
@@ -266,11 +270,11 @@ impl<T> FileSystemTrie<T> {
 
     /// Gets the longest prefix of the given path that is the path of a directory in the trie.
     pub fn get_dir_prefix(&self, path: impl AsRef<camino::Utf8Path>) -> &camino::Utf8Path {
-        let path = path.as_ref().as_str();
-        if self.0.contains_key_str(path) {
+        let path = path.as_ref();
+        if self.0.contains_key_str(path.as_str()) {
             return self
                 .0
-                .longest_common_prefix::<BStr>(path.into())
+                .longest_common_prefix::<BStr>(path.as_str().into())
                 .as_str()
                 .into();
         }
@@ -278,8 +282,8 @@ impl<T> FileSystemTrie<T> {
             .0
             .longest_common_prefix::<BStr>(format!("{path}/").as_str().into())
             .as_str();
-        let prefix = if !self.0.contains_key_str(prefix) {
-            prefix.rsplit_once('/').map(|(s, _)| s).unwrap_or(prefix)
+        let prefix = if !self.0.contains_key_str(prefix) || !path.starts_with(prefix) {
+            prefix.rsplit_once('/').map(|(s, _)| s).unwrap_or_default()
         } else {
             prefix
         };
@@ -312,6 +316,11 @@ impl<T> FileSystemTrie<T> {
             self.0.remove_str(path_str);
             if let Some(parent) = path.parent() {
                 self.create_dir(parent);
+                if let (Some(parent_trie), Some(dirname)) =
+                    (self.0.get_mut_str(parent.as_str()), path.iter().next_back())
+                {
+                    parent_trie.remove_str(dirname);
+                }
             }
             true
         } else if self
@@ -324,6 +333,11 @@ impl<T> FileSystemTrie<T> {
             self.0.remove_prefix_str(&format!("{path_str}/"));
             if let Some(parent) = path.parent() {
                 self.create_dir(parent);
+                if let (Some(parent_trie), Some(dirname)) =
+                    (self.0.get_mut_str(parent.as_str()), path.iter().next_back())
+                {
+                    parent_trie.remove_str(dirname);
+                }
             }
             true
         } else {

@@ -86,14 +86,18 @@ impl Default for Audio {
 
 impl Audio {
     /// Play a sound on a source.
-    pub fn play(
+    pub fn play<T>(
         &self,
         path: impl AsRef<camino::Utf8Path>,
-        filesystem: &impl luminol_filesystem::FileSystem, // FIXME
+        filesystem: &T,
         volume: u8,
         pitch: u8,
         source: Source,
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        T: luminol_filesystem::FileSystem,
+        T::File: 'static,
+    {
         let path = path.as_ref();
         let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read)?;
 

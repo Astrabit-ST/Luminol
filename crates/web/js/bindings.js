@@ -41,6 +41,16 @@ export async function _show_directory_picker() {
     return await window.showDirectoryPicker({ mode: 'readwrite' });
 }
 
+export async function _show_file_picker(filter_name, extensions) {
+    return (await window.showOpenFilePicker({
+        types: [{
+            description: filter_name,
+            accept: { 'application/x-empty': extensions },
+        }],
+        excludeAcceptAllOption: true,
+    }))[0];
+}
+
 export function dir_values(dir) {
     return dir.values();
 }

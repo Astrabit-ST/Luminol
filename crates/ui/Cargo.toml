@@ -31,15 +31,23 @@ egui_extras.workspace = true
 
 catppuccin-egui = { version = "3.1.0", git = "https://github.com/catppuccin/egui", rev = "bcb5849b6f96b56aa4982ec3366e238371de473e" }
 
+camino.workspace = true
+
 strum.workspace = true
 
 git-version = "0.3.5"
 
 poll-promise.workspace = true
+async-std.workspace = true
+pin-project.workspace = true
+futures-lite.workspace = true
 futures = "0.3.28"
 reqwest = "0.11.22"
 
 zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
+
+once_cell.workspace = true
+qp-trie.workspace = true
 
 itertools.workspace = true
 

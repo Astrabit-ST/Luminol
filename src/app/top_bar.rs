@@ -39,10 +39,13 @@ impl TopBar {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let old_fullscreen = self.fullscreen;
             ui.checkbox(&mut self.fullscreen, "Fullscreen");
-            update_state
-                .ctx
-                .send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
+            if self.fullscreen != old_fullscreen {
+                update_state
+                    .ctx
+                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
+            }
         }
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
@@ -189,6 +192,23 @@ impl TopBar {
                     );
                 }
             });
+        });
+
+        ui.separator();
+
+        ui.menu_button("Tools", |ui| {
+            // Hide this menu if the unsaved changes modal or a file/folder picker is open
+            if update_state.project_manager.is_modal_open()
+                || update_state.project_manager.is_picker_open()
+            {
+                ui.close_menu();
+            }
+
+            if ui.button("RGSSAD Archive Manager").clicked() {
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::archive_manager::Window::default());
+            }
         });
 
         ui.separator();

@@ -44,5 +44,9 @@ serde.workspace = true
 
 once_cell.workspace = true
 slab.workspace = true
+qp-trie.workspace = true
 
 anyhow.workspace = true
+
+indextree = "4.6.0"
+lexical-sort = "0.3.1"

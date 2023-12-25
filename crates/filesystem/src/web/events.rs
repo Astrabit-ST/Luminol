@@ -15,19 +15,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::util::{generate_key, get_subdir, get_tmp_dir, handle_event, idb, to_future};
+use super::util::{
+    generate_key, get_subdir, get_subdir_create, get_tmp_dir, handle_event, idb, to_future,
+};
 use super::FileSystemCommand;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 use indexed_db_futures::prelude::*;
-use std::io::ErrorKind::{AlreadyExists, InvalidInput, PermissionDenied};
+use std::io::ErrorKind::{InvalidInput, PermissionDenied};
 use wasm_bindgen::prelude::*;
 
 pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
     wasm_bindgen_futures::spawn_local(async move {
-        let storage = web_sys::window()
-            .expect("cannot run `setup_main_thread_hooks()` outside of main thread")
-            .navigator()
-            .storage();
+        let window = web_sys::window()
+            .expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        let document = window
+            .document()
+            .expect("cannot run `setup_main_thread_hooks()` outside of main thread");
+        let storage = window.navigator().storage();
 
         struct FileHandle {
             offset: usize,
@@ -100,20 +104,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                 FileSystemCommand::DirPicker(tx) => {
                     handle_event(tx, async {
                         let dir = luminol_web::bindings::show_directory_picker().await.ok()?;
-
-                        // Try to insert the handle into IndexedDB
-                        let idb_key = generate_key();
-                        let idb_ok = {
-                            let idb_key = idb_key.as_str();
-                            idb(IdbTransactionMode::Readwrite, |store| {
-                                store.put_key_val_owned(idb_key, &dir)
-                            })
-                            .await
-                            .is_ok()
-                        };
-
                         let name = dir.name();
-                        Some((dirs.insert(dir), name, idb_ok.then_some(idb_key)))
+                        Some((dirs.insert(dir), name))
                     })
                     .await;
                 }
@@ -129,12 +121,31 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .ok()
                         .flatten()?;
                         let dir = dir.unchecked_into::<web_sys::FileSystemDirectoryHandle>();
-                        luminol_web::bindings::request_permission(&dir)
-                            .await
-                            .then(|| {
-                                let name = dir.name();
-                                (dirs.insert(dir), name)
-                            })
+                        let key =
+                            luminol_web::bindings::request_permission(&dir)
+                                .await
+                                .then(|| {
+                                    let name = dir.name();
+                                    (dirs.insert(dir), name)
+                                })?;
+                        idb(IdbTransactionMode::Readwrite, |store| {
+                            store.delete_owned(&idb_key)
+                        })
+                        .await
+                        .ok()?;
+                        Some(key)
+                    })
+                    .await;
+                }
+
+                FileSystemCommand::DirToIdb(key, idb_key, tx) => {
+                    handle_event(tx, async {
+                        let dir = dirs.get(key).unwrap();
+                        idb(IdbTransactionMode::Readwrite, |store| {
+                            store.put_key_val_owned(idb_key, dir)
+                        })
+                        .await
+                        .is_ok()
                     })
                     .await;
                 }
@@ -145,31 +156,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         let dir = get_subdir(dirs.get(key).unwrap(), &mut iter)
                             .await
                             .ok_or(Error::NotExist)?;
-
-                        // Try to insert the handle into IndexedDB
-                        let idb_key = generate_key();
-                        let idb_ok = {
-                            let idb_key = idb_key.as_str();
-                            idb(IdbTransactionMode::Readwrite, |store| {
-                                store.put_key_val_owned(idb_key, &dir)
-                            })
-                            .await
-                            .is_ok()
-                        };
-
                         let name = dir.name();
-                        Ok((dirs.insert(dir), name, idb_ok.then_some(idb_key)))
-                    })
-                    .await;
-                }
-
-                FileSystemCommand::DirIdbDrop(idb_key, tx) => {
-                    handle_event(tx, async {
-                        idb(IdbTransactionMode::Readwrite, |store| {
-                            store.delete_owned(&idb_key)
-                        })
-                        .await
-                        .is_ok()
+                        Ok((dirs.insert(dir), name))
                     })
                     .await;
                 }
@@ -283,36 +271,10 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                 FileSystemCommand::DirCreateDir(key, path, tx) => {
                     handle_event(tx, async {
                         let mut iter = path.iter();
-                        let dirname = iter
-                            .next_back()
-                            .ok_or(Error::IoError(AlreadyExists.into()))?;
-                        let subdir = get_subdir(dirs.get(key).unwrap(), &mut iter)
+                        get_subdir_create(dirs.get(key).unwrap(), &mut iter)
                             .await
-                            .ok_or(Error::NotExist)?;
-
-                        if to_future::<web_sys::FileSystemFileHandle>(
-                            subdir.get_file_handle(dirname),
-                        )
-                        .await
-                        .is_ok()
-                            || to_future::<web_sys::FileSystemDirectoryHandle>(
-                                subdir.get_directory_handle(dirname),
-                            )
-                            .await
-                            .is_ok()
-                        {
-                            // If there is already a file or directory at the given path
-                            return Err(Error::IoError(PermissionDenied.into()));
-                        }
-
-                        let mut options = web_sys::FileSystemGetDirectoryOptions::new();
-                        options.create(true);
-                        to_future::<web_sys::FileSystemDirectoryHandle>(
-                            subdir.get_directory_handle_with_options(dirname, &options),
-                        )
-                        .await
-                        .map(|_| ())
-                        .map_err(|_| Error::IoError(PermissionDenied.into()))
+                            .ok_or(Error::IoError(PermissionDenied.into()))?;
+                        Ok(())
                     })
                     .await;
                 }
@@ -512,6 +474,52 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .await
                         .map_err(|_| PermissionDenied)?;
                         Ok(())
+                    })
+                    .await;
+                }
+
+                FileSystemCommand::FilePicker(filter_name, extensions, tx) => {
+                    handle_event(tx, async {
+                        let file_handle =
+                            luminol_web::bindings::show_file_picker(&filter_name, &extensions)
+                                .await
+                                .ok()?;
+                        let name = file_handle.name();
+
+                        Some((
+                            files.insert(FileHandle {
+                                offset: 0,
+                                file_handle,
+                                read_allowed: true,
+                                write_handle: None,
+                            }),
+                            name,
+                        ))
+                    })
+                    .await;
+                }
+
+                FileSystemCommand::FileSave(key, filename, tx) => {
+                    handle_event(tx, async {
+                        let file = files.get(key).unwrap();
+                        let file_handle = file.read_allowed.then_some(&file.file_handle)?;
+
+                        let blob = to_future::<web_sys::File>(file_handle.get_file())
+                            .await
+                            .ok()?;
+                        let url = web_sys::Url::create_object_url_with_blob(&blob).ok()?;
+
+                        let anchor = document
+                            .create_element("a")
+                            .ok()?
+                            .unchecked_into::<web_sys::HtmlAnchorElement>();
+                        anchor.set_href(&url);
+                        anchor.set_download(&filename);
+                        anchor.click();
+                        anchor.remove();
+                        let _ = web_sys::Url::revoke_object_url(&url);
+
+                        Some(())
                     })
                     .await;
                 }

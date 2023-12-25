@@ -99,7 +99,7 @@ pub(super) fn generate_key() -> String {
 /// `IdbTransactionMode`.
 pub(super) async fn idb<R>(
     mode: IdbTransactionMode,
-    f: impl Fn(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
+    f: impl FnOnce(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
 ) -> std::result::Result<R, web_sys::DomException> {
     let mut db_req = IdbDatabase::open_u32("astrabit.luminol", 1)?;
 
@@ -152,4 +152,28 @@ pub(super) async fn send_and_await<R>(
     f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommand,
 ) -> R {
     send(f).await.unwrap()
+}
+
+/// Helper function to send a filesystem command from the worker thread to the main thread, wait
+/// asynchronously for the response, send the response to the receiver returned by this function
+/// and then wake up a task.
+pub(super) fn send_and_wake<R>(
+    cx: &std::task::Context<'_>,
+    f: impl FnOnce(oneshot::Sender<R>) -> super::FileSystemCommand,
+) -> oneshot::Receiver<R>
+where
+    R: 'static,
+{
+    let command_rx = send(f);
+    let (task_tx, task_rx) = oneshot::channel();
+
+    let waker = cx.waker().clone();
+
+    wasm_bindgen_futures::spawn_local(async move {
+        let response = command_rx.await.unwrap();
+        let _ = task_tx.send(response);
+        waker.wake();
+    });
+
+    task_rx
 }

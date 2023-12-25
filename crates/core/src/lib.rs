@@ -41,6 +41,7 @@ mod toasts;
 pub use toasts::Toasts;
 
 pub mod project_manager;
+pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
 pub struct UpdateState<'res> {
@@ -253,18 +254,11 @@ impl<'res> UpdateState<'res> {
 
     fn handle_project_loading(&mut self) {
         let mut filesystem_open_result = None;
-        #[cfg(target_arch = "wasm32")]
-        let mut idb_key = None;
 
         if let Some(p) = self.project_manager.load_filesystem_promise.take() {
             match p.try_take() {
                 Ok(Ok(host)) => {
                     self.close_project();
-
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        idb_key = host.idb_key().map(str::to_string);
-                    }
 
                     filesystem_open_result = Some(self.filesystem.load_project(
                         host,
@@ -304,9 +298,6 @@ impl<'res> UpdateState<'res> {
                 ) {
                     self.toasts
                         .error(format!("Error loading the project data: {why}"));
-
-                    #[cfg(target_arch = "wasm32")]
-                    idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
                 } else {
                     self.toasts.info(format!(
                         "Successfully opened {:?}",
@@ -317,9 +308,6 @@ impl<'res> UpdateState<'res> {
             Some(Err(why)) => {
                 self.toasts
                     .error(format!("Error opening the project: {why}"));
-
-                #[cfg(target_arch = "wasm32")]
-                idb_key.map(luminol_filesystem::host::FileSystem::idb_drop);
             }
             None => {}
         }
