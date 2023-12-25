@@ -29,7 +29,6 @@ itertools.workspace = true
 dashmap.workspace = true
 parking_lot.workspace = true
 futures-lite.workspace = true
-poll-promise.workspace = true
 async-std.workspace = true
 pin-project.workspace = true
 
