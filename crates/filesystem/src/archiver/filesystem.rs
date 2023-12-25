@@ -25,14 +25,11 @@ use std::io::{
     SeekFrom,
 };
 
-use super::{
-    util::{
-        advance_magic, move_file_and_truncate, read_file_xor, read_file_xor_async, read_header,
-        read_u32_xor, regress_magic,
-    },
-    HEADER,
+use super::util::{
+    advance_magic, move_file_and_truncate, read_file_xor, read_file_xor_async, read_header,
+    read_u32_xor, regress_magic,
 };
-use super::{Entry, File, Trie, MAGIC};
+use super::{Entry, File, Trie, HEADER, MAGIC};
 use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Default)]
