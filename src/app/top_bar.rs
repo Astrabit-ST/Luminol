@@ -39,10 +39,13 @@ impl TopBar {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let old_fullscreen = self.fullscreen;
             ui.checkbox(&mut self.fullscreen, "Fullscreen");
-            update_state
-                .ctx
-                .send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
+            if self.fullscreen != old_fullscreen {
+                update_state
+                    .ctx
+                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
+            }
         }
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
