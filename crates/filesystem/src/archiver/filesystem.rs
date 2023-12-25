@@ -27,13 +27,13 @@ use std::io::{
 
 use super::{
     util::{
-        advance_magic, move_file_and_truncate, read_file_xor, read_header, read_u32_xor,
-        regress_magic,
+        advance_magic, move_file_and_truncate, read_file_xor, read_file_xor_async, read_header,
+        read_u32_xor, regress_magic,
     },
     HEADER,
 };
 use super::{Entry, File, Trie, MAGIC};
-use crate::{archiver::util::read_file_xor_async, DirEntry, Error, Metadata, OpenFlags};
+use crate::{DirEntry, Error, Metadata, OpenFlags};
 
 #[derive(Debug, Default)]
 pub struct FileSystem<T> {
