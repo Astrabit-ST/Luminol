@@ -98,7 +98,9 @@ impl luminol_core::Window for Window {
                         ui.text_style_height(&egui::TextStyle::Body),
                         self.items.len(),
                         |ui, rows| {
+                            let offset = rows.start;
                             for (id, item) in self.items[rows].iter().enumerate() {
+                                let id = id + offset;
                                 ui.selectable_value(
                                     &mut self.selected_item,
                                     id,
