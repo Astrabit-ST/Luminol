@@ -266,7 +266,7 @@ impl<'res> UpdateState<'res> {
                         self.global_config,
                     ));
                 }
-                Ok(Err(error)) => self.toasts.format_error(&error.into()),
+                Ok(Err(error)) => self.toasts.format_error(&error),
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
             }
         }
@@ -331,7 +331,7 @@ impl<'res> UpdateState<'res> {
                             *self.data = data_cache;
                             self.project_config.replace(config);
                         }
-                        Err(error) => self.toasts.format_error(&error.into()),
+                        Err(error) => self.toasts.format_error(&error),
                     }
                 }
                 Ok(Err(error)) => self.toasts.format_error(&error),

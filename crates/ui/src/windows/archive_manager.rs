@@ -266,7 +266,7 @@ impl Window {
                                         name,
                                     ))
                                 }
-                                Err(e) => update_state.toasts.format_error(&e.into()),
+                                Err(e) => update_state.toasts.format_error(&e),
                             }
                         }
                         Ok(Err(e)) => {
@@ -274,7 +274,7 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e.into())
+                                update_state.toasts.format_error(&e)
                             }
                         }
                         Err(p) => *load_promise = Some(p),
@@ -353,7 +353,7 @@ impl Window {
                                                 Ok(())
                                             }));
                                         }
-                                        Err(e) => update_state.toasts.format_error(&e.into()),
+                                        Err(e) => update_state.toasts.format_error(&e),
                                     }
                                 } else if save_promise.is_some() {
                                     ui.spinner();
@@ -380,7 +380,7 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e.into())
+                                update_state.toasts.format_error(&e)
                             }
                         }
                         Err(p) => *save_promise = Some(p),
@@ -410,7 +410,7 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e.into())
+                                update_state.toasts.format_error(&e)
                             }
                         }
                         Err(p) => *load_promise = Some(p),
@@ -520,7 +520,7 @@ impl Window {
                                                         .await
                                                     }));
                                             }
-                                            Err(e) => update_state.toasts.format_error(&e.into()),
+                                            Err(e) => update_state.toasts.format_error(&e),
                                         }
                                     }
                                 } else if save_promise.is_some() {
@@ -550,7 +550,7 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e.into())
+                                update_state.toasts.format_error(&e)
                             }
                         }
                         Err(p) => *save_promise = Some(p),

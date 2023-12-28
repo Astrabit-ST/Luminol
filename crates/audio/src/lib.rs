@@ -99,7 +99,7 @@ impl Audio {
         T::File: 'static,
     {
         let path = path.as_ref();
-        let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read.into())?;
+        let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read)?;
 
         let is_midi = path
             .extension()
