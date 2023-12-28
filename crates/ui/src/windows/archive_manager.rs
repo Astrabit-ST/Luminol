@@ -270,7 +270,10 @@ impl Window {
                             }
                         }
                         Ok(Err(e)) => {
-                            if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                            if !matches!(
+                                e.downcast_ref(),
+                                Some(luminol_filesystem::Error::CancelledLoading)
+                            ) {
                                 update_state.toasts.format_error(&e.into())
                             }
                         }
@@ -373,7 +376,10 @@ impl Window {
                     match p.try_take() {
                         Ok(Ok(())) => update_state.toasts.info("Extracted successfully!"),
                         Ok(Err(e)) => {
-                            if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                            if !matches!(
+                                e.downcast_ref(),
+                                Some(luminol_filesystem::Error::CancelledLoading)
+                            ) {
                                 update_state.toasts.format_error(&e.into())
                             }
                         }
@@ -400,7 +406,10 @@ impl Window {
                             ));
                         }
                         Ok(Err(e)) => {
-                            if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                            if !matches!(
+                                e.downcast_ref(),
+                                Some(luminol_filesystem::Error::CancelledLoading)
+                            ) {
                                 update_state.toasts.format_error(&e.into())
                             }
                         }
@@ -537,7 +546,10 @@ impl Window {
                             update_state.toasts.info("Created archive successfully!");
                         }
                         Ok(Err(e)) => {
-                            if !matches!(e, luminol_filesystem::Error::CancelledLoading) {
+                            if !matches!(
+                                e.downcast_ref(),
+                                Some(luminol_filesystem::Error::CancelledLoading)
+                            ) {
                                 update_state.toasts.format_error(&e.into())
                             }
                         }

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{erased::ErasedFilesystem, DirEntry, Error, File, Metadata, OpenFlags};
+use crate::{erased::ErasedFilesystem, DirEntry, Error, File, Metadata, OpenFlags, Result};
 use itertools::Itertools;
 
 #[derive(Default)]
@@ -40,7 +40,7 @@ impl crate::FileSystem for FileSystem {
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File, Error> {
+    ) -> Result<Self::File> {
         let path = path.as_ref();
         let parent = path.parent().unwrap_or(path);
         for fs in self.filesystems.iter() {
@@ -48,34 +48,34 @@ impl crate::FileSystem for FileSystem {
                 return fs.open_file(path, flags);
             }
         }
-        Err(Error::NotExist)
+        Err(Error::NotExist.into())
     }
 
-    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         let path = path.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(path)? {
                 return fs.metadata(path);
             }
         }
-        Err(Error::NotExist)
+        Err(Error::NotExist.into())
     }
 
     fn rename(
         &self,
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let from = from.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(from)? {
                 return fs.rename(from, to.as_ref());
             }
         }
-        Err(Error::NotExist)
+        Err(Error::NotExist.into())
     }
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         let path = path.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(path)? {
@@ -85,27 +85,27 @@ impl crate::FileSystem for FileSystem {
         Ok(false)
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let fs = self.filesystems.first().ok_or(Error::NoFilesystems)?;
         fs.create_dir(path.as_ref())
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let fs = self.filesystems.first().ok_or(Error::NoFilesystems)?;
         fs.remove_dir(path.as_ref())
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let fs = self.filesystems.first().ok_or(Error::NoFilesystems)?;
         fs.remove_file(path.as_ref())
     }
 
-    fn remove(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let fs = self.filesystems.first().ok_or(Error::NoFilesystems)?;
         fs.remove(path.as_ref())
     }
 
-    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         let path = path.as_ref();
 
         let mut entries = Vec::new();
@@ -120,37 +120,33 @@ impl crate::FileSystem for FileSystem {
         Ok(entries)
     }
 
-    fn read(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<u8>, Error> {
+    fn read(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<u8>> {
         let path = path.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(path)? {
                 return fs.read(path);
             }
         }
-        Err(Error::NotExist)
+        Err(Error::NotExist.into())
     }
 
-    fn read_to_string(&self, path: impl AsRef<camino::Utf8Path>) -> Result<String, Error> {
+    fn read_to_string(&self, path: impl AsRef<camino::Utf8Path>) -> Result<String> {
         let path = path.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(path)? {
                 return fs.read_to_string(path);
             }
         }
-        Err(Error::NotExist)
+        Err(Error::NotExist.into())
     }
 
-    fn write(
-        &self,
-        path: impl AsRef<camino::Utf8Path>,
-        data: impl AsRef<[u8]>,
-    ) -> Result<(), Error> {
+    fn write(&self, path: impl AsRef<camino::Utf8Path>, data: impl AsRef<[u8]>) -> Result<()> {
         let path = path.as_ref();
         for fs in self.filesystems.iter() {
             if fs.exists(path)? {
                 return fs.write(path, data.as_ref());
             }
         }
-        Err(Error::NotExist)
+        Err(Error::NotExist.into())
     }
 }

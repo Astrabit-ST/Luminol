@@ -307,7 +307,7 @@ impl<'res> UpdateState<'res> {
             }
             Some(Err(error)) => {
                 self.toasts
-                    .format_error(&anyhow::Error::new(error).context("Error opening the project"));
+                    .format_error(&error.context("Error opening the project"));
             }
             None => {}
         }

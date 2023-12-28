@@ -2992,6 +2992,7 @@ dependencies = [
 name = "luminol-audio"
 version = "0.4.0"
 dependencies = [
+ "anyhow",
  "camino",
  "flume",
  "luminol-filesystem",
@@ -3151,6 +3152,7 @@ dependencies = [
 name = "luminol-filesystem"
 version = "0.4.0"
 dependencies = [
+ "anyhow",
  "async-fs 2.1.0",
  "async-std",
  "async_io_stream",

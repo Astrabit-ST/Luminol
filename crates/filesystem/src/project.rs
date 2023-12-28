@@ -110,7 +110,7 @@ impl FileSystem {
             Some(c) => c,
             None => {
                 let Some(editor_ver) = self.detect_rm_ver() else {
-                    return Err(Error::UnableToDetectRMVer);
+                    return Err(Error::UnableToDetectRMVer.into());
                 };
                 let config = luminol_config::project::Project {
                     editor_ver,
@@ -593,7 +593,7 @@ impl crate::FileSystem for FileSystem {
         flags: OpenFlags,
     ) -> Result<Self::File> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.open_file(path, flags).map(File::Host),
             FileSystem::Loaded { filesystem: f, .. } => f.open_file(path, flags).map(File::Loaded),
         }
@@ -601,7 +601,7 @@ impl crate::FileSystem for FileSystem {
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.metadata(path),
             FileSystem::Loaded { filesystem: f, .. } => f.metadata(path),
         }
@@ -613,7 +613,7 @@ impl crate::FileSystem for FileSystem {
         to: impl AsRef<camino::Utf8Path>,
     ) -> Result<()> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.rename(from, to),
             FileSystem::Loaded { filesystem, .. } => filesystem.rename(from, to),
         }
@@ -621,7 +621,7 @@ impl crate::FileSystem for FileSystem {
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.exists(path),
             FileSystem::Loaded { filesystem, .. } => filesystem.exists(path),
         }
@@ -629,7 +629,7 @@ impl crate::FileSystem for FileSystem {
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.create_dir(path),
             FileSystem::Loaded { filesystem, .. } => filesystem.create_dir(path),
         }
@@ -637,7 +637,7 @@ impl crate::FileSystem for FileSystem {
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.remove_dir(path),
             FileSystem::Loaded { filesystem, .. } => filesystem.remove_dir(path),
         }
@@ -645,7 +645,7 @@ impl crate::FileSystem for FileSystem {
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.remove_file(path),
             FileSystem::Loaded { filesystem, .. } => filesystem.remove_file(path),
         }
@@ -653,7 +653,7 @@ impl crate::FileSystem for FileSystem {
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         match self {
-            FileSystem::Unloaded => Err(Error::NotLoaded),
+            FileSystem::Unloaded => Err(Error::NotLoaded.into()),
             FileSystem::HostLoaded(f) => f.read_dir(path),
             FileSystem::Loaded { filesystem, .. } => filesystem.read_dir(path),
         }

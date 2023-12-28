@@ -61,7 +61,7 @@ impl FileSystem {
                 camino::Utf8Path::from_path(path.path()).ok_or(crate::Error::PathUtf8Error)?;
             Ok(Self::new(path))
         } else {
-            Err(crate::Error::CancelledLoading)
+            Err(crate::Error::CancelledLoading.into())
         }
     }
 
@@ -77,7 +77,7 @@ impl FileSystem {
                 .expect("path does not have parent");
             Ok(Self::new(path))
         } else {
-            Err(crate::Error::CancelledLoading)
+            Err(crate::Error::CancelledLoading.into())
         }
     }
 }
@@ -218,7 +218,7 @@ impl File {
                 path,
             ))
         } else {
-            Err(crate::Error::CancelledLoading)
+            Err(crate::Error::CancelledLoading.into())
         }
     }
 

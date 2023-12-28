@@ -30,7 +30,7 @@ use super::util::{
     read_u32_xor, regress_magic,
 };
 use super::{Entry, File, Trie, HEADER, MAGIC};
-use crate::{DirEntry, Error, Metadata, OpenFlags};
+use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
 #[derive(Debug, Default)]
 pub struct FileSystem<T> {
@@ -56,7 +56,7 @@ where
     T: crate::File,
 {
     /// Creates a new archiver filesystem from a file containing an existing archive.
-    pub fn new(mut file: T) -> Result<Self, Error> {
+    pub fn new(mut file: T) -> Result<Self> {
         file.seek(SeekFrom::Start(0))?;
         let mut reader = BufReader::new(&mut file);
 
@@ -141,7 +141,7 @@ where
                     trie.create_file(path, entry);
                 }
             }
-            _ => return Err(Error::InvalidHeader),
+            _ => return Err(Error::InvalidHeader.into()),
         }
 
         Ok(Self {
@@ -158,10 +158,10 @@ where
         mut buffer: T,
         version: u8,
         files: I,
-    ) -> Result<Self, Error>
+    ) -> Result<Self>
     where
         T: futures_lite::AsyncWrite + futures_lite::AsyncSeek + Unpin,
-        I: Iterator<Item = Result<(&'a P, u32, R), Error>>,
+        I: Iterator<Item = Result<(&'a P, u32, R)>>,
         P: AsRef<camino::Utf8Path> + 'a,
         R: futures_lite::AsyncRead + Unpin,
     {
@@ -333,7 +333,7 @@ where
                 })
             }
 
-            _ => Err(Error::NotSupported),
+            _ => Err(Error::NotSupported.into()),
         }
     }
 }
@@ -348,7 +348,7 @@ where
         &self,
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
-    ) -> Result<Self::File, Error> {
+    ) -> Result<Self::File> {
         let path = path.as_ref();
         let mut tmp = crate::host::File::new()?;
         let mut created = false;
@@ -475,7 +475,7 @@ where
                         );
                     }
 
-                    _ => return Err(Error::NotSupported),
+                    _ => return Err(Error::NotSupported.into()),
                 }
             } else if !flags.contains(OpenFlags::Truncate) {
                 let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
@@ -488,7 +488,7 @@ where
                 )?;
                 tmp.flush()?;
             } else if !trie.contains_file(path) {
-                return Err(Error::NotExist);
+                return Err(Error::NotExist.into());
             }
         }
 
@@ -509,7 +509,7 @@ where
         })
     }
 
-    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata, Error> {
+    fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         let path = path.as_ref();
         let trie = self.trie.read();
         if let Some(entry) = trie.get_file(path) {
@@ -523,7 +523,7 @@ where
                 size: size as u64,
             })
         } else {
-            Err(Error::NotExist)
+            Err(Error::NotExist.into())
         }
     }
 
@@ -531,7 +531,7 @@ where
         &self,
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
-    ) -> std::result::Result<(), Error> {
+    ) -> Result<()> {
         let from = from.as_ref();
         let to = to.as_ref();
 
@@ -539,16 +539,16 @@ where
         let mut trie = self.trie.write();
 
         if trie.contains_dir(from) {
-            return Err(Error::NotSupported);
+            return Err(Error::NotSupported.into());
         }
         if trie.contains(to) {
-            return Err(Error::IoError(AlreadyExists.into()));
+            return Err(Error::IoError(AlreadyExists.into()).into());
         }
         if !trie.contains_dir(from.parent().ok_or(Error::NotExist)?) {
-            return Err(Error::NotExist);
+            return Err(Error::NotExist.into());
         }
         let Some(old_entry) = trie.get_file(from).copied() else {
-            return Err(Error::NotExist);
+            return Err(Error::NotExist.into());
         };
 
         let archive_len = archive.metadata()?.size;
@@ -699,7 +699,7 @@ where
                     drop(writer);
                 }
 
-                _ => return Err(Error::IoError(InvalidData.into())),
+                _ => return Err(Error::IoError(InvalidData.into()).into()),
             }
 
             if to_len < from_len {
@@ -745,32 +745,32 @@ where
                     archive.flush()?;
                 }
 
-                _ => return Err(Error::IoError(InvalidData.into())),
+                _ => return Err(Error::IoError(InvalidData.into()).into()),
             }
         }
 
         Ok(())
     }
 
-    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = path.as_ref();
         let mut trie = self.trie.write();
         if trie.contains_file(path) {
-            return Err(Error::IoError(AlreadyExists.into()));
+            return Err(Error::IoError(AlreadyExists.into()).into());
         }
         trie.create_dir(path);
         Ok(())
     }
 
-    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool, Error> {
+    fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
         let trie = self.trie.read();
         Ok(trie.contains(path))
     }
 
-    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = path.as_ref();
         if !self.trie.read().contains_dir(path) {
-            return Err(Error::NotExist);
+            return Err(Error::NotExist.into());
         }
 
         let paths = self
@@ -792,7 +792,7 @@ where
         Ok(())
     }
 
-    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<(), Error> {
+    fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = path.as_ref();
         let path_len = path.as_str().bytes().len() as u64;
         let mut archive = self.archive.lock();
@@ -831,14 +831,14 @@ where
                 archive.flush()?;
             }
 
-            _ => return Err(Error::NotSupported),
+            _ => return Err(Error::NotSupported.into()),
         }
 
         trie.remove_file(path);
         Ok(())
     }
 
-    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>, Error> {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         let path = path.as_ref();
         let trie = self.trie.read();
         if let Some(iter) = trie.iter_dir(path) {
@@ -853,7 +853,7 @@ where
             })
             .try_collect()
         } else {
-            Err(Error::NotExist)
+            Err(Error::NotExist.into())
         }
     }
 }

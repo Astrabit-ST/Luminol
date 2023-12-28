@@ -67,7 +67,7 @@ pub enum Error {
     MissingIDB,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub use anyhow::Result;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Metadata {

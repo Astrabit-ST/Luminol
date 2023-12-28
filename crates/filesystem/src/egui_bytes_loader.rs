@@ -27,12 +27,10 @@ use std::sync::Arc;
 use dashmap::{DashMap, DashSet};
 use egui::load::{Bytes, BytesPoll, LoadError};
 
-use crate::Error;
-
 #[derive(Default)]
 pub struct Loader {
     loaded_files: DashMap<camino::Utf8PathBuf, Arc<[u8]>>,
-    errored_files: DashMap<camino::Utf8PathBuf, Error>,
+    errored_files: DashMap<camino::Utf8PathBuf, anyhow::Error>,
     unloaded_files: DashSet<camino::Utf8PathBuf>,
 }
 

@@ -65,10 +65,14 @@ impl Toasts {
 
     /// Format an `anyhow::Error` and display it as an error toast.
     pub fn format_error(&mut self, error: &anyhow::Error) {
-        self.error(format!(
-            "{}\n\n{}",
-            error,
-            error.chain().skip(1).map(|e| e.to_string()).join("\n")
-        ));
+        if error.chain().len() <= 1 {
+            self.error(error.to_string());
+        } else {
+            self.error(format!(
+                "{}\n\n{}",
+                error,
+                error.chain().skip(1).map(|e| e.to_string()).join("\n")
+            ));
+        }
     }
 }
