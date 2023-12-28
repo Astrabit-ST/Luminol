@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![cfg_attr(target_arch = "wasm32", no_main)] // there is no main function in web builds
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -144,9 +145,6 @@ fn main() {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn main() {}
-
-#[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
@@ -173,8 +171,8 @@ pub fn luminol_main_start(fallback: bool) {
     });
 
     std::panic::set_hook(Box::new(move |info| {
-        let backtrace_printer =
-            color_backtrace::BacktracePrinter::new().verbosity(color_backtrace::Verbosity::Full);
+        let backtrace_printer = color_backtrace::BacktracePrinter::new()
+            .lib_verbosity(color_backtrace::Verbosity::Full);
         let mut buffer = color_backtrace::termcolor::Ansi::new(vec![]);
         let _ = backtrace_printer.print_panic_info(info, &mut buffer);
         let report = String::from_utf8(buffer.into_inner()).expect("panic report not valid utf-8");
