@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use itertools::Itertools;
+
 /// A toasts management struct.
 #[derive(Default)]
 pub struct Toasts {
@@ -59,5 +61,14 @@ impl Toasts {
     /// Display all toasts.
     pub fn show(&mut self, ctx: &egui::Context) {
         self.inner.show(ctx);
+    }
+
+    /// Format an `anyhow::Error` and display it as an error toast.
+    pub fn format_error(&mut self, error: &anyhow::Error) {
+        self.error(format!(
+            "{}\n\n{}",
+            error,
+            error.chain().skip(1).map(|e| e.to_string()).join("\n")
+        ));
     }
 }

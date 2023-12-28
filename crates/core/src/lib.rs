@@ -235,7 +235,7 @@ impl<'res> UpdateState<'res> {
                     }
                     Err(e) => {
                         should_run_closure = false;
-                        self.toasts.error(e.to_string())
+                        self.toasts.format_error(&e)
                     }
                 }
             }
@@ -266,7 +266,7 @@ impl<'res> UpdateState<'res> {
                         self.global_config,
                     ));
                 }
-                Ok(Err(error)) => self.toasts.error(error.to_string()),
+                Ok(Err(error)) => self.toasts.format_error(&error.into()),
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
             }
         }
@@ -291,13 +291,13 @@ impl<'res> UpdateState<'res> {
                         .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
                 }
 
-                if let Err(why) = self.data.load(
+                if let Err(error) = self.data.load(
                     self.filesystem,
                     // TODO code jank
                     self.project_config.as_mut().unwrap(),
                 ) {
                     self.toasts
-                        .error(format!("Error loading the project data: {why}"));
+                        .format_error(&error.context("Error loading the project data"));
                 } else {
                     self.toasts.info(format!(
                         "Successfully opened {:?}",
@@ -305,9 +305,9 @@ impl<'res> UpdateState<'res> {
                     ));
                 }
             }
-            Some(Err(why)) => {
+            Some(Err(error)) => {
                 self.toasts
-                    .error(format!("Error opening the project: {why}"));
+                    .format_error(&anyhow::Error::new(error).context("Error opening the project"));
             }
             None => {}
         }
@@ -331,10 +331,10 @@ impl<'res> UpdateState<'res> {
                             *self.data = data_cache;
                             self.project_config.replace(config);
                         }
-                        Err(error) => self.toasts.error(format!("{error:#}")),
+                        Err(error) => self.toasts.format_error(&error.into()),
                     }
                 }
-                Ok(Err(error)) => self.toasts.error(format!("{error:#}")),
+                Ok(Err(error)) => self.toasts.format_error(&error),
                 Err(p) => self.project_manager.create_project_promise = Some(p),
             }
         }

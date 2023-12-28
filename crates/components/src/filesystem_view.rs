@@ -193,7 +193,7 @@ where
             let path = ancestors.join("/");
 
             let mut subentries = self.filesystem.read_dir(path).unwrap_or_else(|e| {
-                update_state.toasts.error(e.to_string());
+                update_state.toasts.format_error(&e.into());
                 Vec::new()
             });
             subentries.sort_unstable_by(|a, b| {
