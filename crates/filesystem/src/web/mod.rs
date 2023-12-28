@@ -152,7 +152,7 @@ impl FileSystem {
     /// If the File System API is not supported, this always returns `None` without doing anything.
     pub async fn from_folder_picker() -> Result<Self> {
         if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported);
+            return Err(Error::Wasm32FilesystemNotSupported.into());
         }
         send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
@@ -161,14 +161,14 @@ impl FileSystem {
                 name,
                 idb_key: None,
             })
-            .ok_or(Error::CancelledLoading)
+            .ok_or(Error::CancelledLoading.into())
     }
 
     /// Attempts to restore a previously created `FileSystem` using its IndexedDB key returned by
     /// `.save_to_idb()`.
     pub async fn from_idb_key(idb_key: String) -> Result<Self> {
         if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported);
+            return Err(Error::Wasm32FilesystemNotSupported.into());
         }
         send_and_await(|tx| FileSystemCommand::DirFromIdb(idb_key.clone(), tx))
             .await
@@ -177,7 +177,7 @@ impl FileSystem {
                 name,
                 idb_key: Some(idb_key),
             })
-            .ok_or(Error::MissingIDB)
+            .ok_or(Error::MissingIDB.into())
     }
 
     /// Creates a new `FileSystem` from a subdirectory of this one.
@@ -256,7 +256,7 @@ impl FileSystemTrait for FileSystem {
         _from: impl AsRef<camino::Utf8Path>,
         _to: impl AsRef<camino::Utf8Path>,
     ) -> Result<()> {
-        Err(Error::NotSupported)
+        Err(Error::NotSupported.into())
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
@@ -313,7 +313,7 @@ impl File {
         extensions: &[impl ToString],
     ) -> Result<(Self, String)> {
         if !FileSystem::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported);
+            return Err(Error::Wasm32FilesystemNotSupported.into());
         }
         send_and_await(|tx| {
             FileSystemCommand::FilePicker(
@@ -333,7 +333,7 @@ impl File {
                 name,
             )
         })
-        .ok_or(Error::CancelledLoading)
+        .ok_or(Error::CancelledLoading.into())
     }
 
     /// Saves this file to a location of the user's choice.
@@ -356,7 +356,7 @@ impl File {
     pub async fn save(&self, filename: &str, _filter_name: &str) -> Result<()> {
         send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx))
             .await
-            .ok_or(Error::IoError(PermissionDenied.into()))
+            .ok_or(Error::IoError(PermissionDenied.into()).into())
     }
 }
 

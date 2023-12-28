@@ -450,7 +450,7 @@ impl FileSystem {
             })
             .is_none()
         {
-            return Err(Error::InvalidProjectFolder);
+            return Err(Error::InvalidProjectFolder.into());
         };
 
         let root_path = host.root_path().to_path_buf();

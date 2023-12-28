@@ -81,7 +81,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                                     is_file: true,
                                     size: blob.size() as u64,
                                 })
-                                .map_err(|_| Error::IoError(PermissionDenied.into()))
+                                .map_err(|_| Error::IoError(PermissionDenied.into()).into())
                         } else if to_future::<web_sys::FileSystemDirectoryHandle>(
                             subdir.get_directory_handle(name),
                         )
@@ -95,7 +95,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             })
                         } else {
                             // If the path is neither a file nor a directory
-                            Err(Error::NotExist)
+                            Err(Error::NotExist.into())
                         }
                     })
                     .await;
@@ -226,7 +226,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             if (flags.contains(OpenFlags::Write) && handle.write_handle.is_none())
                                 || !close_result
                             {
-                                Err(Error::IoError(std::io::ErrorKind::PermissionDenied.into()))
+                                Err(Error::IoError(std::io::ErrorKind::PermissionDenied.into())
+                                    .into())
                             } else {
                                 Ok(files.insert(handle))
                             }
@@ -237,10 +238,10 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .is_ok()
                         {
                             // If the path is a directory
-                            Err(Error::IoError(PermissionDenied.into()))
+                            Err(Error::IoError(PermissionDenied.into()).into())
                         } else {
                             // If the path is neither a file nor a directory
-                            Err(Error::NotExist)
+                            Err(Error::NotExist.into())
                         }
                     })
                     .await;
@@ -296,7 +297,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .is_ok()
                         {
                             // If the path is a file
-                            Err(Error::IoError(PermissionDenied.into()))
+                            Err(Error::IoError(PermissionDenied.into()).into())
                         } else if to_future::<web_sys::FileSystemDirectoryHandle>(
                             subdir.get_directory_handle(dirname),
                         )
@@ -311,10 +312,10 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             )
                             .await
                             .map(|_| ())
-                            .map_err(|_| Error::IoError(PermissionDenied.into()))
+                            .map_err(|_| Error::IoError(PermissionDenied.into()).into())
                         } else {
                             // If the path is neither a file nor a directory
-                            Err(Error::NotExist)
+                            Err(Error::NotExist.into())
                         }
                     })
                     .await;
@@ -340,7 +341,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             to_future::<JsValue>(subdir.remove_entry(filename))
                                 .await
                                 .map(|_| ())
-                                .map_err(|_| Error::IoError(PermissionDenied.into()))
+                                .map_err(|_| Error::IoError(PermissionDenied.into()).into())
                         } else if to_future::<web_sys::FileSystemDirectoryHandle>(
                             subdir.get_directory_handle(filename),
                         )
@@ -348,10 +349,10 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .is_ok()
                         {
                             // If the path is a directory
-                            Err(Error::IoError(PermissionDenied.into()))
+                            Err(Error::IoError(PermissionDenied.into()).into())
                         } else {
                             // If the path is neither a file nor a directory
-                            Err(Error::NotExist)
+                            Err(Error::NotExist.into())
                         }
                     })
                     .await;
