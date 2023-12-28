@@ -90,7 +90,7 @@ where
                         size: entry_len as u64,
                         header_offset: stream_position
                             .checked_sub(path_len as u64 + 8)
-                            .ok_or(Error::IoError(InvalidData.into()))?,
+                            .ok_or(Error::InvalidHeader)?,
                         body_offset: stream_position,
                         start_magic: magic,
                     };
@@ -114,7 +114,7 @@ where
                     let header_offset = reader
                         .stream_position()?
                         .checked_sub(4)
-                        .ok_or(Error::IoError(InvalidData.into()))?;
+                        .ok_or(Error::InvalidHeader)?;
 
                     let entry_len = read_u32_xor(&mut reader, base_magic)?;
                     let magic = read_u32_xor(&mut reader, base_magic)?;
@@ -475,7 +475,7 @@ where
                         );
                     }
 
-                    _ => return Err(Error::NotSupported.into()),
+                    _ => return Err(Error::InvalidArchiveVersion(self.version).into()),
                 }
             } else if !flags.contains(OpenFlags::Truncate) {
                 let entry = *trie.get_file(path).ok_or(Error::NotExist)?;
@@ -577,11 +577,8 @@ where
                         self.version,
                         self.base_magic,
                     )?;
-                    let mut new_entry = *trie
-                        .get_file(from)
-                        .ok_or(Error::IoError(InvalidData.into()))?;
-                    trie.remove_file(from)
-                        .ok_or(Error::IoError(InvalidData.into()))?;
+                    let mut new_entry = *trie.get_file(from).ok_or(Error::InvalidHeader)?;
+                    trie.remove_file(from).ok_or(Error::InvalidHeader)?;
                     new_entry.size = old_entry.size;
 
                     let mut magic = new_entry.start_magic;
@@ -643,8 +640,7 @@ where
                             })
                             .collect_vec(),
                     )?;
-                    trie.remove_file(from)
-                        .ok_or(Error::IoError(InvalidData.into()))?;
+                    trie.remove_file(from).ok_or(Error::InvalidHeader)?;
                     trie.create_file(to, old_entry);
 
                     // Move everything else back
@@ -664,7 +660,7 @@ where
                         let current_header_offset = reader
                             .stream_position()?
                             .checked_sub(4)
-                            .ok_or(Error::IoError(InvalidData.into()))?;
+                            .ok_or(Error::InvalidHeader)?;
                         reader.seek(SeekFrom::Current(8))?;
                         let current_path_len = read_u32_xor(&mut reader, self.base_magic)?;
 
@@ -678,14 +674,14 @@ where
                                 *byte = char;
                             }
                         }
-                        let current_path = String::from_utf8(current_path)
-                            .map_err(|_| Error::IoError(InvalidData.into()))?;
+                        let current_path =
+                            String::from_utf8(current_path).map_err(|_| Error::PathUtf8Error)?;
 
                         let current_body_offset = (current_body_offset as u64)
                             .checked_add_signed(to_len as i64 - from_len as i64)
-                            .ok_or(Error::IoError(InvalidData.into()))?;
+                            .ok_or(Error::InvalidHeader)?;
                         trie.get_file_mut(current_path)
-                            .ok_or(Error::IoError(InvalidData.into()))?
+                            .ok_or(Error::InvalidHeader)?
                             .body_offset = current_body_offset;
                         headers.push((current_header_offset, current_body_offset as u32));
                     }
@@ -699,14 +695,14 @@ where
                     drop(writer);
                 }
 
-                _ => return Err(Error::IoError(InvalidData.into()).into()),
+                _ => return Err(Error::InvalidHeader.into()),
             }
 
             if to_len < from_len {
                 archive.set_len(
                     archive_len
                         .checked_add_signed(to_len as i64 - from_len as i64)
-                        .ok_or(Error::IoError(InvalidData.into()))?,
+                        .ok_or(Error::InvalidHeader)?,
                 )?;
                 archive.flush()?;
             }
@@ -745,7 +741,7 @@ where
                     archive.flush()?;
                 }
 
-                _ => return Err(Error::IoError(InvalidData.into()).into()),
+                _ => return Err(Error::InvalidHeader.into()),
             }
         }
 

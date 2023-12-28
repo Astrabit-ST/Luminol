@@ -57,7 +57,10 @@ where
             let count = self.tmp.write(buf)?;
             Ok(count)
         } else {
-            Err(PermissionDenied.into())
+            Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to write to file with no write permissions",
+            ))
         }
     }
 
@@ -68,7 +71,10 @@ where
             let count = self.tmp.write_vectored(bufs)?;
             Ok(count)
         } else {
-            Err(PermissionDenied.into())
+            Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to write to file with no write permissions",
+            ))
         }
     }
 
@@ -79,10 +85,16 @@ where
         }
 
         let Some(archive) = &self.archive else {
-            return Err(PermissionDenied.into());
+            return Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to write to file with no write permissions",
+            ));
         };
         let Some(trie) = &self.trie else {
-            return Err(PermissionDenied.into());
+            return Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to write to file with no write permissions",
+            ));
         };
         let mut archive = archive.lock();
         let mut trie = trie.write();
@@ -123,7 +135,15 @@ where
                     archive.write_all(&(new_size as u32 ^ self.base_magic).to_le_bytes())?;
                 }
 
-                _ => return Err(InvalidData.into()),
+                _ => {
+                    return Err(std::io::Error::new(
+                        InvalidData,
+                        format!(
+                            "Invalid archive version: {} (supported versions are 1, 2 and 3)",
+                            self.version
+                        ),
+                    ))
+                }
             }
 
             // Write the new length of the file to the trie
@@ -163,7 +183,10 @@ where
         if self.read_allowed {
             self.tmp.read(buf)
         } else {
-            Err(PermissionDenied.into())
+            Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to read from file with no read permissions",
+            ))
         }
     }
 
@@ -171,7 +194,10 @@ where
         if self.read_allowed {
             self.tmp.read_vectored(bufs)
         } else {
-            Err(PermissionDenied.into())
+            Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to read from file with no read permissions",
+            ))
         }
     }
 
@@ -179,7 +205,10 @@ where
         if self.read_allowed {
             self.tmp.read_exact(buf)
         } else {
-            Err(PermissionDenied.into())
+            Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to read from file with no read permissions",
+            ))
         }
     }
 }
@@ -196,7 +225,10 @@ where
         if self.read_allowed {
             self.project().tmp.poll_read(cx, buf)
         } else {
-            Poll::Ready(Err(PermissionDenied.into()))
+            Poll::Ready(Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to read from file with no read permissions",
+            )))
         }
     }
 
@@ -208,7 +240,10 @@ where
         if self.read_allowed {
             self.project().tmp.poll_read_vectored(cx, bufs)
         } else {
-            Poll::Ready(Err(PermissionDenied.into()))
+            Poll::Ready(Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to read from file with no read permissions",
+            )))
         }
     }
 }
@@ -253,7 +288,10 @@ where
             *modified = true;
             self.tmp.set_len(new_size)
         } else {
-            Err(PermissionDenied.into())
+            return Err(std::io::Error::new(
+                PermissionDenied,
+                "Attempted to write to file with no write permissions",
+            ));
         }
     }
 }

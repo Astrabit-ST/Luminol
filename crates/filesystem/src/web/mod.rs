@@ -114,7 +114,7 @@ enum FileSystemCommand {
         Vec<String>,
         oneshot::Sender<Option<(usize, String)>>,
     ),
-    FileSave(usize, String, oneshot::Sender<Option<()>>),
+    FileSave(usize, String, oneshot::Sender<Result<()>>),
     FileRead(usize, usize, oneshot::Sender<std::io::Result<Vec<u8>>>),
     FileWrite(usize, Vec<u8>, oneshot::Sender<std::io::Result<()>>),
     FileFlush(usize, oneshot::Sender<std::io::Result<()>>),
@@ -354,9 +354,7 @@ impl File {
     /// file picker where the user selects a file extension. `filter_name` works only in native
     /// builds; it is ignored in web builds.
     pub async fn save(&self, filename: &str, _filter_name: &str) -> Result<()> {
-        send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx))
-            .await
-            .ok_or(Error::IoError(PermissionDenied.into()).into())
+        send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx)).await
     }
 }
 
@@ -482,7 +480,7 @@ impl futures_lite::AsyncWrite for File {
         self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
     ) -> Poll<std::io::Result<()>> {
-        Poll::Ready(Err(PermissionDenied.into()))
+        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")))
     }
 }
 

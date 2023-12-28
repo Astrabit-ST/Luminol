@@ -172,7 +172,14 @@ impl File {
     /// Creates a new empty temporary file with read-write permissions.
     pub fn new() -> std::io::Result<Self> {
         let file = tempfile::NamedTempFile::new()?;
-        let path = file.path().to_str().ok_or(InvalidInput)?.into();
+        let path = file
+            .path()
+            .to_str()
+            .ok_or(std::io::Error::new(
+                InvalidInput,
+                "Tried to create a temporary file, but its path was not valid UTF-8",
+            ))?
+            .into();
         let clone = file.as_file().try_clone()?;
         Ok(Self {
             file: Inner::NamedTempFile(file),
@@ -337,7 +344,7 @@ impl futures_lite::AsyncWrite for File {
         self: Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
     ) -> Poll<std::io::Result<()>> {
-        Poll::Ready(Err(PermissionDenied.into()))
+        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")))
     }
 }
 

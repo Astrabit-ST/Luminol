@@ -53,6 +53,8 @@ pub enum Error {
     NotSupported,
     #[error("Archive header is incorrect")]
     InvalidHeader,
+    #[error("Invalid archive version: {0} (supported versions are 1, 2 and 3)")]
+    InvalidArchiveVersion(u8),
     #[error("No filesystems are loaded to perform this operation")]
     NoFilesystems,
     #[error("Unable to detect the project's RPG Maker version (perhaps you did not open an RPG Maker project?")]
