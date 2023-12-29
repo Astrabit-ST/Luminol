@@ -71,6 +71,27 @@ pub enum Error {
 
 pub use anyhow::Result;
 
+pub trait StdIoErrorContext {
+    fn io_context(self, c: impl std::fmt::Display + Send + Sync + 'static) -> Self;
+    fn with_io_context<C: std::fmt::Display + Send + Sync + 'static>(
+        self,
+        c: impl FnOnce() -> C,
+    ) -> Self;
+}
+
+impl<T> StdIoErrorContext for std::io::Result<T> {
+    fn io_context(self, c: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        self.map_err(|e| std::io::Error::new(e.kind(), format!("{}: {}", c, e.to_string())))
+    }
+
+    fn with_io_context<C: std::fmt::Display + Send + Sync + 'static>(
+        self,
+        c: impl FnOnce() -> C,
+    ) -> Self {
+        self.map_err(|e| std::io::Error::new(e.kind(), format!("{}: {}", c(), e.to_string())))
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Metadata {
     pub is_file: bool,

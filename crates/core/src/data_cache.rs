@@ -114,7 +114,7 @@ macro_rules! load {
     ($fs:ident, $type:ident) => {
         RefCell::new(rpg::$type {
             data: read_nil_padded($fs, format!("{}.rxdata", stringify!($type)))
-                .context(format!("while reading {}.rxdata", stringify!($type)))?,
+                .context(format!("While reading {}.rxdata", stringify!($type)))?,
             ..Default::default()
         })
     };
@@ -135,7 +135,7 @@ macro_rules! save {
         if modified {
             borrowed.modified = false;
             write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
-                .context(format!("while saving {}.rxdata", stringify!($type)))?;
+                .context(format!("While saving {}.rxdata", stringify!($type)))?;
         }
         modified
     }};
@@ -150,12 +150,12 @@ impl Data {
     ) -> anyhow::Result<()> {
         let map_infos = RefCell::new(rpg::MapInfos {
             data: read_data(filesystem, "MapInfos.rxdata")
-                .context("while reading MapInfos.rxdata")?,
+                .context("While reading MapInfos.rxdata")?,
             ..Default::default()
         });
 
         let mut system = read_data::<rpg::System>(filesystem, "System.rxdata")
-            .context("while reading System.rxdata")?;
+            .context("While reading System.rxdata")?;
         system.magic_number = rand::random();
 
         let system = RefCell::new(system);
@@ -314,7 +314,7 @@ impl Data {
                 modified = true;
                 map_infos.modified = false;
                 write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
-                    .context("while saving MapInfos.rxdata")?;
+                    .context("While saving MapInfos.rxdata")?;
             }
         }
 
@@ -338,7 +338,7 @@ impl Data {
                     modified = true;
                     map.modified = false;
                     write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
-                        .with_context(|| format!("while saving map {id:0>3}"))
+                        .with_context(|| format!("While saving map {id:0>3}"))
                 } else {
                     Ok(())
                 }
@@ -351,7 +351,7 @@ impl Data {
                 system.modified = false;
                 system.magic_number = rand::random();
                 write_data(system, filesystem, "System.rxdata")
-                    .context("while saving System.rxdata")?;
+                    .context("While saving System.rxdata")?;
             }
         }
 

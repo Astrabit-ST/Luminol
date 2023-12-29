@@ -86,7 +86,7 @@ impl Atlas {
                 }
             })
             .try_collect()
-            .context("while loading atlas autotiles")?;
+            .context("While loading atlas autotiles")?;
 
         let autotile_frames = std::array::from_fn(|i| {
             autotiles[i]

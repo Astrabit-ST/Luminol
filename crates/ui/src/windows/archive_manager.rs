@@ -266,7 +266,9 @@ impl Window {
                                         name,
                                     ))
                                 }
-                                Err(e) => update_state.toasts.format_error(&e),
+                                Err(e) => update_state
+                                    .toasts
+                                    .format_error(&e.context("Error parsing archive contents")),
                             }
                         }
                         Ok(Err(e)) => {
@@ -274,7 +276,9 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e)
+                                update_state
+                                    .toasts
+                                    .format_error(&e.context("Unable to read archive file"))
                             }
                         }
                         Err(p) => *load_promise = Some(p),
@@ -353,7 +357,7 @@ impl Window {
                                                 Ok(())
                                             }));
                                         }
-                                        Err(e) => update_state.toasts.format_error(&e),
+                                        Err(e) => update_state.toasts.format_error(&e.context("Error enumerating files to extract from archive")),
                                     }
                                 } else if save_promise.is_some() {
                                     ui.spinner();
@@ -380,7 +384,9 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e)
+                                update_state
+                                    .toasts
+                                    .format_error(&e.context("Error extracting archive"))
                             }
                         }
                         Err(p) => *save_promise = Some(p),
@@ -410,7 +416,9 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e)
+                                update_state.toasts.format_error(
+                                    &e.context("Unable to read contents of source directory"),
+                                )
                             }
                         }
                         Err(p) => *load_promise = Some(p),
@@ -520,7 +528,7 @@ impl Window {
                                                         .await
                                                     }));
                                             }
-                                            Err(e) => update_state.toasts.format_error(&e),
+                                            Err(e) => update_state.toasts.format_error(&e.context("Error enumerating files to create archive from")),
                                         }
                                     }
                                 } else if save_promise.is_some() {
@@ -550,7 +558,9 @@ impl Window {
                                 e.downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
-                                update_state.toasts.format_error(&e)
+                                update_state
+                                    .toasts
+                                    .format_error(&e.context("Error creating archive"))
                             }
                         }
                         Err(p) => *save_promise = Some(p),

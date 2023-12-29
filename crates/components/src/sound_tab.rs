@@ -68,7 +68,9 @@ impl SoundTab {
                                 pitch,
                                 source,
                             ) {
-                                update_state.toasts.format_error(&e);
+                                update_state
+                                    .toasts
+                                    .format_error(&e.context("Error playing from audio file"));
                             }
                         }
 
@@ -146,7 +148,9 @@ impl SoundTab {
                                         pitch,
                                         source,
                                     ) {
-                                        update_state.toasts.format_error(&e);
+                                        update_state.toasts.format_error(
+                                            &e.context("Error playing from audio file"),
+                                        );
                                     }
                                 };
                             }

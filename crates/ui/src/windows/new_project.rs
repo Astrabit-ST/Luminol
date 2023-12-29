@@ -231,7 +231,7 @@ impl Window {
         if download_executable {
             Self::download_executable(&config, &host_fs, progress)
                 .await
-                .with_context(|| format!("while downloading {}", config.project.rgss_ver))?;
+                .with_context(|| format!("While downloading {}", config.project.rgss_ver))?;
         }
 
         if let Some(branch_name) = git_branch_name {
@@ -284,12 +284,12 @@ impl Window {
             progress.total_progress.store(0, Ordering::Relaxed);
             let response = zip_response
                 .map_err(anyhow::Error::from)
-                .context("while downloading the zip")?;
+                .context("While downloading the zip")?;
 
             let bytes = response.bytes().await?;
 
             let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
-                .context("while reading the zip archive")?;
+                .context("While reading the zip archive")?;
             progress
                 .total_progress
                 .store(archive.len(), Ordering::Relaxed);

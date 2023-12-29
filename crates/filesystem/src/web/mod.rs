@@ -15,11 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use anyhow::Context;
 use itertools::Itertools;
 
 mod events;
 mod util;
 pub use events::setup_main_thread_hooks;
+
+use crate::StdIoErrorContext;
 
 use super::FileSystem as FileSystemTrait;
 use super::{DirEntry, Error, Metadata, OpenFlags, Result};
@@ -62,6 +65,7 @@ pub struct FileSystem {
 #[derive(Debug)]
 pub struct File {
     key: usize,
+    path: Option<camino::Utf8PathBuf>,
     temp_file_name: Option<String>,
     futures: parking_lot::Mutex<FileFutures>,
 }
@@ -151,8 +155,9 @@ impl FileSystem {
     /// successfully.
     /// If the File System API is not supported, this always returns `None` without doing anything.
     pub async fn from_folder_picker() -> Result<Self> {
+        let c = "While picking a folder from the host filesystem";
         if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported.into());
+            return Err(Error::Wasm32FilesystemNotSupported).context(c);
         }
         send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
@@ -161,14 +166,16 @@ impl FileSystem {
                 name,
                 idb_key: None,
             })
-            .ok_or(Error::CancelledLoading.into())
+            .ok_or(Error::CancelledLoading)
+            .context(c)
     }
 
     /// Attempts to restore a previously created `FileSystem` using its IndexedDB key returned by
     /// `.save_to_idb()`.
     pub async fn from_idb_key(idb_key: String) -> Result<Self> {
+        let c = "While restoring a directory handle from IndexedDB";
         if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported.into());
+            return Err(Error::Wasm32FilesystemNotSupported).context(c);
         }
         send_and_await(|tx| FileSystemCommand::DirFromIdb(idb_key.clone(), tx))
             .await
@@ -177,17 +184,21 @@ impl FileSystem {
                 name,
                 idb_key: Some(idb_key),
             })
-            .ok_or(Error::MissingIDB.into())
+            .ok_or(Error::MissingIDB)
+            .context(c)
     }
 
     /// Creates a new `FileSystem` from a subdirectory of this one.
     pub fn subdir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Self> {
-        send_and_recv(|tx| FileSystemCommand::DirSubdir(self.key, path.as_ref().to_path_buf(), tx))
+        let path = path.as_ref();
+        let c = format!("While getting a subdirectory {path:?} of a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirSubdir(self.key, path.to_path_buf(), tx))
             .map(|(key, name)| FileSystem {
                 key,
                 name,
                 idb_key: None,
             })
+            .context(c)
     }
 
     /// Stores this `FileSystem` to IndexedDB. If successful, consumes this `Filesystem` and
@@ -235,28 +246,34 @@ impl FileSystemTrait for FileSystem {
         path: impl AsRef<camino::Utf8Path>,
         flags: OpenFlags,
     ) -> Result<Self::File> {
-        send_and_recv(|tx| {
-            FileSystemCommand::DirOpenFile(self.key, path.as_ref().to_path_buf(), flags, tx)
-        })
-        .map(|key| File {
-            key,
-            temp_file_name: None,
-            futures: Default::default(),
-        })
+        let path = path.as_ref();
+        let c = format!("While opening file {path:?} from a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirOpenFile(self.key, path.to_path_buf(), flags, tx))
+            .map(|key| File {
+                key,
+                path: Some(path.to_owned()),
+                temp_file_name: None,
+                futures: Default::default(),
+            })
+            .context(c)
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
-        send_and_recv(|tx| {
-            FileSystemCommand::DirEntryMetadata(self.key, path.as_ref().to_path_buf(), tx)
-        })
+        let path = path.as_ref();
+        let c = format!("While getting metadata for {path:?} from a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirEntryMetadata(self.key, path.to_path_buf(), tx))
+            .context(c)
     }
 
     fn rename(
         &self,
-        _from: impl AsRef<camino::Utf8Path>,
-        _to: impl AsRef<camino::Utf8Path>,
+        from: impl AsRef<camino::Utf8Path>,
+        to: impl AsRef<camino::Utf8Path>,
     ) -> Result<()> {
-        Err(Error::NotSupported.into())
+        let from = from.as_ref();
+        let to = to.as_ref();
+        let c = format!("While renaming {from:?} to {to:?} in a host folder");
+        Err(Error::NotSupported).context(c)
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
@@ -266,38 +283,46 @@ impl FileSystemTrait for FileSystem {
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        send_and_recv(|tx| {
-            FileSystemCommand::DirCreateDir(self.key, path.as_ref().to_path_buf(), tx)
-        })
+        let path = path.as_ref();
+        let c = format!("While creating a directory at {path:?} in a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirCreateDir(self.key, path.to_path_buf(), tx))
+            .context(c)
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        send_and_recv(|tx| {
-            FileSystemCommand::DirRemoveDir(self.key, path.as_ref().to_path_buf(), tx)
-        })
+        let path = path.as_ref();
+        let c = format!("While removing a directory at {path:?} in a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirRemoveDir(self.key, path.to_path_buf(), tx))
+            .context(c)
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
-        send_and_recv(|tx| {
-            FileSystemCommand::DirRemoveFile(self.key, path.as_ref().to_path_buf(), tx)
-        })
+        let path = path.as_ref();
+        let c = format!("While removing a file at {path:?} in a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirRemoveFile(self.key, path.to_path_buf(), tx))
+            .context(c)
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
-        send_and_recv(|tx| FileSystemCommand::DirReadDir(self.key, path.as_ref().to_path_buf(), tx))
+        let path = path.as_ref();
+        let c = format!("While reading the contents of the directory {path:?} in a host folder");
+        send_and_recv(|tx| FileSystemCommand::DirReadDir(self.key, path.to_path_buf(), tx))
+            .context(c)
     }
 }
 
 impl File {
     /// Creates a new empty temporary file with read-write permissions.
     pub fn new() -> std::io::Result<Self> {
-        send_and_recv(|tx| FileSystemCommand::FileCreateTemp(tx)).map(|(key, temp_file_name)| {
-            Self {
+        let c = "While creating a temporary file on a host filesystem";
+        send_and_recv(|tx| FileSystemCommand::FileCreateTemp(tx))
+            .map(|(key, temp_file_name)| Self {
                 key,
+                path: None,
                 temp_file_name: Some(temp_file_name),
                 futures: Default::default(),
-            }
-        })
+            })
+            .io_context(c)
     }
 
     /// Attempts to prompt the user to choose a file from their local machine using the
@@ -312,8 +337,9 @@ impl File {
         filter_name: &str,
         extensions: &[impl ToString],
     ) -> Result<(Self, String)> {
+        let c = "While picking a file on a host filesystem";
         if !FileSystem::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported.into());
+            return Err(Error::Wasm32FilesystemNotSupported).context(c);
         }
         send_and_await(|tx| {
             FileSystemCommand::FilePicker(
@@ -327,13 +353,15 @@ impl File {
             (
                 Self {
                     key,
+                    path: Some(name.clone().into()),
                     temp_file_name: None,
                     futures: Default::default(),
                 },
                 name,
             )
         })
-        .ok_or(Error::CancelledLoading.into())
+        .ok_or(Error::CancelledLoading)
+        .context(c)
     }
 
     /// Saves this file to a location of the user's choice.
@@ -354,7 +382,18 @@ impl File {
     /// file picker where the user selects a file extension. `filter_name` works only in native
     /// builds; it is ignored in web builds.
     pub async fn save(&self, filename: &str, _filter_name: &str) -> Result<()> {
-        send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx)).await
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While saving the file {:?} from a host folder",
+            stripped_path
+        );
+        send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx))
+            .await
+            .context(c)
     }
 }
 
@@ -368,7 +407,16 @@ impl Drop for File {
 
 impl crate::File for File {
     fn metadata(&self) -> std::io::Result<Metadata> {
-        let size = send_and_recv(|tx| FileSystemCommand::FileSize(self.key, tx))?;
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While getting metadata for file {:?} from a host folder",
+            stripped_path
+        );
+        let size = send_and_recv(|tx| FileSystemCommand::FileSize(self.key, tx)).io_context(c)?;
         Ok(Metadata {
             is_file: true,
             size,
@@ -376,13 +424,32 @@ impl crate::File for File {
     }
 
     fn set_len(&self, new_size: u64) -> std::io::Result<()> {
-        send_and_recv(|tx| FileSystemCommand::FileSetLength(self.key, new_size, tx))
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While setting length of file {:?} from a host folder",
+            stripped_path
+        );
+        send_and_recv(|tx| FileSystemCommand::FileSetLength(self.key, new_size, tx)).io_context(c)
     }
 }
 
 impl std::io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let vec = send_and_recv(|tx| FileSystemCommand::FileRead(self.key, buf.len(), tx))?;
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While reading from file {:?} from a host folder",
+            stripped_path
+        );
+        let vec = send_and_recv(|tx| FileSystemCommand::FileRead(self.key, buf.len(), tx))
+            .io_context(c)?;
         let length = vec.len();
         buf[..length].copy_from_slice(&vec[..]);
         Ok(length)
@@ -395,6 +462,15 @@ impl futures_lite::AsyncRead for File {
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<usize>> {
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While asynchronously reading from file {:?} from a host folder",
+            stripped_path
+        );
         let mut futures = self.futures.lock();
         if futures.read.is_none() {
             futures.read = Some(send_and_wake(cx, |tx| {
@@ -410,7 +486,7 @@ impl futures_lite::AsyncRead for File {
             }
             Ok(Err(e)) => {
                 futures.read = None;
-                Poll::Ready(Err(e))
+                Poll::Ready(Err(e).io_context(c))
             }
             Err(_) => Poll::Pending,
         }
@@ -419,12 +495,28 @@ impl futures_lite::AsyncRead for File {
 
 impl std::io::Write for File {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        send_and_recv(|tx| FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx))?;
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While writing to file {:?} from a host folder",
+            stripped_path
+        );
+        send_and_recv(|tx| FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx))
+            .io_context(c)?;
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        send_and_recv(|tx| FileSystemCommand::FileFlush(self.key, tx))
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!("While flushing file {:?} from a host folder", stripped_path);
+        send_and_recv(|tx| FileSystemCommand::FileFlush(self.key, tx)).io_context(c)
     }
 }
 
@@ -434,6 +526,15 @@ impl futures_lite::AsyncWrite for File {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While asynchronously writing to file {:?} from a host folder",
+            stripped_path
+        );
         let mut futures = self.futures.lock();
         if futures.write.is_none() {
             futures.write = Some(send_and_wake(cx, |tx| {
@@ -447,7 +548,7 @@ impl futures_lite::AsyncWrite for File {
             }
             Ok(Err(e)) => {
                 futures.write = None;
-                Poll::Ready(Err(e))
+                Poll::Ready(Err(e).io_context(c))
             }
             Err(_) => Poll::Pending,
         }
@@ -457,6 +558,15 @@ impl futures_lite::AsyncWrite for File {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<std::io::Result<()>> {
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While asynchronously flushing file {:?} from a host folder",
+            stripped_path
+        );
         let mut futures = self.futures.lock();
         if futures.flush.is_none() {
             futures.flush = Some(send_and_wake(cx, |tx| {
@@ -470,7 +580,7 @@ impl futures_lite::AsyncWrite for File {
             }
             Ok(Err(e)) => {
                 futures.flush = None;
-                Poll::Ready(Err(e))
+                Poll::Ready(Err(e).io_context(c))
             }
             Err(_) => Poll::Pending,
         }
@@ -480,13 +590,28 @@ impl futures_lite::AsyncWrite for File {
         self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
     ) -> Poll<std::io::Result<()>> {
-        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")))
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While asynchronously closing file {:?} from a host folder",
+            stripped_path
+        );
+        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")).io_context(c))
     }
 }
 
 impl std::io::Seek for File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx))
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!("While seeking file {:?} from a host folder", stripped_path);
+        send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx)).io_context(c)
     }
 }
 
@@ -496,6 +621,15 @@ impl futures_lite::AsyncSeek for File {
         cx: &mut std::task::Context<'_>,
         pos: std::io::SeekFrom,
     ) -> Poll<std::io::Result<u64>> {
+        let stripped_path = self
+            .path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("<temporary file>");
+        let c = format!(
+            "While asynchronously seeking file {:?} from a host folder",
+            stripped_path
+        );
         let mut futures = self.futures.lock();
         if futures.seek.is_none() {
             futures.seek = Some(send_and_wake(cx, |tx| {
@@ -509,7 +643,7 @@ impl futures_lite::AsyncSeek for File {
             }
             Ok(Err(e)) => {
                 futures.seek = None;
-                Poll::Ready(Err(e))
+                Poll::Ready(Err(e).io_context(c))
             }
             Err(_) => Poll::Pending,
         }

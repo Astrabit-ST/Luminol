@@ -235,7 +235,7 @@ impl<'res> UpdateState<'res> {
                     }
                     Err(e) => {
                         should_run_closure = false;
-                        self.toasts.format_error(&e)
+                        self.toasts.format_error(&e.context("Error saving project"))
                     }
                 }
             }
@@ -266,7 +266,9 @@ impl<'res> UpdateState<'res> {
                         self.global_config,
                     ));
                 }
-                Ok(Err(error)) => self.toasts.format_error(&error),
+                Ok(Err(error)) => self
+                    .toasts
+                    .format_error(&error.context("Error locating project files")),
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
             }
         }
@@ -331,10 +333,14 @@ impl<'res> UpdateState<'res> {
                             *self.data = data_cache;
                             self.project_config.replace(config);
                         }
-                        Err(error) => self.toasts.format_error(&error),
+                        Err(error) => self
+                            .toasts
+                            .format_error(&error.context("Error creating new project")),
                     }
                 }
-                Ok(Err(error)) => self.toasts.format_error(&error),
+                Ok(Err(error)) => self.toasts.format_error(
+                    &error.context("Error locating destination directory for project"),
+                ),
                 Err(p) => self.project_manager.create_project_promise = Some(p),
             }
         }

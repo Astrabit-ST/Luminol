@@ -190,7 +190,11 @@ impl FileSystem {
         let config = self.load_project_config()?;
 
         let Self::HostLoaded(host) = std::mem::take(self) else {
-            panic!("unable to fetch host filesystem")
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "Unable to fetch host filesystem",
+            )
+            .into());
         };
 
         let result = self.load_partially_loaded_project(host, &config, global_config)?;
