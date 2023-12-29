@@ -72,23 +72,28 @@ pub enum Error {
 pub use anyhow::Result;
 
 pub trait StdIoErrorContext {
-    fn io_context(self, c: impl std::fmt::Display + Send + Sync + 'static) -> Self;
-    fn with_io_context<C: std::fmt::Display + Send + Sync + 'static>(
-        self,
-        c: impl FnOnce() -> C,
-    ) -> Self;
+    fn io_context<C>(self, c: C) -> Self
+    where
+        C: std::fmt::Display + Send + Sync + 'static;
+
+    fn with_io_context<C>(self, c: impl FnOnce() -> C) -> Self
+    where
+        C: std::fmt::Display + Send + Sync + 'static;
 }
 
 impl<T> StdIoErrorContext for std::io::Result<T> {
-    fn io_context(self, c: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        self.map_err(|e| std::io::Error::new(e.kind(), format!("{}: {}", c, e.to_string())))
+    fn io_context<C>(self, c: C) -> Self
+    where
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.map_err(|e| std::io::Error::new(e.kind(), anyhow::Error::new(e).context(c)))
     }
 
-    fn with_io_context<C: std::fmt::Display + Send + Sync + 'static>(
-        self,
-        c: impl FnOnce() -> C,
-    ) -> Self {
-        self.map_err(|e| std::io::Error::new(e.kind(), format!("{}: {}", c(), e.to_string())))
+    fn with_io_context<C>(self, c: impl FnOnce() -> C) -> Self
+    where
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.map_err(|e| std::io::Error::new(e.kind(), anyhow::Error::new(e).context(c())))
     }
 }
 
