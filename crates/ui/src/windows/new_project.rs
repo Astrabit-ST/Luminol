@@ -25,7 +25,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use anyhow::Context;
+use color_eyre::eyre::WrapErr;
 use luminol_filesystem::FileSystem;
 use strum::IntoEnumIterator;
 
@@ -231,7 +231,7 @@ impl Window {
         if download_executable {
             Self::download_executable(&config, &host_fs, progress)
                 .await
-                .with_context(|| format!("While downloading {}", config.project.rgss_ver))?;
+                .wrap_err_with(|| format!("While downloading {}", config.project.rgss_ver))?;
         }
 
         if let Some(branch_name) = git_branch_name {
@@ -243,7 +243,7 @@ impl Window {
                 .spawn()
                 .and_then(|mut c| c.wait())
             {
-                anyhow::bail!("Failed to initialize git repository: {e}");
+                color_eyre::eyre::bail!("Failed to initialize git repository: {e}");
             }
         }
 
@@ -258,7 +258,7 @@ impl Window {
         config: &luminol_config::project::Config,
         filesystem: &impl luminol_filesystem::FileSystem,
         progress: Arc<Progress>,
-    ) -> anyhow::Result<()> {
+    ) -> color_eyre::Result<()> {
         let zip_url: &[_] = match config.project.rgss_ver {
             luminol_config:: RGSSVer::ModShot => &[
                 "https://github.com/thehatkid/ModShot/releases/download/latest/ModShot_Windows_bb6bcbc_Ruby-3.1-ucrt64_Steam-false.zip", 
@@ -283,13 +283,13 @@ impl Window {
 
             progress.total_progress.store(0, Ordering::Relaxed);
             let response = zip_response
-                .map_err(anyhow::Error::from)
-                .context("While downloading the zip")?;
+                .map_err(color_eyre::Report::from)
+                .wrap_err("While downloading the zip")?;
 
             let bytes = response.bytes().await?;
 
             let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
-                .context("While reading the zip archive")?;
+                .wrap_err("While reading the zip archive")?;
             progress
                 .total_progress
                 .store(archive.len(), Ordering::Relaxed);
@@ -308,7 +308,7 @@ impl Window {
                     .unwrap_or(&file_path);
                 let file_path = file_path
                     .to_str()
-                    .ok_or(anyhow::anyhow!("invalid file path {file_path:#?}"))?;
+                    .ok_or(color_eyre::eyre::eyre!("Invalid file path {file_path:#?}"))?;
 
                 if file_path.is_empty() || filesystem.exists(file_path)? {
                     continue;
@@ -317,14 +317,14 @@ impl Window {
                 if file.is_dir() {
                     filesystem
                         .create_dir(file_path)
-                        .with_context(|| format!("creating the directory {file_path}"))?;
+                        .wrap_err_with(|| format!("While creating the directory {file_path}"))?;
                 } else {
                     let mut bytes = Vec::new();
                     file.read_to_end(&mut bytes)
-                        .with_context(|| format!("reading the file {file_path}"))?;
+                        .wrap_err_with(|| format!("While reading the file {file_path}"))?;
                     filesystem
                         .write(file_path, bytes)
-                        .with_context(|| format!("writing the file {file_path}"))?;
+                        .wrap_err_with(|| format!("While writing the file {file_path}"))?;
                 }
             }
         }

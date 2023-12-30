@@ -56,9 +56,9 @@ impl Event {
         filesystem: &impl luminol_filesystem::FileSystem,
         event: &luminol_data::rpg::Event,
         atlas: &Atlas,
-    ) -> anyhow::Result<Option<Self>> {
+    ) -> color_eyre::Result<Option<Self>> {
         let Some(page) = event.pages.first() else {
-            anyhow::bail!("event does not have first page");
+            color_eyre::eyre::bail!("event does not have first page");
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {

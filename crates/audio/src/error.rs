@@ -36,4 +36,4 @@ pub enum Error {
     FileSystem(#[from] luminol_filesystem::Error),
 }
 
-pub use anyhow::Result;
+pub use color_eyre::Result;

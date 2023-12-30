@@ -118,7 +118,7 @@ impl Map {
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
         passages: &luminol_data::Table2,
-    ) -> anyhow::Result<Self> {
+    ) -> color_eyre::eyre::Result<Self> {
         let atlas = graphics_state
             .atlas_loader
             .load_atlas(graphics_state, filesystem, tileset)?;

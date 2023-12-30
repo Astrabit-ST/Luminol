@@ -19,7 +19,7 @@ workspace = true
 [dependencies]
 rfd.workspace = true
 
-anyhow.workspace = true
+color-eyre.workspace = true
 thiserror.workspace = true
 bitflags.workspace = true
 

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow::Context;
+use color_eyre::eyre::WrapErr;
 use itertools::Itertools;
 
 use crate::{DirEntry, Metadata, OpenFlags, Result, StdIoErrorContext};
@@ -63,10 +63,10 @@ impl FileSystem {
         if let Some(path) = rfd::AsyncFileDialog::default().pick_folder().await {
             let path = camino::Utf8Path::from_path(path.path())
                 .ok_or(crate::Error::PathUtf8Error)
-                .context(c)?;
+                .wrap_err(c)?;
             Ok(Self::new(path))
         } else {
-            Err(crate::Error::CancelledLoading).context(c)
+            Err(crate::Error::CancelledLoading).wrap_err(c)
         }
     }
 
@@ -79,12 +79,12 @@ impl FileSystem {
         {
             let path = camino::Utf8Path::from_path(path.path())
                 .ok_or(crate::Error::PathUtf8Error)
-                .context(c)?
+                .wrap_err(c)?
                 .parent()
                 .expect("path does not have parent");
             Ok(Self::new(path))
         } else {
-            Err(crate::Error::CancelledLoading).context(c)
+            Err(crate::Error::CancelledLoading).wrap_err(c)
         }
     }
 }
@@ -107,7 +107,7 @@ impl crate::FileSystem for FileSystem {
             .truncate(flags.contains(OpenFlags::Truncate))
             .open(&path)
             .map(|file| {
-                let clone = file.try_clone().with_context(|| c.clone())?;
+                let clone = file.try_clone().wrap_err_with(|| c.clone())?;
                 Ok(File {
                     file: Inner::StdFsFile(file),
                     path,
@@ -115,7 +115,7 @@ impl crate::FileSystem for FileSystem {
                     async_file: clone.into(),
                 })
             })
-            .with_context(|| c.clone())?
+            .wrap_err_with(|| c.clone())?
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
@@ -124,7 +124,7 @@ impl crate::FileSystem for FileSystem {
             path.as_ref()
         );
         let path = self.root_path.join(path);
-        let metadata = std::fs::metadata(path).with_context(|| c.clone())?;
+        let metadata = std::fs::metadata(path).wrap_err_with(|| c.clone())?;
         Ok(Metadata {
             is_file: metadata.is_file(),
             size: metadata.len(),
@@ -143,7 +143,7 @@ impl crate::FileSystem for FileSystem {
         );
         let from = self.root_path.join(from);
         let to = self.root_path.join(to);
-        std::fs::rename(from, to).context(c)
+        std::fs::rename(from, to).wrap_err(c)
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
@@ -152,7 +152,7 @@ impl crate::FileSystem for FileSystem {
             path.as_ref()
         );
         let path = self.root_path.join(path);
-        path.try_exists().context(c)
+        path.try_exists().wrap_err(c)
     }
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
@@ -161,7 +161,7 @@ impl crate::FileSystem for FileSystem {
             path.as_ref()
         );
         let path = self.root_path.join(path);
-        std::fs::create_dir_all(path).context(c)
+        std::fs::create_dir_all(path).wrap_err(c)
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
@@ -170,7 +170,7 @@ impl crate::FileSystem for FileSystem {
             path.as_ref()
         );
         let path = self.root_path.join(path);
-        std::fs::remove_dir_all(path).context(c)
+        std::fs::remove_dir_all(path).wrap_err(c)
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
@@ -179,7 +179,7 @@ impl crate::FileSystem for FileSystem {
             path.as_ref()
         );
         let path = self.root_path.join(path);
-        std::fs::remove_file(path).context(c)
+        std::fs::remove_file(path).wrap_err(c)
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
@@ -189,7 +189,7 @@ impl crate::FileSystem for FileSystem {
         );
         let path = self.root_path.join(path);
         path.read_dir_utf8()
-            .with_context(|| c.clone())?
+            .wrap_err_with(|| c.clone())?
             .map_ok(|entry| {
                 let path = entry.into_path();
                 let path = path
@@ -201,7 +201,7 @@ impl crate::FileSystem for FileSystem {
                 #[cfg(windows)]
                 let path = path.into_string().replace('\\', "/").into();
 
-                let metadata = self.metadata(&path).with_context(|| c.clone())?;
+                let metadata = self.metadata(&path).wrap_err_with(|| c.clone())?;
                 Ok(DirEntry::new(path, metadata))
             })
             .flatten()
@@ -221,9 +221,9 @@ impl File {
                 InvalidInput,
                 "Tried to create a temporary file, but its path was not valid UTF-8",
             ))
-            .io_context(c)?
+            .wrap_io_err(c)?
             .into();
-        let clone = file.as_file().try_clone().io_context(c)?;
+        let clone = file.as_file().try_clone().wrap_io_err(c)?;
         Ok(Self {
             file: Inner::NamedTempFile(file),
             path,
@@ -252,7 +252,7 @@ impl File {
                 .read(true)
                 .open(path.path())
                 .map_err(crate::Error::IoError)
-                .context(c)?;
+                .wrap_err(c)?;
             let path = path
                 .path()
                 .iter()
@@ -261,8 +261,8 @@ impl File {
                 .to_os_string()
                 .into_string()
                 .map_err(|_| crate::Error::PathUtf8Error)
-                .context(c)?;
-            let clone = file.try_clone().context(c)?;
+                .wrap_err(c)?;
+            let clone = file.try_clone().wrap_err(c)?;
             Ok((
                 File {
                     file: Inner::StdFsFile(file),
@@ -279,7 +279,7 @@ impl File {
                 path,
             ))
         } else {
-            Err(crate::Error::CancelledLoading).context(c)
+            Err(crate::Error::CancelledLoading).wrap_err(c)
         }
     }
 
@@ -318,8 +318,8 @@ impl File {
             .save_file()
             .await
             .ok_or(crate::Error::CancelledLoading)
-            .with_context(|| c.clone())?;
-        std::fs::copy(&self.path, path.path()).with_context(|| c.clone())?;
+            .wrap_err_with(|| c.clone())?;
+        std::fs::copy(&self.path, path.path()).wrap_err_with(|| c.clone())?;
         Ok(())
     }
 }
@@ -335,7 +335,7 @@ impl crate::File for File {
             "While getting metadata for file {:?} from a host folder",
             stripped_path
         );
-        let metdata = self.file.as_file().metadata().io_context(c)?;
+        let metdata = self.file.as_file().metadata().wrap_io_err(c)?;
         Ok(Metadata {
             is_file: metdata.is_file(),
             size: metdata.len(),
@@ -352,7 +352,7 @@ impl crate::File for File {
             "While setting length of file {:?} from a host folder",
             stripped_path
         );
-        self.file.as_file().set_len(new_size).io_context(c)
+        self.file.as_file().set_len(new_size).wrap_io_err(c)
     }
 }
 
@@ -367,7 +367,7 @@ impl std::io::Read for File {
             "While reading from file {:?} from a host folder",
             stripped_path
         );
-        self.file.as_file().read(buf).io_context(c)
+        self.file.as_file().read(buf).wrap_io_err(c)
     }
 
     fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
@@ -380,7 +380,7 @@ impl std::io::Read for File {
             "While reading (vectored) from file {:?} from a host folder",
             stripped_path
         );
-        self.file.as_file().read_vectored(bufs).io_context(c)
+        self.file.as_file().read_vectored(bufs).wrap_io_err(c)
     }
 }
 
@@ -402,7 +402,7 @@ impl futures_lite::AsyncRead for File {
         self.project()
             .async_file
             .poll_read(cx, buf)
-            .map(|p| p.io_context(c))
+            .map(|p| p.wrap_io_err(c))
     }
 
     fn poll_read_vectored(
@@ -422,7 +422,7 @@ impl futures_lite::AsyncRead for File {
         self.project()
             .async_file
             .poll_read_vectored(cx, bufs)
-            .map(|p| p.io_context(c))
+            .map(|p| p.wrap_io_err(c))
     }
 }
 
@@ -437,7 +437,7 @@ impl std::io::Write for File {
             "While writing to file {:?} from a host folder",
             stripped_path
         );
-        self.file.as_file().write(buf).io_context(c)
+        self.file.as_file().write(buf).wrap_io_err(c)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -447,7 +447,7 @@ impl std::io::Write for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!("While flushing file {:?} from a host folder", stripped_path);
-        self.file.as_file().flush().io_context(c)
+        self.file.as_file().flush().wrap_io_err(c)
     }
 
     fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
@@ -460,7 +460,7 @@ impl std::io::Write for File {
             "While writing (vectored) to file {:?} from a host folder",
             stripped_path
         );
-        self.file.as_file().write_vectored(bufs).io_context(c)
+        self.file.as_file().write_vectored(bufs).wrap_io_err(c)
     }
 }
 
@@ -482,7 +482,7 @@ impl futures_lite::AsyncWrite for File {
         self.project()
             .async_file
             .poll_write(cx, buf)
-            .map(|r| r.io_context(c))
+            .map(|r| r.wrap_io_err(c))
     }
 
     fn poll_write_vectored(
@@ -502,7 +502,7 @@ impl futures_lite::AsyncWrite for File {
         self.project()
             .async_file
             .poll_write_vectored(cx, bufs)
-            .map(|r| r.io_context(c))
+            .map(|r| r.wrap_io_err(c))
     }
 
     fn poll_flush(
@@ -521,7 +521,7 @@ impl futures_lite::AsyncWrite for File {
         self.project()
             .async_file
             .poll_flush(cx)
-            .map(|r| r.io_context(c))
+            .map(|r| r.wrap_io_err(c))
     }
 
     fn poll_close(
@@ -537,7 +537,7 @@ impl futures_lite::AsyncWrite for File {
             "While asynchronously closing file {:?} from a host folder",
             stripped_path
         );
-        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")).io_context(c))
+        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")).wrap_io_err(c))
     }
 }
 
@@ -549,7 +549,7 @@ impl std::io::Seek for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!("While seeking file {:?} from a host folder", stripped_path);
-        self.file.as_file().seek(pos).io_context(c)
+        self.file.as_file().seek(pos).wrap_io_err(c)
     }
 }
 
@@ -571,7 +571,7 @@ impl futures_lite::AsyncSeek for File {
         self.project()
             .async_file
             .poll_seek(cx, pos)
-            .map(|r| r.io_context(c))
+            .map(|r| r.wrap_io_err(c))
     }
 }
 

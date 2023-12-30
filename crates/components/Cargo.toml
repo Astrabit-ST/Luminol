@@ -46,7 +46,7 @@ once_cell.workspace = true
 slab.workspace = true
 qp-trie.workspace = true
 
-anyhow.workspace = true
+color-eyre.workspace = true
 
 indextree = "4.6.0"
 lexical-sort = "0.3.1"

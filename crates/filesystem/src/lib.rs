@@ -69,31 +69,45 @@ pub enum Error {
     MissingIDB,
 }
 
-pub use anyhow::Result;
+pub use color_eyre::Result;
 
 pub trait StdIoErrorContext {
-    fn io_context<C>(self, c: C) -> Self
+    fn wrap_io_err_with<C>(self, c: impl FnOnce() -> C) -> Self
     where
+        Self: Sized,
         C: std::fmt::Display + Send + Sync + 'static;
 
-    fn with_io_context<C>(self, c: impl FnOnce() -> C) -> Self
+    fn wrap_io_err<C>(self, c: C) -> Self
     where
-        C: std::fmt::Display + Send + Sync + 'static;
-}
-
-impl<T> StdIoErrorContext for std::io::Result<T> {
-    fn io_context<C>(self, c: C) -> Self
-    where
+        Self: Sized,
         C: std::fmt::Display + Send + Sync + 'static,
     {
-        self.map_err(|e| std::io::Error::new(e.kind(), anyhow::Error::new(e).context(c)))
+        self.wrap_io_err_with(|| c)
     }
 
     fn with_io_context<C>(self, c: impl FnOnce() -> C) -> Self
     where
+        Self: Sized,
         C: std::fmt::Display + Send + Sync + 'static,
     {
-        self.map_err(|e| std::io::Error::new(e.kind(), anyhow::Error::new(e).context(c())))
+        self.wrap_io_err_with(c)
+    }
+
+    fn io_context<C>(self, c: C) -> Self
+    where
+        Self: Sized,
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.wrap_io_err(c)
+    }
+}
+
+impl<T> StdIoErrorContext for std::io::Result<T> {
+    fn wrap_io_err_with<C>(self, c: impl FnOnce() -> C) -> Self
+    where
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.map_err(|e| std::io::Error::new(e.kind(), color_eyre::eyre::eyre!(e).wrap_err(c())))
     }
 }
 

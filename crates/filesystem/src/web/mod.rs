@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow::Context;
+use color_eyre::eyre::WrapErr;
 use itertools::Itertools;
 
 mod events;
@@ -157,7 +157,7 @@ impl FileSystem {
     pub async fn from_folder_picker() -> Result<Self> {
         let c = "While picking a folder from the host filesystem";
         if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported).context(c);
+            return Err(Error::Wasm32FilesystemNotSupported).wrap_err(c);
         }
         send_and_await(|tx| FileSystemCommand::DirPicker(tx))
             .await
@@ -167,7 +167,7 @@ impl FileSystem {
                 idb_key: None,
             })
             .ok_or(Error::CancelledLoading)
-            .context(c)
+            .wrap_err(c)
     }
 
     /// Attempts to restore a previously created `FileSystem` using its IndexedDB key returned by
@@ -175,7 +175,7 @@ impl FileSystem {
     pub async fn from_idb_key(idb_key: String) -> Result<Self> {
         let c = "While restoring a directory handle from IndexedDB";
         if !Self::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported).context(c);
+            return Err(Error::Wasm32FilesystemNotSupported).wrap_err(c);
         }
         send_and_await(|tx| FileSystemCommand::DirFromIdb(idb_key.clone(), tx))
             .await
@@ -185,7 +185,7 @@ impl FileSystem {
                 idb_key: Some(idb_key),
             })
             .ok_or(Error::MissingIDB)
-            .context(c)
+            .wrap_err(c)
     }
 
     /// Creates a new `FileSystem` from a subdirectory of this one.
@@ -198,7 +198,7 @@ impl FileSystem {
                 name,
                 idb_key: None,
             })
-            .context(c)
+            .wrap_err(c)
     }
 
     /// Stores this `FileSystem` to IndexedDB. If successful, consumes this `Filesystem` and
@@ -255,14 +255,14 @@ impl FileSystemTrait for FileSystem {
                 temp_file_name: None,
                 futures: Default::default(),
             })
-            .context(c)
+            .wrap_err(c)
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         let path = path.as_ref();
         let c = format!("While getting metadata for {path:?} from a host folder");
         send_and_recv(|tx| FileSystemCommand::DirEntryMetadata(self.key, path.to_path_buf(), tx))
-            .context(c)
+            .wrap_err(c)
     }
 
     fn rename(
@@ -273,7 +273,7 @@ impl FileSystemTrait for FileSystem {
         let from = from.as_ref();
         let to = to.as_ref();
         let c = format!("While renaming {from:?} to {to:?} in a host folder");
-        Err(Error::NotSupported).context(c)
+        Err(Error::NotSupported).wrap_err(c)
     }
 
     fn exists(&self, path: impl AsRef<camino::Utf8Path>) -> Result<bool> {
@@ -286,28 +286,28 @@ impl FileSystemTrait for FileSystem {
         let path = path.as_ref();
         let c = format!("While creating a directory at {path:?} in a host folder");
         send_and_recv(|tx| FileSystemCommand::DirCreateDir(self.key, path.to_path_buf(), tx))
-            .context(c)
+            .wrap_err(c)
     }
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = path.as_ref();
         let c = format!("While removing a directory at {path:?} in a host folder");
         send_and_recv(|tx| FileSystemCommand::DirRemoveDir(self.key, path.to_path_buf(), tx))
-            .context(c)
+            .wrap_err(c)
     }
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = path.as_ref();
         let c = format!("While removing a file at {path:?} in a host folder");
         send_and_recv(|tx| FileSystemCommand::DirRemoveFile(self.key, path.to_path_buf(), tx))
-            .context(c)
+            .wrap_err(c)
     }
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         let path = path.as_ref();
         let c = format!("While reading the contents of the directory {path:?} in a host folder");
         send_and_recv(|tx| FileSystemCommand::DirReadDir(self.key, path.to_path_buf(), tx))
-            .context(c)
+            .wrap_err(c)
     }
 }
 
@@ -322,7 +322,7 @@ impl File {
                 temp_file_name: Some(temp_file_name),
                 futures: Default::default(),
             })
-            .io_context(c)
+            .wrap_io_err(c)
     }
 
     /// Attempts to prompt the user to choose a file from their local machine using the
@@ -339,7 +339,7 @@ impl File {
     ) -> Result<(Self, String)> {
         let c = "While picking a file on a host filesystem";
         if !FileSystem::filesystem_supported() {
-            return Err(Error::Wasm32FilesystemNotSupported).context(c);
+            return Err(Error::Wasm32FilesystemNotSupported).wrap_err(c);
         }
         send_and_await(|tx| {
             FileSystemCommand::FilePicker(
@@ -361,7 +361,7 @@ impl File {
             )
         })
         .ok_or(Error::CancelledLoading)
-        .context(c)
+        .wrap_err(c)
     }
 
     /// Saves this file to a location of the user's choice.
@@ -393,7 +393,7 @@ impl File {
         );
         send_and_await(|tx| FileSystemCommand::FileSave(self.key, filename.to_string(), tx))
             .await
-            .context(c)
+            .wrap_err(c)
     }
 }
 
@@ -416,7 +416,7 @@ impl crate::File for File {
             "While getting metadata for file {:?} from a host folder",
             stripped_path
         );
-        let size = send_and_recv(|tx| FileSystemCommand::FileSize(self.key, tx)).io_context(c)?;
+        let size = send_and_recv(|tx| FileSystemCommand::FileSize(self.key, tx)).wrap_io_err(c)?;
         Ok(Metadata {
             is_file: true,
             size,
@@ -433,7 +433,7 @@ impl crate::File for File {
             "While setting length of file {:?} from a host folder",
             stripped_path
         );
-        send_and_recv(|tx| FileSystemCommand::FileSetLength(self.key, new_size, tx)).io_context(c)
+        send_and_recv(|tx| FileSystemCommand::FileSetLength(self.key, new_size, tx)).wrap_io_err(c)
     }
 }
 
@@ -449,7 +449,7 @@ impl std::io::Read for File {
             stripped_path
         );
         let vec = send_and_recv(|tx| FileSystemCommand::FileRead(self.key, buf.len(), tx))
-            .io_context(c)?;
+            .wrap_io_err(c)?;
         let length = vec.len();
         buf[..length].copy_from_slice(&vec[..]);
         Ok(length)
@@ -486,7 +486,7 @@ impl futures_lite::AsyncRead for File {
             }
             Ok(Err(e)) => {
                 futures.read = None;
-                Poll::Ready(Err(e).io_context(c))
+                Poll::Ready(Err(e).wrap_io_err(c))
             }
             Err(_) => Poll::Pending,
         }
@@ -505,7 +505,7 @@ impl std::io::Write for File {
             stripped_path
         );
         send_and_recv(|tx| FileSystemCommand::FileWrite(self.key, buf.to_vec(), tx))
-            .io_context(c)?;
+            .wrap_io_err(c)?;
         Ok(buf.len())
     }
 
@@ -516,7 +516,7 @@ impl std::io::Write for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!("While flushing file {:?} from a host folder", stripped_path);
-        send_and_recv(|tx| FileSystemCommand::FileFlush(self.key, tx)).io_context(c)
+        send_and_recv(|tx| FileSystemCommand::FileFlush(self.key, tx)).wrap_io_err(c)
     }
 }
 
@@ -548,7 +548,7 @@ impl futures_lite::AsyncWrite for File {
             }
             Ok(Err(e)) => {
                 futures.write = None;
-                Poll::Ready(Err(e).io_context(c))
+                Poll::Ready(Err(e).wrap_io_err(c))
             }
             Err(_) => Poll::Pending,
         }
@@ -580,7 +580,7 @@ impl futures_lite::AsyncWrite for File {
             }
             Ok(Err(e)) => {
                 futures.flush = None;
-                Poll::Ready(Err(e).io_context(c))
+                Poll::Ready(Err(e).wrap_io_err(c))
             }
             Err(_) => Poll::Pending,
         }
@@ -599,7 +599,7 @@ impl futures_lite::AsyncWrite for File {
             "While asynchronously closing file {:?} from a host folder",
             stripped_path
         );
-        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")).io_context(c))
+        Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")).wrap_io_err(c))
     }
 }
 
@@ -611,7 +611,7 @@ impl std::io::Seek for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!("While seeking file {:?} from a host folder", stripped_path);
-        send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx)).io_context(c)
+        send_and_recv(|tx| FileSystemCommand::FileSeek(self.key, pos, tx)).wrap_io_err(c)
     }
 }
 
@@ -643,7 +643,7 @@ impl futures_lite::AsyncSeek for File {
             }
             Ok(Err(e)) => {
                 futures.seek = None;
-                Poll::Ready(Err(e).io_context(c))
+                Poll::Ready(Err(e).wrap_io_err(c))
             }
             Err(_) => Poll::Pending,
         }

@@ -58,13 +58,13 @@ where
         if self.archive.is_some() {
             let mut modified = self.modified.lock();
             *modified = true;
-            self.tmp.write(buf).with_io_context(|| c.clone())
+            self.tmp.write(buf).wrap_io_err_with(|| c.clone())
         } else {
             Err(std::io::Error::new(
                 PermissionDenied,
                 "Attempted to write to file with no write permissions",
             ))
-            .with_io_context(|| c.clone())
+            .wrap_io_err_with(|| c.clone())
         }
     }
 
@@ -76,13 +76,13 @@ where
         if self.archive.is_some() {
             let mut modified = self.modified.lock();
             *modified = true;
-            self.tmp.write_vectored(bufs).with_io_context(|| c.clone())
+            self.tmp.write_vectored(bufs).wrap_io_err_with(|| c.clone())
         } else {
             Err(std::io::Error::new(
                 PermissionDenied,
                 "Attempted to write to file with no write permissions",
             ))
-            .with_io_context(|| c.clone())
+            .wrap_io_err_with(|| c.clone())
         }
     }
 
@@ -103,7 +103,7 @@ where
                 PermissionDenied,
                 "Attempted to write to file with no write permissions",
             ))
-            .with_io_context(|| c.clone())?
+            .wrap_io_err_with(|| c.clone())?
             .lock();
         let mut trie = self
             .trie
@@ -112,15 +112,15 @@ where
                 PermissionDenied,
                 "Attempted to write to file with no write permissions",
             ))
-            .with_io_context(|| c.clone())?
+            .wrap_io_err_with(|| c.clone())?
             .write();
         let archive_len = archive.metadata()?.size;
 
-        let tmp_stream_position = self.tmp.stream_position().with_io_context(|| c.clone())?;
-        self.tmp.flush().with_io_context(|| c.clone())?;
+        let tmp_stream_position = self.tmp.stream_position().wrap_io_err_with(|| c.clone())?;
+        self.tmp.flush().wrap_io_err_with(|| c.clone())?;
         self.tmp
             .seek(SeekFrom::Start(0))
-            .with_io_context(|| c.clone())?;
+            .wrap_io_err_with(|| c.clone())?;
 
         // If the size of the file has changed, rotate the archive to place the file at the end of
         // the archive before writing the new contents of the file
@@ -130,9 +130,9 @@ where
                 InvalidData,
                 "Could not find the file within the archive",
             ))
-            .with_io_context(|| c.clone())?;
+            .wrap_io_err_with(|| c.clone())?;
         let old_size = entry.size;
-        let new_size = self.tmp.metadata().with_io_context(|| c.clone())?.size;
+        let new_size = self.tmp.metadata().wrap_io_err_with(|| c.clone())?.size;
         if old_size != new_size {
             move_file_and_truncate(
                 &mut archive,
@@ -141,15 +141,15 @@ where
                 self.version,
                 self.base_magic,
             )
-            .io_context("While relocating the file header to the end of the archive")
-            .with_io_context(|| c.clone())?;
+            .wrap_io_err("While relocating the file header to the end of the archive")
+            .wrap_io_err_with(|| c.clone())?;
             entry = *trie
                 .get_file(&self.path)
                 .ok_or(std::io::Error::new(
                     InvalidData,
                     "Could not find the file within the archive",
                 ))
-                .with_io_context(|| c.clone())?;
+                .wrap_io_err_with(|| c.clone())?;
 
             // Write the new length of the file to the archive
             match self.version {
@@ -160,23 +160,27 @@ where
                         .seek(SeekFrom::Start(
                             entry.body_offset.checked_sub(4).ok_or(InvalidData)?,
                         ))
-                        .io_context("While writing the file length to the archive")
-                        .with_io_context(|| c.clone())?;
+                        .wrap_io_err("While writing the file length to the archive")
+                        .wrap_io_err_with(|| c.clone())?;
                     archive
                         .write_all(&(new_size as u32 ^ magic).to_le_bytes())
-                        .io_context("While writing the base magic value of the file to the archive")
-                        .with_io_context(|| c.clone())?;
+                        .wrap_io_err(
+                            "While writing the base magic value of the file to the archive",
+                        )
+                        .wrap_io_err_with(|| c.clone())?;
                 }
 
                 3 => {
                     archive
                         .seek(SeekFrom::Start(entry.header_offset + 4))
-                        .io_context("While writing the file length to the archive")
-                        .with_io_context(|| c.clone())?;
+                        .wrap_io_err("While writing the file length to the archive")
+                        .wrap_io_err_with(|| c.clone())?;
                     archive
                         .write_all(&(new_size as u32 ^ self.base_magic).to_le_bytes())
-                        .io_context("While writing the base magic value of the file to the archive")
-                        .with_io_context(|| c.clone())?;
+                        .wrap_io_err(
+                            "While writing the base magic value of the file to the archive",
+                        )
+                        .wrap_io_err_with(|| c.clone())?;
                 }
 
                 _ => {
@@ -196,28 +200,28 @@ where
                     InvalidData,
                     "Could not find the file within the archive",
                 ))
-                .io_context("After changing the file length within the archive")
-                .with_io_context(|| c.clone())?
+                .wrap_io_err("After changing the file length within the archive")
+                .wrap_io_err_with(|| c.clone())?
                 .size = new_size;
         }
 
         // Now write the new contents of the file
         archive
             .seek(SeekFrom::Start(entry.body_offset))
-            .io_context("While writing the file contents to the archive")
-            .with_io_context(|| c.clone())?;
+            .wrap_io_err("While writing the file contents to the archive")
+            .wrap_io_err_with(|| c.clone())?;
         let mut reader = BufReader::new(&mut self.tmp);
         std::io::copy(
             &mut read_file_xor(&mut reader, entry.start_magic),
             archive.as_file(),
         )
-        .io_context("While writing the file contents to the archive")
-        .with_io_context(|| c.clone())?;
+        .wrap_io_err("While writing the file contents to the archive")
+        .wrap_io_err_with(|| c.clone())?;
         drop(reader);
         self.tmp
             .seek(SeekFrom::Start(tmp_stream_position))
-            .io_context("While writing the file contents to the archive")
-            .with_io_context(|| c.clone())?;
+            .wrap_io_err("While writing the file contents to the archive")
+            .wrap_io_err_with(|| c.clone())?;
 
         if old_size > new_size {
             archive
@@ -228,23 +232,23 @@ where
                             InvalidData,
                             "Archive header is corrupt",
                         ))
-                        .io_context("While truncating the archive")
-                        .with_io_context(|| c.clone())?
+                        .wrap_io_err("While truncating the archive")
+                        .wrap_io_err_with(|| c.clone())?
                         .checked_add(new_size)
                         .ok_or(std::io::Error::new(
                             InvalidData,
                             "Archive header is corrupt",
                         ))
-                        .io_context("While truncating the archive")
-                        .with_io_context(|| c.clone())?,
+                        .wrap_io_err("While truncating the archive")
+                        .wrap_io_err_with(|| c.clone())?,
                 )
-                .io_context("While truncating the archive")
-                .with_io_context(|| c.clone())?;
+                .wrap_io_err("While truncating the archive")
+                .wrap_io_err_with(|| c.clone())?;
         }
         archive
             .flush()
-            .io_context("While flushing the archive after writing its contents")
-            .with_io_context(|| c.clone())?;
+            .wrap_io_err("While flushing the archive after writing its contents")
+            .wrap_io_err_with(|| c.clone())?;
         *modified = false;
         Ok(())
     }
@@ -260,13 +264,13 @@ where
             self.path, self.version
         );
         if self.read_allowed {
-            self.tmp.read(buf).with_io_context(|| c.clone())
+            self.tmp.read(buf).wrap_io_err_with(|| c.clone())
         } else {
             Err(std::io::Error::new(
                 PermissionDenied,
                 "Attempted to read from file with no read permissions",
             ))
-            .with_io_context(|| c.clone())
+            .wrap_io_err_with(|| c.clone())
         }
     }
 
@@ -276,13 +280,13 @@ where
             self.path, self.version
         );
         if self.read_allowed {
-            self.tmp.read_vectored(bufs).with_io_context(|| c.clone())
+            self.tmp.read_vectored(bufs).wrap_io_err_with(|| c.clone())
         } else {
             Err(std::io::Error::new(
                 PermissionDenied,
                 "Attempted to read from file with no read permissions",
             ))
-            .with_io_context(|| c.clone())
+            .wrap_io_err_with(|| c.clone())
         }
     }
 
@@ -292,13 +296,13 @@ where
             self.path, self.version
         );
         if self.read_allowed {
-            self.tmp.read_exact(buf).with_io_context(|| c.clone())
+            self.tmp.read_exact(buf).wrap_io_err_with(|| c.clone())
         } else {
             Err(std::io::Error::new(
                 PermissionDenied,
                 "Attempted to read from file with no read permissions",
             ))
-            .with_io_context(|| c.clone())
+            .wrap_io_err_with(|| c.clone())
         }
     }
 }
@@ -320,14 +324,14 @@ where
             self.project()
                 .tmp
                 .poll_read(cx, buf)
-                .map(|r| r.with_io_context(|| c.clone()))
+                .map(|r| r.wrap_io_err_with(|| c.clone()))
         } else {
             Poll::Ready(
                 Err(std::io::Error::new(
                     PermissionDenied,
                     "Attempted to read from file with no read permissions",
                 ))
-                .with_io_context(|| c.clone()),
+                .wrap_io_err_with(|| c.clone()),
             )
         }
     }
@@ -345,14 +349,14 @@ where
             self.project()
                 .tmp
                 .poll_read_vectored(cx, bufs)
-                .map(|r| r.with_io_context(|| c.clone()))
+                .map(|r| r.wrap_io_err_with(|| c.clone()))
         } else {
             Poll::Ready(
                 Err(std::io::Error::new(
                     PermissionDenied,
                     "Attempted to read from file with no read permissions",
                 ))
-                .with_io_context(|| c.clone()),
+                .wrap_io_err_with(|| c.clone()),
             )
         }
     }
@@ -367,7 +371,7 @@ where
             "While asynchronously seeking file {:?} within a version {} archive",
             self.path, self.version
         );
-        self.tmp.seek(pos).io_context(c)
+        self.tmp.seek(pos).wrap_io_err(c)
     }
 
     fn stream_position(&mut self) -> std::io::Result<u64> {
@@ -375,7 +379,7 @@ where
             "While getting stream position for file {:?} within a version {} archive",
             self.path, self.version
         );
-        self.tmp.stream_position().io_context(c)
+        self.tmp.stream_position().wrap_io_err(c)
     }
 }
 
@@ -395,7 +399,7 @@ where
         self.project()
             .tmp
             .poll_seek(cx, pos)
-            .map(|r| r.io_context(c))
+            .map(|r| r.wrap_io_err(c))
     }
 }
 
@@ -408,7 +412,7 @@ where
             "While getting metadata for file {:?} within a version {} archive",
             self.path, self.version
         );
-        self.tmp.metadata().io_context(c)
+        self.tmp.metadata().wrap_io_err(c)
     }
 
     fn set_len(&self, new_size: u64) -> std::io::Result<()> {
@@ -419,13 +423,13 @@ where
         if self.archive.is_some() {
             let mut modified = self.modified.lock();
             *modified = true;
-            self.tmp.set_len(new_size).with_io_context(|| c.clone())
+            self.tmp.set_len(new_size).wrap_io_err_with(|| c.clone())
         } else {
             Err(std::io::Error::new(
                 PermissionDenied,
                 "Attempted to write to file with no write permissions",
             ))
-            .with_io_context(|| c.clone())
+            .wrap_io_err_with(|| c.clone())
         }
     }
 }

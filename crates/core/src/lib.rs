@@ -235,7 +235,8 @@ impl<'res> UpdateState<'res> {
                     }
                     Err(e) => {
                         should_run_closure = false;
-                        self.toasts.format_error(&e.context("Error saving project"))
+                        self.toasts
+                            .format_error(&e.wrap_err("Error saving project"))
                     }
                 }
             }
@@ -268,7 +269,7 @@ impl<'res> UpdateState<'res> {
                 }
                 Ok(Err(error)) => self
                     .toasts
-                    .format_error(&error.context("Error locating project files")),
+                    .format_error(&error.wrap_err("Error locating project files")),
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
             }
         }
@@ -299,7 +300,7 @@ impl<'res> UpdateState<'res> {
                     self.project_config.as_mut().unwrap(),
                 ) {
                     self.toasts
-                        .format_error(&error.context("Error loading the project data"));
+                        .format_error(&error.wrap_err("Error loading the project data"));
                 } else {
                     self.toasts.info(format!(
                         "Successfully opened {:?}",
@@ -309,7 +310,7 @@ impl<'res> UpdateState<'res> {
             }
             Some(Err(error)) => {
                 self.toasts
-                    .format_error(&error.context("Error opening the project"));
+                    .format_error(&error.wrap_err("Error opening the project"));
             }
             None => {}
         }
@@ -335,11 +336,11 @@ impl<'res> UpdateState<'res> {
                         }
                         Err(error) => self
                             .toasts
-                            .format_error(&error.context("Error creating new project")),
+                            .format_error(&error.wrap_err("Error creating new project")),
                     }
                 }
                 Ok(Err(error)) => self.toasts.format_error(
-                    &error.context("Error locating destination directory for project"),
+                    &error.wrap_err("Error locating destination directory for project"),
                 ),
                 Err(p) => self.project_manager.create_project_promise = Some(p),
             }

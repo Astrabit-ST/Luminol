@@ -70,7 +70,7 @@ impl SoundTab {
                             ) {
                                 update_state
                                     .toasts
-                                    .format_error(&e.context("Error playing from audio file"));
+                                    .format_error(&e.wrap_err("Error playing from audio file"));
                             }
                         }
 
@@ -149,7 +149,7 @@ impl SoundTab {
                                         source,
                                     ) {
                                         update_state.toasts.format_error(
-                                            &e.context("Error playing from audio file"),
+                                            &e.wrap_err("Error playing from audio file"),
                                         );
                                     }
                                 };

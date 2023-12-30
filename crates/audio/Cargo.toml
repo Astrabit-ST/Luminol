@@ -24,7 +24,7 @@ parking_lot.workspace = true
 camino.workspace = true
 once_cell.workspace = true
 
-anyhow.workspace = true
+color-eyre.workspace = true
 thiserror.workspace = true
 
 luminol-filesystem.workspace = true

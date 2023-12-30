@@ -64,7 +64,7 @@ impl Toasts {
     }
 
     /// Format an `anyhow::Error` and display it as an error toast.
-    pub fn format_error(&mut self, error: &anyhow::Error) {
+    pub fn format_error(&mut self, error: &color_eyre::Report) {
         if error.chain().len() <= 1 {
             self.error(error.to_string());
         } else {
