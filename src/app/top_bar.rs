@@ -264,6 +264,17 @@ impl TopBar {
                     .edit_windows
                     .add_window(luminol_ui::windows::misc::FilesystemDebug::default());
             }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            if ui.button("Output").clicked() {
+                update_state.edit_windows.add_window(
+                    luminol_ui::windows::console::Window::new_readonly(
+                        "luminol_output".into(),
+                        "Output",
+                        update_state.output_term_rx.clone(),
+                    ),
+                );
+            }
         });
 
         #[cfg(not(target_arch = "wasm32"))]

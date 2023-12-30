@@ -22,20 +22,34 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crossbeam_channel::{unbounded, Receiver};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::io::prelude::*;
 use std::sync::Arc;
+pub use termwiz;
 
 mod into;
 use into::{IntoEgui, IntoWez, TryIntoWez};
 
+pub type TermSender = Sender<Vec<termwiz::escape::Action>>;
+pub type TermReceiver = Receiver<Vec<termwiz::escape::Action>>;
+
+pub fn channel() -> (TermSender, TermReceiver) {
+    unbounded()
+}
+
 pub use portable_pty::CommandBuilder;
+
 pub use termwiz::Error;
 
 pub struct Terminal {
     terminal: wezterm_term::Terminal,
-    reader: Receiver<Vec<termwiz::escape::Action>>,
+    reader: TermReceiver,
+    process: Option<Process>,
+    id: Option<egui::Id>,
+    title: Option<String>,
+}
 
+struct Process {
     child: Box<dyn portable_pty::Child + Send + Sync>,
     pair: portable_pty::PtyPair,
 }
@@ -81,17 +95,42 @@ impl Terminal {
         Ok(Self {
             terminal,
             reader: reciever,
-            child,
-            pair,
+            process: Some(Process { pair, child }),
+            id: None,
+            title: None,
         })
     }
 
+    pub fn new_readonly(
+        id: egui::Id,
+        title: impl Into<String>,
+        receiver: Receiver<Vec<termwiz::escape::Action>>,
+    ) -> Self {
+        Self {
+            terminal: wezterm_term::Terminal::new(
+                wezterm_term::TerminalSize::default(),
+                Arc::new(Config),
+                "luminol-term",
+                "1.0",
+                Box::new(std::io::sink()),
+            ),
+            reader: receiver,
+            process: None,
+            id: Some(id),
+            title: Some(title.into()),
+        }
+    }
+
     pub fn title(&self) -> String {
-        self.terminal.get_title().replace("wezterm", "luminol-term")
+        self.title
+            .clone()
+            .unwrap_or_else(|| self.terminal.get_title().replace("wezterm", "luminol-term"))
     }
 
     pub fn id(&self) -> egui::Id {
-        if let Some(id) = self.child.process_id() {
+        if let Some(id) = self.id {
+            id
+        } else if let Some(id) = self.process.as_ref().and_then(|p| p.child.process_id()) {
             egui::Id::new(id)
         } else {
             egui::Id::new(self.title())
@@ -325,9 +364,10 @@ impl Terminal {
         ui.separator();
 
         ui.horizontal(|ui| {
-            if ui
-                .button(egui::RichText::new("KILL").color(egui::Color32::RED))
-                .clicked()
+            if self.process.is_some()
+                && ui
+                    .button(egui::RichText::new("KILL").color(egui::Color32::RED))
+                    .clicked()
             {
                 self.kill()
             }
@@ -340,12 +380,14 @@ impl Terminal {
 
             if resize {
                 self.terminal.resize(size);
-                if let Err(e) = self.pair.master.resize(portable_pty::PtySize {
-                    rows: size.rows as u16,
-                    cols: size.cols as u16,
-                    ..Default::default()
-                }) {
-                    eprintln!("error resizing terminal: {e}");
+                if let Some(process) = &mut self.process {
+                    if let Err(e) = process.pair.master.resize(portable_pty::PtySize {
+                        rows: size.rows as u16,
+                        cols: size.cols as u16,
+                        ..Default::default()
+                    }) {
+                        eprintln!("error resizing terminal: {e}");
+                    }
                 }
             }
         });
@@ -358,8 +400,10 @@ impl Terminal {
 
     #[inline(never)]
     pub fn kill(&mut self) {
-        if let Err(e) = self.child.kill() {
-            eprintln!("error killing child: {e}");
+        if let Some(process) = &mut self.process {
+            if let Err(e) = process.child.kill() {
+                eprintln!("error killing child: {e}");
+            }
         }
     }
 }

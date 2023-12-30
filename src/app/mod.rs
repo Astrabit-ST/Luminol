@@ -59,6 +59,9 @@ pub struct App {
     project_manager: luminol_core::ProjectManager,
 
     #[cfg(not(target_arch = "wasm32"))]
+    output_term_rx: luminol_term::TermReceiver,
+
+    #[cfg(not(target_arch = "wasm32"))]
     _runtime: tokio::runtime::Runtime,
 
     #[cfg(feature = "steamworks")]
@@ -80,6 +83,7 @@ impl App {
     pub fn new(
         cc: &luminol_eframe::CreationContext<'_>,
         modified: luminol_core::ModifiedState,
+        #[cfg(not(target_arch = "wasm32"))] output_term_rx: luminol_term::TermReceiver,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -234,6 +238,9 @@ impl App {
             project_manager: luminol_core::ProjectManager::new(&cc.egui_ctx),
 
             #[cfg(not(target_arch = "wasm32"))]
+            output_term_rx,
+
+            #[cfg(not(target_arch = "wasm32"))]
             _runtime: runtime,
 
             #[cfg(feature = "steamworks")]
@@ -282,6 +289,8 @@ impl luminol_eframe::App for App {
             toolbar: &mut self.toolbar,
             modified: self.modified.clone(),
             project_manager: &mut self.project_manager,
+            #[cfg(not(target_arch = "wasm32"))]
+            output_term_rx: &self.output_term_rx,
         };
 
         // If a file/folder picker is open, prevent the user from interacting with the application

@@ -73,10 +73,10 @@ impl Toasts {
 
     /// Format a `color_eyre::Report` and display it as an error toast.
     pub fn format_error(&mut self, error: &color_eyre::Report) {
-        tracing::error!("{error:?}");
+        tracing::error!("Luminol error:{error:?}");
 
         #[cfg(not(target_arch = "wasm32"))]
-        let help = "Check the console for more details";
+        let help = "Check the output window (Debug > Output) for more details";
         #[cfg(target_arch = "wasm32")]
         let help = "Check the browser developer console for more details";
 

@@ -41,6 +41,68 @@ compile_error!("Steamworks is not supported on webassembly");
 mod steam;
 
 #[cfg(not(target_arch = "wasm32"))]
+/// A writer that copies whatever is written to it to two other writers.
+struct CopyWriter<A, B>(A, B);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<A, B> std::io::Write for CopyWriter<A, B>
+where
+    A: std::io::Write,
+    B: std::io::Write,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        Ok(self.0.write(buf)?.min(self.1.write(buf)?))
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()?;
+        self.1.flush()?;
+        Ok(())
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+static OUTPUT_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
+    once_cell::sync::OnceCell::new();
+
+#[cfg(not(target_arch = "wasm32"))]
+/// A writer that writes to Luminol's output console.
+struct OutputWriter(luminol_term::termwiz::escape::parser::Parser);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::io::Write for OutputWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let parsed = self.0.parse_as_vec(buf);
+
+        // Convert from LF line endings to CRLF so that wezterm will display them properly
+        let mut vec = Vec::with_capacity(2 * parsed.len());
+        for action in parsed {
+            if action
+                == luminol_term::termwiz::escape::Action::Control(
+                    luminol_term::termwiz::escape::ControlCode::LineFeed,
+                )
+            {
+                vec.push(luminol_term::termwiz::escape::Action::Control(
+                    luminol_term::termwiz::escape::ControlCode::CarriageReturn,
+                ));
+            }
+            vec.push(action);
+        }
+
+        OUTPUT_SENDER
+            .get()
+            .unwrap()
+            .try_send(vec)
+            .map_err(std::io::Error::other)?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     #[cfg(feature = "steamworks")]
     let steamworks = match steam::Steamworks::new() {
@@ -92,16 +154,27 @@ fn main() {
         std::process::abort();
     });
 
+    // Enable full backtraces unless the user manually set the RUST_BACKTRACE environment variable
     if std::env::var("RUST_BACKTRACE").is_err() {
         std::env::set_var("RUST_BACKTRACE", "full");
     }
 
-    // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
-
+    // Set up hooks for formatting errors and panics
     color_eyre::config::HookBuilder::default()
         .install()
         .expect("failed to install color-eyre hooks");
+
+    // Log to stderr as well as Luminol's output console
+    let (output_term_tx, output_term_rx) = luminol_term::channel();
+    OUTPUT_SENDER.set(output_term_tx).unwrap();
+    tracing_subscriber::fmt()
+        .with_writer(|| {
+            CopyWriter(
+                std::io::stderr(),
+                OutputWriter(luminol_term::termwiz::escape::parser::Parser::new()),
+            )
+        })
+        .init();
 
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
@@ -139,6 +212,7 @@ fn main() {
             Box::new(app::App::new(
                 cc,
                 Default::default(),
+                output_term_rx,
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
@@ -174,26 +248,17 @@ pub fn luminol_main_start(fallback: bool) {
         }
     });
 
+    // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default().into_hooks();
     eyre_hook
         .install()
-        .expect("failed to setup color-eyre hooks");
+        .expect("failed to install color-eyre hooks");
     std::panic::set_hook(Box::new(move |info| {
         web_sys::console::log_1(&js_sys::JsString::from(
             panic_hook.panic_report(info).to_string(),
         ));
         let _ = panic_tx.send(());
     }));
-
-    // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default_with_config(
-        tracing_wasm::WASMLayerConfigBuilder::new()
-            .set_max_level(tracing::Level::INFO)
-            .build(),
-    );
-
-    // Redirect log (currently used by egui) to tracing
-    tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
 
     let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
     let prefers_color_scheme_dark = window
@@ -210,6 +275,16 @@ pub fn luminol_main_start(fallback: bool) {
     let offscreen_canvas = canvas
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
+
+    // Redirect tracing to console.log and friends:
+    tracing_wasm::set_as_global_default_with_config(
+        tracing_wasm::WASMLayerConfigBuilder::new()
+            .set_max_level(tracing::Level::INFO)
+            .build(),
+    );
+
+    // Redirect log (currently used by egui) to tracing
+    tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
 
     if !luminol_web::bindings::cross_origin_isolated() {
         tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");

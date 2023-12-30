@@ -32,6 +32,12 @@ impl Window {
             term: luminol_term::Terminal::new(command)?,
         })
     }
+
+    pub fn new_readonly(id: egui::Id, title: &str, receiver: luminol_term::TermReceiver) -> Self {
+        Self {
+            term: luminol_term::Terminal::new_readonly(id, title, receiver),
+        }
+    }
 }
 
 impl luminol_core::Window for Window {
