@@ -59,7 +59,7 @@ pub enum Data {
 fn read_data<T>(
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> color_eyre::eyre::Result<T>
+) -> color_eyre::Result<T>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -73,7 +73,7 @@ fn write_data(
     data: &impl serde::Serialize,
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> color_eyre::eyre::Result<()> {
+) -> color_eyre::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
     let bytes = alox_48::to_bytes(data)?;
@@ -85,7 +85,7 @@ fn write_data(
 fn read_nil_padded<T>(
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> color_eyre::eyre::Result<Vec<T>>
+) -> color_eyre::Result<Vec<T>>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -101,7 +101,7 @@ fn write_nil_padded(
     data: &[impl serde::Serialize],
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> color_eyre::eyre::Result<()> {
+) -> color_eyre::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
     let mut ser = alox_48::Serializer::new();
@@ -149,7 +149,7 @@ impl Data {
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &mut luminol_config::project::Config,
-    ) -> color_eyre::eyre::Result<()> {
+    ) -> color_eyre::Result<()> {
         let map_infos = RefCell::new(rpg::MapInfos {
             data: read_data(filesystem, "MapInfos.rxdata")
                 .wrap_err("While reading MapInfos.rxdata")?,
@@ -272,7 +272,7 @@ impl Data {
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &luminol_config::project::Config,
-    ) -> color_eyre::eyre::Result<()> {
+    ) -> color_eyre::Result<()> {
         let Self::Loaded {
             actors,
             animations,

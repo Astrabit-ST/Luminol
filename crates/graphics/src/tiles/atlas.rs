@@ -57,7 +57,7 @@ impl Atlas {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> color_eyre::eyre::Result<Atlas> {
+    ) -> color_eyre::Result<Atlas> {
         let tileset_img = match &tileset.tileset_name {
             Some(tileset_name) => {
                 let file = filesystem
