@@ -190,7 +190,7 @@ tokio = { version = "1.33", features = [
     "macros",
     "io-util",
     "rt-multi-thread",
-    "time",
+    "parking_lot",
 ] } # *sigh*
 luminol-term.workspace = true
 
