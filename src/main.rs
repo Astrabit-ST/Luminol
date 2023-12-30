@@ -92,12 +92,16 @@ fn main() {
         std::process::abort();
     });
 
+    if std::env::var("RUST_BACKTRACE").is_err() {
+        std::env::set_var("RUST_BACKTRACE", "full");
+    }
+
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    color_backtrace::BacktracePrinter::new()
-        .verbosity(color_backtrace::Verbosity::Full)
-        .install(color_backtrace::default_output_stream());
+    color_eyre::config::HookBuilder::default()
+        .install()
+        .expect("failed to install color-eyre hooks");
 
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
@@ -170,15 +174,14 @@ pub fn luminol_main_start(fallback: bool) {
         }
     });
 
+    let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default().into_hooks();
+    eyre_hook
+        .install()
+        .expect("failed to setup color-eyre hooks");
     std::panic::set_hook(Box::new(move |info| {
-        let backtrace_printer = color_backtrace::BacktracePrinter::new()
-            .lib_verbosity(color_backtrace::Verbosity::Full);
-        let mut buffer = color_backtrace::termcolor::Ansi::new(vec![]);
-        let _ = backtrace_printer.print_panic_info(info, &mut buffer);
-        let report = String::from_utf8(buffer.into_inner()).expect("panic report not valid utf-8");
-
-        web_sys::console::log_1(&js_sys::JsString::from(report));
-
+        web_sys::console::log_1(&js_sys::JsString::from(
+            panic_hook.panic_report(info).to_string(),
+        ));
         let _ = panic_tx.send(());
     }));
 

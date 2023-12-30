@@ -958,16 +958,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "color-backtrace"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "150fd80a270c0671379f388c8204deb6a746bb4eac8a6c03fe2460b2c0127ea0"
-dependencies = [
- "backtrace",
- "termcolor",
-]
-
-[[package]]
 name = "color-eyre"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2993,7 +2983,7 @@ name = "luminol"
 version = "0.4.0"
 dependencies = [
  "camino",
- "color-backtrace",
+ "color-eyre",
  "crc",
  "egui",
  "egui_extras",
@@ -3114,6 +3104,7 @@ dependencies = [
  "rand",
  "serde",
  "strum",
+ "tracing",
 ]
 
 [[package]]

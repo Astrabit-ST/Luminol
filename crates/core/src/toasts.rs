@@ -40,21 +40,29 @@ impl Toasts {
 
     /// Display an info toast.
     pub fn info(&mut self, caption: impl Into<String>) {
+        let caption: String = caption.into();
+        tracing::info!("{}", &caption);
         self.inner.info(caption);
     }
 
     /// Display a warning toast.
     pub fn warning(&mut self, caption: impl Into<String>) {
+        let caption: String = caption.into();
+        tracing::warn!("{}", &caption);
         self.inner.warning(caption);
     }
 
     /// Display an error toast.
     pub fn error(&mut self, caption: impl Into<String>) {
+        let caption: String = caption.into();
+        tracing::error!("{}", &caption);
         self.inner.error(caption);
     }
 
     /// Display a generic toast.
     pub fn basic(&mut self, caption: impl Into<String>) {
+        let caption: String = caption.into();
+        tracing::info!("{}", &caption);
         self.inner.basic(caption);
     }
 
@@ -63,15 +71,23 @@ impl Toasts {
         self.inner.show(ctx);
     }
 
-    /// Format an `anyhow::Error` and display it as an error toast.
+    /// Format a `color_eyre::Report` and display it as an error toast.
     pub fn format_error(&mut self, error: &color_eyre::Report) {
+        tracing::error!("{error:?}");
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let help = "Check the console for more details";
+        #[cfg(target_arch = "wasm32")]
+        let help = "Check the browser developer console for more details";
+
         if error.chain().len() <= 1 {
-            self.error(error.to_string());
+            self.inner.error(format!("{}\n\n{}", error, help,));
         } else {
-            self.error(format!(
-                "{}\n\n{}",
+            self.inner.error(format!(
+                "{}\n\n{}\n\n{}",
                 error,
-                error.chain().skip(1).map(|e| e.to_string()).join("\n")
+                error.chain().skip(1).map(|e| e.to_string()).join("\n"),
+                help
             ));
         }
     }

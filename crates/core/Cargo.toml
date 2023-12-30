@@ -26,7 +26,9 @@ egui-modal = "0.3.1"
 parking_lot.workspace = true
 poll-promise.workspace = true
 
+tracing.workspace = true
 color-eyre.workspace = true
+
 camino.workspace = true
 bitflags.workspace = true
 
