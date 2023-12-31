@@ -177,6 +177,7 @@ fn main() {
                 "winit::",
                 "egui::ui::",
                 "E as eyre::",
+                "T as core::",
                 "egui_dock::",
                 "std::panic::",
                 "egui::context::",
