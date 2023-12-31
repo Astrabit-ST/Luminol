@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use std::sync::Arc;
+pub use tracing;
 
 mod tab;
 pub use tab::{EditTabs, Tab, Tabs};
@@ -231,12 +232,11 @@ impl<'res> UpdateState<'res> {
                 {
                     Ok(_) => {
                         self.modified.set(false);
-                        self.toasts.info("Saved project successfully!")
+                        info!(self.toasts, "Saved project successfully!");
                     }
                     Err(e) => {
                         should_run_closure = false;
-                        self.toasts
-                            .format_error(&e.wrap_err("Error saving project"))
+                        error!(self.toasts, e.wrap_err("Error saving project"));
                     }
                 }
             }
@@ -273,8 +273,7 @@ impl<'res> UpdateState<'res> {
                         Some(luminol_filesystem::Error::CancelledLoading)
                     ) =>
                 {
-                    self.toasts
-                        .format_error(&error.wrap_err("Error locating project files"))
+                    error!(self.toasts, error.wrap_err("Error locating project files"));
                 }
                 Ok(Err(_)) => {}
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
@@ -288,17 +287,18 @@ impl<'res> UpdateState<'res> {
         match filesystem_open_result {
             Some(Ok(load_result)) => {
                 for missing_rtp in load_result.missing_rtps {
-                    self.toasts.warning(format!(
-                        "Failed to find suitable path for the RTP {missing_rtp}"
-                    ));
+                    warn!(
+                        self.toasts,
+                        format!("Failed to find suitable path for the RTP {missing_rtp}")
+                    );
                     // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
                     #[cfg(not(target_arch = "wasm32"))]
-                    self.toasts
-                        .info(format!("You may want to set an RTP path for {missing_rtp}"));
+                    info!(
+                        self.toasts,
+                        format!("You may want to set an RTP path for {missing_rtp}")
+                    );
                     #[cfg(target_arch = "wasm32")]
-                    self
-                        .toasts
-                        .info(format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
+                    info!(self.toasts, format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
                 }
 
                 if let Err(error) = self.data.load(
@@ -306,18 +306,22 @@ impl<'res> UpdateState<'res> {
                     // TODO code jank
                     self.project_config.as_mut().unwrap(),
                 ) {
-                    self.toasts
-                        .format_error(&error.wrap_err("Error loading the project data"));
+                    error!(
+                        self.toasts,
+                        error.wrap_err("Error loading the project data")
+                    );
                 } else {
-                    self.toasts.info(format!(
-                        "Successfully opened {:?}",
-                        self.filesystem.project_path().expect("project not open")
-                    ));
+                    info!(
+                        self.toasts,
+                        format!(
+                            "Successfully opened {:?}",
+                            self.filesystem.project_path().expect("project not open")
+                        )
+                    );
                 }
             }
             Some(Err(error)) => {
-                self.toasts
-                    .format_error(&error.wrap_err("Error opening the project"));
+                error!(self.toasts, error.wrap_err("Error opening the project"));
             }
             None => {}
         }
@@ -341,13 +345,14 @@ impl<'res> UpdateState<'res> {
                             *self.data = data_cache;
                             self.project_config.replace(config);
                         }
-                        Err(error) => self
-                            .toasts
-                            .format_error(&error.wrap_err("Error creating new project")),
+                        Err(error) => {
+                            error!(self.toasts, error.wrap_err("Error creating new project"))
+                        }
                     }
                 }
-                Ok(Err(error)) => self.toasts.format_error(
-                    &error.wrap_err("Error locating destination directory for project"),
+                Ok(Err(error)) => error!(
+                    self.toasts,
+                    error.wrap_err("Error locating destination directory for project"),
                 ),
                 Err(p) => self.project_manager.create_project_promise = Some(p),
             }

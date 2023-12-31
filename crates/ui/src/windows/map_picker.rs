@@ -134,9 +134,10 @@ impl luminol_core::Window for Window {
                         if let Some(id) = open_map_id {
                             match crate::tabs::map::Tab::new(id, update_state) {
                                 Ok(tab) => update_state.edit_tabs.add_tab(tab),
-                                Err(e) => update_state
-                                    .toasts
-                                    .format_error(&e.wrap_err("Error enumerating maps")),
+                                Err(e) => luminol_core::error!(
+                                    update_state.toasts,
+                                    e.wrap_err("Error enumerating maps")
+                                ),
                             }
                         }
                     })

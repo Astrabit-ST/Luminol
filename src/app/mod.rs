@@ -179,10 +179,10 @@ impl App {
             match filesystem.load_project_from_path(&mut project_config, &mut global_config, path) {
                 Ok(_) => {
                     if let Err(e) = data.load(&filesystem, project_config.as_mut().unwrap()) {
-                        toasts.error(e.to_string())
+                        luminol_core::error!(&mut toasts, e)
                     }
                 }
-                Err(e) => toasts.error(e.to_string()),
+                Err(e) => luminol_core::error!(&mut toasts, e),
             }
         }
 
@@ -267,13 +267,18 @@ impl luminol_eframe::App for App {
                     &mut self.global_config,
                     path,
                 ) {
-                    self.toasts
-                        .error(format!("Error opening dropped project: {e}"))
+                    luminol_core::error!(
+                        &mut self.toasts,
+                        color_eyre::eyre::eyre!(e).wrap_err("Error opening dropped project")
+                    )
                 } else {
-                    self.toasts.info(format!(
-                        "Successfully opened {:?}",
-                        self.filesystem.project_path().expect("project not open")
-                    ));
+                    luminol_core::info!(
+                        &mut self.toasts,
+                        format!(
+                            "Successfully opened {:?}",
+                            self.filesystem.project_path().expect("project not open")
+                        )
+                    );
                 }
             }
         });

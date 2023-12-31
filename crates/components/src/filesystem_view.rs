@@ -193,9 +193,12 @@ where
             let path = ancestors.join("/");
 
             let mut subentries = self.filesystem.read_dir(&path).unwrap_or_else(|e| {
-                update_state.toasts.format_error(&e.wrap_err(format!(
-                    "Error reading contents of directory {path} in filesystem view"
-                )));
+                luminol_core::error!(
+                    update_state.toasts,
+                    e.wrap_err(format!(
+                        "Error reading contents of directory {path} in filesystem view"
+                    ))
+                );
                 Vec::new()
             });
             subentries.sort_unstable_by(|a, b| {

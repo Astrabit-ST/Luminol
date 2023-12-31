@@ -62,8 +62,9 @@ impl luminol_core::Window for Window {
             .resizable(false)
             .show(ctx, |ui| {
                 if let Err(e) = self.term.ui(ui) {
-                    update_state.toasts.format_error(
-                        &color_eyre::eyre::eyre!(e).wrap_err("Error displaying terminal"),
+                    luminol_core::error!(
+                        update_state.toasts,
+                        color_eyre::eyre::eyre!(e).wrap_err("Error displaying terminal"),
                     );
                 }
             });

@@ -314,9 +314,12 @@ impl TopBar {
 
                     match result {
                         Ok(w) => update_state.edit_windows.add_window(w),
-                        Err(e) => update_state.toasts.error(format!(
-                            "error starting game (tried steamshim.exe and then game.exe): {e}"
-                        )),
+                        Err(e) => luminol_core::error!(
+                            update_state.toasts,
+                            color_eyre::eyre::eyre!(e).wrap_err(
+                                "Error starting game (tried steamshim.exe and then game.exe)"
+                            )
+                        ),
                     }
                 }
 
@@ -335,9 +338,10 @@ impl TopBar {
 
                     match luminol_ui::windows::console::Window::new(ui.ctx(), cmd) {
                         Ok(w) => update_state.edit_windows.add_window(w),
-                        Err(e) => update_state
-                            .toasts
-                            .error(format!("error starting shell: {e}")),
+                        Err(e) => luminol_core::error!(
+                            update_state.toasts,
+                            color_eyre::eyre::eyre!(e).wrap_err("Error starting shell")
+                        ),
                     }
                 }
             });
@@ -360,9 +364,9 @@ impl TopBar {
                 match update_state.data.save(update_state.filesystem, config) {
                     Ok(_) => {
                         update_state.modified.set(false);
-                        update_state.toasts.info("Saved project successfully!")
+                        luminol_core::info!(update_state.toasts, "Saved project successfully!");
                     }
-                    Err(e) => update_state.toasts.error(e.to_string()),
+                    Err(e) => luminol_core::error!(update_state.toasts, e),
                 }
             }
         }
@@ -387,8 +391,9 @@ impl TopBar {
                 .resizable(false)
                 .show(ui.ctx(), |ui| {
                     if let Err(e) = self.output_term.ui(ui) {
-                        update_state.toasts.format_error(
-                            &color_eyre::eyre::eyre!(e).wrap_err("Error displaying output console"),
+                        luminol_core::error!(
+                            update_state.toasts,
+                            color_eyre::eyre::eyre!(e).wrap_err("Error displaying output console"),
                         );
                     }
                 });

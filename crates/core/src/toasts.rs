@@ -38,43 +38,28 @@ impl Toasts {
         self.inner.add(toast);
     }
 
-    /// Display an info toast.
-    pub fn info(&mut self, caption: impl Into<String>) {
-        let caption: String = caption.into();
-        tracing::info!("{}", &caption);
-        self.inner.info(caption);
-    }
-
-    /// Display a warning toast.
-    pub fn warning(&mut self, caption: impl Into<String>) {
-        let caption: String = caption.into();
-        tracing::warn!("{}", &caption);
-        self.inner.warning(caption);
-    }
-
-    /// Display an error toast.
-    pub fn error(&mut self, caption: impl Into<String>) {
-        let caption: String = caption.into();
-        tracing::error!("{}", &caption);
-        self.inner.error(caption);
-    }
-
-    /// Display a generic toast.
-    pub fn basic(&mut self, caption: impl Into<String>) {
-        let caption: String = caption.into();
-        tracing::info!("{}", &caption);
-        self.inner.basic(caption);
-    }
-
     /// Display all toasts.
     pub fn show(&mut self, ctx: &egui::Context) {
         self.inner.show(ctx);
     }
 
-    /// Format a `color_eyre::Report` and display it as an error toast.
-    pub fn format_error(&mut self, error: &color_eyre::Report) {
-        tracing::error!("Luminol error:{error:?}");
+    #[doc(hidden)]
+    pub fn _i_inner(&mut self, caption: impl Into<String>) {
+        self.inner.info(caption);
+    }
 
+    #[doc(hidden)]
+    pub fn _w_inner(&mut self, caption: impl Into<String>) {
+        self.inner.warning(caption);
+    }
+
+    #[doc(hidden)]
+    pub fn _b_inner(&mut self, caption: impl Into<String>) {
+        self.inner.basic(caption);
+    }
+
+    #[doc(hidden)]
+    pub fn _e_inner(&mut self, error: &color_eyre::Report) {
         #[cfg(not(target_arch = "wasm32"))]
         let help = "Check the output window (Debug > Output) for more details";
         #[cfg(target_arch = "wasm32")]
@@ -91,4 +76,44 @@ impl Toasts {
             ));
         }
     }
+}
+
+/// Display an info toast.
+#[macro_export]
+macro_rules! info {
+    ($toasts:expr, $caption:expr $(,)?) => {{
+        let caption = String::from($caption);
+        $crate::tracing::info!("{caption}");
+        $crate::Toasts::_i_inner($toasts, $caption);
+    }};
+}
+
+/// Display a warning toast.
+#[macro_export]
+macro_rules! warn {
+    ($toasts:expr, $caption:expr $(,)?) => {{
+        let caption = String::from($caption);
+        $crate::tracing::warn!("{caption}");
+        $crate::Toasts::_w_inner($toasts, caption);
+    }};
+}
+
+/// Display a generic toast.
+#[macro_export]
+macro_rules! basic {
+    ($toasts:expr, $caption:expr $(,)?) => {{
+        let caption = String::from($caption);
+        $crate::tracing::info!("{caption}");
+        $crate::Toasts::_b_inner($toasts, caption);
+    }};
+}
+
+/// Format a `color_eyre::Report` and display it as an error toast.
+#[macro_export]
+macro_rules! error {
+    ($toasts:expr, $error:expr $(,)?) => {{
+        let error = &$error;
+        $crate::tracing::error!("Luminol error:{error:?}");
+        $crate::Toasts::_e_inner($toasts, error);
+    }};
 }
