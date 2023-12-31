@@ -137,10 +137,14 @@ impl Terminal {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> std::io::Result<()> {
+    pub fn update(&mut self) {
         while let Ok(actions) = self.reader.try_recv() {
             self.terminal.perform_actions(actions);
         }
+    }
+
+    pub fn ui(&mut self, ui: &mut egui::Ui) -> std::io::Result<()> {
+        self.update();
 
         let mut size = self.terminal.get_size();
         let cursor_pos = self.terminal.cursor_pos();

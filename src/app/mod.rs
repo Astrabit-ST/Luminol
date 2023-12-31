@@ -214,7 +214,14 @@ impl App {
         let audio = luminol_audio::Audio::default();
 
         Self {
-            top_bar: top_bar::TopBar::default(),
+            top_bar: top_bar::TopBar::new(
+                #[cfg(not(target_arch = "wasm32"))]
+                luminol_term::Terminal::new_readonly(
+                    "luminol_output".into(),
+                    "Output",
+                    output_term_rx.clone(),
+                ),
+            ),
             lumi,
 
             audio,
