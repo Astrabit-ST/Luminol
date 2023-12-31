@@ -71,9 +71,6 @@ pub struct UpdateState<'res> {
 
     pub modified: ModifiedState,
     pub project_manager: &'res mut ProjectManager,
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub output_term_rx: &'res luminol_term::TermReceiver,
 }
 
 /// This stores whether or not there are unsaved changes in any file in the current project and is
@@ -150,8 +147,6 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
-            #[cfg(not(target_arch = "wasm32"))]
-            output_term_rx: self.output_term_rx,
         }
     }
 
@@ -174,8 +169,6 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
-            #[cfg(not(target_arch = "wasm32"))]
-            output_term_rx: self.output_term_rx,
         }
     }
 
