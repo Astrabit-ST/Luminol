@@ -172,13 +172,17 @@ fn main() {
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
                 "core::",
+                "alloc::",
                 "tokio::",
                 "winit::",
-                "std::panic",
+                "egui::ui::",
+                "E as eyre::",
+                "std::panic::",
+                "egui::context::",
                 "luminol_eframe::",
                 "std::panicking::",
+                "egui::containers::",
                 "std::thread::local::",
-                "egui::context::Context::run",
             ];
             frames.retain(|frame| {
                 !filters.iter().any(|f| {
