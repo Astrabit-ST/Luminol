@@ -169,6 +169,26 @@ fn main() {
 
     // Set up hooks for formatting errors and panics
     color_eyre::config::HookBuilder::default()
+        .add_frame_filter(Box::new(|frames| {
+            let filters = &[
+                "core::",
+                "tokio::",
+                "winit::",
+                "std::panic",
+                "luminol_eframe::",
+                "std::panicking::",
+                "std::thread::local::",
+                "egui::context::Context::run",
+            ];
+            frames.retain(|frame| {
+                !filters.iter().any(|f| {
+                    frame
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| name.strip_prefix('<').unwrap_or(name).starts_with(f))
+                })
+            })
+        }))
         .install()
         .expect("failed to install color-eyre hooks");
 
