@@ -267,9 +267,16 @@ impl<'res> UpdateState<'res> {
                         self.global_config,
                     ));
                 }
-                Ok(Err(error)) => self
-                    .toasts
-                    .format_error(&error.wrap_err("Error locating project files")),
+                Ok(Err(error))
+                    if !matches!(
+                        error.root_cause().downcast_ref(),
+                        Some(luminol_filesystem::Error::CancelledLoading)
+                    ) =>
+                {
+                    self.toasts
+                        .format_error(&error.wrap_err("Error locating project files"))
+                }
+                Ok(Err(_)) => {}
                 Err(p) => self.project_manager.load_filesystem_promise = Some(p),
             }
         }

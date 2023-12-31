@@ -273,7 +273,7 @@ impl Window {
                         }
                         Ok(Err(e)) => {
                             if !matches!(
-                                e.downcast_ref(),
+                                e.root_cause().downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
                                 update_state
@@ -381,7 +381,7 @@ impl Window {
                         Ok(Ok(())) => update_state.toasts.info("Extracted successfully!"),
                         Ok(Err(e)) => {
                             if !matches!(
-                                e.downcast_ref(),
+                                e.root_cause().downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
                                 update_state
@@ -413,7 +413,7 @@ impl Window {
                         }
                         Ok(Err(e)) => {
                             if !matches!(
-                                e.downcast_ref(),
+                                e.root_cause().downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
                                 update_state.toasts.format_error(
@@ -555,7 +555,7 @@ impl Window {
                         }
                         Ok(Err(e)) => {
                             if !matches!(
-                                e.downcast_ref(),
+                                e.root_cause().downcast_ref(),
                                 Some(luminol_filesystem::Error::CancelledLoading)
                             ) {
                                 update_state
