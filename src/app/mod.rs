@@ -217,6 +217,8 @@ impl App {
                     "luminol_output".into(),
                     "Output",
                     output_term_rx.clone(),
+                    132,
+                    43,
                 ),
             ),
             lumi,

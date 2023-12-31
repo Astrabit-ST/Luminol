@@ -105,10 +105,15 @@ impl Terminal {
         id: egui::Id,
         title: impl Into<String>,
         receiver: Receiver<Vec<termwiz::escape::Action>>,
+        default_cols: usize,
+        default_rows: usize,
     ) -> Self {
+        let mut size = wezterm_term::TerminalSize::default();
+        size.cols = default_cols;
+        size.rows = default_rows;
         Self {
             terminal: wezterm_term::Terminal::new(
-                wezterm_term::TerminalSize::default(),
+                size,
                 Arc::new(Config),
                 "luminol-term",
                 "1.0",
