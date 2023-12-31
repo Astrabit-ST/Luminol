@@ -214,6 +214,7 @@ impl App {
             top_bar: top_bar::TopBar::new(
                 #[cfg(not(target_arch = "wasm32"))]
                 luminol_term::Terminal::new_readonly(
+                    &cc.egui_ctx,
                     "luminol_output".into(),
                     "Output",
                     output_term_rx.clone(),

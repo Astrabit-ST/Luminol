@@ -27,9 +27,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(command: luminol_term::CommandBuilder) -> Result<Self, luminol_term::Error> {
+    pub fn new(
+        ctx: &egui::Context,
+        command: luminol_term::CommandBuilder,
+    ) -> Result<Self, luminol_term::Error> {
         Ok(Self {
-            term: luminol_term::Terminal::new(command)?,
+            term: luminol_term::Terminal::new(ctx, command)?,
         })
     }
 }

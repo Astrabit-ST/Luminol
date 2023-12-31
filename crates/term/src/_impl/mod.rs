@@ -61,7 +61,10 @@ impl Drop for Terminal {
 }
 
 impl Terminal {
-    pub fn new(command: portable_pty::CommandBuilder) -> Result<Self, termwiz::Error> {
+    pub fn new(
+        ctx: &egui::Context,
+        command: portable_pty::CommandBuilder,
+    ) -> Result<Self, termwiz::Error> {
         let pty_system = portable_pty::native_pty_system();
         let pair = pty_system.openpty(portable_pty::PtySize::default())?;
         let child = pair.slave.spawn_command(command)?;
@@ -77,6 +80,7 @@ impl Terminal {
             writer,
         );
 
+        let ctx = ctx.clone();
         let (sender, reciever) = unbounded();
         std::thread::spawn(move || {
             let mut buf = [0; 2usize.pow(10)];
@@ -88,6 +92,9 @@ impl Terminal {
                     return;
                 };
                 let actions = parser.parse_as_vec(&buf[0..len]);
+                if !actions.is_empty() {
+                    ctx.request_repaint();
+                }
                 let Ok(_) = sender.send(actions) else { return };
             }
         });
@@ -102,15 +109,20 @@ impl Terminal {
     }
 
     pub fn new_readonly(
+        ctx: &egui::Context,
         id: egui::Id,
         title: impl Into<String>,
         receiver: Receiver<Vec<termwiz::escape::Action>>,
         default_cols: usize,
         default_rows: usize,
     ) -> Self {
+        let (cols, rows) = ctx.memory_mut(|m| {
+            *m.data
+                .get_persisted_mut_or_insert_with(id, move || (default_cols, default_rows))
+        });
         let mut size = wezterm_term::TerminalSize::default();
-        size.cols = default_cols;
-        size.rows = default_rows;
+        size.cols = cols;
+        size.rows = rows;
         Self {
             terminal: wezterm_term::Terminal::new(
                 size,
@@ -155,14 +167,47 @@ impl Terminal {
         let cursor_pos = self.terminal.cursor_pos();
         let palette = self.terminal.get_config().color_palette();
 
-        let prev_spacing = ui.spacing_mut().item_spacing;
+        ui.horizontal(|ui| {
+            if self.process.is_some()
+                && ui
+                    .button(egui::RichText::new("KILL").color(egui::Color32::RED))
+                    .clicked()
+            {
+                self.kill()
+            }
+
+            let mut resize = false;
+            resize |= ui.add(egui::DragValue::new(&mut size.cols)).changed();
+
+            ui.label("×");
+            resize |= ui.add(egui::DragValue::new(&mut size.rows)).changed();
+
+            if resize {
+                self.terminal.resize(size);
+                ui.memory_mut(|m| m.data.insert_persisted(self.id(), (size.cols, size.rows)));
+                if let Some(process) = &mut self.process {
+                    if let Err(e) = process.pair.master.resize(portable_pty::PtySize {
+                        rows: size.rows as u16,
+                        cols: size.cols as u16,
+                        ..Default::default()
+                    }) {
+                        eprintln!("error resizing terminal: {e}");
+                    }
+                }
+            }
+        });
+
+        ui.separator();
+
         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
 
         let text_width = ui.fonts(|f| f.glyph_width(&egui::FontId::monospace(12.0), '?'));
         let text_height = ui.text_style_height(&egui::TextStyle::Monospace);
 
+        let scroll_area_height = (size.rows + 1) as f32 * text_height;
         egui::ScrollArea::vertical()
-            .max_height((size.rows + 1) as f32 * text_height)
+            .max_height(scroll_area_height)
+            .min_scrolled_height(scroll_area_height)
             .stick_to_bottom(true)
             .show_rows(
                 ui,
@@ -240,9 +285,9 @@ impl Terminal {
                     let (response, painter) =
                         ui.allocate_painter(galley_rect.size(), egui::Sense::click_and_drag());
 
-                    // if response.clicked() && !response.has_focus() {
-                    //     ui.memory_mut(|mem| mem.request_focus(response.id));
-                    // }
+                    if response.clicked() && !response.has_focus() {
+                        ui.memory_mut(|mem| mem.request_focus(response.id));
+                    }
 
                     painter.rect_filled(
                         galley_rect.translate(response.rect.min.to_vec2()),
@@ -261,13 +306,17 @@ impl Terminal {
                         egui::Stroke::new(1.0, egui::Color32::WHITE),
                     );
 
-                    // if ui.memory(|mem| mem.has_focus(response.id)) {
+                    if response.hovered() {
+                        ui.output_mut(|o| o.mutable_text_under_cursor = true);
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
+                    }
 
-                    ui.output_mut(|o| o.mutable_text_under_cursor = true);
-                    ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
-                    // ui.memory_mut(|mem| mem.lock_focus(response.id, true));
-
+                    let focused = response.has_focus();
                     ui.input(|i| {
+                        if !focused {
+                            return;
+                        }
+
                         for e in i.events.iter() {
                             let result = match e {
                                 egui::Event::PointerMoved(pos) => {
@@ -367,42 +416,6 @@ impl Terminal {
                     });
                 },
             );
-
-        ui.spacing_mut().item_spacing = prev_spacing;
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            if self.process.is_some()
-                && ui
-                    .button(egui::RichText::new("KILL").color(egui::Color32::RED))
-                    .clicked()
-            {
-                self.kill()
-            }
-
-            let mut resize = false;
-            resize |= ui.add(egui::DragValue::new(&mut size.rows)).changed();
-
-            ui.label("x");
-            resize |= ui.add(egui::DragValue::new(&mut size.cols)).changed();
-
-            if resize {
-                self.terminal.resize(size);
-                if let Some(process) = &mut self.process {
-                    if let Err(e) = process.pair.master.resize(portable_pty::PtySize {
-                        rows: size.rows as u16,
-                        cols: size.cols as u16,
-                        ..Default::default()
-                    }) {
-                        eprintln!("error resizing terminal: {e}");
-                    }
-                }
-            }
-        });
-
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_millis(16));
 
         Ok(())
     }

@@ -66,6 +66,9 @@ static OUTPUT_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
     once_cell::sync::OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
+static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::OnceCell::new();
+
+#[cfg(not(target_arch = "wasm32"))]
 /// A writer that writes to Luminol's output console.
 struct OutputWriter(luminol_term::termwiz::escape::parser::Parser);
 
@@ -94,6 +97,11 @@ impl std::io::Write for OutputWriter {
             .unwrap()
             .try_send(vec)
             .map_err(std::io::Error::other)?;
+
+        if let Some(ctx) = CONTEXT.get() {
+            ctx.request_repaint();
+        }
+
         Ok(buf.len())
     }
 
@@ -209,6 +217,7 @@ fn main() {
         "Luminol",
         native_options,
         Box::new(|cc| {
+            CONTEXT.set(cc.egui_ctx.clone()).unwrap();
             Box::new(app::App::new(
                 cc,
                 Default::default(),
