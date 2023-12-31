@@ -25,8 +25,8 @@
 /// Database - Items management window.
 pub struct Window {
     // ? Items ?
-    items: Vec<luminol_data::rpg::Item>,
     selected_item: usize,
+    selected_item_name: Option<String>,
 
     // ? Icon Graphic Picker ?
     _icon_picker: Option<luminol_modals::graphic_picker::Modal>,
@@ -36,12 +36,10 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(data_cache: &luminol_core::Data) -> Self {
-        let items = data_cache.items().data.clone();
-
+    pub fn new() -> Self {
         Self {
-            items,
             selected_item: 0,
+            selected_item_name: None,
 
             _icon_picker: None,
 
@@ -52,7 +50,11 @@ impl Window {
 
 impl luminol_core::Window for Window {
     fn name(&self) -> String {
-        format!("Editing item {}", self.items[self.selected_item].name)
+        if let Some(name) = &self.selected_item_name {
+            format!("Editing item {:?}", name)
+        } else {
+            "Item Editor".into()
+        }
     }
 
     fn id(&self) -> egui::Id {
@@ -69,22 +71,9 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let _selected_item = &self.items[self.selected_item];
-        let _animations = update_state.data.animations();
-
-        let _common_events = update_state.data.common_events();
-
-        /*#[allow(clippy::cast_sign_loss)]
-        if animations
-            .get(selected_item.animation1_id as usize)
-            .is_none()
-        {
-            info.toasts.error(format!(
-                "Tried to get an animation with an ID of `{}`, but it doesn't exist.",
-                selected_item.animation1_id
-            ));
-            return;
-        }*/
+        let mut items = update_state.data.items();
+        self.selected_item = self.selected_item.min(items.data.len().saturating_sub(1));
+        let mut modified = false;
 
         egui::Window::new(self.name())
             .id(egui::Id::new("item_editor"))
@@ -96,10 +85,10 @@ impl luminol_core::Window for Window {
                     egui::ScrollArea::both().max_height(600.).show_rows(
                         ui,
                         ui.text_style_height(&egui::TextStyle::Body),
-                        self.items.len(),
+                        items.data.len(),
                         |ui, rows| {
                             let offset = rows.start;
-                            for (id, item) in self.items[rows].iter().enumerate() {
+                            for (id, item) in items.data[rows].iter().enumerate() {
                                 let id = id + offset;
                                 ui.selectable_value(
                                     &mut self.selected_item,
@@ -114,23 +103,36 @@ impl luminol_core::Window for Window {
                         eprintln!("`Change maximum...` button trigger");
                     }
                 });
-                let selected_item = &mut self.items[self.selected_item];
+
+                let selected_item = &mut items.data[self.selected_item];
                 egui::Grid::new("item_edit_central_grid").show(ui, |ui| {
+                    let old_name = selected_item.name.clone();
                     ui.add(luminol_components::Field::new(
                         "Name",
                         egui::TextEdit::singleline(&mut selected_item.name),
                     ));
-
+                    if selected_item.name != old_name {
+                        modified = true;
+                    }
                     ui.end_row();
 
+                    let old_description = selected_item.description.clone();
                     ui.add(luminol_components::Field::new(
                         "Description",
                         egui::TextEdit::singleline(&mut selected_item.description),
                     ));
+                    if selected_item.description != old_description {
+                        modified = true;
+                    }
                     ui.end_row();
 
                     egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
                 });
             });
+
+        if modified {
+            update_state.modified.set(true);
+            items.modified = true;
+        }
     }
 }
