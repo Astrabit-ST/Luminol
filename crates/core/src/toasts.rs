@@ -45,17 +45,23 @@ impl Toasts {
 
     #[doc(hidden)]
     pub fn _i_inner(&mut self, caption: impl Into<String>) {
-        self.inner.info(caption);
+        self.inner
+            .info(caption)
+            .set_duration(Some(std::time::Duration::from_secs(7)));
     }
 
     #[doc(hidden)]
     pub fn _w_inner(&mut self, caption: impl Into<String>) {
-        self.inner.warning(caption);
+        self.inner
+            .warning(caption)
+            .set_duration(Some(std::time::Duration::from_secs(7)));
     }
 
     #[doc(hidden)]
     pub fn _b_inner(&mut self, caption: impl Into<String>) {
-        self.inner.basic(caption);
+        self.inner
+            .basic(caption)
+            .set_duration(Some(std::time::Duration::from_secs(7)));
     }
 
     #[doc(hidden)]
@@ -66,15 +72,16 @@ impl Toasts {
         let help = "Check the browser developer console for more details";
 
         if error.chain().len() <= 1 {
-            self.inner.error(format!("{}\n\n{}", error, help,));
+            self.inner.error(format!("{}\n\n{}", error, help,))
         } else {
             self.inner.error(format!(
                 "{}\n\n{}\n\n{}",
                 error,
                 error.chain().skip(1).map(|e| e.to_string()).join("\n"),
                 help
-            ));
+            ))
         }
+        .set_duration(Some(std::time::Duration::from_secs(7)));
     }
 }
 
