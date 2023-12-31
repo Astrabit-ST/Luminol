@@ -177,6 +177,7 @@ fn main() {
                 "winit::",
                 "egui::ui::",
                 "E as eyre::",
+                "egui_dock::",
                 "std::panic::",
                 "egui::context::",
                 "luminol_eframe::",
