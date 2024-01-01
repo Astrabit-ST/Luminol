@@ -62,24 +62,24 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-static OUTPUT_TERM_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
+static LOG_TERM_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
     once_cell::sync::OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
-static OUTPUT_BYTE_SENDER: once_cell::sync::OnceCell<luminol_term::ByteSender> =
+static LOG_BYTE_SENDER: once_cell::sync::OnceCell<luminol_term::ByteSender> =
     once_cell::sync::OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
 static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
-/// A writer that writes to Luminol's output console.
-struct OutputWriter(luminol_term::termwiz::escape::parser::Parser);
+/// A writer that writes to Luminol's log window.
+struct LogWriter(luminol_term::termwiz::escape::parser::Parser);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl std::io::Write for OutputWriter {
+impl std::io::Write for LogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        OUTPUT_BYTE_SENDER
+        LOG_BYTE_SENDER
             .get()
             .unwrap()
             .try_send(buf.into())
@@ -102,7 +102,7 @@ impl std::io::Write for OutputWriter {
             vec.push(action);
         }
 
-        OUTPUT_TERM_SENDER
+        LOG_TERM_SENDER
             .get()
             .unwrap()
             .try_send(vec)
@@ -208,16 +208,16 @@ fn main() {
         .install()
         .expect("failed to install color-eyre hooks");
 
-    // Log to stderr as well as Luminol's output console
-    let (output_term_tx, output_term_rx) = luminol_term::unbounded();
-    let (output_byte_tx, output_byte_rx) = luminol_term::unbounded();
-    OUTPUT_TERM_SENDER.set(output_term_tx).unwrap();
-    OUTPUT_BYTE_SENDER.set(output_byte_tx).unwrap();
+    // Log to stderr as well as Luminol's log.
+    let (log_term_tx, log_term_rx) = luminol_term::unbounded();
+    let (log_byte_tx, log_byte_rx) = luminol_term::unbounded();
+    LOG_TERM_SENDER.set(log_term_tx).unwrap();
+    LOG_BYTE_SENDER.set(log_byte_tx).unwrap();
     tracing_subscriber::fmt()
         .with_writer(|| {
             CopyWriter(
                 std::io::stderr(),
-                OutputWriter(luminol_term::termwiz::escape::parser::Parser::new()),
+                LogWriter(luminol_term::termwiz::escape::parser::Parser::new()),
             )
         })
         .init();
@@ -259,8 +259,8 @@ fn main() {
             Box::new(app::App::new(
                 cc,
                 Default::default(),
-                output_term_rx,
-                output_byte_rx,
+                log_term_rx,
+                log_byte_rx,
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,

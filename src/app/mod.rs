@@ -29,14 +29,14 @@ use crate::lumi::Lumi;
 use crate::steam::Steamworks;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod output;
+mod log_window;
 mod top_bar;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct App {
     top_bar: top_bar::TopBar,
     #[cfg(not(target_arch = "wasm32"))]
-    output: output::Output,
+    log: log_window::LogWindow,
     lumi: Lumi,
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -84,8 +84,8 @@ impl App {
     pub fn new(
         cc: &luminol_eframe::CreationContext<'_>,
         modified: luminol_core::ModifiedState,
-        #[cfg(not(target_arch = "wasm32"))] output_term_rx: luminol_term::TermReceiver,
-        #[cfg(not(target_arch = "wasm32"))] output_byte_rx: luminol_term::ByteReceiver,
+        #[cfg(not(target_arch = "wasm32"))] log_term_rx: luminol_term::TermReceiver,
+        #[cfg(not(target_arch = "wasm32"))] log_byte_rx: luminol_term::ByteReceiver,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -218,16 +218,16 @@ impl App {
         Self {
             top_bar: top_bar::TopBar::default(),
             #[cfg(not(target_arch = "wasm32"))]
-            output: output::Output::new(
+            log: log_window::LogWindow::new(
                 luminol_term::Terminal::new_readonly(
                     &cc.egui_ctx,
-                    "luminol_output".into(),
-                    "Output",
-                    output_term_rx,
+                    "luminol_log".into(),
+                    "Log",
+                    log_term_rx,
                     132,
                     43,
                 ),
-                output_byte_rx,
+                log_byte_rx,
             ),
             lumi,
 
@@ -348,14 +348,14 @@ impl luminol_eframe::App for App {
             .show(ctx, |ui| {
                 ui.group(|ui| self.tabs.ui_without_edit(ui, &mut update_state));
 
-                // Show the output window if it's open.
+                // Show the log window if it's open.
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    if self.top_bar.show_output {
-                        self.top_bar.show_output = false;
-                        self.output.term_shown = true;
+                    if self.top_bar.show_log {
+                        self.top_bar.show_log = false;
+                        self.log.term_shown = true;
                     }
-                    self.output.ui(ui, &mut update_state);
+                    self.log.ui(ui, &mut update_state);
                 }
             });
 

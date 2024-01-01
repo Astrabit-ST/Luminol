@@ -67,7 +67,7 @@ impl Toasts {
     #[doc(hidden)]
     pub fn _e_inner(&mut self, error: &color_eyre::Report) {
         #[cfg(not(target_arch = "wasm32"))]
-        let help = "Check the output window (Debug > Output) for more details";
+        let help = "Check the log (Debug > Log) for more details";
         #[cfg(target_arch = "wasm32")]
         let help = "Check the browser developer console for more details";
 

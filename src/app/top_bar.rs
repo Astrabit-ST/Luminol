@@ -30,7 +30,7 @@ pub struct TopBar {
     #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) show_output: bool,
+    pub(super) show_log: bool,
 }
 
 impl TopBar {
@@ -268,8 +268,8 @@ impl TopBar {
             }
 
             #[cfg(not(target_arch = "wasm32"))]
-            if ui.button("Output").clicked() {
-                self.show_output = true;
+            if ui.button("Log").clicked() {
+                self.show_log = true;
             }
         });
 

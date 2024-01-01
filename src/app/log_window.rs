@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct Output {
+pub struct LogWindow {
     pub(super) term_shown: bool,
     term: luminol_term::Terminal,
     save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
@@ -30,7 +30,7 @@ pub struct Output {
     byte_rx: luminol_term::ByteReceiver,
 }
 
-impl Output {
+impl LogWindow {
     pub fn new(term: luminol_term::Terminal, byte_rx: luminol_term::ByteReceiver) -> Self {
         Self {
             term_shown: false,
@@ -42,7 +42,7 @@ impl Output {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
-        // We update the output console even if it's not open so that we don't encounter
+        // We update the log terminal even if it's not open so that we don't encounter
         // performance problems when the terminal has to parse all the new input at once
         self.term.update();
 
@@ -50,7 +50,7 @@ impl Output {
             self.buffer.extend_from_slice(&bytes);
         }
 
-        egui::Window::new("Output")
+        egui::Window::new("Log")
             .id(self.term.id())
             .open(&mut self.term_shown)
             .resizable(false)
@@ -117,7 +117,7 @@ impl Output {
                 if let Err(e) = self.term.ui(ui) {
                     luminol_core::error!(
                         update_state.toasts,
-                        color_eyre::eyre::eyre!(e).wrap_err("Error displaying output console"),
+                        color_eyre::eyre::eyre!(e).wrap_err("Error displaying log window"),
                     );
                 }
             });
