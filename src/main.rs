@@ -181,10 +181,13 @@ fn main() {
     color_eyre::config::HookBuilder::default()
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
+                "_",
                 "core::",
                 "alloc::",
                 "tokio::",
                 "winit::",
+                "std::rt::",
+                "std::sys_",
                 "egui::ui::",
                 "E as eyre::",
                 "T as core::",
