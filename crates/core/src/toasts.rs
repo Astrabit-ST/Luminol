@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use color_eyre::Section;
 use itertools::Itertools;
 
 /// A toasts management struct.
@@ -64,8 +65,12 @@ impl Toasts {
             .set_duration(Some(std::time::Duration::from_secs(7)));
     }
 
+    pub fn _e_add_version_section(error: color_eyre::Report) -> color_eyre::Report {
+        error.section(format!("Luminol version: {}", git_version::git_version!()))
+    }
+
     #[doc(hidden)]
-    pub fn _e_inner(&mut self, error: &color_eyre::Report) {
+    pub fn _e_inner(&mut self, error: color_eyre::Report) {
         #[cfg(not(target_arch = "wasm32"))]
         let help = "Check the log (Debug > Log) for more details";
         #[cfg(target_arch = "wasm32")]
@@ -119,7 +124,7 @@ macro_rules! basic {
 #[macro_export]
 macro_rules! error {
     ($toasts:expr, $error:expr $(,)?) => {{
-        let error = &$error;
+        let error = $crate::Toasts::_e_add_version_section($error);
         $crate::tracing::error!("Luminol error:{error:?}");
         $crate::Toasts::_e_inner(&mut $toasts, error);
     }};

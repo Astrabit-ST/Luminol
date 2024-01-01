@@ -179,6 +179,7 @@ fn main() {
 
     // Set up hooks for formatting errors and panics
     color_eyre::config::HookBuilder::default()
+        .panic_section(format!("Luminol version: {}", git_version::git_version!()))
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
                 "_",
@@ -300,7 +301,9 @@ pub fn luminol_main_start(fallback: bool) {
     });
 
     // Set up hooks for formatting errors and panics
-    let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default().into_hooks();
+    let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
+        .panic_section(format!("Luminol version: {}", git_version::git_version!()))
+        .into_hooks();
     eyre_hook
         .install()
         .expect("failed to install color-eyre hooks");
