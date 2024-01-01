@@ -117,7 +117,7 @@ impl LogWindow {
                 if let Err(e) = self.term.ui(ui) {
                     luminol_core::error!(
                         update_state.toasts,
-                        color_eyre::eyre::eyre!(e).wrap_err("Error displaying log window"),
+                        e.wrap_err("Error displaying log window"),
                     );
                 }
             });

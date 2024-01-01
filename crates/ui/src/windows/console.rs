@@ -66,7 +66,12 @@ impl luminol_core::Window for Window {
                         .button(egui::RichText::new("KILL").color(egui::Color32::RED))
                         .clicked()
                     {
-                        self.term.kill();
+                        if let Err(e) = self.term.kill() {
+                            luminol_core::error!(
+                                update_state.toasts,
+                                e.wrap_err("Error killing child"),
+                            );
+                        }
                     }
 
                     let mut resize = false;
@@ -86,7 +91,7 @@ impl luminol_core::Window for Window {
                 if let Err(e) = self.term.ui(ui) {
                     luminol_core::error!(
                         update_state.toasts,
-                        color_eyre::eyre::eyre!(e).wrap_err("Error displaying terminal"),
+                        e.wrap_err("Error displaying terminal"),
                     );
                 }
             });

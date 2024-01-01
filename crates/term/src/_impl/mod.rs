@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use color_eyre::eyre::WrapErr;
 pub use crossbeam_channel::unbounded;
 use crossbeam_channel::{Receiver, Sender};
 use std::io::prelude::*;
@@ -56,7 +57,7 @@ struct Process {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        self.kill()
+        let _ = self.kill();
     }
 }
 
@@ -225,7 +226,7 @@ impl Terminal {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> std::io::Result<()> {
+    pub fn ui(&mut self, ui: &mut egui::Ui) -> color_eyre::Result<()> {
         // Forget the scroll position from the last time the user opened the application so that
         // the terminal immediately scrolls to the bottom
         let scroll_area_id_source = "scroll_area";
@@ -248,6 +249,7 @@ impl Terminal {
         let text_height = ui.text_style_height(&egui::TextStyle::Monospace);
 
         let scroll_area_height = (size.rows + 1) as f32 * text_height;
+        let mut inner_result = Ok(());
         egui::ScrollArea::vertical()
             .id_source(scroll_area_id_source)
             .max_height(scroll_area_height)
@@ -454,23 +456,26 @@ impl Terminal {
                                 _ => Ok(()),
                             };
                             if let Err(e) = result {
-                                eprintln!("terminal input error {e:?}");
-                            }
+                                inner_result = Err(color_eyre::eyre::eyre!(e))
+                                    .wrap_err("Terminal input error");
+                                break;
+                            };
                         }
                     });
                 },
             );
+        inner_result?;
 
         ui.spacing_mut().item_spacing = prev_spacing;
         Ok(())
     }
 
     #[inline(never)]
-    pub fn kill(&mut self) {
+    pub fn kill(&mut self) -> color_eyre::Result<()> {
         if let Some(process) = &mut self.process {
-            if let Err(e) = process.child.kill() {
-                eprintln!("error killing child: {e}");
-            }
+            process.child.kill().map_err(|e| e.into())
+        } else {
+            Ok(())
         }
     }
 }
