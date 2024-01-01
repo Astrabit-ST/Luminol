@@ -46,6 +46,7 @@ pub struct Terminal {
     process: Option<Process>,
     id: Option<egui::Id>,
     title: Option<String>,
+    first_render: bool,
 }
 
 struct Process {
@@ -104,6 +105,7 @@ impl Terminal {
             process: Some(Process { pair, child }),
             id: None,
             title: None,
+            first_render: true,
         })
     }
 
@@ -135,6 +137,7 @@ impl Terminal {
             process: None,
             id: Some(id),
             title: Some(title.into()),
+            first_render: true,
         }
     }
 
@@ -208,6 +211,12 @@ impl Terminal {
 
     pub fn erase_scrollback_and_viewport(&mut self) {
         self.terminal.erase_scrollback_and_viewport();
+        self.terminal
+            .perform_actions(vec![termwiz::escape::Action::CSI(
+                termwiz::escape::CSI::Edit(termwiz::escape::csi::Edit::EraseInDisplay(
+                    termwiz::escape::csi::EraseInDisplay::EraseDisplay,
+                )),
+            )])
     }
 
     pub fn update(&mut self) {
@@ -217,6 +226,15 @@ impl Terminal {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> std::io::Result<()> {
+        // Forget the scroll position from the last time the user opened the application so that
+        // the terminal immediately scrolls to the bottom
+        let scroll_area_id_source = "scroll_area";
+        if self.first_render {
+            self.first_render = false;
+            let scroll_area_id = ui.make_persistent_id(egui::Id::new(scroll_area_id_source));
+            egui::scroll_area::State::default().store(ui.ctx(), scroll_area_id);
+        }
+
         self.update();
 
         let size = self.terminal.get_size();
@@ -231,6 +249,7 @@ impl Terminal {
 
         let scroll_area_height = (size.rows + 1) as f32 * text_height;
         egui::ScrollArea::vertical()
+            .id_source(scroll_area_id_source)
             .max_height(scroll_area_height)
             .min_scrolled_height(scroll_area_height)
             .stick_to_bottom(true)

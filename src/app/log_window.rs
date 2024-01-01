@@ -112,7 +112,7 @@ impl LogWindow {
                     }
                 });
 
-                ui.separator();
+                ui.add_space(ui.spacing().item_spacing.y);
 
                 if let Err(e) = self.term.ui(ui) {
                     luminol_core::error!(
