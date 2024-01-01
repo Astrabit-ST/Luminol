@@ -17,18 +17,15 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-num-derive = "0.4.0"
 num_enum = "0.7.0"
 
 rand.workspace = true
-getrandom.workspace = true
 
 flate2 = "1.0"
 
 serde.workspace = true
 alox-48.workspace = true
 bytemuck.workspace = true
-slab.workspace = true
 strum.workspace = true
 paste.workspace = true
 camino.workspace = true

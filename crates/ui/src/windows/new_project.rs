@@ -276,7 +276,8 @@ impl Window {
 
         progress.zip_total.store(zip_url.len(), Ordering::Relaxed);
 
-        let zips = futures::future::join_all(zip_url.iter().map(|url| reqwest::get(*url))).await;
+        let zips =
+            futures_util::future::join_all(zip_url.iter().map(|url| reqwest::get(*url))).await;
 
         for (index, zip_response) in zips.into_iter().enumerate() {
             progress.zip_current.store(index, Ordering::Relaxed);

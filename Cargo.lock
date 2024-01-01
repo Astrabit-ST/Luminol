@@ -1129,21 +1129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crc"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86ec7a15cbe22e59248fc7eadb1907dab5ba09372595da4d73dd805ed4417dfe"
-dependencies = [
- "crc-catalog",
-]
-
-[[package]]
-name = "crc-catalog"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
-
-[[package]]
 name = "crc32fast"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1908,9 +1893,9 @@ dependencies = [
 
 [[package]]
 name = "futures-channel"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff4dd66668b557604244583e3e1e1eada8c5c2e96a6d0d6653ede395b78bbacb"
+checksum = "eac8f7d7865dcb88bd4373ab671c8cf4508703796caa2b1985a9ca867b3fcb78"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -1935,9 +1920,9 @@ dependencies = [
 
 [[package]]
 name = "futures-io"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bf34a163b5c4c52d0478a4d757da8fb65cabef42ba90515efee0f6f9fa45aaa"
+checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
 
 [[package]]
 name = "futures-lite"
@@ -1969,9 +1954,9 @@ dependencies = [
 
 [[package]]
 name = "futures-macro"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53b153fd91e4b0147f4aced87be237c98248656bb01050b96bf3ee89220a8ddb"
+checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1980,21 +1965,21 @@ dependencies = [
 
 [[package]]
 name = "futures-sink"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e36d3378ee38c2a36ad710c5d30c2911d752cb941c00c72dbabfb786a7970817"
+checksum = "9fb8e00e87438d937621c1c6269e53f536c14d3fbd6a042bb24879e57d474fb5"
 
 [[package]]
 name = "futures-task"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efd193069b0ddadc69c46389b740bbccdd97203899b48d09c5f7969591d6bae2"
+checksum = "38d84fa142264698cdce1a9f9172cf383a0c82de1bddcf3092901442c4097004"
 
 [[package]]
 name = "futures-util"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a19526d624e703a3179b3d322efec918b6246ea0fa51d41124525f00f1cc8104"
+checksum = "3d6401deb83407ab3da39eba7e33987a73c3df0c82b4bb5813ee871c19c41d48"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -2984,17 +2969,14 @@ version = "0.4.0"
 dependencies = [
  "camino",
  "color-eyre",
- "crc",
  "egui",
  "egui_extras",
- "epaint",
  "flume",
  "image 0.24.7",
  "js-sys",
  "luminol-audio",
  "luminol-config",
  "luminol-core",
- "luminol-data",
  "luminol-eframe",
  "luminol-egui-wgpu",
  "luminol-filesystem",
@@ -3058,11 +3040,7 @@ dependencies = [
  "luminol-egui-wgpu",
  "luminol-filesystem",
  "luminol-graphics",
- "once_cell",
- "parking_lot",
  "qp-trie",
- "serde",
- "slab",
  "strum",
  "syntect",
  "wgpu",
@@ -3085,21 +3063,18 @@ name = "luminol-core"
 version = "0.4.0"
 dependencies = [
  "alox-48",
- "bitflags 2.4.1",
  "camino",
  "color-eyre",
  "egui",
  "egui-modal",
  "egui-notify",
  "egui_dock",
- "getrandom",
  "itertools",
  "luminol-audio",
  "luminol-config",
  "luminol-data",
  "luminol-filesystem",
  "luminol-graphics",
- "parking_lot",
  "poll-promise",
  "rand",
  "serde",
@@ -3115,13 +3090,10 @@ dependencies = [
  "bytemuck",
  "camino",
  "flate2",
- "getrandom",
- "num-derive 0.4.1",
  "num_enum 0.7.1",
  "paste",
  "rand",
  "serde",
- "slab",
  "strum",
 ]
 
@@ -3211,7 +3183,6 @@ dependencies = [
  "rfd",
  "ron",
  "rust-ini",
- "serde",
  "slab",
  "tempfile",
  "thiserror",
@@ -3232,7 +3203,6 @@ dependencies = [
  "crossbeam",
  "dashmap",
  "egui",
- "egui_extras",
  "glam",
  "image 0.24.7",
  "itertools",
@@ -3241,8 +3211,6 @@ dependencies = [
  "luminol-filesystem",
  "naga",
  "naga_oil",
- "once_cell",
- "slab",
  "wgpu",
 ]
 
@@ -3281,9 +3249,7 @@ dependencies = [
  "catppuccin-egui",
  "color-eyre",
  "egui",
- "egui_extras",
- "futures",
- "futures-lite 2.1.0",
+ "futures-util",
  "git-version",
  "itertools",
  "luminol-audio",
@@ -3296,7 +3262,6 @@ dependencies = [
  "luminol-modals",
  "luminol-term",
  "once_cell",
- "pin-project",
  "poll-promise",
  "qp-trie",
  "reqwest",
@@ -3308,13 +3273,10 @@ dependencies = [
 name = "luminol-web"
 version = "0.4.0"
 dependencies = [
- "egui",
  "js-sys",
- "luminol-egui-wgpu",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu",
 ]
 
 [[package]]
@@ -3733,17 +3695,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num-derive"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfb77679af88f8b125209d354a202862602672222e7f2313fdd6dc349bad4712"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.39",
-]
-
-[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3929,7 +3880,7 @@ dependencies = [
  "jni 0.20.0",
  "ndk",
  "ndk-context",
- "num-derive 0.3.3",
+ "num-derive",
  "num-traits",
  "oboe-sys",
 ]
@@ -5581,7 +5532,7 @@ dependencies = [
  "log",
  "memmem",
  "nix 0.24.3",
- "num-derive 0.3.3",
+ "num-derive",
  "num-traits",
  "ordered-float",
  "pest",

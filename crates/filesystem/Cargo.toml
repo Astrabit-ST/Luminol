@@ -35,7 +35,6 @@ pin-project.workspace = true
 
 egui.workspace = true
 
-serde.workspace = true
 ron.workspace = true
 rust-ini.workspace = true
 

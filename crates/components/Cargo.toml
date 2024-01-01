@@ -36,17 +36,10 @@ syntect = { version = "5.1.0", default-features = false, features = [
     "default-fancy",
 ] }
 
-parking_lot.workspace = true
-
 itertools.workspace = true
-
-serde.workspace = true
-
-once_cell.workspace = true
-slab.workspace = true
-qp-trie.workspace = true
 
 color-eyre.workspace = true
 
+qp-trie.workspace = true
 indextree = "4.6.0"
 lexical-sort = "0.3.1"

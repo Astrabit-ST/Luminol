@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 egui.workspace = true
-# termwiz = "0.20.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 crossbeam-channel = "0.5"
