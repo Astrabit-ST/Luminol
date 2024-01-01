@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use color_eyre::eyre::WrapErr;
 #[cfg(target_arch = "wasm32")]
 use itertools::Itertools;
 
@@ -100,7 +101,8 @@ impl FileSystem {
     }
 
     fn load_project_config(&self) -> Result<luminol_config::project::Config> {
-        self.create_dir(".luminol")?;
+        let c = "While loading project configuration";
+        self.create_dir(".luminol").wrap_err(c)?;
 
         let project = match self
             .read_to_string(".luminol/config")
@@ -110,13 +112,14 @@ impl FileSystem {
             Some(c) => c,
             None => {
                 let Some(editor_ver) = self.detect_rm_ver() else {
-                    return Err(Error::UnableToDetectRMVer.into());
+                    return Err(Error::UnableToDetectRMVer).wrap_err(c);
                 };
                 let config = luminol_config::project::Project {
                     editor_ver,
                     ..Default::default()
                 };
-                self.write(".luminol/config", ron::to_string(&config).unwrap())?;
+                self.write(".luminol/config", ron::to_string(&config).wrap_err(c)?)
+                    .wrap_err(c)?;
                 config
             }
         };
@@ -129,7 +132,11 @@ impl FileSystem {
             Some(c) => c,
             None => {
                 let command_db = luminol_config::command_db::CommandDB::new(project.editor_ver);
-                self.write(".luminol/commands", ron::to_string(&command_db).unwrap())?;
+                self.write(
+                    ".luminol/commands",
+                    ron::to_string(&command_db).wrap_err(c)?,
+                )
+                .wrap_err(c)?;
                 command_db
             }
         };
@@ -186,8 +193,10 @@ impl FileSystem {
         project_config: &mut Option<luminol_config::project::Config>,
         global_config: &mut luminol_config::global::Config,
     ) -> Result<LoadResult> {
+        let c = "While loading project data";
+
         *self = FileSystem::HostLoaded(host);
-        let config = self.load_project_config()?;
+        let config = self.load_project_config().wrap_err(c)?;
 
         let Self::HostLoaded(host) = std::mem::take(self) else {
             return Err(std::io::Error::new(
@@ -197,7 +206,9 @@ impl FileSystem {
             .into());
         };
 
-        let result = self.load_partially_loaded_project(host, &config, global_config)?;
+        let result = self
+            .load_partially_loaded_project(host, &config, global_config)
+            .wrap_err(c)?;
 
         *project_config = Some(config);
 

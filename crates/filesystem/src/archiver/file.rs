@@ -27,7 +27,7 @@ use std::{pin::Pin, task::Poll};
 use super::util::{move_file_and_truncate, read_file_xor, regress_magic};
 use super::Trie;
 use crate::Metadata;
-use crate::{File as _, StdIoErrorContext};
+use crate::{File as _, StdIoErrorExt};
 
 #[derive(Debug)]
 #[pin_project]

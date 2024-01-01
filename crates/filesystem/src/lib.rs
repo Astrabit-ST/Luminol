@@ -71,12 +71,14 @@ pub enum Error {
 
 pub use color_eyre::Result;
 
-pub trait StdIoErrorContext {
+pub trait StdIoErrorExt {
+    // Add additional context to a `std::io::Result`.
     fn wrap_io_err_with<C>(self, c: impl FnOnce() -> C) -> Self
     where
         Self: Sized,
         C: std::fmt::Display + Send + Sync + 'static;
 
+    // Add additional context to a `std::io::Result`.
     fn wrap_io_err<C>(self, c: C) -> Self
     where
         Self: Sized,
@@ -85,6 +87,7 @@ pub trait StdIoErrorContext {
         self.wrap_io_err_with(|| c)
     }
 
+    // Add additional context to a `std::io::Result`. This is an alias for `.wrap_io_err_with`.
     fn with_io_context<C>(self, c: impl FnOnce() -> C) -> Self
     where
         Self: Sized,
@@ -93,6 +96,7 @@ pub trait StdIoErrorContext {
         self.wrap_io_err_with(c)
     }
 
+    // Add additional context to a `std::io::Result`. This is an alias for `.wrap_io_err`.
     fn io_context<C>(self, c: C) -> Self
     where
         Self: Sized,
@@ -102,7 +106,7 @@ pub trait StdIoErrorContext {
     }
 }
 
-impl<T> StdIoErrorContext for std::io::Result<T> {
+impl<T> StdIoErrorExt for std::io::Result<T> {
     fn wrap_io_err_with<C>(self, c: impl FnOnce() -> C) -> Self
     where
         C: std::fmt::Display + Send + Sync + 'static,

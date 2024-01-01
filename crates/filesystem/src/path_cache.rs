@@ -16,6 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
+use color_eyre::eyre::WrapErr;
 
 #[derive(Debug, Clone)]
 pub struct FileSystem<F> {
@@ -41,6 +42,8 @@ where
     }
 
     pub fn regen_cache(&self) -> Result<()> {
+        let c = "While regenerating path cache";
+
         fn read_dir_recursive(
             fs: &(impl crate::FileSystem + ?Sized),
             path: impl AsRef<camino::Utf8Path>,
@@ -73,8 +76,8 @@ where
             lowercase.set_extension("");
 
             self.cache.insert(lowercase, path.to_path_buf());
-        })?;
-        Ok(())
+        })
+        .wrap_err(c)
     }
 
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
@@ -124,18 +127,27 @@ where
         flags: OpenFlags,
     ) -> Result<Self::File> {
         let path = path.as_ref();
+        let c = format!("While opening file {path:?} in a path cache");
         if flags.contains(OpenFlags::Create) {
             let mut lower_path = to_lowercase(path);
             lower_path.set_extension("");
             self.cache.insert(lower_path, path.to_path_buf());
         }
-        let path = self.desensitize(path).ok_or(Error::NotExist)?;
-        self.fs.open_file(path, flags)
+        let path = self
+            .desensitize(path)
+            .ok_or(Error::NotExist)
+            .wrap_err_with(|| c.clone())?;
+        self.fs.open_file(path, flags).wrap_err_with(|| c.clone())
     }
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
-        let path = self.desensitize(path).ok_or(Error::NotExist)?;
-        self.fs.metadata(path)
+        let path = path.as_ref();
+        let c = format!("While getting metadata for {path:?} in a path cache");
+        let path = self
+            .desensitize(path)
+            .ok_or(Error::NotExist)
+            .wrap_err_with(|| c.clone())?;
+        self.fs.metadata(path).wrap_err_with(|| c.clone())
     }
 
     fn rename(
@@ -143,10 +155,18 @@ where
         from: impl AsRef<camino::Utf8Path>,
         to: impl AsRef<camino::Utf8Path>,
     ) -> Result<()> {
-        let from = self.desensitize(from).ok_or(Error::NotExist)?;
+        let c = format!(
+            "While renaming {:?} to {:?} in a path cache",
+            from.as_ref(),
+            to.as_ref()
+        );
+        let from = self
+            .desensitize(from)
+            .ok_or(Error::NotExist)
+            .wrap_err_with(|| c.clone())?;
         let to = to.as_ref().to_path_buf();
 
-        self.fs.rename(&from, &to)?;
+        self.fs.rename(&from, &to).wrap_err_with(|| c.clone())?;
 
         self.cache.remove(&from);
         self.cache.insert(to_lowercase(&to), to);
@@ -160,8 +180,9 @@ where
 
     fn create_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = path.as_ref().to_path_buf();
+        let c = format!("While creating directory {path:?} in a path cache");
 
-        self.fs.create_dir(&path)?;
+        self.fs.create_dir(&path).wrap_err_with(|| c.clone())?;
 
         self.cache.insert(to_lowercase(&path), path);
 
@@ -170,8 +191,9 @@ where
 
     fn remove_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = self.desensitize(path).ok_or(Error::NotExist)?;
+        let c = format!("While removing directory {path:?} in a path cache");
 
-        self.fs.remove_dir(&path)?;
+        self.fs.remove_dir(&path).wrap_err_with(|| c.clone())?;
 
         self.cache.remove(&to_lowercase(path));
 
@@ -180,8 +202,9 @@ where
 
     fn remove_file(&self, path: impl AsRef<camino::Utf8Path>) -> Result<()> {
         let path = self.desensitize(path).ok_or(Error::NotExist)?;
+        let c = format!("While removing file {path:?} in a path cache");
 
-        self.fs.remove_file(&path)?;
+        self.fs.remove_file(&path).wrap_err_with(|| c.clone())?;
 
         self.cache.remove(&to_lowercase(path));
 
@@ -190,6 +213,7 @@ where
 
     fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
         let path = self.desensitize(path).ok_or(Error::NotExist)?;
-        self.fs.read_dir(path)
+        let c = format!("While reading the contents of the directory {path:?} in a path cache");
+        self.fs.read_dir(path).wrap_err_with(|| c.clone())
     }
 }

@@ -18,7 +18,7 @@
 use color_eyre::eyre::WrapErr;
 use itertools::Itertools;
 
-use crate::{DirEntry, Metadata, OpenFlags, Result, StdIoErrorContext};
+use crate::{DirEntry, Metadata, OpenFlags, Result, StdIoErrorExt};
 use pin_project::pin_project;
 use std::{
     io::ErrorKind::{InvalidInput, PermissionDenied},
@@ -99,7 +99,7 @@ impl crate::FileSystem for FileSystem {
     ) -> Result<Self::File> {
         let stripped_path = path.as_ref();
         let path = self.root_path.join(path.as_ref());
-        let c = format!("While opening file {path:?} from a host folder");
+        let c = format!("While opening file {path:?} in a host folder");
         std::fs::OpenOptions::new()
             .create(flags.contains(OpenFlags::Create))
             .write(flags.contains(OpenFlags::Write))
@@ -120,7 +120,7 @@ impl crate::FileSystem for FileSystem {
 
     fn metadata(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Metadata> {
         let c = format!(
-            "While getting metadata for {:?} from a host folder",
+            "While getting metadata for {:?} in a host folder",
             path.as_ref()
         );
         let path = self.root_path.join(path);
@@ -307,7 +307,7 @@ impl File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While saving the file {:?} from a host folder",
+            "While saving the file {:?} in a host folder to disk",
             stripped_path
         );
         let mut dialog = rfd::AsyncFileDialog::default().set_file_name(filename);
@@ -332,7 +332,7 @@ impl crate::File for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While getting metadata for file {:?} from a host folder",
+            "While getting metadata for file {:?} in a host folder",
             stripped_path
         );
         let metdata = self.file.as_file().metadata().wrap_io_err(c)?;
@@ -349,7 +349,7 @@ impl crate::File for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While setting length of file {:?} from a host folder",
+            "While setting length of file {:?} in a host folder",
             stripped_path
         );
         self.file.as_file().set_len(new_size).wrap_io_err(c)
@@ -364,7 +364,7 @@ impl std::io::Read for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While reading from file {:?} from a host folder",
+            "While reading from file {:?} in a host folder",
             stripped_path
         );
         self.file.as_file().read(buf).wrap_io_err(c)
@@ -377,7 +377,7 @@ impl std::io::Read for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While reading (vectored) from file {:?} from a host folder",
+            "While reading (vectored) from file {:?} in a host folder",
             stripped_path
         );
         self.file.as_file().read_vectored(bufs).wrap_io_err(c)
@@ -396,7 +396,7 @@ impl futures_lite::AsyncRead for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously reading from file {:?} from a host folder",
+            "While asynchronously reading from file {:?} in a host folder",
             stripped_path
         );
         self.project()
@@ -416,7 +416,7 @@ impl futures_lite::AsyncRead for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously reading (vectored) from file {:?} from a host folder",
+            "While asynchronously reading (vectored) from file {:?} in a host folder",
             stripped_path
         );
         self.project()
@@ -433,10 +433,7 @@ impl std::io::Write for File {
             .as_ref()
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
-        let c = format!(
-            "While writing to file {:?} from a host folder",
-            stripped_path
-        );
+        let c = format!("While writing to file {:?} in a host folder", stripped_path);
         self.file.as_file().write(buf).wrap_io_err(c)
     }
 
@@ -446,7 +443,7 @@ impl std::io::Write for File {
             .as_ref()
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
-        let c = format!("While flushing file {:?} from a host folder", stripped_path);
+        let c = format!("While flushing file {:?} in a host folder", stripped_path);
         self.file.as_file().flush().wrap_io_err(c)
     }
 
@@ -457,7 +454,7 @@ impl std::io::Write for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While writing (vectored) to file {:?} from a host folder",
+            "While writing (vectored) to file {:?} in a host folder",
             stripped_path
         );
         self.file.as_file().write_vectored(bufs).wrap_io_err(c)
@@ -476,7 +473,7 @@ impl futures_lite::AsyncWrite for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously writing to file {:?} from a host folder",
+            "While asynchronously writing to file {:?} in a host folder",
             stripped_path
         );
         self.project()
@@ -496,7 +493,7 @@ impl futures_lite::AsyncWrite for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously writing (vectored) to file {:?} from a host folder",
+            "While asynchronously writing (vectored) to file {:?} in a host folder",
             stripped_path
         );
         self.project()
@@ -515,7 +512,7 @@ impl futures_lite::AsyncWrite for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously flushing file {:?} from a host folder",
+            "While asynchronously flushing file {:?} in a host folder",
             stripped_path
         );
         self.project()
@@ -534,7 +531,7 @@ impl futures_lite::AsyncWrite for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously closing file {:?} from a host folder",
+            "While asynchronously closing file {:?} in a host folder",
             stripped_path
         );
         Poll::Ready(Err(std::io::Error::new(PermissionDenied, "Attempted to asynchronously close a `luminol_filesystem::host::File`, which is not allowed")).wrap_io_err(c))
@@ -548,7 +545,7 @@ impl std::io::Seek for File {
             .as_ref()
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
-        let c = format!("While seeking file {:?} from a host folder", stripped_path);
+        let c = format!("While seeking file {:?} in a host folder", stripped_path);
         self.file.as_file().seek(pos).wrap_io_err(c)
     }
 }
@@ -565,7 +562,7 @@ impl futures_lite::AsyncSeek for File {
             .map(|p| p.as_str())
             .unwrap_or("<temporary file>");
         let c = format!(
-            "While asynchronously seeking file {:?} from a host folder",
+            "While asynchronously seeking file {:?} in a host folder",
             stripped_path
         );
         self.project()
