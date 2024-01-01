@@ -61,6 +61,28 @@ impl luminol_core::Window for Window {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(egui::RichText::new("KILL").color(egui::Color32::RED))
+                        .clicked()
+                    {
+                        self.term.kill();
+                    }
+
+                    let mut resize = false;
+                    let (mut cols, mut rows) = self.term.size();
+
+                    resize |= ui.add(egui::DragValue::new(&mut cols)).changed();
+                    ui.label("×");
+                    resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
+
+                    if resize {
+                        self.term.set_size(update_state, cols, rows);
+                    }
+                });
+
+                ui.separator();
+
                 if let Err(e) = self.term.ui(ui) {
                     luminol_core::error!(
                         update_state.toasts,

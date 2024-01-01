@@ -28,11 +28,15 @@ use crate::lumi::Lumi;
 #[cfg(feature = "steamworks")]
 use crate::steam::Steamworks;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod output;
 mod top_bar;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct App {
     top_bar: top_bar::TopBar,
+    #[cfg(not(target_arch = "wasm32"))]
+    output: output::Output,
     lumi: Lumi,
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -81,6 +85,7 @@ impl App {
         cc: &luminol_eframe::CreationContext<'_>,
         modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] output_term_rx: luminol_term::TermReceiver,
+        #[cfg(not(target_arch = "wasm32"))] output_byte_rx: luminol_term::ByteReceiver,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -179,10 +184,10 @@ impl App {
             match filesystem.load_project_from_path(&mut project_config, &mut global_config, path) {
                 Ok(_) => {
                     if let Err(e) = data.load(&filesystem, project_config.as_mut().unwrap()) {
-                        luminol_core::error!(&mut toasts, e)
+                        luminol_core::error!(toasts, e)
                     }
                 }
-                Err(e) => luminol_core::error!(&mut toasts, e),
+                Err(e) => luminol_core::error!(toasts, e),
             }
         }
 
@@ -211,16 +216,18 @@ impl App {
         let audio = luminol_audio::Audio::default();
 
         Self {
-            top_bar: top_bar::TopBar::new(
-                #[cfg(not(target_arch = "wasm32"))]
+            top_bar: top_bar::TopBar::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            output: output::Output::new(
                 luminol_term::Terminal::new_readonly(
                     &cc.egui_ctx,
                     "luminol_output".into(),
                     "Output",
-                    output_term_rx.clone(),
+                    output_term_rx,
                     132,
                     43,
                 ),
+                output_byte_rx,
             ),
             lumi,
 
@@ -268,12 +275,12 @@ impl luminol_eframe::App for App {
                     path,
                 ) {
                     luminol_core::error!(
-                        &mut self.toasts,
+                        self.toasts,
                         color_eyre::eyre::eyre!(e).wrap_err("Error opening dropped project")
                     )
                 } else {
                     luminol_core::info!(
-                        &mut self.toasts,
+                        self.toasts,
                         format!(
                             "Successfully opened {:?}",
                             self.filesystem.project_path().expect("project not open")
@@ -340,6 +347,16 @@ impl luminol_eframe::App for App {
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.))
             .show(ctx, |ui| {
                 ui.group(|ui| self.tabs.ui_without_edit(ui, &mut update_state));
+
+                // Show the output window if it's open.
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    if self.top_bar.show_output {
+                        self.top_bar.show_output = false;
+                        self.output.term_shown = true;
+                    }
+                    self.output.ui(ui, &mut update_state);
+                }
             });
 
         // Update all windows.

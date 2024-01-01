@@ -2967,11 +2967,13 @@ dependencies = [
 name = "luminol"
 version = "0.4.0"
 dependencies = [
+ "async-std",
  "camino",
  "color-eyre",
  "egui",
  "egui_extras",
  "flume",
+ "futures-lite 2.1.0",
  "image 0.24.7",
  "js-sys",
  "luminol-audio",
@@ -3233,8 +3235,10 @@ dependencies = [
 name = "luminol-term"
 version = "0.4.0"
 dependencies = [
+ "color-eyre",
  "crossbeam-channel",
  "egui",
+ "luminol-core",
  "portable-pty",
  "termwiz",
  "wezterm-term",

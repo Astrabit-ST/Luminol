@@ -25,27 +25,15 @@
 use strum::IntoEnumIterator;
 
 /// The top bar for managing the project.
+#[derive(Default)]
 pub struct TopBar {
     #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
     #[cfg(not(target_arch = "wasm32"))]
-    output_term_shown: bool,
-    #[cfg(not(target_arch = "wasm32"))]
-    output_term: luminol_term::Terminal,
+    pub(super) show_output: bool,
 }
 
 impl TopBar {
-    pub fn new(#[cfg(not(target_arch = "wasm32"))] output_term: luminol_term::Terminal) -> Self {
-        Self {
-            #[cfg(not(target_arch = "wasm32"))]
-            fullscreen: false,
-            #[cfg(not(target_arch = "wasm32"))]
-            output_term_shown: false,
-            #[cfg(not(target_arch = "wasm32"))]
-            output_term,
-        }
-    }
-
     /// Display the top bar.
     #[allow(unused_variables)]
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
@@ -281,7 +269,7 @@ impl TopBar {
 
             #[cfg(not(target_arch = "wasm32"))]
             if ui.button("Output").clicked() {
-                self.output_term_shown = true;
+                self.show_output = true;
             }
         });
 
@@ -377,26 +365,6 @@ impl TopBar {
             .is_some()
         {
             ui.spinner();
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // We update the output console even if it's not open so that we don't encounter
-            // performance problems when the terminal has to parse all the new input at once
-            self.output_term.update();
-
-            egui::Window::new("Output")
-                .id(self.output_term.id())
-                .open(&mut self.output_term_shown)
-                .resizable(false)
-                .show(ui.ctx(), |ui| {
-                    if let Err(e) = self.output_term.ui(ui) {
-                        luminol_core::error!(
-                            update_state.toasts,
-                            color_eyre::eyre::eyre!(e).wrap_err("Error displaying output console"),
-                        );
-                    }
-                });
         }
     }
 }

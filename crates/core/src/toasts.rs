@@ -91,7 +91,7 @@ macro_rules! info {
     ($toasts:expr, $caption:expr $(,)?) => {{
         let caption = String::from($caption);
         $crate::tracing::info!("{caption}");
-        $crate::Toasts::_i_inner($toasts, $caption);
+        $crate::Toasts::_i_inner(&mut $toasts, $caption);
     }};
 }
 
@@ -101,7 +101,7 @@ macro_rules! warn {
     ($toasts:expr, $caption:expr $(,)?) => {{
         let caption = String::from($caption);
         $crate::tracing::warn!("{caption}");
-        $crate::Toasts::_w_inner($toasts, caption);
+        $crate::Toasts::_w_inner(&mut $toasts, caption);
     }};
 }
 
@@ -111,7 +111,7 @@ macro_rules! basic {
     ($toasts:expr, $caption:expr $(,)?) => {{
         let caption = String::from($caption);
         $crate::tracing::info!("{caption}");
-        $crate::Toasts::_b_inner($toasts, caption);
+        $crate::Toasts::_b_inner(&mut $toasts, caption);
     }};
 }
 
@@ -121,6 +121,6 @@ macro_rules! error {
     ($toasts:expr, $error:expr $(,)?) => {{
         let error = &$error;
         $crate::tracing::error!("Luminol error:{error:?}");
-        $crate::Toasts::_e_inner($toasts, error);
+        $crate::Toasts::_e_inner(&mut $toasts, error);
     }};
 }

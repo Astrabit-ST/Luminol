@@ -22,7 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
+pub use crossbeam_channel::unbounded;
+use crossbeam_channel::{Receiver, Sender};
 use std::io::prelude::*;
 use std::sync::Arc;
 pub use termwiz;
@@ -32,10 +33,8 @@ use into::{IntoEgui, IntoWez, TryIntoWez};
 
 pub type TermSender = Sender<Vec<termwiz::escape::Action>>;
 pub type TermReceiver = Receiver<Vec<termwiz::escape::Action>>;
-
-pub fn channel() -> (TermSender, TermReceiver) {
-    unbounded()
-}
+pub type ByteSender = Sender<Vec<u8>>;
+pub type ByteReceiver = Receiver<Vec<u8>>;
 
 pub use portable_pty::CommandBuilder;
 
@@ -155,8 +154,64 @@ impl Terminal {
         }
     }
 
+    pub fn set_size(
+        &mut self,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        cols: usize,
+        rows: usize,
+    ) {
+        let mut size = self.terminal.get_size();
+        size.cols = cols;
+        size.rows = rows;
+        self.terminal.resize(size);
+        update_state
+            .ctx
+            .memory_mut(|m| m.data.insert_persisted(self.id(), (size.cols, size.rows)));
+        if let Some(process) = &mut self.process {
+            if let Err(e) = process.pair.master.resize(portable_pty::PtySize {
+                rows: size.rows as u16,
+                cols: size.cols as u16,
+                ..Default::default()
+            }) {
+                luminol_core::error!(
+                    update_state.toasts,
+                    color_eyre::eyre::eyre!(e).wrap_err("Error resizing terminal")
+                );
+            }
+        }
+    }
+
+    pub fn set_cols(&mut self, update_state: &mut luminol_core::UpdateState<'_>, cols: usize) {
+        self.set_size(update_state, cols, self.terminal.get_size().rows);
+    }
+
+    pub fn set_rows(&mut self, update_state: &mut luminol_core::UpdateState<'_>, rows: usize) {
+        self.set_size(update_state, self.terminal.get_size().cols, rows);
+    }
+
+    pub fn size(&self) -> (usize, usize) {
+        let size = self.terminal.get_size();
+        (size.cols, size.rows)
+    }
+
+    pub fn cols(&self) -> usize {
+        self.terminal.get_size().cols
+    }
+
+    pub fn rows(&self) -> usize {
+        self.terminal.get_size().rows
+    }
+
+    pub fn erase_scrollback(&mut self) {
+        self.terminal.erase_scrollback();
+    }
+
+    pub fn erase_scrollback_and_viewport(&mut self) {
+        self.terminal.erase_scrollback_and_viewport();
+    }
+
     pub fn update(&mut self) {
-        while let Ok(actions) = self.reader.try_recv() {
+        for actions in self.reader.try_iter() {
             self.terminal.perform_actions(actions);
         }
     }
@@ -164,42 +219,11 @@ impl Terminal {
     pub fn ui(&mut self, ui: &mut egui::Ui) -> std::io::Result<()> {
         self.update();
 
-        let mut size = self.terminal.get_size();
+        let size = self.terminal.get_size();
         let cursor_pos = self.terminal.cursor_pos();
         let palette = self.terminal.get_config().color_palette();
 
-        ui.horizontal(|ui| {
-            if self.process.is_some()
-                && ui
-                    .button(egui::RichText::new("KILL").color(egui::Color32::RED))
-                    .clicked()
-            {
-                self.kill()
-            }
-
-            let mut resize = false;
-            resize |= ui.add(egui::DragValue::new(&mut size.cols)).changed();
-
-            ui.label("×");
-            resize |= ui.add(egui::DragValue::new(&mut size.rows)).changed();
-
-            if resize {
-                self.terminal.resize(size);
-                ui.memory_mut(|m| m.data.insert_persisted(self.id(), (size.cols, size.rows)));
-                if let Some(process) = &mut self.process {
-                    if let Err(e) = process.pair.master.resize(portable_pty::PtySize {
-                        rows: size.rows as u16,
-                        cols: size.cols as u16,
-                        ..Default::default()
-                    }) {
-                        eprintln!("error resizing terminal: {e}");
-                    }
-                }
-            }
-        });
-
-        ui.separator();
-
+        let prev_spacing = ui.spacing().item_spacing;
         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
 
         let text_width = ui.fonts(|f| f.glyph_width(&egui::FontId::monospace(12.0), '?'));
@@ -418,6 +442,7 @@ impl Terminal {
                 },
             );
 
+        ui.spacing_mut().item_spacing = prev_spacing;
         Ok(())
     }
 

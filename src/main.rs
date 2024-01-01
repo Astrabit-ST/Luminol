@@ -62,7 +62,11 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-static OUTPUT_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
+static OUTPUT_TERM_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
+    once_cell::sync::OnceCell::new();
+
+#[cfg(not(target_arch = "wasm32"))]
+static OUTPUT_BYTE_SENDER: once_cell::sync::OnceCell<luminol_term::ByteSender> =
     once_cell::sync::OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -75,6 +79,12 @@ struct OutputWriter(luminol_term::termwiz::escape::parser::Parser);
 #[cfg(not(target_arch = "wasm32"))]
 impl std::io::Write for OutputWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        OUTPUT_BYTE_SENDER
+            .get()
+            .unwrap()
+            .try_send(buf.into())
+            .map_err(std::io::Error::other)?;
+
         let parsed = self.0.parse_as_vec(buf);
 
         // Convert from LF line endings to CRLF so that wezterm will display them properly
@@ -92,7 +102,7 @@ impl std::io::Write for OutputWriter {
             vec.push(action);
         }
 
-        OUTPUT_SENDER
+        OUTPUT_TERM_SENDER
             .get()
             .unwrap()
             .try_send(vec)
@@ -199,8 +209,10 @@ fn main() {
         .expect("failed to install color-eyre hooks");
 
     // Log to stderr as well as Luminol's output console
-    let (output_term_tx, output_term_rx) = luminol_term::channel();
-    OUTPUT_SENDER.set(output_term_tx).unwrap();
+    let (output_term_tx, output_term_rx) = luminol_term::unbounded();
+    let (output_byte_tx, output_byte_rx) = luminol_term::unbounded();
+    OUTPUT_TERM_SENDER.set(output_term_tx).unwrap();
+    OUTPUT_BYTE_SENDER.set(output_byte_tx).unwrap();
     tracing_subscriber::fmt()
         .with_writer(|| {
             CopyWriter(
@@ -248,6 +260,7 @@ fn main() {
                 cc,
                 Default::default(),
                 output_term_rx,
+                output_byte_rx,
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
