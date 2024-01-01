@@ -120,12 +120,13 @@ impl Terminal {
             *m.data
                 .get_persisted_mut_or_insert_with(id, move || (default_cols, default_rows))
         });
-        let mut size = wezterm_term::TerminalSize::default();
-        size.cols = cols;
-        size.rows = rows;
         Self {
             terminal: wezterm_term::Terminal::new(
-                size,
+                wezterm_term::TerminalSize {
+                    cols,
+                    rows,
+                    ..Default::default()
+                },
                 Arc::new(Config),
                 "luminol-term",
                 "1.0",
