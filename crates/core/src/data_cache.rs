@@ -116,7 +116,7 @@ macro_rules! load {
     ($fs:ident, $type:ident) => {
         RefCell::new(rpg::$type {
             data: read_nil_padded($fs, format!("{}.rxdata", stringify!($type)))
-                .wrap_err(format!("While reading {}.rxdata", stringify!($type)))?,
+                .wrap_err_with(|| format!("While reading {}.rxdata", stringify!($type)))?,
             ..Default::default()
         })
     };
@@ -132,14 +132,12 @@ macro_rules! from_defaults {
 
 macro_rules! save {
     ($fs:ident, $type:ident, $field:ident) => {{
-        let mut borrowed = $field.borrow_mut();
-        let modified = borrowed.modified;
-        if modified {
-            borrowed.modified = false;
+        let borrowed = $field.borrow();
+        if borrowed.modified {
             write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
-                .wrap_err(format!("While saving {}.rxdata", stringify!($type)))?;
+                .wrap_err_with(|| format!("While saving {}.rxdata", stringify!($type)))?;
         }
-        modified
+        borrowed.modified
     }};
 }
 impl Data {
@@ -311,20 +309,18 @@ impl Data {
         modified |= save!(filesystem, Weapons, weapons);
 
         {
-            let mut map_infos = map_infos.borrow_mut();
+            let map_infos = map_infos.borrow();
             if map_infos.modified {
                 modified = true;
-                map_infos.modified = false;
                 write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
                     .wrap_err("While saving MapInfos.rxdata")?;
             }
         }
 
         {
-            let mut scripts = scripts.borrow_mut();
+            let scripts = scripts.borrow();
             if scripts.modified {
                 modified = true;
-                scripts.modified = false;
                 write_data(
                     &scripts.data,
                     filesystem,
@@ -334,11 +330,10 @@ impl Data {
         }
 
         {
-            let mut maps = maps.borrow_mut();
-            maps.iter_mut().try_for_each(|(id, map)| {
+            let maps = maps.borrow();
+            maps.iter().try_for_each(|(id, map)| {
                 if map.modified {
                     modified = true;
-                    map.modified = false;
                     write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
                         .wrap_err_with(|| format!("While saving map {id:0>3}"))
                 } else {
@@ -350,13 +345,30 @@ impl Data {
         {
             let system = system.get_mut();
             if system.modified || modified {
-                system.modified = false;
                 system.magic_number = rand::random();
                 write_data(system, filesystem, "System.rxdata")
                     .wrap_err("While saving System.rxdata")?;
+                system.modified = false;
             }
         }
 
+        actors.borrow_mut().modified = false;
+        animations.borrow_mut().modified = false;
+        armors.borrow_mut().modified = false;
+        classes.borrow_mut().modified = false;
+        common_events.borrow_mut().modified = false;
+        enemies.borrow_mut().modified = false;
+        items.borrow_mut().modified = false;
+        skills.borrow_mut().modified = false;
+        states.borrow_mut().modified = false;
+        tilesets.borrow_mut().modified = false;
+        troops.borrow_mut().modified = false;
+        weapons.borrow_mut().modified = false;
+        map_infos.borrow_mut().modified = false;
+        scripts.borrow_mut().modified = false;
+        for (_, map) in maps.borrow_mut().iter_mut() {
+            map.modified = false;
+        }
         Ok(())
     }
 }
