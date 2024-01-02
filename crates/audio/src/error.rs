@@ -36,4 +36,4 @@ pub enum Error {
     FileSystem(#[from] luminol_filesystem::Error),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub use color_eyre::Result;

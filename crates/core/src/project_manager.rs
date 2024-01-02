@@ -38,7 +38,7 @@ pub struct CreateProjectResult {
 }
 
 type ProjectManagerClosure = dyn FnOnce(&mut crate::UpdateState<'_>);
-pub type CreateProjectPromiseResult = anyhow::Result<CreateProjectResult>;
+pub type CreateProjectPromiseResult = color_eyre::Result<CreateProjectResult>;
 pub type FileSystemPromiseResult = luminol_filesystem::Result<luminol_filesystem::host::FileSystem>;
 pub type FileSystemOpenResult = luminol_filesystem::Result<luminol_filesystem::project::LoadResult>;
 

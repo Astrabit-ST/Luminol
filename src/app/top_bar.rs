@@ -29,6 +29,8 @@ use strum::IntoEnumIterator;
 pub struct TopBar {
     #[cfg(not(target_arch = "wasm32"))]
     fullscreen: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) show_log: bool,
 }
 
 impl TopBar {
@@ -264,6 +266,11 @@ impl TopBar {
                     .edit_windows
                     .add_window(luminol_ui::windows::misc::FilesystemDebug::default());
             }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            if ui.button("Log").clicked() {
+                self.show_log = true;
+            }
         });
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -280,23 +287,27 @@ impl TopBar {
                             .expect("project not loaded"),
                     );
 
-                    let result = luminol_ui::windows::console::Window::new(cmd).or_else(|_| {
-                        let mut cmd = luminol_term::CommandBuilder::new("game");
-                        cmd.cwd(
-                            update_state
-                                .filesystem
-                                .project_path()
-                                .expect("project not loaded"),
-                        );
+                    let result =
+                        luminol_ui::windows::console::Window::new(ui.ctx(), cmd).or_else(|_| {
+                            let mut cmd = luminol_term::CommandBuilder::new("game");
+                            cmd.cwd(
+                                update_state
+                                    .filesystem
+                                    .project_path()
+                                    .expect("project not loaded"),
+                            );
 
-                        luminol_ui::windows::console::Window::new(cmd)
-                    });
+                            luminol_ui::windows::console::Window::new(ui.ctx(), cmd)
+                        });
 
                     match result {
                         Ok(w) => update_state.edit_windows.add_window(w),
-                        Err(e) => update_state.toasts.error(format!(
-                            "error starting game (tried steamshim.exe and then game.exe): {e}"
-                        )),
+                        Err(e) => luminol_core::error!(
+                            update_state.toasts,
+                            color_eyre::eyre::eyre!(e).wrap_err(
+                                "Error starting game (tried steamshim.exe and then game.exe)"
+                            )
+                        ),
                     }
                 }
 
@@ -313,11 +324,12 @@ impl TopBar {
                             .expect("project not loaded"),
                     );
 
-                    match luminol_ui::windows::console::Window::new(cmd) {
+                    match luminol_ui::windows::console::Window::new(ui.ctx(), cmd) {
                         Ok(w) => update_state.edit_windows.add_window(w),
-                        Err(e) => update_state
-                            .toasts
-                            .error(format!("error starting shell: {e}")),
+                        Err(e) => luminol_core::error!(
+                            update_state.toasts,
+                            color_eyre::eyre::eyre!(e).wrap_err("Error starting shell")
+                        ),
                     }
                 }
             });
@@ -340,9 +352,9 @@ impl TopBar {
                 match update_state.data.save(update_state.filesystem, config) {
                     Ok(_) => {
                         update_state.modified.set(false);
-                        update_state.toasts.info("Saved project successfully!")
+                        luminol_core::info!(update_state.toasts, "Saved project successfully!");
                     }
-                    Err(e) => update_state.toasts.error(e.to_string()),
+                    Err(e) => luminol_core::error!(update_state.toasts, e),
                 }
             }
         }

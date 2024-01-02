@@ -22,6 +22,9 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use color_eyre::Section;
+use itertools::Itertools;
+
 /// A toasts management struct.
 #[derive(Default)]
 pub struct Toasts {
@@ -36,28 +39,94 @@ impl Toasts {
         self.inner.add(toast);
     }
 
-    /// Display an info toast.
-    pub fn info(&mut self, caption: impl Into<String>) {
-        self.inner.info(caption);
-    }
-
-    /// Display a warning toast.
-    pub fn warning(&mut self, caption: impl Into<String>) {
-        self.inner.warning(caption);
-    }
-
-    /// Display an error toast.
-    pub fn error(&mut self, caption: impl Into<String>) {
-        self.inner.error(caption);
-    }
-
-    /// Display a generic toast.
-    pub fn basic(&mut self, caption: impl Into<String>) {
-        self.inner.basic(caption);
-    }
-
     /// Display all toasts.
     pub fn show(&mut self, ctx: &egui::Context) {
         self.inner.show(ctx);
     }
+
+    #[doc(hidden)]
+    pub fn _i_inner(&mut self, caption: impl Into<String>) {
+        self.inner
+            .info(caption)
+            .set_duration(Some(std::time::Duration::from_secs(7)));
+    }
+
+    #[doc(hidden)]
+    pub fn _w_inner(&mut self, caption: impl Into<String>) {
+        self.inner
+            .warning(caption)
+            .set_duration(Some(std::time::Duration::from_secs(7)));
+    }
+
+    #[doc(hidden)]
+    pub fn _b_inner(&mut self, caption: impl Into<String>) {
+        self.inner
+            .basic(caption)
+            .set_duration(Some(std::time::Duration::from_secs(7)));
+    }
+
+    #[doc(hidden)]
+    pub fn _e_add_version_section(error: color_eyre::Report) -> color_eyre::Report {
+        error.section(format!("Luminol version: {}", git_version::git_version!()))
+    }
+
+    #[doc(hidden)]
+    pub fn _e_inner(&mut self, error: color_eyre::Report) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let help = "Check the log (Debug > Log) for more details";
+        #[cfg(target_arch = "wasm32")]
+        let help = "Check the browser developer console for more details";
+
+        if error.chain().len() <= 1 {
+            self.inner.error(format!("{}\n\n{}", error, help,))
+        } else {
+            self.inner.error(format!(
+                "{}\n\n{}\n\n{}",
+                error,
+                error.chain().skip(1).map(|e| e.to_string()).join("\n"),
+                help
+            ))
+        }
+        .set_duration(Some(std::time::Duration::from_secs(7)));
+    }
+}
+
+/// Display an info toast.
+#[macro_export]
+macro_rules! info {
+    ($toasts:expr, $caption:expr $(,)?) => {{
+        let caption = String::from($caption);
+        $crate::tracing::info!("{caption}");
+        $crate::Toasts::_i_inner(&mut $toasts, $caption);
+    }};
+}
+
+/// Display a warning toast.
+#[macro_export]
+macro_rules! warn {
+    ($toasts:expr, $caption:expr $(,)?) => {{
+        let caption = String::from($caption);
+        $crate::tracing::warn!("{caption}");
+        $crate::Toasts::_w_inner(&mut $toasts, caption);
+    }};
+}
+
+/// Display a generic toast.
+#[macro_export]
+macro_rules! basic {
+    ($toasts:expr, $caption:expr $(,)?) => {{
+        let caption = String::from($caption);
+        $crate::tracing::info!("{caption}");
+        $crate::Toasts::_b_inner(&mut $toasts, caption);
+    }};
+}
+
+/// Format a `color_eyre::Report` and display it as an error toast.
+#[macro_export]
+macro_rules! error {
+    ($toasts:expr, $error:expr $(,)?) => {{
+        let error = $crate::Toasts::_e_add_version_section($error);
+        $crate::tracing::error!("Luminol error:{error:?}");
+        $crate::Toasts::_e_inner(&mut $toasts, error);
+    }};
 }

@@ -68,7 +68,10 @@ impl SoundTab {
                                 pitch,
                                 source,
                             ) {
-                                update_state.toasts.error(e.to_string());
+                                luminol_core::error!(
+                                    update_state.toasts,
+                                    e.wrap_err("Error playing from audio file")
+                                );
                             }
                         }
 
@@ -146,7 +149,10 @@ impl SoundTab {
                                         pitch,
                                         source,
                                     ) {
-                                        update_state.toasts.error(e.to_string());
+                                        luminol_core::error!(
+                                            update_state.toasts,
+                                            e.wrap_err("Error playing from audio file"),
+                                        );
                                     }
                                 };
                             }

@@ -23,19 +23,22 @@ egui_dock = "0.9.0"
 egui-notify = "0.11.0"
 egui-modal = "0.3.1"
 
-parking_lot.workspace = true
 poll-promise.workspace = true
 
-anyhow.workspace = true
+tracing.workspace = true
+color-eyre.workspace = true
+
 camino.workspace = true
-bitflags.workspace = true
+
+itertools.workspace = true
 
 strum.workspace = true
 serde.workspace = true
 alox-48.workspace = true
 
 rand.workspace = true
-getrandom.workspace = true
+
+git-version.workspace = true
 
 luminol-audio.workspace = true
 luminol-config.workspace = true

@@ -66,7 +66,7 @@ impl MapView {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
         map_id: usize,
-    ) -> anyhow::Result<MapView> {
+    ) -> color_eyre::Result<MapView> {
         let map = update_state
             .data
             .get_or_load_map(map_id, update_state.filesystem);
@@ -91,7 +91,7 @@ impl MapView {
         let events = map
             .events
             .iter()
-            .map(|(id, e)| -> anyhow::Result<_> {
+            .map(|(id, e)| -> color_eyre::Result<_> {
                 let sprite = luminol_graphics::Event::new(
                     &update_state.graphics,
                     update_state.filesystem,

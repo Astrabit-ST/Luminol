@@ -27,7 +27,6 @@ luminol-components.workspace = true
 luminol-modals.workspace = true
 
 egui.workspace = true
-egui_extras.workspace = true
 
 catppuccin-egui = { version = "3.1.0", git = "https://github.com/catppuccin/egui", rev = "bcb5849b6f96b56aa4982ec3366e238371de473e" }
 
@@ -35,13 +34,11 @@ camino.workspace = true
 
 strum.workspace = true
 
-git-version = "0.3.5"
+git-version.workspace = true
 
 poll-promise.workspace = true
 async-std.workspace = true
-pin-project.workspace = true
-futures-lite.workspace = true
-futures = "0.3.28"
+futures-util = "0.3.30"
 reqwest = "0.11.22"
 
 zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
@@ -51,7 +48,7 @@ qp-trie.workspace = true
 
 itertools.workspace = true
 
-anyhow.workspace = true
+color-eyre.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 luminol-term = { version = "0.4.0", path = "../term/" }
