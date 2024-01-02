@@ -111,7 +111,7 @@ impl Tab {
     pub fn new(
         id: usize,
         update_state: &mut luminol_core::UpdateState<'_>,
-    ) -> anyhow::Result<Self> {
+    ) -> color_eyre::Result<Self> {
         // *sigh*
         // borrow checker.
         let view = luminol_components::MapView::new(update_state, id)?;

@@ -104,7 +104,7 @@ impl Tilepicker {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
         map_id: usize, // FIXME
-    ) -> anyhow::Result<Tilepicker> {
+    ) -> color_eyre::Result<Tilepicker> {
         let map = update_state
             .data
             .get_or_load_map(map_id, update_state.filesystem);

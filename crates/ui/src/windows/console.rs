@@ -27,9 +27,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(command: luminol_term::CommandBuilder) -> Result<Self, luminol_term::Error> {
+    pub fn new(
+        ctx: &egui::Context,
+        command: luminol_term::CommandBuilder,
+    ) -> Result<Self, luminol_term::Error> {
         Ok(Self {
-            term: luminol_term::Terminal::new(command)?,
+            term: luminol_term::Terminal::new(ctx, command)?,
         })
     }
 }
@@ -40,7 +43,7 @@ impl luminol_core::Window for Window {
     }
 
     fn id(&self) -> egui::Id {
-        egui::Id::new("Console")
+        self.term.id()
     }
 
     fn requires_filesystem(&self) -> bool {
@@ -58,10 +61,38 @@ impl luminol_core::Window for Window {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(egui::RichText::new("KILL").color(egui::Color32::RED))
+                        .clicked()
+                    {
+                        if let Err(e) = self.term.kill() {
+                            luminol_core::error!(
+                                update_state.toasts,
+                                e.wrap_err("Error killing child"),
+                            );
+                        }
+                    }
+
+                    let mut resize = false;
+                    let (mut cols, mut rows) = self.term.size();
+
+                    resize |= ui.add(egui::DragValue::new(&mut cols)).changed();
+                    ui.label("×");
+                    resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
+
+                    if resize {
+                        self.term.set_size(update_state, cols, rows);
+                    }
+                });
+
+                ui.add_space(ui.spacing().item_spacing.y);
+
                 if let Err(e) = self.term.ui(ui) {
-                    update_state
-                        .toasts
-                        .error(format!("error displaying terminal: {e:?}"));
+                    luminol_core::error!(
+                        update_state.toasts,
+                        e.wrap_err("Error displaying terminal"),
+                    );
                 }
             });
     }

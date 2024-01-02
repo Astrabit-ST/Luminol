@@ -27,7 +27,7 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> anyhow::Result<Atlas> {
+    ) -> color_eyre::Result<Atlas> {
         Ok(self
             .atlases
             .entry(tileset.id)
@@ -40,7 +40,7 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> anyhow::Result<Atlas> {
+    ) -> color_eyre::Result<Atlas> {
         Ok(self
             .atlases
             .entry(tileset.id)

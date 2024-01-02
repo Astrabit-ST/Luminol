@@ -19,6 +19,7 @@ workspace = true
 [dependencies]
 rfd.workspace = true
 
+color-eyre.workspace = true
 thiserror.workspace = true
 bitflags.workspace = true
 
@@ -34,7 +35,6 @@ pin-project.workspace = true
 
 egui.workspace = true
 
-serde.workspace = true
 ron.workspace = true
 rust-ini.workspace = true
 

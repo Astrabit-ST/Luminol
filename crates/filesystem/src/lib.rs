@@ -53,6 +53,8 @@ pub enum Error {
     NotSupported,
     #[error("Archive header is incorrect")]
     InvalidHeader,
+    #[error("Invalid archive version: {0} (supported versions are 1, 2 and 3)")]
+    InvalidArchiveVersion(u8),
     #[error("No filesystems are loaded to perform this operation")]
     NoFilesystems,
     #[error("Unable to detect the project's RPG Maker version (perhaps you did not open an RPG Maker project?")]
@@ -67,7 +69,51 @@ pub enum Error {
     MissingIDB,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub use color_eyre::Result;
+
+pub trait StdIoErrorExt {
+    // Add additional context to a `std::io::Result`.
+    fn wrap_io_err_with<C>(self, c: impl FnOnce() -> C) -> Self
+    where
+        Self: Sized,
+        C: std::fmt::Display + Send + Sync + 'static;
+
+    // Add additional context to a `std::io::Result`.
+    fn wrap_io_err<C>(self, c: C) -> Self
+    where
+        Self: Sized,
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.wrap_io_err_with(|| c)
+    }
+
+    // Add additional context to a `std::io::Result`. This is an alias for `.wrap_io_err_with`.
+    fn with_io_context<C>(self, c: impl FnOnce() -> C) -> Self
+    where
+        Self: Sized,
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.wrap_io_err_with(c)
+    }
+
+    // Add additional context to a `std::io::Result`. This is an alias for `.wrap_io_err`.
+    fn io_context<C>(self, c: C) -> Self
+    where
+        Self: Sized,
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.wrap_io_err(c)
+    }
+}
+
+impl<T> StdIoErrorExt for std::io::Result<T> {
+    fn wrap_io_err_with<C>(self, c: impl FnOnce() -> C) -> Self
+    where
+        C: std::fmt::Display + Send + Sync + 'static,
+    {
+        self.map_err(|e| std::io::Error::new(e.kind(), color_eyre::eyre::eyre!(e).wrap_err(c())))
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Metadata {

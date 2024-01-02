@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use anyhow::Context;
+use color_eyre::eyre::WrapErr;
 use luminol_data::rpg;
 use std::{
     cell::{RefCell, RefMut},
@@ -59,31 +59,33 @@ pub enum Data {
 fn read_data<T>(
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> anyhow::Result<T>
+) -> color_eyre::Result<T>
 where
     T: serde::de::DeserializeOwned,
 {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
     let data = filesystem.read(path)?;
 
-    alox_48::from_bytes(&data).map_err(anyhow::Error::from)
+    alox_48::from_bytes(&data).map_err(color_eyre::Report::from)
 }
 
 fn write_data(
     data: &impl serde::Serialize,
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> anyhow::Result<()> {
+) -> color_eyre::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
     let bytes = alox_48::to_bytes(data)?;
-    filesystem.write(path, bytes).map_err(anyhow::Error::from)
+    filesystem
+        .write(path, bytes)
+        .map_err(color_eyre::Report::from)
 }
 
 fn read_nil_padded<T>(
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> anyhow::Result<Vec<T>>
+) -> color_eyre::Result<Vec<T>>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -92,14 +94,14 @@ where
 
     let mut de = alox_48::Deserializer::new(&data)?;
 
-    luminol_data::helpers::nil_padded::deserialize(&mut de).map_err(anyhow::Error::from)
+    luminol_data::helpers::nil_padded::deserialize(&mut de).map_err(color_eyre::Report::from)
 }
 
 fn write_nil_padded(
     data: &[impl serde::Serialize],
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
-) -> anyhow::Result<()> {
+) -> color_eyre::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
     let mut ser = alox_48::Serializer::new();
@@ -107,14 +109,14 @@ fn write_nil_padded(
     luminol_data::helpers::nil_padded::serialize(data, &mut ser)?;
     filesystem
         .write(path, ser.output)
-        .map_err(anyhow::Error::from)
+        .map_err(color_eyre::Report::from)
 }
 
 macro_rules! load {
     ($fs:ident, $type:ident) => {
         RefCell::new(rpg::$type {
             data: read_nil_padded($fs, format!("{}.rxdata", stringify!($type)))
-                .context(format!("while reading {}.rxdata", stringify!($type)))?,
+                .wrap_err_with(|| format!("While reading {}.rxdata", stringify!($type)))?,
             ..Default::default()
         })
     };
@@ -130,14 +132,12 @@ macro_rules! from_defaults {
 
 macro_rules! save {
     ($fs:ident, $type:ident, $field:ident) => {{
-        let mut borrowed = $field.borrow_mut();
-        let modified = borrowed.modified;
-        if modified {
-            borrowed.modified = false;
+        let borrowed = $field.borrow();
+        if borrowed.modified {
             write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
-                .context(format!("while saving {}.rxdata", stringify!($type)))?;
+                .wrap_err_with(|| format!("While saving {}.rxdata", stringify!($type)))?;
         }
-        modified
+        borrowed.modified
     }};
 }
 impl Data {
@@ -147,15 +147,15 @@ impl Data {
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &mut luminol_config::project::Config,
-    ) -> anyhow::Result<()> {
+    ) -> color_eyre::Result<()> {
         let map_infos = RefCell::new(rpg::MapInfos {
             data: read_data(filesystem, "MapInfos.rxdata")
-                .context("while reading MapInfos.rxdata")?,
+                .wrap_err("While reading MapInfos.rxdata")?,
             ..Default::default()
         });
 
         let mut system = read_data::<rpg::System>(filesystem, "System.rxdata")
-            .context("while reading System.rxdata")?;
+            .wrap_err("While reading System.rxdata")?;
         system.magic_number = rand::random();
 
         let system = RefCell::new(system);
@@ -181,7 +181,7 @@ impl Data {
             }
         }
         let Some(scripts) = scripts else {
-            anyhow::bail!(
+            color_eyre::eyre::bail!(
                 "Unable to load scripts (tried {}, xScripts, and Scripts first)",
                 config.project.scripts_path
             );
@@ -270,7 +270,7 @@ impl Data {
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
         config: &luminol_config::project::Config,
-    ) -> anyhow::Result<()> {
+    ) -> color_eyre::Result<()> {
         let Self::Loaded {
             actors,
             animations,
@@ -309,20 +309,18 @@ impl Data {
         modified |= save!(filesystem, Weapons, weapons);
 
         {
-            let mut map_infos = map_infos.borrow_mut();
+            let map_infos = map_infos.borrow();
             if map_infos.modified {
                 modified = true;
-                map_infos.modified = false;
                 write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
-                    .context("while saving MapInfos.rxdata")?;
+                    .wrap_err("While saving MapInfos.rxdata")?;
             }
         }
 
         {
-            let mut scripts = scripts.borrow_mut();
+            let scripts = scripts.borrow();
             if scripts.modified {
                 modified = true;
-                scripts.modified = false;
                 write_data(
                     &scripts.data,
                     filesystem,
@@ -332,13 +330,12 @@ impl Data {
         }
 
         {
-            let mut maps = maps.borrow_mut();
-            maps.iter_mut().try_for_each(|(id, map)| {
+            let maps = maps.borrow();
+            maps.iter().try_for_each(|(id, map)| {
                 if map.modified {
                     modified = true;
-                    map.modified = false;
                     write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
-                        .with_context(|| format!("while saving map {id:0>3}"))
+                        .wrap_err_with(|| format!("While saving map {id:0>3}"))
                 } else {
                     Ok(())
                 }
@@ -348,13 +345,30 @@ impl Data {
         {
             let system = system.get_mut();
             if system.modified || modified {
-                system.modified = false;
                 system.magic_number = rand::random();
                 write_data(system, filesystem, "System.rxdata")
-                    .context("while saving System.rxdata")?;
+                    .wrap_err("While saving System.rxdata")?;
+                system.modified = false;
             }
         }
 
+        actors.borrow_mut().modified = false;
+        animations.borrow_mut().modified = false;
+        armors.borrow_mut().modified = false;
+        classes.borrow_mut().modified = false;
+        common_events.borrow_mut().modified = false;
+        enemies.borrow_mut().modified = false;
+        items.borrow_mut().modified = false;
+        skills.borrow_mut().modified = false;
+        states.borrow_mut().modified = false;
+        tilesets.borrow_mut().modified = false;
+        troops.borrow_mut().modified = false;
+        weapons.borrow_mut().modified = false;
+        map_infos.borrow_mut().modified = false;
+        scripts.borrow_mut().modified = false;
+        for (_, map) in maps.borrow_mut().iter_mut() {
+            map.modified = false;
+        }
         Ok(())
     }
 }

@@ -958,13 +958,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "color-backtrace"
-version = "0.6.1"
+name = "color-eyre"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "150fd80a270c0671379f388c8204deb6a746bb4eac8a6c03fe2460b2c0127ea0"
+checksum = "5a667583cca8c4f8436db8de46ea8233c42a7d9ae424a82d338f2e4675229204"
 dependencies = [
  "backtrace",
- "termcolor",
+ "color-spantrace",
+ "eyre",
+ "indenter",
+ "once_cell",
+ "owo-colors",
+ "tracing-error",
+]
+
+[[package]]
+name = "color-spantrace"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd6be1b2a7e382e2b98b43b2adcca6bb0e465af0bdd38123873ae61eb17a72c2"
+dependencies = [
+ "once_cell",
+ "owo-colors",
+ "tracing-core",
+ "tracing-error",
 ]
 
 [[package]]
@@ -1110,21 +1127,6 @@ checksum = "ce420fe07aecd3e67c5f910618fe65e94158f6dcc0adf44e00d69ce2bdfe0fd0"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "crc"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86ec7a15cbe22e59248fc7eadb1907dab5ba09372595da4d73dd805ed4417dfe"
-dependencies = [
- "crc-catalog",
-]
-
-[[package]]
-name = "crc-catalog"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
 
 [[package]]
 name = "crc32fast"
@@ -1713,6 +1715,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "eyre"
+version = "0.6.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6267a1fa6f59179ea4afc8e50fd8612a3cc60bc858f786ff877a4a8cb042799"
+dependencies = [
+ "indenter",
+ "once_cell",
+]
+
+[[package]]
 name = "fancy-regex"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1881,9 +1893,9 @@ dependencies = [
 
 [[package]]
 name = "futures-channel"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff4dd66668b557604244583e3e1e1eada8c5c2e96a6d0d6653ede395b78bbacb"
+checksum = "eac8f7d7865dcb88bd4373ab671c8cf4508703796caa2b1985a9ca867b3fcb78"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -1908,9 +1920,9 @@ dependencies = [
 
 [[package]]
 name = "futures-io"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bf34a163b5c4c52d0478a4d757da8fb65cabef42ba90515efee0f6f9fa45aaa"
+checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
 
 [[package]]
 name = "futures-lite"
@@ -1942,9 +1954,9 @@ dependencies = [
 
 [[package]]
 name = "futures-macro"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53b153fd91e4b0147f4aced87be237c98248656bb01050b96bf3ee89220a8ddb"
+checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1953,21 +1965,21 @@ dependencies = [
 
 [[package]]
 name = "futures-sink"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e36d3378ee38c2a36ad710c5d30c2911d752cb941c00c72dbabfb786a7970817"
+checksum = "9fb8e00e87438d937621c1c6269e53f536c14d3fbd6a042bb24879e57d474fb5"
 
 [[package]]
 name = "futures-task"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efd193069b0ddadc69c46389b740bbccdd97203899b48d09c5f7969591d6bae2"
+checksum = "38d84fa142264698cdce1a9f9172cf383a0c82de1bddcf3092901442c4097004"
 
 [[package]]
 name = "futures-util"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a19526d624e703a3179b3d322efec918b6246ea0fa51d41124525f00f1cc8104"
+checksum = "3d6401deb83407ab3da39eba7e33987a73c3df0c82b4bb5813ee871c19c41d48"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -2088,18 +2100,18 @@ dependencies = [
 
 [[package]]
 name = "git-version"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13ad01ffa8221f7fe8b936d6ffb2a3e7ad428885a04fad51866a5f33eafda57c"
+checksum = "1ad568aa3db0fcbc81f2f116137f263d7304f512a1209b35b85150d3ef88ad19"
 dependencies = [
  "git-version-macro",
 ]
 
 [[package]]
 name = "git-version-macro"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84488ccbdb24ad6f56dc1863b4a8154a7856cd3c6c7610401634fab3cb588dae"
+checksum = "53010ccb100b96a67bc32c0175f0ed1426b31b655d562898e57325f81c023ac0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2568,6 +2580,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df19da1e92fbfec043ca97d622955381b1f3ee72a180ec999912df31b1ccd951"
 
 [[package]]
+name = "indenter"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
+
+[[package]]
 name = "indexed_db_futures"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2949,19 +2967,19 @@ dependencies = [
 name = "luminol"
 version = "0.4.0"
 dependencies = [
+ "async-std",
  "camino",
- "color-backtrace",
- "crc",
+ "color-eyre",
  "egui",
  "egui_extras",
- "epaint",
  "flume",
+ "futures-lite 2.1.0",
+ "git-version",
  "image 0.24.7",
  "js-sys",
  "luminol-audio",
  "luminol-config",
  "luminol-core",
- "luminol-data",
  "luminol-eframe",
  "luminol-egui-wgpu",
  "luminol-filesystem",
@@ -2993,6 +3011,7 @@ name = "luminol-audio"
 version = "0.4.0"
 dependencies = [
  "camino",
+ "color-eyre",
  "flume",
  "luminol-filesystem",
  "once_cell",
@@ -3011,7 +3030,7 @@ dependencies = [
 name = "luminol-components"
 version = "0.4.0"
 dependencies = [
- "anyhow",
+ "color-eyre",
  "egui",
  "glam",
  "indextree",
@@ -3024,11 +3043,7 @@ dependencies = [
  "luminol-egui-wgpu",
  "luminol-filesystem",
  "luminol-graphics",
- "once_cell",
- "parking_lot",
  "qp-trie",
- "serde",
- "slab",
  "strum",
  "syntect",
  "wgpu",
@@ -3051,24 +3066,24 @@ name = "luminol-core"
 version = "0.4.0"
 dependencies = [
  "alox-48",
- "anyhow",
- "bitflags 2.4.1",
  "camino",
+ "color-eyre",
  "egui",
  "egui-modal",
  "egui-notify",
  "egui_dock",
- "getrandom",
+ "git-version",
+ "itertools",
  "luminol-audio",
  "luminol-config",
  "luminol-data",
  "luminol-filesystem",
  "luminol-graphics",
- "parking_lot",
  "poll-promise",
  "rand",
  "serde",
  "strum",
+ "tracing",
 ]
 
 [[package]]
@@ -3079,13 +3094,10 @@ dependencies = [
  "bytemuck",
  "camino",
  "flate2",
- "getrandom",
- "num-derive 0.4.1",
  "num_enum 0.7.1",
  "paste",
  "rand",
  "serde",
- "slab",
  "strum",
 ]
 
@@ -3155,6 +3167,7 @@ dependencies = [
  "async_io_stream",
  "bitflags 2.4.1",
  "camino",
+ "color-eyre",
  "dashmap",
  "egui",
  "flume",
@@ -3174,7 +3187,6 @@ dependencies = [
  "rfd",
  "ron",
  "rust-ini",
- "serde",
  "slab",
  "tempfile",
  "thiserror",
@@ -3189,13 +3201,12 @@ dependencies = [
 name = "luminol-graphics"
 version = "0.4.0"
 dependencies = [
- "anyhow",
  "bytemuck",
  "camino",
+ "color-eyre",
  "crossbeam",
  "dashmap",
  "egui",
- "egui_extras",
  "glam",
  "image 0.24.7",
  "itertools",
@@ -3204,8 +3215,6 @@ dependencies = [
  "luminol-filesystem",
  "naga",
  "naga_oil",
- "once_cell",
- "slab",
  "wgpu",
 ]
 
@@ -3228,8 +3237,10 @@ dependencies = [
 name = "luminol-term"
 version = "0.4.0"
 dependencies = [
+ "color-eyre",
  "crossbeam-channel",
  "egui",
+ "luminol-core",
  "portable-pty",
  "termwiz",
  "wezterm-term",
@@ -3239,14 +3250,12 @@ dependencies = [
 name = "luminol-ui"
 version = "0.4.0"
 dependencies = [
- "anyhow",
  "async-std",
  "camino",
  "catppuccin-egui",
+ "color-eyre",
  "egui",
- "egui_extras",
- "futures",
- "futures-lite 2.1.0",
+ "futures-util",
  "git-version",
  "itertools",
  "luminol-audio",
@@ -3259,7 +3268,6 @@ dependencies = [
  "luminol-modals",
  "luminol-term",
  "once_cell",
- "pin-project",
  "poll-promise",
  "qp-trie",
  "reqwest",
@@ -3271,13 +3279,10 @@ dependencies = [
 name = "luminol-web"
 version = "0.4.0"
 dependencies = [
- "egui",
  "js-sys",
- "luminol-egui-wgpu",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu",
 ]
 
 [[package]]
@@ -3696,17 +3701,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num-derive"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfb77679af88f8b125209d354a202862602672222e7f2313fdd6dc349bad4712"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.39",
-]
-
-[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3892,7 +3886,7 @@ dependencies = [
  "jni 0.20.0",
  "ndk",
  "ndk-context",
- "num-derive 0.3.3",
+ "num-derive",
  "num-traits",
  "oboe-sys",
 ]
@@ -4032,6 +4026,12 @@ checksum = "d4586edfe4c648c71797a74c84bacb32b52b212eff5dfe2bb9f2c599844023e7"
 dependencies = [
  "ttf-parser",
 ]
+
+[[package]]
+name = "owo-colors"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "pango-sys"
@@ -5538,7 +5538,7 @@ dependencies = [
  "log",
  "memmem",
  "nix 0.24.3",
- "num-derive 0.3.3",
+ "num-derive",
  "num-traits",
  "ordered-float",
  "pest",
@@ -5714,6 +5714,7 @@ dependencies = [
  "libc",
  "mio",
  "num_cpus",
+ "parking_lot",
  "pin-project-lite",
  "socket2 0.5.5",
  "tokio-macros",
@@ -5856,6 +5857,16 @@ checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 dependencies = [
  "once_cell",
  "valuable",
+]
+
+[[package]]
+name = "tracing-error"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d686ec1c0f384b1277f097b2f279a2ecc11afe8c133c1aabf036a27cb4cd206e"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

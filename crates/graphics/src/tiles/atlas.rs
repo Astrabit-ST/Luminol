@@ -1,4 +1,3 @@
-use anyhow::Context;
 // Copyright (C) 2023 Lily Lyons
 //
 // This file is part of Luminol.
@@ -15,6 +14,8 @@ use anyhow::Context;
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+
+use color_eyre::eyre::WrapErr;
 use itertools::Itertools;
 
 use super::autotile_ids::AUTOTILES;
@@ -56,7 +57,7 @@ impl Atlas {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> anyhow::Result<Atlas> {
+    ) -> color_eyre::Result<Atlas> {
         let tileset_img = match &tileset.tileset_name {
             Some(tileset_name) => {
                 let file = filesystem
@@ -86,7 +87,7 @@ impl Atlas {
                 }
             })
             .try_collect()
-            .context("while loading atlas autotiles")?;
+            .wrap_err("While loading atlas autotiles")?;
 
         let autotile_frames = std::array::from_fn(|i| {
             autotiles[i]

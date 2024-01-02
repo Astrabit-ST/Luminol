@@ -54,7 +54,7 @@ fn load_wgpu_texture_from_path(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     path: &str,
-) -> anyhow::Result<wgpu::Texture> {
+) -> color_eyre::Result<wgpu::Texture> {
     let file = filesystem.read(path)?;
     let texture_data = image::load_from_memory(&file)?.to_rgba8();
 
@@ -112,7 +112,7 @@ impl Loader {
         filesystem: &impl luminol_filesystem::FileSystem,
         directory: impl AsRef<camino::Utf8Path>,
         file: impl AsRef<camino::Utf8Path>,
-    ) -> anyhow::Result<Arc<Texture>> {
+    ) -> color_eyre::Result<Arc<Texture>> {
         let path = directory.as_ref().join(file.as_ref());
         self.load_now(filesystem, path)
     }
@@ -121,7 +121,7 @@ impl Loader {
         &self,
         filesystem: &impl luminol_filesystem::FileSystem,
         path: impl AsRef<camino::Utf8Path>,
-    ) -> anyhow::Result<Arc<Texture>> {
+    ) -> color_eyre::Result<Arc<Texture>> {
         let path = path.as_ref().as_str();
 
         let texture = load_wgpu_texture_from_path(
