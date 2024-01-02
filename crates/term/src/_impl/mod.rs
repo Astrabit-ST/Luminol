@@ -464,10 +464,9 @@ impl Terminal {
                     });
                 },
             );
-        inner_result?;
 
         ui.spacing_mut().item_spacing = prev_spacing;
-        Ok(())
+        inner_result
     }
 
     #[inline(never)]
