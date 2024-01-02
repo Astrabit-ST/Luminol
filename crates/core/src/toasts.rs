@@ -65,6 +65,7 @@ impl Toasts {
             .set_duration(Some(std::time::Duration::from_secs(7)));
     }
 
+    #[doc(hidden)]
     pub fn _e_add_version_section(error: color_eyre::Report) -> color_eyre::Report {
         error.section(format!("Luminol version: {}", git_version::git_version!()))
     }
