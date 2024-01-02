@@ -110,11 +110,13 @@ where
 
                     reader
                         .seek(SeekFrom::Start(entry.body_offset + entry.size))
-                        .wrap_err(format!(
-                            "While seeking to offset {} to read file #{} in the archive",
-                            entry.body_offset + entry.size,
-                            i + 1
-                        ))
+                        .wrap_err_with(|| {
+                            format!(
+                                "While seeking to offset {} to read file #{} in the archive",
+                                entry.body_offset + entry.size,
+                                i + 1
+                            )
+                        })
                         .wrap_err_with(|| c.clone())?;
                     i += 1;
                 }
