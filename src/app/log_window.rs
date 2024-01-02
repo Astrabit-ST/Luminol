@@ -22,11 +22,16 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use std::collections::VecDeque;
+
+static BUFFER_CAPACITY: usize = 1 << 24;
+
 pub struct LogWindow {
     pub(super) term_shown: bool,
     term: luminol_term::Terminal,
     save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
-    buffer: Vec<u8>,
+    buffer: VecDeque<u8>,
+    buffer_entry_sizes: VecDeque<usize>,
     byte_rx: luminol_term::ByteReceiver,
 }
 
@@ -35,7 +40,8 @@ impl LogWindow {
         Self {
             term_shown: false,
             save_promise: None,
-            buffer: Vec::new(),
+            buffer: VecDeque::new(),
+            buffer_entry_sizes: VecDeque::new(),
             term,
             byte_rx,
         }
@@ -47,7 +53,13 @@ impl LogWindow {
         self.term.update();
 
         for bytes in self.byte_rx.try_iter() {
-            self.buffer.extend_from_slice(&bytes);
+            while self.buffer.len() + bytes.len() > BUFFER_CAPACITY {
+                for _ in 0..self.buffer_entry_sizes.pop_front().unwrap() {
+                    self.buffer.pop_front();
+                }
+            }
+            self.buffer_entry_sizes.push_back(bytes.len());
+            self.buffer.extend(bytes);
         }
 
         egui::Window::new("Log")
@@ -97,13 +109,14 @@ impl LogWindow {
                             Err(p) => self.save_promise = Some(p),
                         }
                     } else if ui.button("Save to file").clicked() {
+                        self.buffer.make_contiguous();
                         let buffer = self.buffer.clone();
 
-                        self.save_promise = Some(luminol_core::spawn_future(async {
+                        self.save_promise = Some(luminol_core::spawn_future(async move {
                             use futures_lite::AsyncWriteExt;
 
                             let mut tmp = luminol_filesystem::host::File::new()?;
-                            let mut cursor = async_std::io::Cursor::new(buffer);
+                            let mut cursor = async_std::io::Cursor::new(buffer.as_slices().0);
                             async_std::io::copy(&mut cursor, &mut tmp).await?;
                             tmp.flush().await?;
                             tmp.save("luminol.log", "Log files").await?;
