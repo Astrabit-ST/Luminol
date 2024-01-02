@@ -310,6 +310,7 @@ impl<'res> UpdateState<'res> {
                         self.toasts,
                         error.wrap_err("Error loading the project data")
                     );
+                    self.close_project();
                 } else {
                     info!(
                         self.toasts,
@@ -322,6 +323,7 @@ impl<'res> UpdateState<'res> {
             }
             Some(Err(error)) => {
                 error!(self.toasts, error.wrap_err("Error opening the project"));
+                self.close_project();
             }
             None => {}
         }
