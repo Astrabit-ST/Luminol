@@ -81,53 +81,74 @@ impl luminol_core::Window for Window {
             .open(open)
             .show(ctx, |ui| {
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
-                    ui.label("Items");
-                    egui::ScrollArea::both().max_height(600.).show_rows(
-                        ui,
-                        ui.text_style_height(&egui::TextStyle::Body),
-                        items.data.len(),
-                        |ui, rows| {
-                            let offset = rows.start;
-                            for (id, item) in items.data[rows].iter().enumerate() {
-                                let id = id + offset;
-                                ui.selectable_value(
-                                    &mut self.selected_item,
-                                    id,
-                                    format!("{:0>3}: {}", id, item.name),
-                                );
+                    ui.with_layout(
+                        egui::Layout {
+                            cross_justify: true,
+                            ..Default::default()
+                        },
+                        |ui| {
+                            ui.label("Items");
+                            egui::ScrollArea::vertical().max_height(600.).show_rows(
+                                ui,
+                                ui.text_style_height(&egui::TextStyle::Body),
+                                items.data.len(),
+                                |ui, rows| {
+                                    ui.set_width(ui.available_width());
+
+                                    let offset = rows.start;
+                                    for (id, item) in items.data[rows].iter().enumerate() {
+                                        let id = id + offset;
+                                        ui.selectable_value(
+                                            &mut self.selected_item,
+                                            id,
+                                            format!("{:0>3}: {}", id, item.name),
+                                        );
+                                    }
+                                },
+                            );
+
+                            if ui.button("Change maximum...").clicked() {
+                                eprintln!("`Change maximum...` button trigger");
                             }
                         },
                     );
-
-                    if ui.button("Change maximum...").clicked() {
-                        eprintln!("`Change maximum...` button trigger");
-                    }
                 });
 
-                let selected_item = &mut items.data[self.selected_item];
-                egui::Grid::new("item_edit_central_grid").show(ui, |ui| {
-                    let old_name = selected_item.name.clone();
-                    ui.add(luminol_components::Field::new(
-                        "Name",
-                        egui::TextEdit::singleline(&mut selected_item.name),
-                    ));
-                    if selected_item.name != old_name {
-                        modified = true;
-                    }
-                    ui.end_row();
+                ui.with_layout(
+                    egui::Layout {
+                        cross_justify: true,
+                        ..Default::default()
+                    },
+                    |ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(600.)
+                            .show(ui, |ui| {
+                                ui.set_width(ui.available_width());
 
-                    let old_description = selected_item.description.clone();
-                    ui.add(luminol_components::Field::new(
-                        "Description",
-                        egui::TextEdit::singleline(&mut selected_item.description),
-                    ));
-                    if selected_item.description != old_description {
-                        modified = true;
-                    }
-                    ui.end_row();
+                                let selected_item = &mut items.data[self.selected_item];
 
-                    egui::Grid::new("item_edit_central_left_grid").show(ui, |_ui| {});
-                });
+                                let old_name = selected_item.name.clone();
+                                ui.add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut selected_item.name)
+                                        .desired_width(f32::INFINITY),
+                                ));
+                                if selected_item.name != old_name {
+                                    modified = true;
+                                }
+
+                                let old_description = selected_item.description.clone();
+                                ui.add(luminol_components::Field::new(
+                                    "Description",
+                                    egui::TextEdit::multiline(&mut selected_item.description)
+                                        .desired_width(f32::INFINITY),
+                                ));
+                                if selected_item.description != old_description {
+                                    modified = true;
+                                }
+                            });
+                    },
+                );
             });
 
         if modified {
