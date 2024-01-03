@@ -150,7 +150,10 @@ impl luminol_core::Window for Window {
                                         .add(egui::Button::new(change_maximum_text).wrap(false))
                                         .clicked()
                                     {
-                                        eprintln!("`Change maximum...` button trigger");
+                                        luminol_core::basic!(
+                                            update_state.toasts,
+                                            "`Change maximum...` button trigger"
+                                        );
                                     }
                                 },
                             );
