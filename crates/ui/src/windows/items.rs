@@ -80,6 +80,11 @@ impl luminol_core::Window for Window {
             .default_width(480.)
             .open(open)
             .show(ctx, |ui| {
+                let button_height = ui.spacing().interact_size.y.max(
+                    ui.text_style_height(&egui::TextStyle::Button)
+                        + 2. * ui.spacing().button_padding.y,
+                );
+
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
                     ui.with_layout(
                         egui::Layout {
@@ -88,24 +93,33 @@ impl luminol_core::Window for Window {
                         },
                         |ui| {
                             ui.label("Items");
-                            egui::ScrollArea::vertical().max_height(600.).show_rows(
-                                ui,
-                                ui.text_style_height(&egui::TextStyle::Body),
-                                items.data.len(),
-                                |ui, rows| {
+                            egui::ScrollArea::both()
+                                .max_height(
+                                    ui.available_height()
+                                        - button_height
+                                        - ui.spacing().item_spacing.y,
+                                )
+                                .show_rows(ui, button_height, items.data.len(), |ui, rows| {
                                     ui.set_width(ui.available_width());
 
                                     let offset = rows.start;
                                     for (id, item) in items.data[rows].iter().enumerate() {
                                         let id = id + offset;
-                                        ui.selectable_value(
-                                            &mut self.selected_item,
-                                            id,
-                                            format!("{:0>3}: {}", id, item.name),
-                                        );
+                                        let mut frame = egui::containers::Frame::none();
+                                        if id % 2 != 0 {
+                                            frame = frame.fill(ui.visuals().faint_bg_color);
+                                        }
+
+                                        frame.show(ui, |ui| {
+                                            ui.style_mut().wrap = Some(false);
+                                            ui.selectable_value(
+                                                &mut self.selected_item,
+                                                id,
+                                                format!("{:0>3}: {}", id, item.name),
+                                            );
+                                        });
                                     }
-                                },
-                            );
+                                });
 
                             if ui.button("Change maximum...").clicked() {
                                 eprintln!("`Change maximum...` button trigger");
@@ -120,33 +134,31 @@ impl luminol_core::Window for Window {
                         ..Default::default()
                     },
                     |ui| {
-                        egui::ScrollArea::vertical()
-                            .max_height(600.)
-                            .show(ui, |ui| {
-                                ui.set_width(ui.available_width());
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            ui.set_width(ui.available_width());
 
-                                let selected_item = &mut items.data[self.selected_item];
+                            let selected_item = &mut items.data[self.selected_item];
 
-                                let old_name = selected_item.name.clone();
-                                ui.add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut selected_item.name)
-                                        .desired_width(f32::INFINITY),
-                                ));
-                                if selected_item.name != old_name {
-                                    modified = true;
-                                }
+                            let old_name = selected_item.name.clone();
+                            ui.add(luminol_components::Field::new(
+                                "Name",
+                                egui::TextEdit::singleline(&mut selected_item.name)
+                                    .desired_width(f32::INFINITY),
+                            ));
+                            if selected_item.name != old_name {
+                                modified = true;
+                            }
 
-                                let old_description = selected_item.description.clone();
-                                ui.add(luminol_components::Field::new(
-                                    "Description",
-                                    egui::TextEdit::multiline(&mut selected_item.description)
-                                        .desired_width(f32::INFINITY),
-                                ));
-                                if selected_item.description != old_description {
-                                    modified = true;
-                                }
-                            });
+                            let old_description = selected_item.description.clone();
+                            ui.add(luminol_components::Field::new(
+                                "Description",
+                                egui::TextEdit::multiline(&mut selected_item.description)
+                                    .desired_width(f32::INFINITY),
+                            ));
+                            if selected_item.description != old_description {
+                                modified = true;
+                            }
+                        });
                     },
                 );
             });
