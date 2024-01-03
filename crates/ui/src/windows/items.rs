@@ -75,6 +75,10 @@ impl luminol_core::Window for Window {
 
         let mut items = update_state.data.items();
         self.selected_item = self.selected_item.min(items.data.len().saturating_sub(1));
+        self.selected_item_name = items
+            .data
+            .get(self.selected_item)
+            .map(|item| item.name.clone());
         let mut modified = false;
 
         egui::Window::new(self.name())
