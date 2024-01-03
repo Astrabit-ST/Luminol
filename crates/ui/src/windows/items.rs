@@ -96,85 +96,109 @@ impl luminol_core::Window for Window {
                 );
 
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
-                    ui.with_layout(
-                        egui::Layout {
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            ui.label("Items");
-                            egui::ScrollArea::both()
-                                .min_scrolled_width(button_width + ui.spacing().item_spacing.x)
-                                .max_height(
-                                    ui.available_height()
-                                        - button_height
-                                        - ui.spacing().item_spacing.y,
-                                )
-                                .show_rows(ui, button_height, items.data.len(), |ui, rows| {
-                                    ui.set_width(ui.available_width());
+                    egui::Frame::none()
+                        .outer_margin(egui::Margin {
+                            right: ui.spacing().window_margin.right,
+                            ..egui::Margin::ZERO
+                        })
+                        .show(ui, |ui| {
+                            ui.with_layout(
+                                egui::Layout {
+                                    cross_justify: true,
+                                    ..Default::default()
+                                },
+                                |ui| {
+                                    ui.label("Items");
+                                    egui::ScrollArea::both()
+                                        .min_scrolled_width(
+                                            button_width + ui.spacing().item_spacing.x,
+                                        )
+                                        .max_height(
+                                            ui.available_height()
+                                                - button_height
+                                                - ui.spacing().item_spacing.y,
+                                        )
+                                        .show_rows(
+                                            ui,
+                                            button_height,
+                                            items.data.len(),
+                                            |ui, rows| {
+                                                ui.set_width(ui.available_width());
 
-                                    let offset = rows.start;
-                                    for (id, item) in items.data[rows].iter().enumerate() {
-                                        let id = id + offset;
-                                        let mut frame = egui::containers::Frame::none();
-                                        if id % 2 != 0 {
-                                            frame = frame.fill(ui.visuals().faint_bg_color);
-                                        }
+                                                let offset = rows.start;
+                                                for (id, item) in
+                                                    items.data[rows].iter().enumerate()
+                                                {
+                                                    let id = id + offset;
+                                                    let mut frame = egui::containers::Frame::none();
+                                                    if id % 2 != 0 {
+                                                        frame =
+                                                            frame.fill(ui.visuals().faint_bg_color);
+                                                    }
 
-                                        frame.show(ui, |ui| {
-                                            ui.style_mut().wrap = Some(false);
-                                            ui.selectable_value(
-                                                &mut self.selected_item,
-                                                id,
-                                                format!("{:0>3}: {}", id, item.name),
-                                            );
-                                        });
+                                                    frame.show(ui, |ui| {
+                                                        ui.style_mut().wrap = Some(false);
+                                                        ui.selectable_value(
+                                                            &mut self.selected_item,
+                                                            id,
+                                                            format!("{:0>3}: {}", id, item.name),
+                                                        );
+                                                    });
+                                                }
+                                            },
+                                        );
+
+                                    if ui
+                                        .add(egui::Button::new(change_maximum_text).wrap(false))
+                                        .clicked()
+                                    {
+                                        eprintln!("`Change maximum...` button trigger");
                                     }
-                                });
-
-                            if ui
-                                .add(egui::Button::new(change_maximum_text).wrap(false))
-                                .clicked()
-                            {
-                                eprintln!("`Change maximum...` button trigger");
-                            }
-                        },
-                    );
+                                },
+                            );
+                        });
                 });
 
-                ui.with_layout(
-                    egui::Layout {
-                        cross_justify: true,
-                        ..Default::default()
-                    },
-                    |ui| {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            ui.set_width(ui.available_width());
+                egui::Frame::none()
+                    .outer_margin(egui::Margin {
+                        left: ui.spacing().window_margin.left,
+                        ..egui::Margin::ZERO
+                    })
+                    .show(ui, |ui| {
+                        ui.with_layout(
+                            egui::Layout {
+                                cross_justify: true,
+                                ..Default::default()
+                            },
+                            |ui| {
+                                egui::ScrollArea::vertical().show(ui, |ui| {
+                                    ui.set_width(ui.available_width());
 
-                            let selected_item = &mut items.data[self.selected_item];
+                                    let selected_item = &mut items.data[self.selected_item];
 
-                            let old_name = selected_item.name.clone();
-                            ui.add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut selected_item.name)
-                                    .desired_width(f32::INFINITY),
-                            ));
-                            if selected_item.name != old_name {
-                                modified = true;
-                            }
+                                    let old_name = selected_item.name.clone();
+                                    ui.add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut selected_item.name)
+                                            .desired_width(f32::INFINITY),
+                                    ));
+                                    if selected_item.name != old_name {
+                                        modified = true;
+                                    }
 
-                            let old_description = selected_item.description.clone();
-                            ui.add(luminol_components::Field::new(
-                                "Description",
-                                egui::TextEdit::multiline(&mut selected_item.description)
-                                    .desired_width(f32::INFINITY),
-                            ));
-                            if selected_item.description != old_description {
-                                modified = true;
-                            }
-                        });
-                    },
-                );
+                                    let old_description = selected_item.description.clone();
+                                    ui.add(luminol_components::Field::new(
+                                        "Description",
+                                        egui::TextEdit::multiline(&mut selected_item.description)
+                                            .desired_width(f32::INFINITY),
+                                    ));
+                                    if selected_item.description != old_description {
+                                        modified = true;
+                                    }
+                                });
+                            },
+                        );
+                    });
             });
 
         if modified {
