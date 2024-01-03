@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 /// Database - Items management window.
+#[derive(Default)]
 pub struct Window {
     // ? Items ?
     selected_item: usize,
@@ -37,14 +38,7 @@ pub struct Window {
 
 impl Window {
     pub fn new() -> Self {
-        Self {
-            selected_item: 0,
-            selected_item_name: None,
-
-            _icon_picker: None,
-
-            _menu_se_picker: None,
-        }
+        Default::default()
     }
 }
 
