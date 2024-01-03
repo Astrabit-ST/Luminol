@@ -71,6 +71,8 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
+        let change_maximum_text = "Change maximum...";
+
         let mut items = update_state.data.items();
         self.selected_item = self.selected_item.min(items.data.len().saturating_sub(1));
         let mut modified = false;
@@ -84,6 +86,14 @@ impl luminol_core::Window for Window {
                     ui.text_style_height(&egui::TextStyle::Button)
                         + 2. * ui.spacing().button_padding.y,
                 );
+                let button_width = ui.spacing().interact_size.x.max(
+                    egui::WidgetText::from(change_maximum_text)
+                        .into_galley(ui, None, f32::INFINITY, egui::TextStyle::Button)
+                        .galley
+                        .rect
+                        .width()
+                        + 2. * ui.spacing().button_padding.x,
+                );
 
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
                     ui.with_layout(
@@ -94,6 +104,7 @@ impl luminol_core::Window for Window {
                         |ui| {
                             ui.label("Items");
                             egui::ScrollArea::both()
+                                .min_scrolled_width(button_width + ui.spacing().item_spacing.x)
                                 .max_height(
                                     ui.available_height()
                                         - button_height
@@ -121,7 +132,10 @@ impl luminol_core::Window for Window {
                                     }
                                 });
 
-                            if ui.button("Change maximum...").clicked() {
+                            if ui
+                                .add(egui::Button::new(change_maximum_text).wrap(false))
+                                .clicked()
+                            {
                                 eprintln!("`Change maximum...` button trigger");
                             }
                         },
