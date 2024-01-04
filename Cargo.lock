@@ -1877,6 +1877,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fragile"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c2141d6d6c8512188a7891b4b01590a45f6dac67afb4f255c4124dbb86d4eaa"
+
+[[package]]
 name = "futures"
 version = "0.3.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3032,6 +3038,7 @@ version = "0.4.0"
 dependencies = [
  "color-eyre",
  "egui",
+ "fragile",
  "glam",
  "indextree",
  "itertools",
@@ -3207,6 +3214,7 @@ dependencies = [
  "crossbeam",
  "dashmap",
  "egui",
+ "fragile",
  "glam",
  "image 0.24.7",
  "itertools",
