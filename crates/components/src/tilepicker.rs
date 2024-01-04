@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use fragile::Fragile;
 use itertools::Itertools;
 use std::sync::Arc;
 use std::time::Duration;
@@ -37,20 +38,13 @@ struct Resources {
     collision: luminol_graphics::collision::Collision,
 }
 
+// wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
 struct Callback {
-    resources: Arc<Resources>,
-    graphics_state: Arc<luminol_graphics::GraphicsState>,
+    resources: Fragile<Arc<Resources>>,
+    graphics_state: Fragile<Arc<luminol_graphics::GraphicsState>>,
 
     coll_enabled: bool,
 }
-
-//? SAFETY:
-//? wgpu resources are not Send + Sync on wasm, but egui_wgpu::CallbackTrait requires Send + Sync (because egui::Context is Send + Sync)
-//? as long as this callback does not leave the thread it was created on on wasm (which it shouldn't be) these are ok.
-#[allow(unsafe_code)]
-unsafe impl Send for Callback {}
-#[allow(unsafe_code)]
-unsafe impl Sync for Callback {}
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
@@ -59,14 +53,15 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
-        self.resources
+        let resources = self.resources.get();
+        let graphics_state = self.graphics_state.get();
+
+        resources
             .tiles
-            .draw(&self.graphics_state, &[true], None, render_pass);
+            .draw(graphics_state, &[true], None, render_pass);
 
         if self.coll_enabled {
-            self.resources
-                .collision
-                .draw(&self.graphics_state, render_pass);
+            resources.collision.draw(graphics_state, render_pass);
         }
     }
 }
@@ -238,8 +233,8 @@ impl Tilepicker {
             .add(luminol_egui_wgpu::Callback::new_paint_callback(
                 absolute_scroll_rect,
                 Callback {
-                    resources: self.resources.clone(),
-                    graphics_state: graphics_state.clone(),
+                    resources: Fragile::new(self.resources.clone()),
+                    graphics_state: Fragile::new(graphics_state.clone()),
                     coll_enabled,
                 },
             ));

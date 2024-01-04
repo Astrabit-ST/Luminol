@@ -19,6 +19,8 @@ use std::sync::Arc;
 
 use std::time::Duration;
 
+use fragile::Fragile;
+
 use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsState, Plane};
 
 pub struct Map {
@@ -39,9 +41,10 @@ struct Resources {
     collision: Collision,
 }
 
+// wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
 struct Callback {
-    resources: Arc<Resources>,
-    graphics_state: Arc<GraphicsState>,
+    resources: Fragile<Arc<Resources>>,
+    graphics_state: Fragile<Arc<GraphicsState>>,
 
     pano_enabled: bool,
     enabled_layers: Vec<bool>,
@@ -49,24 +52,12 @@ struct Callback {
 }
 
 struct OverlayCallback {
-    resources: Arc<Resources>,
-    graphics_state: Arc<GraphicsState>,
+    resources: Fragile<Arc<Resources>>,
+    graphics_state: Fragile<Arc<GraphicsState>>,
 
     fog_enabled: bool,
     coll_enabled: bool,
 }
-
-//? SAFETY:
-//? wgpu resources are not Send + Sync on wasm, but egui_wgpu::CallbackTrait requires Send + Sync (because egui::Context is Send + Sync)
-//? as long as this callback does not leave the thread it was created on on wasm (which it shouldn't be) these are ok.
-#[allow(unsafe_code)]
-unsafe impl Send for Callback {}
-#[allow(unsafe_code)]
-unsafe impl Sync for Callback {}
-#[allow(unsafe_code)]
-unsafe impl Send for OverlayCallback {}
-#[allow(unsafe_code)]
-unsafe impl Sync for OverlayCallback {}
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
@@ -75,14 +66,17 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
+        let resources = self.resources.get();
+        let graphics_state = self.graphics_state.get();
+
         if self.pano_enabled {
-            if let Some(panorama) = &self.resources.panorama {
-                panorama.draw(&self.graphics_state, render_pass);
+            if let Some(panorama) = &resources.panorama {
+                panorama.draw(graphics_state, render_pass);
             }
         }
 
-        self.resources.tiles.draw(
-            &self.graphics_state,
+        resources.tiles.draw(
+            graphics_state,
             &self.enabled_layers,
             self.selected_layer,
             render_pass,
@@ -97,16 +91,17 @@ impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
+        let resources = self.resources.get();
+        let graphics_state = self.graphics_state.get();
+
         if self.fog_enabled {
-            if let Some(fog) = &self.resources.fog {
-                fog.draw(&self.graphics_state, render_pass);
+            if let Some(fog) = &resources.fog {
+                fog.draw(graphics_state, render_pass);
             }
         }
 
         if self.coll_enabled {
-            self.resources
-                .collision
-                .draw(&self.graphics_state, render_pass);
+            resources.collision.draw(graphics_state, render_pass);
         }
     }
 }
@@ -242,8 +237,8 @@ impl Map {
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
-                resources: self.resources.clone(),
-                graphics_state,
+                resources: Fragile::new(self.resources.clone()),
+                graphics_state: Fragile::new(graphics_state),
 
                 pano_enabled: self.pano_enabled,
                 enabled_layers: self.enabled_layers.clone(),
@@ -261,8 +256,8 @@ impl Map {
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             OverlayCallback {
-                resources: self.resources.clone(),
-                graphics_state,
+                resources: Fragile::new(self.resources.clone()),
+                graphics_state: Fragile::new(graphics_state),
 
                 fog_enabled: self.fog_enabled,
                 coll_enabled: self.coll_enabled,

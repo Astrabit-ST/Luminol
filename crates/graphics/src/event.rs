@@ -17,6 +17,8 @@
 
 use std::sync::Arc;
 
+use fragile::Fragile;
+
 use crate::{quad::Quad, sprite::Sprite, tiles::Atlas, viewport::Viewport, GraphicsState};
 
 pub struct Event {
@@ -25,18 +27,11 @@ pub struct Event {
     pub sprite_size: egui::Vec2,
 }
 
+// wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
 struct Callback {
-    sprite: Arc<Sprite>,
-    graphics_state: Arc<GraphicsState>,
+    sprite: Fragile<Arc<Sprite>>,
+    graphics_state: Fragile<Arc<GraphicsState>>,
 }
-
-//? SAFETY:
-//? wgpu resources are not Send + Sync on wasm, but egui_wgpu::CallbackTrait requires Send + Sync (because egui::Context is Send + Sync)
-//? as long as this callback does not leave the thread it was created on on wasm (which it shouldn't be) these are ok.
-#[allow(unsafe_code)]
-unsafe impl Send for Callback {}
-#[allow(unsafe_code)]
-unsafe impl Sync for Callback {}
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
     fn paint<'a>(
@@ -45,7 +40,10 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
-        self.sprite.draw(&self.graphics_state, render_pass);
+        let sprite = self.sprite.get();
+        let graphics_state = self.graphics_state.get();
+
+        sprite.draw(graphics_state, render_pass);
     }
 }
 
@@ -140,8 +138,8 @@ impl Event {
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             Callback {
-                sprite: self.sprite.clone(),
-                graphics_state,
+                sprite: Fragile::new(self.sprite.clone()),
+                graphics_state: Fragile::new(graphics_state),
             },
         ));
     }
