@@ -65,10 +65,7 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
     }
 }
 
-pub struct Field<T>
-where
-    T: egui::Widget,
-{
+pub struct Field<T> {
     name: String,
     widget: T,
 }
@@ -96,11 +93,67 @@ where
     T: egui::Widget,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        ui.vertical(|ui| {
-            ui.label(format!("{}:", self.name));
-            ui.add(self.widget);
-        })
-        .response
+        let mut changed = false;
+        let mut response = ui
+            .vertical(|ui| {
+                ui.label(format!("{}:", self.name));
+                if ui.add(self.widget).changed() {
+                    changed = true;
+                };
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+pub struct EnumComboBox<'a, T> {
+    id_source: egui::Id,
+    reference: &'a mut T,
+}
+
+impl<'a, T> EnumComboBox<'a, T> {
+    /// Creates a combo box that can be used to change the variant of an enum that implements
+    /// `strum::IntoEnumIterator + ToString`.
+    pub fn new(id_source: impl std::hash::Hash, reference: &'a mut T) -> Self {
+        Self {
+            id_source: egui::Id::new(id_source),
+            reference,
+        }
+    }
+}
+
+impl<'a, T> egui::Widget for EnumComboBox<'a, T>
+where
+    T: strum::IntoEnumIterator + ToString,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+        let mut response = egui::ComboBox::from_id_source(self.id_source)
+            .width(ui.available_width() - ui.spacing().item_spacing.x)
+            .selected_text(self.reference.to_string())
+            .show_ui(ui, |ui| {
+                for variant in T::iter() {
+                    if ui
+                        .selectable_label(
+                            std::mem::discriminant(self.reference)
+                                == std::mem::discriminant(&variant),
+                            variant.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *self.reference = variant;
+                        changed = true;
+                    }
+                }
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
     }
 }
 

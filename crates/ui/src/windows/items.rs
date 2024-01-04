@@ -177,25 +177,45 @@ impl luminol_core::Window for Window {
 
                                     let selected_item = &mut items.data[self.selected_item];
 
-                                    let old_name = selected_item.name.clone();
-                                    ui.add(luminol_components::Field::new(
-                                        "Name",
-                                        egui::TextEdit::singleline(&mut selected_item.name)
-                                            .desired_width(f32::INFINITY),
-                                    ));
-                                    if selected_item.name != old_name {
-                                        modified = true;
-                                    }
+                                    modified |= ui
+                                        .add(luminol_components::Field::new(
+                                            "Name",
+                                            egui::TextEdit::singleline(&mut selected_item.name)
+                                                .desired_width(f32::INFINITY),
+                                        ))
+                                        .changed();
 
-                                    let old_description = selected_item.description.clone();
-                                    ui.add(luminol_components::Field::new(
-                                        "Description",
-                                        egui::TextEdit::multiline(&mut selected_item.description)
+                                    modified |= ui
+                                        .add(luminol_components::Field::new(
+                                            "Description",
+                                            egui::TextEdit::multiline(
+                                                &mut selected_item.description,
+                                            )
                                             .desired_width(f32::INFINITY),
-                                    ));
-                                    if selected_item.description != old_description {
-                                        modified = true;
-                                    }
+                                        ))
+                                        .changed();
+
+                                    ui.columns(2, |columns| {
+                                        modified |= columns[0]
+                                            .add(luminol_components::Field::new(
+                                                "Scope",
+                                                luminol_components::EnumComboBox::new(
+                                                    "scope",
+                                                    &mut selected_item.scope,
+                                                ),
+                                            ))
+                                            .changed();
+
+                                        modified |= columns[1]
+                                            .add(luminol_components::Field::new(
+                                                "Occasion",
+                                                luminol_components::EnumComboBox::new(
+                                                    "occasion",
+                                                    &mut selected_item.occasion,
+                                                ),
+                                            ))
+                                            .changed();
+                                    });
                                 });
                             },
                         );
