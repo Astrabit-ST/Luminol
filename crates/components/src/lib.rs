@@ -136,18 +136,24 @@ where
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
-                for variant in T::iter() {
-                    if ui
-                        .selectable_label(
-                            std::mem::discriminant(self.reference)
-                                == std::mem::discriminant(&variant),
-                            variant.to_string(),
-                        )
-                        .clicked()
-                    {
-                        *self.reference = variant;
-                        changed = true;
+                for (i, variant) in T::iter().enumerate() {
+                    let mut frame = egui::Frame::none();
+                    if i % 2 != 0 {
+                        frame = frame.fill(ui.visuals().faint_bg_color);
                     }
+                    frame.show(ui, |ui| {
+                        if ui
+                            .selectable_label(
+                                std::mem::discriminant(self.reference)
+                                    == std::mem::discriminant(&variant),
+                                variant.to_string(),
+                            )
+                            .clicked()
+                        {
+                            *self.reference = variant;
+                            changed = true;
+                        }
+                    });
                 }
             })
             .response;
@@ -212,13 +218,19 @@ where
                     changed = true;
                 }
                 for id in 0..self.len {
-                    if ui
-                        .selectable_label(*self.reference == Some(id), (self.formatter)(id))
-                        .clicked()
-                    {
-                        *self.reference = Some(id);
-                        changed = true;
+                    let mut frame = egui::Frame::none();
+                    if id % 2 == 0 {
+                        frame = frame.fill(ui.visuals().faint_bg_color);
                     }
+                    frame.show(ui, |ui| {
+                        if ui
+                            .selectable_label(*self.reference == Some(id), (self.formatter)(id))
+                            .clicked()
+                        {
+                            *self.reference = Some(id);
+                            changed = true;
+                        }
+                    });
                 }
             })
             .response;
