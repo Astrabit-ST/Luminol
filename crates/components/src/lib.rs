@@ -132,6 +132,7 @@ where
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
         let mut response = egui::ComboBox::from_id_source(self.id_source)
+            .wrap(true)
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
