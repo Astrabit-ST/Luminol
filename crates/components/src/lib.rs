@@ -96,7 +96,7 @@ where
         let mut changed = false;
         let mut response = ui
             .vertical(|ui| {
-                ui.label(format!("{}:", self.name));
+                ui.add(egui::Label::new(format!("{}:", self.name)).truncate(true));
                 if ui.add(self.widget).changed() {
                     changed = true;
                 };
@@ -146,6 +146,77 @@ where
                         .clicked()
                     {
                         *self.reference = variant;
+                        changed = true;
+                    }
+                }
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+pub struct OptionalIdComboBox<'a, F>
+where
+    F: Fn(usize) -> String,
+{
+    id_source: egui::Id,
+    reference: &'a mut Option<usize>,
+    len: usize,
+    formatter: F,
+}
+
+impl<'a, F> OptionalIdComboBox<'a, F>
+where
+    F: Fn(usize) -> String,
+{
+    /// Creates a combo box that can be used to change the ID of an `optional_id` field in the data
+    /// cache.
+    pub fn new(
+        id_source: impl std::hash::Hash,
+        reference: &'a mut Option<usize>,
+        len: usize,
+        formatter: F,
+    ) -> Self {
+        Self {
+            id_source: egui::Id::new(id_source),
+            reference,
+            len,
+            formatter,
+        }
+    }
+}
+
+impl<'a, F> egui::Widget for OptionalIdComboBox<'a, F>
+where
+    F: Fn(usize) -> String,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+        let mut response = egui::ComboBox::from_id_source(self.id_source)
+            .wrap(true)
+            .width(ui.available_width() - ui.spacing().item_spacing.x)
+            .selected_text(if let Some(id) = *self.reference {
+                (self.formatter)(id)
+            } else {
+                "(None)".into()
+            })
+            .show_ui(ui, |ui| {
+                if ui
+                    .selectable_label(self.reference.is_none(), "(None)")
+                    .clicked()
+                {
+                    *self.reference = None;
+                    changed = true;
+                }
+                for id in 0..self.len {
+                    if ui
+                        .selectable_label(*self.reference == Some(id), (self.formatter)(id))
+                        .clicked()
+                    {
+                        *self.reference = Some(id);
                         changed = true;
                     }
                 }
