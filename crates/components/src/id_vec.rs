@@ -115,34 +115,29 @@ where
                         ..Default::default()
                     },
                     |ui| {
-                        egui::ScrollArea::vertical()
-                            .id_source(self.id_source)
-                            .show(ui, |ui| {
-                                ui.set_width(ui.available_width());
+                        ui.set_width(ui.available_width());
 
-                                for id in 0..self.len {
-                                    let mut frame = egui::Frame::none();
-                                    if id % 2 != 0 {
-                                        frame = frame.fill(ui.visuals().faint_bg_color);
-                                    }
+                        for id in 0..self.len {
+                            let mut frame = egui::Frame::none();
+                            if id % 2 != 0 {
+                                frame = frame.fill(ui.visuals().faint_bg_color);
+                            }
 
-                                    let is_id_selected =
-                                        self.reference.get(index).is_some_and(|x| *x == id);
-                                    if is_id_selected {
-                                        index += 1;
-                                    }
+                            let is_id_selected =
+                                self.reference.get(index).is_some_and(|x| *x == id);
+                            if is_id_selected {
+                                index += 1;
+                            }
 
-                                    frame.show(ui, |ui| {
-                                        if ui
-                                            .selectable_label(is_id_selected, (self.formatter)(id))
-                                            .clicked()
-                                        {
-                                            clicked_id = Some(id);
-                                        }
-                                    });
+                            frame.show(ui, |ui| {
+                                if ui
+                                    .selectable_label(is_id_selected, (self.formatter)(id))
+                                    .clicked()
+                                {
+                                    clicked_id = Some(id);
                                 }
-                            })
-                            .inner
+                            });
+                        }
                     },
                 )
                 .inner
@@ -250,56 +245,49 @@ where
                         ..Default::default()
                     },
                     |ui| {
-                        egui::ScrollArea::vertical()
-                            .id_source(self.id_source)
-                            .show(ui, |ui| {
-                                ui.set_width(ui.available_width());
+                        ui.set_width(ui.available_width());
 
-                                for id in 0..self.len {
-                                    let mut frame = egui::Frame::none();
-                                    if id % 2 != 0 {
-                                        frame = frame.fill(ui.visuals().faint_bg_color);
-                                    }
+                        for id in 0..self.len {
+                            let mut frame = egui::Frame::none();
+                            if id % 2 != 0 {
+                                frame = frame.fill(ui.visuals().faint_bg_color);
+                            }
 
-                                    let is_id_plus =
-                                        self.plus.get(plus_index).is_some_and(|x| *x == id);
-                                    if is_id_plus {
-                                        plus_index += 1;
-                                    }
-                                    let is_id_minus =
-                                        self.minus.get(minus_index).is_some_and(|x| *x == id);
-                                    if is_id_minus {
-                                        minus_index += 1;
-                                    }
+                            let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
+                            if is_id_plus {
+                                plus_index += 1;
+                            }
+                            let is_id_minus = self.minus.get(minus_index).is_some_and(|x| *x == id);
+                            if is_id_minus {
+                                minus_index += 1;
+                            }
 
-                                    frame.show(ui, |ui| {
-                                        // Make the background of the selectable label red if it's
-                                        // a minus
-                                        if is_id_minus {
-                                            ui.visuals_mut().selection.bg_fill =
-                                                ui.visuals().gray_out(ui.visuals().error_fg_color);
-                                        }
-
-                                        let label = (self.formatter)(id);
-                                        if ui
-                                            .selectable_label(
-                                                is_id_plus || is_id_minus,
-                                                if is_id_plus {
-                                                    format!("+ {label}")
-                                                } else if is_id_minus {
-                                                    format!("‒ {label}")
-                                                } else {
-                                                    label
-                                                },
-                                            )
-                                            .clicked()
-                                        {
-                                            clicked_id = Some(id);
-                                        }
-                                    });
+                            frame.show(ui, |ui| {
+                                // Make the background of the selectable label red if it's
+                                // a minus
+                                if is_id_minus {
+                                    ui.visuals_mut().selection.bg_fill =
+                                        ui.visuals().gray_out(ui.visuals().error_fg_color);
                                 }
-                            })
-                            .inner
+
+                                let label = (self.formatter)(id);
+                                if ui
+                                    .selectable_label(
+                                        is_id_plus || is_id_minus,
+                                        if is_id_plus {
+                                            format!("+ {label}")
+                                        } else if is_id_minus {
+                                            format!("‒ {label}")
+                                        } else {
+                                            label
+                                        },
+                                    )
+                                    .clicked()
+                                {
+                                    clicked_id = Some(id);
+                                }
+                            });
+                        }
                     },
                 )
                 .inner
