@@ -207,7 +207,7 @@ impl luminol_core::Window for Window {
                                                     .add(luminol_components::Field::new(
                                                         "Scope",
                                                         luminol_components::EnumComboBox::new(
-                                                            "scope",
+                                                            (selected_item.id, "scope"),
                                                             &mut selected_item.scope,
                                                         ),
                                                     ))
@@ -217,7 +217,7 @@ impl luminol_core::Window for Window {
                                                     .add(luminol_components::Field::new(
                                                         "Occasion",
                                                         luminol_components::EnumComboBox::new(
-                                                            "occasion",
+                                                            (selected_item.id, "occasion"),
                                                             &mut selected_item.occasion,
                                                         ),
                                                     ))
@@ -232,7 +232,7 @@ impl luminol_core::Window for Window {
                                                 .add(luminol_components::Field::new(
                                                     "User Animation",
                                                     luminol_components::OptionalIdComboBox::new(
-                                                        "animation1_id",
+                                                        (selected_item.id, "animation1_id"),
                                                         &mut selected_item.animation1_id,
                                                         animations.data.len(),
                                                         |id| {
@@ -249,7 +249,7 @@ impl luminol_core::Window for Window {
                                                 .add(luminol_components::Field::new(
                                                     "Target Animation",
                                                     luminol_components::OptionalIdComboBox::new(
-                                                        "animation2_id",
+                                                        (selected_item.id, "animation2_id"),
                                                         &mut selected_item.animation2_id,
                                                         animations.data.len(),
                                                         |id| {
@@ -279,7 +279,7 @@ impl luminol_core::Window for Window {
                                                     .add(luminol_components::Field::new(
                                                         "Common Event",
                                                         luminol_components::OptionalIdComboBox::new(
-                                                            "common_event_id",
+                                                            (selected_item.id, "common_event_id"),
                                                             &mut selected_item.common_event_id,
                                                             common_events.data.len(),
                                                             |id| {
@@ -471,7 +471,7 @@ impl luminol_core::Window for Window {
                                                 .add(luminol_components::Field::new(
                                                     "Element",
                                                     luminol_components::IdVecSelection::new(
-                                                        "element_set",
+                                                        (selected_item.id, "element_set"),
                                                         &mut selected_item.element_set,
                                                         system.elements.len(),
                                                         |id| {
