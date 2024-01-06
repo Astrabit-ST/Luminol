@@ -145,6 +145,7 @@ where
                 };
 
                 if is_pivot_selected {
+                    let mut index = 0;
                     for id in range {
                         let is_id_selected =
                             index < old_len && self.reference.get(index).is_some_and(|x| *x == id);
