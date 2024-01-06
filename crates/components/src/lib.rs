@@ -21,6 +21,7 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![feature(is_sorted)]
 
 /// Syntax highlighter
 pub mod syntax_highlighting;
@@ -39,6 +40,9 @@ pub use command_view::CommandView;
 
 mod filesystem_view;
 pub use filesystem_view::FileSystemView;
+
+mod id_vec;
+pub use id_vec::IdVecSelection;
 
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,

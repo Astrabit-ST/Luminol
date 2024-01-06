@@ -70,6 +70,7 @@ impl luminol_core::Window for Window {
         let mut items = update_state.data.items();
         let animations = update_state.data.animations();
         let common_events = update_state.data.common_events();
+        let system = update_state.data.system();
 
         self.selected_item = self.selected_item.min(items.data.len().saturating_sub(1));
         self.selected_item_name = items
@@ -463,6 +464,27 @@ impl luminol_core::Window for Window {
                                             });
                                         },
                                     );
+
+                                    egui::Frame::none().show(ui, |ui| {
+                                        ui.columns(2, |columns| {
+                                            modified |= columns[0]
+                                                .add(luminol_components::Field::new(
+                                                    "Element",
+                                                    luminol_components::IdVecSelection::new(
+                                                        "element_set",
+                                                        &mut selected_item.element_set,
+                                                        system.elements.len(),
+                                                        |id| {
+                                                            system.elements.get(id).map_or_else(
+                                                                || "".into(),
+                                                                |e| format!("{id:0>3}: {}", e),
+                                                            )
+                                                        },
+                                                    ),
+                                                ))
+                                                .changed();
+                                        });
+                                    });
                                 });
                             },
                         );
