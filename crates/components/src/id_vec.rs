@@ -302,14 +302,16 @@ where
             // Unless control is held, deselect everything before doing anything
             if !modifiers.command {
                 let plus_contains_clicked_id = self.plus.contains(&clicked_id);
-                let minus_contains_clicked_id = modifiers.shift && self.minus.contains(&clicked_id);
+                let minus_contains_pivot = state.pivot.and_then(|pivot| {
+                    (modifiers.shift && self.minus.contains(&pivot)).then_some(pivot)
+                });
                 self.plus.clear();
                 self.minus.clear();
                 if plus_contains_clicked_id {
                     self.plus.push(clicked_id);
                 }
-                if minus_contains_clicked_id {
-                    self.minus.push(clicked_id);
+                if let Some(pivot) = minus_contains_pivot {
+                    self.minus.push(pivot);
                 }
             }
 
