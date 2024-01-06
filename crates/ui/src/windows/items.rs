@@ -71,6 +71,7 @@ impl luminol_core::Window for Window {
         let animations = update_state.data.animations();
         let common_events = update_state.data.common_events();
         let system = update_state.data.system();
+        let states = update_state.data.states();
 
         self.selected_item = self.selected_item.min(items.data.len().saturating_sub(1));
         self.selected_item_name = items
@@ -469,7 +470,7 @@ impl luminol_core::Window for Window {
                                         ui.columns(2, |columns| {
                                             modified |= columns[0]
                                                 .add(luminol_components::Field::new(
-                                                    "Element",
+                                                    "Elements",
                                                     luminol_components::IdVecSelection::new(
                                                         (selected_item.id, "element_set"),
                                                         &mut selected_item.element_set,
@@ -478,6 +479,24 @@ impl luminol_core::Window for Window {
                                                             system.elements.get(id).map_or_else(
                                                                 || "".into(),
                                                                 |e| format!("{id:0>3}: {}", e),
+                                                            )
+                                                        },
+                                                    ),
+                                                ))
+                                                .changed();
+
+                                            modified |= columns[1]
+                                                .add(luminol_components::Field::new(
+                                                    "State Change",
+                                                    luminol_components::IdVecPlusMinusSelection::new(
+                                                        (selected_item.id, "state_set"),
+                                                        &mut selected_item.plus_state_set,
+                                                        &mut selected_item.minus_state_set,
+                                                        states.data.len(),
+                                                        |id| {
+                                                            states.data.get(id).map_or_else(
+                                                                || "".into(),
+                                                                |s| format!("{id:0>3}: {}", s.name),
                                                             )
                                                         },
                                                     ),

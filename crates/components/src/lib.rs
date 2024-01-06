@@ -42,7 +42,7 @@ mod filesystem_view;
 pub use filesystem_view::FileSystemView;
 
 mod id_vec;
-pub use id_vec::IdVecSelection;
+pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection};
 
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,
