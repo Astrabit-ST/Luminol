@@ -178,7 +178,11 @@ where
                 };
 
                 if is_pivot_selected {
-                    let mut index = 0;
+                    let mut index = self
+                        .reference
+                        .iter()
+                        .position(|x| range.contains(x))
+                        .unwrap_or_default();
                     for id in range {
                         let is_id_selected =
                             index < old_len && self.reference.get(index).is_some_and(|x| *x == id);
@@ -341,7 +345,11 @@ where
 
                 if is_pivot_plus {
                     self.minus.retain(|id| !range.contains(id));
-                    let mut plus_index = 0;
+                    let mut plus_index = self
+                        .plus
+                        .iter()
+                        .position(|x| range.contains(x))
+                        .unwrap_or_default();
                     for id in range {
                         let is_id_plus = plus_index < old_plus_len
                             && self.plus.get(plus_index).is_some_and(|x| *x == id);
@@ -353,7 +361,11 @@ where
                     }
                 } else if is_pivot_minus {
                     self.plus.retain(|id| !range.contains(id));
-                    let mut minus_index = 0;
+                    let mut minus_index = self
+                        .minus
+                        .iter()
+                        .position(|x| range.contains(x))
+                        .unwrap_or_default();
                     for id in range {
                         let is_id_minus = minus_index < old_minus_len
                             && self.minus.get(minus_index).is_some_and(|x| *x == id);
