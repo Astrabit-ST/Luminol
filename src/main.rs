@@ -178,7 +178,7 @@ fn main() {
     }
 
     // Set up hooks for formatting errors and panics
-    color_eyre::config::HookBuilder::default()
+    let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
         .panic_section(format!("Luminol version: {}", git_version::git_version!()))
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
@@ -209,8 +209,25 @@ fn main() {
                 })
             })
         }))
+        .into_hooks();
+    eyre_hook
         .install()
         .expect("failed to install color-eyre hooks");
+    std::panic::set_hook(Box::new(move |info| {
+        eprintln!("{}", panic_hook.panic_report(info).to_string());
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+
+            let mut args = std::env::args_os();
+
+            if let Some(arg0) = args.next() {
+                let error = std::process::Command::new(arg0).args(args).exec();
+                eprintln!("Failed to restart Luminol:{error:?}");
+            }
+        }
+    }));
 
     // Log to stderr as well as Luminol's log.
     let (log_term_tx, log_term_rx) = luminol_term::unbounded();
