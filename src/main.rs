@@ -216,19 +216,26 @@ fn main() {
     std::panic::set_hook(Box::new(move |info| {
         eprintln!("{}", panic_hook.panic_report(info).to_string());
 
+        let mut args = std::env::args_os();
+        let arg0 = args.next();
+        let exe_path = std::env::current_exe().map_or_else(
+            |_| arg0.expect("could not get path to current executable"),
+            |exe_path| exe_path.into_os_string(),
+        );
+
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;
 
-            let mut args = std::env::args_os();
-            let arg0 = args.next();
-            let exe_path = std::env::current_exe().map_or_else(
-                |_| arg0.expect("could not get path to current executable"),
-                |exe_path| exe_path.into_os_string(),
-            );
-
             let error = std::process::Command::new(exe_path).args(args).exec();
             eprintln!("Failed to restart Luminol: {error:?}");
+        }
+
+        #[cfg(not(unix))]
+        {
+            if let Err(error) = std::process::Command::new(exe_path).args(args).spawn() {
+                eprintln!("Failed to restart Luminol: {error:?}");
+            }
         }
     }));
 
