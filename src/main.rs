@@ -221,11 +221,14 @@ fn main() {
             use std::os::unix::process::CommandExt;
 
             let mut args = std::env::args_os();
+            let arg0 = args.next();
+            let exe_path = std::env::current_exe().map_or_else(
+                |_| arg0.expect("could not get path to current executable"),
+                |exe_path| exe_path.into_os_string(),
+            );
 
-            if let Some(arg0) = args.next() {
-                let error = std::process::Command::new(arg0).args(args).exec();
-                eprintln!("Failed to restart Luminol:{error:?}");
-            }
+            let error = std::process::Command::new(exe_path).args(args).exec();
+            eprintln!("Failed to restart Luminol: {error:?}");
         }
     }));
 
