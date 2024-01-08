@@ -130,7 +130,7 @@ impl luminol_core::Window for Window {
 
                                                 let offset = rows.start;
                                                 for (id, item) in
-                                                    items.data[rows].iter().enumerate()
+                                                    items.data[rows].iter_mut().enumerate()
                                                 {
                                                     let id = id + offset;
                                                     let mut frame = egui::containers::Frame::none();
@@ -141,11 +141,28 @@ impl luminol_core::Window for Window {
 
                                                     frame.show(ui, |ui| {
                                                         ui.style_mut().wrap = Some(false);
-                                                        ui.selectable_value(
+
+                                                        let response = ui.selectable_value(
                                                             &mut self.selected_item,
                                                             id,
                                                             format!("{:0>3}: {}", id, item.name),
-                                                        );
+                                                        ).interact(egui::Sense::click());
+
+                                                        if response.clicked() {
+                                                            response.request_focus();
+                                                        }
+
+                                                        // Reset this item if delete or backspace
+                                                        // is pressed while this item is focused
+                                                        if response.has_focus()
+                                                            && ui.input(|i| {
+                                                                i.key_down(egui::Key::Delete)
+                                                                    || i.key_down(egui::Key::Backspace)
+                                                            })
+                                                        {
+                                                            *item = Default::default();
+                                                            modified = true;
+                                                        }
                                                     });
                                                 }
                                             },
@@ -180,7 +197,9 @@ impl luminol_core::Window for Window {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.set_width(ui.available_width());
 
-                                    let selected_item = &mut items.data[self.selected_item];
+                                    let Some(selected_item) = items.data.get_mut(self.selected_item) else {
+                                        return;
+                                    };
 
                                     modified |= ui
                                         .add(luminol_components::Field::new(
