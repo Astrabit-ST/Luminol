@@ -113,29 +113,33 @@ where
     }
 }
 
-pub struct EnumComboBox<'a, T> {
-    id_source: egui::Id,
+pub struct EnumComboBox<'a, H, T> {
+    id_source: H,
     reference: &'a mut T,
 }
 
-impl<'a, T> EnumComboBox<'a, T> {
+impl<'a, H, T> EnumComboBox<'a, H, T>
+where
+    H: std::hash::Hash,
+{
     /// Creates a combo box that can be used to change the variant of an enum that implements
     /// `strum::IntoEnumIterator + ToString`.
-    pub fn new(id_source: impl std::hash::Hash, reference: &'a mut T) -> Self {
+    pub fn new(id_source: H, reference: &'a mut T) -> Self {
         Self {
-            id_source: egui::Id::new(id_source),
+            id_source,
             reference,
         }
     }
 }
 
-impl<'a, T> egui::Widget for EnumComboBox<'a, T>
+impl<'a, H, T> egui::Widget for EnumComboBox<'a, H, T>
 where
+    H: std::hash::Hash,
     T: strum::IntoEnumIterator + ToString,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
-        let mut response = egui::ComboBox::from_id_source(self.id_source)
+        let mut response = egui::ComboBox::from_id_source(&self.id_source)
             .wrap(true)
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(self.reference.to_string())
@@ -168,44 +172,47 @@ where
     }
 }
 
-pub struct OptionalIdComboBox<'a, F>
-where
-    F: Fn(usize) -> String,
-{
-    id_source: egui::Id,
+pub struct OptionalIdComboBox<'a, H, F> {
+    id_source: H,
     reference: &'a mut Option<usize>,
     len: usize,
     formatter: F,
+    retain_search: bool,
 }
 
-impl<'a, F> OptionalIdComboBox<'a, F>
+impl<'a, H, F> OptionalIdComboBox<'a, H, F>
 where
+    H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     /// Creates a combo box that can be used to change the ID of an `optional_id` field in the data
     /// cache.
-    pub fn new(
-        id_source: impl std::hash::Hash,
-        reference: &'a mut Option<usize>,
-        len: usize,
-        formatter: F,
-    ) -> Self {
+    pub fn new(id_source: H, reference: &'a mut Option<usize>, len: usize, formatter: F) -> Self {
         Self {
-            id_source: egui::Id::new(id_source),
+            id_source,
             reference,
             len,
             formatter,
+            retain_search: true,
         }
+    }
+
+    /// Clears the search box for this combo box.
+    pub fn clear_search(&mut self) {
+        self.retain_search = false;
     }
 }
 
-impl<'a, F> egui::Widget for OptionalIdComboBox<'a, F>
+impl<'a, H, F> egui::Widget for OptionalIdComboBox<'a, H, F>
 where
+    H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let state_id = egui::Id::new(&self.id_source).with("OptionalIdComboBox");
+
         let mut changed = false;
-        let mut response = egui::ComboBox::from_id_source(self.id_source)
+        let inner_response = egui::ComboBox::from_id_source(&self.id_source)
             .wrap(true)
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(if let Some(id) = *self.reference {
@@ -214,30 +221,80 @@ where
                 "(None)".into()
             })
             .show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(self.reference.is_none(), "(None)")
-                    .clicked()
-                {
-                    *self.reference = None;
-                    changed = true;
-                }
-                for id in 0..self.len {
-                    let mut frame = egui::Frame::none();
-                    if id % 2 == 0 {
-                        frame = frame.fill(ui.visuals().faint_bg_color);
+                let mut search_string = self
+                    .retain_search
+                    .then(|| ui.data(|d| d.get_temp(state_id)))
+                    .flatten()
+                    .unwrap_or_else(|| String::new());
+                let search_box_response =
+                    ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
+                let search_box_clicked = search_box_response.clicked()
+                    || search_box_response.secondary_clicked()
+                    || search_box_response.middle_clicked()
+                    || search_box_response.clicked_by(egui::PointerButton::Extra1)
+                    || search_box_response.clicked_by(egui::PointerButton::Extra2);
+
+                let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    if ui
+                        .selectable_label(self.reference.is_none(), "(None)")
+                        .clicked()
+                    {
+                        *self.reference = None;
+                        changed = true;
                     }
-                    frame.show(ui, |ui| {
-                        if ui
-                            .selectable_label(*self.reference == Some(id), (self.formatter)(id))
-                            .clicked()
-                        {
-                            *self.reference = Some(id);
-                            changed = true;
+
+                    let mut is_faint = true;
+
+                    for id in 0..self.len {
+                        let formatted = (self.formatter)(id);
+                        if matcher.fuzzy(&formatted, &search_string, false).is_none() {
+                            continue;
                         }
-                    });
-                }
+
+                        let mut frame = egui::Frame::none();
+                        if is_faint {
+                            frame = frame.fill(ui.visuals().faint_bg_color);
+                        }
+                        is_faint = !is_faint;
+
+                        frame.show(ui, |ui| {
+                            if ui
+                                .selectable_label(*self.reference == Some(id), formatted)
+                                .clicked()
+                            {
+                                *self.reference = Some(id);
+                                changed = true;
+                            }
+                        });
+                    }
+                });
+
+                ui.data_mut(|d| d.insert_temp(state_id, search_string));
+
+                search_box_clicked
+            });
+        let mut response = inner_response.response;
+
+        if inner_response.inner == Some(true) {
+            // Force the combo box to stay open if the search box was clicked
+            ui.memory_mut(|m| {
+                m.open_popup(
+                    ui.make_persistent_id(egui::Id::new(&self.id_source))
+                        .with("popup"),
+                )
+            });
+        } else if inner_response.inner.is_none()
+            && ui.data(|d| {
+                d.get_temp::<String>(state_id)
+                    .is_some_and(|s| !s.is_empty())
             })
-            .response;
+        {
+            // Clear the search box if the combo box is closed
+            ui.data_mut(|d| d.insert_temp(state_id, String::new()));
+        }
+
         if changed {
             response.mark_changed();
         }
