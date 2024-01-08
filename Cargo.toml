@@ -125,6 +125,7 @@ qp-trie = "0.8.2"
 itertools = "0.11.0"
 
 rfd = "0.12.0"
+tempfile = "3.8.1"
 
 rand = "0.8.5"
 
@@ -192,6 +193,7 @@ tokio = { version = "1.33", features = [
     "rt-multi-thread",
     "parking_lot",
 ] } # *sigh*
+tempfile.workspace = true
 luminol-term.workspace = true
 
 # Set poll promise features here based on the target

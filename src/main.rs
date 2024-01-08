@@ -24,6 +24,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![cfg_attr(target_arch = "wasm32", no_main)] // there is no main function in web builds
 
+use std::io::{Read, Write};
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -122,6 +124,16 @@ impl std::io::Write for LogWriter {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
+    // Load the panic report from the previous run if it exists
+    if let Some(path) = std::env::var_os("LUMINOL_PANIC_REPORT_FILE") {
+        if let Ok(mut file) = std::fs::File::open(&path) {
+            let mut buffer = String::new();
+            let _success = file.read_to_string(&mut buffer).is_ok();
+            // TODO: use this report to open a panic reporter
+        }
+        let _ = std::fs::remove_file(path);
+    }
+
     #[cfg(feature = "steamworks")]
     let steamworks = match steam::Steamworks::new() {
         Ok(s) => s,
@@ -214,7 +226,8 @@ fn main() {
         .install()
         .expect("failed to install color-eyre hooks");
     std::panic::set_hook(Box::new(move |info| {
-        eprintln!("{}", panic_hook.panic_report(info).to_string());
+        let report = panic_hook.panic_report(info).to_string();
+        eprintln!("{report}");
 
         let mut args = std::env::args_os();
         let arg0 = args.next();
@@ -222,6 +235,13 @@ fn main() {
             |_| arg0.expect("could not get path to current executable"),
             |exe_path| exe_path.into_os_string(),
         );
+
+        let mut file = tempfile::NamedTempFile::new().expect("failed to create temporary file");
+        file.write_all(report.as_bytes())
+            .expect("failed to write to temporary file");
+        file.flush().expect("failed to flush temporary file");
+        let (_, path) = file.keep().expect("failed to persist temporary file");
+        std::env::set_var("LUMINOL_PANIC_REPORT_FILE", path);
 
         #[cfg(unix)]
         {
