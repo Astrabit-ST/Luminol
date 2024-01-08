@@ -225,7 +225,7 @@ where
                     .retain_search
                     .then(|| ui.data(|d| d.get_temp(state_id)))
                     .flatten()
-                    .unwrap_or_else(|| String::new());
+                    .unwrap_or_else(String::new);
                 let search_box_response =
                     ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
                 let search_box_clicked = search_box_response.clicked()
