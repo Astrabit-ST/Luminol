@@ -205,6 +205,11 @@ impl luminol_core::Window for Window {
                             |ui| {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.set_width(ui.available_width());
+                                    ui.set_min_width(
+                                        2. * (ui.spacing().slider_width
+                                            + ui.spacing().interact_size.x)
+                                            + 3. * ui.spacing().item_spacing.x,
+                                    );
 
                                     let Some(selected_item) =
                                         items.data.get_mut(self.selected_item)
