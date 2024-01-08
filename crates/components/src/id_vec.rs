@@ -138,6 +138,12 @@ where
                         let mut is_faint = false;
 
                         for id in 0..self.len {
+                            let is_id_selected =
+                                self.reference.get(index).is_some_and(|x| *x == id);
+                            if is_id_selected {
+                                index += 1;
+                            }
+
                             let formatted = (self.formatter)(id);
                             if matcher
                                 .fuzzy(&formatted, &state.search_string, false)
@@ -151,12 +157,6 @@ where
                                 frame = frame.fill(ui.visuals().faint_bg_color);
                             }
                             is_faint = !is_faint;
-
-                            let is_id_selected =
-                                self.reference.get(index).is_some_and(|x| *x == id);
-                            if is_id_selected {
-                                index += 1;
-                            }
 
                             frame.show(ui, |ui| {
                                 if ui
@@ -300,6 +300,15 @@ where
                         let mut is_faint = false;
 
                         for id in 0..self.len {
+                            let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
+                            if is_id_plus {
+                                plus_index += 1;
+                            }
+                            let is_id_minus = self.minus.get(minus_index).is_some_and(|x| *x == id);
+                            if is_id_minus {
+                                minus_index += 1;
+                            }
+
                             let formatted = (self.formatter)(id);
                             if matcher
                                 .fuzzy(&formatted, &state.search_string, false)
@@ -313,15 +322,6 @@ where
                                 frame = frame.fill(ui.visuals().faint_bg_color);
                             }
                             is_faint = !is_faint;
-
-                            let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
-                            if is_id_plus {
-                                plus_index += 1;
-                            }
-                            let is_id_minus = self.minus.get(minus_index).is_some_and(|x| *x == id);
-                            if is_id_minus {
-                                minus_index += 1;
-                            }
 
                             frame.show(ui, |ui| {
                                 // Make the background of the selectable label red if it's
