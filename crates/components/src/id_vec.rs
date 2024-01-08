@@ -22,77 +22,84 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 struct IdVecSelectionState {
     pivot: Option<usize>,
     hide_tooltip: bool,
+    search_string: String,
 }
 
-pub struct IdVecSelection<'a, F>
-where
-    F: Fn(usize) -> String,
-{
-    id_source: egui::Id,
+pub struct IdVecSelection<'a, H, F> {
+    id_source: H,
     reference: &'a mut Vec<usize>,
     len: usize,
     formatter: F,
+    clear_search: bool,
 }
 
-pub struct IdVecPlusMinusSelection<'a, F>
-where
-    F: Fn(usize) -> String,
-{
-    id_source: egui::Id,
+pub struct IdVecPlusMinusSelection<'a, H, F> {
+    id_source: H,
     plus: &'a mut Vec<usize>,
     minus: &'a mut Vec<usize>,
     len: usize,
     formatter: F,
+    clear_search: bool,
 }
 
-impl<'a, F> IdVecSelection<'a, F>
+impl<'a, H, F> IdVecSelection<'a, H, F>
 where
+    H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     /// Creates a new widget for changing the contents of an `id_vec`.
-    pub fn new(
-        id_source: impl std::hash::Hash,
-        reference: &'a mut Vec<usize>,
-        len: usize,
-        formatter: F,
-    ) -> Self {
+    pub fn new(id_source: H, reference: &'a mut Vec<usize>, len: usize, formatter: F) -> Self {
         Self {
-            id_source: egui::Id::new(id_source),
+            id_source,
             reference,
             len,
             formatter,
+            clear_search: false,
         }
+    }
+
+    /// Clears the search box.
+    pub fn clear_search(&mut self) {
+        self.clear_search = true;
     }
 }
 
-impl<'a, F> IdVecPlusMinusSelection<'a, F>
+impl<'a, H, F> IdVecPlusMinusSelection<'a, H, F>
 where
+    H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     /// Creates a new widget for changing the contents of a pair of `id_vec`s.
     pub fn new(
-        id_source: impl std::hash::Hash,
+        id_source: H,
         plus: &'a mut Vec<usize>,
         minus: &'a mut Vec<usize>,
         len: usize,
         formatter: F,
     ) -> Self {
         Self {
-            id_source: egui::Id::new(id_source),
+            id_source,
             plus,
             minus,
             len,
             formatter,
+            clear_search: false,
         }
+    }
+
+    /// Clears the search box.
+    pub fn clear_search(&mut self) {
+        self.clear_search = true;
     }
 }
 
-impl<'a, F> egui::Widget for IdVecSelection<'a, F>
+impl<'a, H, F> egui::Widget for IdVecSelection<'a, H, F>
 where
+    H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
@@ -100,12 +107,18 @@ where
             self.reference.sort_unstable();
         }
 
-        let state_id = ui.make_persistent_id(self.id_source.with("IdVecSelection"));
+        let state_id = ui.make_persistent_id(egui::Id::new(self.id_source).with("IdVecSelection"));
         let mut state = ui
             .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
             .unwrap_or_default();
+        if self.clear_search {
+            state.search_string = String::new();
+        }
+
         let mut index = 0;
         let mut clicked_id = None;
+
+        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
         let mut response = ui
             .group(|ui| {
@@ -117,11 +130,27 @@ where
                     |ui| {
                         ui.set_width(ui.available_width());
 
+                        ui.add(
+                            egui::TextEdit::singleline(&mut state.search_string)
+                                .hint_text("Search"),
+                        );
+
+                        let mut is_faint = false;
+
                         for id in 0..self.len {
+                            let formatted = (self.formatter)(id);
+                            if matcher
+                                .fuzzy(&formatted, &state.search_string, false)
+                                .is_none()
+                            {
+                                continue;
+                            }
+
                             let mut frame = egui::Frame::none();
-                            if id % 2 != 0 {
+                            if is_faint {
                                 frame = frame.fill(ui.visuals().faint_bg_color);
                             }
+                            is_faint = !is_faint;
 
                             let is_id_selected =
                                 self.reference.get(index).is_some_and(|x| *x == id);
@@ -176,19 +205,27 @@ where
                     let mut index = self
                         .reference
                         .iter()
-                        .position(|x| range.contains(x))
+                        .position(|id| range.contains(id))
                         .unwrap_or_default();
                     for id in range {
                         let is_id_selected =
                             index < old_len && self.reference.get(index).is_some_and(|x| *x == id);
                         if is_id_selected {
                             index += 1;
-                        } else {
+                        } else if matcher
+                            .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                            .is_some()
+                        {
                             self.reference.push(id);
                         }
                     }
                 } else {
-                    self.reference.retain(|id| !range.contains(id));
+                    self.reference.retain(|id| {
+                        !range.contains(id)
+                            || matcher
+                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .is_none()
+                    });
                 }
             } else {
                 state.pivot = Some(clicked_id);
@@ -217,8 +254,9 @@ where
     }
 }
 
-impl<'a, F> egui::Widget for IdVecPlusMinusSelection<'a, F>
+impl<'a, H, F> egui::Widget for IdVecPlusMinusSelection<'a, H, F>
 where
+    H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
@@ -229,13 +267,20 @@ where
             self.minus.sort_unstable();
         }
 
-        let state_id = ui.make_persistent_id(self.id_source.with("IdVecPlusMinusSelection"));
+        let state_id =
+            ui.make_persistent_id(egui::Id::new(self.id_source).with("IdVecPlusMinusSelection"));
         let mut state = ui
             .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
             .unwrap_or_default();
+        if self.clear_search {
+            state.search_string = String::new();
+        }
+
         let mut plus_index = 0;
         let mut minus_index = 0;
         let mut clicked_id = None;
+
+        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
         let mut response = ui
             .group(|ui| {
@@ -247,11 +292,27 @@ where
                     |ui| {
                         ui.set_width(ui.available_width());
 
+                        ui.add(
+                            egui::TextEdit::singleline(&mut state.search_string)
+                                .hint_text("Search"),
+                        );
+
+                        let mut is_faint = false;
+
                         for id in 0..self.len {
+                            let formatted = (self.formatter)(id);
+                            if matcher
+                                .fuzzy(&formatted, &state.search_string, false)
+                                .is_none()
+                            {
+                                continue;
+                            }
+
                             let mut frame = egui::Frame::none();
-                            if id % 2 != 0 {
+                            if is_faint {
                                 frame = frame.fill(ui.visuals().faint_bg_color);
                             }
+                            is_faint = !is_faint;
 
                             let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
                             if is_id_plus {
@@ -334,40 +395,66 @@ where
                 };
 
                 if is_pivot_plus {
-                    self.minus.retain(|id| !range.contains(id));
+                    self.minus.retain(|id| {
+                        !range.contains(id)
+                            || matcher
+                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .is_none()
+                    });
                     let mut plus_index = self
                         .plus
                         .iter()
-                        .position(|x| range.contains(x))
+                        .position(|id| range.contains(id))
                         .unwrap_or_default();
                     for id in range {
                         let is_id_plus = plus_index < old_plus_len
                             && self.plus.get(plus_index).is_some_and(|x| *x == id);
                         if is_id_plus {
                             plus_index += 1;
-                        } else {
+                        } else if matcher
+                            .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                            .is_some()
+                        {
                             self.plus.push(id);
                         }
                     }
                 } else if is_pivot_minus {
-                    self.plus.retain(|id| !range.contains(id));
+                    self.plus.retain(|id| {
+                        !range.contains(id)
+                            || matcher
+                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .is_none()
+                    });
                     let mut minus_index = self
                         .minus
                         .iter()
-                        .position(|x| range.contains(x))
+                        .position(|id| range.contains(id))
                         .unwrap_or_default();
                     for id in range {
                         let is_id_minus = minus_index < old_minus_len
                             && self.minus.get(minus_index).is_some_and(|x| *x == id);
                         if is_id_minus {
                             minus_index += 1;
-                        } else {
+                        } else if matcher
+                            .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                            .is_some()
+                        {
                             self.minus.push(id);
                         }
                     }
                 } else {
-                    self.plus.retain(|id| !range.contains(id));
-                    self.minus.retain(|id| !range.contains(id));
+                    self.plus.retain(|id| {
+                        !range.contains(id)
+                            || matcher
+                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .is_none()
+                    });
+                    self.minus.retain(|id| {
+                        !range.contains(id)
+                            || matcher
+                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .is_none()
+                    });
                 }
             } else {
                 state.pivot = Some(clicked_id);

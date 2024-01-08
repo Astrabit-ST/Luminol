@@ -34,6 +34,8 @@ pub struct Window {
 
     // ? Menu Sound Effect Picker ?
     _menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
+
+    previous_selected_item: Option<usize>,
 }
 
 impl Window {
@@ -142,11 +144,16 @@ impl luminol_core::Window for Window {
                                                     frame.show(ui, |ui| {
                                                         ui.style_mut().wrap = Some(false);
 
-                                                        let response = ui.selectable_value(
-                                                            &mut self.selected_item,
-                                                            id,
-                                                            format!("{:0>3}: {}", id, item.name),
-                                                        ).interact(egui::Sense::click());
+                                                        let response = ui
+                                                            .selectable_value(
+                                                                &mut self.selected_item,
+                                                                id,
+                                                                format!(
+                                                                    "{:0>3}: {}",
+                                                                    id, item.name
+                                                                ),
+                                                            )
+                                                            .interact(egui::Sense::click());
 
                                                         if response.clicked() {
                                                             response.request_focus();
@@ -157,7 +164,9 @@ impl luminol_core::Window for Window {
                                                         if response.has_focus()
                                                             && ui.input(|i| {
                                                                 i.key_down(egui::Key::Delete)
-                                                                    || i.key_down(egui::Key::Backspace)
+                                                                    || i.key_down(
+                                                                        egui::Key::Backspace,
+                                                                    )
                                                             })
                                                         {
                                                             *item = Default::default();
@@ -197,7 +206,9 @@ impl luminol_core::Window for Window {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.set_width(ui.available_width());
 
-                                    let Some(selected_item) = items.data.get_mut(self.selected_item) else {
+                                    let Some(selected_item) =
+                                        items.data.get_mut(self.selected_item)
+                                    else {
                                         return;
                                     };
 
@@ -487,38 +498,49 @@ impl luminol_core::Window for Window {
 
                                     egui::Frame::none().show(ui, |ui| {
                                         ui.columns(2, |columns| {
+                                            let mut selection =
+                                                luminol_components::IdVecSelection::new(
+                                                    (selected_item.id, "element_set"),
+                                                    &mut selected_item.element_set,
+                                                    system.elements.len(),
+                                                    |id| {
+                                                        system.elements.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |e| format!("{id:0>3}: {}", e),
+                                                        )
+                                                    },
+                                                );
+                                            if self.previous_selected_item != Some(selected_item.id)
+                                            {
+                                                selection.clear_search();
+                                            }
                                             modified |= columns[0]
                                                 .add(luminol_components::Field::new(
-                                                    "Elements",
-                                                    luminol_components::IdVecSelection::new(
-                                                        (selected_item.id, "element_set"),
-                                                        &mut selected_item.element_set,
-                                                        system.elements.len(),
-                                                        |id| {
-                                                            system.elements.get(id).map_or_else(
-                                                                || "".into(),
-                                                                |e| format!("{id:0>3}: {}", e),
-                                                            )
-                                                        },
-                                                    ),
+                                                    "Elements", selection,
                                                 ))
                                                 .changed();
 
+                                            let mut selection =
+                                                luminol_components::IdVecPlusMinusSelection::new(
+                                                    (selected_item.id, "state_set"),
+                                                    &mut selected_item.plus_state_set,
+                                                    &mut selected_item.minus_state_set,
+                                                    states.data.len(),
+                                                    |id| {
+                                                        states.data.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |s| format!("{id:0>3}: {}", s.name),
+                                                        )
+                                                    },
+                                                );
+                                            if self.previous_selected_item != Some(selected_item.id)
+                                            {
+                                                selection.clear_search();
+                                            }
                                             modified |= columns[1]
                                                 .add(luminol_components::Field::new(
                                                     "State Change",
-                                                    luminol_components::IdVecPlusMinusSelection::new(
-                                                        (selected_item.id, "state_set"),
-                                                        &mut selected_item.plus_state_set,
-                                                        &mut selected_item.minus_state_set,
-                                                        states.data.len(),
-                                                        |id| {
-                                                            states.data.get(id).map_or_else(
-                                                                || "".into(),
-                                                                |s| format!("{id:0>3}: {}", s.name),
-                                                            )
-                                                        },
-                                                    ),
+                                                    selection,
                                                 ))
                                                 .changed();
                                         });
@@ -528,6 +550,9 @@ impl luminol_core::Window for Window {
                         );
                     });
             });
+
+        self.previous_selected_item =
+            (self.selected_item < items.data.len()).then_some(self.selected_item);
 
         if modified {
             update_state.modified.set(true);
