@@ -324,7 +324,7 @@ fn main() {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(
-    inline_js = "let report = null; export function get_panic_report() { return report; }; export function set_panic_report(r) { report = r; window.restartLuminol() };"
+    inline_js = "let report = null; export function get_panic_report() { return report; }; export function set_panic_report(r) { report = r; window.restartLuminol(); };"
 )]
 extern "C" {
     fn get_panic_report() -> Option<String>;
@@ -352,14 +352,21 @@ pub fn luminol_main_start(fallback: bool) {
     // TODO: use this report to open a panic reporter
     let _report = get_panic_report();
 
+    let worker_cell = std::rc::Rc::new(once_cell::unsync::OnceCell::<web_sys::Worker>::new());
     let (panic_tx, panic_rx) = oneshot::channel();
     let panic_tx = std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx)));
 
-    wasm_bindgen_futures::spawn_local(async move {
-        if let Ok(report) = panic_rx.await {
-            set_panic_report(report);
-        }
-    });
+    {
+        let worker_cell = worker_cell.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            if let Ok(report) = panic_rx.await {
+                if let Some(worker) = worker_cell.get() {
+                    worker.terminate();
+                }
+                set_panic_report(report);
+            }
+        });
+    }
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
@@ -461,6 +468,7 @@ pub fn luminol_main_start(fallback: bool) {
     worker_options.type_(web_sys::WorkerType::Module);
     let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
         .expect("failed to spawn web worker");
+    worker_cell.set(worker.clone()).unwrap();
 
     let message = js_sys::Array::new();
     message.push(&JsValue::from(fallback));
