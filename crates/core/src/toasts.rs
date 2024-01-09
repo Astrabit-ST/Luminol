@@ -97,7 +97,7 @@ macro_rules! info {
     ($toasts:expr, $caption:expr $(,)?) => {{
         let caption = String::from($caption);
         $crate::tracing::info!("{caption}");
-        $crate::Toasts::_i_inner(&mut $toasts, $caption);
+        $crate::Toasts::_i_inner(&mut $toasts, caption);
     }};
 }
 
