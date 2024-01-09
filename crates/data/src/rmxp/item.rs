@@ -126,8 +126,12 @@ pub enum ParameterType {
     MaxHP = 1,
     #[strum(to_string = "Max SP")]
     MaxSP = 2,
+    #[strum(to_string = "Strength")]
     Str = 3,
+    #[strum(to_string = "Dexterity")]
     Dex = 4,
+    #[strum(to_string = "Agility")]
     Agi = 5,
+    #[strum(to_string = "Intelligence")]
     Int = 6,
 }

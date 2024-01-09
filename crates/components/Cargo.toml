@@ -45,3 +45,5 @@ indextree = "4.6.0"
 lexical-sort = "0.3.1"
 
 fragile.workspace = true
+
+fuzzy-matcher = "0.3.7"

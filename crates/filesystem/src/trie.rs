@@ -33,7 +33,7 @@ impl<'a, T> std::iter::ExactSizeIterator for FileSystemTrieDirIter<'a, T> {
     fn len(&self) -> usize {
         match &self.0 {
             FileSystemTrieDirIterInner::Direct(_, len) => *len,
-            FileSystemTrieDirIterInner::Prefix(_) => 1,
+            FileSystemTrieDirIterInner::Prefix(iter) => iter.len(),
         }
     }
 }
