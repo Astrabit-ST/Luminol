@@ -24,6 +24,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![cfg_attr(target_arch = "wasm32", no_main)] // there is no main function in web builds
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
 
 #[cfg(target_arch = "wasm32")]
@@ -47,10 +48,10 @@ mod steam;
 struct CopyWriter<A, B>(A, B);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl<A, B> std::io::Write for CopyWriter<A, B>
+impl<A, B> Write for CopyWriter<A, B>
 where
-    A: std::io::Write,
-    B: std::io::Write,
+    A: Write,
+    B: Write,
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         Ok(self.0.write(buf)?.min(self.1.write(buf)?))
@@ -79,7 +80,7 @@ static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::Once
 struct LogWriter(luminol_term::termwiz::escape::parser::Parser);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl std::io::Write for LogWriter {
+impl Write for LogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         LOG_BYTE_SENDER
             .get()
@@ -339,10 +340,11 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
-    let (panic_tx, panic_rx) = flume::unbounded();
+    let (panic_tx, panic_rx) = oneshot::channel();
+    let panic_tx = std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx)));
 
     wasm_bindgen_futures::spawn_local(async move {
-        if panic_rx.recv_async().await.is_ok() {
+        if panic_rx.await.is_ok() {
             let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
         }
     });
@@ -358,7 +360,12 @@ pub fn luminol_main_start(fallback: bool) {
         web_sys::console::log_1(&js_sys::JsString::from(
             panic_hook.panic_report(info).to_string(),
         ));
-        let _ = panic_tx.send(());
+
+        if let Some(mut panic_tx) = panic_tx.try_lock() {
+            if let Some(panic_tx) = panic_tx.take() {
+                let _ = panic_tx.send(());
+            }
+        }
     }));
 
     let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");

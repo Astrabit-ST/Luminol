@@ -215,7 +215,7 @@ wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 
-flume.workspace = true
+oneshot.workspace = true
 
 luminol-web = { version = "0.4.0", path = "crates/web/" }
 
