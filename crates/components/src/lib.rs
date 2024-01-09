@@ -209,7 +209,9 @@ where
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let state_id = egui::Id::new(&self.id_source).with("OptionalIdComboBox");
+        let state_id = ui
+            .make_persistent_id(egui::Id::new(&self.id_source))
+            .with("OptionalIdComboBox");
 
         let mut changed = false;
         let inner_response = egui::ComboBox::from_id_source(&self.id_source)
