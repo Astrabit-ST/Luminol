@@ -323,6 +323,15 @@ fn main() {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(
+    inline_js = "let report = null; export function get_panic_report() { return report; }; export function set_panic_report(r) { report = r; window.restartLuminol() };"
+)]
+extern "C" {
+    fn get_panic_report() -> Option<String>;
+    fn set_panic_report(r: String);
+}
+
+#[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
@@ -340,12 +349,15 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
+    // TODO: use this report to open a panic reporter
+    let _report = get_panic_report();
+
     let (panic_tx, panic_rx) = oneshot::channel();
     let panic_tx = std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx)));
 
     wasm_bindgen_futures::spawn_local(async move {
-        if panic_rx.await.is_ok() {
-            let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
+        if let Ok(report) = panic_rx.await {
+            set_panic_report(report);
         }
     });
 
@@ -357,29 +369,36 @@ pub fn luminol_main_start(fallback: bool) {
         .install()
         .expect("failed to install color-eyre hooks");
     std::panic::set_hook(Box::new(move |info| {
-        web_sys::console::log_1(&js_sys::JsString::from(
-            panic_hook.panic_report(info).to_string(),
-        ));
+        let report = panic_hook.panic_report(info).to_string();
+        web_sys::console::log_1(&report.as_str().into());
 
+        // Send the panic report to the main thread to be persisted
+        // We need to send the panic report to the main thread because JavaScript global variables
+        // are thread-local and this panic handler runs on the thread that panicked
         if let Some(mut panic_tx) = panic_tx.try_lock() {
             if let Some(panic_tx) = panic_tx.take() {
-                let _ = panic_tx.send(());
+                let _ = panic_tx.send(report);
             }
         }
     }));
 
-    let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
+    let window = web_sys::window().expect("could not get `window` object");
     let prefers_color_scheme_dark = window
         .match_media("(prefers-color-scheme: dark)")
         .unwrap()
         .map(|x| x.matches());
 
-    let canvas = window
+    let document = window
         .document()
-        .expect("could not get `window.document` object (make sure you're running this in a web browser)")
+        .expect("could not get `window.document` object");
+    let canvas = document
+        .create_element("canvas")
+        .expect("could not create canvas element")
+        .unchecked_into::<web_sys::HtmlCanvasElement>();
+    document
         .get_element_by_id(CANVAS_ID)
         .expect(format!("could not find HTML element with ID '{CANVAS_ID}'").as_str())
-        .unchecked_into::<web_sys::HtmlCanvasElement>();
+        .replace_children_with_node_1(&canvas);
     let offscreen_canvas = canvas
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");

@@ -15,37 +15,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-// Check if the user's browser supports WebGPU
-console.log('Checking for WebGPU support in web workers…');
-const worker = new Worker('/webgpu-test-worker.js');
-const promise = new Promise(function (resolve) {
-    worker.onmessage = function (e) {
-        resolve(e.data);
-    };
-});
-worker.postMessage(null);
-const gpu = await promise;
-worker.terminate();
-if (gpu) {
-    console.log('WebGPU is supported. Using WebGPU backend if available.');
-} else {
-    console.log('No support detected. Using WebGL backend if available.');
-}
+window.restartLuminol = async function() {
+    // We need to reload luminol.js every time by invalidating the cache,
+    // otherwise it'll just reload the same WebAssembly module every time
+    // instead of reinstantiating it
+    const invalidator = crypto.randomUUID();
 
-// If WebGPU is supported, always use luminol.js
-// If WebGPU is not supported, use luminol_webgl.js if it's available or fallback to luminol.js
-let fallback = false;
-let luminol;
-if (gpu) {
-    luminol = await import('/luminol.js');
-} else {
-    try {
-        luminol = await import('/luminol_webgl.js');
-        fallback = true;
-    } catch (e) {
-        luminol = await import('/luminol.js');
+    // Check if the user's browser supports WebGPU
+    console.log('Checking for WebGPU support in web workers…');
+    const worker = new Worker('/webgpu-test-worker.js');
+    const promise = new Promise(function (resolve) {
+        worker.onmessage = function (e) {
+            resolve(e.data);
+        };
+    });
+    worker.postMessage(null);
+    const gpu = await promise;
+    worker.terminate();
+    if (gpu) {
+        console.log('WebGPU is supported. Using WebGPU backend if available.');
+    } else {
+        console.log('No support detected. Using WebGL backend if available.');
     }
-}
 
-await luminol.default(fallback ? '/luminol_webgl_bg.wasm' : '/luminol_bg.wasm');
-luminol.luminol_main_start(fallback);
+    // If WebGPU is supported, always use luminol.js
+    // If WebGPU is not supported, use luminol_webgl.js if it's available or fallback to luminol.js
+    let fallback = false;
+    let luminol;
+    if (gpu) {
+        luminol = await import(`/luminol.js?v=${invalidator}`);
+    } else {
+        try {
+            luminol = await import(`/luminol_webgl.js?v=${invalidator}`);
+            fallback = true;
+        } catch (e) {
+            luminol = await import(`/luminol.js?v=${invalidator}`);
+        }
+    }
+
+    await luminol.default(fallback ? '/luminol_webgl_bg.wasm' : '/luminol_bg.wasm');
+    luminol.luminol_main_start(fallback);
+};
+
+await window.restartLuminol();
