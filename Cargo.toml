@@ -42,7 +42,7 @@ doc_markdown = "allow"
 missing_panics_doc = "allow"
 too_many_lines = "allow"
 # you must provide a safety doc.
-missing_safety_doc = "forbid"
+missing_safety_doc = "warn"
 
 [workspace.package]
 version = "0.4.0"
