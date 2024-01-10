@@ -747,6 +747,8 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         let mut options = web_sys::MutationObserverInit::new();
         options.attributes(true);
         observer.observe_with_options(&state.canvas, &options)?;
+        // We don't need to unregister this mutation observer on panic because it auto-deregisters
+        // when the target (the canvas) is removed from the DOM and garbage-collected
         callback.forget();
     }
 

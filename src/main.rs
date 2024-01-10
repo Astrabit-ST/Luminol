@@ -341,10 +341,16 @@ struct WorkerData {
     prefers_color_scheme_dark: Option<bool>,
     fs_worker_channels: luminol_filesystem::web::WorkerChannels,
     runner_worker_channels: luminol_eframe::web::WorkerChannels,
+    runner_panic_tx: std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 #[cfg(target_arch = "wasm32")]
 static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex::new(None);
+
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    static BEFORE_UNLOAD_EVENT: std::cell::RefCell<Option<Closure<dyn Fn(web_sys::BeforeUnloadEvent)>>> = std::cell::RefCell::new(None);
+}
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -363,6 +369,16 @@ pub fn luminol_main_start(fallback: bool) {
                 if let Some(worker) = worker_cell.get() {
                     worker.terminate();
                 }
+
+                BEFORE_UNLOAD_EVENT.with_borrow_mut(|closure| {
+                    if let (Some(window), Some(closure)) = (web_sys::window(), closure.take()) {
+                        let _ = window.remove_event_listener_with_callback(
+                            "beforeunload",
+                            closure.as_ref().unchecked_ref(),
+                        );
+                    }
+                });
+
                 set_panic_report(report);
             }
         });
@@ -429,12 +445,13 @@ pub fn luminol_main_start(fallback: bool) {
     let (runner_worker_channels, runner_main_channels) = luminol_eframe::web::channels();
 
     luminol_filesystem::host::setup_main_thread_hooks(fs_main_channels);
-    luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
-        inner: Default::default(),
-        canvas: canvas.clone(),
-        channels: runner_main_channels,
-    })
-    .expect("unable to setup web runner main thread hooks");
+    let runner_panic_tx =
+        luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
+            inner: Default::default(),
+            canvas: canvas.clone(),
+            channels: runner_main_channels,
+        })
+        .expect("unable to setup web runner main thread hooks");
 
     let modified = luminol_core::ModifiedState::default();
 
@@ -444,6 +461,7 @@ pub fn luminol_main_start(fallback: bool) {
         prefers_color_scheme_dark,
         fs_worker_channels,
         runner_worker_channels,
+        runner_panic_tx,
     });
 
     // Show confirmation dialogue if the user tries to close the browser tab while there are
@@ -460,7 +478,9 @@ pub fn luminol_main_start(fallback: bool) {
         window
             .add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref())
             .expect("failed to add beforeunload listener");
-        closure.forget();
+        BEFORE_UNLOAD_EVENT.with_borrow_mut(|event| {
+            *event = Some(closure);
+        });
     }
 
     let mut worker_options = web_sys::WorkerOptions::new();
@@ -490,13 +510,14 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         prefers_color_scheme_dark,
         fs_worker_channels,
         runner_worker_channels,
+        runner_panic_tx,
     } = WORKER_DATA.lock().take().unwrap();
 
     luminol_filesystem::host::FileSystem::setup_worker_channels(fs_worker_channels);
 
     let web_options = luminol_eframe::WebOptions::default();
 
-    luminol_eframe::WebRunner::new()
+    luminol_eframe::WebRunner::new(runner_panic_tx)
         .start(
             canvas,
             web_options,
