@@ -348,36 +348,36 @@ struct WorkerData {
 static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex::new(None);
 
 #[cfg(target_arch = "wasm32")]
-thread_local! {
-    static BEFORE_UNLOAD_EVENT: std::cell::RefCell<Option<Closure<dyn Fn(web_sys::BeforeUnloadEvent)>>> = std::cell::RefCell::new(None);
-}
-
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
     // TODO: use this report to open a panic reporter
     let _report = get_panic_report();
 
     let worker_cell = std::rc::Rc::new(once_cell::unsync::OnceCell::<web_sys::Worker>::new());
+    let before_unload_cell = std::rc::Rc::new(std::cell::RefCell::new(
+        None::<Closure<dyn Fn(web_sys::BeforeUnloadEvent)>>,
+    ));
     let (panic_tx, panic_rx) = oneshot::channel();
     let panic_tx = std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx)));
 
     {
         let worker_cell = worker_cell.clone();
+        let before_unload_cell = before_unload_cell.clone();
+
         wasm_bindgen_futures::spawn_local(async move {
             if let Ok(report) = panic_rx.await {
                 if let Some(worker) = worker_cell.get() {
                     worker.terminate();
                 }
 
-                BEFORE_UNLOAD_EVENT.with_borrow_mut(|closure| {
-                    if let (Some(window), Some(closure)) = (web_sys::window(), closure.take()) {
-                        let _ = window.remove_event_listener_with_callback(
-                            "beforeunload",
-                            closure.as_ref().unchecked_ref(),
-                        );
-                    }
-                });
+                if let (Some(window), Some(closure)) =
+                    (web_sys::window(), before_unload_cell.take())
+                {
+                    let _ = window.remove_event_listener_with_callback(
+                        "beforeunload",
+                        closure.as_ref().unchecked_ref(),
+                    );
+                }
 
                 set_panic_report(report);
             }
@@ -478,9 +478,7 @@ pub fn luminol_main_start(fallback: bool) {
         window
             .add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref())
             .expect("failed to add beforeunload listener");
-        BEFORE_UNLOAD_EVENT.with_borrow_mut(|event| {
-            *event = Some(closure);
-        });
+        *before_unload_cell.borrow_mut() = Some(closure);
     }
 
     let mut worker_options = web_sys::WorkerOptions::new();
