@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
@@ -29,7 +29,7 @@ pub struct WebRunner {
 impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
-    pub fn new(panic_tx: Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>) -> Self {
+    pub fn new(panic_tx: std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>) -> Self {
         #[cfg(not(web_sys_unstable_apis))]
         log::warn!(
             "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
@@ -48,7 +48,7 @@ impl WebRunner {
     /// mouse events and resize the canvas to fill the screen.
     pub fn setup_main_thread_hooks(
         state: super::MainState,
-    ) -> Result<Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>, JsValue> {
+    ) -> Result<std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>, JsValue> {
         let (panic_tx, panic_rx) = oneshot::channel();
 
         wasm_bindgen_futures::spawn_local(async move {
@@ -111,7 +111,7 @@ impl WebRunner {
             }
         });
 
-        Ok(Arc::new(parking_lot::Mutex::new(Some(panic_tx))))
+        Ok(std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx))))
     }
 
     /// Create the application, install callbacks, and start running the app.
