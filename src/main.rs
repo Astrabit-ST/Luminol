@@ -35,6 +35,9 @@ use wasm_bindgen::prelude::*;
 /// Embedded icon 256x256 in size.
 const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
 
+static RESTART_AFTER_PANIC: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 mod app;
 mod lumi;
 
@@ -231,6 +234,10 @@ fn main() {
         let report = panic_hook.panic_report(info).to_string();
         eprintln!("{report}");
 
+        if !RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+
         let mut args = std::env::args_os();
         let arg0 = args.next();
         let exe_path = std::env::current_exe().map_or_else(
@@ -381,7 +388,11 @@ pub fn luminol_main_start(fallback: bool) {
                     );
                 }
 
-                set_panic_report(report);
+                if RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Relaxed) {
+                    set_panic_report(report);
+                } else {
+                    let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
+                }
             }
         });
     }
