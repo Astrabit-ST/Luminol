@@ -32,7 +32,7 @@ pub struct Window {
 #[derive(Debug, Clone, serde::Serialize)]
 struct ReportJson {
     reporter_version: u32,
-    luminol_version: String,
+    luminol_revision: String,
     target: String,
     debug: bool,
     report: String,
@@ -46,7 +46,7 @@ impl Window {
             normalized_report: strip_ansi_escapes::strip_str(&report),
             json: ReportJson {
                 reporter_version: 1,
-                luminol_version: luminol_core::version!().to_string(),
+                luminol_revision: luminol_core::version!().to_string(),
                 target: target_triple::target!().to_string(),
                 #[cfg(debug_assertions)]
                 debug: true,
@@ -92,7 +92,7 @@ impl luminol_core::Window for Window {
 
                 ui.add_space(ui.spacing().indent);
 
-                ui.label(format!("Luminol version: {}", self.json.luminol_version));
+                ui.label(format!("Luminol version: {}", self.json.luminol_revision));
                 ui.label(format!("Target platform: {}", self.json.target));
                 ui.label(format!(
                     "Build profile: {}",
