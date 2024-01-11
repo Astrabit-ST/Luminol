@@ -107,10 +107,14 @@ impl luminol_core::Window for Window {
                         },
                         |ui| {
                             egui::ScrollArea::both()
-                                .max_height(ui.spacing().interact_size.y.max(
-                                    ui.text_style_height(&egui::TextStyle::Button)
-                                        + 2. * ui.spacing().button_padding.y,
-                                ))
+                                .max_height(
+                                    ui.available_height()
+                                        - ui.spacing().interact_size.y.max(
+                                            ui.text_style_height(&egui::TextStyle::Button)
+                                                + 2. * ui.spacing().button_padding.y,
+                                        )
+                                        - ui.spacing().item_spacing.y,
+                                )
                                 .show(ui, |ui| {
                                     ui.add(
                                         egui::TextEdit::multiline(
