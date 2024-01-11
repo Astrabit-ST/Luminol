@@ -167,6 +167,7 @@ impl luminol_core::Window for Window {
                                             let response = client
                                                 .post("http://localhost:3246")
                                                 .json(&json)
+                                                .fetch_mode_no_cors()
                                                 .send()
                                                 .await
                                                 .map_err(|e| color_eyre::eyre::eyre!(e))?;

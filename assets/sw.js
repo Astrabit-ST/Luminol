@@ -1,4 +1,29 @@
-/*! coi-serviceworker v0.1.7 - Guido Zuidhof and contributors, licensed under MIT */
+//! This is a slightly modified version of coi-serviceworker, commit 7b1d2a092d0d2dd2b7270b6f12f13605de26f214
+//! https://github.com/gzuidhof/coi-serviceworker
+/*!
+ * MIT License
+ *
+ * Copyright (c) 2021 Guido Zuidhof
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+*/
+
 let coepCredentialless = false;
 if (typeof window === 'undefined') {
     self.addEventListener("install", () => self.skipWaiting());
@@ -36,7 +61,7 @@ if (typeof window === 'undefined') {
             fetch(request)
                 .then((response) => {
                     if (response.status === 0) {
-                        return response;
+                        return new Response();
                     }
 
                     const newHeaders = new Headers(response.headers);
