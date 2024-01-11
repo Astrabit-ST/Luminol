@@ -188,10 +188,8 @@ fn main() {
         std::process::abort();
     });
 
-    // Enable full backtraces unless the user manually set the RUST_BACKTRACE environment variable
-    if std::env::var("RUST_BACKTRACE").is_err() {
-        std::env::set_var("RUST_BACKTRACE", "full");
-    }
+    // Enable full backtraces
+    std::env::set_var("RUST_BACKTRACE", "full");
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
