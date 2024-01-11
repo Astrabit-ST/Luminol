@@ -35,6 +35,9 @@ camino.workspace = true
 strum.workspace = true
 
 git-version.workspace = true
+target-triple = "0.1.2"
+
+strip-ansi-escapes = "0.2.0"
 
 poll-promise.workspace = true
 async-std.workspace = true

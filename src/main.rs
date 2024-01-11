@@ -127,11 +127,13 @@ impl Write for LogWriter {
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // Load the panic report from the previous run if it exists
+    let mut report = None;
     if let Some(path) = std::env::var_os("LUMINOL_PANIC_REPORT_FILE") {
         if let Ok(mut file) = std::fs::File::open(&path) {
             let mut buffer = String::new();
-            let _success = file.read_to_string(&mut buffer).is_ok();
-            // TODO: use this report to open a panic reporter
+            if file.read_to_string(&mut buffer).is_ok() {
+                report = Some(buffer);
+            }
         }
         let _ = std::fs::remove_file(path);
     }
@@ -311,6 +313,7 @@ fn main() {
             CONTEXT.set(cc.egui_ctx.clone()).unwrap();
             Box::new(app::App::new(
                 cc,
+                report,
                 Default::default(),
                 log_term_rx,
                 log_byte_rx,
@@ -337,6 +340,7 @@ const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
+    report: Option<String>,
     audio: luminol_audio::AudioWrapper,
     modified: luminol_core::ModifiedState,
     prefers_color_scheme_dark: Option<bool>,
@@ -351,8 +355,7 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
-    // TODO: use this report to open a panic reporter
-    let _report = get_panic_report();
+    let report = get_panic_report();
 
     let worker_cell = std::rc::Rc::new(once_cell::unsync::OnceCell::<web_sys::Worker>::new());
     let before_unload_cell = std::rc::Rc::new(std::cell::RefCell::new(
@@ -457,6 +460,7 @@ pub fn luminol_main_start(fallback: bool) {
     let modified = luminol_core::ModifiedState::default();
 
     *WORKER_DATA.lock() = Some(WorkerData {
+        report,
         audio: luminol_audio::Audio::default().into(),
         modified: modified.clone(),
         prefers_color_scheme_dark,
@@ -504,6 +508,7 @@ pub fn luminol_main_start(fallback: bool) {
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let WorkerData {
+        report,
         audio,
         modified,
         prefers_color_scheme_dark,
@@ -520,7 +525,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         .start(
             canvas,
             web_options,
-            Box::new(|cc| Box::new(app::App::new(cc, modified, audio))),
+            Box::new(|cc| Box::new(app::App::new(cc, report, modified, audio))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: runner_worker_channels,

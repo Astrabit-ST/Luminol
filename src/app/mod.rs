@@ -83,6 +83,7 @@ impl App {
     #[must_use]
     pub fn new(
         cc: &luminol_eframe::CreationContext<'_>,
+        report: Option<String>,
         modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] log_term_rx: luminol_term::TermReceiver,
         #[cfg(not(target_arch = "wasm32"))] log_byte_rx: luminol_term::ByteReceiver,
@@ -238,7 +239,14 @@ impl App {
             bytes_loader,
 
             toasts,
-            windows: luminol_core::Windows::default(),
+            windows: report.map_or_else(
+                luminol_core::Windows::new,
+                |report| {
+                    luminol_core::Windows::new_with_windows(vec![
+                        luminol_ui::windows::reporter::Window::new(report),
+                    ])
+                },
+            ),
             tabs: luminol_core::Tabs::new_with_tabs(
                 "luminol_main_tabs",
                 vec![luminol_ui::tabs::started::Tab::default()],
