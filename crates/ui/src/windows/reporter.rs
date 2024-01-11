@@ -26,8 +26,10 @@
 pub struct Window {
     normalized_report: String,
     json: ReportJson,
+    send_promise: Option<poll_promise::Promise<color_eyre::Result<()>>>,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
 struct ReportJson {
     reporter_version: u32,
     luminol_version: String,
@@ -52,6 +54,7 @@ impl Window {
                 debug: false,
                 report,
             },
+            send_promise: None,
         }
     }
 }
@@ -73,8 +76,10 @@ impl luminol_core::Window for Window {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        _update_state: &mut luminol_core::UpdateState<'_>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
+        let mut should_close = false;
+
         egui::Window::new(self.name())
             .id(egui::Id::new("reporter"))
             .default_width(500.)
@@ -101,36 +106,106 @@ impl luminol_core::Window for Window {
                             ..Default::default()
                         },
                         |ui| {
-                            egui::ScrollArea::both().show(ui, |ui| {
-                                ui.add(
-                                    egui::TextEdit::multiline(&mut self.normalized_report.as_str())
-                                        .layouter(&mut |ui, text, wrap_width| {
-                                            // Make the text monospace and non-wrapping
-                                            egui::WidgetText::from(text)
-                                                .color(
-                                                    ui.visuals()
-                                                        .override_text_color
-                                                        .unwrap_or_else(|| {
-                                                            ui.visuals()
-                                                                .widgets
-                                                                .noninteractive
-                                                                .fg_stroke
-                                                                .color
-                                                        }),
-                                                )
-                                                .into_galley(
-                                                    ui,
-                                                    Some(false),
-                                                    wrap_width,
-                                                    egui::TextStyle::Monospace,
-                                                )
-                                                .galley
-                                        }),
-                                );
-                            });
+                            egui::ScrollArea::both()
+                                .max_height(ui.spacing().interact_size.y.max(
+                                    ui.text_style_height(&egui::TextStyle::Button)
+                                        + 2. * ui.spacing().button_padding.y,
+                                ))
+                                .show(ui, |ui| {
+                                    ui.add(
+                                        egui::TextEdit::multiline(
+                                            &mut self.normalized_report.as_str(),
+                                        )
+                                        .layouter(
+                                            &mut |ui, text, wrap_width| {
+                                                // Make the text monospace and non-wrapping
+                                                egui::WidgetText::from(text)
+                                                    .color(
+                                                        ui.visuals()
+                                                            .override_text_color
+                                                            .unwrap_or_else(|| {
+                                                                ui.visuals()
+                                                                    .widgets
+                                                                    .noninteractive
+                                                                    .fg_stroke
+                                                                    .color
+                                                            }),
+                                                    )
+                                                    .into_galley(
+                                                        ui,
+                                                        Some(false),
+                                                        wrap_width,
+                                                        egui::TextStyle::Monospace,
+                                                    )
+                                                    .galley
+                                            },
+                                        ),
+                                    );
+                                });
                         },
                     );
                 });
+
+                ui.with_layout(
+                    egui::Layout {
+                        cross_justify: true,
+                        cross_align: egui::Align::Center,
+                        ..Default::default()
+                    },
+                    |ui| {
+                        if self.send_promise.is_none() {
+                            ui.columns(2, |columns| {
+                                if columns[0].button("Don't send").clicked() {
+                                    should_close = true;
+                                }
+
+                                if columns[1].button("Send").clicked() {
+                                    let json = self.json.clone();
+                                    self.send_promise =
+                                        Some(luminol_core::spawn_future(async move {
+                                            let client = reqwest::Client::new();
+                                            let response = client
+                                                .post("http://localhost:3246")
+                                                .json(&json)
+                                                .send()
+                                                .await
+                                                .map_err(|e| color_eyre::eyre::eyre!(e))?;
+                                            if response.status().is_success() {
+                                                Ok(())
+                                            } else {
+                                                Err(color_eyre::eyre::eyre!(format!(
+                                                    "Request returned {}",
+                                                    response.status()
+                                                )))
+                                            }
+                                        }));
+                                }
+                            });
+                        } else {
+                            ui.spinner();
+                        }
+                    },
+                );
             });
+
+        if let Some(p) = self.send_promise.take() {
+            match p.try_take() {
+                Ok(Ok(())) => {
+                    luminol_core::info!(update_state.toasts, "Crash report sent!");
+                    should_close = true;
+                }
+                Ok(Err(e)) => {
+                    luminol_core::error!(
+                        update_state.toasts,
+                        e.wrap_err("Error sending crash report")
+                    );
+                }
+                Err(p) => self.send_promise = Some(p),
+            }
+        }
+
+        if should_close {
+            *open = false;
+        }
     }
 }
