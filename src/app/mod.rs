@@ -239,14 +239,11 @@ impl App {
             bytes_loader,
 
             toasts,
-            windows: report.map_or_else(
-                luminol_core::Windows::new,
-                |report| {
-                    luminol_core::Windows::new_with_windows(vec![
-                        luminol_ui::windows::reporter::Window::new(report),
-                    ])
-                },
-            ),
+            windows: report.map_or_else(luminol_core::Windows::new, |report| {
+                luminol_core::Windows::new_with_windows(vec![
+                    luminol_ui::windows::reporter::Window::new(report),
+                ])
+            }),
             tabs: luminol_core::Tabs::new_with_tabs(
                 "luminol_main_tabs",
                 vec![luminol_ui::tabs::started::Tab::default()],
