@@ -196,7 +196,7 @@ fn main() {
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section(format!("Luminol version: {}", git_version::git_version!()))
+        .panic_section(format!("Luminol version: {}", luminol_core::version!()))
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
                 "_",
@@ -360,6 +360,7 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn luminol_main_start(fallback: bool) {
+    // Load the panic report from the previous run if it exists
     let report = get_panic_report();
 
     let worker_cell = std::rc::Rc::new(once_cell::unsync::OnceCell::<web_sys::Worker>::new());
@@ -399,7 +400,7 @@ pub fn luminol_main_start(fallback: bool) {
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section(format!("Luminol version: {}", git_version::git_version!()))
+        .panic_section(format!("Luminol version: {}", luminol_core::version!()))
         .into_hooks();
     eyre_hook
         .install()

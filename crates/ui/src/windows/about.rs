@@ -69,7 +69,7 @@ impl luminol_core::Window for Window {
 
                     ui.separator();
                     ui.label(format!("Luminol version {}", env!("CARGO_PKG_VERSION")));
-                    ui.label(format!("git-rev {}", git_version::git_version!()));
+                    ui.label(format!("git-rev {}", luminol_core::version!()));
                     ui.separator();
 
                     ui.label("Luminol is a FOSS version of the RPG Maker XP editor.");

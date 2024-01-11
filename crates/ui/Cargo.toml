@@ -36,7 +36,6 @@ strum.workspace = true
 
 serde.workspace = true
 
-git-version.workspace = true
 target-triple = "0.1.2"
 
 strip-ansi-escapes = "0.2.0"

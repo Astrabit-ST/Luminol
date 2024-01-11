@@ -46,7 +46,7 @@ impl Window {
             normalized_report: strip_ansi_escapes::strip_str(&report),
             json: ReportJson {
                 reporter_version: 1,
-                luminol_version: git_version::git_version!().to_string(),
+                luminol_version: luminol_core::version!().to_string(),
                 target: target_triple::target!().to_string(),
                 #[cfg(debug_assertions)]
                 debug: true,

@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+pub use git_version;
 use std::sync::Arc;
 pub use tracing;
 
@@ -44,6 +45,24 @@ pub use toasts::Toasts;
 pub mod project_manager;
 pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Get Luminol's current Git version as a `&str`.
+#[macro_export]
+macro_rules! version {
+    () => {
+        $crate::git_version::git_version!()
+    };
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Get Luminol's current Git version as a `&str`.
+#[macro_export]
+macro_rules! version {
+    () => {
+        option_env!("LUMINOL_VERSION").expect("could not get Luminol version")
+    };
+}
 
 pub struct UpdateState<'res> {
     pub ctx: &'res egui::Context,

@@ -67,7 +67,7 @@ impl Toasts {
 
     #[doc(hidden)]
     pub fn _e_add_version_section(error: color_eyre::Report) -> color_eyre::Report {
-        error.section(format!("Luminol version: {}", git_version::git_version!()))
+        error.section(format!("Luminol version: {}", crate::version!()))
     }
 
     #[doc(hidden)]
