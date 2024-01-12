@@ -25,6 +25,7 @@
     <link data-trunk rel="copy-file" href="assets/main.js" />
     <link data-trunk rel="copy-file" href="assets/worker.js" />
     <link data-trunk rel="copy-file" href="assets/webgpu-test-worker.js" />
+    <link data-trunk rel="copy-file" href="assets/compat-test.js" />
     <link data-trunk rel="copy-file" href="assets/coi-serviceworker.js" />
     <link data-trunk rel="copy-file" href="assets/manifest.json" />
     <link data-trunk rel="copy-file" href="assets/icon-1024.png" />
@@ -127,6 +128,8 @@
 <body>
     <iframe allow="autoplay" style="display: none"></iframe>
     <canvas id="luminol-canvas"></canvas>
+
+    <script src="compat-test.js"></script>
 
     <!-- Due to the Spectre vulnerability, shared memory is disabled in many browsers unless we enable -->
     <!-- Cross-Origin Isolation using this shim. -->
