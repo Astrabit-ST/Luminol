@@ -24,6 +24,8 @@
  * SOFTWARE.
 */
 
+const CACHE_NAME = "luminol";
+
 let coepCredentialless = false;
 if (typeof window === 'undefined') {
     self.addEventListener("install", () => self.skipWaiting());
@@ -56,9 +58,18 @@ if (typeof window === 'undefined') {
             ? new Request(r, {
                 credentials: "omit",
             })
+            : new URL(r.url).searchParams.has("luminol-invalidator")
+            ? (() => {
+                // Remove 'luminol-invalidator' from the request's query string if it exists in the query string
+                const url = new URL(r.url);
+                url.searchParams.delete("luminol-invalidator");
+                return new Request(url, r);
+            })()
             : r;
         event.respondWith(
-            fetch(request)
+            self.caches
+                .match(request)
+                .then((cached) => cached || fetch(request)) // Respond with cached response if one exists for this request
                 .then((response) => {
                     if (response.status === 0) {
                         return new Response();
@@ -73,11 +84,21 @@ if (typeof window === 'undefined') {
                     }
                     newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
 
-                    return new Response(response.body, {
+                    const newResponse = new Response(response.body, {
                         status: response.status,
                         statusText: response.statusText,
                         headers: newHeaders,
                     });
+
+                    // Auto-cache non-error, non-opaque responses for all same-origin requests
+                    if (response.type === "error" || new URL(request.url).origin !== self.origin) {
+                        return newResponse;
+                    } else {
+                        return self.caches
+                            .open(CACHE_NAME)
+                            .then((cache) => cache.put(request, newResponse.clone()))
+                            .then(() => newResponse);
+                    }
                 })
                 .catch((e) => console.error(e))
         );

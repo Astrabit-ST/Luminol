@@ -43,13 +43,13 @@ window.restartLuminol = async function() {
     let fallback = false;
     let luminol;
     if (gpu) {
-        luminol = await import(`/luminol.js?v=${invalidator}`);
+        luminol = await import(`/luminol.js?luminol-invalidator=${invalidator}`);
     } else {
         try {
-            luminol = await import(`/luminol_webgl.js?v=${invalidator}`);
+            luminol = await import(`/luminol_webgl.js?luminol-invalidator=${invalidator}`);
             fallback = true;
         } catch (e) {
-            luminol = await import(`/luminol.js?v=${invalidator}`);
+            luminol = await import(`/luminol.js?luminol-invalidator=${invalidator}`);
         }
     }
 
