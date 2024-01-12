@@ -59,9 +59,10 @@ macro_rules! version {
 /// Get Luminol's current Git version as a `&str`.
 #[macro_export]
 macro_rules! version {
-    () => {
+    () => {{
+        #[allow(clippy::option_env_unwrap)]
         option_env!("LUMINOL_VERSION").expect("could not get Luminol version")
-    };
+    }};
 }
 
 pub struct UpdateState<'res> {
