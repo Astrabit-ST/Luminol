@@ -154,7 +154,15 @@ if (typeof window === 'undefined') {
 
         // If we're already coi: do nothing. Perhaps it's due to this script doing its job, or COOP/COEP are
         // already set from the origin server. Also if the browser has no notion of crossOriginIsolated, just give up here.
-        if (window.crossOriginIsolated !== false || !coi.shouldRegister()) return;
+        if (window.crossOriginIsolated !== false || !coi.shouldRegister()) {
+            // Reload once to set the COEP for this service worker as well
+            if (!window.sessionStorage.getItem("coiReloadedAfterSuccess")) {
+                !coi.quiet && console.log("Reloading page to set COEP for this service worker.");
+                window.sessionStorage.setItem("coiReloadedAfterSuccess", "true");
+                coi.doReload("coepaftersuccess");
+            }
+            return;
+        }
 
         if (!window.isSecureContext) {
             !coi.quiet && console.log("COOP/COEP Service Worker not registered, a secure context is required.");

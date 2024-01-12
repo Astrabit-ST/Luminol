@@ -451,7 +451,8 @@ pub fn luminol_main_start(fallback: bool) {
     tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
 
     if !luminol_web::bindings::cross_origin_isolated() {
-        tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");
+        tracing::error!("Cross-Origin Isolation is not enabled. Reloading page to attempt to enable it.");
+        window.location().reload().expect("failed to reload page");
         return;
     }
 
