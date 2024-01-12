@@ -102,10 +102,19 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rust-src
       - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/download/v0.17.5/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+        run: wget -qO- https://github.com/thedodd/trunk/releases/download/v0.18.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C ${{ runner.temp }}
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: ./trunk build --release
+      - name: Build luminol (Release, WebGL)
+        run: |
+          mkdir -p ${{ runner.temp }}/luminol/webgl/
+          ${{ runner.temp }}/trunk build --release --features webgl
+          mv ${{ github.workspace }}/dist/luminol.js ${{ runner.temp }}/luminol/webgl/luminol_webgl.js
+          mv ${{ github.workspace }}/dist/luminol_bg.wasm ${{ runner.temp }}/luminol/webgl/luminol_webgl_bg.wasm
+      - name: Build luminol (Release, WebGPU)
+        run: |
+          ${{ runner.temp }}/trunk build --release
+          mv ${{ runner.temp }}/luminol/webgl/* ${{ github.workspace }}/dist/
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
