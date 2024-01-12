@@ -48,10 +48,7 @@ impl Window {
                 reporter_version: 1,
                 luminol_revision: luminol_core::version!().to_string(),
                 target: target_triple::target!().to_string(),
-                #[cfg(debug_assertions)]
-                debug: true,
-                #[cfg(not(debug_assertions))]
-                debug: false,
+                debug: cfg!(debug_assertions),
                 report,
             },
             send_promise: None,
