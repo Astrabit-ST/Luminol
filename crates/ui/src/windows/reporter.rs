@@ -27,6 +27,7 @@ pub struct Window {
     normalized_report: String,
     json: ReportJson,
     send_promise: Option<poll_promise::Promise<color_eyre::Result<()>>>,
+    first_render: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -52,6 +53,7 @@ impl Window {
                 report,
             },
             send_promise: None,
+            first_render: true,
         }
     }
 }
@@ -103,7 +105,17 @@ impl luminol_core::Window for Window {
                             ..Default::default()
                         },
                         |ui| {
+                            // Forget the scroll position from the last time the reporter opened
+                            let scroll_area_id_source = "scroll_area";
+                            if self.first_render {
+                                self.first_render = false;
+                                let scroll_area_id =
+                                    ui.make_persistent_id(egui::Id::new(scroll_area_id_source));
+                                egui::scroll_area::State::default().store(ui.ctx(), scroll_area_id);
+                            }
+
                             egui::ScrollArea::both()
+                                .id_source(scroll_area_id_source)
                                 .max_height(
                                     ui.available_height()
                                         - ui.spacing().interact_size.y.max(
