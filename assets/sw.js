@@ -163,6 +163,7 @@ if (typeof window === 'undefined') {
             }
             return;
         }
+        window.sessionStorage.removeItem("coiReloadedAfterSuccess");
 
         if (!window.isSecureContext) {
             !coi.quiet && console.log("COOP/COEP Service Worker not registered, a secure context is required.");
