@@ -250,7 +250,7 @@ fn main() {
             .expect("failed to write to temporary file");
         file.flush().expect("failed to flush temporary file");
         let (_, path) = file.keep().expect("failed to persist temporary file");
-        std::env::set_var("LUMINOL_PANIC_REPORT_FILE", path);
+        std::env::set_var("LUMINOL_PANIC_REPORT_FILE", &path);
 
         #[cfg(unix)]
         {
@@ -258,12 +258,14 @@ fn main() {
 
             let error = std::process::Command::new(exe_path).args(args).exec();
             eprintln!("Failed to restart Luminol: {error:?}");
+            let _ = std::fs::remove_file(&path);
         }
 
         #[cfg(not(unix))]
         {
             if let Err(error) = std::process::Command::new(exe_path).args(args).spawn() {
                 eprintln!("Failed to restart Luminol: {error:?}");
+                let _ = std::fs::remove_file(&path);
             }
         }
     }));
