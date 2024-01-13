@@ -60,8 +60,7 @@ macro_rules! version {
 #[macro_export]
 macro_rules! version {
     () => {{
-        #[allow(clippy::option_env_unwrap)]
-        option_env!("LUMINOL_VERSION").expect("could not get Luminol version")
+        option_env!("LUMINOL_VERSION").unwrap_or($crate::git_version::git_version!())
     }};
 }
 
