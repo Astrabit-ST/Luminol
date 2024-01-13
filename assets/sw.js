@@ -114,7 +114,7 @@ if (typeof window === 'undefined') {
         const coi = {
             shouldRegister: () => !reloadedBySelf,
             shouldDeregister: () => false,
-            coepCredentialless: () => true,
+            coepCredentialless: () => false,
             coepDegrade: () => true,
             doReload: () => window.location.reload(),
             quiet: false,
