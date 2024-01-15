@@ -56,7 +56,7 @@ export function dir_values(dir) {
 }
 
 export async function _request_permission(handle) {
-    if (typeof window?.__FILE_SYSTEM_TOOLS__.parseHandle === 'function') {
+    if (typeof window?.__FILE_SYSTEM_TOOLS__?.parseHandle === 'function') {
         // If the user is using https://github.com/ichaoX/ext-file without enabling `FS_CONFIG.CLONE_ENABLED`,
         // this is required to restore the `.requestPermission` method on a dir handle restored from IndexedDB
         handle = window.__FILE_SYSTEM_TOOLS__.parseHandle(handle);
