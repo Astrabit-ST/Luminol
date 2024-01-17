@@ -48,6 +48,7 @@ iter-read = "1.0.1"
 async_io_stream = "0.3.3"
 
 qp-trie.workspace = true
+slab.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.51.0"
