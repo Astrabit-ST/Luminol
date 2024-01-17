@@ -319,16 +319,19 @@ where
             .desensitize(from)
             .ok_or(Error::NotExist)
             .wrap_err_with(|| c.clone())?;
-        let to = to.as_ref().to_path_buf();
 
-        if cache.trie.contains_dir(&from) {
-            return Err(Error::NotSupported.into());
+        self.fs.rename(&from, to).wrap_err_with(|| c.clone())?;
+
+        for index in cache
+            .trie
+            .iter_prefix(&from)
+            .unwrap()
+            .map(|(_, i)| *i)
+            .collect_vec()
+        {
+            cache.cactus.remove(index);
         }
-
-        self.fs.rename(&from, &to).wrap_err_with(|| c.clone())?;
-
-        let index = cache.trie.remove_file(&from).unwrap();
-        cache.trie.create_file(to_lowercase(&to), index);
+        cache.trie.remove_dir(&from);
 
         Ok(())
     }
@@ -364,11 +367,13 @@ where
 
         self.fs.remove_dir(&path).wrap_err_with(|| c.clone())?;
 
-        let mut vec = Vec::new();
-        for (_, index) in cache.trie.iter_prefix(&path).unwrap() {
-            vec.push(*index);
-        }
-        for index in vec {
+        for index in cache
+            .trie
+            .iter_prefix(&path)
+            .unwrap()
+            .map(|(_, i)| *i)
+            .collect_vec()
+        {
             cache.cactus.remove(index);
         }
         cache.trie.remove_dir(&path);
@@ -388,9 +393,16 @@ where
 
         self.fs.remove_file(&path).wrap_err_with(|| c.clone())?;
 
-        let index = *cache.trie.get_file(&path).unwrap();
-        cache.cactus.remove(index);
-        cache.trie.remove_file(&path);
+        for index in cache
+            .trie
+            .iter_prefix(&path)
+            .unwrap()
+            .map(|(_, i)| *i)
+            .collect_vec()
+        {
+            cache.cactus.remove(index);
+        }
+        cache.trie.remove_dir(&path);
 
         Ok(())
     }
