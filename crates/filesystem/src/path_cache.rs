@@ -350,7 +350,24 @@ where
         let c = format!("While creating directory {path:?} in a path cache");
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
 
-        self.fs.create_dir(path).wrap_err_with(|| c.clone())?;
+        let mut lower_path = to_lowercase(path);
+        lower_path.set_extension("");
+        let prefix = cache.trie.get_dir_prefix(lower_path);
+        let cactus_index = (!prefix.as_str().is_empty())
+            .then(|| *cache.trie.get_file(with_trie_suffix(prefix)).unwrap());
+        let original_prefix =
+            cactus_index.map_or_else(Default::default, |i| cache.get_path_from_cactus_index(i));
+        let len = original_prefix.iter().count();
+
+        self.fs
+            .create_dir(if len == 0 {
+                path.to_path_buf()
+            } else if len == path.iter().count() {
+                original_prefix
+            } else {
+                format!("{original_prefix}/{}", path.iter().skip(len).join("/")).into()
+            })
+            .wrap_err_with(|| c.clone())?;
 
         Ok(())
     }
