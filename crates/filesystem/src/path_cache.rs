@@ -92,15 +92,29 @@ impl Cache {
 
         // Get the longest prefix of the path that is in the trie, convert it to lowercase and
         // remove file extensions
-        let mut lower_string = String::with_capacity(path.as_str().bytes().len());
-        lower_string.push_str(prefix.as_str());
+        let mut lower_string = prefix.to_string();
+        if let Some(additional) = path
+            .as_str()
+            .bytes()
+            .len()
+            .checked_sub(lower_string.bytes().len())
+        {
+            lower_string.reserve(additional);
+        }
 
         // This is the same thing as `lower_string` except with the actual letter casing from the
         // filesystem and without removing file extensions
-        let original =
-            cactus_index.map_or_else(Default::default, |i| self.get_path_from_cactus_index(i));
-        let mut original_string = String::with_capacity(path.as_str().bytes().len());
-        original_string.push_str(original.as_str());
+        let mut original_string = cactus_index.map_or_else(Default::default, |i| {
+            self.get_path_from_cactus_index(i).to_string()
+        });
+        if let Some(additional) = path
+            .as_str()
+            .bytes()
+            .len()
+            .checked_sub(original_string.bytes().len())
+        {
+            original_string.reserve(additional);
+        }
 
         // Iterate over the remaining path components that aren't present in
         // `lower_string`/`original_string`
