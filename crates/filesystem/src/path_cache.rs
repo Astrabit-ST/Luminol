@@ -65,8 +65,7 @@ impl Cache {
             node = n.next.and_then(|next| self.cactus.get(next));
         }
 
-        vec.reverse();
-        vec.iter().join("/").into()
+        vec.iter().rev().join("/").into()
     }
 
     /// Gets the original, case-sensitive version of the given case-insensitive path from the underlying
