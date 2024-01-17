@@ -54,7 +54,7 @@ where
     let mut seq = serializer.serialize_seq(Some(values.len()))?;
 
     for value in values {
-        seq.serialize_element(value)?;
+        seq.serialize_element(&(*value + 1))?;
     }
 
     seq.end()
