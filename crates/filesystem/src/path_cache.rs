@@ -343,7 +343,10 @@ where
         let path = path.as_ref();
         let c = format!("While removing directory {path:?} in a path cache");
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
-        let path = cache.desensitize(path).ok_or(Error::NotExist)?;
+        let path = cache
+            .desensitize(path)
+            .ok_or(Error::NotExist)
+            .wrap_err_with(|| c.clone())?;
 
         self.fs.remove_dir(&path).wrap_err_with(|| c.clone())?;
 
@@ -364,7 +367,10 @@ where
         let path = path.as_ref();
         let c = format!("While removing file {path:?} in a path cache");
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
-        let path = cache.desensitize(path).ok_or(Error::NotExist)?;
+        let path = cache
+            .desensitize(path)
+            .ok_or(Error::NotExist)
+            .wrap_err_with(|| c.clone())?;
 
         self.fs.remove_file(&path).wrap_err_with(|| c.clone())?;
 
@@ -380,7 +386,10 @@ where
         let path = path.as_ref();
         let c = format!("While reading the contents of the directory {path:?} in a path cache");
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
-        let path = cache.desensitize(path).ok_or(Error::NotExist)?;
+        let path = cache
+            .desensitize(path)
+            .ok_or(Error::NotExist)
+            .wrap_err_with(|| c.clone())?;
         self.fs.read_dir(path).wrap_err_with(|| c.clone())
     }
 }
