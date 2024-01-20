@@ -27,12 +27,9 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(
-        ctx: &egui::Context,
-        command: luminol_term::CommandBuilder,
-    ) -> Result<Self, luminol_term::Error> {
+    pub fn new(ctx: &egui::Context) -> std::io::Result<Self> {
         Ok(Self {
-            term: luminol_term::Terminal::new(ctx, command)?,
+            term: luminol_term::Terminal::new(ctx)?,
         })
     }
 }
@@ -66,12 +63,13 @@ impl luminol_core::Window for Window {
                         .button(egui::RichText::new("KILL").color(egui::Color32::RED))
                         .clicked()
                     {
-                        if let Err(e) = self.term.kill() {
-                            luminol_core::error!(
-                                update_state.toasts,
-                                e.wrap_err("Error killing child"),
-                            );
-                        }
+                        // if let Err(e) = self.term.kill() {
+                        //     luminol_core::error!(
+                        //         update_state.toasts,
+                        //         e.wrap_err("Error killing child"),
+                        //     );
+                        // }
+                        self.term.kill()
                     }
 
                     let mut resize = false;

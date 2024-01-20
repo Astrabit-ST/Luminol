@@ -279,25 +279,25 @@ impl TopBar {
 
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Playtest").clicked() {
-                    let mut cmd = luminol_term::CommandBuilder::new("steamshim");
-                    cmd.cwd(
-                        update_state
-                            .filesystem
-                            .project_path()
-                            .expect("project not loaded"),
-                    );
+                    // let mut cmd = luminol_term::CommandBuilder::new("steamshim");
+                    // cmd.cwd(
+                    //     update_state
+                    //         .filesystem
+                    //         .project_path()
+                    //         .expect("project not loaded"),
+                    // );
 
                     let result =
-                        luminol_ui::windows::console::Window::new(ui.ctx(), cmd).or_else(|_| {
-                            let mut cmd = luminol_term::CommandBuilder::new("game");
-                            cmd.cwd(
-                                update_state
-                                    .filesystem
-                                    .project_path()
-                                    .expect("project not loaded"),
-                            );
+                        luminol_ui::windows::console::Window::new(ui.ctx()).or_else(|_| {
+                            // let mut cmd = luminol_term::CommandBuilder::new("game");
+                            // cmd.cwd(
+                            //     update_state
+                            //         .filesystem
+                            //         .project_path()
+                            //         .expect("project not loaded"),
+                            // );
 
-                            luminol_ui::windows::console::Window::new(ui.ctx(), cmd)
+                            luminol_ui::windows::console::Window::new(ui.ctx())
                         });
 
                     match result {
@@ -315,16 +315,15 @@ impl TopBar {
                     #[cfg(windows)]
                     let shell = "powershell";
                     #[cfg(unix)]
-                    let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
-                    let mut cmd = luminol_term::CommandBuilder::new(shell);
-                    cmd.cwd(
-                        update_state
-                            .filesystem
-                            .project_path()
-                            .expect("project not loaded"),
-                    );
-
-                    match luminol_ui::windows::console::Window::new(ui.ctx(), cmd) {
+                    // let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
+                    // let mut cmd = luminol_term::CommandBuilder::new(shell);
+                    // cmd.cwd(
+                    //     update_state
+                    //         .filesystem
+                    //         .project_path()
+                    //         .expect("project not loaded"),
+                    // );
+                    match luminol_ui::windows::console::Window::new(ui.ctx()) {
                         Ok(w) => update_state.edit_windows.add_window(w),
                         Err(e) => luminol_core::error!(
                             update_state.toasts,

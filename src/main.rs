@@ -62,64 +62,61 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-static LOG_TERM_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
-    once_cell::sync::OnceCell::new();
-
+// static LOG_TERM_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
+//     once_cell::sync::OnceCell::new();
 #[cfg(not(target_arch = "wasm32"))]
-static LOG_BYTE_SENDER: once_cell::sync::OnceCell<luminol_term::ByteSender> =
-    once_cell::sync::OnceCell::new();
-
+// static LOG_BYTE_SENDER: once_cell::sync::OnceCell<luminol_term::ByteSender> =
+//     once_cell::sync::OnceCell::new();
 #[cfg(not(target_arch = "wasm32"))]
 static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
 /// A writer that writes to Luminol's log window.
-struct LogWriter(luminol_term::termwiz::escape::parser::Parser);
+// struct LogWriter(luminol_term::termwiz::escape::parser::Parser);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl std::io::Write for LogWriter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        LOG_BYTE_SENDER
-            .get()
-            .unwrap()
-            .try_send(buf.into())
-            .map_err(std::io::Error::other)?;
+// impl std::io::Write for LogWriter {
+//     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+//         LOG_BYTE_SENDER
+//             .get()
+//             .unwrap()
+//             .try_send(buf.into())
+//             .map_err(std::io::Error::other)?;
 
-        let parsed = self.0.parse_as_vec(buf);
+//         let parsed = self.0.parse_as_vec(buf);
 
-        // Convert from LF line endings to CRLF so that wezterm will display them properly
-        let mut vec = Vec::with_capacity(2 * parsed.len());
-        for action in parsed {
-            if action
-                == luminol_term::termwiz::escape::Action::Control(
-                    luminol_term::termwiz::escape::ControlCode::LineFeed,
-                )
-            {
-                vec.push(luminol_term::termwiz::escape::Action::Control(
-                    luminol_term::termwiz::escape::ControlCode::CarriageReturn,
-                ));
-            }
-            vec.push(action);
-        }
+//         // Convert from LF line endings to CRLF so that wezterm will display them properly
+//         let mut vec = Vec::with_capacity(2 * parsed.len());
+//         for action in parsed {
+//             if action
+//                 == luminol_term::termwiz::escape::Action::Control(
+//                     luminol_term::termwiz::escape::ControlCode::LineFeed,
+//                 )
+//             {
+//                 vec.push(luminol_term::termwiz::escape::Action::Control(
+//                     luminol_term::termwiz::escape::ControlCode::CarriageReturn,
+//                 ));
+//             }
+//             vec.push(action);
+//         }
 
-        LOG_TERM_SENDER
-            .get()
-            .unwrap()
-            .try_send(vec)
-            .map_err(std::io::Error::other)?;
+//         LOG_TERM_SENDER
+//             .get()
+//             .unwrap()
+//             .try_send(vec)
+//             .map_err(std::io::Error::other)?;
 
-        if let Some(ctx) = CONTEXT.get() {
-            ctx.request_repaint();
-        }
+//         if let Some(ctx) = CONTEXT.get() {
+//             ctx.request_repaint();
+//         }
 
-        Ok(buf.len())
-    }
+//         Ok(buf.len())
+//     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
+//     fn flush(&mut self) -> std::io::Result<()> {
+//         Ok(())
+//     }
+// }
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     #[cfg(feature = "steamworks")]
@@ -213,17 +210,20 @@ fn main() {
         .expect("failed to install color-eyre hooks");
 
     // Log to stderr as well as Luminol's log.
-    let (log_term_tx, log_term_rx) = luminol_term::unbounded();
-    let (log_byte_tx, log_byte_rx) = luminol_term::unbounded();
-    LOG_TERM_SENDER.set(log_term_tx).unwrap();
-    LOG_BYTE_SENDER.set(log_byte_tx).unwrap();
+    // let (log_term_tx, log_term_rx) = luminol_term::unbounded();
+    // let (log_byte_tx, log_byte_rx) = luminol_term::unbounded();
+    // LOG_TERM_SENDER.set(log_term_tx).unwrap();
+    // LOG_BYTE_SENDER.set(log_byte_tx).unwrap();
+    // tracing_subscriber::fmt()
+    //     .with_writer(|| {
+    //         CopyWriter(
+    //             std::io::stderr(),
+    //             LogWriter(luminol_term::termwiz::escape::parser::Parser::new()),
+    //         )
+    //     })
+    //     .init();
     tracing_subscriber::fmt()
-        .with_writer(|| {
-            CopyWriter(
-                std::io::stderr(),
-                LogWriter(luminol_term::termwiz::escape::parser::Parser::new()),
-            )
-        })
+        .with_writer(std::io::stdout)
         .init();
 
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
@@ -263,8 +263,8 @@ fn main() {
             Box::new(app::App::new(
                 cc,
                 Default::default(),
-                log_term_rx,
-                log_byte_rx,
+                // log_term_rx,
+                // log_byte_rx,
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
