@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::UiExt;
 use itertools::Itertools;
 
 pub struct FileSystemView<T> {
@@ -265,17 +266,14 @@ where
 
         let mut should_toggle = false;
 
-        let mut frame = egui::containers::Frame::none();
-        if self.row_index % 2 != 0 {
-            frame = frame.fill(ui.visuals().faint_bg_color);
-        }
+        let is_faint = self.row_index % 2 != 0;
         self.row_index += 1;
 
         let mut header_response = None;
 
         match self.arena[node_id].get_mut() {
             Entry::File { name, selected } => {
-                frame.show(ui, |ui| {
+                ui.with_stripe(is_faint, |ui| {
                     if ui
                         .add(egui::SelectableLabel::new(*selected, name.to_string()))
                         .clicked()
@@ -315,7 +313,7 @@ where
                 let layout = *ui.layout();
                 header_response = Some(header.show_header(ui, |ui| {
                     ui.with_layout(layout, |ui| {
-                        frame.show(ui, |ui| {
+                        ui.with_stripe(is_faint, |ui| {
                             if ui
                                 .add(egui::SelectableLabel::new(
                                     *selected,
