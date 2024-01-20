@@ -45,14 +45,10 @@ pub mod project_manager;
 pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
-thread_local! {
-    static GIT_REVISION: once_cell::unsync::OnceCell<&'static str> = once_cell::unsync::OnceCell::new();
-}
+static GIT_REVISION: once_cell::sync::OnceCell<&'static str> = once_cell::sync::OnceCell::new();
 
 pub fn set_git_revision(revision: &'static str) {
-    GIT_REVISION.with(|git_revision| {
-        let _ = git_revision.set(revision);
-    });
+    let _ = GIT_REVISION.set(revision);
 }
 
 pub struct UpdateState<'res> {
