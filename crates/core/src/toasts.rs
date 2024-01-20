@@ -67,7 +67,13 @@ impl Toasts {
 
     #[doc(hidden)]
     pub fn _e_add_version_section(error: color_eyre::Report) -> color_eyre::Report {
-        error.section(format!("Luminol version: {}", crate::version!()))
+        crate::GIT_REVISION.with(|git_revision| {
+            if let Some(git_revision) = git_revision.get() {
+                error.section(format!("Luminol version: {git_revision}"))
+            } else {
+                error
+            }
+        })
     }
 
     #[doc(hidden)]

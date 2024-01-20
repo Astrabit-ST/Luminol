@@ -40,14 +40,14 @@ struct ReportJson {
 }
 
 impl Window {
-    pub fn new(report: impl Into<String>) -> Self {
+    pub fn new(report: impl Into<String>, git_revision: impl Into<String>) -> Self {
         let report: String = report.into();
 
         Self {
             normalized_report: strip_ansi_escapes::strip_str(&report),
             json: ReportJson {
                 reporter_version: 1,
-                luminol_revision: luminol_core::version!().to_string(),
+                luminol_revision: git_revision.into(),
                 target: target_triple::target!().to_string(),
                 debug: cfg!(debug_assertions),
                 report,

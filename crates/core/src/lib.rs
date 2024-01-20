@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub use git_version;
 use std::sync::Arc;
 pub use tracing;
 
@@ -46,22 +45,14 @@ pub mod project_manager;
 pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
-#[cfg(not(target_arch = "wasm32"))]
-/// Get Luminol's current Git version as a `&str`.
-#[macro_export]
-macro_rules! version {
-    () => {
-        $crate::git_version::git_version!()
-    };
+thread_local! {
+    static GIT_REVISION: once_cell::unsync::OnceCell<&'static str> = once_cell::unsync::OnceCell::new();
 }
 
-#[cfg(target_arch = "wasm32")]
-/// Get Luminol's current Git version as a `&str`.
-#[macro_export]
-macro_rules! version {
-    () => {{
-        option_env!("LUMINOL_VERSION").unwrap_or($crate::git_version::git_version!())
-    }};
+pub fn set_git_revision(revision: &'static str) {
+    GIT_REVISION.with(|git_revision| {
+        let _ = git_revision.set(revision);
+    });
 }
 
 pub struct UpdateState<'res> {
@@ -91,6 +82,8 @@ pub struct UpdateState<'res> {
 
     pub modified: ModifiedState,
     pub project_manager: &'res mut ProjectManager,
+
+    pub git_revision: &'static str,
 }
 
 /// This stores whether or not there are unsaved changes in any file in the current project and is
@@ -167,6 +160,7 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
+            git_revision: self.git_revision,
         }
     }
 
@@ -189,6 +183,7 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
+            git_revision: self.git_revision,
         }
     }
 

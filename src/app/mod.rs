@@ -91,6 +91,8 @@ impl App {
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
     ) -> Self {
+        luminol_core::set_git_revision(crate::git_revision());
+
         let render_state = cc
             .wgpu_render_state
             .clone()
@@ -241,7 +243,7 @@ impl App {
             toasts,
             windows: report.map_or_else(luminol_core::Windows::new, |report| {
                 luminol_core::Windows::new_with_windows(vec![
-                    luminol_ui::windows::reporter::Window::new(report),
+                    luminol_ui::windows::reporter::Window::new(report, crate::git_revision()),
                 ])
             }),
             tabs: luminol_core::Tabs::new_with_tabs(
@@ -312,6 +314,7 @@ impl luminol_eframe::App for App {
             toolbar: &mut self.toolbar,
             modified: self.modified.clone(),
             project_manager: &mut self.project_manager,
+            git_revision: crate::git_revision(),
         };
 
         // If a file/folder picker is open, prevent the user from interacting with the application

@@ -47,6 +47,15 @@ compile_error!("Steamworks is not supported on webassembly");
 #[cfg(feature = "steamworks")]
 mod steam;
 
+pub fn git_revision() -> &'static str {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        git_version::git_version!()
+    }
+    #[cfg(target_arch = "wasm32")]
+    option_env!("LUMINOL_VERSION").unwrap_or(git_version::git_version!())
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// A writer that copies whatever is written to it to two other writers.
 struct CopyWriter<A, B>(A, B);
@@ -196,7 +205,7 @@ fn main() {
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section(format!("Luminol version: {}", luminol_core::version!()))
+        .panic_section(format!("Luminol version: {}", git_revision()))
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
                 "_",
@@ -402,7 +411,7 @@ pub fn luminol_main_start(fallback: bool) {
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section(format!("Luminol version: {}", luminol_core::version!()))
+        .panic_section(format!("Luminol version: {}", git_revision()))
         .into_hooks();
     eyre_hook
         .install()
