@@ -120,7 +120,7 @@ impl Cache {
         for name in path.strip_prefix(prefix).unwrap().iter() {
             let entries = fs
                 .read_dir(&original_string)
-                .wrap_err("While regenerating cache for path {path:?}")?;
+                .wrap_err_with(|| format!("While regenerating cache for path {path:?}"))?;
             len += 1;
 
             let mut original_name = None;
