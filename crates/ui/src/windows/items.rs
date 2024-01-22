@@ -69,6 +69,12 @@ impl luminol_core::Window for Window {
     ) {
         let change_maximum_text = "Change maximum...";
 
+        let p = update_state
+            .project_config
+            .as_ref()
+            .expect("project not loaded")
+            .project
+            .persistence_id;
         let mut items = update_state.data.items();
         let animations = update_state.data.animations();
         let common_events = update_state.data.common_events();
@@ -115,6 +121,7 @@ impl luminol_core::Window for Window {
                                 |ui| {
                                     ui.label("Items");
                                     egui::ScrollArea::both()
+                                        .id_source(p)
                                         .min_scrolled_width(
                                             button_width + ui.spacing().item_spacing.x,
                                         )
@@ -203,7 +210,7 @@ impl luminol_core::Window for Window {
                                 ..Default::default()
                             },
                             |ui| {
-                                egui::ScrollArea::vertical().show(ui, |ui| {
+                                egui::ScrollArea::vertical().id_source(p).show(ui, |ui| {
                                     ui.set_width(ui.available_width());
                                     ui.set_min_width(
                                         2. * (ui.spacing().slider_width
