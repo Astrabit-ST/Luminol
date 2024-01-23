@@ -69,7 +69,7 @@ impl<'a, T> Iterator for FileSystemTrieIter<'a, T> {
             if let Some((prefix, dir_iter)) = &mut self.dir_iter {
                 match dir_iter.next() {
                     Some((filename, Some(value))) => {
-                        return Some((prefix.join(filename.as_str()), value));
+                        return Some((format!("{prefix}/{}", filename.as_str()).into(), value));
                     }
                     None => {
                         self.dir_iter = None;
