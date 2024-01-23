@@ -65,7 +65,7 @@ impl Cache {
             node = n.next.and_then(|next| self.cactus.get(next));
         }
 
-        vec.iter().rev().join("/").into()
+        vec.iter().rev().join(std::path::MAIN_SEPARATOR_STR).into()
     }
 
     /// Gets the original, case-sensitive version of the given case-insensitive path from the underlying
@@ -120,7 +120,7 @@ impl Cache {
         for name in path.strip_prefix(prefix).unwrap().iter() {
             let entries = fs
                 .read_dir(&original_string)
-                .wrap_err("While regenerating cache for path {path:?}")?;
+                .wrap_err_with(|| format!("While regenerating cache for path {path:?}"))?;
             len += 1;
 
             let mut original_name = None;
@@ -157,7 +157,7 @@ impl Cache {
             }
             lower_string.push_str(name);
             if !original_string.is_empty() {
-                original_string.push('/');
+                original_string.push(std::path::MAIN_SEPARATOR);
             }
             original_string.push_str(&original_name);
             cactus_index = Some(new_cactus_index);
@@ -231,7 +231,11 @@ where
 }
 
 pub fn to_lowercase(p: impl AsRef<camino::Utf8Path>) -> camino::Utf8PathBuf {
-    p.as_ref().as_str().to_lowercase().into()
+    p.as_ref()
+        .as_str()
+        .to_lowercase()
+        .replace(std::path::MAIN_SEPARATOR, "/")
+        .into()
 }
 
 fn with_trie_suffix(path: impl AsRef<camino::Utf8Path>) -> camino::Utf8PathBuf {
@@ -364,7 +368,10 @@ where
             } else if len == path.iter().count() {
                 original_prefix
             } else {
-                format!("{original_prefix}/{}", path.iter().skip(len).join("/")).into()
+                std::iter::once(original_prefix.as_str())
+                    .chain(path.iter().skip(len))
+                    .join(std::path::MAIN_SEPARATOR_STR)
+                    .into()
             })
             .wrap_err_with(|| c.clone())?;
 
