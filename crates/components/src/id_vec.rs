@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::UiExt;
+
 #[derive(Default, Clone)]
 struct IdVecSelectionState {
     pivot: Option<usize>,
@@ -122,53 +124,40 @@ where
 
         let mut response = ui
             .group(|ui| {
-                ui.with_layout(
-                    egui::Layout {
-                        cross_justify: true,
-                        ..Default::default()
-                    },
-                    |ui| {
-                        ui.set_width(ui.available_width());
+                ui.with_cross_justify(|ui| {
+                    ui.set_width(ui.available_width());
 
-                        ui.add(
-                            egui::TextEdit::singleline(&mut state.search_string)
-                                .hint_text("Search"),
-                        );
+                    ui.add(
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                    );
 
-                        let mut is_faint = false;
+                    let mut is_faint = false;
 
-                        for id in 0..self.len {
-                            let is_id_selected =
-                                self.reference.get(index).is_some_and(|x| *x == id);
-                            if is_id_selected {
-                                index += 1;
-                            }
-
-                            let formatted = (self.formatter)(id);
-                            if matcher
-                                .fuzzy(&formatted, &state.search_string, false)
-                                .is_none()
-                            {
-                                continue;
-                            }
-
-                            let mut frame = egui::Frame::none();
-                            if is_faint {
-                                frame = frame.fill(ui.visuals().faint_bg_color);
-                            }
-                            is_faint = !is_faint;
-
-                            frame.show(ui, |ui| {
-                                if ui
-                                    .selectable_label(is_id_selected, (self.formatter)(id))
-                                    .clicked()
-                                {
-                                    clicked_id = Some(id);
-                                }
-                            });
+                    for id in 0..self.len {
+                        let is_id_selected = self.reference.get(index).is_some_and(|x| *x == id);
+                        if is_id_selected {
+                            index += 1;
                         }
-                    },
-                )
+
+                        let formatted = (self.formatter)(id);
+                        if matcher
+                            .fuzzy(&formatted, &state.search_string, false)
+                            .is_none()
+                        {
+                            continue;
+                        }
+
+                        ui.with_stripe(is_faint, |ui| {
+                            if ui
+                                .selectable_label(is_id_selected, (self.formatter)(id))
+                                .clicked()
+                            {
+                                clicked_id = Some(id);
+                            }
+                        });
+                        is_faint = !is_faint;
+                    }
+                })
                 .inner
             })
             .response;
@@ -284,73 +273,61 @@ where
 
         let mut response = ui
             .group(|ui| {
-                ui.with_layout(
-                    egui::Layout {
-                        cross_justify: true,
-                        ..Default::default()
-                    },
-                    |ui| {
-                        ui.set_width(ui.available_width());
+                ui.with_cross_justify(|ui| {
+                    ui.set_width(ui.available_width());
 
-                        ui.add(
-                            egui::TextEdit::singleline(&mut state.search_string)
-                                .hint_text("Search"),
-                        );
+                    ui.add(
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                    );
 
-                        let mut is_faint = false;
+                    let mut is_faint = false;
 
-                        for id in 0..self.len {
-                            let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
-                            if is_id_plus {
-                                plus_index += 1;
-                            }
-                            let is_id_minus = self.minus.get(minus_index).is_some_and(|x| *x == id);
-                            if is_id_minus {
-                                minus_index += 1;
-                            }
-
-                            let formatted = (self.formatter)(id);
-                            if matcher
-                                .fuzzy(&formatted, &state.search_string, false)
-                                .is_none()
-                            {
-                                continue;
-                            }
-
-                            let mut frame = egui::Frame::none();
-                            if is_faint {
-                                frame = frame.fill(ui.visuals().faint_bg_color);
-                            }
-                            is_faint = !is_faint;
-
-                            frame.show(ui, |ui| {
-                                // Make the background of the selectable label red if it's
-                                // a minus
-                                if is_id_minus {
-                                    ui.visuals_mut().selection.bg_fill =
-                                        ui.visuals().gray_out(ui.visuals().error_fg_color);
-                                }
-
-                                let label = (self.formatter)(id);
-                                if ui
-                                    .selectable_label(
-                                        is_id_plus || is_id_minus,
-                                        if is_id_plus {
-                                            format!("+ {label}")
-                                        } else if is_id_minus {
-                                            format!("‒ {label}")
-                                        } else {
-                                            label
-                                        },
-                                    )
-                                    .clicked()
-                                {
-                                    clicked_id = Some(id);
-                                }
-                            });
+                    for id in 0..self.len {
+                        let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
+                        if is_id_plus {
+                            plus_index += 1;
                         }
-                    },
-                )
+                        let is_id_minus = self.minus.get(minus_index).is_some_and(|x| *x == id);
+                        if is_id_minus {
+                            minus_index += 1;
+                        }
+
+                        let formatted = (self.formatter)(id);
+                        if matcher
+                            .fuzzy(&formatted, &state.search_string, false)
+                            .is_none()
+                        {
+                            continue;
+                        }
+
+                        ui.with_stripe(is_faint, |ui| {
+                            // Make the background of the selectable label red if it's
+                            // a minus
+                            if is_id_minus {
+                                ui.visuals_mut().selection.bg_fill =
+                                    ui.visuals().gray_out(ui.visuals().error_fg_color);
+                            }
+
+                            let label = (self.formatter)(id);
+                            if ui
+                                .selectable_label(
+                                    is_id_plus || is_id_minus,
+                                    if is_id_plus {
+                                        format!("+ {label}")
+                                    } else if is_id_minus {
+                                        format!("‒ {label}")
+                                    } else {
+                                        label
+                                    },
+                                )
+                                .clicked()
+                            {
+                                clicked_id = Some(id);
+                            }
+                        });
+                        is_faint = !is_faint;
+                    }
+                })
                 .inner
             })
             .response;
