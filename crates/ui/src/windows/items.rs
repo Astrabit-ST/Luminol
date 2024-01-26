@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_components::UiExt;
+
 /// Database - Items management window.
 #[derive(Default)]
 pub struct Window {
@@ -98,469 +100,375 @@ impl luminol_core::Window for Window {
                         + 2. * ui.spacing().button_padding.y,
                 );
                 let button_width = ui.spacing().interact_size.x.max(
-                    egui::WidgetText::from(change_maximum_text)
-                        .into_galley(ui, None, f32::INFINITY, egui::TextStyle::Button)
-                        .galley
-                        .rect
-                        .width()
+                    ui.text_width(change_maximum_text, egui::TextStyle::Button)
                         + 2. * ui.spacing().button_padding.x,
                 );
 
                 egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
-                    egui::Frame::none()
-                        .outer_margin(egui::Margin {
-                            right: ui.spacing().window_margin.right,
-                            ..egui::Margin::ZERO
-                        })
-                        .show(ui, |ui| {
-                            ui.with_layout(
-                                egui::Layout {
-                                    cross_justify: true,
-                                    ..Default::default()
-                                },
-                                |ui| {
-                                    ui.label("Items");
-                                    egui::ScrollArea::both()
-                                        .id_source(p)
-                                        .min_scrolled_width(
-                                            button_width + ui.spacing().item_spacing.x,
-                                        )
-                                        .max_height(
-                                            ui.available_height()
-                                                - button_height
-                                                - ui.spacing().item_spacing.y,
-                                        )
-                                        .show_rows(
-                                            ui,
-                                            button_height,
-                                            items.data.len(),
-                                            |ui, rows| {
-                                                ui.set_width(ui.available_width());
+                    ui.with_right_margin(ui.spacing().window_margin.right, |ui| {
+                        ui.with_cross_justify(|ui| {
+                            ui.label("Items");
+                            egui::ScrollArea::both()
+                                .id_source(p)
+                                .min_scrolled_width(button_width + ui.spacing().item_spacing.x)
+                                .max_height(
+                                    ui.available_height()
+                                        - button_height
+                                        - ui.spacing().item_spacing.y,
+                                )
+                                .show_rows(ui, button_height, items.data.len(), |ui, rows| {
+                                    ui.set_width(ui.available_width());
 
-                                                let offset = rows.start;
-                                                for (id, item) in
-                                                    items.data[rows].iter_mut().enumerate()
-                                                {
-                                                    let id = id + offset;
-                                                    let mut frame = egui::containers::Frame::none();
-                                                    if id % 2 != 0 {
-                                                        frame =
-                                                            frame.fill(ui.visuals().faint_bg_color);
-                                                    }
+                                    let offset = rows.start;
+                                    for (id, item) in items.data[rows].iter_mut().enumerate() {
+                                        let id = id + offset;
 
-                                                    frame.show(ui, |ui| {
-                                                        ui.style_mut().wrap = Some(false);
+                                        ui.with_stripe(id % 2 != 0, |ui| {
+                                            ui.style_mut().wrap = Some(false);
 
-                                                        let response = ui
-                                                            .selectable_value(
-                                                                &mut self.selected_item,
-                                                                id,
-                                                                format!(
-                                                                    "{:0>3}: {}",
-                                                                    id, item.name
-                                                                ),
-                                                            )
-                                                            .interact(egui::Sense::click());
+                                            let response = ui
+                                                .selectable_value(
+                                                    &mut self.selected_item,
+                                                    id,
+                                                    format!("{:0>3}: {}", id, item.name),
+                                                )
+                                                .interact(egui::Sense::click());
 
-                                                        if response.clicked() {
-                                                            response.request_focus();
-                                                        }
+                                            if response.clicked() {
+                                                response.request_focus();
+                                            }
 
-                                                        // Reset this item if delete or backspace
-                                                        // is pressed while this item is focused
-                                                        if response.has_focus()
-                                                            && ui.input(|i| {
-                                                                i.key_down(egui::Key::Delete)
-                                                                    || i.key_down(
-                                                                        egui::Key::Backspace,
-                                                                    )
-                                                            })
-                                                        {
-                                                            *item = Default::default();
-                                                            modified = true;
-                                                        }
-                                                    });
-                                                }
-                                            },
-                                        );
-
-                                    if ui
-                                        .add(egui::Button::new(change_maximum_text).wrap(false))
-                                        .clicked()
-                                    {
-                                        luminol_core::basic!(
-                                            update_state.toasts,
-                                            "`Change maximum...` button trigger"
-                                        );
+                                            // Reset this item if delete or backspace
+                                            // is pressed while this item is focused
+                                            if response.has_focus()
+                                                && ui.input(|i| {
+                                                    i.key_down(egui::Key::Delete)
+                                                        || i.key_down(egui::Key::Backspace)
+                                                })
+                                            {
+                                                *item = Default::default();
+                                                modified = true;
+                                            }
+                                        });
                                     }
-                                },
-                            );
+                                });
+
+                            if ui
+                                .add(egui::Button::new(change_maximum_text).wrap(false))
+                                .clicked()
+                            {
+                                luminol_core::basic!(
+                                    update_state.toasts,
+                                    "`Change maximum...` button trigger"
+                                );
+                            }
                         });
+                    });
                 });
 
-                egui::Frame::none()
-                    .outer_margin(egui::Margin {
-                        left: ui.spacing().window_margin.left,
-                        ..egui::Margin::ZERO
-                    })
-                    .show(ui, |ui| {
-                        ui.with_layout(
-                            egui::Layout {
-                                cross_justify: true,
-                                ..Default::default()
-                            },
-                            |ui| {
-                                egui::ScrollArea::vertical().id_source(p).show(ui, |ui| {
-                                    ui.set_width(ui.available_width());
-                                    ui.set_min_width(
-                                        2. * (ui.spacing().slider_width
-                                            + ui.spacing().interact_size.x)
-                                            + 3. * ui.spacing().item_spacing.x,
-                                    );
+                ui.with_left_margin(ui.spacing().window_margin.left, |ui| {
+                    ui.with_cross_justify(|ui| {
+                        egui::ScrollArea::vertical().id_source(p).show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.set_min_width(
+                                2. * (ui.spacing().slider_width + ui.spacing().interact_size.x)
+                                    + 3. * ui.spacing().item_spacing.x,
+                            );
 
-                                    let Some(selected_item) =
-                                        items.data.get_mut(self.selected_item)
-                                    else {
-                                        return;
-                                    };
+                            let Some(selected_item) = items.data.get_mut(self.selected_item) else {
+                                return;
+                            };
 
-                                    modified |= ui
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut selected_item.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Description",
+                                    egui::TextEdit::multiline(&mut selected_item.description)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+
+                            ui.with_stripe(true, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
                                         .add(luminol_components::Field::new(
-                                            "Name",
-                                            egui::TextEdit::singleline(&mut selected_item.name)
-                                                .desired_width(f32::INFINITY),
+                                            "Scope",
+                                            luminol_components::EnumComboBox::new(
+                                                (selected_item.id, "scope"),
+                                                &mut selected_item.scope,
+                                            ),
                                         ))
                                         .changed();
 
-                                    modified |= ui
+                                    modified |= columns[1]
                                         .add(luminol_components::Field::new(
-                                            "Description",
-                                            egui::TextEdit::multiline(
-                                                &mut selected_item.description,
-                                            )
-                                            .desired_width(f32::INFINITY),
+                                            "Occasion",
+                                            luminol_components::EnumComboBox::new(
+                                                (selected_item.id, "occasion"),
+                                                &mut selected_item.occasion,
+                                            ),
                                         ))
                                         .changed();
-
-                                    egui::Frame::none().fill(ui.visuals().faint_bg_color).show(
-                                        ui,
-                                        |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(luminol_components::Field::new(
-                                                        "Scope",
-                                                        luminol_components::EnumComboBox::new(
-                                                            (selected_item.id, "scope"),
-                                                            &mut selected_item.scope,
-                                                        ),
-                                                    ))
-                                                    .changed();
-
-                                                modified |= columns[1]
-                                                    .add(luminol_components::Field::new(
-                                                        "Occasion",
-                                                        luminol_components::EnumComboBox::new(
-                                                            (selected_item.id, "occasion"),
-                                                            &mut selected_item.occasion,
-                                                        ),
-                                                    ))
-                                                    .changed();
-                                            });
-                                        },
-                                    );
-
-                                    egui::Frame::none().show(ui, |ui| {
-                                        ui.columns(2, |columns| {
-                                            modified |= columns[0]
-                                                .add(luminol_components::Field::new(
-                                                    "User Animation",
-                                                    luminol_components::OptionalIdComboBox::new(
-                                                        (selected_item.id, "animation1_id"),
-                                                        &mut selected_item.animation1_id,
-                                                        animations.data.len(),
-                                                        |id| {
-                                                            animations.data.get(id).map_or_else(
-                                                                || "".into(),
-                                                                |a| format!("{id:0>3}: {}", a.name),
-                                                            )
-                                                        },
-                                                    ),
-                                                ))
-                                                .changed();
-
-                                            modified |= columns[1]
-                                                .add(luminol_components::Field::new(
-                                                    "Target Animation",
-                                                    luminol_components::OptionalIdComboBox::new(
-                                                        (selected_item.id, "animation2_id"),
-                                                        &mut selected_item.animation2_id,
-                                                        animations.data.len(),
-                                                        |id| {
-                                                            animations.data.get(id).map_or_else(
-                                                                || "".into(),
-                                                                |a| format!("{id:0>3}: {}", a.name),
-                                                            )
-                                                        },
-                                                    ),
-                                                ))
-                                                .changed();
-                                        });
-                                    });
-
-                                    egui::Frame::none().fill(ui.visuals().faint_bg_color).show(
-                                        ui,
-                                        |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(luminol_components::Field::new(
-                                                        "Menu Use SE",
-                                                        egui::Label::new("TODO"),
-                                                    ))
-                                                    .changed();
-
-                                                modified |= columns[1]
-                                                    .add(luminol_components::Field::new(
-                                                        "Common Event",
-                                                        luminol_components::OptionalIdComboBox::new(
-                                                            (selected_item.id, "common_event_id"),
-                                                            &mut selected_item.common_event_id,
-                                                            common_events.data.len(),
-                                                            |id| {
-                                                                common_events
-                                                                    .data
-                                                                    .get(id)
-                                                                    .map_or_else(
-                                                                        || "".into(),
-                                                                        |e| {
-                                                                            format!(
-                                                                                "{id:0>3}: {}",
-                                                                                e.name
-                                                                            )
-                                                                        },
-                                                                    )
-                                                            },
-                                                        ),
-                                                    ))
-                                                    .changed();
-                                            });
-                                        },
-                                    );
-
-                                    egui::Frame::none().show(ui, |ui| {
-                                        ui.columns(2, |columns| {
-                                            modified |= columns[0]
-                                                .add(luminol_components::Field::new(
-                                                    "Price",
-                                                    egui::DragValue::new(&mut selected_item.price)
-                                                        .clamp_range(0..=i32::MAX),
-                                                ))
-                                                .changed();
-
-                                            modified |= columns[1]
-                                                .add(luminol_components::Field::new(
-                                                    "Consumable",
-                                                    egui::Checkbox::without_text(
-                                                        &mut selected_item.consumable,
-                                                    ),
-                                                ))
-                                                .changed();
-                                        });
-                                    });
-
-                                    egui::Frame::none().fill(ui.visuals().faint_bg_color).show(
-                                        ui,
-                                        |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(luminol_components::Field::new(
-                                                        "Parameter",
-                                                        luminol_components::EnumComboBox::new(
-                                                            "parameter_type",
-                                                            &mut selected_item.parameter_type,
-                                                        ),
-                                                    ))
-                                                    .changed();
-
-                                                modified |= columns[1]
-                                                    .add_enabled(
-                                                        !matches!(
-                                                    selected_item.parameter_type,
-                                                    luminol_data::rpg::item::ParameterType::None
-                                                ),
-                                                        luminol_components::Field::new(
-                                                            "Parameter Increment",
-                                                            egui::DragValue::new(
-                                                                &mut selected_item.parameter_points,
-                                                            )
-                                                            .clamp_range(0..=i32::MAX),
-                                                        ),
-                                                    )
-                                                    .changed();
-                                            });
-                                        },
-                                    );
-
-                                    egui::Frame::none().show(ui, |ui| {
-                                        ui.columns(2, |columns| {
-                                            modified |= columns[0]
-                                                .add(luminol_components::Field::new(
-                                                    "Recover HP Rate",
-                                                    egui::Slider::new(
-                                                        &mut selected_item.recover_hp_rate,
-                                                        0..=100,
-                                                    )
-                                                    .suffix("%"),
-                                                ))
-                                                .changed();
-
-                                            modified |= columns[1]
-                                                .add(luminol_components::Field::new(
-                                                    "Recover HP",
-                                                    egui::DragValue::new(
-                                                        &mut selected_item.recover_hp,
-                                                    )
-                                                    .clamp_range(0..=i32::MAX),
-                                                ))
-                                                .changed();
-                                        });
-                                    });
-
-                                    egui::Frame::none().fill(ui.visuals().faint_bg_color).show(
-                                        ui,
-                                        |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(luminol_components::Field::new(
-                                                        "Recover SP Rate",
-                                                        egui::Slider::new(
-                                                            &mut selected_item.recover_sp_rate,
-                                                            0..=100,
-                                                        )
-                                                        .suffix("%"),
-                                                    ))
-                                                    .changed();
-
-                                                modified |= columns[1]
-                                                    .add(luminol_components::Field::new(
-                                                        "Recover SP",
-                                                        egui::DragValue::new(
-                                                            &mut selected_item.recover_sp,
-                                                        )
-                                                        .clamp_range(0..=i32::MAX),
-                                                    ))
-                                                    .changed();
-                                            });
-                                        },
-                                    );
-
-                                    egui::Frame::none().show(ui, |ui| {
-                                        ui.columns(2, |columns| {
-                                            modified |= columns[0]
-                                                .add(luminol_components::Field::new(
-                                                    "Hit Rate",
-                                                    egui::Slider::new(
-                                                        &mut selected_item.hit,
-                                                        0..=100,
-                                                    )
-                                                    .suffix("%"),
-                                                ))
-                                                .changed();
-
-                                            modified |= columns[1]
-                                                .add(luminol_components::Field::new(
-                                                    "Variance",
-                                                    egui::Slider::new(
-                                                        &mut selected_item.variance,
-                                                        0..=100,
-                                                    )
-                                                    .suffix("%"),
-                                                ))
-                                                .changed();
-                                        });
-                                    });
-
-                                    egui::Frame::none().fill(ui.visuals().faint_bg_color).show(
-                                        ui,
-                                        |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(luminol_components::Field::new(
-                                                        "PDEF-F",
-                                                        egui::Slider::new(
-                                                            &mut selected_item.pdef_f,
-                                                            0..=100,
-                                                        )
-                                                        .suffix("%"),
-                                                    ))
-                                                    .changed();
-
-                                                modified |= columns[1]
-                                                    .add(luminol_components::Field::new(
-                                                        "MDEF-F",
-                                                        egui::Slider::new(
-                                                            &mut selected_item.mdef_f,
-                                                            0..=100,
-                                                        )
-                                                        .suffix("%"),
-                                                    ))
-                                                    .changed();
-                                            });
-                                        },
-                                    );
-
-                                    egui::Frame::none().show(ui, |ui| {
-                                        ui.columns(2, |columns| {
-                                            let mut selection =
-                                                luminol_components::IdVecSelection::new(
-                                                    (selected_item.id, "element_set"),
-                                                    &mut selected_item.element_set,
-                                                    system.elements.len(),
-                                                    |id| {
-                                                        system.elements.get(id).map_or_else(
-                                                            || "".into(),
-                                                            |e| format!("{id:0>3}: {}", e),
-                                                        )
-                                                    },
-                                                );
-                                            if self.previous_selected_item != Some(selected_item.id)
-                                            {
-                                                selection.clear_search();
-                                            }
-                                            modified |= columns[0]
-                                                .add(luminol_components::Field::new(
-                                                    "Elements", selection,
-                                                ))
-                                                .changed();
-
-                                            let mut selection =
-                                                luminol_components::IdVecPlusMinusSelection::new(
-                                                    (selected_item.id, "state_set"),
-                                                    &mut selected_item.plus_state_set,
-                                                    &mut selected_item.minus_state_set,
-                                                    states.data.len(),
-                                                    |id| {
-                                                        states.data.get(id).map_or_else(
-                                                            || "".into(),
-                                                            |s| format!("{id:0>3}: {}", s.name),
-                                                        )
-                                                    },
-                                                );
-                                            if self.previous_selected_item != Some(selected_item.id)
-                                            {
-                                                selection.clear_search();
-                                            }
-                                            modified |= columns[1]
-                                                .add(luminol_components::Field::new(
-                                                    "State Change",
-                                                    selection,
-                                                ))
-                                                .changed();
-                                        });
-                                    });
                                 });
-                            },
-                        );
+                            });
+
+                            ui.with_stripe(false, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "User Animation",
+                                            luminol_components::OptionalIdComboBox::new(
+                                                (selected_item.id, "animation1_id"),
+                                                &mut selected_item.animation1_id,
+                                                animations.data.len(),
+                                                |id| {
+                                                    animations.data.get(id).map_or_else(
+                                                        || "".into(),
+                                                        |a| format!("{id:0>3}: {}", a.name),
+                                                    )
+                                                },
+                                            ),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "Target Animation",
+                                            luminol_components::OptionalIdComboBox::new(
+                                                (selected_item.id, "animation2_id"),
+                                                &mut selected_item.animation2_id,
+                                                animations.data.len(),
+                                                |id| {
+                                                    animations.data.get(id).map_or_else(
+                                                        || "".into(),
+                                                        |a| format!("{id:0>3}: {}", a.name),
+                                                    )
+                                                },
+                                            ),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(true, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Menu Use SE",
+                                            egui::Label::new("TODO"),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "Common Event",
+                                            luminol_components::OptionalIdComboBox::new(
+                                                (selected_item.id, "common_event_id"),
+                                                &mut selected_item.common_event_id,
+                                                common_events.data.len(),
+                                                |id| {
+                                                    common_events.data.get(id).map_or_else(
+                                                        || "".into(),
+                                                        |e| format!("{id:0>3}: {}", e.name),
+                                                    )
+                                                },
+                                            ),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(false, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Price",
+                                            egui::DragValue::new(&mut selected_item.price)
+                                                .clamp_range(0..=i32::MAX),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "Consumable",
+                                            egui::Checkbox::without_text(
+                                                &mut selected_item.consumable,
+                                            ),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(true, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Parameter",
+                                            luminol_components::EnumComboBox::new(
+                                                "parameter_type",
+                                                &mut selected_item.parameter_type,
+                                            ),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add_enabled(
+                                            !matches!(
+                                                selected_item.parameter_type,
+                                                luminol_data::rpg::item::ParameterType::None
+                                            ),
+                                            luminol_components::Field::new(
+                                                "Parameter Increment",
+                                                egui::DragValue::new(
+                                                    &mut selected_item.parameter_points,
+                                                )
+                                                .clamp_range(0..=i32::MAX),
+                                            ),
+                                        )
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(false, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Recover HP Rate",
+                                            egui::Slider::new(
+                                                &mut selected_item.recover_hp_rate,
+                                                0..=100,
+                                            )
+                                            .suffix("%"),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "Recover HP",
+                                            egui::DragValue::new(&mut selected_item.recover_hp)
+                                                .clamp_range(0..=i32::MAX),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(true, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Recover SP Rate",
+                                            egui::Slider::new(
+                                                &mut selected_item.recover_sp_rate,
+                                                0..=100,
+                                            )
+                                            .suffix("%"),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "Recover SP",
+                                            egui::DragValue::new(&mut selected_item.recover_sp)
+                                                .clamp_range(0..=i32::MAX),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(false, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Hit Rate",
+                                            egui::Slider::new(&mut selected_item.hit, 0..=100)
+                                                .suffix("%"),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "Variance",
+                                            egui::Slider::new(&mut selected_item.variance, 0..=100)
+                                                .suffix("%"),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(true, |ui| {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "PDEF-F",
+                                            egui::Slider::new(&mut selected_item.pdef_f, 0..=100)
+                                                .suffix("%"),
+                                        ))
+                                        .changed();
+
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "MDEF-F",
+                                            egui::Slider::new(&mut selected_item.mdef_f, 0..=100)
+                                                .suffix("%"),
+                                        ))
+                                        .changed();
+                                });
+                            });
+
+                            ui.with_stripe(false, |ui| {
+                                ui.columns(2, |columns| {
+                                    let mut selection = luminol_components::IdVecSelection::new(
+                                        (selected_item.id, "element_set"),
+                                        &mut selected_item.element_set,
+                                        system.elements.len(),
+                                        |id| {
+                                            system.elements.get(id).map_or_else(
+                                                || "".into(),
+                                                |e| format!("{id:0>3}: {}", e),
+                                            )
+                                        },
+                                    );
+                                    if self.previous_selected_item != Some(selected_item.id) {
+                                        selection.clear_search();
+                                    }
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new("Elements", selection))
+                                        .changed();
+
+                                    let mut selection =
+                                        luminol_components::IdVecPlusMinusSelection::new(
+                                            (selected_item.id, "state_set"),
+                                            &mut selected_item.plus_state_set,
+                                            &mut selected_item.minus_state_set,
+                                            states.data.len(),
+                                            |id| {
+                                                states.data.get(id).map_or_else(
+                                                    || "".into(),
+                                                    |s| format!("{id:0>3}: {}", s.name),
+                                                )
+                                            },
+                                        );
+                                    if self.previous_selected_item != Some(selected_item.id) {
+                                        selection.clear_search();
+                                    }
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
+                                            "State Change",
+                                            selection,
+                                        ))
+                                        .changed();
+                                });
+                            });
+                        });
                     });
+                });
             });
 
         self.previous_selected_item =
