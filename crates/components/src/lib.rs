@@ -41,6 +41,9 @@ pub use command_view::CommandView;
 mod filesystem_view;
 pub use filesystem_view::FileSystemView;
 
+mod database_view;
+pub use database_view::DatabaseView;
+
 mod id_vec;
 pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection};
 
