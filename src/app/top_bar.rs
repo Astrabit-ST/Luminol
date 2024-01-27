@@ -170,6 +170,18 @@ impl TopBar {
                         .add_window(luminol_ui::windows::map_picker::Window::default());
                 }
 
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Tilesets [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Animations [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
                 if ui.button("Common Events").clicked() {
                     update_state
                         .edit_windows
@@ -188,6 +200,12 @@ impl TopBar {
                     );
                 }
 
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("System [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
                 ui.separator();
 
                 if ui.button("Items").clicked() {
@@ -196,13 +214,55 @@ impl TopBar {
                         .add_window(luminol_ui::windows::items::Window::new());
                 }
 
-                ui.separator();
-
                 if ui.button("Skills").clicked() {
                     update_state
                         .edit_windows
                         .add_window(luminol_ui::windows::skills::Window::new());
                 }
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Weapons [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Armors [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("States [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.separator();
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Actors [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Classes [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Enemies [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Troops [TODO]").clicked() {
+                        todo!();
+                    }
+                });
             });
         });
 
