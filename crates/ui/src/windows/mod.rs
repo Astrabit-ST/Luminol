@@ -27,6 +27,8 @@ pub mod about;
 pub mod appearance;
 /// The archive manager for creating and extracting RGSSAD archives.
 pub mod archive_manager;
+/// The armor editor.
+pub mod armors;
 /// The common event editor.
 pub mod common_event_edit;
 /// Config window
