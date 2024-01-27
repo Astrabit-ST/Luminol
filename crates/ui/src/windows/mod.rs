@@ -47,5 +47,7 @@ pub mod misc;
 pub mod new_project;
 /// The script editor
 pub mod script_edit;
+/// The skill editor.
+pub mod skills;
 /// The sound test.
 pub mod sound_test;

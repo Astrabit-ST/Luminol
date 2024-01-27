@@ -170,12 +170,6 @@ impl TopBar {
                         .add_window(luminol_ui::windows::map_picker::Window::default());
                 }
 
-                if ui.button("Items").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new());
-                }
-
                 if ui.button("Common Events").clicked() {
                     update_state
                         .edit_windows
@@ -192,6 +186,22 @@ impl TopBar {
                     update_state.edit_windows.add_window(
                         luminol_ui::windows::sound_test::Window::new(update_state.filesystem),
                     );
+                }
+
+                ui.separator();
+
+                if ui.button("Items").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::items::Window::new());
+                }
+
+                ui.separator();
+
+                if ui.button("Skills").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::skills::Window::new());
                 }
             });
         });
