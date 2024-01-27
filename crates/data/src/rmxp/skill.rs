@@ -25,8 +25,8 @@ pub struct Skill {
     #[serde(with = "optional_path")]
     pub icon_name: Path,
     pub description: String,
-    pub scope: i32,
-    pub occasion: Occasion,
+    pub scope: crate::rpg::Scope,
+    pub occasion: crate::rpg::Occasion,
     #[serde(with = "optional_id")]
     pub animation1_id: Option<usize>,
     #[serde(with = "optional_id")]
@@ -52,25 +52,4 @@ pub struct Skill {
     pub plus_state_set: Vec<usize>,
     #[serde(with = "id_vec")]
     pub minus_state_set: Vec<usize>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
-#[derive(
-    num_enum::TryFromPrimitive,
-    num_enum::IntoPrimitive,
-    strum::Display,
-    strum::EnumIter
-)]
-#[derive(serde::Deserialize, serde::Serialize)]
-#[repr(u8)]
-#[serde(into = "u8")]
-#[serde(try_from = "u8")]
-pub enum Occasion {
-    #[default]
-    Always = 0,
-    #[strum(to_string = "Only in battle")]
-    OnlyBattle = 1,
-    #[strum(to_string = "Only from the menu")]
-    OnlyMenu = 2,
-    Never = 3,
 }

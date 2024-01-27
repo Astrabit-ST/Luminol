@@ -24,8 +24,8 @@ pub struct Item {
     pub name: String,
     pub icon_name: String,
     pub description: String,
-    pub scope: Scope,
-    pub occasion: Occasion,
+    pub scope: crate::rpg::Scope,
+    pub occasion: crate::rpg::Occasion,
     #[serde(with = "optional_id")]
     pub animation1_id: Option<usize>,
     #[serde(with = "optional_id")]
@@ -68,57 +68,6 @@ pub struct Item {
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
-pub enum Scope {
-    #[default]
-    None = 0,
-    #[strum(to_string = "One Enemy")]
-    OneEnemy = 1,
-    #[strum(to_string = "All Enemies")]
-    AllEnemies = 2,
-    #[strum(to_string = "One Ally")]
-    OneAlly = 3,
-    #[strum(to_string = "All Allies")]
-    AllAllies = 4,
-    #[strum(to_string = "One Ally (HP 0)")]
-    OneAllyHP0 = 5,
-    #[strum(to_string = "All Allies (HP 0)")]
-    AllAlliesHP0 = 6,
-    #[strum(to_string = "The User")]
-    User = 7,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
-#[derive(
-    num_enum::TryFromPrimitive,
-    num_enum::IntoPrimitive,
-    strum::Display,
-    strum::EnumIter
-)]
-#[derive(serde::Deserialize, serde::Serialize)]
-#[repr(u8)]
-#[serde(into = "u8")]
-#[serde(try_from = "u8")]
-pub enum Occasion {
-    #[default]
-    Always = 0,
-    #[strum(to_string = "Only in battle")]
-    OnlyBattle = 1,
-    #[strum(to_string = "Only from the menu")]
-    OnlyMenu = 2,
-    Never = 3,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
-#[derive(
-    num_enum::TryFromPrimitive,
-    num_enum::IntoPrimitive,
-    strum::Display,
-    strum::EnumIter
-)]
-#[derive(serde::Deserialize, serde::Serialize)]
-#[repr(u8)]
-#[serde(into = "u8")]
-#[serde(try_from = "u8")]
 pub enum ParameterType {
     #[default]
     None = 0,
@@ -134,4 +83,10 @@ pub enum ParameterType {
     Agi = 5,
     #[strum(to_string = "Intelligence")]
     Int = 6,
+}
+
+impl ParameterType {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
 }

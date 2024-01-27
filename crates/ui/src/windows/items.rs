@@ -236,10 +236,7 @@ impl luminol_core::Window for Window {
 
                                 modified |= columns[1]
                                     .add_enabled(
-                                        !matches!(
-                                            item.parameter_type,
-                                            luminol_data::rpg::item::ParameterType::None
-                                        ),
+                                        !item.parameter_type.is_none(),
                                         luminol_components::Field::new(
                                             "Parameter Increment",
                                             egui::DragValue::new(&mut item.parameter_points)

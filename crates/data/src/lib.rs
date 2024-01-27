@@ -24,16 +24,16 @@ pub mod rpg {
     pub use crate::shared::*;
 
     macro_rules! basic_container {
-    ($($parent:ident, $child:ident),* $(,)?) => {
-        $(
-            #[derive(Debug, Default)]
-            pub struct $parent {
-                pub data: Vec<$child>,
-                pub modified: bool,
-            }
-         )*
-    };
-}
+        ($($parent:ident, $child:ident),* $(,)?) => {
+            $(
+                #[derive(Debug, Default)]
+                pub struct $parent {
+                    pub data: Vec<$child>,
+                    pub modified: bool,
+                }
+             )*
+        };
+    }
 
     basic_container! {
         Actors, Actor,
