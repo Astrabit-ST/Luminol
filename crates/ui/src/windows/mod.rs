@@ -51,3 +51,5 @@ pub mod script_edit;
 pub mod skills;
 /// The sound test.
 pub mod sound_test;
+/// The weapon editor.
+pub mod weapons;

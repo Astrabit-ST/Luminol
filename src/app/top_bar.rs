@@ -220,11 +220,11 @@ impl TopBar {
                         .add_window(luminol_ui::windows::skills::Window::new());
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("Weapons [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("Weapons").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::weapons::Window::new());
+                }
 
                 ui.add_enabled_ui(false, |ui| {
                     if ui.button("Armors [TODO]").clicked() {
