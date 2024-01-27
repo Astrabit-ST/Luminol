@@ -70,7 +70,7 @@ impl DatabaseView {
 
         self.selected_id = self.selected_id.min(vec.len().saturating_sub(1));
 
-        egui::SidePanel::left(egui::Id::new("item_edit_sidepanel")).show_inside(ui, |ui| {
+        egui::SidePanel::left(ui.make_persistent_id("sidepanel")).show_inside(ui, |ui| {
             ui.with_right_margin(ui.spacing().window_margin.right, |ui| {
                 ui.with_cross_justify(|ui| {
                     ui.label(label);
@@ -123,7 +123,7 @@ impl DatabaseView {
                     {
                         modified = true;
 
-                        todo!("changing the maximum number of items")
+                        todo!("changing the maximum number of entries")
                     }
                 });
             });
