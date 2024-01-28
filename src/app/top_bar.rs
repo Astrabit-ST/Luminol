@@ -232,11 +232,11 @@ impl TopBar {
                         .add_window(luminol_ui::windows::armor::Window::new());
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("States [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("States").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::states::Window::new());
+                }
 
                 ui.separator();
 
