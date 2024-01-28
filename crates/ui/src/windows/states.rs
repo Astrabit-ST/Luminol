@@ -248,15 +248,15 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "ATK %",
-                                        egui::Slider::new(&mut state.atk_rate, 0..=200).suffix("%"),
+                                        "Hit Rate %",
+                                        egui::Slider::new(&mut state.hit_rate, 0..=200).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Hit Rate %",
-                                        egui::Slider::new(&mut state.hit_rate, 0..=200).suffix("%"),
+                                        "ATK %",
+                                        egui::Slider::new(&mut state.atk_rate, 0..=200).suffix("%"),
                                     ))
                                     .changed();
                             });
@@ -286,17 +286,17 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Auto Release Interval",
-                                        egui::DragValue::new(&mut state.hold_turn)
-                                            .clamp_range(0..=i32::MAX),
+                                        "Auto Release Probability",
+                                        egui::Slider::new(&mut state.auto_release_prob, 0..=100)
+                                            .suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Auto Release Probability",
-                                        egui::Slider::new(&mut state.auto_release_prob, 0..=100)
-                                            .suffix("%"),
+                                        "Auto Release Interval",
+                                        egui::DragValue::new(&mut state.hold_turn)
+                                            .clamp_range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });
@@ -306,16 +306,16 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Battle Only",
-                                        egui::Checkbox::without_text(&mut state.battle_only),
+                                        "Damage Release Probability",
+                                        egui::Slider::new(&mut state.shock_release_prob, 0..=100)
+                                            .suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Damage Release Probability",
-                                        egui::Slider::new(&mut state.shock_release_prob, 0..=100)
-                                            .suffix("%"),
+                                        "Battle Only",
+                                        egui::Checkbox::without_text(&mut state.battle_only),
                                     ))
                                     .changed();
                             });
