@@ -226,10 +226,10 @@ impl TopBar {
                         .add_window(luminol_ui::windows::weapons::Window::new());
                 }
 
-                if ui.button("Armors").clicked() {
+                if ui.button("Armor").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::armors::Window::new());
+                        .add_window(luminol_ui::windows::armor::Window::new());
                 }
 
                 ui.add_enabled_ui(false, |ui| {

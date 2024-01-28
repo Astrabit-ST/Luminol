@@ -76,7 +76,7 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 self.view.show(
                     ui,
-                    "Armors",
+                    "Armor",
                     update_state
                         .project_config
                         .as_ref()
