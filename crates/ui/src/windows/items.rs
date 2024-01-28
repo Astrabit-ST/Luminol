@@ -251,7 +251,7 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Recover HP Rate",
+                                        "Recover HP %",
                                         egui::Slider::new(&mut item.recover_hp_rate, 0..=100)
                                             .suffix("%"),
                                     ))
@@ -259,7 +259,7 @@ impl luminol_core::Window for Window {
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Recover HP",
+                                        "Recover HP Points",
                                         egui::DragValue::new(&mut item.recover_hp)
                                             .clamp_range(0..=i32::MAX),
                                     ))
@@ -271,7 +271,7 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Recover SP Rate",
+                                        "Recover SP %",
                                         egui::Slider::new(&mut item.recover_sp_rate, 0..=100)
                                             .suffix("%"),
                                     ))
@@ -279,7 +279,7 @@ impl luminol_core::Window for Window {
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Recover SP",
+                                        "Recover SP Points",
                                         egui::DragValue::new(&mut item.recover_sp)
                                             .clamp_range(0..=i32::MAX),
                                     ))

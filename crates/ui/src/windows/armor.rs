@@ -218,7 +218,10 @@ impl luminol_core::Window for Window {
                                     selection.clear_search();
                                 }
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new("Elements", selection))
+                                    .add(luminol_components::Field::new(
+                                        "Element Defense",
+                                        selection,
+                                    ))
                                     .changed();
 
                                 let mut selection = luminol_components::IdVecSelection::new(
