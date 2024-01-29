@@ -174,22 +174,22 @@ where
     }
 }
 
-pub struct OptionalIdComboBox<'a, H, F> {
+pub struct OptionalIdComboBox<'a, R, H, F> {
     id_source: H,
-    reference: &'a mut Option<usize>,
+    reference: &'a mut R,
     len: usize,
     formatter: F,
     retain_search: bool,
 }
 
-impl<'a, H, F> OptionalIdComboBox<'a, H, F>
+impl<'a, R, H, F> OptionalIdComboBox<'a, R, H, F>
 where
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     /// Creates a combo box that can be used to change the ID of an `optional_id` field in the data
     /// cache.
-    pub fn new(id_source: H, reference: &'a mut Option<usize>, len: usize, formatter: F) -> Self {
+    pub fn new(id_source: H, reference: &'a mut R, len: usize, formatter: F) -> Self {
         Self {
             id_source,
             reference,
@@ -203,27 +203,21 @@ where
     pub fn clear_search(&mut self) {
         self.retain_search = false;
     }
-}
 
-impl<'a, H, F> egui::Widget for OptionalIdComboBox<'a, H, F>
-where
-    H: std::hash::Hash,
-    F: Fn(usize) -> String,
-{
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let state_id = ui
-            .make_persistent_id(egui::Id::new(&self.id_source))
-            .with("OptionalIdComboBox");
+    fn ui_inner(
+        self,
+        ui: &mut egui::Ui,
+        formatter: impl Fn(&Self) -> String,
+        f: impl FnOnce(Self, &mut egui::Ui, &str) -> bool,
+    ) -> egui::Response {
+        let source = egui::Id::new(&self.id_source);
+        let state_id = ui.make_persistent_id(source).with("OptionalIdComboBox");
 
         let mut changed = false;
         let inner_response = egui::ComboBox::from_id_source(&self.id_source)
             .wrap(true)
             .width(ui.available_width() - ui.spacing().item_spacing.x)
-            .selected_text(if let Some(id) = *self.reference {
-                (self.formatter)(id)
-            } else {
-                "(None)".into()
-            })
+            .selected_text(formatter(&self))
             .show_ui(ui, |ui| {
                 let mut search_string = self
                     .retain_search
@@ -238,36 +232,8 @@ where
                     || search_box_response.clicked_by(egui::PointerButton::Extra1)
                     || search_box_response.clicked_by(egui::PointerButton::Extra2);
 
-                let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    if ui
-                        .selectable_label(self.reference.is_none(), "(None)")
-                        .clicked()
-                    {
-                        *self.reference = None;
-                        changed = true;
-                    }
-
-                    let mut is_faint = true;
-
-                    for id in 0..self.len {
-                        let formatted = (self.formatter)(id);
-                        if matcher.fuzzy(&formatted, &search_string, false).is_none() {
-                            continue;
-                        }
-
-                        ui.with_stripe(is_faint, |ui| {
-                            if ui
-                                .selectable_label(*self.reference == Some(id), formatted)
-                                .clicked()
-                            {
-                                *self.reference = Some(id);
-                                changed = true;
-                            }
-                        });
-                        is_faint = !is_faint;
-                    }
+                    changed = f(self, ui, &search_string);
                 });
 
                 ui.data_mut(|d| d.insert_temp(state_id, search_string));
@@ -278,12 +244,7 @@ where
 
         if inner_response.inner == Some(true) {
             // Force the combo box to stay open if the search box was clicked
-            ui.memory_mut(|m| {
-                m.open_popup(
-                    ui.make_persistent_id(egui::Id::new(&self.id_source))
-                        .with("popup"),
-                )
-            });
+            ui.memory_mut(|m| m.open_popup(ui.make_persistent_id(source).with("popup")));
         } else if inner_response.inner.is_none()
             && ui.data(|d| {
                 d.get_temp::<String>(state_id)
@@ -298,6 +259,98 @@ where
             response.mark_changed();
         }
         response
+    }
+}
+
+impl<'a, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, H, F>
+where
+    H: std::hash::Hash,
+    F: Fn(usize) -> String,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+        let mut changed = false;
+
+        self.ui_inner(
+            ui,
+            |this| {
+                if let Some(id) = *this.reference {
+                    (this.formatter)(id)
+                } else {
+                    "(None)".into()
+                }
+            },
+            |this, ui, search_str| {
+                if ui
+                    .selectable_label(this.reference.is_none(), "(None)")
+                    .clicked()
+                {
+                    *this.reference = None;
+                    changed = true;
+                }
+
+                let mut is_faint = true;
+
+                for id in 0..this.len {
+                    let formatted = (this.formatter)(id);
+                    if matcher.fuzzy(&formatted, search_str, false).is_none() {
+                        continue;
+                    }
+
+                    ui.with_stripe(is_faint, |ui| {
+                        if ui
+                            .selectable_label(*this.reference == Some(id), formatted)
+                            .clicked()
+                        {
+                            *this.reference = Some(id);
+                            changed = true;
+                        }
+                    });
+                    is_faint = !is_faint;
+                }
+
+                changed
+            },
+        )
+    }
+}
+
+impl<'a, H, F> egui::Widget for OptionalIdComboBox<'a, usize, H, F>
+where
+    H: std::hash::Hash,
+    F: Fn(usize) -> String,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+        let mut changed = false;
+
+        self.ui_inner(
+            ui,
+            |this| (this.formatter)(*this.reference),
+            |this, ui, search_str| {
+                let mut is_faint = false;
+
+                for id in 0..this.len {
+                    let formatted = (this.formatter)(id);
+                    if matcher.fuzzy(&formatted, search_str, false).is_none() {
+                        continue;
+                    }
+
+                    ui.with_stripe(is_faint, |ui| {
+                        if ui
+                            .selectable_label(*this.reference == id, formatted)
+                            .clicked()
+                        {
+                            *this.reference = id;
+                            changed = true;
+                        }
+                    });
+                    is_faint = !is_faint;
+                }
+
+                changed
+            },
+        )
     }
 }
 

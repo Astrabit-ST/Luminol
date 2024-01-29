@@ -240,11 +240,11 @@ impl TopBar {
 
                 ui.separator();
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("Actors [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("Actors").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::actors::Window::new());
+                }
 
                 ui.add_enabled_ui(false, |ui| {
                     if ui.button("Classes [TODO]").clicked() {
