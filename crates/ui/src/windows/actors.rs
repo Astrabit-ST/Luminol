@@ -327,16 +327,14 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Initial Level",
-                                        egui::DragValue::new(&mut actor.initial_level)
-                                            .clamp_range(1..=99),
+                                        egui::Slider::new(&mut actor.initial_level, 1..=99),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Final Level",
-                                        egui::DragValue::new(&mut actor.final_level)
-                                            .clamp_range(1..=99),
+                                        egui::Slider::new(&mut actor.final_level, 1..=99),
                                     ))
                                     .changed();
                             });
@@ -347,16 +345,14 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "EXP Curve Basis",
-                                        egui::DragValue::new(&mut actor.exp_basis)
-                                            .clamp_range(10..=50),
+                                        egui::Slider::new(&mut actor.exp_basis, 10..=50),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "EXP Curve Inflation",
-                                        egui::DragValue::new(&mut actor.exp_inflation)
-                                            .clamp_range(10..=50),
+                                        egui::Slider::new(&mut actor.exp_inflation, 10..=50),
                                     ))
                                     .changed();
                             });
