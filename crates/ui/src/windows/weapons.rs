@@ -111,7 +111,7 @@ impl luminol_core::Window for Window {
                                         luminol_components::OptionalIdComboBox::new(
                                             (weapon.id, "animation1_id"),
                                             &mut weapon.animation1_id,
-                                            animations.data.len(),
+                                            0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
                                                     || "".into(),
@@ -128,7 +128,7 @@ impl luminol_core::Window for Window {
                                         luminol_components::OptionalIdComboBox::new(
                                             (weapon.id, "animation2_id"),
                                             &mut weapon.animation2_id,
-                                            animations.data.len(),
+                                            0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
                                                     || "".into(),

@@ -104,7 +104,7 @@ impl luminol_core::Window for Window {
                                         luminol_components::OptionalIdComboBox::new(
                                             (state.id, "animation_id"),
                                             &mut state.animation_id,
-                                            animations.data.len(),
+                                            0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
                                                     || "".into(),

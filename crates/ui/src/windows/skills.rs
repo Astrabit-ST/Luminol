@@ -136,7 +136,7 @@ impl luminol_core::Window for Window {
                                         luminol_components::OptionalIdComboBox::new(
                                             (skill.id, "animation1_id"),
                                             &mut skill.animation1_id,
-                                            animations.data.len(),
+                                            0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
                                                     || "".into(),
@@ -153,7 +153,7 @@ impl luminol_core::Window for Window {
                                         luminol_components::OptionalIdComboBox::new(
                                             (skill.id, "animation2_id"),
                                             &mut skill.animation2_id,
-                                            animations.data.len(),
+                                            0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
                                                     || "".into(),
@@ -181,7 +181,7 @@ impl luminol_core::Window for Window {
                                         luminol_components::OptionalIdComboBox::new(
                                             (skill.id, "common_event_id"),
                                             &mut skill.common_event_id,
-                                            common_events.data.len(),
+                                            0..common_events.data.len(),
                                             |id| {
                                                 common_events.data.get(id).map_or_else(
                                                     || "".into(),

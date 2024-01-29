@@ -24,15 +24,12 @@
 
 use luminol_components::UiExt;
 
+use luminol_data::rpg::armor::Kind;
+
 #[derive(Default)]
 pub struct Window {
     selected_actor_name: Option<String>,
     previous_actor: Option<usize>,
-
-    shields: Vec<usize>,
-    helmets: Vec<usize>,
-    body_armors: Vec<usize>,
-    accessories: Vec<usize>,
 
     view: luminol_components::DatabaseView,
 }
@@ -71,23 +68,6 @@ impl luminol_core::Window for Window {
         let weapons = update_state.data.weapons();
         let armors = update_state.data.armors();
 
-        self.shields.clear();
-        self.shields.extend(armors.data.iter().filter_map(|a| {
-            matches!(a.kind, luminol_data::rpg::armor::Kind::Shield).then_some(a.id)
-        }));
-        self.helmets.clear();
-        self.helmets.extend(armors.data.iter().filter_map(|a| {
-            matches!(a.kind, luminol_data::rpg::armor::Kind::Helmet).then_some(a.id)
-        }));
-        self.body_armors.clear();
-        self.body_armors.extend(armors.data.iter().filter_map(|a| {
-            matches!(a.kind, luminol_data::rpg::armor::Kind::BodyArmor).then_some(a.id)
-        }));
-        self.accessories.clear();
-        self.accessories.extend(armors.data.iter().filter_map(|a| {
-            matches!(a.kind, luminol_data::rpg::armor::Kind::Accessory).then_some(a.id)
-        }));
-
         let mut modified = false;
 
         self.selected_actor_name = None;
@@ -124,7 +104,7 @@ impl luminol_core::Window for Window {
                                     luminol_components::OptionalIdComboBox::new(
                                         (actor.id, "class"),
                                         &mut actor.class_id,
-                                        classes.data.len(),
+                                        0..classes.data.len(),
                                         |id| {
                                             classes.data.get(id).map_or_else(
                                                 || "".into(),
@@ -148,7 +128,7 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "weapon_id"),
                                                             &mut actor.weapon_id,
-                                                            weapons.data.len(),
+                                                            0..weapons.data.len(),
                                                             |id| {
                                                                 weapons.data.get(id).map_or_else(
                                                                     || "".into(),
@@ -184,14 +164,21 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor1_id"),
                                                             &mut actor.armor1_id,
-                                                            self.shields.len(),
+                                                            armors
+                                                                .data
+                                                                .iter()
+                                                                .enumerate()
+                                                                .filter_map(|(id, a)| {
+                                                                    matches!(a.kind, Kind::Shield)
+                                                                        .then_some(id)
+                                                                }),
                                                             |id| {
-                                                                self.shields.get(id).map_or_else(
+                                                                armors.data.get(id).map_or_else(
                                                                     || "".into(),
-                                                                    |i| {
+                                                                    |a| {
                                                                         format!(
-                                                                            "{i:0>3}: {}",
-                                                                            armors.data[*i].name,
+                                                                            "{id:0>3}: {}",
+                                                                            a.name,
                                                                         )
                                                                     },
                                                                 )
@@ -220,14 +207,21 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor2_id"),
                                                             &mut actor.armor2_id,
-                                                            self.helmets.len(),
+                                                            armors
+                                                                .data
+                                                                .iter()
+                                                                .enumerate()
+                                                                .filter_map(|(id, a)| {
+                                                                    matches!(a.kind, Kind::Helmet)
+                                                                        .then_some(id)
+                                                                }),
                                                             |id| {
-                                                                self.helmets.get(id).map_or_else(
+                                                                armors.data.get(id).map_or_else(
                                                                     || "".into(),
-                                                                    |i| {
+                                                                    |a| {
                                                                         format!(
-                                                                            "{i:0>3}: {}",
-                                                                            armors.data[*i].name,
+                                                                            "{id:0>3}: {}",
+                                                                            a.name,
                                                                         )
                                                                     },
                                                                 )
@@ -256,20 +250,27 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor3_id"),
                                                             &mut actor.armor3_id,
-                                                            self.body_armors.len(),
-                                                            |id| {
-                                                                self.body_armors
-                                                                    .get(id)
-                                                                    .map_or_else(
-                                                                        || "".into(),
-                                                                        |i| {
-                                                                            format!(
-                                                                                "{i:0>3}: {}",
-                                                                                armors.data[*i]
-                                                                                    .name,
-                                                                            )
-                                                                        },
+                                                            armors
+                                                                .data
+                                                                .iter()
+                                                                .enumerate()
+                                                                .filter_map(|(id, a)| {
+                                                                    matches!(
+                                                                        a.kind,
+                                                                        Kind::BodyArmor
                                                                     )
+                                                                    .then_some(id)
+                                                                }),
+                                                            |id| {
+                                                                armors.data.get(id).map_or_else(
+                                                                    || "".into(),
+                                                                    |a| {
+                                                                        format!(
+                                                                            "{id:0>3}: {}",
+                                                                            a.name,
+                                                                        )
+                                                                    },
+                                                                )
                                                             },
                                                         ),
                                                     );
@@ -295,20 +296,27 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor4_id"),
                                                             &mut actor.armor4_id,
-                                                            self.accessories.len(),
-                                                            |id| {
-                                                                self.accessories
-                                                                    .get(id)
-                                                                    .map_or_else(
-                                                                        || "".into(),
-                                                                        |i| {
-                                                                            format!(
-                                                                                "{i:0>3}: {}",
-                                                                                armors.data[*i]
-                                                                                    .name,
-                                                                            )
-                                                                        },
+                                                            armors
+                                                                .data
+                                                                .iter()
+                                                                .enumerate()
+                                                                .filter_map(|(id, a)| {
+                                                                    matches!(
+                                                                        a.kind,
+                                                                        Kind::Accessory
                                                                     )
+                                                                    .then_some(id)
+                                                                }),
+                                                            |id| {
+                                                                armors.data.get(id).map_or_else(
+                                                                    || "".into(),
+                                                                    |a| {
+                                                                        format!(
+                                                                            "{id:0>3}: {}",
+                                                                            a.name,
+                                                                        )
+                                                                    },
+                                                                )
                                                             },
                                                         ),
                                                     );

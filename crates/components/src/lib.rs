@@ -174,26 +174,27 @@ where
     }
 }
 
-pub struct OptionalIdComboBox<'a, R, H, F> {
+pub struct OptionalIdComboBox<'a, R, I, H, F> {
     id_source: H,
     reference: &'a mut R,
-    len: usize,
+    id_iter: I,
     formatter: F,
     retain_search: bool,
 }
 
-impl<'a, R, H, F> OptionalIdComboBox<'a, R, H, F>
+impl<'a, R, I, H, F> OptionalIdComboBox<'a, R, I, H, F>
 where
+    I: Iterator<Item = usize>,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     /// Creates a combo box that can be used to change the ID of an `optional_id` field in the data
     /// cache.
-    pub fn new(id_source: H, reference: &'a mut R, len: usize, formatter: F) -> Self {
+    pub fn new(id_source: H, reference: &'a mut R, id_iter: I, formatter: F) -> Self {
         Self {
             id_source,
             reference,
-            len,
+            id_iter,
             formatter,
             retain_search: true,
         }
@@ -262,8 +263,9 @@ where
     }
 }
 
-impl<'a, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, H, F>
+impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, I, H, F>
 where
+    I: Iterator<Item = usize>,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
@@ -291,7 +293,7 @@ where
 
                 let mut is_faint = true;
 
-                for id in 0..this.len {
+                for id in this.id_iter {
                     let formatted = (this.formatter)(id);
                     if matcher.fuzzy(&formatted, search_str, false).is_none() {
                         continue;
@@ -315,8 +317,9 @@ where
     }
 }
 
-impl<'a, H, F> egui::Widget for OptionalIdComboBox<'a, usize, H, F>
+impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, usize, I, H, F>
 where
+    I: Iterator<Item = usize>,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
@@ -330,7 +333,7 @@ where
             |this, ui, search_str| {
                 let mut is_faint = false;
 
-                for id in 0..this.len {
+                for id in this.id_iter {
                     let formatted = (this.formatter)(id);
                     if matcher.fuzzy(&formatted, search_str, false).is_none() {
                         continue;
