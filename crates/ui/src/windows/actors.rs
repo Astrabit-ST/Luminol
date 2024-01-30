@@ -64,7 +64,7 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let mut actors = update_state.data.actors();
-        let classes = update_state.data.classes();
+        let mut classes = update_state.data.classes();
         let weapons = update_state.data.weapons();
         let armors = update_state.data.armors();
 
@@ -116,6 +116,16 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
+                        if let Some(class) = classes.data.get_mut(actor.class_id) {
+                            if !class.weapon_set.is_sorted() {
+                                class.weapon_set.sort_unstable();
+                            }
+                            if !class.armor_set.is_sorted() {
+                                class.armor_set.sort_unstable();
+                            }
+                        }
+                        let class = classes.data.get(actor.class_id);
+
                         ui.with_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
@@ -128,7 +138,17 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "weapon_id"),
                                                             &mut actor.weapon_id,
-                                                            0..weapons.data.len(),
+                                                            class
+                                                                .map_or_else(
+                                                                    Default::default,
+                                                                    |c| {
+                                                                        c.weapon_set.iter().copied()
+                                                                    },
+                                                                )
+                                                                .filter(|id| {
+                                                                    (0..weapons.data.len())
+                                                                        .contains(id)
+                                                                }),
                                                             |id| {
                                                                 weapons.data.get(id).map_or_else(
                                                                     || "".into(),
@@ -164,13 +184,23 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor1_id"),
                                                             &mut actor.armor1_id,
-                                                            armors
-                                                                .data
-                                                                .iter()
-                                                                .enumerate()
-                                                                .filter_map(|(id, a)| {
-                                                                    matches!(a.kind, Kind::Shield)
-                                                                        .then_some(id)
+                                                            class
+                                                                .map_or_else(
+                                                                    Default::default,
+                                                                    |c| c.armor_set.iter().copied(),
+                                                                )
+                                                                .filter(|id| {
+                                                                    (0..armors.data.len())
+                                                                        .contains(id)
+                                                                        && armors
+                                                                            .data
+                                                                            .get(*id)
+                                                                            .is_some_and(|a| {
+                                                                                matches!(
+                                                                                    a.kind,
+                                                                                    Kind::Shield
+                                                                                )
+                                                                            })
                                                                 }),
                                                             |id| {
                                                                 armors.data.get(id).map_or_else(
@@ -207,13 +237,23 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor2_id"),
                                                             &mut actor.armor2_id,
-                                                            armors
-                                                                .data
-                                                                .iter()
-                                                                .enumerate()
-                                                                .filter_map(|(id, a)| {
-                                                                    matches!(a.kind, Kind::Helmet)
-                                                                        .then_some(id)
+                                                            class
+                                                                .map_or_else(
+                                                                    Default::default,
+                                                                    |c| c.armor_set.iter().copied(),
+                                                                )
+                                                                .filter(|id| {
+                                                                    (0..armors.data.len())
+                                                                        .contains(id)
+                                                                        && armors
+                                                                            .data
+                                                                            .get(*id)
+                                                                            .is_some_and(|a| {
+                                                                                matches!(
+                                                                                    a.kind,
+                                                                                    Kind::Helmet
+                                                                                )
+                                                                            })
                                                                 }),
                                                             |id| {
                                                                 armors.data.get(id).map_or_else(
@@ -250,16 +290,23 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor3_id"),
                                                             &mut actor.armor3_id,
-                                                            armors
-                                                                .data
-                                                                .iter()
-                                                                .enumerate()
-                                                                .filter_map(|(id, a)| {
-                                                                    matches!(
-                                                                        a.kind,
-                                                                        Kind::BodyArmor
-                                                                    )
-                                                                    .then_some(id)
+                                                            class
+                                                                .map_or_else(
+                                                                    Default::default,
+                                                                    |c| c.armor_set.iter().copied(),
+                                                                )
+                                                                .filter(|id| {
+                                                                    (0..armors.data.len())
+                                                                        .contains(id)
+                                                                        && armors
+                                                                            .data
+                                                                            .get(*id)
+                                                                            .is_some_and(|a| {
+                                                                                matches!(
+                                                                                    a.kind,
+                                                                                    Kind::BodyArmor
+                                                                                )
+                                                                            })
                                                                 }),
                                                             |id| {
                                                                 armors.data.get(id).map_or_else(
@@ -296,16 +343,23 @@ impl luminol_core::Window for Window {
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor4_id"),
                                                             &mut actor.armor4_id,
-                                                            armors
-                                                                .data
-                                                                .iter()
-                                                                .enumerate()
-                                                                .filter_map(|(id, a)| {
-                                                                    matches!(
-                                                                        a.kind,
-                                                                        Kind::Accessory
-                                                                    )
-                                                                    .then_some(id)
+                                                            class
+                                                                .map_or_else(
+                                                                    Default::default,
+                                                                    |c| c.armor_set.iter().copied(),
+                                                                )
+                                                                .filter(|id| {
+                                                                    (0..armors.data.len())
+                                                                        .contains(id)
+                                                                        && armors
+                                                                            .data
+                                                                            .get(*id)
+                                                                            .is_some_and(|a| {
+                                                                                matches!(
+                                                                                    a.kind,
+                                                                                    Kind::Accessory
+                                                                                )
+                                                                            })
                                                                 }),
                                                             |id| {
                                                                 armors.data.get(id).map_or_else(
