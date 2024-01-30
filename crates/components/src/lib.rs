@@ -213,6 +213,8 @@ where
     ) -> egui::Response {
         let source = egui::Id::new(&self.id_source);
         let state_id = ui.make_persistent_id(source).with("OptionalIdComboBox");
+        let popup_id = ui.make_persistent_id(source).with("popup");
+        let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
         let mut changed = false;
         let inner_response = egui::ComboBox::from_id_source(&self.id_source)
@@ -227,6 +229,9 @@ where
                     .unwrap_or_else(String::new);
                 let search_box_response =
                     ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
+                if !is_popup_open {
+                    search_box_response.request_focus();
+                }
                 let search_box_clicked = search_box_response.clicked()
                     || search_box_response.secondary_clicked()
                     || search_box_response.middle_clicked()
@@ -245,7 +250,7 @@ where
 
         if inner_response.inner == Some(true) {
             // Force the combo box to stay open if the search box was clicked
-            ui.memory_mut(|m| m.open_popup(ui.make_persistent_id(source).with("popup")));
+            ui.memory_mut(|m| m.open_popup(popup_id));
         } else if inner_response.inner.is_none()
             && ui.data(|d| {
                 d.get_temp::<String>(state_id)
