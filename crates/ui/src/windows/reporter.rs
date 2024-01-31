@@ -164,7 +164,6 @@ impl luminol_core::Window for Window {
                                                         wrap_width,
                                                         egui::TextStyle::Monospace,
                                                     )
-                                                    .galley
                                             },
                                         ),
                                     );
