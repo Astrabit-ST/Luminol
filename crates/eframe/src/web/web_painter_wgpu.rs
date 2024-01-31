@@ -97,7 +97,9 @@ impl WebPainterWgpu {
         log::debug!("Creating wgpu painter");
 
         {
-            let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
+            let is_secure_context = luminol_web::bindings::worker()
+                .expect("failed to get worker context")
+                .is_secure_context();
             if !is_secure_context {
                 log::info!(
                     "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost"
