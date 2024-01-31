@@ -1576,23 +1576,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_glow"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb2ef815e80d117339c7d6b813f7678d23522d699ccd3243e267ef06166009b9"
-dependencies = [
- "bytemuck",
- "egui",
- "egui-winit",
- "glow",
- "log",
- "memoffset 0.7.1",
- "puffin",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3190,9 +3173,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui-winit",
- "egui_glow",
  "flume",
- "glow",
  "glutin",
  "glutin-winit",
  "image 0.24.7",

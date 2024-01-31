@@ -73,7 +73,6 @@ luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "wayland",
 ], default-features = false }
 luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" }
-egui_glow = "0.25.0"
 egui-winit = "0.25.0"
 
 wgpu = { version = "0.19.1", features = ["naga-ir"] }
@@ -101,7 +100,6 @@ color-eyre = "0.6.2"
 puffin = "0.18"
 raw-window-handle = "0.6.0"
 winit = { version = "0.29.4", default-features = false }
-glow = "0.13"
 
 parking_lot = { version = "0.12.1", features = [
     "nightly",            # This is required for parking_lot to work properly in WebAssembly builds with atomics support
