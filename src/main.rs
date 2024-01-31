@@ -386,7 +386,7 @@ pub fn luminol_main_start() {
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
     worker_options.type_(web_sys::WorkerType::Module);
-    let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
+    let worker = web_sys::Worker::new_with_options("./worker.js", &worker_options)
         .expect("failed to spawn web worker");
 
     let message = js_sys::Array::new();

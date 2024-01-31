@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-import wasm_bindgen, { luminol_main_start } from '/luminol.js';
+import wasm_bindgen, { luminol_main_start } from './luminol.js';
 
 await wasm_bindgen();
 luminol_main_start();

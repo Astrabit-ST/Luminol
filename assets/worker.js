@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-import wasm_bindgen, { luminol_worker_start } from '/luminol.js';
+import wasm_bindgen, { luminol_worker_start } from './luminol.js';
 
 onmessage = async function (e) {
     const [memory, canvas] = e.data;
