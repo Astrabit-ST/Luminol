@@ -385,10 +385,11 @@ pub fn run_glow(
 
     #[cfg(not(target_os = "ios"))]
     if native_options.run_and_return {
-        return with_event_loop(native_options, |event_loop, native_options| {
+        let result = with_event_loop(native_options, |event_loop, native_options| {
             let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
             run_and_return(event_loop, glow_eframe)
         })?;
+        return result;
     }
 
     let event_loop = create_event_loop(&mut native_options)?;
@@ -408,10 +409,11 @@ pub fn run_wgpu(
 
     #[cfg(not(target_os = "ios"))]
     if native_options.run_and_return {
-        return with_event_loop(native_options, |event_loop, native_options| {
+        let result = with_event_loop(native_options, |event_loop, native_options| {
             let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
             run_and_return(event_loop, wgpu_eframe)
         })?;
+        return result;
     }
 
     let event_loop = create_event_loop(&mut native_options)?;
