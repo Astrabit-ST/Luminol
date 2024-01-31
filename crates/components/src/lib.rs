@@ -45,6 +45,9 @@ pub use filesystem_view::FileSystemView;
 mod id_vec;
 pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection};
 
+mod ui_ext;
+pub use ui_ext::UiExt;
+
 pub struct EnumMenuButton<'e, T> {
     current_value: &'e mut T,
     id: egui::Id,
@@ -146,11 +149,7 @@ where
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
                 for (i, variant) in T::iter().enumerate() {
-                    let mut frame = egui::Frame::none();
-                    if i % 2 != 0 {
-                        frame = frame.fill(ui.visuals().faint_bg_color);
-                    }
-                    frame.show(ui, |ui| {
+                    ui.with_stripe(i % 2 != 0, |ui| {
                         if ui
                             .selectable_label(
                                 std::mem::discriminant(self.reference)
@@ -256,13 +255,7 @@ where
                             continue;
                         }
 
-                        let mut frame = egui::Frame::none();
-                        if is_faint {
-                            frame = frame.fill(ui.visuals().faint_bg_color);
-                        }
-                        is_faint = !is_faint;
-
-                        frame.show(ui, |ui| {
+                        ui.with_stripe(is_faint, |ui| {
                             if ui
                                 .selectable_label(*self.reference == Some(id), formatted)
                                 .clicked()
@@ -271,6 +264,7 @@ where
                                 changed = true;
                             }
                         });
+                        is_faint = !is_faint;
                     }
                 });
 

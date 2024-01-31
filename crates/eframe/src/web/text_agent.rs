@@ -212,13 +212,15 @@ fn is_mobile() -> Option<bool> {
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
 pub fn move_text_cursor(
-    cursor: Option<egui::Pos2>,
+    ime: Option<egui::output::IMEOutput>,
     canvas: &web_sys::HtmlCanvasElement,
 ) -> Option<()> {
     let style = text_agent().style();
-    // Note: movint agent on mobile devices will lead to unpredictable scroll.
+    // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
-        cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
+        ime.as_ref().and_then(|ime| {
+            let egui::Pos2 { x, y } = ime.cursor_rect.left_top();
+
             let bounding_rect = text_agent().get_bounding_client_rect();
             let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
                 .min(canvas.client_height() as f32 - bounding_rect.height() as f32);

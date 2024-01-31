@@ -116,7 +116,15 @@ impl SoundTab {
             // Group together so it looks nicer.
             ui.group(|ui| {
                 egui::ScrollArea::both()
-                    .id_source(self.source)
+                    .id_source((
+                        update_state
+                            .project_config
+                            .as_ref()
+                            .expect("project not loaded")
+                            .project
+                            .persistence_id,
+                        self.source,
+                    ))
                     .auto_shrink([false, false])
                     // Show only visible rows.
                     .show_rows(

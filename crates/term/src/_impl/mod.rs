@@ -341,7 +341,7 @@ impl Terminal {
                         palette.background.into_egui(),
                     );
 
-                    painter.galley(response.rect.min, galley);
+                    painter.galley(response.rect.min, galley, egui::Color32::TRANSPARENT);
 
                     painter.rect_stroke(
                         egui::Rect::from_min_size(

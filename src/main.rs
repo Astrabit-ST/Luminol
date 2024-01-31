@@ -310,8 +310,8 @@ fn main() {
                 .unwrap_or(wgpu::Backends::PRIMARY),
             device_descriptor: std::sync::Arc::new(|_| wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
-                features: wgpu::Features::PUSH_CONSTANTS,
-                limits: wgpu::Limits {
+                required_features: wgpu::Features::PUSH_CONSTANTS,
+                required_limits: wgpu::Limits {
                     max_push_constant_size: 128,
                     ..wgpu::Limits::default()
                 },
@@ -370,7 +370,7 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn luminol_main_start(fallback: bool) {
+pub fn luminol_main_start() {
     // Load the panic report from the previous run if it exists
     let report = get_panic_report();
 
@@ -513,12 +513,11 @@ pub fn luminol_main_start(fallback: bool) {
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
     worker_options.type_(web_sys::WorkerType::Module);
-    let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
+    let worker = web_sys::Worker::new_with_options("./worker.js", &worker_options)
         .expect("failed to spawn web worker");
     worker_cell.set(worker.clone()).unwrap();
 
     let message = js_sys::Array::new();
-    message.push(&JsValue::from(fallback));
     message.push(&wasm_bindgen::memory());
     message.push(&offscreen_canvas);
     let transfer = js_sys::Array::new();

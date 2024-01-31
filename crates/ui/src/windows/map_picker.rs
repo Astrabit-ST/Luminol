@@ -94,6 +94,14 @@ impl luminol_core::Window for Window {
             .open(&mut window_open)
             .show(ctx, |ui| {
                 egui::ScrollArea::both()
+                    .id_source(
+                        update_state
+                            .project_config
+                            .as_ref()
+                            .expect("project not loaded")
+                            .project
+                            .persistence_id,
+                    )
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
                         // Aquire the data cache.
