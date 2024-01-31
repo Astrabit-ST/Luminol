@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use itertools::Itertools;
 use luminol_components::UiExt;
 
 use luminol_data::rpg::armor::Kind;
@@ -38,6 +39,69 @@ impl Window {
     pub fn new() -> Self {
         Default::default()
     }
+}
+
+fn draw_graph(
+    ui: &mut egui::Ui,
+    actor: &luminol_data::rpg::Actor,
+    param: usize,
+    range: std::ops::RangeInclusive<usize>,
+    color: egui::Color32,
+) -> egui::Response {
+    egui::Frame::canvas(ui.style())
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.set_height((ui.available_width() * 9.) / 16.);
+            let rect = ui.max_rect();
+            let clip_rect = ui.clip_rect().intersect(rect);
+            if clip_rect.height() == 0. || clip_rect.width() == 0. {
+                return;
+            }
+            ui.set_clip_rect(clip_rect);
+
+            let iter = (1..actor.parameters.ysize()).map(|i| {
+                rect.left_top()
+                    + egui::vec2(
+                        ((i - 1) as f32 / (actor.parameters.ysize() - 2) as f32)
+                            * (rect.width() - 1.),
+                        ((range
+                            .end()
+                            .saturating_sub(actor.parameters[(param, i)] as usize))
+                            as f32
+                            / range.end().saturating_sub(*range.start()) as f32)
+                            * (rect.height() - 1.),
+                    )
+            });
+
+            // Draw the filled part of the graph by drawing a trapezoid for each area horizontally
+            // between two points
+            let ppp = ui.ctx().pixels_per_point();
+            ui.painter()
+                .extend(iter.clone().tuple_windows().map(|(p, q)| {
+                    // Round the horizontal position of each point to the nearest pixel so egui doesn't
+                    // try to anti-alias the vertical edges of the trapezoids
+                    let p = egui::pos2((p.x * ppp).round() / ppp, p.y);
+                    let q = egui::pos2((q.x * ppp).round() / ppp, q.y);
+
+                    egui::Shape::convex_polygon(
+                        vec![
+                            p,
+                            q,
+                            egui::pos2(q.x, rect.bottom()),
+                            egui::pos2(p.x, rect.bottom()),
+                        ],
+                        color.gamma_multiply(0.25),
+                        egui::Stroke::NONE,
+                    )
+                }));
+
+            // Draw the border of the graph
+            ui.painter().add(egui::Shape::line(
+                iter.collect_vec(),
+                egui::Stroke { width: 2., color },
+            ));
+        })
+        .response
 }
 
 impl luminol_core::Window for Window {
@@ -72,69 +136,68 @@ impl luminol_core::Window for Window {
 
         self.selected_actor_name = None;
 
-        let response =
-            egui::Window::new(self.name())
-                .id(self.id())
-                .default_width(500.)
-                .open(open)
-                .show(ctx, |ui| {
-                    self.view.show(
-                        ui,
-                        "Actors",
-                        update_state
-                            .project_config
-                            .as_ref()
-                            .expect("project not loaded"),
-                        &mut actors.data,
-                        |actor| format!("{:0>3}: {}", actor.id, actor.name),
-                        |ui, actor| {
-                            self.selected_actor_name = Some(actor.name.clone());
+        let response = egui::Window::new(self.name())
+            .id(self.id())
+            .default_width(500.)
+            .open(open)
+            .show(ctx, |ui| {
+                self.view.show(
+                    ui,
+                    "Actors",
+                    update_state
+                        .project_config
+                        .as_ref()
+                        .expect("project not loaded"),
+                    &mut actors.data,
+                    |actor| format!("{:0>3}: {}", actor.id, actor.name),
+                    |ui, actor| {
+                        self.selected_actor_name = Some(actor.name.clone());
 
+                        modified |= ui
+                            .add(luminol_components::Field::new(
+                                "Name",
+                                egui::TextEdit::singleline(&mut actor.name)
+                                    .desired_width(f32::INFINITY),
+                            ))
+                            .changed();
+
+                        ui.with_stripe(true, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut actor.name)
-                                        .desired_width(f32::INFINITY),
+                                    "Class",
+                                    luminol_components::OptionalIdComboBox::new(
+                                        (actor.id, "class"),
+                                        &mut actor.class_id,
+                                        0..classes.data.len(),
+                                        |id| {
+                                            classes.data.get(id).map_or_else(
+                                                || "".into(),
+                                                |c| format!("{id:0>3}: {}", c.name),
+                                            )
+                                        },
+                                    ),
                                 ))
                                 .changed();
+                        });
 
-                            ui.with_stripe(true, |ui| {
-                                modified |= ui
-                                    .add(luminol_components::Field::new(
-                                        "Class",
-                                        luminol_components::OptionalIdComboBox::new(
-                                            (actor.id, "class"),
-                                            &mut actor.class_id,
-                                            0..classes.data.len(),
-                                            |id| {
-                                                classes.data.get(id).map_or_else(
-                                                    || "".into(),
-                                                    |c| format!("{id:0>3}: {}", c.name),
-                                                )
-                                            },
-                                        ),
-                                    ))
-                                    .changed();
-                            });
-
-                            if let Some(class) = classes.data.get_mut(actor.class_id) {
-                                if !class.weapon_set.is_sorted() {
-                                    class.weapon_set.sort_unstable();
-                                }
-                                if !class.armor_set.is_sorted() {
-                                    class.armor_set.sort_unstable();
-                                }
+                        if let Some(class) = classes.data.get_mut(actor.class_id) {
+                            if !class.weapon_set.is_sorted() {
+                                class.weapon_set.sort_unstable();
                             }
-                            let class = classes.data.get(actor.class_id);
+                            if !class.armor_set.is_sorted() {
+                                class.armor_set.sort_unstable();
+                            }
+                        }
+                        let class = classes.data.get(actor.class_id);
 
-                            ui.with_stripe(false, |ui| {
-                                ui.add(luminol_components::Field::new(
-                                    "Starting Weapon",
-                                    |ui: &mut egui::Ui| {
-                                        egui::Frame::none()
-                                            .show(ui, |ui| {
-                                                ui.columns(2, |columns| {
-                                                    modified |= columns[0]
+                        ui.with_stripe(false, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Starting Weapon",
+                                |ui: &mut egui::Ui| {
+                                    egui::Frame::none()
+                                        .show(ui, |ui| {
+                                            ui.columns(2, |columns| {
+                                                modified |= columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "weapon_id"),
@@ -164,24 +227,25 @@ impl luminol_core::Window for Window {
                                                         ),
                                                     )
                                                     .changed();
-                                                    modified |= columns[1]
-                                                        .checkbox(&mut actor.weapon_fix, "Fixed")
-                                                        .changed();
-                                                });
-                                            })
-                                            .response
-                                    },
-                                ));
-                            });
+                                                modified |= columns[1]
+                                                    .checkbox(&mut actor.weapon_fix, "Fixed")
+                                                    .changed();
+                                            });
+                                        })
+                                        .response
+                                },
+                            ));
+                        });
 
-                            ui.with_stripe(true, |ui| {
-                                ui.add(luminol_components::Field::new(
-                                    "Starting Shield",
-                                    |ui: &mut egui::Ui| {
-                                        egui::Frame::none()
-                                            .show(ui, |ui| {
-                                                ui.columns(2, |columns| {
-                                                    modified |= columns[0].add(
+                        ui.with_stripe(true, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Starting Shield",
+                                |ui: &mut egui::Ui| {
+                                    egui::Frame::none()
+                                        .show(ui, |ui| {
+                                            ui.columns(2, |columns| {
+                                                modified |= columns[0]
+                                                    .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor1_id"),
                                                             &mut actor.armor1_id,
@@ -215,25 +279,27 @@ impl luminol_core::Window for Window {
                                                                 )
                                                             },
                                                         ),
-                                                    ).changed();
-                                                    modified |= columns[1]
-                                                        .checkbox(&mut actor.armor1_fix, "Fixed")
-                                                        .changed();
-                                                });
-                                            })
-                                            .response
-                                    },
-                                ));
-                            });
+                                                    )
+                                                    .changed();
+                                                modified |= columns[1]
+                                                    .checkbox(&mut actor.armor1_fix, "Fixed")
+                                                    .changed();
+                                            });
+                                        })
+                                        .response
+                                },
+                            ));
+                        });
 
-                            ui.with_stripe(false, |ui| {
-                                ui.add(luminol_components::Field::new(
-                                    "Starting Helmet",
-                                    |ui: &mut egui::Ui| {
-                                        egui::Frame::none()
-                                            .show(ui, |ui| {
-                                                ui.columns(2, |columns| {
-                                                    modified |= columns[0].add(
+                        ui.with_stripe(false, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Starting Helmet",
+                                |ui: &mut egui::Ui| {
+                                    egui::Frame::none()
+                                        .show(ui, |ui| {
+                                            ui.columns(2, |columns| {
+                                                modified |= columns[0]
+                                                    .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor2_id"),
                                                             &mut actor.armor2_id,
@@ -267,25 +333,27 @@ impl luminol_core::Window for Window {
                                                                 )
                                                             },
                                                         ),
-                                                    ).changed();
-                                                    modified |= columns[1]
-                                                        .checkbox(&mut actor.armor2_fix, "Fixed")
-                                                        .changed();
-                                                });
-                                            })
-                                            .response
-                                    },
-                                ));
-                            });
+                                                    )
+                                                    .changed();
+                                                modified |= columns[1]
+                                                    .checkbox(&mut actor.armor2_fix, "Fixed")
+                                                    .changed();
+                                            });
+                                        })
+                                        .response
+                                },
+                            ));
+                        });
 
-                            ui.with_stripe(true, |ui| {
-                                ui.add(luminol_components::Field::new(
-                                    "Starting Body Armor",
-                                    |ui: &mut egui::Ui| {
-                                        egui::Frame::none()
-                                            .show(ui, |ui| {
-                                                ui.columns(2, |columns| {
-                                                    modified |= columns[0].add(
+                        ui.with_stripe(true, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Starting Body Armor",
+                                |ui: &mut egui::Ui| {
+                                    egui::Frame::none()
+                                        .show(ui, |ui| {
+                                            ui.columns(2, |columns| {
+                                                modified |= columns[0]
+                                                    .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor3_id"),
                                                             &mut actor.armor3_id,
@@ -319,25 +387,27 @@ impl luminol_core::Window for Window {
                                                                 )
                                                             },
                                                         ),
-                                                    ).changed();
-                                                    modified |= columns[1]
-                                                        .checkbox(&mut actor.armor3_fix, "Fixed")
-                                                        .changed();
-                                                });
-                                            })
-                                            .response
-                                    },
-                                ));
-                            });
+                                                    )
+                                                    .changed();
+                                                modified |= columns[1]
+                                                    .checkbox(&mut actor.armor3_fix, "Fixed")
+                                                    .changed();
+                                            });
+                                        })
+                                        .response
+                                },
+                            ));
+                        });
 
-                            ui.with_stripe(false, |ui| {
-                                ui.add(luminol_components::Field::new(
-                                    "Starting Accessory",
-                                    |ui: &mut egui::Ui| {
-                                        egui::Frame::none()
-                                            .show(ui, |ui| {
-                                                ui.columns(2, |columns| {
-                                                    modified |= columns[0].add(
+                        ui.with_stripe(false, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Starting Accessory",
+                                |ui: &mut egui::Ui| {
+                                    egui::Frame::none()
+                                        .show(ui, |ui| {
+                                            ui.columns(2, |columns| {
+                                                modified |= columns[0]
+                                                    .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             (actor.id, "armor4_id"),
                                                             &mut actor.armor4_id,
@@ -371,57 +441,148 @@ impl luminol_core::Window for Window {
                                                                 )
                                                             },
                                                         ),
-                                                    ).changed();
-                                                    modified |= columns[1]
-                                                        .checkbox(&mut actor.armor4_fix, "Fixed")
-                                                        .changed();
-                                                });
-                                            })
-                                            .response
+                                                    )
+                                                    .changed();
+                                                modified |= columns[1]
+                                                    .checkbox(&mut actor.armor4_fix, "Fixed")
+                                                    .changed();
+                                            });
+                                        })
+                                        .response
+                                },
+                            ));
+                        });
+
+                        ui.with_stripe(true, |ui| {
+                            ui.columns(2, |columns| {
+                                modified |= columns[0]
+                                    .add(luminol_components::Field::new(
+                                        "Initial Level",
+                                        egui::Slider::new(&mut actor.initial_level, 1..=99),
+                                    ))
+                                    .changed();
+
+                                modified |= columns[1]
+                                    .add(luminol_components::Field::new(
+                                        "Final Level",
+                                        egui::Slider::new(&mut actor.final_level, 1..=99),
+                                    ))
+                                    .changed();
+                            });
+                        });
+
+                        ui.with_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                                modified |= columns[0]
+                                    .add(luminol_components::Field::new(
+                                        "EXP Curve Basis",
+                                        egui::Slider::new(&mut actor.exp_basis, 10..=50),
+                                    ))
+                                    .changed();
+
+                                modified |= columns[1]
+                                    .add(luminol_components::Field::new(
+                                        "EXP Curve Inflation",
+                                        egui::Slider::new(&mut actor.exp_inflation, 10..=50),
+                                    ))
+                                    .changed();
+                            });
+                        });
+
+                        ui.with_stripe(true, |ui| {
+                            ui.columns(2, |columns| {
+                                columns[0].add(luminol_components::Field::new(
+                                    "Max HP",
+                                    |ui: &mut egui::Ui| {
+                                        draw_graph(
+                                            ui,
+                                            actor,
+                                            0,
+                                            1..=9999,
+                                            egui::Color32::from_rgb(204, 0, 0),
+                                        )
+                                    },
+                                ));
+
+                                columns[1].add(luminol_components::Field::new(
+                                    "Max SP",
+                                    |ui: &mut egui::Ui| {
+                                        draw_graph(
+                                            ui,
+                                            actor,
+                                            1,
+                                            1..=9999,
+                                            egui::Color32::from_rgb(245, 123, 0),
+                                        )
                                     },
                                 ));
                             });
+                        });
 
-                            ui.with_stripe(true, |ui| {
-                                ui.columns(2, |columns| {
-                                    modified |= columns[0]
-                                        .add(luminol_components::Field::new(
-                                            "Initial Level",
-                                            egui::Slider::new(&mut actor.initial_level, 1..=99),
-                                        ))
-                                        .changed();
+                        ui.with_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                                columns[0].add(luminol_components::Field::new(
+                                    "STR",
+                                    |ui: &mut egui::Ui| {
+                                        draw_graph(
+                                            ui,
+                                            actor,
+                                            2,
+                                            1..=999,
+                                            egui::Color32::from_rgb(237, 213, 0),
+                                        )
+                                    },
+                                ));
 
-                                    modified |= columns[1]
-                                        .add(luminol_components::Field::new(
-                                            "Final Level",
-                                            egui::Slider::new(&mut actor.final_level, 1..=99),
-                                        ))
-                                        .changed();
-                                });
+                                columns[1].add(luminol_components::Field::new(
+                                    "DEX",
+                                    |ui: &mut egui::Ui| {
+                                        draw_graph(
+                                            ui,
+                                            actor,
+                                            3,
+                                            1..=999,
+                                            egui::Color32::from_rgb(116, 210, 22),
+                                        )
+                                    },
+                                ));
                             });
+                        });
 
-                            ui.with_stripe(false, |ui| {
-                                ui.columns(2, |columns| {
-                                    modified |= columns[0]
-                                        .add(luminol_components::Field::new(
-                                            "EXP Curve Basis",
-                                            egui::Slider::new(&mut actor.exp_basis, 10..=50),
-                                        ))
-                                        .changed();
+                        ui.with_stripe(true, |ui| {
+                            ui.columns(2, |columns| {
+                                columns[0].add(luminol_components::Field::new(
+                                    "AGI",
+                                    |ui: &mut egui::Ui| {
+                                        draw_graph(
+                                            ui,
+                                            actor,
+                                            4,
+                                            1..=999,
+                                            egui::Color32::from_rgb(52, 101, 164),
+                                        )
+                                    },
+                                ));
 
-                                    modified |= columns[1]
-                                        .add(luminol_components::Field::new(
-                                            "EXP Curve Inflation",
-                                            egui::Slider::new(&mut actor.exp_inflation, 10..=50),
-                                        ))
-                                        .changed();
-                                });
+                                columns[1].add(luminol_components::Field::new(
+                                    "INT",
+                                    |ui: &mut egui::Ui| {
+                                        draw_graph(
+                                            ui,
+                                            actor,
+                                            5,
+                                            1..=999,
+                                            egui::Color32::from_rgb(117, 80, 123),
+                                        )
+                                    },
+                                ));
                             });
+                        });
 
-                            self.previous_actor = Some(actor.id);
-                        },
-                    )
-                });
+                        self.previous_actor = Some(actor.id);
+                    },
+                )
+            });
 
         if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
             modified = true;
