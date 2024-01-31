@@ -76,6 +76,7 @@ fn load_wgpu_texture_from_path(
                 | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         },
+        wgpu::util::TextureDataOrder::LayerMajor,
         &texture_data,
     ))
 }
