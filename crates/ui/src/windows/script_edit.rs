@@ -60,6 +60,14 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 egui::SidePanel::left("script_edit_script_panel").show_inside(ui, |ui| {
                     egui::ScrollArea::both()
+                        .id_source(
+                            update_state
+                                .project_config
+                                .as_ref()
+                                .expect("project not loaded")
+                                .project
+                                .persistence_id,
+                        )
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
                             let mut scripts = update_state.data.scripts();
@@ -185,16 +193,25 @@ impl luminol_core::Tab for ScriptTab {
             ui.fonts(|f| f.layout_job(layout_job))
         };
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.add(
-                egui::TextEdit::multiline(&mut self.script_text)
-                    .code_editor()
-                    .desired_rows(10)
-                    .lock_focus(true)
-                    .desired_width(f32::INFINITY)
-                    .layouter(&mut layouter),
-            );
-        });
+        egui::ScrollArea::vertical()
+            .id_source(
+                update_state
+                    .project_config
+                    .as_ref()
+                    .expect("project not loaded")
+                    .project
+                    .persistence_id,
+            )
+            .show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.script_text)
+                        .code_editor()
+                        .desired_rows(10)
+                        .lock_focus(true)
+                        .desired_width(f32::INFINITY)
+                        .layouter(&mut layouter),
+                );
+            });
     }
 
     fn force_close(&mut self) -> bool {

@@ -291,11 +291,20 @@ impl luminol_core::Tab for Tab {
             .default_width(tilepicker_default_width)
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
-                egui::ScrollArea::both().show_viewport(ui, |ui, rect| {
-                    self.tilepicker
-                        .ui(update_state, ui, rect, self.view.map.coll_enabled);
-                    ui.separator();
-                });
+                egui::ScrollArea::both()
+                    .id_source(
+                        update_state
+                            .project_config
+                            .as_ref()
+                            .expect("project not loaded")
+                            .project
+                            .persistence_id,
+                    )
+                    .show_viewport(ui, |ui, rect| {
+                        self.tilepicker
+                            .ui(update_state, ui, rect, self.view.map.coll_enabled);
+                        ui.separator();
+                    });
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {

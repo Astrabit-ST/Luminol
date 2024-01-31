@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_components::UiExt;
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
 static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
@@ -196,43 +197,30 @@ impl luminol_core::Window for Window {
 
                     self.show_inner(ui, update_state);
 
-                    ui.with_layout(
-                        egui::Layout {
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            ui.group(|ui| {
-                                ui.set_width(ui.available_width());
-                                ui.set_height(ui.available_height());
-                                egui::ScrollArea::both().show(ui, |ui| match &mut self.mode {
-                                    Mode::Extract { view, .. } => {
-                                        if let Some(v) = view {
-                                            v.ui(ui, update_state, None);
-                                        } else {
-                                            ui.add(
-                                                egui::Label::new("No archive chosen").wrap(false),
-                                            );
-                                        }
+                    ui.with_cross_justify(|ui| {
+                        ui.group(|ui| {
+                            ui.set_width(ui.available_width());
+                            ui.set_height(ui.available_height());
+                            egui::ScrollArea::both().show(ui, |ui| match &mut self.mode {
+                                Mode::Extract { view, .. } => {
+                                    if let Some(v) = view {
+                                        v.ui(ui, update_state, None);
+                                    } else {
+                                        ui.add(egui::Label::new("No archive chosen").wrap(false));
                                     }
-                                    Mode::Create { view, .. } => {
-                                        if let Some(v) = view {
-                                            v.ui(
-                                                ui,
-                                                update_state,
-                                                Some(&CREATE_DEFAULT_SELECTED_DIRS),
-                                            );
-                                        } else {
-                                            ui.add(
-                                                egui::Label::new("No source folder chosen")
-                                                    .wrap(false),
-                                            );
-                                        }
+                                }
+                                Mode::Create { view, .. } => {
+                                    if let Some(v) = view {
+                                        v.ui(ui, update_state, Some(&CREATE_DEFAULT_SELECTED_DIRS));
+                                    } else {
+                                        ui.add(
+                                            egui::Label::new("No source folder chosen").wrap(false),
+                                        );
                                     }
-                                });
+                                }
                             });
-                        },
-                    );
+                        });
+                    });
                 });
             });
 
@@ -294,12 +282,7 @@ impl Window {
                     || save_promise.is_none()
                 {
                     ui.columns(2, |columns| {
-                        columns[0].with_layout(
-                            egui::Layout {
-                                cross_align: egui::Align::Center,
-                                cross_justify: true,
-                                ..Default::default()
-                            },
+                        columns[0].with_cross_justify_center(
                             |ui| {
                                 if load_promise.is_none() && ui.button("Choose archive").clicked() {
                                     *load_promise = Some(luminol_core::spawn_future(
@@ -314,12 +297,7 @@ impl Window {
                             },
                         );
 
-                        columns[1].with_layout(
-                            egui::Layout {
-                                cross_align: egui::Align::Center,
-                                cross_justify: true,
-                                ..Default::default()
-                            },
+                        columns[1].with_cross_justify_center(
                             |ui| {
                                 if save_promise.is_none()
                                     && ui
@@ -449,12 +427,7 @@ impl Window {
                     || save_promise.is_none()
                 {
                     ui.columns(2, |columns| {
-                        columns[0].with_layout(
-                            egui::Layout {
-                                cross_align: egui::Align::Center,
-                                cross_justify: true,
-                                ..Default::default()
-                            },
+                        columns[0].with_cross_justify_center(
                             |ui| {
                                 if load_promise.is_none() && ui.button("Choose source folder").clicked()
                                 {
@@ -467,12 +440,7 @@ impl Window {
                             },
                         );
 
-                        columns[1].with_layout(
-                            egui::Layout {
-                                cross_align: egui::Align::Center,
-                                cross_justify: true,
-                                ..Default::default()
-                            },
+                        columns[1].with_cross_justify_center(
                             |ui| {
                                 if save_promise.is_none()
                                     && ui
