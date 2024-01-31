@@ -35,6 +35,7 @@ struct ReportJson {
     reporter_version: u32,
     luminol_revision: String,
     target: String,
+    wgpu_backend: String,
     debug: bool,
     report: String,
 }
@@ -49,6 +50,7 @@ impl Window {
                 reporter_version: 1,
                 luminol_revision: git_revision.into(),
                 target: target_triple::target!().to_string(),
+                wgpu_backend: "empty".into(),
                 debug: cfg!(debug_assertions),
                 report,
             },
@@ -77,6 +79,17 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
+        if self.first_render {
+            self.json.wgpu_backend = update_state
+                .graphics
+                .render_state
+                .adapter
+                .get_info()
+                .backend
+                .to_str()
+                .to_string();
+        }
+
         let mut should_close = false;
 
         egui::Window::new(self.name())
@@ -93,6 +106,7 @@ impl luminol_core::Window for Window {
 
                 ui.label(format!("Luminol version: {}", self.json.luminol_revision));
                 ui.label(format!("Target platform: {}", self.json.target));
+                ui.label(format!("Graphics backend: {}", self.json.wgpu_backend));
                 ui.label(format!(
                     "Build profile: {}",
                     if self.json.debug { "debug" } else { "release" }
