@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> luminol-egui-wgpu is currently based on emilk/egui@0.25.0
+> luminol-egui-wgpu is currently based on emilk/egui@b766a48fa7fe4f6a25622ebe2e5677c09553cda9
 
 > [!NOTE]
 > This is Luminol's modified version of egui-wgpu. The original version is dual-licensed under MIT and Apache 2.0.
