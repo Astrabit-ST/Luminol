@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_components::UiExt;
+
 /// Crash reporter window.
 pub struct Window {
     normalized_report: String,
@@ -113,106 +115,88 @@ impl luminol_core::Window for Window {
                 ));
 
                 ui.group(|ui| {
-                    ui.with_layout(
-                        egui::Layout {
-                            cross_justify: true,
-                            ..Default::default()
-                        },
-                        |ui| {
-                            // Forget the scroll position from the last time the reporter opened
-                            let scroll_area_id_source = "scroll_area";
-                            if self.first_render {
-                                self.first_render = false;
-                                let scroll_area_id =
-                                    ui.make_persistent_id(egui::Id::new(scroll_area_id_source));
-                                egui::scroll_area::State::default().store(ui.ctx(), scroll_area_id);
-                            }
+                    ui.with_cross_justify(|ui| {
+                        // Forget the scroll position from the last time the reporter opened
+                        let scroll_area_id_source = "scroll_area";
+                        if self.first_render {
+                            self.first_render = false;
+                            let scroll_area_id =
+                                ui.make_persistent_id(egui::Id::new(scroll_area_id_source));
+                            egui::scroll_area::State::default().store(ui.ctx(), scroll_area_id);
+                        }
 
-                            egui::ScrollArea::both()
-                                .id_source(scroll_area_id_source)
-                                .max_height(
-                                    ui.available_height()
-                                        - ui.spacing().interact_size.y.max(
-                                            ui.text_style_height(&egui::TextStyle::Button)
-                                                + 2. * ui.spacing().button_padding.y,
-                                        )
-                                        - ui.spacing().item_spacing.y,
-                                )
-                                .show(ui, |ui| {
-                                    ui.add(
-                                        egui::TextEdit::multiline(
-                                            &mut self.normalized_report.as_str(),
-                                        )
-                                        .layouter(
-                                            &mut |ui, text, wrap_width| {
-                                                // Make the text monospace and non-wrapping
-                                                egui::WidgetText::from(text)
-                                                    .color(
-                                                        ui.visuals()
-                                                            .override_text_color
-                                                            .unwrap_or_else(|| {
-                                                                ui.visuals()
-                                                                    .widgets
-                                                                    .noninteractive
-                                                                    .fg_stroke
-                                                                    .color
-                                                            }),
-                                                    )
-                                                    .into_galley(
-                                                        ui,
-                                                        Some(false),
-                                                        wrap_width,
-                                                        egui::TextStyle::Monospace,
-                                                    )
-                                            },
-                                        ),
-                                    );
-                                });
-                        },
-                    );
+                        egui::ScrollArea::both()
+                            .id_source(scroll_area_id_source)
+                            .max_height(
+                                ui.available_height()
+                                    - ui.spacing().interact_size.y.max(
+                                        ui.text_style_height(&egui::TextStyle::Button)
+                                            + 2. * ui.spacing().button_padding.y,
+                                    )
+                                    - ui.spacing().item_spacing.y,
+                            )
+                            .show(ui, |ui| {
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut self.normalized_report.as_str())
+                                        .layouter(&mut |ui, text, wrap_width| {
+                                            // Make the text monospace and non-wrapping
+                                            egui::WidgetText::from(text)
+                                                .color(
+                                                    ui.visuals()
+                                                        .override_text_color
+                                                        .unwrap_or_else(|| {
+                                                            ui.visuals()
+                                                                .widgets
+                                                                .noninteractive
+                                                                .fg_stroke
+                                                                .color
+                                                        }),
+                                                )
+                                                .into_galley(
+                                                    ui,
+                                                    Some(false),
+                                                    wrap_width,
+                                                    egui::TextStyle::Monospace,
+                                                )
+                                        }),
+                                );
+                            });
+                    });
                 });
 
-                ui.with_layout(
-                    egui::Layout {
-                        cross_justify: true,
-                        cross_align: egui::Align::Center,
-                        ..Default::default()
-                    },
-                    |ui| {
-                        if self.send_promise.is_none() {
-                            ui.columns(2, |columns| {
-                                if columns[0].button("Don't send").clicked() {
-                                    should_close = true;
-                                }
+                ui.with_cross_justify_center(|ui| {
+                    if self.send_promise.is_none() {
+                        ui.columns(2, |columns| {
+                            if columns[0].button("Don't send").clicked() {
+                                should_close = true;
+                            }
 
-                                if columns[1].button("Send").clicked() {
-                                    let json = self.json.clone();
-                                    self.send_promise =
-                                        Some(luminol_core::spawn_future(async move {
-                                            let client = reqwest::Client::new();
-                                            let response = client
-                                                .post("http://localhost:3246")
-                                                .json(&json)
-                                                .fetch_mode_no_cors()
-                                                .send()
-                                                .await
-                                                .map_err(|e| color_eyre::eyre::eyre!(e))?;
-                                            if response.status().is_success() {
-                                                Ok(())
-                                            } else {
-                                                Err(color_eyre::eyre::eyre!(format!(
-                                                    "Request returned {}",
-                                                    response.status()
-                                                )))
-                                            }
-                                        }));
-                                }
-                            });
-                        } else {
-                            ui.spinner();
-                        }
-                    },
-                );
+                            if columns[1].button("Send").clicked() {
+                                let json = self.json.clone();
+                                self.send_promise = Some(luminol_core::spawn_future(async move {
+                                    let client = reqwest::Client::new();
+                                    let response = client
+                                        .post("http://localhost:3246")
+                                        .json(&json)
+                                        .fetch_mode_no_cors()
+                                        .send()
+                                        .await
+                                        .map_err(|e| color_eyre::eyre::eyre!(e))?;
+                                    if response.status().is_success() {
+                                        Ok(())
+                                    } else {
+                                        Err(color_eyre::eyre::eyre!(format!(
+                                            "Request returned {}",
+                                            response.status()
+                                        )))
+                                    }
+                                }));
+                            }
+                        });
+                    } else {
+                        ui.spinner();
+                    }
+                });
             });
 
         if let Some(p) = self.send_promise.take() {
