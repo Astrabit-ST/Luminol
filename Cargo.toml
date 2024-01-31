@@ -60,9 +60,9 @@ categories = ["games"]
 
 # Shared dependencies
 [workspace.dependencies]
-egui = "0.24.1"
-egui_extras = { version = "0.24.1", features = ["svg", "image"] }
-epaint = "0.24.1"
+egui = "0.25.0"
+egui_extras = { version = "0.25.0", features = ["svg", "image"] }
+epaint = "0.25.0"
 
 luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "wgpu",
@@ -73,8 +73,8 @@ luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "wayland",
 ], default-features = false }
 luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" }
-egui_glow = "0.24.1"
-egui-winit = "0.24.1"
+egui_glow = "0.25.0"
+egui-winit = "0.25.0"
 
 wgpu = { version = "0.18.0", features = ["naga"] }
 glam = { version = "0.24.2", features = ["bytemuck"] }
