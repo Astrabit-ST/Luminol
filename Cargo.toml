@@ -231,16 +231,12 @@ web-sys = { version = "0.3", features = [
     "WorkerType",
 ] }
 
-# Enable wgpu's `webgl` feature if Luminol's `webgl` feature is enabled,
-# enabling its WebGL backend and disabling its WebGPU backend
 [target.'cfg(target_arch = "wasm32")'.dependencies.wgpu]
 workspace = true
-optional = true
-features = ["webgl"]
+features = ["webgpu", "webgl"]
 
 [features]
 steamworks = ["dep:steamworks"]
-webgl = ["dep:wgpu"]
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

@@ -291,7 +291,7 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn luminol_main_start(fallback: bool) {
+pub fn luminol_main_start() {
     let (panic_tx, panic_rx) = flume::unbounded();
 
     wasm_bindgen_futures::spawn_local(async move {
@@ -390,7 +390,6 @@ pub fn luminol_main_start(fallback: bool) {
         .expect("failed to spawn web worker");
 
     let message = js_sys::Array::new();
-    message.push(&JsValue::from(fallback));
     message.push(&wasm_bindgen::memory());
     message.push(&offscreen_canvas);
     let transfer = js_sys::Array::new();
