@@ -59,7 +59,6 @@ impl UiExt for egui::Ui {
     ) -> f32 {
         Into::<egui::WidgetText>::into(text)
             .into_galley(self, None, f32::INFINITY, font)
-            .galley
             .rect
             .width()
     }

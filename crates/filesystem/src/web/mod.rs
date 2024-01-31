@@ -87,7 +87,7 @@ enum FileSystemCommand {
         oneshot::Sender<Result<Metadata>>,
     ),
     DirPicker(oneshot::Sender<Option<(usize, String)>>),
-    DirFromIdb(String, oneshot::Sender<Option<(usize, String)>>),
+    DirFromIdb(String, oneshot::Sender<Result<(usize, String)>>),
     DirToIdb(usize, String, oneshot::Sender<bool>),
     DirSubdir(
         usize,
@@ -184,7 +184,6 @@ impl FileSystem {
                 name,
                 idb_key: Some(idb_key),
             })
-            .ok_or(Error::MissingIDB)
             .wrap_err(c)
     }
 

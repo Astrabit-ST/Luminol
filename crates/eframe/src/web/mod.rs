@@ -333,7 +333,7 @@ pub struct MainStateInner {
     touch_pos: egui::Pos2,
     /// If the user is typing something, the position of the text cursor (for IME) in screen
     /// coordinates.
-    text_cursor_pos: Option<egui::Pos2>,
+    ime: Option<egui::output::IMEOutput>,
     /// Whether or not the user is editing a mutable egui text box.
     mutable_text_under_cursor: bool,
     /// Whether or not egui is trying to receive text input.
