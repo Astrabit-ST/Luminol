@@ -106,10 +106,13 @@ where
         let mut changed = false;
         let mut response = ui
             .vertical(|ui| {
+                let spacing = ui.spacing().item_spacing.y;
+                ui.add_space(spacing);
                 ui.add(egui::Label::new(format!("{}:", self.name)).truncate(true));
                 if ui.add(self.widget).changed() {
                     changed = true;
                 };
+                ui.add_space(spacing);
             })
             .response;
         if changed {
