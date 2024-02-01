@@ -62,14 +62,13 @@ fn draw_graph(
             let iter = (1..actor.parameters.ysize()).map(|i| {
                 rect.left_top()
                     + egui::vec2(
-                        ((i - 1) as f32 / (actor.parameters.ysize() - 2) as f32)
-                            * (rect.width() - 1.),
+                        ((i - 1) as f32 / (actor.parameters.ysize() - 2) as f32) * rect.width(),
                         ((range
                             .end()
                             .saturating_sub(actor.parameters[(param, i)] as usize))
                             as f32
                             / range.end().saturating_sub(*range.start()) as f32)
-                            * (rect.height() - 1.),
+                            * rect.height(),
                     )
             });
 
