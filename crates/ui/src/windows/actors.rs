@@ -77,23 +77,36 @@ fn draw_graph(
             // between two points
             let ppp = ui.ctx().pixels_per_point();
             ui.painter()
-                .extend(iter.clone().tuple_windows().map(|(p, q)| {
-                    // Round the horizontal position of each point to the nearest pixel so egui doesn't
-                    // try to anti-alias the vertical edges of the trapezoids
-                    let p = egui::pos2((p.x * ppp).round() / ppp, p.y);
-                    let q = egui::pos2((q.x * ppp).round() / ppp, q.y);
+                .extend(
+                    iter.clone()
+                        .tuple_windows()
+                        .with_position()
+                        .map(|(iter_pos, (p, q))| {
+                            // Round the horizontal position of each point to the nearest pixel so egui doesn't
+                            // try to anti-alias the vertical edges of the trapezoids
+                            let p = if iter_pos == itertools::Position::First {
+                                p
+                            } else {
+                                egui::pos2((p.x * ppp).round() / ppp, p.y)
+                            };
+                            let q = if iter_pos == itertools::Position::Last {
+                                q
+                            } else {
+                                egui::pos2((q.x * ppp).round() / ppp, q.y)
+                            };
 
-                    egui::Shape::convex_polygon(
-                        vec![
-                            p,
-                            q,
-                            egui::pos2(q.x, rect.bottom()),
-                            egui::pos2(p.x, rect.bottom()),
-                        ],
-                        color.gamma_multiply(0.25),
-                        egui::Stroke::NONE,
-                    )
-                }));
+                            egui::Shape::convex_polygon(
+                                vec![
+                                    p,
+                                    q,
+                                    egui::pos2(q.x, rect.bottom()),
+                                    egui::pos2(p.x, rect.bottom()),
+                                ],
+                                color.gamma_multiply(0.25),
+                                egui::Stroke::NONE,
+                            )
+                        }),
+                );
 
             // Draw the border of the graph
             ui.painter().add(egui::Shape::line(
