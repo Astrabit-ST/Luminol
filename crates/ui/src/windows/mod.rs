@@ -49,6 +49,8 @@ pub mod map_picker;
 pub mod misc;
 /// New project window
 pub mod new_project;
+/// The crash reporter.
+pub mod reporter;
 /// The script editor
 pub mod script_edit;
 /// The skill editor.

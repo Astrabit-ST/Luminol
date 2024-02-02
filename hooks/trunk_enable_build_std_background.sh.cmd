@@ -1,4 +1,5 @@
 @echo off
+setlocal
 
 :: Wait until Trunk errors out or builds successfully, then restore the old Cargo config
 :loop

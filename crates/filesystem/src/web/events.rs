@@ -125,24 +125,25 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             store.get_owned(&idb_key)
                         })
                         .await
-                        .ok()?
+                        .map_err(|e| color_eyre::eyre::eyre!(format!("Failed to restore directory handle from IndexedDB: {}", e.to_string())))?
                         .await
-                        .ok()
-                        .flatten()?;
+                        .map_err(|e| color_eyre::eyre::eyre!(format!("Failed to restore directory handle from IndexedDB: {}", e.to_string())))?
+                        .ok_or(color_eyre::eyre::eyre!("Failed to restore directory handle from IndexedDB: No directory handle found for the given IndexedDB key"))?;
                         let dir = dir.unchecked_into::<web_sys::FileSystemDirectoryHandle>();
                         let key =
                             luminol_web::bindings::request_permission(&dir)
                                 .await
+                                .map_err(|e| color_eyre::eyre::eyre!("Failed to request permission for directory handle restored from IndexedDB: {}", e.to_string()))?
                                 .then(|| {
                                     let name = dir.name();
                                     (dirs.insert(dir), name)
-                                })?;
+                                }).ok_or(color_eyre::eyre::eyre!("Failed to request permission for directory handle restored from IndexedDB"))?;
                         idb(IdbTransactionMode::Readwrite, |store| {
                             store.delete_owned(&idb_key)
                         })
                         .await
-                        .ok()?;
-                        Some(key)
+                        .map_err(|e| color_eyre::eyre::eyre!(format!("Failed to remove directory handle from IndexedDB: {}", e.to_string())))?;
+                        Ok(key)
                     })
                     .await;
                 }

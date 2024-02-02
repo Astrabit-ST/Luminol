@@ -45,6 +45,12 @@ pub mod project_manager;
 pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
+static GIT_REVISION: once_cell::sync::OnceCell<&'static str> = once_cell::sync::OnceCell::new();
+
+pub fn set_git_revision(revision: &'static str) {
+    let _ = GIT_REVISION.set(revision);
+}
+
 pub struct UpdateState<'res> {
     pub ctx: &'res egui::Context,
 
@@ -72,6 +78,8 @@ pub struct UpdateState<'res> {
 
     pub modified: ModifiedState,
     pub project_manager: &'res mut ProjectManager,
+
+    pub git_revision: &'static str,
 }
 
 /// This stores whether or not there are unsaved changes in any file in the current project and is
@@ -148,6 +156,7 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
+            git_revision: self.git_revision,
         }
     }
 
@@ -170,6 +179,7 @@ impl<'res> UpdateState<'res> {
             toolbar: self.toolbar,
             modified: self.modified.clone(),
             project_manager: self.project_manager,
+            git_revision: self.git_revision,
         }
     }
 

@@ -115,10 +115,10 @@ pub(super) async fn idb<R>(
 
     // Create store for our directory handles if it doesn't exist
     db_req.set_on_upgrade_needed(Some(|e: &IdbVersionChangeEvent| {
-        if e.db()
+        if !e
+            .db()
             .object_store_names()
-            .find(|n| n == "filesystem.dir_handles")
-            .is_none()
+            .any(|n| n == "filesystem.dir_handles")
         {
             e.db().create_object_store("filesystem.dir_handles")?;
         }

@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
+};
 use wasm_bindgen::JsValue;
 
 use luminol_egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
@@ -11,24 +15,32 @@ use super::web_painter::WebPainter;
 struct EguiWebWindow(u32);
 
 #[allow(unsafe_code)]
-unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
-    fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-        let mut window_handle = raw_window_handle::WebWindowHandle::empty();
-        window_handle.id = self.0;
-        raw_window_handle::RawWindowHandle::Web(window_handle)
+impl HasWindowHandle for EguiWebWindow {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // SAFETY: there is no lifetime here.
+        unsafe {
+            Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
+                WebWindowHandle::new(self.0),
+            )))
+        }
     }
 }
 
 #[allow(unsafe_code)]
-unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
-    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        raw_window_handle::RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
+impl HasDisplayHandle for EguiWebWindow {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // SAFETY: there is no lifetime here.
+        unsafe {
+            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
+                WebDisplayHandle::new(),
+            )))
+        }
     }
 }
 
 pub(crate) struct WebPainterWgpu {
     canvas: web_sys::OffscreenCanvas,
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     pub(super) surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
@@ -84,13 +96,24 @@ impl WebPainterWgpu {
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
+        {
+            let is_secure_context = luminol_web::bindings::worker()
+                .expect("failed to get worker context")
+                .is_secure_context();
+            if !is_secure_context {
+                log::info!(
+                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost"
+                );
+            }
+        }
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: options.wgpu_options.supported_backends,
             ..Default::default()
         });
 
         let surface = instance
-            .create_surface_from_offscreen_canvas(canvas.clone())
+            .create_surface(wgpu::SurfaceTarget::OffscreenCanvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let depth_format = luminol_egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
@@ -99,14 +122,17 @@ impl WebPainterWgpu {
                 .await
                 .map_err(|err| err.to_string())?;
 
+        let (width, height) = (0, 0);
+
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
-            width: 0,
-            height: 0,
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
+            ..surface
+                .get_default_config(&render_state.adapter, width, height)
+                .ok_or("The surface isn't supported by this adapter")?
         };
 
         log::debug!("wgpu painter initialized.");

@@ -14,6 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+#![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 
 pub mod binding_helpers;
 pub use binding_helpers::{BindGroupBuilder, BindGroupLayoutBuilder};
@@ -111,10 +112,8 @@ impl GraphicsState {
 }
 
 pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
-    let feature_supported = render_state
+    render_state
         .device
         .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS);
-    let is_dx_12 = render_state.adapter.get_info().backend == wgpu::Backend::Dx12;
-    feature_supported && !is_dx_12
+        .contains(wgpu::Features::PUSH_CONSTANTS)
 }

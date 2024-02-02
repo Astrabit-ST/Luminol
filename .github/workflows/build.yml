@@ -102,10 +102,11 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rust-src
       - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/download/v0.17.5/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+        run: wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.18.7/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C ${{ runner.temp }}
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-      - run: ./trunk build --release
+      - name: Build luminol (Release)
+        run: ${{ runner.temp }}/trunk build --release
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:

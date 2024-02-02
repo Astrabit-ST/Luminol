@@ -21,8 +21,12 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![cfg_attr(target_arch = "wasm32", no_main)] // there is no main function in web builds
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::{Read, Write};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -30,6 +34,9 @@ use wasm_bindgen::prelude::*;
 #[cfg(not(target_arch = "wasm32"))]
 /// Embedded icon 256x256 in size.
 const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
+
+static RESTART_AFTER_PANIC: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 mod app;
 mod lumi;
@@ -40,15 +47,24 @@ compile_error!("Steamworks is not supported on webassembly");
 #[cfg(feature = "steamworks")]
 mod steam;
 
+pub fn git_revision() -> &'static str {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        git_version::git_version!()
+    }
+    #[cfg(target_arch = "wasm32")]
+    option_env!("LUMINOL_VERSION").unwrap_or(git_version::git_version!())
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// A writer that copies whatever is written to it to two other writers.
 struct CopyWriter<A, B>(A, B);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl<A, B> std::io::Write for CopyWriter<A, B>
+impl<A, B> Write for CopyWriter<A, B>
 where
-    A: std::io::Write,
-    B: std::io::Write,
+    A: Write,
+    B: Write,
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         Ok(self.0.write(buf)?.min(self.1.write(buf)?))
@@ -77,7 +93,7 @@ static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::Once
 struct LogWriter(luminol_term::termwiz::escape::parser::Parser);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl std::io::Write for LogWriter {
+impl Write for LogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         LOG_BYTE_SENDER
             .get()
@@ -122,6 +138,18 @@ impl std::io::Write for LogWriter {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
+    // Load the panic report from the previous run if it exists
+    let mut report = None;
+    if let Some(path) = std::env::var_os("LUMINOL_PANIC_REPORT_FILE") {
+        if let Ok(mut file) = std::fs::File::open(&path) {
+            let mut buffer = String::new();
+            if file.read_to_string(&mut buffer).is_ok() {
+                report = Some(buffer);
+            }
+        }
+        let _ = std::fs::remove_file(path);
+    }
+
     #[cfg(feature = "steamworks")]
     let steamworks = match steam::Steamworks::new() {
         Ok(s) => s,
@@ -172,14 +200,12 @@ fn main() {
         std::process::abort();
     });
 
-    // Enable full backtraces unless the user manually set the RUST_BACKTRACE environment variable
-    if std::env::var("RUST_BACKTRACE").is_err() {
-        std::env::set_var("RUST_BACKTRACE", "full");
-    }
+    // Enable full backtraces
+    std::env::set_var("RUST_BACKTRACE", "full");
 
     // Set up hooks for formatting errors and panics
-    color_eyre::config::HookBuilder::default()
-        .panic_section(format!("Luminol version: {}", git_version::git_version!()))
+    let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
+        .panic_section(format!("Luminol version: {}", git_revision()))
         .add_frame_filter(Box::new(|frames| {
             let filters = &[
                 "_",
@@ -209,8 +235,49 @@ fn main() {
                 })
             })
         }))
+        .into_hooks();
+    eyre_hook
         .install()
         .expect("failed to install color-eyre hooks");
+    std::panic::set_hook(Box::new(move |info| {
+        let report = panic_hook.panic_report(info).to_string();
+        eprintln!("{report}");
+
+        if !RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+
+        let mut args = std::env::args_os();
+        let arg0 = args.next();
+        let exe_path = std::env::current_exe().map_or_else(
+            |_| arg0.expect("could not get path to current executable"),
+            |exe_path| exe_path.into_os_string(),
+        );
+
+        let mut file = tempfile::NamedTempFile::new().expect("failed to create temporary file");
+        file.write_all(report.as_bytes())
+            .expect("failed to write to temporary file");
+        file.flush().expect("failed to flush temporary file");
+        let (_, path) = file.keep().expect("failed to persist temporary file");
+        std::env::set_var("LUMINOL_PANIC_REPORT_FILE", &path);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+
+            let error = std::process::Command::new(exe_path).args(args).exec();
+            eprintln!("Failed to restart Luminol: {error:?}");
+            let _ = std::fs::remove_file(&path);
+        }
+
+        #[cfg(not(unix))]
+        {
+            if let Err(error) = std::process::Command::new(exe_path).args(args).spawn() {
+                eprintln!("Failed to restart Luminol: {error:?}");
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+    }));
 
     // Log to stderr as well as Luminol's log.
     let (log_term_tx, log_term_rx) = luminol_term::unbounded();
@@ -243,8 +310,8 @@ fn main() {
                 .unwrap_or(wgpu::Backends::PRIMARY),
             device_descriptor: std::sync::Arc::new(|_| wgpu::DeviceDescriptor {
                 label: Some("luminol device descriptor"),
-                features: wgpu::Features::PUSH_CONSTANTS,
-                limits: wgpu::Limits {
+                required_features: wgpu::Features::PUSH_CONSTANTS,
+                required_limits: wgpu::Limits {
                     max_push_constant_size: 128,
                     ..wgpu::Limits::default()
                 },
@@ -262,6 +329,7 @@ fn main() {
             CONTEXT.set(cc.egui_ctx.clone()).unwrap();
             Box::new(app::App::new(
                 cc,
+                report,
                 Default::default(),
                 log_term_rx,
                 log_byte_rx,
@@ -275,15 +343,26 @@ fn main() {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(
+    inline_js = "let report = null; export function get_panic_report() { return report; }; export function set_panic_report(r) { report = r; window.restartLuminol(); };"
+)]
+extern "C" {
+    fn get_panic_report() -> Option<String>;
+    fn set_panic_report(r: String);
+}
+
+#[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "luminol-canvas";
 
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
+    report: Option<String>,
     audio: luminol_audio::AudioWrapper,
     modified: luminol_core::ModifiedState,
     prefers_color_scheme_dark: Option<bool>,
     fs_worker_channels: luminol_filesystem::web::WorkerChannels,
     runner_worker_channels: luminol_eframe::web::WorkerChannels,
+    runner_panic_tx: std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -291,41 +370,83 @@ static WORKER_DATA: parking_lot::Mutex<Option<WorkerData>> = parking_lot::Mutex:
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn luminol_main_start(fallback: bool) {
-    let (panic_tx, panic_rx) = flume::unbounded();
+pub fn luminol_main_start() {
+    // Load the panic report from the previous run if it exists
+    let report = get_panic_report();
 
-    wasm_bindgen_futures::spawn_local(async move {
-        if panic_rx.recv_async().await.is_ok() {
-            let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
-        }
-    });
+    let worker_cell = std::rc::Rc::new(once_cell::unsync::OnceCell::<web_sys::Worker>::new());
+    let before_unload_cell = std::rc::Rc::new(std::cell::RefCell::new(
+        None::<Closure<dyn Fn(web_sys::BeforeUnloadEvent)>>,
+    ));
+    let (panic_tx, panic_rx) = oneshot::channel();
+    let panic_tx = std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx)));
+
+    {
+        let worker_cell = worker_cell.clone();
+        let before_unload_cell = before_unload_cell.clone();
+
+        wasm_bindgen_futures::spawn_local(async move {
+            if let Ok(report) = panic_rx.await {
+                if let Some(worker) = worker_cell.get() {
+                    worker.terminate();
+                }
+
+                if let (Some(window), Some(closure)) =
+                    (web_sys::window(), before_unload_cell.take())
+                {
+                    let _ = window.remove_event_listener_with_callback(
+                        "beforeunload",
+                        closure.as_ref().unchecked_ref(),
+                    );
+                }
+
+                if RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Relaxed) {
+                    set_panic_report(report);
+                } else {
+                    let _ = web_sys::window().map(|window| window.alert_with_message("Luminol has crashed! Please check your browser's developer console for more details."));
+                }
+            }
+        });
+    }
 
     // Set up hooks for formatting errors and panics
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section(format!("Luminol version: {}", git_version::git_version!()))
+        .panic_section(format!("Luminol version: {}", git_revision()))
         .into_hooks();
     eyre_hook
         .install()
         .expect("failed to install color-eyre hooks");
     std::panic::set_hook(Box::new(move |info| {
-        web_sys::console::log_1(&js_sys::JsString::from(
-            panic_hook.panic_report(info).to_string(),
-        ));
-        let _ = panic_tx.send(());
+        let report = panic_hook.panic_report(info).to_string();
+        web_sys::console::log_1(&report.as_str().into());
+
+        // Send the panic report to the main thread to be persisted
+        // We need to send the panic report to the main thread because JavaScript global variables
+        // are thread-local and this panic handler runs on the thread that panicked
+        if let Some(mut panic_tx) = panic_tx.try_lock() {
+            if let Some(panic_tx) = panic_tx.take() {
+                let _ = panic_tx.send(report);
+            }
+        }
     }));
 
-    let window = web_sys::window().expect("could not get `window` object (make sure you're running this in the main thread of a web browser)");
+    let window = web_sys::window().expect("could not get `window` object");
     let prefers_color_scheme_dark = window
         .match_media("(prefers-color-scheme: dark)")
         .unwrap()
         .map(|x| x.matches());
 
-    let canvas = window
+    let document = window
         .document()
-        .expect("could not get `window.document` object (make sure you're running this in a web browser)")
+        .expect("could not get `window.document` object");
+    let canvas = document
+        .create_element("canvas")
+        .expect("could not create canvas element")
+        .unchecked_into::<web_sys::HtmlCanvasElement>();
+    document
         .get_element_by_id(CANVAS_ID)
         .expect(format!("could not find HTML element with ID '{CANVAS_ID}'").as_str())
-        .unchecked_into::<web_sys::HtmlCanvasElement>();
+        .replace_children_with_node_1(&canvas);
     let offscreen_canvas = canvas
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
@@ -341,7 +462,10 @@ pub fn luminol_main_start(fallback: bool) {
     tracing_log::LogTracer::init().expect("failed to initialize tracing-log");
 
     if !luminol_web::bindings::cross_origin_isolated() {
-        tracing::error!("Luminol requires Cross-Origin Isolation to be enabled in order to run.");
+        tracing::error!(
+            "Cross-Origin Isolation is not enabled. Reloading page to attempt to enable it."
+        );
+        window.location().reload().expect("failed to reload page");
         return;
     }
 
@@ -349,21 +473,24 @@ pub fn luminol_main_start(fallback: bool) {
     let (runner_worker_channels, runner_main_channels) = luminol_eframe::web::channels();
 
     luminol_filesystem::host::setup_main_thread_hooks(fs_main_channels);
-    luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
-        inner: Default::default(),
-        canvas: canvas.clone(),
-        channels: runner_main_channels,
-    })
-    .expect("unable to setup web runner main thread hooks");
+    let runner_panic_tx =
+        luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
+            inner: Default::default(),
+            canvas: canvas.clone(),
+            channels: runner_main_channels,
+        })
+        .expect("unable to setup web runner main thread hooks");
 
     let modified = luminol_core::ModifiedState::default();
 
     *WORKER_DATA.lock() = Some(WorkerData {
+        report,
         audio: luminol_audio::Audio::default().into(),
         modified: modified.clone(),
         prefers_color_scheme_dark,
         fs_worker_channels,
         runner_worker_channels,
+        runner_panic_tx,
     });
 
     // Show confirmation dialogue if the user tries to close the browser tab while there are
@@ -380,17 +507,17 @@ pub fn luminol_main_start(fallback: bool) {
         window
             .add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref())
             .expect("failed to add beforeunload listener");
-        closure.forget();
+        *before_unload_cell.borrow_mut() = Some(closure);
     }
 
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
     worker_options.type_(web_sys::WorkerType::Module);
-    let worker = web_sys::Worker::new_with_options("/worker.js", &worker_options)
+    let worker = web_sys::Worker::new_with_options("./worker.js", &worker_options)
         .expect("failed to spawn web worker");
+    worker_cell.set(worker.clone()).unwrap();
 
     let message = js_sys::Array::new();
-    message.push(&JsValue::from(fallback));
     message.push(&wasm_bindgen::memory());
     message.push(&offscreen_canvas);
     let transfer = js_sys::Array::new();
@@ -404,22 +531,24 @@ pub fn luminol_main_start(fallback: bool) {
 #[wasm_bindgen]
 pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
     let WorkerData {
+        report,
         audio,
         modified,
         prefers_color_scheme_dark,
         fs_worker_channels,
         runner_worker_channels,
+        runner_panic_tx,
     } = WORKER_DATA.lock().take().unwrap();
 
     luminol_filesystem::host::FileSystem::setup_worker_channels(fs_worker_channels);
 
     let web_options = luminol_eframe::WebOptions::default();
 
-    luminol_eframe::WebRunner::new()
+    luminol_eframe::WebRunner::new(runner_panic_tx)
         .start(
             canvas,
             web_options,
-            Box::new(|cc| Box::new(app::App::new(cc, modified, audio))),
+            Box::new(|cc| Box::new(app::App::new(cc, report, modified, audio))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: runner_worker_channels,
