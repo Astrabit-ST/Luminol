@@ -246,11 +246,11 @@ impl TopBar {
                         .add_window(luminol_ui::windows::actors::Window::new());
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("Classes [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("Classes").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::classes::Window::new());
+                }
 
                 ui.add_enabled_ui(false, |ui| {
                     if ui.button("Enemies [TODO]").clicked() {

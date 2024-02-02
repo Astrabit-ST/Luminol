@@ -31,6 +31,8 @@ pub mod appearance;
 pub mod archive_manager;
 /// The armor editor.
 pub mod armor;
+/// The class editor.
+pub mod classes;
 /// The common event editor.
 pub mod common_event_edit;
 /// Config window
