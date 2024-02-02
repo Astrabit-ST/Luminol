@@ -54,7 +54,7 @@ impl luminol_core::Window for Window {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        _update_state: &mut luminol_core::UpdateState<'_>,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         // Show the window. Name it "About Luminol"
         egui::Window::new("About Luminol")
@@ -69,7 +69,7 @@ impl luminol_core::Window for Window {
 
                     ui.separator();
                     ui.label(format!("Luminol version {}", env!("CARGO_PKG_VERSION")));
-                    ui.label(format!("git-rev {}", git_version::git_version!()));
+                    ui.label(format!("git-rev {}", update_state.git_revision));
                     ui.separator();
 
                     ui.label("Luminol is a FOSS version of the RPG Maker XP editor.");

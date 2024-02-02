@@ -19,7 +19,7 @@
 #![allow(unsafe_code)]
 // Luminol's wgpu resources are not Send or Sync on web.
 // We are doing this here to reduce merge conflicts, since it's likely wgpu will fix this.
-#![allow(clippy::arc_with_non_send_sync)]
+#![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 
 pub use wgpu;
 

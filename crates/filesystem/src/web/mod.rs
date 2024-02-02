@@ -146,7 +146,7 @@ impl FileSystem {
 
     /// Returns whether or not the user's browser supports the JavaScript File System API.
     pub fn filesystem_supported() -> bool {
-        send_and_recv(|tx| FileSystemCommand::Supported(tx))
+        send_and_recv(FileSystemCommand::Supported)
     }
 
     /// Attempts to prompt the user to choose a directory from their local machine using the
@@ -159,7 +159,7 @@ impl FileSystem {
         if !Self::filesystem_supported() {
             return Err(Error::Wasm32FilesystemNotSupported).wrap_err(c);
         }
-        send_and_await(|tx| FileSystemCommand::DirPicker(tx))
+        send_and_await(FileSystemCommand::DirPicker)
             .await
             .map(|(key, name)| Self {
                 key,
@@ -314,7 +314,7 @@ impl File {
     /// Creates a new empty temporary file with read-write permissions.
     pub fn new() -> std::io::Result<Self> {
         let c = "While creating a temporary file on a host filesystem";
-        send_and_recv(|tx| FileSystemCommand::FileCreateTemp(tx))
+        send_and_recv(FileSystemCommand::FileCreateTemp)
             .map(|(key, temp_file_name)| Self {
                 key,
                 path: None,

@@ -56,7 +56,7 @@ impl luminol_core::Window for Window {
     }
 
     fn id(&self) -> egui::Id {
-        egui::Id::new("Item Editor")
+        egui::Id::new("item_editor")
     }
 
     fn requires_filesystem(&self) -> bool {

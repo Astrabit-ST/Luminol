@@ -374,7 +374,17 @@ impl MainState {
         // Add the event listener to the target
         target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
 
-        closure.forget();
+        // Add a hook to unregister this event listener after panicking
+        EVENTS_TO_UNSUBSCRIBE.with_borrow_mut(|events| {
+            events.push(web_runner::EventToUnsubscribe::TargetEvent(
+                web_runner::TargetEvent {
+                    target: target.clone(),
+                    event_name: event_name.to_string(),
+                    closure,
+                },
+            ));
+        });
+
         Ok(())
     }
 }
@@ -433,3 +443,7 @@ enum WebRunnerOutput {
 }
 
 static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
+
+thread_local! {
+    static EVENTS_TO_UNSUBSCRIBE: std::cell::RefCell<Vec<web_runner::EventToUnsubscribe>> = std::cell::RefCell::new(Vec::new());
+}

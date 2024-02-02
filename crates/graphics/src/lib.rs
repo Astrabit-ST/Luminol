@@ -14,6 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+#![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 
 pub mod binding_helpers;
 pub use binding_helpers::{BindGroupBuilder, BindGroupLayoutBuilder};

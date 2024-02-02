@@ -3032,7 +3032,6 @@ dependencies = [
  "color-eyre",
  "egui",
  "egui_extras",
- "flume",
  "futures-lite 2.1.0",
  "git-version",
  "image 0.24.7",
@@ -3048,11 +3047,13 @@ dependencies = [
  "luminol-ui",
  "luminol-web",
  "once_cell",
+ "oneshot",
  "parking_lot",
  "poll-promise",
  "rfd",
  "steamworks",
  "strum",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-log 0.1.4",
@@ -3134,13 +3135,13 @@ dependencies = [
  "egui-modal",
  "egui-notify",
  "egui_dock",
- "git-version",
  "itertools",
  "luminol-audio",
  "luminol-config",
  "luminol-data",
  "luminol-filesystem",
  "luminol-graphics",
+ "once_cell",
  "poll-promise",
  "rand",
  "serde",
@@ -3318,7 +3319,6 @@ dependencies = [
  "color-eyre",
  "egui",
  "futures-util",
- "git-version",
  "itertools",
  "luminol-audio",
  "luminol-components",
@@ -3333,7 +3333,10 @@ dependencies = [
  "poll-promise",
  "qp-trie",
  "reqwest",
+ "serde",
+ "strip-ansi-escapes",
  "strum",
+ "target-triple",
  "zip",
 ]
 
@@ -4759,9 +4762,9 @@ checksum = "216080ab382b992234dda86873c18d4c48358f5cfcb70fd693d7f6f2131b628b"
 
 [[package]]
 name = "reqwest"
-version = "0.11.22"
+version = "0.11.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "046cd98826c46c2ac8ddecae268eb5c2e58628688a5fc7a2643704a73faba95b"
+checksum = "37b1ae8d9ac08420c66222fb9096fc5de435c3c48542bc5336c51892cffafb41"
 dependencies = [
  "base64",
  "bytes",
@@ -5403,6 +5406,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "strip-ansi-escapes"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55ff8ef943b384c414f54aefa961dd2bd853add74ec75e7ac74cf91dba62bcfa"
+dependencies = [
+ "vte",
+]
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5572,6 +5584,12 @@ name = "target-lexicon"
 version = "0.12.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
+
+[[package]]
+name = "target-triple"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea67965c3f2666e59325eec14b6f0e296d27044051e65fc2a7d77ed3a3eff82d"
 
 [[package]]
 name = "tempfile"
@@ -6234,6 +6252,26 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "vte"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5022b5fbf9407086c180e9557be968742d839e68346af7792b8592489732197"
+dependencies = [
+ "utf8parse",
+ "vte_generate_state_changes",
+]
+
+[[package]]
+name = "vte_generate_state_changes"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d257817081c7dffcdbab24b9e62d2def62e2ff7d00b1c20062551e6cccc145ff"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
 
 [[package]]
 name = "vtparse"

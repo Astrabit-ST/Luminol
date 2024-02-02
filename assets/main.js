@@ -15,7 +15,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-import wasm_bindgen, { luminol_main_start } from './luminol.js';
+window.restartLuminol = async function() {
+    // We need to reload luminol.js every time by invalidating the cache,
+    // otherwise it'll just reload the same WebAssembly module every time
+    // instead of reinstantiating it
+    const invalidator = crypto.randomUUID();
 
-await wasm_bindgen();
-luminol_main_start();
+    const { default: wasm_bindgen, luminol_main_start } = await import(`./luminol.js?luminol-invalidator=${invalidator}`);
+
+    await wasm_bindgen();
+    luminol_main_start();
+};
+
+await window.restartLuminol();
