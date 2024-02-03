@@ -46,7 +46,7 @@ mod database_view;
 pub use database_view::DatabaseView;
 
 mod id_vec;
-pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection};
+pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection, RankSelection};
 
 mod ui_ext;
 pub use ui_ext::UiExt;

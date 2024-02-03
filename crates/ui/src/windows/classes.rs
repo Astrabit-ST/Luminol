@@ -68,8 +68,8 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let mut classes = update_state.data.classes();
-        let _system = update_state.data.system();
-        let _states = update_state.data.states();
+        let system = update_state.data.system();
+        let states = update_state.data.states();
         let skills = update_state.data.skills();
         let weapons = update_state.data.weapons();
         let armors = update_state.data.armors();
@@ -319,6 +319,45 @@ impl luminol_core::Window for Window {
                                         "Equippable Armor",
                                         selection,
                                     ))
+                                    .changed();
+                            });
+                        });
+
+                        ui.with_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                                let mut selection = luminol_components::RankSelection::new(
+                                    (class.id, "element_ranks"),
+                                    &mut class.element_ranks,
+                                    |id| {
+                                        system.elements.get(id).map_or_else(
+                                            || "".into(),
+                                            |e| format!("{id:0>3}: {}", e),
+                                        )
+                                    },
+                                );
+                                if self.previous_class != Some(class.id) {
+                                    selection.clear_search();
+                                }
+                                modified |= columns[0]
+                                    .add(luminol_components::Field::new("Elements", selection))
+                                    .changed();
+
+                                let mut selection =
+                                    luminol_components::RankSelection::new(
+                                        (class.id, "state_ranks"),
+                                        &mut class.state_ranks,
+                                        |id| {
+                                            states.data.get(id).map_or_else(
+                                                || "".into(),
+                                                |s| format!("{id:0>3}: {}", s.name),
+                                            )
+                                        },
+                                    );
+                                if self.previous_class != Some(class.id) {
+                                    selection.clear_search();
+                                }
+                                modified |= columns[1]
+                                    .add(luminol_components::Field::new("States", selection))
                                     .changed();
                             });
                         });

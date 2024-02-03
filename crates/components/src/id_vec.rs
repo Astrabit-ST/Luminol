@@ -48,6 +48,13 @@ pub struct IdVecPlusMinusSelection<'a, H, F> {
     clear_search: bool,
 }
 
+pub struct RankSelection<'a, H, F> {
+    id_source: H,
+    reference: &'a mut luminol_data::Table1,
+    formatter: F,
+    clear_search: bool,
+}
+
 impl<'a, H, F> IdVecSelection<'a, H, F>
 where
     H: std::hash::Hash,
@@ -88,6 +95,27 @@ where
             plus,
             minus,
             len,
+            formatter,
+            clear_search: false,
+        }
+    }
+
+    /// Clears the search box.
+    pub fn clear_search(&mut self) {
+        self.clear_search = true;
+    }
+}
+
+impl<'a, H, F> RankSelection<'a, H, F>
+where
+    H: std::hash::Hash,
+    F: Fn(usize) -> String,
+{
+    /// Creates a new widget for changing the contents of a rank table.
+    pub fn new(id_source: H, reference: &'a mut luminol_data::Table1, formatter: F) -> Self {
+        Self {
+            id_source,
+            reference,
             formatter,
             clear_search: false,
         }
@@ -444,6 +472,156 @@ where
                     self.minus.remove(position);
                 } else {
                     self.plus.push(clicked_id);
+                }
+            }
+
+            response.mark_changed();
+        }
+
+        if !state.hide_tooltip {
+            response = response.on_hover_ui_at_pointer(|ui| {
+                ui.label("Click to select single entries");
+                ui.label("Ctrl+click to select multiple entries or deselect entries");
+                ui.label("Shift+click to select a range");
+                ui.label("To select multiple ranges or deselect a range, Ctrl+click the first endpoint and Ctrl+Shift+click the second endpoint");
+            });
+        }
+
+        ui.data_mut(|d| d.insert_temp(state_id, state));
+
+        response
+    }
+}
+
+impl<'a, H, F> egui::Widget for RankSelection<'a, H, F>
+where
+    H: std::hash::Hash,
+    F: Fn(usize) -> String,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let state_id = ui.make_persistent_id(egui::Id::new(self.id_source).with("RankSelection"));
+        let mut state = ui
+            .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
+            .unwrap_or_default();
+        if self.clear_search {
+            state.search_string = String::new();
+        }
+
+        let mut clicked_id = None;
+
+        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+
+        let mut response = ui
+            .group(|ui| {
+                ui.with_cross_justify(|ui| {
+                    ui.set_width(ui.available_width());
+
+                    ui.add(
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                    );
+
+                    let mut is_faint = false;
+
+                    for (id, rank) in self.reference.iter().skip(1).copied().enumerate() {
+                        let formatted = (self.formatter)(id);
+                        if matcher
+                            .fuzzy(&formatted, &state.search_string, false)
+                            .is_none()
+                        {
+                            continue;
+                        }
+
+                        ui.with_stripe(is_faint, |ui| {
+                            // Color the background of the selectable label depending on the
+                            // rank
+                            ui.visuals_mut().selection.bg_fill =
+                                match rank {
+                                    2 => ui.visuals().gray_out(ui.visuals().selection.bg_fill),
+                                    4 => ui.visuals().gray_out(ui.visuals().gray_out(
+                                        ui.visuals().gray_out(ui.visuals().error_fg_color),
+                                    )),
+                                    5 => ui.visuals().gray_out(
+                                        ui.visuals().gray_out(ui.visuals().error_fg_color),
+                                    ),
+                                    6 => ui.visuals().gray_out(ui.visuals().error_fg_color),
+                                    _ => ui.visuals().selection.bg_fill,
+                                };
+
+                            let label = (self.formatter)(id);
+                            if ui
+                                .selectable_label(
+                                    matches!(rank, 1 | 2 | 4 | 5 | 6),
+                                    format!(
+                                        "{} - {label}",
+                                        match rank {
+                                            1 => 'A',
+                                            2 => 'B',
+                                            3 => 'C',
+                                            4 => 'D',
+                                            5 => 'E',
+                                            6 => 'F',
+                                            _ => '?',
+                                        }
+                                    ),
+                                )
+                                .clicked()
+                            {
+                                clicked_id = Some(id);
+                            }
+                        });
+                        is_faint = !is_faint;
+                    }
+                })
+                .inner
+            })
+            .response;
+
+        if let Some(clicked_id) = clicked_id {
+            state.hide_tooltip = true;
+
+            let modifiers = ui.input(|i| i.modifiers);
+
+            let pivot_rank = state
+                .pivot
+                .and_then(|pivot| self.reference.as_slice()[1..].get(pivot).copied());
+
+            // Unless control is held, deselect everything before doing anything
+            if !modifiers.command {
+                for x in self.reference.as_mut_slice()[1..].iter_mut() {
+                    *x = 3;
+                }
+            }
+
+            // Select all the entries between this one and the pivot if shift is
+            // held and the pivot is selected, or deselect them if the pivot is
+            // deselected
+            if modifiers.shift && state.pivot.is_some() {
+                let pivot = state.pivot.unwrap();
+                let range = if pivot < clicked_id {
+                    pivot..=clicked_id
+                } else {
+                    clicked_id..=pivot
+                };
+
+                for id in range {
+                    if matcher
+                        .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                        .is_some()
+                    {
+                        self.reference[id + 1] = pivot_rank.unwrap_or(3);
+                    }
+                }
+            } else {
+                if Some(clicked_id) == state.pivot {
+                    self.reference[clicked_id + 1] = pivot_rank.unwrap_or(3);
+                }
+                state.pivot = Some(clicked_id);
+                let id = clicked_id + 1;
+                self.reference[id] = self.reference[id].saturating_sub(1);
+                if self.reference[id] < 1 {
+                    self.reference[id] = 6;
+                } else if self.reference[id] > 6 {
+                    self.reference[id] = 3;
                 }
             }
 
