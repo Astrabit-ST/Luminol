@@ -282,7 +282,7 @@ impl luminol_core::Window for Window {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (class.id, "weapon_set"),
                                     &mut class.weapon_set,
-                                    weapons.data.len(),
+                                    0..weapons.data.len(),
                                     |id| {
                                         weapons.data.get(id).map_or_else(
                                             || "".into(),
@@ -303,7 +303,7 @@ impl luminol_core::Window for Window {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (class.id, "armor_set"),
                                     &mut class.armor_set,
-                                    armors.data.len(),
+                                    0..armors.data.len(),
                                     |id| {
                                         armors.data.get(id).map_or_else(
                                             || "".into(),
@@ -329,7 +329,7 @@ impl luminol_core::Window for Window {
                                     (class.id, "element_ranks"),
                                     &mut class.element_ranks,
                                     |id| {
-                                        system.elements.get(id).map_or_else(
+                                        system.elements.get(id + 1).map_or_else(
                                             || "".into(),
                                             |e| format!("{id:0>3}: {}", e),
                                         )

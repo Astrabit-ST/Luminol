@@ -206,7 +206,7 @@ impl luminol_core::Window for Window {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (armor.id, "guard_element_set"),
                                     &mut armor.guard_element_set,
-                                    system.elements.len(),
+                                    1..system.elements.len(),
                                     |id| {
                                         system.elements.get(id).map_or_else(
                                             || "".into(),
@@ -227,7 +227,7 @@ impl luminol_core::Window for Window {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (armor.id, "guard_state_set"),
                                     &mut armor.guard_state_set,
-                                    states.data.len(),
+                                    0..states.data.len(),
                                     |id| {
                                         states.data.get(id).map_or_else(
                                             || "".into(),

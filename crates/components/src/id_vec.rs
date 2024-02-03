@@ -33,7 +33,7 @@ struct IdVecSelectionState {
 pub struct IdVecSelection<'a, H, F> {
     id_source: H,
     reference: &'a mut Vec<usize>,
-    len: usize,
+    id_range: std::ops::Range<usize>,
     formatter: F,
     clear_search: bool,
 }
@@ -42,7 +42,7 @@ pub struct IdVecPlusMinusSelection<'a, H, F> {
     id_source: H,
     plus: &'a mut Vec<usize>,
     minus: &'a mut Vec<usize>,
-    len: usize,
+    id_range: std::ops::Range<usize>,
     formatter: F,
     clear_search: bool,
 }
@@ -60,11 +60,16 @@ where
     F: Fn(usize) -> String,
 {
     /// Creates a new widget for changing the contents of an `id_vec`.
-    pub fn new(id_source: H, reference: &'a mut Vec<usize>, len: usize, formatter: F) -> Self {
+    pub fn new(
+        id_source: H,
+        reference: &'a mut Vec<usize>,
+        id_range: std::ops::Range<usize>,
+        formatter: F,
+    ) -> Self {
         Self {
             id_source,
             reference,
-            len,
+            id_range,
             formatter,
             clear_search: false,
         }
@@ -86,14 +91,14 @@ where
         id_source: H,
         plus: &'a mut Vec<usize>,
         minus: &'a mut Vec<usize>,
-        len: usize,
+        id_range: std::ops::Range<usize>,
         formatter: F,
     ) -> Self {
         Self {
             id_source,
             plus,
             minus,
-            len,
+            id_range,
             formatter,
             clear_search: false,
         }
@@ -136,6 +141,8 @@ where
             self.reference.sort_unstable();
         }
 
+        let first_id = self.id_range.start;
+
         let state_id = ui.make_persistent_id(egui::Id::new(self.id_source).with("IdVecSelection"));
         let mut state = ui
             .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
@@ -160,13 +167,15 @@ where
 
                     let mut is_faint = false;
 
-                    for id in 0..self.len {
+                    for id in self.id_range {
+                        let id = id - first_id;
+
                         let is_id_selected = self.reference.get(index).is_some_and(|x| *x == id);
                         if is_id_selected {
                             index += 1;
                         }
 
-                        let formatted = (self.formatter)(id);
+                        let formatted = (self.formatter)(id + first_id);
                         if matcher
                             .fuzzy(&formatted, &state.search_string, false)
                             .is_none()
@@ -176,7 +185,7 @@ where
 
                         ui.with_stripe(is_faint, |ui| {
                             if ui
-                                .selectable_label(is_id_selected, (self.formatter)(id))
+                                .selectable_label(is_id_selected, (self.formatter)(id + first_id))
                                 .clicked()
                             {
                                 clicked_id = Some(id);
@@ -221,7 +230,11 @@ where
                         if is_id_selected {
                             index += 1;
                         } else if matcher
-                            .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                            .fuzzy(
+                                &(self.formatter)(id + first_id),
+                                &state.search_string,
+                                false,
+                            )
                             .is_some()
                         {
                             self.reference.push(id);
@@ -231,7 +244,11 @@ where
                     self.reference.retain(|id| {
                         !range.contains(id)
                             || matcher
-                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .fuzzy(
+                                    &(self.formatter)(*id + first_id),
+                                    &state.search_string,
+                                    false,
+                                )
                                 .is_none()
                     });
                 }
@@ -266,6 +283,8 @@ where
             self.minus.sort_unstable();
         }
 
+        let first_id = self.id_range.start;
+
         let state_id =
             ui.make_persistent_id(egui::Id::new(self.id_source).with("IdVecPlusMinusSelection"));
         let mut state = ui
@@ -292,7 +311,9 @@ where
 
                     let mut is_faint = false;
 
-                    for id in 0..self.len {
+                    for id in self.id_range {
+                        let id = id - first_id;
+
                         let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
                         if is_id_plus {
                             plus_index += 1;
@@ -302,7 +323,7 @@ where
                             minus_index += 1;
                         }
 
-                        let formatted = (self.formatter)(id);
+                        let formatted = (self.formatter)(id + first_id);
                         if matcher
                             .fuzzy(&formatted, &state.search_string, false)
                             .is_none()
@@ -318,7 +339,7 @@ where
                                     ui.visuals().gray_out(ui.visuals().error_fg_color);
                             }
 
-                            let label = (self.formatter)(id);
+                            let label = (self.formatter)(id + first_id);
                             if ui
                                 .selectable_label(
                                     is_id_plus || is_id_minus,
@@ -366,7 +387,11 @@ where
                     self.minus.retain(|id| {
                         !range.contains(id)
                             || matcher
-                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .fuzzy(
+                                    &(self.formatter)(*id + first_id),
+                                    &state.search_string,
+                                    false,
+                                )
                                 .is_none()
                     });
                     let mut plus_index = self
@@ -380,7 +405,11 @@ where
                         if is_id_plus {
                             plus_index += 1;
                         } else if matcher
-                            .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                            .fuzzy(
+                                &(self.formatter)(id + first_id),
+                                &state.search_string,
+                                false,
+                            )
                             .is_some()
                         {
                             self.plus.push(id);
@@ -390,7 +419,11 @@ where
                     self.plus.retain(|id| {
                         !range.contains(id)
                             || matcher
-                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .fuzzy(
+                                    &(self.formatter)(*id + first_id),
+                                    &state.search_string,
+                                    false,
+                                )
                                 .is_none()
                     });
                     let mut minus_index = self
@@ -404,7 +437,11 @@ where
                         if is_id_minus {
                             minus_index += 1;
                         } else if matcher
-                            .fuzzy(&(self.formatter)(id), &state.search_string, false)
+                            .fuzzy(
+                                &(self.formatter)(id + first_id),
+                                &state.search_string,
+                                false,
+                            )
                             .is_some()
                         {
                             self.minus.push(id);
@@ -414,13 +451,21 @@ where
                     self.plus.retain(|id| {
                         !range.contains(id)
                             || matcher
-                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .fuzzy(
+                                    &(self.formatter)(*id + first_id),
+                                    &state.search_string,
+                                    false,
+                                )
                                 .is_none()
                     });
                     self.minus.retain(|id| {
                         !range.contains(id)
                             || matcher
-                                .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                .fuzzy(
+                                    &(self.formatter)(*id + first_id),
+                                    &state.search_string,
+                                    false,
+                                )
                                 .is_none()
                     });
                 }

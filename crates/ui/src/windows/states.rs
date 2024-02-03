@@ -326,7 +326,7 @@ impl luminol_core::Window for Window {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (state.id, "guard_element_set"),
                                     &mut state.guard_element_set,
-                                    system.elements.len(),
+                                    1..system.elements.len(),
                                     |id| {
                                         system.elements.get(id).map_or_else(
                                             || "".into(),
@@ -349,7 +349,7 @@ impl luminol_core::Window for Window {
                                         (state.id, "state_set"),
                                         &mut state.plus_state_set,
                                         &mut state.minus_state_set,
-                                        state_names.len(),
+                                        0..state_names.len(),
                                         |id| {
                                             state_names.get(id).map_or_else(
                                                 || "".into(),
