@@ -84,7 +84,7 @@ impl luminol_core::Window for Window {
                         .as_ref()
                         .expect("project not loaded"),
                     &mut states.data,
-                    |state| format!("{:0>3}: {}", state.id, state.name),
+                    |state| format!("{:0>3}: {}", state.id + 1, state.name),
                     |ui, state| {
                         self.selected_state_name = Some(state.name.clone());
 
@@ -108,7 +108,7 @@ impl luminol_core::Window for Window {
                                             |id| {
                                                 animations.data.get(id).map_or_else(
                                                     || "".into(),
-                                                    |a| format!("{id:0>3}: {}", a.name),
+                                                    |a| format!("{:0>3}: {}", id + 1, a.name),
                                                 )
                                             },
                                         ),
@@ -353,7 +353,7 @@ impl luminol_core::Window for Window {
                                         |id| {
                                             state_names.get(id).map_or_else(
                                                 || "".into(),
-                                                |s| format!("{id:0>3}: {s}"),
+                                                |s| format!("{:0>3}: {s}", id + 1),
                                             )
                                         },
                                     );

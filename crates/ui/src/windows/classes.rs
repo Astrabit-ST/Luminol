@@ -91,7 +91,7 @@ impl luminol_core::Window for Window {
                         .as_ref()
                         .expect("project not loaded"),
                     &mut classes.data,
-                    |class| format!("{:0>3}: {}", class.id, class.name),
+                    |class| format!("{:0>3}: {}", class.id + 1, class.name),
                     |ui, class| {
                         self.selected_class_name = Some(class.name.clone());
 
@@ -213,7 +213,8 @@ impl luminol_core::Window for Window {
                                                                                 || "".into(),
                                                                                 |s| {
                                                                                     format!(
-                                                                                        "{id:0>3}: {}",
+                                                                                        "{:0>3}: {}",
+                                                                                        id + 1,
                                                                                         s.name
                                                                                     )
                                                                                 },
@@ -286,7 +287,7 @@ impl luminol_core::Window for Window {
                                     |id| {
                                         weapons.data.get(id).map_or_else(
                                             || "".into(),
-                                            |w| format!("{id:0>3}: {}", w.name),
+                                            |w| format!("{:0>3}: {}", id + 1, w.name),
                                         )
                                     },
                                 );
@@ -307,7 +308,7 @@ impl luminol_core::Window for Window {
                                     |id| {
                                         armors.data.get(id).map_or_else(
                                             || "".into(),
-                                            |a| format!("{id:0>3}: {}", a.name),
+                                            |a| format!("{:0>3}: {}", id + 1, a.name),
                                         )
                                     },
                                 );
@@ -331,7 +332,7 @@ impl luminol_core::Window for Window {
                                     |id| {
                                         system.elements.get(id + 1).map_or_else(
                                             || "".into(),
-                                            |e| format!("{id:0>3}: {}", e),
+                                            |e| format!("{:0>3}: {}", id + 1, e),
                                         )
                                     },
                                 );
@@ -349,7 +350,7 @@ impl luminol_core::Window for Window {
                                         |id| {
                                             states.data.get(id).map_or_else(
                                                 || "".into(),
-                                                |s| format!("{id:0>3}: {}", s.name),
+                                                |s| format!("{:0>3}: {}", id + 1, s.name),
                                             )
                                         },
                                     );

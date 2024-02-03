@@ -82,7 +82,7 @@ impl luminol_core::Window for Window {
                         .as_ref()
                         .expect("project not loaded"),
                     &mut armors.data,
-                    |armor| format!("{:0>3}: {}", armor.id, armor.name),
+                    |armor| format!("{:0>3}: {}", armor.id + 1, armor.name),
                     |ui, armor| {
                         self.selected_armor_name = Some(armor.name.clone());
 
@@ -124,7 +124,7 @@ impl luminol_core::Window for Window {
                                             |id| {
                                                 states.data.get(id).map_or_else(
                                                     || "".into(),
-                                                    |s| format!("{id:0>3}: {}", s.name),
+                                                    |s| format!("{:0>3}: {}", id + 1, s.name),
                                                 )
                                             },
                                         ),
@@ -231,7 +231,7 @@ impl luminol_core::Window for Window {
                                     |id| {
                                         states.data.get(id).map_or_else(
                                             || "".into(),
-                                            |s| format!("{id:0>3}: {}", s.name),
+                                            |s| format!("{:0>3}: {}", id + 1, s.name),
                                         )
                                     },
                                 );
