@@ -27,7 +27,6 @@ use crate::UiExt;
 #[derive(Default, Clone)]
 struct IdVecSelectionState {
     pivot: Option<usize>,
-    hide_tooltip: bool,
     search_string: String,
 }
 
@@ -191,19 +190,11 @@ where
             .response;
 
         if let Some(clicked_id) = clicked_id {
-            state.hide_tooltip = true;
-
             let modifiers = ui.input(|i| i.modifiers);
 
-            let is_pivot_selected = !modifiers.command
-                || state
-                    .pivot
-                    .is_some_and(|pivot| self.reference.contains(&pivot));
-
-            // Unless control is held, deselect everything before doing anything
-            if !modifiers.command {
-                self.reference.clear();
-            }
+            let is_pivot_selected = state
+                .pivot
+                .is_some_and(|pivot| self.reference.contains(&pivot));
 
             let old_len = self.reference.len();
 
@@ -254,15 +245,6 @@ where
             }
 
             response.mark_changed();
-        }
-
-        if !state.hide_tooltip {
-            response = response.on_hover_ui_at_pointer(|ui| {
-                ui.label("Click to select single entries");
-                ui.label("Ctrl+click to select multiple entries or deselect entries");
-                ui.label("Shift+click to select a range");
-                ui.label("To select multiple ranges or deselect a range, Ctrl+click the first endpoint and Ctrl+Shift+click the second endpoint");
-            });
         }
 
         ui.data_mut(|d| d.insert_temp(state_id, state));
@@ -361,29 +343,10 @@ where
             .response;
 
         if let Some(clicked_id) = clicked_id {
-            state.hide_tooltip = true;
-
             let modifiers = ui.input(|i| i.modifiers);
 
-            // Unless control is held, deselect everything before doing anything
-            if !modifiers.command {
-                let plus_contains_clicked_id = self.plus.contains(&clicked_id);
-                let minus_contains_pivot = state.pivot.and_then(|pivot| {
-                    (modifiers.shift && self.minus.contains(&pivot)).then_some(pivot)
-                });
-                self.plus.clear();
-                self.minus.clear();
-                if plus_contains_clicked_id {
-                    self.plus.push(clicked_id);
-                }
-                if let Some(pivot) = minus_contains_pivot {
-                    self.minus.push(pivot);
-                }
-            }
-
             let is_pivot_minus = state.pivot.is_some_and(|pivot| self.minus.contains(&pivot));
-            let is_pivot_plus = (!modifiers.command && !is_pivot_minus)
-                || state.pivot.is_some_and(|pivot| self.plus.contains(&pivot));
+            let is_pivot_plus = state.pivot.is_some_and(|pivot| self.plus.contains(&pivot));
 
             let old_plus_len = self.plus.len();
             let old_minus_len = self.minus.len();
@@ -478,15 +441,6 @@ where
             response.mark_changed();
         }
 
-        if !state.hide_tooltip {
-            response = response.on_hover_ui_at_pointer(|ui| {
-                ui.label("Click to select single entries");
-                ui.label("Ctrl+click to select multiple entries or deselect entries");
-                ui.label("Shift+click to select a range");
-                ui.label("To select multiple ranges or deselect a range, Ctrl+click the first endpoint and Ctrl+Shift+click the second endpoint");
-            });
-        }
-
         ui.data_mut(|d| d.insert_temp(state_id, state));
 
         response
@@ -577,20 +531,11 @@ where
             .response;
 
         if let Some(clicked_id) = clicked_id {
-            state.hide_tooltip = true;
-
             let modifiers = ui.input(|i| i.modifiers);
 
             let pivot_rank = state
                 .pivot
                 .and_then(|pivot| self.reference.as_slice()[1..].get(pivot).copied());
-
-            // Unless control is held, deselect everything before doing anything
-            if !modifiers.command {
-                for x in self.reference.as_mut_slice()[1..].iter_mut() {
-                    *x = 3;
-                }
-            }
 
             // Select all the entries between this one and the pivot if shift is
             // held and the pivot is selected, or deselect them if the pivot is
@@ -626,15 +571,6 @@ where
             }
 
             response.mark_changed();
-        }
-
-        if !state.hide_tooltip {
-            response = response.on_hover_ui_at_pointer(|ui| {
-                ui.label("Click to select single entries");
-                ui.label("Ctrl+click to select multiple entries or deselect entries");
-                ui.label("Shift+click to select a range");
-                ui.label("To select multiple ranges or deselect a range, Ctrl+click the first endpoint and Ctrl+Shift+click the second endpoint");
-            });
         }
 
         ui.data_mut(|d| d.insert_temp(state_id, state));
