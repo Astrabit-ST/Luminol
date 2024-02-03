@@ -24,10 +24,16 @@
 
 use luminol_components::UiExt;
 
+use egui::collapsing_header::CollapsingState;
+
 #[derive(Default)]
 pub struct Window {
     selected_class_name: Option<String>,
     previous_class: Option<usize>,
+
+    depersisted_skills: usize,
+    expanded_skill: luminol_data::OptionVec<Option<usize>>,
+    change_expanded_skill_immediately: bool,
 
     view: luminol_components::DatabaseView,
 }
@@ -64,6 +70,7 @@ impl luminol_core::Window for Window {
         let mut classes = update_state.data.classes();
         let _system = update_state.data.system();
         let _states = update_state.data.states();
+        let skills = update_state.data.skills();
         let weapons = update_state.data.weapons();
         let armors = update_state.data.armors();
 
@@ -109,6 +116,168 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_stripe(false, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Skills",
+                                |ui: &mut egui::Ui| {
+                                    ui.with_cross_justify(|ui| {
+                                        let mut deleted_skill = None;
+                                        let mut new_skill = false;
+
+                                        if self.previous_class != Some(class.id) {
+                                            self.change_expanded_skill_immediately = true;
+                                        }
+
+                                        let inner_response = ui.group(|ui| {
+                                            if self.expanded_skill.get(class.id).is_none() {
+                                                self.expanded_skill.insert(class.id, None);
+                                            }
+                                            let expanded_skill =
+                                                self.expanded_skill.get_mut(class.id).unwrap();
+
+                                            for (i, learning) in
+                                                class.learnings.iter_mut().enumerate()
+                                            {
+                                                let ui_id = ui.make_persistent_id(i);
+
+                                                // Forget whether the collapsing header was open from the last time
+                                                // the editor was open
+                                                let depersisted = i < self.depersisted_skills;
+                                                if !depersisted {
+                                                    self.depersisted_skills += 1;
+                                                    if let Some(h) =
+                                                        CollapsingState::load(ui.ctx(), ui_id)
+                                                    {
+                                                        h.remove(ui.ctx());
+                                                    }
+                                                    ui.ctx()
+                                                        .animate_bool_with_time(ui_id, false, 0.);
+                                                }
+
+                                                let mut header =
+                                                    CollapsingState::load_with_default_open(
+                                                        ui.ctx(),
+                                                        ui_id,
+                                                        false,
+                                                    );
+                                                let expanded = (self
+                                                    .change_expanded_skill_immediately
+                                                    || depersisted)
+                                                    && *expanded_skill == Some(i);
+                                                header.set_open(expanded);
+                                                if self.change_expanded_skill_immediately {
+                                                    ui.ctx().animate_bool_with_time(
+                                                        ui_id, expanded, 0.,
+                                                    );
+                                                }
+
+                                                let layout = *ui.layout();
+                                                let (expand_button_response, _, _) = header
+                                                    .show_header(ui, |ui| {
+                                                        ui.with_layout(layout, |ui| {
+                                                            ui.add(
+                                                                egui::Label::new(format!(
+                                                                    "Lvl {}: {}",
+                                                                    learning.level,
+                                                                    skills
+                                                                        .data
+                                                                        .get(learning.skill_id)
+                                                                        .map_or("", |s| &s.name)
+                                                                ))
+                                                                .truncate(true),
+                                                            );
+                                                        });
+                                                    })
+                                                    .body(|ui| {
+                                                        ui.columns(2, |columns| {
+                                                            modified |= columns[0]
+                                                                .add(
+                                                                    luminol_components::Field::new(
+                                                                        "Level",
+                                                                        egui::Slider::new(
+                                                                            &mut learning.level,
+                                                                            1..=99,
+                                                                        ),
+                                                                    ),
+                                                                )
+                                                                .changed();
+
+                                                            modified |= columns[1]
+                                                                .add(luminol_components::Field::new(
+                                                                    "Skill",
+                                                                    luminol_components::OptionalIdComboBox::new(
+                                                                        (class.id, i, "skill_id"),
+                                                                        &mut learning.skill_id,
+                                                                        0..skills.data.len(),
+                                                                        |id| {
+                                                                            skills.data.get(id).map_or_else(
+                                                                                || "".into(),
+                                                                                |s| {
+                                                                                    format!(
+                                                                                        "{id:0>3}: {}",
+                                                                                        s.name
+                                                                                    )
+                                                                                },
+                                                                            )
+                                                                        },
+                                                                    ),
+                                                                ))
+                                                                .changed();
+                                                        });
+
+                                                        if ui.button("Delete skill").clicked() {
+                                                            deleted_skill = Some(i);
+                                                        }
+                                                    });
+
+                                                if expand_button_response.clicked() {
+                                                    *expanded_skill =
+                                                        (*expanded_skill != Some(i)).then_some(i);
+                                                }
+                                            }
+
+                                            ui.add_space(2. * ui.spacing().item_spacing.y);
+
+                                            if ui.button("New skill").clicked() {
+                                                *expanded_skill = Some(class.learnings.len());
+                                                class.learnings.push(Default::default());
+                                                new_skill = true;
+                                            }
+                                        });
+
+                                        self.change_expanded_skill_immediately = false;
+
+                                        if let Some(i) = deleted_skill {
+                                            if let Some(expanded_skill) =
+                                                self.expanded_skill.get_mut(class.id)
+                                            {
+                                                if *expanded_skill == Some(i) {
+                                                    self.change_expanded_skill_immediately = true;
+                                                    *expanded_skill = None;
+                                                } else if expanded_skill.is_some()
+                                                    && *expanded_skill > Some(i)
+                                                {
+                                                    self.change_expanded_skill_immediately = true;
+                                                    *expanded_skill =
+                                                        Some(expanded_skill.unwrap() - 1);
+                                                }
+                                            }
+
+                                            class.learnings.remove(i);
+                                        }
+
+                                        self.depersisted_skills = class.learnings.len();
+                                        if new_skill {
+                                            self.depersisted_skills -= 1;
+                                        }
+
+                                        inner_response.response
+                                    })
+                                    .response
+                                },
+                            ));
+                        });
+
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (class.id, "weapon_set"),
