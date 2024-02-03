@@ -563,9 +563,9 @@ where
                 state.pivot = Some(clicked_id);
                 let id = clicked_id + 1;
                 self.reference[id] = self.reference[id].saturating_sub(1);
-                if self.reference[id] < 1 {
+                if self.reference[id] == 0 {
                     self.reference[id] = 6;
-                } else if self.reference[id] > 6 {
+                } else if self.reference[id] < 0 || self.reference[id] >= 6 {
                     self.reference[id] = 3;
                 }
             }
