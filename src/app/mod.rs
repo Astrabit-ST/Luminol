@@ -220,7 +220,7 @@ impl App {
 
         Self {
             top_bar: top_bar::TopBar::default(),
-            #[cfg(not(target_arch = "wasm32"))]
+            // #[cfg(not(target_arch = "wasm32"))]
             // log: log_window::LogWindow::new(
             //     luminol_term::Terminal::new_readonly(
             //         &cc.egui_ctx,

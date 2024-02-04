@@ -234,7 +234,7 @@ impl Terminal {
             egui::Color32::from_rgb(40, 39, 39),
         );
 
-        painter.galley(response.rect.min, galley);
+        painter.galley(response.rect.min, galley, egui::Color32::WHITE);
 
         if response.hovered() {
             ui.output_mut(|o| o.mutable_text_under_cursor = true);
