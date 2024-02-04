@@ -40,6 +40,8 @@ pub mod config_window;
 /// Playtest console
 #[cfg(not(target_arch = "wasm32"))]
 pub mod console;
+/// The enemy editor.
+pub mod enemies;
 /// The event editor.
 pub mod event_edit;
 pub mod global_config_window;
