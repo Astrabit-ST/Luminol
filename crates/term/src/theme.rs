@@ -22,11 +22,15 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Index, IndexMut},
+};
 
 use alacritty_terminal::vte::ansi::{Color as AnsiColor, NamedColor};
 
 #[derive(Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct Theme {
     ansi_colors: HashMap<u8, egui::Color32>,
 }
@@ -58,6 +62,24 @@ impl Default for Theme {
         }
 
         Self { ansi_colors }
+    }
+}
+
+impl Index<u8> for Theme {
+    type Output = egui::Color32;
+
+    fn index(&self, index: u8) -> &Self::Output {
+        self.ansi_colors
+            .get(&index)
+            .expect("no entry found for key")
+    }
+}
+
+impl IndexMut<u8> for Theme {
+    fn index_mut(&mut self, index: u8) -> &mut Self::Output {
+        self.ansi_colors
+            .get_mut(&index)
+            .expect("no entry found for key")
     }
 }
 

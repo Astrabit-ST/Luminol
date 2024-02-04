@@ -45,6 +45,7 @@ pub struct Project {
     pub editor_ver: RMVer,
     pub playtest_exe: String,
     pub prefer_rgssad: bool,
+    pub persistence_id: u64,
 }
 
 impl Default for Project {
@@ -57,6 +58,7 @@ impl Default for Project {
             editor_ver: RMVer::XP,
             playtest_exe: "game".to_string(),
             prefer_rgssad: false,
+            persistence_id: 0,
         }
     }
 }

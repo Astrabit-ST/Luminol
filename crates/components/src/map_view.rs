@@ -53,6 +53,8 @@ pub struct MapView {
     /// Used to store the bounding boxes of event graphics in order to render them on top of the
     /// fog and collision layers
     pub event_rects: Vec<egui::Rect>,
+
+    pub data_id: egui::Id,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
@@ -121,19 +123,35 @@ impl MapView {
             &passages,
         )?;
 
+        let data_id = egui::Id::new("luminol_map_view")
+            .with(
+                update_state
+                    .project_config
+                    .as_ref()
+                    .expect("project not loaded")
+                    .project
+                    .persistence_id,
+            )
+            .with(map_id);
+        let (cursor_pos, pan, inter_tile_pan, scale) = update_state.ctx.data_mut(|d| {
+            *d.get_persisted_mut_or_insert_with(data_id, || {
+                (egui::Pos2::ZERO, egui::Vec2::ZERO, egui::Vec2::ZERO, 100.)
+            })
+        });
+
         Ok(Self {
             visible_display: false,
             move_preview: false,
 
-            pan: egui::Vec2::ZERO,
-            inter_tile_pan: egui::Vec2::ZERO,
+            pan,
+            inter_tile_pan,
 
             events,
             map,
 
             selected_layer: SelectedLayer::default(),
             selected_event_id: None,
-            cursor_pos: egui::Pos2::ZERO,
+            cursor_pos,
             event_enabled: true,
             snap_to_grid: false,
 
@@ -143,10 +161,12 @@ impl MapView {
 
             selected_event_is_hovered: false,
 
-            scale: 100.,
-            previous_scale: 100.,
+            scale,
+            previous_scale: scale,
 
             event_rects: Vec::new(),
+
+            data_id,
         })
     }
 
@@ -175,6 +195,14 @@ impl MapView {
         let max_clip = (canvas_rect.max - ui.ctx().screen_rect().max).max(Default::default());
         let clip_offset = (max_clip - min_clip) / 2.;
         let canvas_rect = ui.ctx().screen_rect().intersect(canvas_rect);
+
+        self.cursor_pos = self.cursor_pos.clamp(
+            egui::Pos2::ZERO,
+            egui::pos2(
+                map.data.xsize().saturating_sub(1) as f32,
+                map.data.ysize().saturating_sub(1) as f32,
+            ),
+        );
 
         // If the user changed the scale using the scale slider, pan the map so that the scale uses
         // the center of the visible part of the map as the scale center
@@ -620,6 +648,13 @@ impl MapView {
             5.,
             egui::Stroke::new(1., egui::Color32::YELLOW),
         );
+
+        ui.ctx().data_mut(|d| {
+            d.insert_persisted(
+                self.data_id,
+                (self.cursor_pos, self.pan, self.inter_tile_pan, self.scale),
+            );
+        });
 
         response
     }

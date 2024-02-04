@@ -34,7 +34,7 @@ pub(crate) async fn load_memory(_: &egui::Context, _: &super::WorkerChannels) {}
 
 #[cfg(feature = "persistence")]
 pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {
-    match ctx.memory(|mem| ron::to_string(mem)) {
+    match ctx.memory(ron::to_string) {
         Ok(ron) => {
             let (oneshot_tx, oneshot_rx) = oneshot::channel();
             channels.send(super::WebRunnerOutput::StorageSet(

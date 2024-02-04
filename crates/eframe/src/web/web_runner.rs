@@ -29,13 +29,13 @@ pub struct WebRunner {
 impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
+    pub fn new(panic_tx: std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>) -> Self {
         #[cfg(not(web_sys_unstable_apis))]
         log::warn!(
             "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
         );
 
-        let panic_handler = PanicHandler::install();
+        let panic_handler = PanicHandler::install(panic_tx);
 
         Self {
             panic_handler,
@@ -46,7 +46,25 @@ impl WebRunner {
 
     /// Set up the event listeners on the main thread in order to do things like respond to
     /// mouse events and resize the canvas to fill the screen.
-    pub fn setup_main_thread_hooks(state: super::MainState) -> Result<(), JsValue> {
+    pub fn setup_main_thread_hooks(
+        state: super::MainState,
+    ) -> Result<std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>, JsValue> {
+        let (panic_tx, panic_rx) = oneshot::channel();
+
+        wasm_bindgen_futures::spawn_local(async move {
+            let _ = panic_rx.await;
+            super::EVENTS_TO_UNSUBSCRIBE.with_borrow_mut(|events| {
+                for event in events.drain(..) {
+                    if let Err(e) = event.unsubscribe() {
+                        log::warn!(
+                            "Failed to unsubscribe from event: {}",
+                            super::string_from_js_value(&e),
+                        );
+                    }
+                }
+            });
+        });
+
         {
             events::install_canvas_events(&state)?;
             events::install_document_events(&state)?;
@@ -93,7 +111,7 @@ impl WebRunner {
             }
         });
 
-        Ok(())
+        Ok(std::sync::Arc::new(parking_lot::Mutex::new(Some(panic_tx))))
     }
 
     /// Create the application, install callbacks, and start running the app.
@@ -225,19 +243,19 @@ impl WebRunner {
 
 // ----------------------------------------------------------------------------
 
-struct TargetEvent {
-    target: web_sys::EventTarget,
-    event_name: String,
-    closure: Closure<dyn FnMut(web_sys::Event)>,
+pub(super) struct TargetEvent {
+    pub(super) target: web_sys::EventTarget,
+    pub(super) event_name: String,
+    pub(super) closure: Closure<dyn FnMut(web_sys::Event)>,
 }
 
 #[allow(unused)]
-struct IntervalHandle {
-    handle: i32,
-    closure: Closure<dyn FnMut()>,
+pub(super) struct IntervalHandle {
+    pub(super) handle: i32,
+    pub(super) closure: Closure<dyn FnMut()>,
 }
 
-enum EventToUnsubscribe {
+pub(super) enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
 
     #[allow(unused)]
@@ -247,14 +265,14 @@ enum EventToUnsubscribe {
 impl EventToUnsubscribe {
     pub fn unsubscribe(self) -> Result<(), JsValue> {
         match self {
-            EventToUnsubscribe::TargetEvent(handle) => {
+            Self::TargetEvent(handle) => {
                 handle.target.remove_event_listener_with_callback(
                     handle.event_name.as_str(),
                     handle.closure.as_ref().unchecked_ref(),
                 )?;
                 Ok(())
             }
-            EventToUnsubscribe::IntervalHandle(handle) => {
+            Self::IntervalHandle(handle) => {
                 let window = web_sys::window().unwrap();
                 window.clear_interval_with_handle(handle.handle);
                 Ok(())

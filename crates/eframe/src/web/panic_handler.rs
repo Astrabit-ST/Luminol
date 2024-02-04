@@ -13,13 +13,18 @@ pub struct PanicHandler(Arc<Mutex<PanicHandlerInner>>);
 
 impl PanicHandler {
     /// Install a panic hook.
-    pub fn install() -> Self {
+    pub fn install(panic_tx: Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>) -> Self {
         let handler = Self(Arc::new(Mutex::new(Default::default())));
 
         let handler_clone = handler.clone();
         let previous_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |panic_info| {
             let _ = super::PANIC_LOCK.set(());
+            if let Some(mut panic_tx) = panic_tx.try_lock() {
+                if let Some(panic_tx) = panic_tx.take() {
+                    let _ = panic_tx.send(());
+                }
+            }
 
             let summary = PanicSummary::new(panic_info);
 

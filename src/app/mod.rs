@@ -83,6 +83,7 @@ impl App {
     #[must_use]
     pub fn new(
         cc: &luminol_eframe::CreationContext<'_>,
+        report: Option<String>,
         modified: luminol_core::ModifiedState,
         // #[cfg(not(target_arch = "wasm32"))] log_term_rx: luminol_term::TermReceiver,
         // #[cfg(not(target_arch = "wasm32"))] log_byte_rx: luminol_term::ByteReceiver,
@@ -90,6 +91,8 @@ impl App {
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
     ) -> Self {
+        luminol_core::set_git_revision(crate::git_revision());
+
         let render_state = cc
             .wgpu_render_state
             .clone()
@@ -238,7 +241,11 @@ impl App {
             bytes_loader,
 
             toasts,
-            windows: luminol_core::Windows::default(),
+            windows: report.map_or_else(luminol_core::Windows::new, |report| {
+                luminol_core::Windows::new_with_windows(vec![
+                    luminol_ui::windows::reporter::Window::new(report, crate::git_revision()),
+                ])
+            }),
             tabs: luminol_core::Tabs::new_with_tabs(
                 "luminol_main_tabs",
                 vec![luminol_ui::tabs::started::Tab::default()],
@@ -266,6 +273,8 @@ impl luminol_eframe::App for App {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
+                super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Relaxed);
+
                 let path = f.path.clone().expect("dropped file has no path");
                 let path = camino::Utf8PathBuf::from_path_buf(path).expect("path was not utf8");
 
@@ -305,6 +314,7 @@ impl luminol_eframe::App for App {
             toolbar: &mut self.toolbar,
             modified: self.modified.clone(),
             project_manager: &mut self.project_manager,
+            git_revision: crate::git_revision(),
         };
 
         // If a file/folder picker is open, prevent the user from interacting with the application
@@ -377,6 +387,8 @@ impl luminol_eframe::App for App {
         self.toasts.show(ctx);
 
         self.lumi.ui(ctx);
+
+        super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Relaxed);
 
         self.bytes_loader.load_unloaded_files(ctx, &self.filesystem);
 

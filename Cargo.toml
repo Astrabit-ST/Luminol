@@ -42,7 +42,7 @@ doc_markdown = "allow"
 missing_panics_doc = "allow"
 too_many_lines = "allow"
 # you must provide a safety doc.
-missing_safety_doc = "forbid"
+missing_safety_doc = "warn"
 
 [workspace.package]
 version = "0.4.0"
@@ -60,9 +60,9 @@ categories = ["games"]
 
 # Shared dependencies
 [workspace.dependencies]
-egui = "0.24.1"
-egui_extras = { version = "0.24.1", features = ["svg", "image"] }
-epaint = "0.24.1"
+egui = "0.25.0"
+egui_extras = { version = "0.25.0", features = ["svg", "image"] }
+epaint = "0.25.0"
 
 luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "wgpu",
@@ -73,10 +73,9 @@ luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "wayland",
 ], default-features = false }
 luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" }
-egui_glow = "0.24.1"
-egui-winit = "0.24.1"
+egui-winit = "0.25.0"
 
-wgpu = { version = "0.18.0", features = ["naga"] }
+wgpu = { version = "0.19.1", features = ["naga-ir"] }
 glam = { version = "0.24.2", features = ["bytemuck"] }
 image = "0.24.7"
 
@@ -99,7 +98,8 @@ thiserror = "1.0.37"
 bitflags = "2.4.0"
 color-eyre = "0.6.2"
 puffin = "0.18"
-raw-window-handle = "0.5.0"
+raw-window-handle = "0.6.0"
+winit = { version = "0.29.4", default-features = false }
 
 parking_lot = { version = "0.12.1", features = [
     "nightly",            # This is required for parking_lot to work properly in WebAssembly builds with atomics support
@@ -125,10 +125,9 @@ qp-trie = "0.8.2"
 itertools = "0.11.0"
 
 rfd = "0.12.0"
+tempfile = "3.8.1"
 
 rand = "0.8.5"
-
-git-version = "0.3.9"
 
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
 luminol-components = { version = "0.4.0", path = "crates/components/" }
@@ -180,7 +179,7 @@ zstd = "0.13.0"
 async-std.workspace = true
 futures-lite.workspace = true
 
-git-version.workspace = true
+git-version = "0.3.9"
 
 # Native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -192,6 +191,7 @@ tokio = { version = "1.33", features = [
     "rt-multi-thread",
     "parking_lot",
 ] } # *sigh*
+tempfile.workspace = true
 luminol-term.workspace = true
 
 # Set poll promise features here based on the target
@@ -213,7 +213,7 @@ wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 
-flume.workspace = true
+oneshot.workspace = true
 
 luminol-web = { version = "0.4.0", path = "crates/web/" }
 
@@ -229,16 +229,12 @@ web-sys = { version = "0.3", features = [
     "WorkerType",
 ] }
 
-# Enable wgpu's `webgl` feature if Luminol's `webgl` feature is enabled,
-# enabling its WebGL backend and disabling its WebGPU backend
 [target.'cfg(target_arch = "wasm32")'.dependencies.wgpu]
 workspace = true
-optional = true
-features = ["webgl"]
+features = ["webgpu", "webgl"]
 
 [features]
 steamworks = ["dep:steamworks"]
-webgl = ["dep:wgpu"]
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

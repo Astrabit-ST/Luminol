@@ -107,9 +107,17 @@ impl FileSystem {
         let project = match self
             .read_to_string(".luminol/config")
             .ok()
-            .and_then(|s| ron::from_str(&s).ok())
+            .and_then(|s| ron::from_str::<luminol_config::project::Project>(&s).ok())
         {
-            Some(c) => c,
+            Some(config) if config.persistence_id != 0 => config,
+            Some(mut config) => {
+                while config.persistence_id == 0 {
+                    config.persistence_id = rand::random();
+                }
+                self.write(".luminol/config", ron::to_string(&config).wrap_err(c)?)
+                    .wrap_err(c)?;
+                config
+            }
             None => {
                 let Some(editor_ver) = self.detect_rm_ver() else {
                     return Err(Error::UnableToDetectRMVer).wrap_err(c);
@@ -450,21 +458,17 @@ impl FileSystem {
         global_config: &mut luminol_config::global::Config,
     ) -> Result<LoadResult> {
         let entries = host.read_dir("")?;
-        if entries
-            .iter()
-            .find(|e| {
-                if let Some(extension) = e.path.extension() {
-                    e.metadata.is_file
-                        && (extension == "rxproj"
-                            || extension == "rvproj"
-                            || extension == "rvproj2"
-                            || extension == "lumproj")
-                } else {
-                    false
-                }
-            })
-            .is_none()
-        {
+        if !entries.iter().any(|e| {
+            if let Some(extension) = e.path.extension() {
+                e.metadata.is_file
+                    && (extension == "rxproj"
+                        || extension == "rvproj"
+                        || extension == "rvproj2"
+                        || extension == "lumproj")
+            } else {
+                false
+            }
+        }) {
             return Err(Error::InvalidProjectFolder.into());
         };
 

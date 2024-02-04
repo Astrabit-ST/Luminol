@@ -13,7 +13,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    pub(crate) text_cursor_pos: Option<egui::Pos2>,
+    pub(crate) ime: Option<egui::output::IMEOutput>,
     pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
@@ -142,7 +142,7 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            text_cursor_pos: None,
+            ime: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
@@ -281,7 +281,7 @@ impl AppRunner {
             copied_text,
             events: _, // already handled
             mutable_text_under_cursor,
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
         } = platform_output;
@@ -304,9 +304,9 @@ impl AppRunner {
             inner.mutable_text_under_cursor = mutable_text_under_cursor;
             inner.wants_keyboard_input = wants_keyboard_input;
 
-            if inner.text_cursor_pos != text_cursor_pos {
-                super::text_agent::move_text_cursor(text_cursor_pos, &state.canvas);
-                inner.text_cursor_pos = text_cursor_pos;
+            if inner.ime != ime {
+                super::text_agent::move_text_cursor(ime, &state.canvas);
+                inner.ime = ime;
             }
         }
     }
