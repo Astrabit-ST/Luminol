@@ -29,7 +29,8 @@ pub struct Window {
 impl Window {
     pub fn new(ctx: &egui::Context) -> std::io::Result<Self> {
         Ok(Self {
-            term: luminol_term::Terminal::new(ctx)?,
+            // TODO
+            term: luminol_term::Terminal::new(ctx, &Default::default())?,
         })
     }
 }
@@ -58,6 +59,15 @@ impl luminol_core::Window for Window {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
+                if let Err(e) = self.term.ui(ui) {
+                    luminol_core::error!(
+                        update_state.toasts,
+                        e.wrap_err("Error displaying terminal"),
+                    );
+                }
+
+                ui.add_space(ui.spacing().item_spacing.y);
+
                 ui.horizontal(|ui| {
                     if ui
                         .button(egui::RichText::new("KILL").color(egui::Color32::RED))
@@ -83,15 +93,6 @@ impl luminol_core::Window for Window {
                         self.term.set_size(update_state, cols, rows);
                     }
                 });
-
-                ui.add_space(ui.spacing().item_spacing.y);
-
-                if let Err(e) = self.term.ui(ui) {
-                    luminol_core::error!(
-                        update_state.toasts,
-                        e.wrap_err("Error displaying terminal"),
-                    );
-                }
             });
     }
 }

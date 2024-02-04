@@ -23,6 +23,11 @@
 // Program grant you additional permission to convey the resulting work.
 
 #[cfg(not(target_arch = "wasm32"))]
-mod _impl;
+mod terminal;
 #[cfg(not(target_arch = "wasm32"))]
-pub use _impl::*;
+mod theme;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use terminal::Terminal;
+#[cfg(not(target_arch = "wasm32"))]
+pub use theme::Theme;
