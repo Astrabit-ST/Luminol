@@ -110,6 +110,8 @@ impl CollapsingView {
                                     modified = true;
                                     deleted_entry = Some(i);
                                 }
+
+                                ui.add_space(ui.spacing().item_spacing.y);
                             });
                         });
 
