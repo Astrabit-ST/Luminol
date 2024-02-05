@@ -414,6 +414,11 @@ impl luminol_core::Window for Window {
                                                                 "Turn {}x",
                                                                 action.condition_turn_b,
                                                             )
+                                                        } else if action.condition_turn_b == 1 {
+                                                            format!(
+                                                                "Turn {} + x",
+                                                                action.condition_turn_a,
+                                                            )
                                                         } else {
                                                             format!(
                                                                 "Turn {} + {}x",
@@ -505,7 +510,8 @@ impl luminol_core::Window for Window {
                                                                         egui::Slider::new(
                                                                             &mut action.condition_hp,
                                                                             0..=100,
-                                                                        ),
+                                                                        )
+                                                                        .suffix("%"),
                                                                     ),
                                                                 )
                                                                 .changed();
