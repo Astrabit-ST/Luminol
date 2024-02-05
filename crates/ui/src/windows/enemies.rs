@@ -40,7 +40,7 @@ pub struct Window {
     selected_enemy_name: Option<String>,
     previous_enemy: Option<usize>,
 
-    _collapsing_view: luminol_components::CollapsingView,
+    collapsing_view: luminol_components::CollapsingView,
     view: luminol_components::DatabaseView,
 }
 
@@ -77,7 +77,7 @@ impl luminol_core::Window for Window {
         let animations = update_state.data.animations();
         let system = update_state.data.system();
         let states = update_state.data.states();
-        let _skills = update_state.data.skills();
+        let skills = update_state.data.skills();
         let items = update_state.data.items();
         let weapons = update_state.data.weapons();
         let armors = update_state.data.armors();
@@ -387,6 +387,239 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_stripe(false, |ui| {
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Actions",
+                                    |ui: &mut egui::Ui| {
+                                        if self.previous_enemy != Some(enemy.id) {
+                                            self.collapsing_view.clear_animations();
+                                        }
+                                        self.collapsing_view.show(
+                                            ui,
+                                            enemy.id,
+                                            &mut enemy.actions,
+                                            |ui, _i, action| {
+                                                let mut conditions = Vec::with_capacity(4);
+                                                if action.condition_turn_a != 0
+                                                    || action.condition_turn_b != 1
+                                                {
+                                                    conditions.push(
+                                                        if action.condition_turn_b == 0 {
+                                                            format!(
+                                                                "Turn {}",
+                                                                action.condition_turn_a,
+                                                            )
+                                                        } else if action.condition_turn_a == 0 {
+                                                            format!(
+                                                                "Turn {}x",
+                                                                action.condition_turn_b,
+                                                            )
+                                                        } else {
+                                                            format!(
+                                                                "Turn {} + {}x",
+                                                                action.condition_turn_a,
+                                                                action.condition_turn_b,
+                                                            )
+                                                        },
+                                                    )
+                                                }
+                                                if action.condition_hp < 100 {
+                                                    conditions.push(format!(
+                                                        "{}% HP",
+                                                        action.condition_hp,
+                                                    ));
+                                                }
+                                                if action.condition_level > 1 {
+                                                    conditions.push(format!(
+                                                        "Level {}",
+                                                        action.condition_level,
+                                                    ));
+                                                }
+                                                if let Some(id) = action.condition_switch_id {
+                                                    conditions
+                                                        .push(format!("Switch {:0>4}", id + 1));
+                                                }
+
+                                                ui.add(
+                                                    egui::Label::new(format!(
+                                                        "{}{}",
+                                                        match action.kind {
+                                                            luminol_data::rpg::enemy::Kind::Basic => {
+                                                                action.basic.to_string()
+                                                            }
+                                                            luminol_data::rpg::enemy::Kind::Skill => {
+                                                                skills
+                                                                    .data
+                                                                    .get(action.skill_id)
+                                                                    .map_or_else(
+                                                                        || "".into(),
+                                                                        |s| s.name.clone(),
+                                                                    )
+                                                            }
+                                                        },
+                                                        if conditions.is_empty() {
+                                                            String::new()
+                                                        } else {
+                                                            format!(": {}", conditions.join(", "))
+                                                        }
+                                                    ))
+                                                    .truncate(true),
+                                                );
+                                            },
+                                            |ui, i, action| {
+                                                let mut modified = false;
+
+                                                let mut response = egui::Frame::none()
+                                                    .show(ui, |ui| {
+                                                        ui.columns(2, |columns| {
+                                                            modified |= columns[0]
+                                                                .add(
+                                                                    luminol_components::Field::new(
+                                                                        "Turn Offset",
+                                                                        egui::DragValue::new(
+                                                                            &mut action.condition_turn_a,
+                                                                        )
+                                                                        .clamp_range(0..=i32::MAX),
+                                                                    ),
+                                                                )
+                                                                .changed();
+
+                                                            modified |= columns[1]
+                                                                .add(
+                                                                    luminol_components::Field::new(
+                                                                        "Turn Interval",
+                                                                        egui::DragValue::new(
+                                                                            &mut action.condition_turn_b,
+                                                                        )
+                                                                        .clamp_range(0..=i32::MAX),
+                                                                    ),
+                                                                )
+                                                                .changed();
+                                                        });
+
+                                                        ui.columns(2, |columns| {
+                                                            modified |= columns[0]
+                                                                .add(
+                                                                    luminol_components::Field::new(
+                                                                        "Max HP %",
+                                                                        egui::Slider::new(
+                                                                            &mut action.condition_hp,
+                                                                            0..=100,
+                                                                        ),
+                                                                    ),
+                                                                )
+                                                                .changed();
+
+                                                            modified |= columns[1]
+                                                                .add(
+                                                                    luminol_components::Field::new(
+                                                                        "Min Level",
+                                                                        egui::Slider::new(
+                                                                            &mut action.condition_level,
+                                                                            1..=99,
+                                                                        ),
+                                                                    ),
+                                                                )
+                                                                .changed();
+                                                        });
+
+                                                        modified |= ui
+                                                            .add(luminol_components::Field::new(
+                                                                "Switch",
+                                                                luminol_components::OptionalIdComboBox::new(
+                                                                    (enemy.id, i, "condition_switch_id"),
+                                                                    &mut action.condition_switch_id,
+                                                                    0..system.switches.len(),
+                                                                    |id| {
+                                                                        system.switches.get(id).map_or_else(
+                                                                            || "".into(),
+                                                                            |s| {
+                                                                                format!(
+                                                                                    "{:0>3}: {}",
+                                                                                    id + 1,
+                                                                                    s
+                                                                                )
+                                                                            },
+                                                                        )
+                                                                    },
+                                                                ),
+                                                            ))
+                                                            .changed();
+
+                                                        ui.columns(2, |columns| {
+                                                            modified |= columns[0]
+                                                                .add(luminol_components::Field::new(
+                                                                    "Kind",
+                                                                    luminol_components::EnumComboBox::new(
+                                                                        (enemy.id, i, "kind"),
+                                                                        &mut action.kind,
+                                                                    ),
+                                                                ))
+                                                                .changed();
+
+                                                            match action.kind {
+                                                                luminol_data::rpg::enemy::Kind::Basic => {
+                                                                    modified |= columns[1]
+                                                                        .add(luminol_components::Field::new(
+                                                                            "Basic Type",
+                                                                            luminol_components::EnumComboBox::new(
+                                                                                (enemy.id, i, "basic"),
+                                                                                &mut action.basic,
+                                                                            )
+                                                                        ))
+                                                                        .changed();
+                                                                    }
+                                                                luminol_data::rpg::enemy::Kind::Skill => {
+                                                                    modified |= columns[1]
+                                                                        .add(luminol_components::Field::new(
+                                                                            "Skill",
+                                                                            luminol_components::OptionalIdComboBox::new(
+                                                                                (enemy.id, i, "skill_id"),
+                                                                                &mut action.skill_id,
+                                                                                0..skills.data.len(),
+                                                                                |id| {
+                                                                                    skills.data.get(id).map_or_else(
+                                                                                        || "".into(),
+                                                                                        |s| {
+                                                                                            format!(
+                                                                                                "{:0>3}: {}",
+                                                                                                id + 1,
+                                                                                                s.name
+                                                                                            )
+                                                                                        },
+                                                                                    )
+                                                                                },
+                                                                            )
+                                                                        ))
+                                                                        .changed();
+                                                                }
+                                                            }
+                                                        });
+
+                                                        modified |= ui
+                                                            .add(luminol_components::Field::new(
+                                                                "Rating",
+                                                                egui::Slider::new(
+                                                                    &mut action.rating,
+                                                                    1..=10,
+                                                                )
+                                                            ))
+                                                            .changed();
+                                                    })
+                                                    .response;
+
+                                                if modified {
+                                                    response.mark_changed();
+                                                }
+                                                response
+                                            },
+                                        )
+                                    },
+                                ))
+                                .changed();
+                        });
+
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::RankSelection::new(
                                     (enemy.id, "element_ranks"),
