@@ -137,6 +137,9 @@ impl DatabaseView {
                         ui.set_width(ui.available_width());
                         ui.set_min_width(
                             2. * (ui.spacing().slider_width + ui.spacing().interact_size.x)
+                                + ui.spacing().indent
+                                + 12. // `egui::Frame::group` inner margins are hardcoded to 6
+                                      // points on each side
                                 + 3. * ui.spacing().item_spacing.x,
                         );
 
