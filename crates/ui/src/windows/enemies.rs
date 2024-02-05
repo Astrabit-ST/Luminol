@@ -111,7 +111,7 @@ impl luminol_core::Window for Window {
                             ))
                             .changed();
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -149,7 +149,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -185,7 +185,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -221,7 +221,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -267,7 +267,7 @@ impl luminol_core::Window for Window {
                             TreasureType::None
                         };
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -288,7 +288,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             match treasure_type {
                                 TreasureType::None => {
                                     enemy.item_id = None;
@@ -389,7 +389,7 @@ impl luminol_core::Window for Window {
                             };
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Actions",
@@ -628,7 +628,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::RankSelection::new(
                                     (enemy.id, "element_ranks"),
