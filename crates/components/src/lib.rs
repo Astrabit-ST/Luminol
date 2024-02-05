@@ -187,6 +187,7 @@ pub struct OptionalIdComboBox<'a, R, I, H, F> {
     id_iter: I,
     formatter: F,
     retain_search: bool,
+    allow_none: bool,
 }
 
 impl<'a, R, I, H, F> OptionalIdComboBox<'a, R, I, H, F>
@@ -204,6 +205,7 @@ where
             id_iter,
             formatter,
             retain_search: true,
+            allow_none: true,
         }
     }
 
@@ -275,6 +277,19 @@ where
     }
 }
 
+impl<'a, I, H, F> OptionalIdComboBox<'a, Option<usize>, I, H, F>
+where
+    I: Iterator<Item = usize>,
+    H: std::hash::Hash,
+    F: Fn(usize) -> String,
+{
+    /// Enables or disables selecting the "(None)" option in the combo box. Defaults to `true`.
+    pub fn allow_none(mut self, value: bool) -> Self {
+        self.allow_none = value;
+        self
+    }
+}
+
 impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, I, H, F>
 where
     I: Iterator<Item = usize>,
@@ -282,6 +297,7 @@ where
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let allow_none = self.allow_none;
         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
         let mut changed = false;
 
@@ -295,15 +311,16 @@ where
                 }
             },
             |this, ui, search_str| {
-                if ui
-                    .selectable_label(this.reference.is_none(), "(None)")
-                    .clicked()
+                if allow_none
+                    && ui
+                        .selectable_label(this.reference.is_none(), "(None)")
+                        .clicked()
                 {
                     *this.reference = None;
                     changed = true;
                 }
 
-                let mut is_faint = true;
+                let mut is_faint = allow_none;
 
                 for id in this.id_iter {
                     let formatted = (this.formatter)(id);

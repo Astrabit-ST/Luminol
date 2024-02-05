@@ -331,7 +331,8 @@ impl luminol_core::Window for Window {
                                                         |i| format!("{:0>3}: {}", id + 1, i.name),
                                                     )
                                                 },
-                                            ),
+                                            )
+                                            .allow_none(false),
                                         ))
                                         .changed();
                                 }
@@ -355,7 +356,8 @@ impl luminol_core::Window for Window {
                                                         |w| format!("{:0>3}: {}", id + 1, w.name),
                                                     )
                                                 },
-                                            ),
+                                            )
+                                            .allow_none(false),
                                         ))
                                         .changed();
                                 }
@@ -379,7 +381,8 @@ impl luminol_core::Window for Window {
                                                         |a| format!("{:0>3}: {}", id + 1, a.name),
                                                     )
                                                 },
-                                            ),
+                                            )
+                                            .allow_none(false),
                                         ))
                                         .changed();
                                 }
