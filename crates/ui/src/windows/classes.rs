@@ -37,6 +37,66 @@ impl Window {
     pub fn new() -> Self {
         Default::default()
     }
+
+    fn show_learning_header(
+        ui: &mut egui::Ui,
+        skills: &luminol_data::rpg::Skills,
+        learning: &luminol_data::rpg::class::Learning,
+    ) {
+        ui.add(
+            egui::Label::new(format!(
+                "Lvl {}: {}",
+                learning.level,
+                skills.data.get(learning.skill_id).map_or("", |s| &s.name)
+            ))
+            .truncate(true),
+        );
+    }
+
+    fn show_learning_body(
+        ui: &mut egui::Ui,
+        skills: &luminol_data::rpg::Skills,
+        class_id: usize,
+        learning_index: usize,
+        learning: &mut luminol_data::rpg::class::Learning,
+    ) -> egui::Response {
+        let mut modified = false;
+
+        let mut response = egui::Frame::none()
+            .show(ui, |ui| {
+                ui.columns(2, |columns| {
+                    modified |= columns[0]
+                        .add(luminol_components::Field::new(
+                            "Level",
+                            egui::Slider::new(&mut learning.level, 1..=99),
+                        ))
+                        .changed();
+
+                    modified |= columns[1]
+                        .add(luminol_components::Field::new(
+                            "Skill",
+                            luminol_components::OptionalIdComboBox::new(
+                                (class_id, learning_index, "skill_id"),
+                                &mut learning.skill_id,
+                                0..skills.data.len(),
+                                |id| {
+                                    skills.data.get(id).map_or_else(
+                                        || "".into(),
+                                        |s| format!("{:0>3}: {}", id + 1, s.name),
+                                    )
+                                },
+                            ),
+                        ))
+                        .changed();
+                });
+            })
+            .response;
+
+        if modified {
+            response.mark_changed();
+        }
+        response
+    }
 }
 
 impl luminol_core::Window for Window {
@@ -123,65 +183,12 @@ impl luminol_core::Window for Window {
                                             class.id,
                                             &mut class.learnings,
                                             |ui, _i, learning| {
-                                                ui.add(
-                                                    egui::Label::new(format!(
-                                                        "Lvl {}: {}",
-                                                        learning.level,
-                                                        skills
-                                                            .data
-                                                            .get(learning.skill_id)
-                                                            .map_or("", |s| &s.name)
-                                                    ))
-                                                    .truncate(true),
-                                                );
+                                                Self::show_learning_header(ui, &skills, learning)
                                             },
                                             |ui, i, learning| {
-                                                let mut modified = false;
-
-                                                let mut response =
-                                                    egui::Frame::none().show(ui, |ui| {
-                                                        ui.columns(2, |columns| {
-                                                            modified |= columns[0]
-                                                                .add(
-                                                                    luminol_components::Field::new(
-                                                                        "Level",
-                                                                        egui::Slider::new(
-                                                                            &mut learning.level,
-                                                                            1..=99,
-                                                                        ),
-                                                                    ),
-                                                                )
-                                                                .changed();
-
-                                                            modified |= columns[1]
-                                                                .add(luminol_components::Field::new(
-                                                                    "Skill",
-                                                                    luminol_components::OptionalIdComboBox::new(
-                                                                        (class.id, i, "skill_id"),
-                                                                        &mut learning.skill_id,
-                                                                        0..skills.data.len(),
-                                                                        |id| {
-                                                                            skills.data.get(id).map_or_else(
-                                                                                || "".into(),
-                                                                                |s| {
-                                                                                    format!(
-                                                                                        "{:0>3}: {}",
-                                                                                        id + 1,
-                                                                                        s.name
-                                                                                    )
-                                                                                },
-                                                                            )
-                                                                        },
-                                                                    ),
-                                                                ))
-                                                                .changed();
-                                                        });
-                                                    }).response;
-
-                                                if modified {
-                                                    response.mark_changed();
-                                                }
-                                                response
+                                                Self::show_learning_body(
+                                                    ui, &skills, class.id, i, learning,
+                                                )
                                             },
                                         )
                                     },
