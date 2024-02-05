@@ -544,7 +544,7 @@ impl luminol_core::Window for Window {
                                                                             || "".into(),
                                                                             |s| {
                                                                                 format!(
-                                                                                    "{:0>3}: {}",
+                                                                                    "{:0>4}: {}",
                                                                                     id + 1,
                                                                                     s
                                                                                 )
