@@ -163,7 +163,7 @@ where
                             .selectable_label(
                                 std::mem::discriminant(self.reference)
                                     == std::mem::discriminant(&variant),
-                                variant.to_string(),
+                                ui.truncate_text(variant.to_string()),
                             )
                             .clicked()
                         {
@@ -192,7 +192,7 @@ pub struct OptionalIdComboBox<'a, R, I, H, F> {
 
 impl<'a, R, I, H, F> OptionalIdComboBox<'a, R, I, H, F>
 where
-    I: Iterator<Item = usize>,
+    I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
@@ -218,7 +218,13 @@ where
         self,
         ui: &mut egui::Ui,
         formatter: impl Fn(&Self) -> String,
-        f: impl FnOnce(Self, &mut egui::Ui, &str) -> bool,
+        f: impl FnOnce(
+            Self,
+            &mut egui::Ui,
+            std::ops::Range<usize>,
+            &fuzzy_matcher::skim::SkimMatcherV2,
+            &str,
+        ) -> bool,
     ) -> egui::Response {
         let source = egui::Id::new(&self.id_source);
         let state_id = ui.make_persistent_id(source).with("OptionalIdComboBox");
@@ -247,9 +253,28 @@ where
                     || search_box_response.clicked_by(egui::PointerButton::Extra1)
                     || search_box_response.clicked_by(egui::PointerButton::Extra2);
 
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    changed = f(self, ui, &search_string);
-                });
+                let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+
+                let button_height = ui.spacing().interact_size.y.max(
+                    ui.text_style_height(&egui::TextStyle::Button)
+                        + 2. * ui.spacing().button_padding.y,
+                );
+                egui::ScrollArea::vertical().show_rows(
+                    ui,
+                    button_height,
+                    self.id_iter
+                        .clone()
+                        .filter(|id| {
+                            matcher
+                                .fuzzy(&(self.formatter)(*id), &search_string, false)
+                                .is_some()
+                        })
+                        .count()
+                        + self.allow_none as usize,
+                    |ui, range| {
+                        changed = f(self, ui, range, &matcher, &search_string);
+                    },
+                );
 
                 ui.data_mut(|d| d.insert_temp(state_id, search_string));
 
@@ -279,7 +304,7 @@ where
 
 impl<'a, I, H, F> OptionalIdComboBox<'a, Option<usize>, I, H, F>
 where
-    I: Iterator<Item = usize>,
+    I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
@@ -292,13 +317,12 @@ where
 
 impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, I, H, F>
 where
-    I: Iterator<Item = usize>,
+    I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let allow_none = self.allow_none;
-        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
         let mut changed = false;
 
         self.ui_inner(
@@ -310,17 +334,25 @@ where
                     "(None)".into()
                 }
             },
-            |this, ui, search_str| {
+            |this, ui, range, matcher, search_str| {
                 if allow_none
+                    && range.contains(&0)
                     && ui
-                        .selectable_label(this.reference.is_none(), "(None)")
+                        .selectable_label(this.reference.is_none(), ui.truncate_text("(None)"))
                         .clicked()
                 {
                     *this.reference = None;
                     changed = true;
                 }
 
-                let mut is_faint = allow_none;
+                let range_start = if allow_none {
+                    range.start.max(1)
+                } else {
+                    range.start
+                };
+                let mut is_faint = range_start % 2 != 0;
+
+                let mut index = 0;
 
                 for id in this.id_iter {
                     let formatted = (this.formatter)(id);
@@ -328,9 +360,18 @@ where
                         continue;
                     }
 
+                    if !range.contains(&(index + allow_none as usize)) {
+                        index += 1;
+                        continue;
+                    }
+                    index += 1;
+
                     ui.with_stripe(is_faint, |ui| {
                         if ui
-                            .selectable_label(*this.reference == Some(id), formatted)
+                            .selectable_label(
+                                *this.reference == Some(id),
+                                ui.truncate_text(formatted),
+                            )
                             .clicked()
                         {
                             *this.reference = Some(id);
@@ -348,19 +389,22 @@ where
 
 impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, usize, I, H, F>
 where
-    I: Iterator<Item = usize>,
+    I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
     F: Fn(usize) -> String,
 {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+        self.allow_none = false;
+
         let mut changed = false;
 
         self.ui_inner(
             ui,
             |this| (this.formatter)(*this.reference),
-            |this, ui, search_str| {
-                let mut is_faint = false;
+            |this, ui, range, matcher, search_str| {
+                let mut is_faint = range.start % 2 != 0;
+
+                let mut index = 0;
 
                 for id in this.id_iter {
                     let formatted = (this.formatter)(id);
@@ -368,9 +412,15 @@ where
                         continue;
                     }
 
+                    if !range.contains(&index) {
+                        index += 1;
+                        continue;
+                    }
+                    index += 1;
+
                     ui.with_stripe(is_faint, |ui| {
                         if ui
-                            .selectable_label(*this.reference == id, formatted)
+                            .selectable_label(*this.reference == id, ui.truncate_text(formatted))
                             .clicked()
                         {
                             *this.reference = id;

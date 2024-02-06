@@ -275,7 +275,7 @@ where
             Entry::File { name, selected } => {
                 ui.with_stripe(is_faint, |ui| {
                     if ui
-                        .add(egui::SelectableLabel::new(*selected, name.to_string()))
+                        .selectable_label(*selected, ui.truncate_text(name.to_string()))
                         .clicked()
                     {
                         should_toggle = true;
@@ -315,9 +315,9 @@ where
                     ui.with_layout(layout, |ui| {
                         ui.with_stripe(is_faint, |ui| {
                             if ui
-                                .add(egui::SelectableLabel::new(
+                                .selectable_label(
                                     *selected,
-                                    format!(
+                                    ui.truncate_text(format!(
                                         "{}   {}",
                                         if *selected {
                                             '▣'
@@ -328,8 +328,8 @@ where
                                             '⊟'
                                         },
                                         name
-                                    ),
-                                ))
+                                    )),
+                                )
                                 .clicked()
                             {
                                 should_toggle = true;

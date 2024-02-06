@@ -79,28 +79,25 @@ impl Window {
             conditions.push(format!("Switch {:0>4}", id + 1));
         }
 
-        ui.add(
-            egui::Label::new(format!(
-                "{}{}",
-                match action.kind {
-                    luminol_data::rpg::enemy::Kind::Basic => {
-                        action.basic.to_string()
-                    }
-                    luminol_data::rpg::enemy::Kind::Skill => {
-                        skills
-                            .data
-                            .get(action.skill_id)
-                            .map_or_else(|| "".into(), |s| s.name.clone())
-                    }
-                },
-                if conditions.is_empty() {
-                    String::new()
-                } else {
-                    format!(": {}", conditions.join(", "))
+        ui.label(format!(
+            "{}{}",
+            match action.kind {
+                luminol_data::rpg::enemy::Kind::Basic => {
+                    action.basic.to_string()
                 }
-            ))
-            .truncate(true),
-        );
+                luminol_data::rpg::enemy::Kind::Skill => {
+                    skills
+                        .data
+                        .get(action.skill_id)
+                        .map_or_else(|| "".into(), |s| s.name.clone())
+                }
+            },
+            if conditions.is_empty() {
+                String::new()
+            } else {
+                format!(": {}", conditions.join(", "))
+            }
+        ));
     }
 
     fn show_action_body(

@@ -185,7 +185,10 @@ where
 
                         ui.with_stripe(is_faint, |ui| {
                             if ui
-                                .selectable_label(is_id_selected, (self.formatter)(id + first_id))
+                                .selectable_label(
+                                    is_id_selected,
+                                    ui.truncate_text((self.formatter)(id + first_id)),
+                                )
                                 .clicked()
                             {
                                 clicked_id = Some(id);
@@ -343,13 +346,13 @@ where
                             if ui
                                 .selectable_label(
                                     is_id_plus || is_id_minus,
-                                    if is_id_plus {
+                                    ui.truncate_text(if is_id_plus {
                                         format!("+ {label}")
                                     } else if is_id_minus {
                                         format!("‒ {label}")
                                     } else {
                                         label
-                                    },
+                                    }),
                                 )
                                 .clicked()
                             {
@@ -550,7 +553,7 @@ where
                             if ui
                                 .selectable_label(
                                     matches!(rank, 1 | 2 | 4 | 5 | 6),
-                                    format!(
+                                    ui.truncate_text(format!(
                                         "{} - {label}",
                                         match rank {
                                             1 => 'A',
@@ -561,7 +564,7 @@ where
                                             6 => 'F',
                                             _ => '?',
                                         }
-                                    ),
+                                    )),
                                 )
                                 .clicked()
                             {

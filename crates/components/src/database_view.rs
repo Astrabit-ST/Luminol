@@ -56,16 +56,10 @@ impl DatabaseView {
     {
         let mut modified = false;
 
-        let change_maximum_text = "Change maximum...";
-
         let p = project_config.project.persistence_id;
 
         let button_height = ui.spacing().interact_size.y.max(
             ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
-        );
-        let button_width = ui.spacing().interact_size.x.max(
-            ui.text_width(change_maximum_text, egui::TextStyle::Button)
-                + 2. * ui.spacing().button_padding.x,
         );
 
         self.selected_id = self.selected_id.min(vec.len().saturating_sub(1));
@@ -74,9 +68,8 @@ impl DatabaseView {
             ui.with_right_margin(ui.spacing().window_margin.right, |ui| {
                 ui.with_cross_justify(|ui| {
                     ui.label(label);
-                    egui::ScrollArea::both()
+                    egui::ScrollArea::vertical()
                         .id_source(p)
-                        .min_scrolled_width(button_width + ui.spacing().item_spacing.x)
                         .max_height(
                             ui.available_height() - button_height - ui.spacing().item_spacing.y,
                         )
@@ -88,13 +81,11 @@ impl DatabaseView {
                                 let id = id + offset;
 
                                 ui.with_stripe(id % 2 != 0, |ui| {
-                                    ui.style_mut().wrap = Some(false);
-
                                     let response = ui
                                         .selectable_value(
                                             &mut self.selected_id,
                                             id,
-                                            formatter(entry),
+                                            ui.truncate_text(formatter(entry)),
                                         )
                                         .interact(egui::Sense::click());
 
@@ -117,10 +108,7 @@ impl DatabaseView {
                             }
                         });
 
-                    if ui
-                        .add(egui::Button::new(change_maximum_text).wrap(false))
-                        .clicked()
-                    {
+                    if ui.button(ui.truncate_text("Change maximum...")).clicked() {
                         modified = true;
 
                         todo!("changing the maximum number of entries")

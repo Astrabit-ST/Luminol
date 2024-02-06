@@ -43,14 +43,11 @@ impl Window {
         skills: &luminol_data::rpg::Skills,
         learning: &luminol_data::rpg::class::Learning,
     ) {
-        ui.add(
-            egui::Label::new(format!(
-                "Lvl {}: {}",
-                learning.level,
-                skills.data.get(learning.skill_id).map_or("", |s| &s.name)
-            ))
-            .truncate(true),
-        );
+        ui.label(format!(
+            "Lvl {}: {}",
+            learning.level,
+            skills.data.get(learning.skill_id).map_or("", |s| &s.name)
+        ));
     }
 
     fn show_learning_body(
