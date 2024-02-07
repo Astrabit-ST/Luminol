@@ -35,6 +35,7 @@ pub struct DatabaseViewResponse<R> {
 #[derive(Default)]
 pub struct DatabaseView {
     selected_id: usize,
+    maximum: Option<usize>,
 }
 
 impl DatabaseView {
@@ -52,11 +53,15 @@ impl DatabaseView {
         inner: impl FnOnce(&mut egui::Ui, &mut T) -> R,
     ) -> egui::InnerResponse<DatabaseViewResponse<R>>
     where
-        T: Default,
+        T: luminol_data::rpg::DatabaseEntry,
     {
         let mut modified = false;
 
         let p = project_config.project.persistence_id;
+
+        if self.maximum.is_none() {
+            self.maximum = Some(vec.len());
+        }
 
         let button_height = ui.spacing().interact_size.y.max(
             ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
@@ -71,7 +76,9 @@ impl DatabaseView {
                     egui::ScrollArea::vertical()
                         .id_source(p)
                         .max_height(
-                            ui.available_height() - button_height - ui.spacing().item_spacing.y,
+                            ui.available_height()
+                                - button_height
+                                - 2. * ui.spacing().item_spacing.y,
                         )
                         .show_rows(ui, button_height, vec.len(), |ui, rows| {
                             ui.set_width(ui.available_width());
@@ -108,11 +115,32 @@ impl DatabaseView {
                             }
                         });
 
-                    if ui.button(ui.truncate_text("Change maximum...")).clicked() {
-                        modified = true;
+                    ui.add_space(ui.spacing().item_spacing.y);
 
-                        todo!("changing the maximum number of entries")
-                    }
+                    ui.horizontal(|ui| {
+                        ui.style_mut().wrap = Some(true);
+
+                        ui.add(
+                            egui::DragValue::new(self.maximum.as_mut().unwrap())
+                                .clamp_range(0..=999),
+                        );
+
+                        if ui
+                            .add_enabled(
+                                self.maximum != Some(vec.len()),
+                                egui::Button::new(ui.truncate_text("Set Maximum")),
+                            )
+                            .clicked()
+                        {
+                            modified = true;
+                            let mut index = vec.len();
+                            vec.resize_with(self.maximum.unwrap(), || {
+                                let item = T::default_with_id(index);
+                                index += 1;
+                                item
+                            });
+                        };
+                    });
                 });
             });
         });
