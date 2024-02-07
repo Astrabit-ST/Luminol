@@ -88,21 +88,23 @@ impl luminol_core::Window for Window {
                     |ui, skill| {
                         self.selected_skill_name = Some(skill.name.clone());
 
-                        modified |= ui
-                            .add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut skill.name)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                        ui.with_stripe(false, |ui| {
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut skill.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
 
-                        modified |= ui
-                            .add(luminol_components::Field::new(
-                                "Description",
-                                egui::TextEdit::multiline(&mut skill.description)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Description",
+                                    egui::TextEdit::multiline(&mut skill.description)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+                        });
 
                         ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {

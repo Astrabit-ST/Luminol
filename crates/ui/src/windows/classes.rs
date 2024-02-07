@@ -147,13 +147,15 @@ impl luminol_core::Window for Window {
                     |ui, class| {
                         self.selected_class_name = Some(class.name.clone());
 
-                        modified |= ui
-                            .add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut class.name)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                        ui.with_stripe(false, |ui| {
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut class.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+                        });
 
                         ui.with_stripe(true, |ui| {
                             modified |= ui

@@ -160,7 +160,7 @@ impl DatabaseView {
                                 + ui.spacing().indent
                                 + 12. // `egui::Frame::group` inner margins are hardcoded to 6
                                       // points on each side
-                                + 3. * ui.spacing().item_spacing.x,
+                                + 5. * ui.spacing().item_spacing.x,
                         );
 
                         DatabaseViewResponse {

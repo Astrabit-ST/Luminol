@@ -110,7 +110,8 @@ impl UiExt for egui::Ui {
     }
 
     fn with_stripe<R>(&mut self, faint: bool, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        let frame = egui::containers::Frame::none();
+        let frame = egui::containers::Frame::none()
+            .inner_margin(egui::Margin::symmetric(self.spacing().item_spacing.x, 0.));
         if faint {
             frame.fill(self.visuals().faint_bg_color)
         } else {

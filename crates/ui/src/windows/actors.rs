@@ -248,13 +248,15 @@ impl luminol_core::Window for Window {
                     |ui, actor| {
                         self.selected_actor_name = Some(actor.name.clone());
 
-                        modified |= ui
-                            .add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut actor.name)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                        ui.with_stripe(false, |ui| {
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut actor.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+                        });
 
                         ui.with_stripe(true, |ui| {
                             modified |= ui

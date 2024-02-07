@@ -276,13 +276,15 @@ impl luminol_core::Window for Window {
                     |ui, enemy| {
                         self.selected_enemy_name = Some(enemy.name.clone());
 
-                        modified |= ui
-                            .add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut enemy.name)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                        ui.with_stripe(false, |ui| {
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut enemy.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+                        });
 
                         ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {

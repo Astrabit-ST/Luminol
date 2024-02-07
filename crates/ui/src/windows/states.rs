@@ -88,13 +88,15 @@ impl luminol_core::Window for Window {
                     |ui, state| {
                         self.selected_state_name = Some(state.name.clone());
 
-                        modified |= ui
-                            .add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut state.name)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                        ui.with_stripe(false, |ui| {
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut state.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+                        });
 
                         ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
