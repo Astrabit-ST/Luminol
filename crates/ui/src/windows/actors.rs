@@ -565,7 +565,10 @@ impl luminol_core::Window for Window {
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Final Level",
-                                        egui::Slider::new(&mut actor.final_level, 1..=99),
+                                        egui::Slider::new(
+                                            &mut actor.final_level,
+                                            actor.initial_level..=99,
+                                        ),
                                     ))
                                     .changed();
                             });
