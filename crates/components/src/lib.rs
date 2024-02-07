@@ -244,6 +244,7 @@ where
                     .unwrap_or_else(String::new);
                 let search_box_response =
                     ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
+                ui.add_space(ui.spacing().item_spacing.y);
                 if !is_popup_open {
                     search_box_response.request_focus();
                 }
@@ -338,7 +339,13 @@ where
                 if allow_none
                     && range.contains(&0)
                     && ui
-                        .selectable_label(this.reference.is_none(), ui.truncate_text("(None)"))
+                        .with_stripe(false, |ui| {
+                            ui.selectable_label(
+                                this.reference.is_none(),
+                                ui.truncate_text("(None)"),
+                            )
+                        })
+                        .inner
                         .clicked()
                 {
                     *this.reference = None;
