@@ -126,7 +126,7 @@ impl DatabaseView {
 
                         ui.add(
                             egui::DragValue::new(self.maximum.as_mut().unwrap())
-                                .clamp_range(0..=999),
+                                .clamp_range(1..=999),
                         );
 
                         if ui
