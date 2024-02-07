@@ -32,6 +32,9 @@ pub struct Window {
     selected_actor_name: Option<String>,
     previous_actor: Option<usize>,
 
+    exp_view_is_total: bool,
+    exp_view_is_depersisted: bool,
+
     view: luminol_components::DatabaseView,
 }
 
@@ -114,6 +117,86 @@ fn draw_graph(
             ));
         })
         .response
+}
+
+fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut bool) {
+    let mut exp = [0f64; 99];
+
+    let p = actor.exp_inflation as f64 / 100. + 2.4;
+    for i in 1..99.min(actor.final_level as usize) {
+        exp[i] = exp[i - 1] + (actor.exp_basis as f64 * (((i + 4) as f64 / 5.).powf(p))).trunc();
+    }
+
+    ui.columns(2, |columns| {
+        if columns[0]
+            .selectable_label(!*total, "To Next Level")
+            .clicked()
+        {
+            *total = false;
+        }
+        if columns[1].selectable_label(*total, "Total").clicked() {
+            *total = true;
+        }
+    });
+
+    ui.group(|ui| {
+        egui::ScrollArea::vertical()
+            .min_scrolled_height(200.)
+            .show_rows(
+                ui,
+                ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y,
+                (actor.final_level - actor.initial_level + 1).clamp(0, 99) as usize,
+                |ui, range| {
+                    ui.set_width(ui.available_width());
+
+                    for (pos, i) in range.with_position() {
+                        ui.with_stripe(i % 2 != 0, |ui| {
+                            let i = i + actor.initial_level.max(1) as usize - 1;
+
+                            ui.horizontal(|ui| {
+                                ui.style_mut().wrap = Some(true);
+
+                                ui.with_layout(
+                                    egui::Layout {
+                                        main_dir: egui::Direction::RightToLeft,
+                                        ..*ui.layout()
+                                    },
+                                    |ui| {
+                                        ui.add(
+                                            egui::Label::new(if *total {
+                                                exp[i].to_string()
+                                            } else if matches!(
+                                                pos,
+                                                itertools::Position::Last
+                                                    | itertools::Position::Only
+                                            ) {
+                                                "(None)".into()
+                                            } else {
+                                                (exp[i + 1] - exp[i]).to_string()
+                                            })
+                                            .truncate(true),
+                                        );
+
+                                        ui.with_layout(
+                                            egui::Layout {
+                                                main_dir: egui::Direction::LeftToRight,
+                                                ..*ui.layout()
+                                            },
+                                            |ui| {
+                                                ui.add(
+                                                    egui::Label::new(format!("Level {}", i + 1))
+                                                        .truncate(true),
+                                                );
+                                            },
+                                        );
+                                    },
+                                );
+                            });
+                        });
+                    }
+                },
+            );
+    });
 }
 
 impl luminol_core::Window for Window {
@@ -489,6 +572,36 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_stripe(false, |ui| {
+                            // Forget whether the collapsing header was open from the last time
+                            // the editor was open
+                            let ui_id = ui.make_persistent_id("exp_collapsing_header");
+                            if !self.exp_view_is_depersisted {
+                                self.exp_view_is_depersisted = true;
+                                if let Some(h) =
+                                    egui::collapsing_header::CollapsingState::load(ui.ctx(), ui_id)
+                                {
+                                    h.remove(ui.ctx());
+                                }
+                                ui.ctx().animate_bool_with_time(ui_id, false, 0.);
+                            }
+
+                            egui::collapsing_header::CollapsingState::load_with_default_open(
+                                ui.ctx(),
+                                ui_id,
+                                false,
+                            )
+                            .show_header(ui, |ui| {
+                                ui.with_cross_justify(|ui| {
+                                    ui.label("EXP Curve");
+                                });
+                            })
+                            .body(|ui| {
+                                draw_exp(ui, actor, &mut self.exp_view_is_total);
+                                ui.add_space(ui.spacing().item_spacing.y);
+                            });
+                        });
+
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -506,7 +619,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "Max HP",
@@ -536,7 +649,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "STR",
@@ -566,7 +679,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "AGI",
