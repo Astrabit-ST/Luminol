@@ -66,6 +66,10 @@ impl DatabaseView {
         let button_height = ui.spacing().interact_size.y.max(
             ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
         );
+        let drag_value_height = ui.spacing().interact_size.y.max(
+            ui.text_style_height(&ui.style().drag_value_text_style)
+                + 2. * ui.spacing().button_padding.y,
+        );
 
         self.selected_id = self.selected_id.min(vec.len().saturating_sub(1));
 
@@ -77,7 +81,7 @@ impl DatabaseView {
                         .id_source(p)
                         .max_height(
                             ui.available_height()
-                                - button_height
+                                - button_height.max(drag_value_height)
                                 - 2. * ui.spacing().item_spacing.y,
                         )
                         .show_rows(ui, button_height, vec.len(), |ui, rows| {
