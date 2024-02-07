@@ -604,9 +604,7 @@ impl luminol_core::Window for Window {
                                 draw_exp(ui, actor, &mut self.exp_view_is_total);
                                 ui.add_space(ui.spacing().item_spacing.y);
                             });
-                        });
 
-                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -624,7 +622,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "Max HP",
@@ -654,7 +652,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "STR",
@@ -684,7 +682,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "AGI",
