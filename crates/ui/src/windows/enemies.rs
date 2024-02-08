@@ -590,6 +590,9 @@ impl luminol_core::Window for Window {
 
                         ui.with_stripe(true, |ui| {
                             ui.columns(2, |columns| {
+                                enemy
+                                    .element_ranks
+                                    .resize_with_value(system.elements.len(), 3);
                                 let mut selection = luminol_components::RankSelection::new(
                                     (enemy.id, "element_ranks"),
                                     &mut enemy.element_ranks,
@@ -607,6 +610,9 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new("Elements", selection))
                                     .changed();
 
+                                enemy
+                                    .state_ranks
+                                    .resize_with_value(states.data.len() + 1, 3);
                                 let mut selection = luminol_components::RankSelection::new(
                                     (enemy.id, "state_ranks"),
                                     &mut enemy.state_ranks,

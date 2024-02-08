@@ -588,11 +588,13 @@ where
                             |ui, range| {
                                 let mut is_faint = range.start % 2 != 0;
 
-                                for (id, rank) in self.reference.as_slice()[1..][range]
+                                for (id, rank) in self.reference.as_slice()[1..][range.clone()]
                                     .iter()
                                     .copied()
                                     .enumerate()
                                 {
+                                    let id = id + range.start;
+
                                     let formatted = (self.formatter)(id);
                                     if matcher
                                         .fuzzy(&formatted, &state.search_string, false)
