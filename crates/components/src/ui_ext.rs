@@ -50,6 +50,14 @@ pub trait UiExt {
     /// Displays contents with a normal or faint background (useful for tables with striped rows).
     fn with_stripe<R>(&mut self, faint: bool, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
 
+    /// Displays contents with a normal or faint background as well as a little bit of horizontal
+    /// padding.
+    fn with_padded_stripe<R>(
+        &mut self,
+        faint: bool,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R>;
+
     /// Modifies the given `egui::WidgetText` to truncate when the text is too long to fit in the
     /// current layout, rather than wrapping the text or expanding the layout.
     fn truncate_text(&self, text: impl Into<egui::WidgetText>) -> egui::WidgetText;
@@ -110,6 +118,20 @@ impl UiExt for egui::Ui {
     }
 
     fn with_stripe<R>(&mut self, faint: bool, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
+        let frame = egui::containers::Frame::none();
+        if faint {
+            frame.fill(self.visuals().faint_bg_color)
+        } else {
+            frame
+        }
+        .show(self, f)
+    }
+
+    fn with_padded_stripe<R>(
+        &mut self,
+        faint: bool,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
         let frame = egui::containers::Frame::none()
             .inner_margin(egui::Margin::symmetric(self.spacing().item_spacing.x, 0.));
         if faint {

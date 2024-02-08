@@ -147,7 +147,7 @@ impl luminol_core::Window for Window {
                     |ui, class| {
                         self.selected_class_name = Some(class.name.clone());
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Name",
@@ -157,7 +157,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Position",
@@ -169,7 +169,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Skills",
@@ -195,7 +195,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     (class.id, "weapon_set"),
@@ -241,7 +241,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 class
                                     .element_ranks

@@ -150,7 +150,7 @@ fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut boo
                     ui.set_width(ui.available_width());
 
                     for (pos, i) in range.with_position() {
-                        ui.with_stripe(i % 2 != 0, |ui| {
+                        ui.with_padded_stripe(i % 2 != 0, |ui| {
                             let i = i + actor.initial_level.max(1) as usize - 1;
 
                             ui.horizontal(|ui| {
@@ -248,7 +248,7 @@ impl luminol_core::Window for Window {
                     |ui, actor| {
                         self.selected_actor_name = Some(actor.name.clone());
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Name",
@@ -258,7 +258,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Class",
@@ -287,7 +287,7 @@ impl luminol_core::Window for Window {
                         }
                         let class = classes.data.get(actor.class_id);
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.add(luminol_components::Field::new(
                                 "Starting Weapon",
                                 |ui: &mut egui::Ui| {
@@ -335,7 +335,7 @@ impl luminol_core::Window for Window {
                             ));
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.add(luminol_components::Field::new(
                                 "Starting Shield",
                                 |ui: &mut egui::Ui| {
@@ -390,7 +390,7 @@ impl luminol_core::Window for Window {
                             ));
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.add(luminol_components::Field::new(
                                 "Starting Helmet",
                                 |ui: &mut egui::Ui| {
@@ -445,7 +445,7 @@ impl luminol_core::Window for Window {
                             ));
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.add(luminol_components::Field::new(
                                 "Starting Body Armor",
                                 |ui: &mut egui::Ui| {
@@ -500,7 +500,7 @@ impl luminol_core::Window for Window {
                             ));
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.add(luminol_components::Field::new(
                                 "Starting Accessory",
                                 |ui: &mut egui::Ui| {
@@ -555,7 +555,7 @@ impl luminol_core::Window for Window {
                             ));
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -576,7 +576,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             // Forget whether the collapsing header was open from the last time
                             // the editor was open
                             let ui_id = ui.make_persistent_id("exp_collapsing_header");
@@ -622,7 +622,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "Max HP",
@@ -652,7 +652,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "STR",
@@ -682,7 +682,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 columns[0].add(luminol_components::Field::new(
                                     "AGI",

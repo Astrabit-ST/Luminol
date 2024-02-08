@@ -276,7 +276,7 @@ impl luminol_core::Window for Window {
                     |ui, enemy| {
                         self.selected_enemy_name = Some(enemy.name.clone());
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Name",
@@ -286,7 +286,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -324,7 +324,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -360,7 +360,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -396,7 +396,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -442,7 +442,7 @@ impl luminol_core::Window for Window {
                             TreasureType::None
                         };
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
@@ -562,7 +562,7 @@ impl luminol_core::Window for Window {
                             };
                         });
 
-                        ui.with_stripe(false, |ui| {
+                        ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Actions",
@@ -588,7 +588,7 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_stripe(true, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 enemy
                                     .element_ranks

@@ -165,6 +165,8 @@ where
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
+                    ui.add_space(ui.spacing().item_spacing.x);
+
                     let matching_ids = self
                         .id_range
                         .filter(|id| {
@@ -299,6 +301,8 @@ where
                     ui.add(
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
+
+                    ui.add_space(ui.spacing().item_spacing.x);
 
                     let matching_ids = self
                         .id_range
@@ -462,6 +466,8 @@ where
                     ui.add(
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
+
+                    ui.add_space(ui.spacing().item_spacing.x);
 
                     let matching_ids = (0..self.reference.xsize() - 1)
                         .filter(|id| {
