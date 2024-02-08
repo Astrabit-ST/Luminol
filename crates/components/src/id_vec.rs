@@ -151,7 +151,6 @@ where
             state.search_string = String::new();
         }
 
-        let mut index = 0;
         let mut clicked_id = None;
 
         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
@@ -165,37 +164,61 @@ where
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
-                    let mut is_faint = false;
+                    let button_height = ui.spacing().interact_size.y.max(
+                        ui.text_style_height(&egui::TextStyle::Button)
+                            + 2. * ui.spacing().button_padding.y,
+                    );
+                    egui::ScrollArea::vertical()
+                        .id_source(state_id.with("scroll_area"))
+                        .min_scrolled_height(200.)
+                        .show_rows(
+                            ui,
+                            button_height,
+                            self.id_range
+                                .filter(|id| {
+                                    matcher
+                                        .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                        .is_some()
+                                })
+                                .count(),
+                            |ui, range| {
+                                let mut index = self
+                                    .reference
+                                    .binary_search(&range.start)
+                                    .unwrap_or_else(|x| x);
 
-                    for id in self.id_range {
-                        let id = id - first_id;
+                                let mut is_faint = range.start % 2 != 0;
 
-                        let is_id_selected = self.reference.get(index).is_some_and(|x| *x == id);
-                        if is_id_selected {
-                            index += 1;
-                        }
+                                for id in range {
+                                    let is_id_selected =
+                                        self.reference.get(index).is_some_and(|x| *x == id);
+                                    if is_id_selected {
+                                        index += 1;
+                                    }
 
-                        let formatted = (self.formatter)(id + first_id);
-                        if matcher
-                            .fuzzy(&formatted, &state.search_string, false)
-                            .is_none()
-                        {
-                            continue;
-                        }
+                                    let formatted = (self.formatter)(id + first_id);
+                                    if matcher
+                                        .fuzzy(&formatted, &state.search_string, false)
+                                        .is_none()
+                                    {
+                                        continue;
+                                    }
 
-                        ui.with_stripe(is_faint, |ui| {
-                            if ui
-                                .selectable_label(
-                                    is_id_selected,
-                                    ui.truncate_text((self.formatter)(id + first_id)),
-                                )
-                                .clicked()
-                            {
-                                clicked_id = Some(id);
-                            }
-                        });
-                        is_faint = !is_faint;
-                    }
+                                    ui.with_stripe(is_faint, |ui| {
+                                        if ui
+                                            .selectable_label(
+                                                is_id_selected,
+                                                ui.truncate_text((self.formatter)(id + first_id)),
+                                            )
+                                            .clicked()
+                                        {
+                                            clicked_id = Some(id);
+                                        }
+                                    });
+                                    is_faint = !is_faint;
+                                }
+                            },
+                        );
                 })
                 .inner
             })
@@ -297,8 +320,6 @@ where
             state.search_string = String::new();
         }
 
-        let mut plus_index = 0;
-        let mut minus_index = 0;
         let mut clicked_id = None;
 
         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
@@ -312,55 +333,80 @@ where
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
-                    let mut is_faint = false;
+                    let button_height = ui.spacing().interact_size.y.max(
+                        ui.text_style_height(&egui::TextStyle::Button)
+                            + 2. * ui.spacing().button_padding.y,
+                    );
+                    egui::ScrollArea::vertical()
+                        .id_source(state_id.with("scroll_area"))
+                        .min_scrolled_height(200.)
+                        .show_rows(
+                            ui,
+                            button_height,
+                            self.id_range
+                                .filter(|id| {
+                                    matcher
+                                        .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                        .is_some()
+                                })
+                                .count(),
+                            |ui, range| {
+                                let mut plus_index =
+                                    self.plus.binary_search(&range.start).unwrap_or_else(|x| x);
+                                let mut minus_index =
+                                    self.minus.binary_search(&range.start).unwrap_or_else(|x| x);
 
-                    for id in self.id_range {
-                        let id = id - first_id;
+                                let mut is_faint = range.start % 2 != 0;
 
-                        let is_id_plus = self.plus.get(plus_index).is_some_and(|x| *x == id);
-                        if is_id_plus {
-                            plus_index += 1;
-                        }
-                        let is_id_minus = self.minus.get(minus_index).is_some_and(|x| *x == id);
-                        if is_id_minus {
-                            minus_index += 1;
-                        }
+                                for id in range {
+                                    let is_id_plus =
+                                        self.plus.get(plus_index).is_some_and(|x| *x == id);
+                                    if is_id_plus {
+                                        plus_index += 1;
+                                    }
+                                    let is_id_minus =
+                                        self.minus.get(minus_index).is_some_and(|x| *x == id);
+                                    if is_id_minus {
+                                        minus_index += 1;
+                                    }
 
-                        let formatted = (self.formatter)(id + first_id);
-                        if matcher
-                            .fuzzy(&formatted, &state.search_string, false)
-                            .is_none()
-                        {
-                            continue;
-                        }
+                                    let formatted = (self.formatter)(id + first_id);
+                                    if matcher
+                                        .fuzzy(&formatted, &state.search_string, false)
+                                        .is_none()
+                                    {
+                                        continue;
+                                    }
 
-                        ui.with_stripe(is_faint, |ui| {
-                            // Make the background of the selectable label red if it's
-                            // a minus
-                            if is_id_minus {
-                                ui.visuals_mut().selection.bg_fill =
-                                    ui.visuals().gray_out(ui.visuals().error_fg_color);
-                            }
+                                    ui.with_stripe(is_faint, |ui| {
+                                        // Make the background of the selectable label red if it's
+                                        // a minus
+                                        if is_id_minus {
+                                            ui.visuals_mut().selection.bg_fill =
+                                                ui.visuals().gray_out(ui.visuals().error_fg_color);
+                                        }
 
-                            let label = (self.formatter)(id + first_id);
-                            if ui
-                                .selectable_label(
-                                    is_id_plus || is_id_minus,
-                                    ui.truncate_text(if is_id_plus {
-                                        format!("+ {label}")
-                                    } else if is_id_minus {
-                                        format!("‒ {label}")
-                                    } else {
-                                        label
-                                    }),
-                                )
-                                .clicked()
-                            {
-                                clicked_id = Some(id);
-                            }
-                        });
-                        is_faint = !is_faint;
-                    }
+                                        let label = (self.formatter)(id + first_id);
+                                        if ui
+                                            .selectable_label(
+                                                is_id_plus || is_id_minus,
+                                                ui.truncate_text(if is_id_plus {
+                                                    format!("+ {label}")
+                                                } else if is_id_minus {
+                                                    format!("‒ {label}")
+                                                } else {
+                                                    label
+                                                }),
+                                            )
+                                            .clicked()
+                                        {
+                                            clicked_id = Some(id);
+                                        }
+                                    });
+                                    is_faint = !is_faint;
+                                }
+                            },
+                        );
                 })
                 .inner
             })
@@ -522,57 +568,82 @@ where
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
-                    let mut is_faint = false;
+                    let button_height = ui.spacing().interact_size.y.max(
+                        ui.text_style_height(&egui::TextStyle::Button)
+                            + 2. * ui.spacing().button_padding.y,
+                    );
+                    egui::ScrollArea::vertical()
+                        .id_source(state_id.with("scroll_area"))
+                        .min_scrolled_height(200.)
+                        .show_rows(
+                            ui,
+                            button_height,
+                            (0..self.reference.xsize() - 1)
+                                .filter(|id| {
+                                    matcher
+                                        .fuzzy(&(self.formatter)(*id), &state.search_string, false)
+                                        .is_some()
+                                })
+                                .count(),
+                            |ui, range| {
+                                let mut is_faint = range.start % 2 != 0;
 
-                    for (id, rank) in self.reference.iter().skip(1).copied().enumerate() {
-                        let formatted = (self.formatter)(id);
-                        if matcher
-                            .fuzzy(&formatted, &state.search_string, false)
-                            .is_none()
-                        {
-                            continue;
-                        }
+                                for (id, rank) in self.reference.as_slice()[1..][range]
+                                    .iter()
+                                    .copied()
+                                    .enumerate()
+                                {
+                                    let formatted = (self.formatter)(id);
+                                    if matcher
+                                        .fuzzy(&formatted, &state.search_string, false)
+                                        .is_none()
+                                    {
+                                        continue;
+                                    }
 
-                        ui.with_stripe(is_faint, |ui| {
-                            // Color the background of the selectable label depending on the
-                            // rank
-                            ui.visuals_mut().selection.bg_fill =
-                                match rank {
-                                    2 => ui.visuals().gray_out(ui.visuals().selection.bg_fill),
-                                    4 => ui.visuals().gray_out(ui.visuals().gray_out(
-                                        ui.visuals().gray_out(ui.visuals().error_fg_color),
-                                    )),
-                                    5 => ui.visuals().gray_out(
-                                        ui.visuals().gray_out(ui.visuals().error_fg_color),
-                                    ),
-                                    6 => ui.visuals().gray_out(ui.visuals().error_fg_color),
-                                    _ => ui.visuals().selection.bg_fill,
-                                };
+                                    ui.with_stripe(is_faint, |ui| {
+                                        // Color the background of the selectable label depending on the
+                                        // rank
+                                        ui.visuals_mut().selection.bg_fill = match rank {
+                                            2 => ui
+                                                .visuals()
+                                                .gray_out(ui.visuals().selection.bg_fill),
+                                            4 => ui.visuals().gray_out(ui.visuals().gray_out(
+                                                ui.visuals().gray_out(ui.visuals().error_fg_color),
+                                            )),
+                                            5 => ui.visuals().gray_out(
+                                                ui.visuals().gray_out(ui.visuals().error_fg_color),
+                                            ),
+                                            6 => ui.visuals().gray_out(ui.visuals().error_fg_color),
+                                            _ => ui.visuals().selection.bg_fill,
+                                        };
 
-                            let label = (self.formatter)(id);
-                            if ui
-                                .selectable_label(
-                                    matches!(rank, 1 | 2 | 4 | 5 | 6),
-                                    ui.truncate_text(format!(
-                                        "{} - {label}",
-                                        match rank {
-                                            1 => 'A',
-                                            2 => 'B',
-                                            3 => 'C',
-                                            4 => 'D',
-                                            5 => 'E',
-                                            6 => 'F',
-                                            _ => '?',
+                                        let label = (self.formatter)(id);
+                                        if ui
+                                            .selectable_label(
+                                                matches!(rank, 1 | 2 | 4 | 5 | 6),
+                                                ui.truncate_text(format!(
+                                                    "{} - {label}",
+                                                    match rank {
+                                                        1 => 'A',
+                                                        2 => 'B',
+                                                        3 => 'C',
+                                                        4 => 'D',
+                                                        5 => 'E',
+                                                        6 => 'F',
+                                                        _ => '?',
+                                                    }
+                                                )),
+                                            )
+                                            .clicked()
+                                        {
+                                            clicked_id = Some(id);
                                         }
-                                    )),
-                                )
-                                .clicked()
-                            {
-                                clicked_id = Some(id);
-                            }
-                        });
-                        is_faint = !is_faint;
-                    }
+                                    });
+                                    is_faint = !is_faint;
+                                }
+                            },
+                        );
                 })
                 .inner
             })
