@@ -188,14 +188,6 @@ where
 
                                 let is_id_selected = self.reference.binary_search(&id).is_ok();
 
-                                let formatted = (self.formatter)(id + first_id);
-                                if matcher
-                                    .fuzzy(&formatted, &state.search_string, false)
-                                    .is_none()
-                                {
-                                    continue;
-                                }
-
                                 ui.with_stripe(is_faint, |ui| {
                                     if ui
                                         .selectable_label(
@@ -246,28 +238,12 @@ where
                             index < old_len && self.reference.get(index).is_some_and(|x| *x == id);
                         if is_id_selected {
                             index += 1;
-                        } else if matcher
-                            .fuzzy(
-                                &(self.formatter)(id + first_id),
-                                &state.search_string,
-                                false,
-                            )
-                            .is_some()
-                        {
+                        } else {
                             self.reference.push(id);
                         }
                     }
                 } else {
-                    self.reference.retain(|id| {
-                        !range.contains(id)
-                            || matcher
-                                .fuzzy(
-                                    &(self.formatter)(*id + first_id),
-                                    &state.search_string,
-                                    false,
-                                )
-                                .is_none()
-                    });
+                    self.reference.retain(|id| !range.contains(id));
                 }
             } else {
                 state.pivot = Some(clicked_id);
@@ -348,14 +324,6 @@ where
                                 let is_id_plus = self.plus.binary_search(&id).is_ok();
                                 let is_id_minus = self.minus.binary_search(&id).is_ok();
 
-                                let formatted = (self.formatter)(id + first_id);
-                                if matcher
-                                    .fuzzy(&formatted, &state.search_string, false)
-                                    .is_none()
-                                {
-                                    continue;
-                                }
-
                                 ui.with_stripe(is_faint, |ui| {
                                     // Make the background of the selectable label red if it's
                                     // a minus
@@ -410,16 +378,7 @@ where
                 };
 
                 if is_pivot_plus {
-                    self.minus.retain(|id| {
-                        !range.contains(id)
-                            || matcher
-                                .fuzzy(
-                                    &(self.formatter)(*id + first_id),
-                                    &state.search_string,
-                                    false,
-                                )
-                                .is_none()
-                    });
+                    self.minus.retain(|id| !range.contains(id));
                     let mut plus_index = self
                         .plus
                         .iter()
@@ -430,28 +389,12 @@ where
                             && self.plus.get(plus_index).is_some_and(|x| *x == id);
                         if is_id_plus {
                             plus_index += 1;
-                        } else if matcher
-                            .fuzzy(
-                                &(self.formatter)(id + first_id),
-                                &state.search_string,
-                                false,
-                            )
-                            .is_some()
-                        {
+                        } else {
                             self.plus.push(id);
                         }
                     }
                 } else if is_pivot_minus {
-                    self.plus.retain(|id| {
-                        !range.contains(id)
-                            || matcher
-                                .fuzzy(
-                                    &(self.formatter)(*id + first_id),
-                                    &state.search_string,
-                                    false,
-                                )
-                                .is_none()
-                    });
+                    self.plus.retain(|id| !range.contains(id));
                     let mut minus_index = self
                         .minus
                         .iter()
@@ -462,38 +405,13 @@ where
                             && self.minus.get(minus_index).is_some_and(|x| *x == id);
                         if is_id_minus {
                             minus_index += 1;
-                        } else if matcher
-                            .fuzzy(
-                                &(self.formatter)(id + first_id),
-                                &state.search_string,
-                                false,
-                            )
-                            .is_some()
-                        {
+                        } else {
                             self.minus.push(id);
                         }
                     }
                 } else {
-                    self.plus.retain(|id| {
-                        !range.contains(id)
-                            || matcher
-                                .fuzzy(
-                                    &(self.formatter)(*id + first_id),
-                                    &state.search_string,
-                                    false,
-                                )
-                                .is_none()
-                    });
-                    self.minus.retain(|id| {
-                        !range.contains(id)
-                            || matcher
-                                .fuzzy(
-                                    &(self.formatter)(*id + first_id),
-                                    &state.search_string,
-                                    false,
-                                )
-                                .is_none()
-                    });
+                    self.plus.retain(|id| !range.contains(id));
+                    self.minus.retain(|id| !range.contains(id));
                 }
             } else {
                 state.pivot = Some(clicked_id);
@@ -567,14 +485,6 @@ where
                                 .copied()
                                 .map(|id| (id, self.reference[id + 1]))
                             {
-                                let formatted = (self.formatter)(id);
-                                if matcher
-                                    .fuzzy(&formatted, &state.search_string, false)
-                                    .is_none()
-                                {
-                                    continue;
-                                }
-
                                 ui.with_stripe(is_faint, |ui| {
                                     // Color the background of the selectable label depending on the
                                     // rank
@@ -639,12 +549,7 @@ where
                 };
 
                 for id in range {
-                    if matcher
-                        .fuzzy(&(self.formatter)(id), &state.search_string, false)
-                        .is_some()
-                    {
-                        self.reference[id + 1] = pivot_rank.unwrap_or(3);
-                    }
+                    self.reference[id + 1] = pivot_rank.unwrap_or(3);
                 }
             } else {
                 if Some(clicked_id) == state.pivot {
