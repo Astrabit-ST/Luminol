@@ -124,10 +124,7 @@ impl DatabaseView {
                     ui.horizontal(|ui| {
                         ui.style_mut().wrap = Some(true);
 
-                        ui.add(
-                            egui::DragValue::new(self.maximum.as_mut().unwrap())
-                                .clamp_range(1..=999),
-                        );
+                        ui.add(egui::DragValue::new(self.maximum.as_mut().unwrap()));
 
                         if ui
                             .add_enabled(

@@ -244,7 +244,7 @@ impl luminol_core::Window for Window {
                         .as_ref()
                         .expect("project not loaded"),
                     &mut actors.data,
-                    |actor| format!("{:0>3}: {}", actor.id + 1, actor.name),
+                    |actor| format!("{:0>4}: {}", actor.id + 1, actor.name),
                     |ui, actor| {
                         self.selected_actor_name = Some(actor.name.clone());
 
@@ -269,7 +269,7 @@ impl luminol_core::Window for Window {
                                         |id| {
                                             classes.data.get(id).map_or_else(
                                                 || "".into(),
-                                                |c| format!("{:0>3}: {}", id + 1, c.name),
+                                                |c| format!("{:0>4}: {}", id + 1, c.name),
                                             )
                                         },
                                     ),
@@ -315,7 +315,7 @@ impl luminol_core::Window for Window {
                                                                     || "".into(),
                                                                     |w| {
                                                                         format!(
-                                                                            "{:0>3}: {}",
+                                                                            "{:0>4}: {}",
                                                                             id + 1,
                                                                             w.name
                                                                         )
@@ -370,7 +370,7 @@ impl luminol_core::Window for Window {
                                                                     || "".into(),
                                                                     |a| {
                                                                         format!(
-                                                                            "{:0>3}: {}",
+                                                                            "{:0>4}: {}",
                                                                             id + 1,
                                                                             a.name,
                                                                         )
@@ -425,7 +425,7 @@ impl luminol_core::Window for Window {
                                                                     || "".into(),
                                                                     |a| {
                                                                         format!(
-                                                                            "{:0>3}: {}",
+                                                                            "{:0>4}: {}",
                                                                             id + 1,
                                                                             a.name,
                                                                         )
@@ -480,7 +480,7 @@ impl luminol_core::Window for Window {
                                                                     || "".into(),
                                                                     |a| {
                                                                         format!(
-                                                                            "{:0>3}: {}",
+                                                                            "{:0>4}: {}",
                                                                             id + 1,
                                                                             a.name,
                                                                         )
@@ -535,7 +535,7 @@ impl luminol_core::Window for Window {
                                                                     || "".into(),
                                                                     |a| {
                                                                         format!(
-                                                                            "{:0>3}: {}",
+                                                                            "{:0>4}: {}",
                                                                             id + 1,
                                                                             a.name,
                                                                         )
