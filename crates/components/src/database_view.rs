@@ -112,7 +112,7 @@ impl DatabaseView {
                                                 || i.key_down(egui::Key::Backspace)
                                         })
                                     {
-                                        *entry = Default::default();
+                                        *entry = T::default_with_id(id);
                                         modified = true;
                                     }
                                 });
