@@ -74,8 +74,6 @@ impl DatabaseView {
             ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
         );
 
-        self.selected_id = self.selected_id.min(vec.len().saturating_sub(1));
-
         egui::SidePanel::left(ui.make_persistent_id("sidepanel")).show_inside(ui, |ui| {
             ui.with_right_margin(ui.spacing().window_margin.right, |ui| {
                 ui.with_cross_justify(|ui| {
@@ -149,6 +147,9 @@ impl DatabaseView {
                                             });
                                         let mut search_matched_ids = search_matched_ids_lock.lock();
 
+                                        self.selected_id =
+                                            self.selected_id.min(vec.len().saturating_sub(1));
+
                                         let search_box_response = ui.add(
                                             egui::TextEdit::singleline(&mut search_string)
                                                 .hint_text("Search"),
@@ -158,8 +159,8 @@ impl DatabaseView {
 
                                         // If the user edited the contents of the search box or if the data cache changed
                                         // this frame, recalculate the search results
-                                        let search_needs_update = *update_state
-                                            .modified_during_prev_frame
+                                        let search_needs_update = modified
+                                            || *update_state.modified_during_prev_frame
                                             || search_box_response.changed();
                                         if search_needs_update {
                                             let matcher =
