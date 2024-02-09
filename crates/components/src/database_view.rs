@@ -115,6 +115,7 @@ impl DatabaseView {
                                             ui.visuals().gray_out(ui.style().visuals.warn_fg_color),
                                         )))
                                         .show(ui, |ui| {
+                                            ui.set_width(ui.available_width());
                                             ui.label(egui::RichText::new("Setting the maximum above 999 may introduce performance issues and instability").color(ui.style().visuals.warn_fg_color));
                                         });
                                 });
