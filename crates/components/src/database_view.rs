@@ -35,6 +35,7 @@ pub struct DatabaseViewResponse<R> {
 
 #[derive(Default)]
 pub struct DatabaseView {
+    show_called_at_least_once: bool,
     selected_id: usize,
     maximum: Option<usize>,
 }
@@ -132,8 +133,10 @@ impl DatabaseView {
                                         let state_id = ui.make_persistent_id("DatabaseView");
 
                                         // Get cached search string and search matches from egui memory
-                                        let (mut search_string, search_matched_ids_lock) = ui
-                                            .data(|d| d.get_temp(state_id))
+                                        let (mut search_string, search_matched_ids_lock) = self
+                                            .show_called_at_least_once
+                                            .then(|| ui.data(|d| d.get_temp(state_id)))
+                                            .flatten()
                                             .unwrap_or_else(|| {
                                                 (
                                                     String::new(),
@@ -230,6 +233,8 @@ impl DatabaseView {
                                                 (search_string, search_matched_ids_lock),
                                             )
                                         });
+
+                                        self.show_called_at_least_once = true;
                                     });
                                 },
                             );
