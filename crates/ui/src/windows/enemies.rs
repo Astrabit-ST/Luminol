@@ -269,11 +269,8 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 self.view.show(
                     ui,
+                    update_state,
                     "Enemies",
-                    update_state
-                        .project_config
-                        .as_ref()
-                        .expect("project not loaded"),
                     &mut enemies.data,
                     |enemy| format!("{:0>4}: {}", enemy.id + 1, enemy.name),
                     |ui, enemies, id| {

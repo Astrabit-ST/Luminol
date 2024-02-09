@@ -76,11 +76,8 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 self.view.show(
                     ui,
+                    update_state,
                     "Armor",
-                    update_state
-                        .project_config
-                        .as_ref()
-                        .expect("project not loaded"),
                     &mut armors.data,
                     |armor| format!("{:0>4}: {}", armor.id + 1, armor.name),
                     |ui, armors, id| {

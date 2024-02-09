@@ -238,11 +238,8 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 self.view.show(
                     ui,
+                    update_state,
                     "Actors",
-                    update_state
-                        .project_config
-                        .as_ref()
-                        .expect("project not loaded"),
                     &mut actors.data,
                     |actor| format!("{:0>4}: {}", actor.id + 1, actor.name),
                     |ui, actors, id| {

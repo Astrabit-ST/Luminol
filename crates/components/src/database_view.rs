@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use crate::UiExt;
+use itertools::Itertools;
 
 pub struct DatabaseViewResponse<R> {
     /// The returned value of the `inner` closure passed to `show` if the editor pane was rendered,
@@ -46,8 +47,8 @@ impl DatabaseView {
     pub fn show<T, R>(
         &mut self,
         ui: &mut egui::Ui,
+        update_state: &luminol_core::UpdateState<'_>,
         label: impl Into<egui::WidgetText>,
-        project_config: &luminol_config::project::Config,
         vec: &mut Vec<T>,
         formatter: impl Fn(&T) -> String,
         inner: impl FnOnce(&mut egui::Ui, &mut Vec<T>, usize) -> R,
@@ -57,7 +58,12 @@ impl DatabaseView {
     {
         let mut modified = false;
 
-        let p = project_config.project.persistence_id;
+        let p = update_state
+            .project_config
+            .as_ref()
+            .expect("project not loaded")
+            .project
+            .persistence_id;
 
         if self.maximum.is_none() {
             self.maximum = Some(vec.len());
@@ -122,19 +128,68 @@ impl DatabaseView {
                                 |ui| {
                                     ui.with_cross_justify(|ui| {
                                         ui.label(label);
+
+                                        let state_id = ui.make_persistent_id("DatabaseView");
+
+                                        // Get cached search string and search matches from egui memory
+                                        let (mut search_string, search_matched_ids_lock) = ui
+                                            .data(|d| d.get_temp(state_id))
+                                            .unwrap_or_else(|| {
+                                                (
+                                                    String::new(),
+                                                    // We use a mutex here because if we just put the Vec directly into
+                                                    // memory, egui will clone it every time we get it from memory
+                                                    std::sync::Arc::new(parking_lot::Mutex::new(
+                                                        (0..vec.len()).collect_vec(),
+                                                    )),
+                                                )
+                                            });
+                                        let mut search_matched_ids = search_matched_ids_lock.lock();
+
+                                        let search_box_response = ui.add(
+                                            egui::TextEdit::singleline(&mut search_string)
+                                                .hint_text("Search"),
+                                        );
+
+                                        ui.add_space(ui.spacing().item_spacing.y);
+
+                                        // If the user edited the contents of the search box or if the data cache changed
+                                        // this frame, recalculate the search results
+                                        let search_needs_update = *update_state
+                                            .modified_during_prev_frame
+                                            || search_box_response.changed();
+                                        if search_needs_update {
+                                            let matcher =
+                                                fuzzy_matcher::skim::SkimMatcherV2::default();
+                                            search_matched_ids.clear();
+                                            search_matched_ids.extend(
+                                                vec.iter().enumerate().filter_map(|(id, entry)| {
+                                                    matcher
+                                                        .fuzzy(
+                                                            &formatter(entry),
+                                                            &search_string,
+                                                            false,
+                                                        )
+                                                        .is_some()
+                                                        .then_some(id)
+                                                }),
+                                            );
+                                        }
+
                                         egui::ScrollArea::vertical().id_source(p).show_rows(
                                             ui,
                                             button_height,
-                                            vec.len(),
-                                            |ui, rows| {
+                                            search_matched_ids.len(),
+                                            |ui, range| {
                                                 ui.set_width(ui.available_width());
 
-                                                let offset = rows.start;
-                                                for (id, entry) in vec[rows].iter_mut().enumerate()
-                                                {
-                                                    let id = id + offset;
+                                                let mut is_faint = false;
 
-                                                    ui.with_stripe(id % 2 != 0, |ui| {
+                                                for id in search_matched_ids[range].iter().copied()
+                                                {
+                                                    let entry = &mut vec[id];
+
+                                                    ui.with_stripe(is_faint, |ui| {
                                                         let response = ui
                                                             .selectable_value(
                                                                 &mut self.selected_id,
@@ -151,8 +206,8 @@ impl DatabaseView {
                                                         // is pressed while this entry is focused
                                                         if response.has_focus()
                                                             && ui.input(|i| {
-                                                                i.key_down(egui::Key::Delete)
-                                                                    || i.key_down(
+                                                                i.key_pressed(egui::Key::Delete)
+                                                                    || i.key_pressed(
                                                                         egui::Key::Backspace,
                                                                     )
                                                             })
@@ -161,9 +216,20 @@ impl DatabaseView {
                                                             modified = true;
                                                         }
                                                     });
+
+                                                    is_faint = !is_faint;
                                                 }
                                             },
                                         );
+
+                                        // Save the search string and the search results back into egui memory
+                                        drop(search_matched_ids);
+                                        ui.data_mut(|d| {
+                                            d.insert_temp(
+                                                state_id,
+                                                (search_string, search_matched_ids_lock),
+                                            )
+                                        });
                                     });
                                 },
                             );

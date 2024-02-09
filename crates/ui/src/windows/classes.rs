@@ -139,11 +139,8 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 self.view.show(
                     ui,
+                    update_state,
                     "Classes",
-                    update_state
-                        .project_config
-                        .as_ref()
-                        .expect("project not loaded"),
                     &mut classes.data,
                     |class| format!("{:0>3}: {}", class.id + 1, class.name),
                     |ui, classes, id| {

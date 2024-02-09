@@ -78,11 +78,8 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 self.view.show(
                     ui,
+                    update_state,
                     "Skills",
-                    update_state
-                        .project_config
-                        .as_ref()
-                        .expect("project not loaded"),
                     &mut skills.data,
                     |skill| format!("{:0>4}: {}", skill.id + 1, skill.name),
                     |ui, skills, id| {
