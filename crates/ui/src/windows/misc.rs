@@ -148,25 +148,33 @@ impl luminol_core::Window for WgpuDebugInfo {
                 ui.heading("Adapter info");
                 ui.separator();
 
+                ui.add_space(16.);
                 ui.label(format!("{:#?}", self.adapter_info));
+                ui.add_space(16.);
 
                 ui.heading("Device features");
                 ui.separator();
 
+                ui.add_space(16.);
                 for (name, _) in self.adapter_features.iter_names() {
                     ui.label(name);
                 }
+                ui.add_space(16.);
 
                 ui.heading("Device limits");
                 ui.separator();
 
+                ui.add_space(16.);
                 ui.label(format!("{:#?}", self.adapter_limits));
+                ui.add_space(16.);
 
                 ui.heading("Downlevel capabilities");
                 ui.separator();
 
+                ui.add_space(16.);
                 ui.label(format!("{:#?}", self.downlevel_caps.shader_model));
-                ui.separator();
+                ui.add_space(16.);
+
                 for (name, _) in self.downlevel_caps.flags.iter_names() {
                     ui.label(name);
                 }
