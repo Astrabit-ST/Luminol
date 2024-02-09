@@ -276,7 +276,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut enemies.data,
                     |enemy| format!("{:0>4}: {}", enemy.id + 1, enemy.name),
-                    |ui, enemy| {
+                    |ui, enemies, id| {
+                        let enemy = &mut enemies[id];
                         self.selected_enemy_name = Some(enemy.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {

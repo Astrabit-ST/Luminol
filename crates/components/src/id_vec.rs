@@ -152,7 +152,7 @@ where
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        if !self.reference.is_sorted() {
+        if self.search_needs_update && !self.reference.is_sorted() {
             self.reference.sort_unstable();
         }
 
@@ -303,11 +303,13 @@ where
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        if !self.plus.is_sorted() {
-            self.plus.sort_unstable();
-        }
-        if !self.minus.is_sorted() {
-            self.minus.sort_unstable();
+        if self.search_needs_update {
+            if !self.plus.is_sorted() {
+                self.plus.sort_unstable();
+            }
+            if !self.minus.is_sorted() {
+                self.minus.sort_unstable();
+            }
         }
 
         let first_id = self.id_range.start;

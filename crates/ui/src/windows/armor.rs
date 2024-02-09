@@ -83,7 +83,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut armors.data,
                     |armor| format!("{:0>4}: {}", armor.id + 1, armor.name),
-                    |ui, armor| {
+                    |ui, armors, id| {
+                        let armor = &mut armors[id];
                         self.selected_armor_name = Some(armor.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {

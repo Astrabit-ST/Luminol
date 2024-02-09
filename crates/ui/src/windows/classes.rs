@@ -146,7 +146,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut classes.data,
                     |class| format!("{:0>3}: {}", class.id + 1, class.name),
-                    |ui, class| {
+                    |ui, classes, id| {
+                        let class = &mut classes[id];
                         self.selected_class_name = Some(class.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {

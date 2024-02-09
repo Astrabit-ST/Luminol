@@ -85,7 +85,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut skills.data,
                     |skill| format!("{:0>4}: {}", skill.id + 1, skill.name),
-                    |ui, skill| {
+                    |ui, skills, id| {
+                        let skill = &mut skills[id];
                         self.selected_skill_name = Some(skill.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {

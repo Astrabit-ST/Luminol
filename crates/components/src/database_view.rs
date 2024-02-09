@@ -50,7 +50,7 @@ impl DatabaseView {
         project_config: &luminol_config::project::Config,
         vec: &mut Vec<T>,
         formatter: impl Fn(&T) -> String,
-        inner: impl FnOnce(&mut egui::Ui, &mut T) -> R,
+        inner: impl FnOnce(&mut egui::Ui, &mut Vec<T>, usize) -> R,
     ) -> egui::InnerResponse<DatabaseViewResponse<R>>
     where
         T: luminol_data::rpg::DatabaseEntry,
@@ -188,7 +188,8 @@ impl DatabaseView {
                         );
 
                         DatabaseViewResponse {
-                            inner: vec.get_mut(self.selected_id).map(|entry| inner(ui, entry)),
+                            inner: (self.selected_id < vec.len())
+                                .then(|| inner(ui, vec, self.selected_id)),
                             modified,
                         }
                     })

@@ -94,7 +94,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut items.data,
                     |item| format!("{:0>4}: {}", item.id + 1, item.name),
-                    |ui, item| {
+                    |ui, items, id| {
+                        let item = &mut items[id];
                         self.selected_item_name = Some(item.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {

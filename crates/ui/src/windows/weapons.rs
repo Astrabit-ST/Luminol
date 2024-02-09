@@ -84,7 +84,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut weapons.data,
                     |weapon| format!("{:0>4}: {}", weapon.id + 1, weapon.name),
-                    |ui, weapon| {
+                    |ui, weapons, id| {
+                        let weapon = &mut weapons[id];
                         self.selected_weapon_name = Some(weapon.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {

@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use itertools::Itertools;
 use luminol_components::UiExt;
 
 #[derive(Default)]
@@ -65,7 +64,6 @@ impl luminol_core::Window for Window {
         let mut states = update_state.data.states();
         let animations = update_state.data.animations();
         let system = update_state.data.system();
-        let state_names = states.data.iter().map(|s| s.name.clone()).collect_vec();
 
         let mut modified = false;
 
@@ -85,7 +83,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut states.data,
                     |state| format!("{:0>4}: {}", state.id + 1, state.name),
-                    |ui, state| {
+                    |ui, states, id| {
+                        let state = &mut states[id];
                         self.selected_state_name = Some(state.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
@@ -324,6 +323,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
+                        let mut state = std::mem::take(state);
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
@@ -354,12 +354,16 @@ impl luminol_core::Window for Window {
                                         (state.id, "state_set"),
                                         &mut state.plus_state_set,
                                         &mut state.minus_state_set,
-                                        0..state_names.len(),
+                                        0..states.len(),
                                         |id| {
-                                            state_names.get(id).map_or_else(
-                                                || "".into(),
-                                                |s| format!("{:0>4}: {s}", id + 1),
-                                            )
+                                            if id == state.id {
+                                                format!("{:0>4}: {}", id + 1, state.name)
+                                            } else {
+                                                states.get(id).map_or_else(
+                                                    || "".into(),
+                                                    |s| format!("{:0>4}: {}", id + 1, s.name),
+                                                )
+                                            }
                                         },
                                     );
                                 if self.previous_state != Some(state.id) {
@@ -370,8 +374,9 @@ impl luminol_core::Window for Window {
                                     .changed();
                             });
                         });
+                        states[id] = state;
 
-                        self.previous_state = Some(state.id);
+                        self.previous_state = Some(id);
                     },
                 )
             });

@@ -245,7 +245,8 @@ impl luminol_core::Window for Window {
                         .expect("project not loaded"),
                     &mut actors.data,
                     |actor| format!("{:0>4}: {}", actor.id + 1, actor.name),
-                    |ui, actor| {
+                    |ui, actors, id| {
+                        let actor = &mut actors[id];
                         self.selected_actor_name = Some(actor.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
