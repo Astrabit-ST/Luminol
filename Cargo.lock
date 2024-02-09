@@ -3338,6 +3338,7 @@ dependencies = [
  "strip-ansi-escapes",
  "strum",
  "target-triple",
+ "wgpu",
  "zip",
 ]
 

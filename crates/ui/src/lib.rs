@@ -186,7 +186,8 @@ window_enum! {
         FilesystemDebug(windows::misc::FilesystemDebug),
         NewProject(windows::new_project::Window),
         ScriptEdit(windows::script_edit::Window),
-        SoundTest(windows::sound_test::Window)
+        SoundTest(windows::sound_test::Window),
+        WgpuDebug(windows::misc::WgpuDebugInfo)
     }
 }
 #[cfg(target_arch = "wasm32")]

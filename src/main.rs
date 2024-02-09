@@ -316,9 +316,11 @@ fn main() {
                     ..wgpu::Limits::default()
                 },
             }),
+            power_preference: wgpu::util::power_preference_from_env().unwrap_or_default(),
             ..Default::default()
         },
         persist_window: true,
+
         ..Default::default()
     };
 
