@@ -187,7 +187,7 @@ impl DatabaseView {
                                             |ui, range| {
                                                 ui.set_width(ui.available_width());
 
-                                                let mut is_faint = false;
+                                                let mut is_faint = range.start % 2 != 0;
 
                                                 for id in search_matched_ids[range].iter().copied()
                                                 {
