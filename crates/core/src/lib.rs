@@ -77,6 +77,7 @@ pub struct UpdateState<'res> {
     pub toolbar: &'res mut ToolbarState,
 
     pub modified: ModifiedState,
+    pub modified_during_prev_frame: &'res mut bool,
     pub project_manager: &'res mut ProjectManager,
 
     pub git_revision: &'static str,
@@ -94,6 +95,11 @@ pub struct ModifiedState {
     modified: std::rc::Rc<std::cell::Cell<bool>>,
     #[cfg(target_arch = "wasm32")]
     modified: Arc<std::sync::atomic::AtomicBool>,
+
+    #[cfg(not(target_arch = "wasm32"))]
+    modified_this_frame: std::rc::Rc<std::cell::Cell<bool>>,
+    #[cfg(target_arch = "wasm32")]
+    modified_this_frame: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -102,8 +108,17 @@ impl ModifiedState {
         self.modified.get()
     }
 
+    pub fn get_this_frame(&self) -> bool {
+        self.modified_this_frame.get()
+    }
+
     pub fn set(&self, val: bool) {
         self.modified.set(val);
+        self.modified_this_frame.set(val);
+    }
+
+    pub fn set_this_frame(&self, val: bool) {
+        self.modified_this_frame.set(val);
     }
 }
 
@@ -113,8 +128,20 @@ impl ModifiedState {
         self.modified.load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    pub fn get_this_frame(&self) -> bool {
+        self.modified_this_frame
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub fn set(&self, val: bool) {
         self.modified
+            .store(val, std::sync::atomic::Ordering::Relaxed);
+        self.modified_this_frame
+            .store(val, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn set_this_frame(&self, val: bool) {
+        self.modified_this_frame
             .store(val, std::sync::atomic::Ordering::Relaxed);
     }
 }
@@ -155,6 +182,7 @@ impl<'res> UpdateState<'res> {
             global_config: self.global_config,
             toolbar: self.toolbar,
             modified: self.modified.clone(),
+            modified_during_prev_frame: self.modified_during_prev_frame,
             project_manager: self.project_manager,
             git_revision: self.git_revision,
         }
@@ -178,6 +206,7 @@ impl<'res> UpdateState<'res> {
             global_config: self.global_config,
             toolbar: self.toolbar,
             modified: self.modified.clone(),
+            modified_during_prev_frame: self.modified_during_prev_frame,
             project_manager: self.project_manager,
             git_revision: self.git_revision,
         }

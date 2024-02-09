@@ -163,6 +163,11 @@ impl Table1 {
         self.xsize = xsize;
     }
 
+    pub fn resize_with_value(&mut self, xsize: usize, value: i16) {
+        self.data.resize(xsize, value);
+        self.xsize = xsize;
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &i16> {
         self.data.iter()
     }

@@ -21,6 +21,7 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![feature(is_sorted)]
 
 pub type UpdateState<'res> = luminol_core::UpdateState<'res>;
 

@@ -23,17 +23,36 @@ pub mod rpg {
     pub use crate::rmxp::*;
     pub use crate::shared::*;
 
+    pub trait DatabaseEntry
+    where
+        Self: Default,
+    {
+        fn default_with_id(id: usize) -> Self;
+    }
+
     macro_rules! basic_container {
-    ($($parent:ident, $child:ident),* $(,)?) => {
-        $(
-            #[derive(Debug, Default)]
-            pub struct $parent {
-                pub data: Vec<$child>,
-                pub modified: bool,
-            }
-         )*
-    };
-}
+        ($($parent:ident, $child:ident),* $(,)?) => {
+            $(
+                #[derive(Debug, Default)]
+                pub struct $parent {
+                    pub data: Vec<$child>,
+                    pub modified: bool,
+                }
+            )*
+        };
+    }
+
+    macro_rules! database_entry {
+        ($($type:ident),* $(,)?) => {
+            $(
+                impl DatabaseEntry for $type {
+                    fn default_with_id(id: usize) -> Self {
+                        Self { id, ..Default::default() }
+                    }
+                }
+            )*
+        };
+    }
 
     basic_container! {
         Actors, Actor,
@@ -49,6 +68,21 @@ pub mod rpg {
         Tilesets, Tileset,
         Troops, Troop,
         Weapons, Weapon,
+    }
+
+    database_entry! {
+        Actor,
+        Animation,
+        Armor,
+        Class,
+        CommonEvent,
+        Enemy,
+        Item,
+        Skill,
+        State,
+        Tileset,
+        Troop,
+        Weapon,
     }
 
     #[derive(Debug, Default)]

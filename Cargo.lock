@@ -3106,6 +3106,7 @@ dependencies = [
  "luminol-egui-wgpu",
  "luminol-filesystem",
  "luminol-graphics",
+ "parking_lot",
  "qp-trie",
  "strum",
  "syntect",

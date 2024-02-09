@@ -170,11 +170,17 @@ impl TopBar {
                         .add_window(luminol_ui::windows::map_picker::Window::default());
                 }
 
-                if ui.button("Items").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new());
-                }
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Tilesets [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Animations [TODO]").clicked() {
+                        todo!();
+                    }
+                });
 
                 if ui.button("Common Events").clicked() {
                     update_state
@@ -193,6 +199,70 @@ impl TopBar {
                         luminol_ui::windows::sound_test::Window::new(update_state.filesystem),
                     );
                 }
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("System [TODO]").clicked() {
+                        todo!();
+                    }
+                });
+
+                ui.separator();
+
+                if ui.button("Items").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::items::Window::new());
+                }
+
+                if ui.button("Skills").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::skills::Window::new());
+                }
+
+                if ui.button("Weapons").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::weapons::Window::new());
+                }
+
+                if ui.button("Armor").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::armor::Window::new());
+                }
+
+                if ui.button("States").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::states::Window::new());
+                }
+
+                ui.separator();
+
+                if ui.button("Actors").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::actors::Window::new());
+                }
+
+                if ui.button("Classes").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::classes::Window::new());
+                }
+
+                if ui.button("Enemies").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::enemies::Window::new());
+                }
+
+                ui.add_enabled_ui(false, |ui| {
+                    if ui.button("Troops [TODO]").clicked() {
+                        todo!();
+                    }
+                });
             });
         });
 

@@ -24,19 +24,10 @@
 
 use luminol_components::UiExt;
 
-/// Database - Items management window.
 #[derive(Default)]
 pub struct Window {
-    // ? Items ?
-    selected_item_name: Option<String>,
-
-    // ? Icon Graphic Picker ?
-    _icon_picker: Option<luminol_modals::graphic_picker::Modal>,
-
-    // ? Menu Sound Effect Picker ?
-    _menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
-
-    previous_item: Option<usize>,
+    selected_skill_name: Option<String>,
+    previous_skill: Option<usize>,
 
     view: luminol_components::DatabaseView,
 }
@@ -49,15 +40,15 @@ impl Window {
 
 impl luminol_core::Window for Window {
     fn name(&self) -> String {
-        if let Some(name) = &self.selected_item_name {
-            format!("Editing item {:?}", name)
+        if let Some(name) = &self.selected_skill_name {
+            format!("Editing skill {:?}", name)
         } else {
-            "Item Editor".into()
+            "Skill Editor".into()
         }
     }
 
     fn id(&self) -> egui::Id {
-        egui::Id::new("item_editor")
+        egui::Id::new("skill_editor")
     }
 
     fn requires_filesystem(&self) -> bool {
@@ -70,7 +61,7 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut items = update_state.data.items();
+        let mut skills = update_state.data.skills();
         let animations = update_state.data.animations();
         let common_events = update_state.data.common_events();
         let system = update_state.data.system();
@@ -78,7 +69,7 @@ impl luminol_core::Window for Window {
 
         let mut modified = false;
 
-        self.selected_item_name = None;
+        self.selected_skill_name = None;
 
         let response = egui::Window::new(self.name())
             .id(self.id())
@@ -88,18 +79,18 @@ impl luminol_core::Window for Window {
                 self.view.show(
                     ui,
                     update_state,
-                    "Items",
-                    &mut items.data,
-                    |item| format!("{:0>4}: {}", item.id + 1, item.name),
-                    |ui, items, id| {
-                        let item = &mut items[id];
-                        self.selected_item_name = Some(item.name.clone());
+                    "Skills",
+                    &mut skills.data,
+                    |skill| format!("{:0>4}: {}", skill.id + 1, skill.name),
+                    |ui, skills, id| {
+                        let skill = &mut skills[id];
+                        self.selected_skill_name = Some(skill.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Name",
-                                    egui::TextEdit::singleline(&mut item.name)
+                                    egui::TextEdit::singleline(&mut skill.name)
                                         .desired_width(f32::INFINITY),
                                 ))
                                 .changed();
@@ -107,7 +98,7 @@ impl luminol_core::Window for Window {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "Description",
-                                    egui::TextEdit::multiline(&mut item.description)
+                                    egui::TextEdit::multiline(&mut skill.description)
                                         .desired_width(f32::INFINITY),
                                 ))
                                 .changed();
@@ -119,8 +110,8 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Scope",
                                         luminol_components::EnumComboBox::new(
-                                            (item.id, "scope"),
-                                            &mut item.scope,
+                                            (skill.id, "scope"),
+                                            &mut skill.scope,
                                         ),
                                     ))
                                     .changed();
@@ -129,8 +120,8 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Occasion",
                                         luminol_components::EnumComboBox::new(
-                                            (item.id, "occasion"),
-                                            &mut item.occasion,
+                                            (skill.id, "occasion"),
+                                            &mut skill.occasion,
                                         ),
                                     ))
                                     .changed();
@@ -144,8 +135,8 @@ impl luminol_core::Window for Window {
                                         "User Animation",
                                         luminol_components::OptionalIdComboBox::new(
                                             update_state,
-                                            (item.id, "animation1_id"),
-                                            &mut item.animation1_id,
+                                            (skill.id, "animation1_id"),
+                                            &mut skill.animation1_id,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -162,8 +153,8 @@ impl luminol_core::Window for Window {
                                         "Target Animation",
                                         luminol_components::OptionalIdComboBox::new(
                                             update_state,
-                                            (item.id, "animation2_id"),
-                                            &mut item.animation2_id,
+                                            (skill.id, "animation2_id"),
+                                            &mut skill.animation2_id,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -191,8 +182,8 @@ impl luminol_core::Window for Window {
                                         "Common Event",
                                         luminol_components::OptionalIdComboBox::new(
                                             update_state,
-                                            (item.id, "common_event_id"),
-                                            &mut item.common_event_id,
+                                            (skill.id, "common_event_id"),
+                                            &mut skill.common_event_id,
                                             0..common_events.data.len(),
                                             |id| {
                                                 common_events.data.get(id).map_or_else(
@@ -210,16 +201,16 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Price",
-                                        egui::DragValue::new(&mut item.price)
+                                        "SP Cost",
+                                        egui::DragValue::new(&mut skill.sp_cost)
                                             .clamp_range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Consumable",
-                                        egui::Checkbox::without_text(&mut item.consumable),
+                                        "Power",
+                                        egui::DragValue::new(&mut skill.power),
                                     ))
                                     .changed();
                             });
@@ -229,23 +220,16 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Parameter",
-                                        luminol_components::EnumComboBox::new(
-                                            "parameter_type",
-                                            &mut item.parameter_type,
-                                        ),
+                                        "ATK-F",
+                                        egui::Slider::new(&mut skill.atk_f, 0..=200).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add_enabled(
-                                        !item.parameter_type.is_none(),
-                                        luminol_components::Field::new(
-                                            "Parameter Increment",
-                                            egui::DragValue::new(&mut item.parameter_points)
-                                                .clamp_range(0..=i32::MAX),
-                                        ),
-                                    )
+                                    .add(luminol_components::Field::new(
+                                        "EVA-F",
+                                        egui::Slider::new(&mut skill.eva_f, 0..=100).suffix("%"),
+                                    ))
                                     .changed();
                             });
                         });
@@ -254,17 +238,15 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Recover HP %",
-                                        egui::Slider::new(&mut item.recover_hp_rate, 0..=100)
-                                            .suffix("%"),
+                                        "STR-F",
+                                        egui::Slider::new(&mut skill.str_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Recover HP Points",
-                                        egui::DragValue::new(&mut item.recover_hp)
-                                            .clamp_range(0..=i32::MAX),
+                                        "DEX-F",
+                                        egui::Slider::new(&mut skill.dex_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
                             });
@@ -274,17 +256,15 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
-                                        "Recover SP %",
-                                        egui::Slider::new(&mut item.recover_sp_rate, 0..=100)
-                                            .suffix("%"),
+                                        "AGI-F",
+                                        egui::Slider::new(&mut skill.agi_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
-                                        "Recover SP Points",
-                                        egui::DragValue::new(&mut item.recover_sp)
-                                            .clamp_range(0..=i32::MAX),
+                                        "INT-F",
+                                        egui::Slider::new(&mut skill.int_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
                             });
@@ -295,14 +275,14 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Hit Rate",
-                                        egui::Slider::new(&mut item.hit, 0..=100).suffix("%"),
+                                        egui::Slider::new(&mut skill.hit, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Variance",
-                                        egui::Slider::new(&mut item.variance, 0..=100).suffix("%"),
+                                        egui::Slider::new(&mut skill.variance, 0..=100).suffix("%"),
                                     ))
                                     .changed();
                             });
@@ -313,14 +293,14 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "PDEF-F",
-                                        egui::Slider::new(&mut item.pdef_f, 0..=100).suffix("%"),
+                                        egui::Slider::new(&mut skill.pdef_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "MDEF-F",
-                                        egui::Slider::new(&mut item.mdef_f, 0..=100).suffix("%"),
+                                        egui::Slider::new(&mut skill.mdef_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
                             });
@@ -330,8 +310,8 @@ impl luminol_core::Window for Window {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
                                     update_state,
-                                    (item.id, "element_set"),
-                                    &mut item.element_set,
+                                    (skill.id, "element_set"),
+                                    &mut skill.element_set,
                                     1..system.elements.len(),
                                     |id| {
                                         system.elements.get(id).map_or_else(
@@ -340,7 +320,7 @@ impl luminol_core::Window for Window {
                                         )
                                     },
                                 );
-                                if self.previous_item != Some(item.id) {
+                                if self.previous_skill != Some(skill.id) {
                                     selection.clear_search();
                                 }
                                 modified |= columns[0]
@@ -350,9 +330,9 @@ impl luminol_core::Window for Window {
                                 let mut selection =
                                     luminol_components::IdVecPlusMinusSelection::new(
                                         update_state,
-                                        (item.id, "state_set"),
-                                        &mut item.plus_state_set,
-                                        &mut item.minus_state_set,
+                                        (skill.id, "state_set"),
+                                        &mut skill.plus_state_set,
+                                        &mut skill.minus_state_set,
                                         0..states.data.len(),
                                         |id| {
                                             states.data.get(id).map_or_else(
@@ -361,7 +341,7 @@ impl luminol_core::Window for Window {
                                             )
                                         },
                                     );
-                                if self.previous_item != Some(item.id) {
+                                if self.previous_skill != Some(skill.id) {
                                     selection.clear_search();
                                 }
                                 modified |= columns[1]
@@ -370,7 +350,7 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        self.previous_item = Some(item.id);
+                        self.previous_skill = Some(skill.id);
                     },
                 )
             });
@@ -381,7 +361,7 @@ impl luminol_core::Window for Window {
 
         if modified {
             update_state.modified.set(true);
-            items.modified = true;
+            skills.modified = true;
         }
     }
 }

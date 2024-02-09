@@ -60,6 +60,7 @@ pub struct App {
     toolbar: luminol_core::ToolbarState,
 
     modified: luminol_core::ModifiedState,
+    modified_during_prev_frame: bool,
     project_manager: luminol_core::ProjectManager,
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -256,6 +257,7 @@ impl App {
             toolbar: luminol_core::ToolbarState::default(),
 
             modified,
+            modified_during_prev_frame: false,
             project_manager: luminol_core::ProjectManager::new(&cc.egui_ctx),
 
             #[cfg(not(target_arch = "wasm32"))]
@@ -313,6 +315,7 @@ impl luminol_eframe::App for App {
             global_config: &mut self.global_config,
             toolbar: &mut self.toolbar,
             modified: self.modified.clone(),
+            modified_during_prev_frame: &mut self.modified_during_prev_frame,
             project_manager: &mut self.project_manager,
             git_revision: crate::git_revision(),
         };
@@ -394,6 +397,9 @@ impl luminol_eframe::App for App {
 
         #[cfg(feature = "steamworks")]
         self.steamworks.update();
+
+        self.modified_during_prev_frame = self.modified.get_this_frame();
+        self.modified.set_this_frame(false);
 
         // Call the exit handler if the user or the app requested to close the window.
         #[cfg(not(target_arch = "wasm32"))]
