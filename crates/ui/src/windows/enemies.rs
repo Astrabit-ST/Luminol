@@ -102,12 +102,13 @@ impl Window {
 
     fn show_action_body(
         ui: &mut egui::Ui,
+        update_state: &luminol_core::UpdateState<'_>,
         system: &luminol_data::rpg::System,
         skills: &luminol_data::rpg::Skills,
         enemy_id: usize,
-        action_index: usize,
-        action: &mut luminol_data::rpg::enemy::Action,
+        action: (usize, &mut luminol_data::rpg::enemy::Action),
     ) -> egui::Response {
+        let (action_index, action) = action;
         let mut modified = false;
 
         let mut response = egui::Frame::none()
@@ -150,6 +151,7 @@ impl Window {
                     .add(luminol_components::Field::new(
                         "Switch",
                         luminol_components::OptionalIdComboBox::new(
+                            update_state,
                             (enemy_id, action_index, "condition_switch_id"),
                             &mut action.condition_switch_id,
                             0..system.switches.len(),
@@ -191,6 +193,7 @@ impl Window {
                                 .add(luminol_components::Field::new(
                                     "Skill",
                                     luminol_components::OptionalIdComboBox::new(
+                                        update_state,
                                         (enemy_id, action_index, "skill_id"),
                                         &mut action.skill_id,
                                         0..skills.data.len(),
@@ -292,6 +295,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Attacker Animation",
                                         luminol_components::OptionalIdComboBox::new(
+                                            update_state,
                                             (enemy.id, "animation1_id"),
                                             &mut enemy.animation1_id,
                                             0..animations.data.len(),
@@ -309,6 +313,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Target Animation",
                                         luminol_components::OptionalIdComboBox::new(
+                                            update_state,
                                             (enemy.id, "animation2_id"),
                                             &mut enemy.animation2_id,
                                             0..animations.data.len(),
@@ -495,6 +500,7 @@ impl luminol_core::Window for Window {
                                         .add(luminol_components::Field::new(
                                             "Treasure",
                                             luminol_components::OptionalIdComboBox::new(
+                                                update_state,
                                                 (enemy.id, "item_id"),
                                                 &mut enemy.item_id,
                                                 0..items.data.len(),
@@ -520,6 +526,7 @@ impl luminol_core::Window for Window {
                                         .add(luminol_components::Field::new(
                                             "Treasure",
                                             luminol_components::OptionalIdComboBox::new(
+                                                update_state,
                                                 (enemy.id, "weapon_id"),
                                                 &mut enemy.weapon_id,
                                                 0..weapons.data.len(),
@@ -545,6 +552,7 @@ impl luminol_core::Window for Window {
                                         .add(luminol_components::Field::new(
                                             "Treasure",
                                             luminol_components::OptionalIdComboBox::new(
+                                                update_state,
                                                 (enemy.id, "armor_id"),
                                                 &mut enemy.armor_id,
                                                 0..armors.data.len(),
@@ -579,7 +587,12 @@ impl luminol_core::Window for Window {
                                             },
                                             |ui, i, action| {
                                                 Self::show_action_body(
-                                                    ui, &system, &skills, enemy.id, i, action,
+                                                    ui,
+                                                    update_state,
+                                                    &system,
+                                                    &skills,
+                                                    enemy.id,
+                                                    (i, action),
                                                 )
                                             },
                                         )
@@ -594,6 +607,7 @@ impl luminol_core::Window for Window {
                                     .element_ranks
                                     .resize_with_value(system.elements.len(), 3);
                                 let mut selection = luminol_components::RankSelection::new(
+                                    update_state,
                                     (enemy.id, "element_ranks"),
                                     &mut enemy.element_ranks,
                                     |id| {
@@ -614,6 +628,7 @@ impl luminol_core::Window for Window {
                                     .state_ranks
                                     .resize_with_value(states.data.len() + 1, 3);
                                 let mut selection = luminol_components::RankSelection::new(
+                                    update_state,
                                     (enemy.id, "state_ranks"),
                                     &mut enemy.state_ranks,
                                     |id| {

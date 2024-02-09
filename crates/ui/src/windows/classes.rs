@@ -52,11 +52,12 @@ impl Window {
 
     fn show_learning_body(
         ui: &mut egui::Ui,
+        update_state: &luminol_core::UpdateState<'_>,
         skills: &luminol_data::rpg::Skills,
         class_id: usize,
-        learning_index: usize,
-        learning: &mut luminol_data::rpg::class::Learning,
+        learning: (usize, &mut luminol_data::rpg::class::Learning),
     ) -> egui::Response {
+        let (learning_index, learning) = learning;
         let mut modified = false;
 
         let mut response = egui::Frame::none()
@@ -73,6 +74,7 @@ impl Window {
                         .add(luminol_components::Field::new(
                             "Skill",
                             luminol_components::OptionalIdComboBox::new(
+                                update_state,
                                 (class_id, learning_index, "skill_id"),
                                 &mut learning.skill_id,
                                 0..skills.data.len(),
@@ -186,7 +188,11 @@ impl luminol_core::Window for Window {
                                             },
                                             |ui, i, learning| {
                                                 Self::show_learning_body(
-                                                    ui, &skills, class.id, i, learning,
+                                                    ui,
+                                                    update_state,
+                                                    &skills,
+                                                    class.id,
+                                                    (i, learning),
                                                 )
                                             },
                                         )
@@ -198,6 +204,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
+                                    update_state,
                                     (class.id, "weapon_set"),
                                     &mut class.weapon_set,
                                     0..weapons.data.len(),
@@ -219,6 +226,7 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 let mut selection = luminol_components::IdVecSelection::new(
+                                    update_state,
                                     (class.id, "armor_set"),
                                     &mut class.armor_set,
                                     0..armors.data.len(),
@@ -247,6 +255,7 @@ impl luminol_core::Window for Window {
                                     .element_ranks
                                     .resize_with_value(system.elements.len(), 3);
                                 let mut selection = luminol_components::RankSelection::new(
+                                    update_state,
                                     (class.id, "element_ranks"),
                                     &mut class.element_ranks,
                                     |id| {
@@ -267,6 +276,7 @@ impl luminol_core::Window for Window {
                                     .state_ranks
                                     .resize_with_value(states.data.len() + 1, 3);
                                 let mut selection = luminol_components::RankSelection::new(
+                                    update_state,
                                     (class.id, "state_ranks"),
                                     &mut class.state_ranks,
                                     |id| {

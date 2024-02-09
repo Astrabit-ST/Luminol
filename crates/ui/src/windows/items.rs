@@ -145,6 +145,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "User Animation",
                                         luminol_components::OptionalIdComboBox::new(
+                                            update_state,
                                             (item.id, "animation1_id"),
                                             &mut item.animation1_id,
                                             0..animations.data.len(),
@@ -162,6 +163,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Target Animation",
                                         luminol_components::OptionalIdComboBox::new(
+                                            update_state,
                                             (item.id, "animation2_id"),
                                             &mut item.animation2_id,
                                             0..animations.data.len(),
@@ -190,6 +192,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Common Event",
                                         luminol_components::OptionalIdComboBox::new(
+                                            update_state,
                                             (item.id, "common_event_id"),
                                             &mut item.common_event_id,
                                             0..common_events.data.len(),
@@ -328,6 +331,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
+                                    update_state,
                                     (item.id, "element_set"),
                                     &mut item.element_set,
                                     1..system.elements.len(),
@@ -347,6 +351,7 @@ impl luminol_core::Window for Window {
 
                                 let mut selection =
                                     luminol_components::IdVecPlusMinusSelection::new(
+                                        update_state,
                                         (item.id, "state_set"),
                                         &mut item.plus_state_set,
                                         &mut item.minus_state_set,

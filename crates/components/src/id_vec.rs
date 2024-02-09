@@ -29,6 +29,7 @@ use itertools::Itertools;
 struct IdVecSelectionState {
     pivot: Option<usize>,
     search_string: String,
+    search_matched_ids_lock: std::sync::Arc<parking_lot::Mutex<Vec<usize>>>,
 }
 
 pub struct IdVecSelection<'a, H, F> {
@@ -37,6 +38,7 @@ pub struct IdVecSelection<'a, H, F> {
     id_range: std::ops::Range<usize>,
     formatter: F,
     clear_search: bool,
+    search_needs_update: bool,
 }
 
 pub struct IdVecPlusMinusSelection<'a, H, F> {
@@ -46,6 +48,7 @@ pub struct IdVecPlusMinusSelection<'a, H, F> {
     id_range: std::ops::Range<usize>,
     formatter: F,
     clear_search: bool,
+    search_needs_update: bool,
 }
 
 pub struct RankSelection<'a, H, F> {
@@ -53,6 +56,7 @@ pub struct RankSelection<'a, H, F> {
     reference: &'a mut luminol_data::Table1,
     formatter: F,
     clear_search: bool,
+    search_needs_update: bool,
 }
 
 impl<'a, H, F> IdVecSelection<'a, H, F>
@@ -62,6 +66,7 @@ where
 {
     /// Creates a new widget for changing the contents of an `id_vec`.
     pub fn new(
+        update_state: &luminol_core::UpdateState<'_>,
         id_source: H,
         reference: &'a mut Vec<usize>,
         id_range: std::ops::Range<usize>,
@@ -73,6 +78,7 @@ where
             id_range,
             formatter,
             clear_search: false,
+            search_needs_update: *update_state.modified_during_prev_frame,
         }
     }
 
@@ -89,6 +95,7 @@ where
 {
     /// Creates a new widget for changing the contents of a pair of `id_vec`s.
     pub fn new(
+        update_state: &luminol_core::UpdateState<'_>,
         id_source: H,
         plus: &'a mut Vec<usize>,
         minus: &'a mut Vec<usize>,
@@ -102,6 +109,7 @@ where
             id_range,
             formatter,
             clear_search: false,
+            search_needs_update: *update_state.modified_during_prev_frame,
         }
     }
 
@@ -117,12 +125,18 @@ where
     F: Fn(usize) -> String,
 {
     /// Creates a new widget for changing the contents of a rank table.
-    pub fn new(id_source: H, reference: &'a mut luminol_data::Table1, formatter: F) -> Self {
+    pub fn new(
+        update_state: &luminol_core::UpdateState<'_>,
+        id_source: H,
+        reference: &'a mut luminol_data::Table1,
+        formatter: F,
+    ) -> Self {
         Self {
             id_source,
             reference,
             formatter,
             clear_search: false,
+            search_needs_update: *update_state.modified_during_prev_frame,
         }
     }
 
@@ -147,34 +161,52 @@ where
         let state_id = ui.make_persistent_id(egui::Id::new(self.id_source).with("IdVecSelection"));
         let mut state = ui
             .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
-            .unwrap_or_default();
+            .unwrap_or_else(|| {
+                IdVecSelectionState {
+                    // We use a mutex here because if we just put the Vec directly into
+                    // memory, egui will clone it every time we get it from memory
+                    search_matched_ids_lock: std::sync::Arc::new(parking_lot::Mutex::new(
+                        self.id_range.clone().collect_vec(),
+                    )),
+                    ..Default::default()
+                }
+            });
         if self.clear_search {
             state.search_string = String::new();
         }
+        if self.search_needs_update {
+            state.search_matched_ids_lock =
+                std::sync::Arc::new(parking_lot::Mutex::new(self.id_range.clone().collect_vec()));
+        }
+        let mut search_matched_ids = state.search_matched_ids_lock.lock();
 
         let mut clicked_id = None;
-
-        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
         let mut response = ui
             .group(|ui| {
                 ui.with_cross_justify(|ui| {
                     ui.set_width(ui.available_width());
 
-                    ui.add(
+                    let search_box_response = ui.add(
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
 
-                    let matching_ids = self
-                        .id_range
-                        .filter(|id| {
+                    // If the user edited the contents of the search box or if the data cache changed
+                    // this frame, recalculate the search results
+                    let search_needs_update =
+                        self.search_needs_update || search_box_response.changed();
+                    if search_needs_update {
+                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                        search_matched_ids.clear();
+                        search_matched_ids.extend(self.id_range.filter(|id| {
                             matcher
                                 .fuzzy(&(self.formatter)(*id), &state.search_string, false)
                                 .is_some()
-                        })
-                        .collect_vec();
+                        }));
+                    }
+
                     let button_height = ui.spacing().interact_size.y.max(
                         ui.text_style_height(&egui::TextStyle::Button)
                             + 2. * ui.spacing().button_padding.y,
@@ -182,23 +214,22 @@ where
                     egui::ScrollArea::vertical()
                         .id_source(state_id.with("scroll_area"))
                         .min_scrolled_height(200.)
-                        .show_rows(ui, button_height, matching_ids.len(), |ui, range| {
+                        .show_rows(ui, button_height, search_matched_ids.len(), |ui, range| {
                             let mut is_faint = range.start % 2 != 0;
 
-                            for id in matching_ids[range].iter().copied() {
-                                let id = id - first_id;
-
-                                let is_id_selected = self.reference.binary_search(&id).is_ok();
+                            for id in search_matched_ids[range].iter().copied() {
+                                let is_id_selected =
+                                    self.reference.binary_search(&(id - first_id)).is_ok();
 
                                 ui.with_stripe(is_faint, |ui| {
                                     if ui
                                         .selectable_label(
                                             is_id_selected,
-                                            ui.truncate_text((self.formatter)(id + first_id)),
+                                            ui.truncate_text((self.formatter)(id)),
                                         )
                                         .clicked()
                                     {
-                                        clicked_id = Some(id);
+                                        clicked_id = Some(id - first_id);
                                     }
                                 });
                                 is_faint = !is_faint;
@@ -259,6 +290,7 @@ where
             response.mark_changed();
         }
 
+        drop(search_matched_ids);
         ui.data_mut(|d| d.insert_temp(state_id, state));
 
         response
@@ -284,34 +316,52 @@ where
             ui.make_persistent_id(egui::Id::new(self.id_source).with("IdVecPlusMinusSelection"));
         let mut state = ui
             .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
-            .unwrap_or_default();
+            .unwrap_or_else(|| {
+                IdVecSelectionState {
+                    // We use a mutex here because if we just put the Vec directly into
+                    // memory, egui will clone it every time we get it from memory
+                    search_matched_ids_lock: std::sync::Arc::new(parking_lot::Mutex::new(
+                        self.id_range.clone().collect_vec(),
+                    )),
+                    ..Default::default()
+                }
+            });
         if self.clear_search {
             state.search_string = String::new();
         }
+        if self.search_needs_update {
+            state.search_matched_ids_lock =
+                std::sync::Arc::new(parking_lot::Mutex::new(self.id_range.clone().collect_vec()));
+        }
+        let mut search_matched_ids = state.search_matched_ids_lock.lock();
 
         let mut clicked_id = None;
-
-        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
         let mut response = ui
             .group(|ui| {
                 ui.with_cross_justify(|ui| {
                     ui.set_width(ui.available_width());
 
-                    ui.add(
+                    let search_box_response = ui.add(
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
 
-                    let matching_ids = self
-                        .id_range
-                        .filter(|id| {
+                    // If the user edited the contents of the search box or if the data cache changed
+                    // this frame, recalculate the search results
+                    let search_needs_update =
+                        self.search_needs_update || search_box_response.changed();
+                    if search_needs_update {
+                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                        search_matched_ids.clear();
+                        search_matched_ids.extend(self.id_range.filter(|id| {
                             matcher
                                 .fuzzy(&(self.formatter)(*id), &state.search_string, false)
                                 .is_some()
-                        })
-                        .collect_vec();
+                        }));
+                    }
+
                     let button_height = ui.spacing().interact_size.y.max(
                         ui.text_style_height(&egui::TextStyle::Button)
                             + 2. * ui.spacing().button_padding.y,
@@ -319,14 +369,13 @@ where
                     egui::ScrollArea::vertical()
                         .id_source(state_id.with("scroll_area"))
                         .min_scrolled_height(200.)
-                        .show_rows(ui, button_height, matching_ids.len(), |ui, range| {
+                        .show_rows(ui, button_height, search_matched_ids.len(), |ui, range| {
                             let mut is_faint = range.start % 2 != 0;
 
-                            for id in matching_ids[range].iter().copied() {
-                                let id = id - first_id;
-
-                                let is_id_plus = self.plus.binary_search(&id).is_ok();
-                                let is_id_minus = self.minus.binary_search(&id).is_ok();
+                            for id in search_matched_ids[range].iter().copied() {
+                                let is_id_plus = self.plus.binary_search(&(id - first_id)).is_ok();
+                                let is_id_minus =
+                                    self.minus.binary_search(&(id - first_id)).is_ok();
 
                                 ui.with_stripe(is_faint, |ui| {
                                     // Make the background of the selectable label red if it's
@@ -336,7 +385,7 @@ where
                                             ui.visuals().gray_out(ui.visuals().error_fg_color);
                                     }
 
-                                    let label = (self.formatter)(id + first_id);
+                                    let label = (self.formatter)(id);
                                     if ui
                                         .selectable_label(
                                             is_id_plus || is_id_minus,
@@ -350,7 +399,7 @@ where
                                         )
                                         .clicked()
                                     {
-                                        clicked_id = Some(id);
+                                        clicked_id = Some(id - first_id);
                                     }
                                 });
                                 is_faint = !is_faint;
@@ -434,6 +483,7 @@ where
             response.mark_changed();
         }
 
+        drop(search_matched_ids);
         ui.data_mut(|d| d.insert_temp(state_id, state));
 
         response
@@ -449,33 +499,53 @@ where
         let state_id = ui.make_persistent_id(egui::Id::new(self.id_source).with("RankSelection"));
         let mut state = ui
             .data(|d| d.get_temp::<IdVecSelectionState>(state_id))
-            .unwrap_or_default();
+            .unwrap_or_else(|| {
+                IdVecSelectionState {
+                    // We use a mutex here because if we just put the Vec directly into
+                    // memory, egui will clone it every time we get it from memory
+                    search_matched_ids_lock: std::sync::Arc::new(parking_lot::Mutex::new(
+                        (0..self.reference.xsize() - 1).collect_vec(),
+                    )),
+                    ..Default::default()
+                }
+            });
         if self.clear_search {
             state.search_string = String::new();
         }
+        if self.search_needs_update {
+            state.search_matched_ids_lock = std::sync::Arc::new(parking_lot::Mutex::new(
+                (0..self.reference.xsize() - 1).collect_vec(),
+            ));
+        }
+        let mut search_matched_ids = state.search_matched_ids_lock.lock();
 
         let mut clicked_id = None;
-
-        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
         let mut response = ui
             .group(|ui| {
                 ui.with_cross_justify(|ui| {
                     ui.set_width(ui.available_width());
 
-                    ui.add(
+                    let search_box_response = ui.add(
                         egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
 
-                    let matching_ids = (0..self.reference.xsize() - 1)
-                        .filter(|id| {
+                    // If the user edited the contents of the search box or if the data cache changed
+                    // this frame, recalculate the search results
+                    let search_needs_update =
+                        self.search_needs_update || search_box_response.changed();
+                    if search_needs_update {
+                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                        search_matched_ids.clear();
+                        search_matched_ids.extend((0..self.reference.xsize() - 1).filter(|id| {
                             matcher
                                 .fuzzy(&(self.formatter)(*id), &state.search_string, false)
                                 .is_some()
-                        })
-                        .collect_vec();
+                        }));
+                    }
+
                     let button_height = ui.spacing().interact_size.y.max(
                         ui.text_style_height(&egui::TextStyle::Button)
                             + 2. * ui.spacing().button_padding.y,
@@ -483,10 +553,10 @@ where
                     egui::ScrollArea::vertical()
                         .id_source(state_id.with("scroll_area"))
                         .min_scrolled_height(200.)
-                        .show_rows(ui, button_height, matching_ids.len(), |ui, range| {
+                        .show_rows(ui, button_height, search_matched_ids.len(), |ui, range| {
                             let mut is_faint = range.start % 2 != 0;
 
-                            for (id, rank) in matching_ids[range]
+                            for (id, rank) in search_matched_ids[range]
                                 .iter()
                                 .copied()
                                 .map(|id| (id, self.reference[id + 1]))
@@ -574,6 +644,7 @@ where
             response.mark_changed();
         }
 
+        drop(search_matched_ids);
         ui.data_mut(|d| d.insert_temp(state_id, state));
 
         response

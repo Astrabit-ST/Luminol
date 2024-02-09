@@ -24,6 +24,8 @@
 #![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 #![feature(is_sorted)]
 
+use itertools::Itertools;
+
 /// Syntax highlighter
 pub mod syntax_highlighting;
 
@@ -186,7 +188,7 @@ pub struct OptionalIdComboBox<'a, R, I, H, F> {
     reference: &'a mut R,
     id_iter: I,
     formatter: F,
-    retain_search: bool,
+    search_needs_update: bool,
     allow_none: bool,
 }
 
@@ -198,33 +200,28 @@ where
 {
     /// Creates a combo box that can be used to change the ID of an `optional_id` field in the data
     /// cache.
-    pub fn new(id_source: H, reference: &'a mut R, id_iter: I, formatter: F) -> Self {
+    pub fn new(
+        update_state: &luminol_core::UpdateState<'_>,
+        id_source: H,
+        reference: &'a mut R,
+        id_iter: I,
+        formatter: F,
+    ) -> Self {
         Self {
             id_source,
             reference,
             id_iter,
             formatter,
-            retain_search: true,
+            search_needs_update: *update_state.modified_during_prev_frame,
             allow_none: true,
         }
-    }
-
-    /// Clears the search box for this combo box.
-    pub fn clear_search(&mut self) {
-        self.retain_search = false;
     }
 
     fn ui_inner(
         self,
         ui: &mut egui::Ui,
         formatter: impl Fn(&Self) -> String,
-        f: impl FnOnce(
-            Self,
-            &mut egui::Ui,
-            std::ops::Range<usize>,
-            &fuzzy_matcher::skim::SkimMatcherV2,
-            &str,
-        ) -> bool,
+        f: impl FnOnce(Self, &mut egui::Ui, Vec<usize>, bool, bool) -> bool,
     ) -> egui::Response {
         let source = egui::Id::new(&self.id_source);
         let state_id = ui.make_persistent_id(source).with("OptionalIdComboBox");
@@ -237,24 +234,51 @@ where
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(formatter(&self))
             .show_ui(ui, |ui| {
-                let mut search_string = self
-                    .retain_search
+                // Get cached search string and search matches from egui memory
+                let (mut search_string, search_matched_ids_lock) = is_popup_open
                     .then(|| ui.data(|d| d.get_temp(state_id)))
                     .flatten()
-                    .unwrap_or_else(String::new);
+                    .unwrap_or_else(|| {
+                        (
+                            String::new(),
+                            // We use a mutex here because if we just put the Vec directly into
+                            // memory, egui will clone it every time we get it from memory
+                            std::sync::Arc::new(parking_lot::Mutex::new(
+                                self.id_iter.clone().collect_vec(),
+                            )),
+                        )
+                    });
+                let mut search_matched_ids = search_matched_ids_lock.lock();
+
                 let search_box_response =
                     ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
+
                 ui.add_space(ui.spacing().item_spacing.y);
+
+                // If the combo box popup was not open the previous frame and was opened this
+                // frame, focus the search box
                 if !is_popup_open {
                     search_box_response.request_focus();
                 }
+
                 let search_box_clicked = search_box_response.clicked()
                     || search_box_response.secondary_clicked()
                     || search_box_response.middle_clicked()
                     || search_box_response.clicked_by(egui::PointerButton::Extra1)
                     || search_box_response.clicked_by(egui::PointerButton::Extra2);
 
-                let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                // If the user edited the contents of the search box or if the data cache changed
+                // this frame, recalculate the search results
+                let search_needs_update = self.search_needs_update || search_box_response.changed();
+                if search_needs_update {
+                    let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                    search_matched_ids.clear();
+                    search_matched_ids.extend(self.id_iter.clone().filter(|id| {
+                        matcher
+                            .fuzzy(&(self.formatter)(*id), &search_string, false)
+                            .is_some()
+                    }));
+                }
 
                 let button_height = ui.spacing().interact_size.y.max(
                     ui.text_style_height(&egui::TextStyle::Button)
@@ -263,21 +287,26 @@ where
                 egui::ScrollArea::vertical().show_rows(
                     ui,
                     button_height,
-                    self.id_iter
-                        .clone()
-                        .filter(|id| {
-                            matcher
-                                .fuzzy(&(self.formatter)(*id), &search_string, false)
-                                .is_some()
-                        })
-                        .count()
-                        + self.allow_none as usize,
+                    search_matched_ids.len() + self.allow_none as usize,
                     |ui, range| {
-                        changed = f(self, ui, range, &matcher, &search_string);
+                        let first_row_is_faint = range.clone().start % 2 != 0;
+                        let show_none = self.allow_none && range.clone().start == 0;
+                        let ids = range
+                            .filter_map(|i| {
+                                if self.allow_none {
+                                    (i != 0).then(|| search_matched_ids[i - 1])
+                                } else {
+                                    Some(search_matched_ids[i])
+                                }
+                            })
+                            .collect_vec();
+                        changed = f(self, ui, ids, first_row_is_faint, show_none);
                     },
                 );
 
-                ui.data_mut(|d| d.insert_temp(state_id, search_string));
+                // Save the search string and the search results back into egui memory
+                drop(search_matched_ids);
+                ui.data_mut(|d| d.insert_temp(state_id, (search_string, search_matched_ids_lock)));
 
                 search_box_clicked
             });
@@ -323,7 +352,6 @@ where
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let allow_none = self.allow_none;
         let mut changed = false;
 
         self.ui_inner(
@@ -335,9 +363,8 @@ where
                     "(None)".into()
                 }
             },
-            |this, ui, range, matcher, search_str| {
-                if allow_none
-                    && range.contains(&0)
+            |this, ui, ids, first_row_is_faint, show_none| {
+                if show_none
                     && ui
                         .with_stripe(false, |ui| {
                             ui.selectable_label(
@@ -352,32 +379,14 @@ where
                     changed = true;
                 }
 
-                let range_start = if allow_none {
-                    range.start.max(1)
-                } else {
-                    range.start
-                };
-                let mut is_faint = range_start % 2 != 0;
+                let mut is_faint = first_row_is_faint != show_none;
 
-                let mut index = 0;
-
-                for id in this.id_iter {
-                    let formatted = (this.formatter)(id);
-                    if matcher.fuzzy(&formatted, search_str, false).is_none() {
-                        continue;
-                    }
-
-                    if !range.contains(&(index + allow_none as usize)) {
-                        index += 1;
-                        continue;
-                    }
-                    index += 1;
-
+                for id in ids {
                     ui.with_stripe(is_faint, |ui| {
                         if ui
                             .selectable_label(
                                 *this.reference == Some(id),
-                                ui.truncate_text(formatted),
+                                ui.truncate_text((this.formatter)(id)),
                             )
                             .clicked()
                         {
@@ -408,26 +417,16 @@ where
         self.ui_inner(
             ui,
             |this| (this.formatter)(*this.reference),
-            |this, ui, range, matcher, search_str| {
-                let mut is_faint = range.start % 2 != 0;
+            |this, ui, ids, first_row_is_faint, _| {
+                let mut is_faint = first_row_is_faint;
 
-                let mut index = 0;
-
-                for id in this.id_iter {
-                    let formatted = (this.formatter)(id);
-                    if matcher.fuzzy(&formatted, search_str, false).is_none() {
-                        continue;
-                    }
-
-                    if !range.contains(&index) {
-                        index += 1;
-                        continue;
-                    }
-                    index += 1;
-
+                for id in ids {
                     ui.with_stripe(is_faint, |ui| {
                         if ui
-                            .selectable_label(*this.reference == id, ui.truncate_text(formatted))
+                            .selectable_label(
+                                *this.reference == id,
+                                ui.truncate_text((this.formatter)(id)),
+                            )
                             .clicked()
                         {
                             *this.reference = id;

@@ -120,6 +120,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Auto State",
                                         luminol_components::OptionalIdComboBox::new(
+                                            update_state,
                                             (armor.id, "auto_state"),
                                             &mut armor.auto_state_id,
                                             0..states.data.len(),
@@ -206,6 +207,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 let mut selection = luminol_components::IdVecSelection::new(
+                                    update_state,
                                     (armor.id, "guard_element_set"),
                                     &mut armor.guard_element_set,
                                     1..system.elements.len(),
@@ -227,6 +229,7 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 let mut selection = luminol_components::IdVecSelection::new(
+                                    update_state,
                                     (armor.id, "guard_state_set"),
                                     &mut armor.guard_state_set,
                                     0..states.data.len(),

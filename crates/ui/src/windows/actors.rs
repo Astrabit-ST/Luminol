@@ -263,6 +263,7 @@ impl luminol_core::Window for Window {
                                 .add(luminol_components::Field::new(
                                     "Class",
                                     luminol_components::OptionalIdComboBox::new(
+                                        update_state,
                                         (actor.id, "class"),
                                         &mut actor.class_id,
                                         0..classes.data.len(),
@@ -297,6 +298,7 @@ impl luminol_core::Window for Window {
                                                 modified |= columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
+                                                            update_state,
                                                             (actor.id, "weapon_id"),
                                                             &mut actor.weapon_id,
                                                             class
@@ -345,6 +347,7 @@ impl luminol_core::Window for Window {
                                                 modified |= columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
+                                                            update_state,
                                                             (actor.id, "armor1_id"),
                                                             &mut actor.armor1_id,
                                                             class
@@ -400,6 +403,7 @@ impl luminol_core::Window for Window {
                                                 modified |= columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
+                                                            update_state,
                                                             (actor.id, "armor2_id"),
                                                             &mut actor.armor2_id,
                                                             class
@@ -455,6 +459,7 @@ impl luminol_core::Window for Window {
                                                 modified |= columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
+                                                            update_state,
                                                             (actor.id, "armor3_id"),
                                                             &mut actor.armor3_id,
                                                             class
@@ -510,6 +515,7 @@ impl luminol_core::Window for Window {
                                                 modified |= columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
+                                                            update_state,
                                                             (actor.id, "armor4_id"),
                                                             &mut actor.armor4_id,
                                                             class
