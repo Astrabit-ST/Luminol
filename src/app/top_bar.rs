@@ -341,6 +341,12 @@ impl TopBar {
             if ui.button("Log").clicked() {
                 self.show_log = true;
             }
+
+            if ui.button("WGPU Debug Info").clicked() {
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::misc::WgpuDebugInfo::new(update_state));
+            }
         });
 
         #[cfg(not(target_arch = "wasm32"))]

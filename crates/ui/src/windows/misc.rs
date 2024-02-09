@@ -95,3 +95,81 @@ impl luminol_core::Window for FilesystemDebug {
             .show(ctx, |ui| update_state.filesystem.debug_ui(ui));
     }
 }
+
+pub struct WgpuDebugInfo {
+    adapter_info: wgpu::AdapterInfo,
+    adapter_features: wgpu::Features,
+    adapter_limits: wgpu::Limits,
+    downlevel_caps: wgpu::DownlevelCapabilities,
+}
+
+impl WgpuDebugInfo {
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let adapter_info = update_state.graphics.render_state.adapter.get_info();
+        let adapter_features = update_state.graphics.render_state.adapter.features();
+        let adapter_limits = update_state.graphics.render_state.adapter.limits();
+        let downlevel_caps = update_state
+            .graphics
+            .render_state
+            .adapter
+            .get_downlevel_capabilities();
+
+        Self {
+            adapter_info,
+            adapter_features,
+            adapter_limits,
+            downlevel_caps,
+        }
+    }
+}
+
+impl luminol_core::Window for WgpuDebugInfo {
+    fn id(&self) -> egui::Id {
+        egui::Id::new("wgpu debug info window")
+    }
+
+    fn show(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        _: &mut luminol_core::UpdateState<'_>,
+    ) {
+        egui::Window::new("WGPU Debug Info")
+            .open(open)
+            .scroll2([false, true])
+            .show(ctx, |ui| {
+                if !self.downlevel_caps.is_webgpu_compliant() {
+                    ui.label(
+                        egui::RichText::new("🔥 Adapter is not WebGPU compliant")
+                            .color(egui::Color32::RED),
+                    );
+                }
+
+                ui.heading("Adapter info");
+                ui.separator();
+
+                ui.label(format!("{:#?}", self.adapter_info));
+
+                ui.heading("Device features");
+                ui.separator();
+
+                for (name, _) in self.adapter_features.iter_names() {
+                    ui.label(name);
+                }
+
+                ui.heading("Device limits");
+                ui.separator();
+
+                ui.label(format!("{:#?}", self.adapter_limits));
+
+                ui.heading("Downlevel capabilities");
+                ui.separator();
+
+                ui.label(format!("{:#?}", self.downlevel_caps.shader_model));
+                ui.separator();
+                for (name, _) in self.downlevel_caps.flags.iter_names() {
+                    ui.label(name);
+                }
+            });
+    }
+}
