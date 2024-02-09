@@ -66,82 +66,109 @@ impl DatabaseView {
         let button_height = ui.spacing().interact_size.y.max(
             ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
         );
-        let drag_value_height = ui.spacing().interact_size.y.max(
-            ui.text_style_height(&ui.style().drag_value_text_style)
-                + 2. * ui.spacing().button_padding.y,
-        );
 
         self.selected_id = self.selected_id.min(vec.len().saturating_sub(1));
 
         egui::SidePanel::left(ui.make_persistent_id("sidepanel")).show_inside(ui, |ui| {
             ui.with_right_margin(ui.spacing().window_margin.right, |ui| {
                 ui.with_cross_justify(|ui| {
-                    ui.label(label);
-                    egui::ScrollArea::vertical()
-                        .id_source(p)
-                        .max_height(
-                            ui.available_height()
-                                - button_height.max(drag_value_height)
-                                - 2. * ui.spacing().item_spacing.y,
-                        )
-                        .show_rows(ui, button_height, vec.len(), |ui, rows| {
-                            ui.set_width(ui.available_width());
+                    ui.with_layout(
+                        egui::Layout::bottom_up(ui.layout().horizontal_align()),
+                        |ui| {
+                            ui.horizontal(|ui| {
+                                ui.style_mut().wrap = Some(true);
 
-                            let offset = rows.start;
-                            for (id, entry) in vec[rows].iter_mut().enumerate() {
-                                let id = id + offset;
+                                ui.add(egui::DragValue::new(self.maximum.as_mut().unwrap()));
 
-                                ui.with_stripe(id % 2 != 0, |ui| {
-                                    let response = ui
-                                        .selectable_value(
-                                            &mut self.selected_id,
-                                            id,
-                                            ui.truncate_text(formatter(entry)),
-                                        )
-                                        .interact(egui::Sense::click());
+                                if ui
+                                    .add_enabled(
+                                        self.maximum != Some(vec.len()),
+                                        egui::Button::new(ui.truncate_text("Set Maximum")),
+                                    )
+                                    .clicked()
+                                {
+                                    modified = true;
+                                    let mut index = vec.len();
+                                    vec.resize_with(self.maximum.unwrap(), || {
+                                        let item = T::default_with_id(index);
+                                        index += 1;
+                                        item
+                                    });
+                                };
+                            });
 
-                                    if response.clicked() {
-                                        response.request_focus();
-                                    }
-
-                                    // Reset this entry if delete or backspace
-                                    // is pressed while this entry is focused
-                                    if response.has_focus()
-                                        && ui.input(|i| {
-                                            i.key_down(egui::Key::Delete)
-                                                || i.key_down(egui::Key::Backspace)
-                                        })
-                                    {
-                                        *entry = T::default_with_id(id);
-                                        modified = true;
-                                    }
+                            if vec.len() <= 999 && self.maximum.is_some_and(|m| m > 999) {
+                                egui::Frame::none().show(ui, |ui| {
+                                    ui.style_mut()
+                                        .visuals
+                                        .widgets
+                                        .noninteractive
+                                        .bg_stroke
+                                        .color = ui.style().visuals.warn_fg_color;
+                                    egui::Frame::group(ui.style())
+                                        .fill(ui.visuals().gray_out(ui.visuals().gray_out(
+                                            ui.visuals().gray_out(ui.style().visuals.warn_fg_color),
+                                        )))
+                                        .show(ui, |ui| {
+                                            ui.label(egui::RichText::new("Setting the maximum above 999 may introduce performance issues and instability").color(ui.style().visuals.warn_fg_color));
+                                        });
                                 });
                             }
-                        });
 
-                    ui.add_space(ui.spacing().item_spacing.y);
+                            ui.add_space(ui.spacing().item_spacing.y);
 
-                    ui.horizontal(|ui| {
-                        ui.style_mut().wrap = Some(true);
+                            ui.with_layout(
+                                egui::Layout::top_down(ui.layout().horizontal_align()),
+                                |ui| {
+                                    ui.with_cross_justify(|ui| {
+                                        ui.label(label);
+                                        egui::ScrollArea::vertical().id_source(p).show_rows(
+                                            ui,
+                                            button_height,
+                                            vec.len(),
+                                            |ui, rows| {
+                                                ui.set_width(ui.available_width());
 
-                        ui.add(egui::DragValue::new(self.maximum.as_mut().unwrap()));
+                                                let offset = rows.start;
+                                                for (id, entry) in vec[rows].iter_mut().enumerate()
+                                                {
+                                                    let id = id + offset;
 
-                        if ui
-                            .add_enabled(
-                                self.maximum != Some(vec.len()),
-                                egui::Button::new(ui.truncate_text("Set Maximum")),
-                            )
-                            .clicked()
-                        {
-                            modified = true;
-                            let mut index = vec.len();
-                            vec.resize_with(self.maximum.unwrap(), || {
-                                let item = T::default_with_id(index);
-                                index += 1;
-                                item
-                            });
-                        };
-                    });
+                                                    ui.with_stripe(id % 2 != 0, |ui| {
+                                                        let response = ui
+                                                            .selectable_value(
+                                                                &mut self.selected_id,
+                                                                id,
+                                                                ui.truncate_text(formatter(entry)),
+                                                            )
+                                                            .interact(egui::Sense::click());
+
+                                                        if response.clicked() {
+                                                            response.request_focus();
+                                                        }
+
+                                                        // Reset this entry if delete or backspace
+                                                        // is pressed while this entry is focused
+                                                        if response.has_focus()
+                                                            && ui.input(|i| {
+                                                                i.key_down(egui::Key::Delete)
+                                                                    || i.key_down(
+                                                                        egui::Key::Backspace,
+                                                                    )
+                                                            })
+                                                        {
+                                                            *entry = T::default_with_id(id);
+                                                            modified = true;
+                                                        }
+                                                    });
+                                                }
+                                            },
+                                        );
+                                    });
+                                },
+                            );
+                        },
+                    );
                 });
             });
         });
