@@ -229,7 +229,7 @@ impl MapView {
 
         self.previous_scale = self.scale;
 
-        let grid_inner_thickness = if self.scale >= 90. { 1. } else { 0. };
+        let grid_inner_thickness = if self.scale >= 50. { 1. } else { 0. };
 
         let ctrl_drag = ui.input(|i| {
             if is_focused {
