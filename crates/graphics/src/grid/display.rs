@@ -31,7 +31,7 @@ pub struct Display {
 pub struct Data {
     viewport_size_in_pixels: [f32; 2],
     pixels_per_point: f32,
-    _padding: u32,
+    inner_thickness_in_points: f32,
 }
 
 impl Display {
@@ -39,7 +39,7 @@ impl Display {
         let display = Data {
             viewport_size_in_pixels: [0., 0.],
             pixels_per_point: 1.,
-            _padding: 0,
+            inner_thickness_in_points: 1.,
         };
 
         let uniform = (!graphics_state.push_constants_supported()).then(|| {
@@ -64,6 +64,21 @@ impl Display {
 
     pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
         self.uniform.as_ref()
+    }
+
+    pub fn set_inner_thickness(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        inner_thickness_in_points: f32,
+    ) {
+        let data = self.data.load();
+        if data.inner_thickness_in_points != inner_thickness_in_points {
+            self.data.store(Data {
+                inner_thickness_in_points,
+                ..data
+            });
+            self.regen_buffer(render_state);
+        }
     }
 
     pub(super) fn update_viewport_size(

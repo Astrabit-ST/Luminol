@@ -21,6 +21,7 @@ struct Viewport {
 struct Display {
     viewport_size_in_pixels: vec2<f32>,
     pixels_per_point: f32,
+    inner_thickness_in_points: f32,
 }
 
 #if USE_PUSH_CONSTANTS == true
@@ -65,8 +66,11 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
     let diff = abs(input.position - input.vertex_position) * (display.viewport_size_in_pixels / 2.);
 
-    if diff.x <= 2.002 * display.pixels_per_point || diff.y <= 2.002 * display.pixels_per_point {
-        if diff.x < 1.001 * display.pixels_per_point || diff.y < 1.001 * display.pixels_per_point {
+    let adjusted_outer_thickness = 1.001 * display.pixels_per_point;
+    let adjusted_inner_thickness = display.inner_thickness_in_points * adjusted_outer_thickness;
+
+    if diff.x < adjusted_outer_thickness + adjusted_inner_thickness || diff.y < adjusted_outer_thickness + adjusted_inner_thickness {
+        if diff.x < adjusted_inner_thickness || diff.y < adjusted_inner_thickness {
             color = 0.1;
         } else {
             color = 0.7;

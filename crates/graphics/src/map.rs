@@ -268,8 +268,14 @@ impl Map {
         &mut self,
         graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
+        grid_inner_thickness: f32,
         rect: egui::Rect,
     ) {
+        self.resources
+            .grid
+            .display
+            .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
+
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             OverlayCallback {
