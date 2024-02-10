@@ -31,7 +31,7 @@ pub struct Display {
 pub struct Data {
     viewport_size_in_pixels: [f32; 2],
     pixels_per_point: f32,
-    line_thickness_in_points: f32,
+    _padding: u32,
 }
 
 impl Display {
@@ -39,7 +39,7 @@ impl Display {
         let display = Data {
             viewport_size_in_pixels: [0., 0.],
             pixels_per_point: 1.,
-            line_thickness_in_points: 1.,
+            _padding: 0,
         };
 
         let uniform = (!graphics_state.push_constants_supported()).then(|| {
@@ -55,21 +55,6 @@ impl Display {
         Display {
             data: AtomicCell::new(display),
             uniform,
-        }
-    }
-
-    pub fn set_line_thickness(
-        &self,
-        graphics_state: &GraphicsState,
-        line_thickness_in_points: f32,
-    ) {
-        let data = self.data.load();
-        if data.line_thickness_in_points != line_thickness_in_points {
-            self.data.store(Data {
-                line_thickness_in_points,
-                ..data
-            });
-            self.regen_buffer(&graphics_state.render_state);
         }
     }
 

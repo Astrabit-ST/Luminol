@@ -21,7 +21,6 @@ struct Viewport {
 struct Display {
     viewport_size_in_pixels: vec2<f32>,
     pixels_per_point: f32,
-    line_thickness_in_points: f32,
 }
 
 #if USE_PUSH_CONSTANTS == true
@@ -61,15 +60,22 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
+    var color: f32;
     var alpha: f32;
 
     let diff = abs(input.position - input.vertex_position) * (display.viewport_size_in_pixels / 2.);
-    let line_thickness_in_pixels = display.line_thickness_in_points * display.pixels_per_point;
-    if diff.x <= line_thickness_in_pixels || diff.y <= line_thickness_in_pixels {
-        alpha = 1.;
+
+    if diff.x <= 2.002 * display.pixels_per_point || diff.y <= 2.002 * display.pixels_per_point {
+        if diff.x < 1.001 * display.pixels_per_point || diff.y < 1.001 * display.pixels_per_point {
+            color = 0.1;
+        } else {
+            color = 0.7;
+        }
+        alpha = 0.25;
     } else {
+        color = 0.;
         alpha = 0.;
     }
 
-    return vec4<f32>(0.5, 0.5, 0.5, alpha * 0.2);
+    return vec4<f32>(color, color, color, alpha);
 }
