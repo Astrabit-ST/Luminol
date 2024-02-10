@@ -252,6 +252,10 @@ impl luminol_core::Tab for Tab {
                                 ui.label(egui::RichText::new("Collision").underline());
                                 ui.checkbox(&mut self.view.map.coll_enabled, "👁");
                                 ui.end_row();
+
+                                ui.label(egui::RichText::new("Grid").underline());
+                                ui.checkbox(&mut self.view.map.grid_enabled, "👁");
+                                ui.end_row();
                             });
                     },
                 );
@@ -269,12 +273,6 @@ impl luminol_core::Tab for Tab {
                     "Darken unselected layers",
                 )
                 .on_hover_text("Toggles darkening unselected layers");
-                ui.checkbox(&mut self.view.map.grid_enabled, "Map grid")
-                    .on_hover_text("Toggles the lines on the edges of every tile in the map");
-                ui.checkbox(&mut self.tilepicker.grid_enabled, "Tilepicker grid")
-                    .on_hover_text(
-                        "Toggles the lines on the edges of every tile in the tilepicker",
-                    );
 
                 /*
                 if ui.button("Save map preview").clicked() {
@@ -308,6 +306,7 @@ impl luminol_core::Tab for Tab {
                     )
                     .show_viewport(ui, |ui, rect| {
                         self.tilepicker.coll_enabled = self.view.map.coll_enabled;
+                        self.tilepicker.grid_enabled = self.view.map.grid_enabled;
                         self.tilepicker.ui(update_state, ui, rect);
                         ui.separator();
                     });
