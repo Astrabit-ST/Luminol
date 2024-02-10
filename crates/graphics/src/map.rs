@@ -21,7 +21,9 @@ use std::time::Duration;
 
 use fragile::Fragile;
 
-use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsState, Plane};
+use crate::{
+    collision::Collision, grid::Grid, tiles::Tiles, viewport::Viewport, GraphicsState, Plane,
+};
 
 pub struct Map {
     resources: Arc<Resources>,
@@ -39,6 +41,7 @@ struct Resources {
     panorama: Option<Plane>,
     fog: Option<Plane>,
     collision: Collision,
+    grid: Grid,
 }
 
 // wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
@@ -87,7 +90,7 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
 impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
     fn paint<'a>(
         &'a self,
-        _info: egui::PaintCallbackInfo,
+        info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
@@ -103,6 +106,8 @@ impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
         if self.coll_enabled {
             resources.collision.draw(graphics_state, render_pass);
         }
+
+        resources.grid.draw(graphics_state, &info, render_pass);
     }
 }
 
@@ -125,6 +130,12 @@ impl Map {
         ));
 
         let tiles = Tiles::new(graphics_state, viewport.clone(), atlas, &map.data);
+        let grid = Grid::new(
+            graphics_state,
+            viewport.clone(),
+            map.data.xsize(),
+            map.data.ysize(),
+        );
         let collision = Collision::new(graphics_state, viewport.clone(), passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
@@ -172,6 +183,7 @@ impl Map {
                 panorama,
                 fog,
                 collision,
+                grid,
             }),
             viewport,
 
