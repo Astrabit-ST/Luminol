@@ -26,6 +26,9 @@ pub struct Tilepicker {
     pub selected_tiles_right: i16,
     pub selected_tiles_bottom: i16,
 
+    pub coll_enabled: bool,
+    pub grid_enabled: bool,
+
     drag_origin: Option<egui::Pos2>,
 
     resources: Arc<Resources>,
@@ -45,6 +48,7 @@ struct Callback {
     graphics_state: Fragile<Arc<luminol_graphics::GraphicsState>>,
 
     coll_enabled: bool,
+    grid_enabled: bool,
 }
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
@@ -65,7 +69,9 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
             resources.collision.draw(graphics_state, render_pass);
         }
 
-        resources.grid.draw(graphics_state, &info, render_pass);
+        if self.grid_enabled {
+            resources.grid.draw(graphics_state, &info, render_pass);
+        }
     }
 }
 
@@ -180,6 +186,8 @@ impl Tilepicker {
             selected_tiles_top: 0,
             selected_tiles_right: 0,
             selected_tiles_bottom: 0,
+            coll_enabled: false,
+            grid_enabled: true,
             drag_origin: None,
         })
     }
@@ -200,7 +208,6 @@ impl Tilepicker {
         update_state: &luminol_core::UpdateState<'_>,
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
-        coll_enabled: bool,
     ) -> egui::Response {
         let time = ui.ctx().input(|i| i.time);
         let graphics_state = update_state.graphics.clone();
@@ -249,7 +256,8 @@ impl Tilepicker {
                 Callback {
                     resources: Fragile::new(self.resources.clone()),
                     graphics_state: Fragile::new(graphics_state.clone()),
-                    coll_enabled,
+                    coll_enabled: self.coll_enabled,
+                    grid_enabled: self.grid_enabled,
                 },
             ));
 

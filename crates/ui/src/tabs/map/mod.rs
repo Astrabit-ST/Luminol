@@ -258,17 +258,23 @@ impl luminol_core::Tab for Tab {
 
                 ui.separator();
 
-                ui.checkbox(&mut self.view.visible_display, "Display Visible Area")
+                ui.checkbox(&mut self.view.visible_display, "Display visible area")
                     .on_hover_text("Display the visible area in-game (640x480)");
                 ui.checkbox(&mut self.view.move_preview, "Preview event move routes")
                     .on_hover_text("Preview event page move routes");
                 ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
-                    .on_hover_text("Snap's the viewport to the tile grid");
+                    .on_hover_text("Snaps the viewport to the tile grid");
                 ui.checkbox(
                     &mut self.view.darken_unselected_layers,
                     "Darken unselected layers",
                 )
-                .on_disabled_hover_text("Toggles darkening unselected layers");
+                .on_hover_text("Toggles darkening unselected layers");
+                ui.checkbox(&mut self.view.map.grid_enabled, "Map grid")
+                    .on_hover_text("Toggles the lines on the edges of every tile in the map");
+                ui.checkbox(&mut self.tilepicker.grid_enabled, "Tilepicker grid")
+                    .on_hover_text(
+                        "Toggles the lines on the edges of every tile in the tilepicker",
+                    );
 
                 /*
                 if ui.button("Save map preview").clicked() {
@@ -301,8 +307,8 @@ impl luminol_core::Tab for Tab {
                             .persistence_id,
                     )
                     .show_viewport(ui, |ui, rect| {
-                        self.tilepicker
-                            .ui(update_state, ui, rect, self.view.map.coll_enabled);
+                        self.tilepicker.coll_enabled = self.view.map.coll_enabled;
+                        self.tilepicker.ui(update_state, ui, rect);
                         ui.separator();
                     });
             });

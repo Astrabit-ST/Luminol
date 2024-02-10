@@ -33,6 +33,7 @@ pub struct Map {
     pub fog_enabled: bool,
     pub pano_enabled: bool,
     pub coll_enabled: bool,
+    pub grid_enabled: bool,
     pub enabled_layers: Vec<bool>,
 }
 
@@ -60,6 +61,7 @@ struct OverlayCallback {
 
     fog_enabled: bool,
     coll_enabled: bool,
+    grid_enabled: bool,
 }
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
@@ -107,7 +109,9 @@ impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
             resources.collision.draw(graphics_state, render_pass);
         }
 
-        resources.grid.draw(graphics_state, &info, render_pass);
+        if self.grid_enabled {
+            resources.grid.draw(graphics_state, &info, render_pass);
+        }
     }
 }
 
@@ -192,6 +196,7 @@ impl Map {
             fog_enabled: true,
             pano_enabled: true,
             coll_enabled: false,
+            grid_enabled: true,
             enabled_layers: vec![true; map.data.zsize()],
         })
     }
@@ -273,6 +278,7 @@ impl Map {
 
                 fog_enabled: self.fog_enabled,
                 coll_enabled: self.coll_enabled,
+                grid_enabled: self.grid_enabled,
             },
         ));
     }
