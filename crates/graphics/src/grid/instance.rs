@@ -50,7 +50,7 @@ impl Instances {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let vertices = Self::calculate_vertices();
+        let vertices = Self::calculate_vertices(render_state);
         let vertex_buffer =
             render_state
                 .device
@@ -78,27 +78,52 @@ impl Instances {
             .collect_vec()
     }
 
-    fn calculate_vertices() -> [Vertex; 6] {
-        [
-            Vertex {
-                position: glam::vec2(0., 0.), // Provoking vertex
-            },
-            Vertex {
-                position: glam::vec2(1., 0.),
-            },
-            Vertex {
-                position: glam::vec2(0., 1.),
-            },
-            Vertex {
-                position: glam::vec2(1., 1.), // Provoking vertex
-            },
-            Vertex {
-                position: glam::vec2(0., 1.),
-            },
-            Vertex {
-                position: glam::vec2(1., 0.),
-            },
-        ]
+    fn calculate_vertices(render_state: &luminol_egui_wgpu::RenderState) -> [Vertex; 6] {
+        // OpenGL and WebGL use the last vertex in each triangle as the provoking vertex, and
+        // Direct3D, Metal, Vulkan and WebGPU use the first vertex in each triangle
+        if render_state.adapter.get_info().backend == wgpu::Backend::Gl {
+            [
+                Vertex {
+                    position: glam::vec2(1., 0.),
+                },
+                Vertex {
+                    position: glam::vec2(0., 1.),
+                },
+                Vertex {
+                    position: glam::vec2(0., 0.), // Provoking vertex
+                },
+                Vertex {
+                    position: glam::vec2(0., 1.),
+                },
+                Vertex {
+                    position: glam::vec2(1., 0.),
+                },
+                Vertex {
+                    position: glam::vec2(1., 1.), // Provoking vertex
+                },
+            ]
+        } else {
+            [
+                Vertex {
+                    position: glam::vec2(0., 0.), // Provoking vertex
+                },
+                Vertex {
+                    position: glam::vec2(1., 0.),
+                },
+                Vertex {
+                    position: glam::vec2(0., 1.),
+                },
+                Vertex {
+                    position: glam::vec2(1., 1.), // Provoking vertex
+                },
+                Vertex {
+                    position: glam::vec2(0., 1.),
+                },
+                Vertex {
+                    position: glam::vec2(1., 0.),
+                },
+            ]
+        }
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
