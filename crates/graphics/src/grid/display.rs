@@ -76,7 +76,7 @@ impl Display {
             viewport_size.width_px as f32,
             viewport_size.height_px as f32,
         ];
-        let pixels_per_point = info.pixels_per_point.max(1.);
+        let pixels_per_point = info.pixels_per_point.max(1.).floor();
         let data = self.data.load();
         if data.viewport_size_in_pixels != viewport_size
             || data.pixels_per_point != pixels_per_point
