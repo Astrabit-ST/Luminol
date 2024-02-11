@@ -229,6 +229,8 @@ impl MapView {
 
         self.previous_scale = self.scale;
 
+        let grid_inner_thickness = if self.scale >= 50. { 1. } else { 0. };
+
         let ctrl_drag = ui.input(|i| {
             if is_focused {
                 // Handle pan
@@ -571,8 +573,12 @@ impl MapView {
             self.selected_event_id = selected_event.map(|e| e.id);
 
             // Draw the fog and collision layers
-            self.map
-                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
+            self.map.paint_overlay(
+                graphics_state.clone(),
+                ui.painter(),
+                grid_inner_thickness,
+                canvas_rect,
+            );
 
             // Draw white rectangles on the border of all events
             while let Some(rect) = self.event_rects.pop() {
@@ -596,8 +602,12 @@ impl MapView {
             }
         } else {
             // Draw the fog and collision layers
-            self.map
-                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
+            self.map.paint_overlay(
+                graphics_state.clone(),
+                ui.painter(),
+                grid_inner_thickness,
+                canvas_rect,
+            );
         }
 
         // Do we display the visible region?

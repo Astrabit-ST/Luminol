@@ -20,6 +20,7 @@ pub mod binding_helpers;
 pub use binding_helpers::{BindGroupBuilder, BindGroupLayoutBuilder};
 
 pub mod collision;
+pub mod grid;
 pub mod quad;
 pub mod sprite;
 pub mod tiles;
@@ -55,12 +56,14 @@ pub struct BindGroupLayouts {
     sprite: wgpu::BindGroupLayout,
     tiles: wgpu::BindGroupLayout,
     collision: wgpu::BindGroupLayout,
+    grid: wgpu::BindGroupLayout,
 }
 
 pub struct Pipelines {
     sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
     tiles: wgpu::RenderPipeline,
     collision: wgpu::RenderPipeline,
+    grid: wgpu::RenderPipeline,
 }
 
 impl GraphicsState {
@@ -69,6 +72,7 @@ impl GraphicsState {
             sprite: sprite::create_bind_group_layout(&render_state),
             tiles: tiles::create_bind_group_layout(&render_state),
             collision: collision::create_bind_group_layout(&render_state),
+            grid: grid::create_bind_group_layout(&render_state),
         };
 
         let pipelines = Pipelines {
@@ -78,6 +82,7 @@ impl GraphicsState {
                 &render_state,
                 &bind_group_layouts,
             ),
+            grid: grid::shader::create_render_pipeline(&render_state, &bind_group_layouts),
         };
 
         let texture_loader = texture_loader::Loader::new(render_state.clone());

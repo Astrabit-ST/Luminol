@@ -21,7 +21,9 @@ use std::time::Duration;
 
 use fragile::Fragile;
 
-use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsState, Plane};
+use crate::{
+    collision::Collision, grid::Grid, tiles::Tiles, viewport::Viewport, GraphicsState, Plane,
+};
 
 pub struct Map {
     resources: Arc<Resources>,
@@ -31,6 +33,7 @@ pub struct Map {
     pub fog_enabled: bool,
     pub pano_enabled: bool,
     pub coll_enabled: bool,
+    pub grid_enabled: bool,
     pub enabled_layers: Vec<bool>,
 }
 
@@ -39,6 +42,7 @@ struct Resources {
     panorama: Option<Plane>,
     fog: Option<Plane>,
     collision: Collision,
+    grid: Grid,
 }
 
 // wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
@@ -57,6 +61,7 @@ struct OverlayCallback {
 
     fog_enabled: bool,
     coll_enabled: bool,
+    grid_enabled: bool,
 }
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
@@ -87,7 +92,7 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
 impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
     fn paint<'a>(
         &'a self,
-        _info: egui::PaintCallbackInfo,
+        info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
@@ -102,6 +107,10 @@ impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
 
         if self.coll_enabled {
             resources.collision.draw(graphics_state, render_pass);
+        }
+
+        if self.grid_enabled {
+            resources.grid.draw(graphics_state, &info, render_pass);
         }
     }
 }
@@ -125,6 +134,12 @@ impl Map {
         ));
 
         let tiles = Tiles::new(graphics_state, viewport.clone(), atlas, &map.data);
+        let grid = Grid::new(
+            graphics_state,
+            viewport.clone(),
+            map.data.xsize(),
+            map.data.ysize(),
+        );
         let collision = Collision::new(graphics_state, viewport.clone(), passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
@@ -172,6 +187,7 @@ impl Map {
                 panorama,
                 fog,
                 collision,
+                grid,
             }),
             viewport,
 
@@ -180,6 +196,7 @@ impl Map {
             fog_enabled: true,
             pano_enabled: true,
             coll_enabled: false,
+            grid_enabled: true,
             enabled_layers: vec![true; map.data.zsize()],
         })
     }
@@ -251,8 +268,14 @@ impl Map {
         &mut self,
         graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
+        grid_inner_thickness: f32,
         rect: egui::Rect,
     ) {
+        self.resources
+            .grid
+            .display
+            .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
+
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             OverlayCallback {
@@ -261,6 +284,7 @@ impl Map {
 
                 fog_enabled: self.fog_enabled,
                 coll_enabled: self.coll_enabled,
+                grid_enabled: self.grid_enabled,
             },
         ));
     }
