@@ -404,6 +404,8 @@ impl<'res> UpdateState<'res> {
         self.edit_windows.clean(|w| !w.requires_filesystem());
         self.edit_tabs.clean(|t| !t.requires_filesystem());
         self.audio.clear_sinks(); // audio loads files borrows from the filesystem. unloading while they are playing is a crash
+        self.graphics.atlas_loader.clear();
+        self.graphics.texture_loader.clear();
         self.filesystem.unload_project();
         *self.project_config = None;
         self.data.unload();
