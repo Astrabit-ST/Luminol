@@ -268,6 +268,58 @@ impl<T> FileSystemTrie<T> {
             .and_then(|o| o.as_mut())
     }
 
+    /// Gets an immutable reference to the value in the file at the given path or creates the file
+    /// with the given value if it doesn't.
+    pub fn get_or_create_file(&mut self, path: impl AsRef<camino::Utf8Path>, value: T) -> &T {
+        let path = path.as_ref();
+        if !self.contains_file(path) {
+            self.create_file(path, value);
+        }
+        self.get_file(path).unwrap()
+    }
+
+    /// Gets an immutable reference to the value in the file at the given path or creates the file
+    /// with the given value if it doesn't.
+    pub fn get_or_create_file_with(
+        &mut self,
+        path: impl AsRef<camino::Utf8Path>,
+        f: impl FnOnce() -> T,
+    ) -> &T {
+        let path = path.as_ref();
+        if !self.contains_file(path) {
+            self.create_file(path, f());
+        }
+        self.get_file(path).unwrap()
+    }
+
+    /// Gets a mutable reference to the value in the file at the given path or creates the file
+    /// with the given value if it doesn't.
+    pub fn get_or_create_file_mut(
+        &mut self,
+        path: impl AsRef<camino::Utf8Path>,
+        value: T,
+    ) -> &mut T {
+        let path = path.as_ref();
+        if !self.contains_file(path) {
+            self.create_file(path, value);
+        }
+        self.get_file_mut(path).unwrap()
+    }
+
+    /// Gets a mutable reference to the value in the file at the given path or creates the file
+    /// with the given value if it doesn't.
+    pub fn get_or_create_file_with_mut(
+        &mut self,
+        path: impl AsRef<camino::Utf8Path>,
+        f: impl FnOnce() -> T,
+    ) -> &mut T {
+        let path = path.as_ref();
+        if !self.contains_file(path) {
+            self.create_file(path, f());
+        }
+        self.get_file_mut(path).unwrap()
+    }
+
     /// Gets the longest prefix of the given path that is the path of a directory in the trie.
     pub fn get_dir_prefix(&self, path: impl AsRef<camino::Utf8Path>) -> &camino::Utf8Path {
         let path = path.as_ref();
