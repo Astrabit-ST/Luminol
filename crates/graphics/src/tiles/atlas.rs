@@ -62,7 +62,7 @@ impl Atlas {
             filesystem
                 .read(camino::Utf8Path::new("Graphics/Tilesets").join(tileset_name))
                 .and_then(|file| image::load_from_memory(&file).map_err(|e| e.into()))
-                .wrap_err_with(|| format!("While loading atlas tileset {tileset_name}"))
+                .wrap_err_with(|| format!("Error loading atlas tileset {tileset_name:?}"))
                 .unwrap_or_else(|e| {
                     graphics_state.send_texture_error(e);
                     image::DynamicImage::new_rgba8(256, 256)
@@ -85,7 +85,7 @@ impl Atlas {
                     graphics_state
                         .texture_loader
                         .load_now_dir(filesystem, "Graphics/Autotiles", s)
-                        .wrap_err_with(|| format!("While loading atlas autotiles {s}"))
+                        .wrap_err_with(|| format!("Error loading atlas autotiles {s:?}"))
                         .map_or_else(
                             |e| {
                                 graphics_state.send_texture_error(e);

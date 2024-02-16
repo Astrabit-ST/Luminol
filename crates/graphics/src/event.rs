@@ -65,7 +65,7 @@ impl Event {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Characters", filename)
-                .wrap_err_with(|| format!("While loading event character graphic {filename}"));
+                .wrap_err_with(|| format!("Error loading event character graphic {filename:?}"));
             match texture {
                 Ok(t) => t,
                 Err(e) => {

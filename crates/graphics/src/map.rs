@@ -148,7 +148,7 @@ impl Map {
             graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
-                .wrap_err_with(|| format!("While loading map panorama {panorama_name}"))
+                .wrap_err_with(|| format!("Error loading map panorama {panorama_name:?}"))
                 .map_or_else(
                     |e| {
                         graphics_state.send_texture_error(e);
@@ -175,7 +175,7 @@ impl Map {
             graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Fogs", fog_name)
-                .wrap_err_with(|| format!("While loading map fog {fog_name}"))
+                .wrap_err_with(|| format!("Error loading map fog {fog_name:?}"))
                 .map_or_else(
                     |e| {
                         graphics_state.send_texture_error(e);
