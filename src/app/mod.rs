@@ -386,6 +386,11 @@ impl luminol_eframe::App for App {
         self.windows
             .process_edit_windows(std::mem::take(update_state.edit_windows));
 
+        // Create toasts for any texture loading errors encountered this frame.
+        for error in self.graphics.texture_errors() {
+            luminol_core::error!(self.toasts, error);
+        }
+
         // Show toasts.
         self.toasts.show(ctx);
 

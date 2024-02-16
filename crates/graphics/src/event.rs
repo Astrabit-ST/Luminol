@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use color_eyre::eyre::Context;
+
 use std::sync::Arc;
 
 use fragile::Fragile;
@@ -60,11 +62,17 @@ impl Event {
         };
 
         let texture = if let Some(ref filename) = page.graphic.character_name {
-            graphics_state.texture_loader.load_now_dir(
-                filesystem,
-                "Graphics/Characters",
-                filename,
-            )?
+            let texture = graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Characters", filename)
+                .wrap_err_with(|| format!("While loading event character graphic {filename}"));
+            match texture {
+                Ok(t) => t,
+                Err(e) => {
+                    graphics_state.send_texture_error(e);
+                    return Ok(None);
+                }
+            }
         } else if page.graphic.tile_id.is_some() {
             atlas.atlas_texture.clone()
         } else {

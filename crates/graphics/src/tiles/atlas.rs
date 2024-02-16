@@ -57,37 +57,45 @@ impl Atlas {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> color_eyre::Result<Atlas> {
-        let tileset_img = match &tileset.tileset_name {
-            Some(tileset_name) => {
-                let file = filesystem
-                    .read(camino::Utf8Path::new("Graphics/Tilesets").join(tileset_name))?;
-                let tileset_img = image::load_from_memory(&file)?;
-                Some(tileset_img.to_rgba8())
-            }
-            None => None,
-        };
+    ) -> Atlas {
+        let tileset_img = tileset.tileset_name.as_ref().map(|tileset_name| {
+            filesystem
+                .read(camino::Utf8Path::new("Graphics/Tilesets").join(tileset_name))
+                .and_then(|file| image::load_from_memory(&file).map_err(|e| e.into()))
+                .wrap_err_with(|| format!("While loading atlas tileset {tileset_name}"))
+                .unwrap_or_else(|e| {
+                    graphics_state.send_texture_error(e);
+                    image::DynamicImage::new_rgba8(256, 256)
+                })
+                .to_rgba8()
+        });
 
         let tileset_height = tileset_img
             .as_ref()
             .map(|i| i.height() / TILE_SIZE * TILE_SIZE)
             .unwrap_or(256);
 
-        let autotiles: Vec<_> = tileset
+        let autotiles = tileset
             .autotile_names
             .iter()
             .map(|s| {
                 if s.is_empty() {
-                    Ok(None)
+                    None
                 } else {
                     graphics_state
                         .texture_loader
                         .load_now_dir(filesystem, "Graphics/Autotiles", s)
-                        .map(Some)
+                        .wrap_err_with(|| format!("While loading atlas autotiles {s}"))
+                        .map_or_else(
+                            |e| {
+                                graphics_state.send_texture_error(e);
+                                None
+                            },
+                            Some,
+                        )
                 }
             })
-            .try_collect()
-            .wrap_err("While loading atlas autotiles")?;
+            .collect_vec();
 
         let autotile_frames = std::array::from_fn(|i| {
             autotiles[i]
@@ -258,12 +266,12 @@ impl Atlas {
             .texture_loader
             .register_texture(format!("tileset_atlases/{}", tileset.id), atlas_texture);
 
-        Ok(Atlas {
+        Atlas {
             atlas_texture,
             autotile_width,
             tileset_height,
             autotile_frames,
-        })
+        }
     }
 
     pub fn calc_quad(&self, tile: i16) -> Quad {

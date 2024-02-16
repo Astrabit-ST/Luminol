@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use color_eyre::eyre::Context;
+
 use std::sync::Arc;
 
 use std::time::Duration;
@@ -143,40 +145,56 @@ impl Map {
         let collision = Collision::new(graphics_state, viewport.clone(), passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
-            Some(Plane::new(
-                graphics_state,
-                viewport.clone(),
-                graphics_state.texture_loader.load_now_dir(
-                    filesystem,
-                    "Graphics/Panoramas",
-                    panorama_name,
-                )?,
-                tileset.panorama_hue,
-                100,
-                luminol_data::BlendMode::Normal,
-                255,
-                map.width,
-                map.height,
-            ))
+            graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
+                .wrap_err_with(|| format!("While loading map panorama {panorama_name}"))
+                .map_or_else(
+                    |e| {
+                        graphics_state.send_texture_error(e);
+                        None
+                    },
+                    |texture| {
+                        Some(Plane::new(
+                            graphics_state,
+                            viewport.clone(),
+                            texture,
+                            tileset.panorama_hue,
+                            100,
+                            luminol_data::BlendMode::Normal,
+                            255,
+                            map.width,
+                            map.height,
+                        ))
+                    },
+                )
         } else {
             None
         };
         let fog = if let Some(ref fog_name) = tileset.fog_name {
-            Some(Plane::new(
-                graphics_state,
-                viewport.clone(),
-                graphics_state.texture_loader.load_now_dir(
-                    filesystem,
-                    "Graphics/Fogs",
-                    fog_name,
-                )?,
-                tileset.fog_hue,
-                tileset.fog_zoom,
-                tileset.fog_blend_type,
-                tileset.fog_opacity,
-                map.width,
-                map.height,
-            ))
+            graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Fogs", fog_name)
+                .wrap_err_with(|| format!("While loading map fog {fog_name}"))
+                .map_or_else(
+                    |e| {
+                        graphics_state.send_texture_error(e);
+                        None
+                    },
+                    |texture| {
+                        Some(Plane::new(
+                            graphics_state,
+                            viewport.clone(),
+                            texture,
+                            tileset.fog_hue,
+                            tileset.fog_zoom,
+                            tileset.fog_blend_type,
+                            tileset.fog_opacity,
+                            map.width,
+                            map.height,
+                        ))
+                    },
+                )
         } else {
             None
         };
