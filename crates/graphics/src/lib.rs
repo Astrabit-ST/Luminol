@@ -134,7 +134,7 @@ impl GraphicsState {
     }
 
     pub fn placeholder_img(&self) -> image::RgbaImage {
-        image::load_from_memory(include_bytes!("../../../assets/placeholder.png"))
+        image::load_from_memory(include_bytes!("../data/placeholder.png"))
             .expect("assets/placeholder.png is not a valid image")
             .to_rgba8()
     }
