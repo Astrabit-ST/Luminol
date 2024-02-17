@@ -50,6 +50,9 @@ pub struct GraphicsState {
 
     pipelines: Pipelines,
     bind_group_layouts: BindGroupLayouts,
+
+    texture_error_tx: crossbeam::channel::Sender<color_eyre::Report>,
+    texture_error_rx: crossbeam::channel::Receiver<color_eyre::Report>,
 }
 
 pub struct BindGroupLayouts {
@@ -99,6 +102,8 @@ impl GraphicsState {
                 ..Default::default()
             });
 
+        let (texture_error_tx, texture_error_rx) = crossbeam::channel::unbounded();
+
         Self {
             texture_loader,
             atlas_loader: atlas_cache,
@@ -108,11 +113,30 @@ impl GraphicsState {
 
             pipelines,
             bind_group_layouts,
+
+            texture_error_tx,
+            texture_error_rx,
         }
     }
 
     pub fn push_constants_supported(&self) -> bool {
         push_constants_supported(&self.render_state)
+    }
+
+    pub fn send_texture_error(&self, error: color_eyre::Report) {
+        self.texture_error_tx
+            .try_send(error)
+            .expect("failed to send texture error");
+    }
+
+    pub fn texture_errors(&self) -> impl Iterator<Item = color_eyre::Report> + '_ {
+        self.texture_error_rx.try_iter()
+    }
+
+    pub fn placeholder_img(&self) -> image::RgbaImage {
+        image::load_from_memory(include_bytes!("../data/placeholder.png"))
+            .expect("assets/placeholder.png is not a valid image")
+            .to_rgba8()
     }
 }
 

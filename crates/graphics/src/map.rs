@@ -15,6 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use color_eyre::eyre::Context;
+use image::EncodableLayout;
+use itertools::Itertools;
+use wgpu::util::DeviceExt;
+
 use std::sync::Arc;
 
 use std::time::Duration;
@@ -143,14 +148,60 @@ impl Map {
         let collision = Collision::new(graphics_state, viewport.clone(), passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
+            let texture = graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
+                .wrap_err_with(|| format!("Error loading map panorama {panorama_name:?}"))
+                .unwrap_or_else(|e| {
+                    graphics_state.send_texture_error(e);
+
+                    graphics_state
+                        .texture_loader
+                        .get("placeholder_tile_texture")
+                        .unwrap_or_else(|| {
+                            let placeholder_img = graphics_state.placeholder_img();
+
+                            graphics_state.texture_loader.register_texture(
+                                "placeholder_tile_texture",
+                                graphics_state.render_state.device.create_texture_with_data(
+                                    &graphics_state.render_state.queue,
+                                    &wgpu::TextureDescriptor {
+                                        label: Some("placeholder_tile_texture"),
+                                        size: wgpu::Extent3d {
+                                            width: 32,
+                                            height: 32,
+                                            depth_or_array_layers: 1,
+                                        },
+                                        dimension: wgpu::TextureDimension::D2,
+                                        mip_level_count: 1,
+                                        sample_count: 1,
+                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                                        usage: wgpu::TextureUsages::COPY_SRC
+                                            | wgpu::TextureUsages::COPY_DST
+                                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                                        view_formats: &[],
+                                    },
+                                    wgpu::util::TextureDataOrder::LayerMajor,
+                                    &itertools::iproduct!(0..32, 0..32, 0..4)
+                                        .map(|(y, x, c)| {
+                                            // Tile the placeholder image
+                                            placeholder_img.as_bytes()[(c
+                                                + (x % placeholder_img.width()) * 4
+                                                + (y % placeholder_img.height())
+                                                    * 4
+                                                    * placeholder_img.width())
+                                                as usize]
+                                        })
+                                        .collect_vec(),
+                                ),
+                            )
+                        })
+                });
+
             Some(Plane::new(
                 graphics_state,
                 viewport.clone(),
-                graphics_state.texture_loader.load_now_dir(
-                    filesystem,
-                    "Graphics/Panoramas",
-                    panorama_name,
-                )?,
+                texture,
                 tileset.panorama_hue,
                 100,
                 luminol_data::BlendMode::Normal,
@@ -162,14 +213,60 @@ impl Map {
             None
         };
         let fog = if let Some(ref fog_name) = tileset.fog_name {
+            let texture = graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Fogs", fog_name)
+                .wrap_err_with(|| format!("Error loading map fog {fog_name:?}"))
+                .unwrap_or_else(|e| {
+                    graphics_state.send_texture_error(e);
+
+                    graphics_state
+                        .texture_loader
+                        .get("placeholder_tile_texture")
+                        .unwrap_or_else(|| {
+                            let placeholder_img = graphics_state.placeholder_img();
+
+                            graphics_state.texture_loader.register_texture(
+                                "placeholder_tile_texture",
+                                graphics_state.render_state.device.create_texture_with_data(
+                                    &graphics_state.render_state.queue,
+                                    &wgpu::TextureDescriptor {
+                                        label: Some("placeholder_tile_texture"),
+                                        size: wgpu::Extent3d {
+                                            width: 32,
+                                            height: 32,
+                                            depth_or_array_layers: 1,
+                                        },
+                                        dimension: wgpu::TextureDimension::D2,
+                                        mip_level_count: 1,
+                                        sample_count: 1,
+                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                                        usage: wgpu::TextureUsages::COPY_SRC
+                                            | wgpu::TextureUsages::COPY_DST
+                                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                                        view_formats: &[],
+                                    },
+                                    wgpu::util::TextureDataOrder::LayerMajor,
+                                    &itertools::iproduct!(0..32, 0..32, 0..4)
+                                        .map(|(y, x, c)| {
+                                            // Tile the placeholder image
+                                            placeholder_img.as_bytes()[(c
+                                                + (x % placeholder_img.width()) * 4
+                                                + (y % placeholder_img.height())
+                                                    * 4
+                                                    * placeholder_img.width())
+                                                as usize]
+                                        })
+                                        .collect_vec(),
+                                ),
+                            )
+                        })
+                });
+
             Some(Plane::new(
                 graphics_state,
                 viewport.clone(),
-                graphics_state.texture_loader.load_now_dir(
-                    filesystem,
-                    "Graphics/Fogs",
-                    fog_name,
-                )?,
+                texture,
                 tileset.fog_hue,
                 tileset.fog_zoom,
                 tileset.fog_blend_type,
