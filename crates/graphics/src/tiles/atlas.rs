@@ -16,7 +16,9 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use color_eyre::eyre::WrapErr;
+use image::EncodableLayout;
 use itertools::Itertools;
+use wgpu::util::DeviceExt;
 
 use super::autotile_ids::AUTOTILES;
 use crate::{quad::Quad, GraphicsState, Texture};
@@ -65,7 +67,24 @@ impl Atlas {
                 .wrap_err_with(|| format!("Error loading atlas tileset {tileset_name:?}"))
                 .unwrap_or_else(|e| {
                     graphics_state.send_texture_error(e);
-                    image::DynamicImage::new_rgba8(256, 256)
+                    let width = 256;
+                    let height = 256;
+                    let placeholder_img = graphics_state.placeholder_img();
+                    image::RgbaImage::from_raw(
+                        width,
+                        height,
+                        itertools::iproduct!(0..height, 0..width, 0..4)
+                            .map(|(y, x, c)| {
+                                // Tile the placeholder image
+                                placeholder_img.as_bytes()[(c
+                                    + (x % placeholder_img.width()) * 4
+                                    + (y % placeholder_img.height()) * 4 * placeholder_img.width())
+                                    as usize]
+                            })
+                            .collect_vec(),
+                    )
+                    .unwrap()
+                    .into()
                 })
                 .to_rgba8()
         });
@@ -75,12 +94,40 @@ impl Atlas {
             .map(|i| i.height() / TILE_SIZE * TILE_SIZE)
             .unwrap_or(256);
 
+        let blank_autotile_texture = graphics_state
+            .texture_loader
+            .get("blank_autotile_texture")
+            .unwrap_or_else(|| {
+                graphics_state.texture_loader.register_texture(
+                    "blank_autotile_texture",
+                    graphics_state
+                        .render_state
+                        .device
+                        .create_texture(&wgpu::TextureDescriptor {
+                            label: Some("blank_autotile_texture"),
+                            size: wgpu::Extent3d {
+                                width: AUTOTILE_FRAME_COLS * TILE_SIZE,
+                                height: AUTOTILE_ROWS * TILE_SIZE,
+                                depth_or_array_layers: 1,
+                            },
+                            dimension: wgpu::TextureDimension::D2,
+                            mip_level_count: 1,
+                            sample_count: 1,
+                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                            usage: wgpu::TextureUsages::COPY_SRC
+                                | wgpu::TextureUsages::COPY_DST
+                                | wgpu::TextureUsages::TEXTURE_BINDING,
+                            view_formats: &[],
+                        }),
+                )
+            });
+
         let autotiles = tileset
             .autotile_names
             .iter()
             .map(|s| {
                 if s.is_empty() {
-                    None
+                    Some(blank_autotile_texture.clone())
                 } else {
                     graphics_state
                         .texture_loader
@@ -148,26 +195,37 @@ impl Atlas {
             height = MAX_SIZE;
         }
 
-        let atlas_texture =
-            graphics_state
-                .render_state
-                .device
-                .create_texture(&wgpu::TextureDescriptor {
-                    label: Some("tileset_atlas"),
-                    size: wgpu::Extent3d {
-                        width,
-                        height,
-                        depth_or_array_layers: 1,
-                    },
-                    dimension: wgpu::TextureDimension::D2,
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    usage: wgpu::TextureUsages::COPY_SRC
-                        | wgpu::TextureUsages::COPY_DST
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[],
-                });
+        let placeholder_img = graphics_state.placeholder_img();
+
+        let atlas_texture = graphics_state.render_state.device.create_texture_with_data(
+            &graphics_state.render_state.queue,
+            &wgpu::TextureDescriptor {
+                label: Some("tileset_atlas"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                dimension: wgpu::TextureDimension::D2,
+                mip_level_count: 1,
+                sample_count: 1,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            &itertools::iproduct!(0..height, 0..width, 0..4)
+                .map(|(y, x, c)| {
+                    // Tile the placeholder image to fill the atlas
+                    placeholder_img.as_bytes()[(c
+                        + (x % placeholder_img.width()) * 4
+                        + (y % placeholder_img.height()) * 4 * placeholder_img.width())
+                        as usize]
+                })
+                .collect_vec(),
+        );
         let mut atlas_copy = atlas_texture.as_image_copy();
 
         for (index, autotile_texture) in

@@ -132,6 +132,12 @@ impl GraphicsState {
     pub fn texture_errors(&self) -> impl Iterator<Item = color_eyre::Report> + '_ {
         self.texture_error_rx.try_iter()
     }
+
+    pub fn placeholder_img(&self) -> image::RgbaImage {
+        image::load_from_memory(include_bytes!("../../../assets/placeholder.png"))
+            .expect("assets/placeholder.png is not a valid image")
+            .to_rgba8()
+    }
 }
 
 pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
