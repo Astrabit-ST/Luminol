@@ -125,7 +125,7 @@ impl Atlas {
                                 ),
                             )
                         });
-                    Some(blank_autotile_texture.clone())
+                    Some(blank_autotile_texture)
                 } else {
                     graphics_state
                         .texture_loader
