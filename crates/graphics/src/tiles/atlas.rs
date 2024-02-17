@@ -94,39 +94,37 @@ impl Atlas {
             .map(|i| i.height() / TILE_SIZE * TILE_SIZE)
             .unwrap_or(256);
 
-        let blank_autotile_texture = graphics_state
-            .texture_loader
-            .get("blank_autotile_texture")
-            .unwrap_or_else(|| {
-                graphics_state.texture_loader.register_texture(
-                    "blank_autotile_texture",
-                    graphics_state
-                        .render_state
-                        .device
-                        .create_texture(&wgpu::TextureDescriptor {
-                            label: Some("blank_autotile_texture"),
-                            size: wgpu::Extent3d {
-                                width: AUTOTILE_FRAME_COLS * TILE_SIZE,
-                                height: AUTOTILE_ROWS * TILE_SIZE,
-                                depth_or_array_layers: 1,
-                            },
-                            dimension: wgpu::TextureDimension::D2,
-                            mip_level_count: 1,
-                            sample_count: 1,
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            usage: wgpu::TextureUsages::COPY_SRC
-                                | wgpu::TextureUsages::COPY_DST
-                                | wgpu::TextureUsages::TEXTURE_BINDING,
-                            view_formats: &[],
-                        }),
-                )
-            });
-
         let autotiles = tileset
             .autotile_names
             .iter()
             .map(|s| {
                 if s.is_empty() {
+                    let blank_autotile_texture = graphics_state
+                        .texture_loader
+                        .get("blank_autotile_texture")
+                        .unwrap_or_else(|| {
+                            graphics_state.texture_loader.register_texture(
+                                "blank_autotile_texture",
+                                graphics_state.render_state.device.create_texture(
+                                    &wgpu::TextureDescriptor {
+                                        label: Some("blank_autotile_texture"),
+                                        size: wgpu::Extent3d {
+                                            width: AUTOTILE_FRAME_COLS * TILE_SIZE,
+                                            height: AUTOTILE_ROWS * TILE_SIZE,
+                                            depth_or_array_layers: 1,
+                                        },
+                                        dimension: wgpu::TextureDimension::D2,
+                                        mip_level_count: 1,
+                                        sample_count: 1,
+                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                                        usage: wgpu::TextureUsages::COPY_SRC
+                                            | wgpu::TextureUsages::COPY_DST
+                                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                                        view_formats: &[],
+                                    },
+                                ),
+                            )
+                        });
                     Some(blank_autotile_texture.clone())
                 } else {
                     graphics_state
