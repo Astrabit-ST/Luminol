@@ -90,8 +90,8 @@ if (typeof window === 'undefined') {
                         headers: newHeaders,
                     });
 
-                    // Auto-cache non-error, non-opaque responses for all same-origin requests
-                    if (response.type === "error" || new URL(request.url).origin !== self.origin) {
+                    // Auto-cache non-error, non-opaque responses for all same-origin requests other than git-rev.txt
+                    if (response.type === "error" || new URL(request.url).origin !== self.origin || request.url.endsWith('/git-rev.txt')) {
                         return newResponse;
                     } else {
                         return self.caches
@@ -100,12 +100,51 @@ if (typeof window === 'undefined') {
                             .then(() => newResponse);
                     }
                 })
-                .catch((e) => console.error(e))
+                .catch((e) => {
+                    if (!request.url.endsWith('/git-rev.txt')) {
+                        console.error(e);
+                    }
+                })
         );
     });
 
 } else {
     (() => {
+        // Check for the current Luminol git revision, and then clear the cache storage if
+        // it doesn't match the git revision we previously stored in local storage
+        if (!window.sessionStorage.getItem("luminolCheckedForUpdate")) {
+            fetch("./git-rev.txt")
+                .then((response) => {
+                    if (response.status == 200) {
+                        return response.text();
+                    } else {
+                        console.warn("Error checking for Luminol updates: request returned status code", response.status);
+                    }
+                })
+                .then((gitRev) => {
+                    if (gitRev === undefined) {
+                        return;
+                    }
+                    const oldGitRev = window.localStorage.getItem("luminolGitRev")?.trim()?.toLowerCase();
+                    gitRev = gitRev.trim().toLowerCase();
+                    if (oldGitRev?.endsWith("-modified") || gitRev !== oldGitRev) {
+                        !coi.quiet && console.log("New Luminol update detected - clearing cache.");
+                        return window.caches.delete(CACHE_NAME).then(() => gitRev);
+                    }
+                })
+                .then((gitRev) => {
+                    if (gitRev === undefined) {
+                        return;
+                    }
+                    window.sessionStorage.clear();
+                    window.localStorage.setItem("luminolGitRev", gitRev);
+                    window.sessionStorage.setItem("luminolCheckedForUpdate", "true");
+                    !coi.quiet && console.log("Reloading page to finish clearing cache.");
+                    coi.doReload();
+                })
+                .catch((e) => console.warn("Error checking for Luminol updates:", e));
+        }
+
         const reloadedBySelf = window.sessionStorage.getItem("coiReloadedBySelf");
         window.sessionStorage.removeItem("coiReloadedBySelf");
         const coepDegrading = (reloadedBySelf == "coepdegrade");
@@ -160,6 +199,9 @@ if (typeof window === 'undefined') {
                 !coi.quiet && console.log("Reloading page to set COEP for this service worker.");
                 window.sessionStorage.setItem("coiReloadedAfterSuccess", "true");
                 coi.doReload("coepaftersuccess");
+            } else {
+                window.sessionStorage.removeItem("luminolCheckedForUpdate");
+                window.sessionStorage.removeItem("coiReloadedAfterSuccess");
             }
             return;
         }
@@ -167,12 +209,14 @@ if (typeof window === 'undefined') {
 
         if (!window.isSecureContext) {
             !coi.quiet && console.log("COOP/COEP Service Worker not registered, a secure context is required.");
+            window.sessionStorage.removeItem("luminolCheckedForUpdate");
             return;
         }
 
         // In some environments (e.g. Firefox private mode) this won't be available
         if (!n.serviceWorker) {
             !coi.quiet && console.error("COOP/COEP Service Worker not registered, perhaps due to private mode.");
+            window.sessionStorage.removeItem("luminolCheckedForUpdate");
             return;
         }
 
@@ -194,6 +238,7 @@ if (typeof window === 'undefined') {
                 }
             },
             (err) => {
+                window.sessionStorage.removeItem("luminolCheckedForUpdate");
                 !coi.quiet && console.error("COOP/COEP Service Worker failed to register:", err);
             }
         );

@@ -2,6 +2,7 @@
 setlocal
 
 for /f "tokens=*" %%i in ('git describe --always --dirty=-modified') do set git_version=%%i
+echo %git_version% > %TRUNK_STAGING_DIR%\git-rev.txt
 
 :: Enable std support for multithreading and set the LUMINOL_VERSION environment variable
 if exist %TRUNK_SOURCE_DIR%\.cargo\config.toml.bak move %TRUNK_SOURCE_DIR%\.cargo\config.toml.bak %TRUNK_SOURCE_DIR%\.cargo\config.toml
