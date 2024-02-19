@@ -25,6 +25,9 @@ pub fn install_text_agent(state: &super::MainState) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
+    if let Some(input) = document.get_element_by_id(AGENT_ID) {
+        input.remove();
+    }
     let input = document
         .create_element("input")?
         .dyn_into::<web_sys::HtmlInputElement>()?;
