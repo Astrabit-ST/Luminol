@@ -140,11 +140,20 @@ if (typeof window === 'undefined') {
                 })
                 .then((info) => {
                     if (info === undefined) {
-                        return;
+                        return false;
                     }
                     window.sessionStorage.clear();
                     window.localStorage.setItem("luminolBuildInfo", JSON.stringify(info));
                     window.sessionStorage.setItem("luminolCheckedForUpdate", "true");
+                    return window.navigator?.serviceWorker.getRegistration()
+                        .then((registration) => registration?.unregister())
+                        .then(() => true)
+                            ?? true;
+                })
+                .then((shouldRefresh) => {
+                    if (!shouldRefresh) {
+                        return;
+                    }
                     !coi.quiet && console.log("Reloading page to finish clearing cache.");
                     coi.doReload();
                 })
