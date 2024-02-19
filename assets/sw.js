@@ -90,8 +90,8 @@ if (typeof window === 'undefined') {
                         headers: newHeaders,
                     });
 
-                    // Auto-cache non-error, non-opaque responses for all same-origin requests other than git-rev.txt
-                    if (response.type === "error" || new URL(request.url).origin !== self.origin || request.url.endsWith('/git-rev.txt')) {
+                    // Auto-cache non-error, non-opaque responses for all same-origin requests other than buildinfo.json
+                    if (response.type === "error" || new URL(request.url).origin !== self.origin || request.url.endsWith('/buildinfo.json')) {
                         return newResponse;
                     } else {
                         return self.caches
@@ -101,7 +101,7 @@ if (typeof window === 'undefined') {
                     }
                 })
                 .catch((e) => {
-                    if (!request.url.endsWith('/git-rev.txt')) {
+                    if (!request.url.endsWith('/buildinfo.json')) {
                         console.error(e);
                     }
                 })
@@ -110,34 +110,40 @@ if (typeof window === 'undefined') {
 
 } else {
     (() => {
-        // Check for the current Luminol git revision, and then clear the cache storage if
-        // it doesn't match the git revision we previously stored in local storage
-        if (!window.sessionStorage.getItem("luminolCheckedForUpdate")) {
-            fetch("./git-rev.txt")
+        // Check for the current Luminol build info, and then clear the cache storage if
+        // it doesn't match the build info we previously stored in local storage
+        if (!window.sessionStorage.getItem("luminolCheckedForUpdate") && window.sessionStorage.getItem("coiReloadedAfterSuccess")) {
+            fetch("./buildinfo.json")
                 .then((response) => {
-                    if (response.status == 200) {
-                        return response.text();
+                    if (response.status === 200) {
+                        return response.json();
                     } else {
                         console.warn("Error checking for Luminol updates: request returned status code", response.status);
                     }
                 })
-                .then((gitRev) => {
-                    if (gitRev === undefined) {
+                .then((info) => {
+                    if (info === undefined) {
                         return;
                     }
-                    const oldGitRev = window.localStorage.getItem("luminolGitRev")?.trim()?.toLowerCase();
-                    gitRev = gitRev.trim().toLowerCase();
-                    if (oldGitRev?.endsWith("-modified") || gitRev !== oldGitRev) {
+                    const oldInfo = JSON.parse(window.localStorage.getItem("luminolBuildInfo"));
+                    if (
+                        oldInfo === null
+                            || info.epoch !== oldInfo.epoch
+                            || info.rev !== oldInfo.rev
+                            || info.profile !== oldInfo.profile
+                            || info.profile !== "release"
+                            || oldInfo.rev.endsWith("-modified")
+                    ) {
                         !coi.quiet && console.log("New Luminol update detected - clearing cache.");
-                        return window.caches.delete(CACHE_NAME).then(() => gitRev);
+                        return window.caches.delete(CACHE_NAME).then(() => info);
                     }
                 })
-                .then((gitRev) => {
-                    if (gitRev === undefined) {
+                .then((info) => {
+                    if (info === undefined) {
                         return;
                     }
                     window.sessionStorage.clear();
-                    window.localStorage.setItem("luminolGitRev", gitRev);
+                    window.localStorage.setItem("luminolBuildInfo", JSON.stringify(info));
                     window.sessionStorage.setItem("luminolCheckedForUpdate", "true");
                     !coi.quiet && console.log("Reloading page to finish clearing cache.");
                     coi.doReload();

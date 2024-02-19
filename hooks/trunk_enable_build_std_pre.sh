@@ -2,7 +2,10 @@
 set -e
 
 git_version=$(git describe --always --dirty=-modified)
-echo $git_version > $TRUNK_STAGING_DIR/git-rev.txt
+
+# Print build information to buildinfo.json in the root directory of the output folder
+# You can change the "epoch" if you need to make backwards-incompatible changes to the build info
+echo "{\"epoch\":0,\"rev\":\"$git_version\",\"profile\":\"$TRUNK_PROFILE\"}" > $TRUNK_STAGING_DIR/buildinfo.json
 
 # Enable std support for multithreading and set the LUMINOL_VERSION environment variable
 [ ! -f $TRUNK_SOURCE_DIR/.cargo/config.toml.bak ] || mv $TRUNK_SOURCE_DIR/.cargo/config.toml.bak $TRUNK_SOURCE_DIR/.cargo/config.toml
