@@ -24,12 +24,6 @@ export function worker() {
     return is_worker() ? self : null;
 }
 
-// A binding for this attribute was added in July 2023 but hasn't made its way into a release of
-// web-sys as of September 2023
-export function performance(worker) {
-    return worker.performance;
-}
-
 export function filesystem_supported() {
     return typeof window?.showOpenFilePicker === 'function'
         && typeof window?.showDirectoryPicker === 'function'
