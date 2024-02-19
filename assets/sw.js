@@ -113,21 +113,26 @@ if (typeof window === 'undefined') {
         // Check for the current Luminol build info, and then clear the cache storage if
         // it doesn't match the build info we previously stored in local storage
         if (!window.sessionStorage.getItem("luminolCheckedForUpdate") && window.sessionStorage.getItem("coiReloadedAfterSuccess")) {
-            fetch("./buildinfo.json")
-                .then((response) => {
-                    if (response.status === 200) {
-                        return response.json();
-                    } else {
-                        console.warn("Error checking for Luminol updates: request returned status code", response.status);
-                    }
-                })
+            (
+                window.location.hash === "#dev"
+                    ? Promise.resolve(null)
+                    : fetch("./buildinfo.json")
+                        .then((response) => {
+                            if (response.status === 200) {
+                                return response.json();
+                            } else {
+                                console.warn("Error checking for Luminol updates: request returned status code", response.status);
+                            }
+                        })
+            )
                 .then((info) => {
                     if (info === undefined) {
                         return;
                     }
                     const oldInfo = JSON.parse(window.localStorage.getItem("luminolBuildInfo"));
                     if (
-                        oldInfo === null
+                        info === null
+                            || oldInfo === null
                             || info.epoch !== oldInfo.epoch
                             || info.rev !== oldInfo.rev
                             || info.profile !== oldInfo.profile
