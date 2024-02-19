@@ -132,7 +132,7 @@ if (typeof window === 'undefined') {
                             || info.rev !== oldInfo.rev
                             || info.profile !== oldInfo.profile
                             || info.profile !== "release"
-                            || oldInfo.rev.endsWith("-modified")
+                            || info.rev.endsWith("-modified")
                     ) {
                         !coi.quiet && console.log("New Luminol update detected - clearing cache.");
                         return window.caches.delete(CACHE_NAME).then(() => info);
