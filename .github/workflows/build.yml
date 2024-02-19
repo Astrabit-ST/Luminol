@@ -102,7 +102,7 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rust-src
       - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.18.7/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C ${{ runner.temp }}
+        run: wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.18.8/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C ${{ runner.temp }}
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Build luminol (Release)
