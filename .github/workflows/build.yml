@@ -13,7 +13,7 @@ jobs:
     name: Build Ubuntu
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install libraries
@@ -32,7 +32,7 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact
           cp ${{ github.workspace }}/target/release/luminol ${{ github.workspace }}/artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-linux
           path: ${{ github.workspace }}/artifact/
@@ -41,7 +41,7 @@ jobs:
     name: Build Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@nightly
@@ -56,7 +56,7 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact
           cp ${{ github.workspace }}/target/release/luminol.exe ${{ github.workspace }}/artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-windows
           path: ${{ github.workspace }}/artifact/
@@ -65,7 +65,7 @@ jobs:
     name: Build MacOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@nightly
@@ -80,7 +80,7 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact
           cp ${{ github.workspace }}/target/release/luminol ${{ github.workspace }}/artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-mac
           path: ${{ github.workspace }}/artifact/
@@ -89,7 +89,7 @@ jobs:
     name: Build Trunk
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install libraries
@@ -108,7 +108,7 @@ jobs:
       - name: Build luminol (Release)
         run: ${{ runner.temp }}/trunk build --release
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-trunk
           path: ${{ github.workspace }}/dist/

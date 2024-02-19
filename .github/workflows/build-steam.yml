@@ -14,7 +14,7 @@ jobs:
     name: Build Ubuntu
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install libraries
@@ -34,7 +34,7 @@ jobs:
           cp ${{ github.workspace }}/target/release/luminol ${{ github.workspace }}/artifact
           cp ${{ github.workspace }}/steamworks/redistributable_bin/linux64/libsteam_api.so ${{ github.workspace }}/artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-linux
           path: ${{ github.workspace }}/artifact/
@@ -43,7 +43,7 @@ jobs:
     name: Build Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@nightly
@@ -59,7 +59,7 @@ jobs:
           cp ${{ github.workspace }}/target/release/luminol.exe ${{ github.workspace }}/artifact
           cp ${{ github.workspace }}/steamworks/redistributable_bin/win64/steam_api64.dll ${{ github.workspace }}/artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-windows
           path: ${{ github.workspace }}/artifact/
@@ -68,7 +68,7 @@ jobs:
     name: Build MacOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@nightly
@@ -84,7 +84,7 @@ jobs:
           cp ${{ github.workspace }}/target/release/luminol ${{ github.workspace }}/artifact
           cp ${{ github.workspace }}/steamworks/redistributable_bin/osx/libsteam_api.dylib ${{ github.workspace }}/artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: luminol-mac
           path: ${{ github.workspace }}/artifact/
