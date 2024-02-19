@@ -164,6 +164,13 @@ pub fn update_text_agent(state: &super::MainState) -> Option<()> {
                 }
             }
         }
+
+        // Blur and refocus the text agent (it gets refocused in the "focusout" event listener
+        // after we blur it here), otherwise in Firefox, IME composition sometimes causes the IME
+        // window to open in the wrong position
+        call_after_delay(std::time::Duration::from_millis(0), move || {
+            let _ = input.blur();
+        });
     } else {
         // Holding the runner lock while calling input.blur() causes a panic.
         // This is most probably caused by the browser running the event handler
@@ -218,7 +225,8 @@ pub fn move_text_cursor(
     ime: Option<egui::output::IMEOutput>,
     canvas: &web_sys::HtmlCanvasElement,
 ) -> Option<()> {
-    let style = text_agent().style();
+    let input = text_agent();
+    let style = input.style();
     // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
         ime.as_ref().and_then(|ime| {
@@ -230,7 +238,12 @@ pub fn move_text_cursor(
             let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
             style.set_property("position", "absolute").ok()?;
             style.set_property("top", &format!("{y}px")).ok()?;
-            style.set_property("left", &format!("{x}px")).ok()
+            style.set_property("left", &format!("{x}px")).ok()?;
+
+            // Blur and refocus the text agent (it gets refocused in the "focusout" event listener
+            // after we blur it here), otherwise in Firefox, IME composition sometimes causes the IME
+            // window to open in the wrong position
+            input.blur().ok()
         })
     } else {
         style.set_property("position", "absolute").ok()?;
