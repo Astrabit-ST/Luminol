@@ -24,7 +24,7 @@
  * SOFTWARE.
 */
 
-const CACHE_NAME = "luminol";
+const CACHE_NAME = "astrabit.luminol";
 
 let coepCredentialless = false;
 if (typeof window === 'undefined') {
