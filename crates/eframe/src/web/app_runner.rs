@@ -87,7 +87,7 @@ impl AppRunner {
 
         let egui_ctx = egui::Context::default();
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(&user_agent));
-        super::storage::load_memory(&egui_ctx, &worker_options.channels).await;
+        super::storage::load_memory(&egui_ctx).await;
 
         egui_ctx.options_mut(|o| {
             // On web, the browser controls the zoom factor:

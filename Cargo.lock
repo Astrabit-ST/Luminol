@@ -3235,7 +3235,6 @@ dependencies = [
  "egui",
  "flume",
  "futures-lite 2.1.0",
- "indexed_db_futures",
  "iter-read",
  "itertools",
  "js-sys",
@@ -3346,6 +3345,7 @@ dependencies = [
 name = "luminol-web"
 version = "0.4.0"
 dependencies = [
+ "indexed_db_futures",
  "js-sys",
  "wasm-bindgen",
  "wasm-bindgen-futures",
