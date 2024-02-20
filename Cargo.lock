@@ -861,15 +861,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c59e92b5a388f549b863a7bea62612c09f24c8393560709a54558a9abdfb3b9c"
 
 [[package]]
-name = "catppuccin-egui"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64bd5a6c2c4bd822735e69d27609fe6fc41e8ec7dd0a7c338dedfdf69fd915b6"
-dependencies = [
- "egui",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3315,7 +3306,6 @@ version = "0.4.0"
 dependencies = [
  "async-std",
  "camino",
- "catppuccin-egui",
  "color-eyre",
  "egui",
  "futures-util",
