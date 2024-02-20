@@ -26,7 +26,7 @@
 
 const CACHE_NAME = "astrabit.luminol";
 
-let coepCredentialless = false;
+let coepCredentialless = true;
 if (typeof window === 'undefined') {
     self.addEventListener("install", () => self.skipWaiting());
     self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
