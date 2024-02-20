@@ -50,21 +50,6 @@ impl luminol_core::Window for Window {
             self.egui_settings_open =
                 ui.button("Egui Settings").clicked() || self.egui_settings_open;
 
-            ui.menu_button("Catppuccin theme", |ui| {
-                if ui.button("Frappe").clicked() {
-                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::FRAPPE);
-                }
-                if ui.button("Latte").clicked() {
-                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::LATTE);
-                }
-                if ui.button("Macchiato").clicked() {
-                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::MACCHIATO);
-                }
-                if ui.button("Mocha").clicked() {
-                    catppuccin_egui::set_theme(ui.ctx(), catppuccin_egui::MOCHA);
-                }
-            });
-
             ui.menu_button("Code Theme", |ui| {
                 for t in luminol_config::SyntectTheme::iter() {
                     ui.radio_value(
