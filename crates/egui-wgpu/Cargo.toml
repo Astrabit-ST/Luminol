@@ -44,8 +44,8 @@ x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false }
-epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
+egui = { workspace = true }
+epaint = { workspace = true, features = ["bytemuck"] }
 
 bytemuck = "1.7"
 document-features.workspace = true

@@ -129,7 +129,7 @@ x11 = [
 __screenshot = []
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = [
+egui = { workspace = true, features = [
   "bytemuck",
   "log",
 ] }
@@ -156,7 +156,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = [
+egui-winit = { workspace = true, features = [
   "clipboard",
   "links",
 ] }
