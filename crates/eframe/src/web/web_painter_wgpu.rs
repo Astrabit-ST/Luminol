@@ -178,7 +178,7 @@ impl WebPainterWgpu {
             .create_surface(wgpu::SurfaceTarget::OffscreenCanvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
-        let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
+        let depth_format = luminol_egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
 
         let render_state =
             RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
@@ -248,7 +248,7 @@ impl WebPainter for WebPainterWgpu {
                 });
 
         // Upload all resources for the GPU.
-        let screen_descriptor = egui_wgpu::ScreenDescriptor {
+        let screen_descriptor = luminol_egui_wgpu::ScreenDescriptor {
             size_in_pixels,
             pixels_per_point,
         };
