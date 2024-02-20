@@ -159,6 +159,8 @@ where
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
+                ui.style_mut().wrap = Some(true);
+
                 for (i, variant) in T::iter().enumerate() {
                     ui.with_stripe(i % 2 != 0, |ui| {
                         if ui
@@ -364,6 +366,8 @@ where
                 }
             },
             |this, ui, ids, first_row_is_faint, show_none| {
+                ui.style_mut().wrap = Some(true);
+
                 if show_none
                     && ui
                         .with_stripe(false, |ui| {
@@ -418,6 +422,8 @@ where
             ui,
             |this| (this.formatter)(*this.reference),
             |this, ui, ids, first_row_is_faint, _| {
+                ui.style_mut().wrap = Some(true);
+
                 let mut is_faint = first_row_is_faint;
 
                 for id in ids {

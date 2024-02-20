@@ -3,7 +3,7 @@
 //! If you're targeting WebGL you also need to turn on the
 //! `webgl` feature of the `wgpu` crate:
 //!
-//! ```ignore
+//! ```toml
 //! # Enable both WebGL and WebGPU backends on web.
 //! wgpu = { version = "*", features = ["webgpu", "webgl"] }
 //! ```
@@ -13,7 +13,7 @@
 //! The default is to prefer WebGPU and fall back on WebGL.
 //!
 //! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![doc = document_features::document_features!()]
 //!
 
 #![allow(unsafe_code)]
@@ -24,9 +24,9 @@
 pub use wgpu;
 
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
-pub mod renderer;
-pub use renderer::Renderer;
-pub use renderer::{Callback, CallbackResources, CallbackTrait};
+mod renderer;
+
+pub use renderer::*;
 
 /// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]
@@ -231,6 +231,15 @@ pub struct WgpuConfiguration {
     /// Present mode used for the primary surface.
     pub present_mode: wgpu::PresentMode,
 
+    /// Desired maximum number of frames that the presentation engine should queue in advance.
+    ///
+    /// Use `1` for low-latency, and `2` for high-throughput.
+    ///
+    /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
+    ///
+    /// `None` = `wgpu` default.
+    pub desired_maximum_frame_latency: Option<u32>,
+
     /// Power preference for the adapter.
     pub power_preference: wgpu::PowerPreference,
 
@@ -240,10 +249,22 @@ pub struct WgpuConfiguration {
 
 impl std::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            supported_backends,
+            device_descriptor: _,
+            present_mode,
+            desired_maximum_frame_latency,
+            power_preference,
+            on_surface_error: _,
+        } = self;
         f.debug_struct("WgpuConfiguration")
-            .field("supported_backends", &self.supported_backends)
-            .field("present_mode", &self.present_mode)
-            .field("power_preference", &self.power_preference)
+            .field("supported_backends", &supported_backends)
+            .field("present_mode", &present_mode)
+            .field(
+                "desired_maximum_frame_latency",
+                &desired_maximum_frame_latency,
+            )
+            .field("power_preference", &power_preference)
             .finish_non_exhaustive()
     }
 }
@@ -276,6 +297,8 @@ impl Default for WgpuConfiguration {
             }),
 
             present_mode: wgpu::PresentMode::AutoVsync,
+
+            desired_maximum_frame_latency: None,
 
             power_preference: wgpu::util::power_preference_from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),

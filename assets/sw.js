@@ -106,7 +106,7 @@ if (typeof window === 'undefined') {
                     });
 
                     // Auto-cache non-error, non-opaque responses for all same-origin requests other than buildinfo.json
-                    if (response.type === "error" || new URL(request.url).origin !== self.origin || request.url.endsWith('/buildinfo.json')) {
+                    if (response.type === "error" || url.origin !== self.origin || url.pathname.endsWith("/buildinfo.json")) {
                         return newResponse;
                     } else {
                         return self.caches
@@ -116,7 +116,7 @@ if (typeof window === 'undefined') {
                     }
                 })
                 .catch((e) => {
-                    if (!request.url.endsWith('/buildinfo.json')) {
+                    if (!url.pathname.endsWith("/buildinfo.json")) {
                         console.error(e);
                     }
                 })
