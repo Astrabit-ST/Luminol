@@ -214,7 +214,7 @@ impl MapView {
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
             let old_scale = self.scale;
-            let delta = ui.input(|i| i.scroll_delta.y);
+            let delta = ui.input(|i| i.smooth_scroll_delta.y);
 
             // Apply scroll and cap max zoom to 15%
             self.scale *= (delta / 9.0f32.exp2()).exp2();
@@ -509,7 +509,7 @@ impl MapView {
                                     5.,
                                     egui::Stroke::new(1., egui::Color32::WHITE),
                                 ),
-                            }
+                            };
                         });
 
                         if let Some(hover_tile) = self.hover_tile {
