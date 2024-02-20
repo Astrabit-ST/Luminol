@@ -66,7 +66,7 @@ fn run_and_return(
 ) -> Result<()> {
     use winit::{event_loop::ControlFlow, platform::run_on_demand::EventLoopExtRunOnDemand};
 
-    log::debug!("Entering the winit event loop (run_on_demand)…");
+    log::trace!("Entering the winit event loop (run_on_demand)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
@@ -192,8 +192,13 @@ fn run_and_return(
 
             if let Some(window) = winit_app.window(*window_id) {
                 log::trace!("request_redraw for {window_id:?}");
-                window.request_redraw();
-                true
+                let is_minimized = window.is_minimized().unwrap_or(false);
+                if is_minimized {
+                    false
+                } else {
+                    window.request_redraw();
+                    true
+                }
             } else {
                 log::trace!("No window found for {window_id:?}");
                 false
@@ -231,7 +236,7 @@ fn run_and_exit(
     mut winit_app: impl WinitApp + 'static,
 ) -> Result<()> {
     use winit::event_loop::ControlFlow;
-    log::debug!("Entering the winit event loop (run)…");
+    log::trace!("Entering the winit event loop (run)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
@@ -345,8 +350,13 @@ fn run_and_exit(
 
             if let Some(window) = winit_app.window(*window_id) {
                 log::trace!("request_redraw for {window_id:?}");
-                window.request_redraw();
-                true
+                let is_minimized = window.is_minimized().unwrap_or(false);
+                if is_minimized {
+                    false
+                } else {
+                    window.request_redraw();
+                    true
+                }
             } else {
                 log::trace!("No window found for {window_id:?}");
                 false

@@ -88,7 +88,11 @@ puffin = [
 ]
 
 ## Enables wayland support and fixes clipboard issue.
-wayland = ["egui-winit/wayland"]
+wayland = [
+  "egui-winit/wayland",
+  "luminol-egui-wgpu?/wayland",
+  #"egui_glow?/wayland",
+]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
@@ -105,7 +109,7 @@ web_screen_reader = [
 ## By default, only WebGPU is enabled on web.
 ## If you want to enable WebGL, you need to turn on the `webgl` feature of crate `wgpu`:
 ##
-## ```ignore
+## ```toml
 ## wgpu = { version = "*", features = ["webgpu", "webgl"] }
 ## ```
 ##
@@ -114,28 +118,33 @@ web_screen_reader = [
 wgpu = ["dep:wgpu", "dep:luminol-egui-wgpu", "dep:pollster"]
 
 ## Enables compiling for x11.
-x11 = ["egui-winit/x11"]
+x11 = [
+  "egui-winit/x11",
+  "luminol-egui-wgpu?/x11",
+  #"egui_glow?/x11",
+]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
 ## This is used to generate images for examples.
 __screenshot = []
 
 [dependencies]
-egui = { workspace = true, features = [
+egui = { workspace = true, default-features = false, features = [
   "bytemuck",
   "log",
 ] }
-log = { version = "0.4", features = ["std"] }
-parking_lot = "0.12"
+
+document-features.workspace = true
+log.workspace = true
+parking_lot.workspace = true
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"
 thiserror.workspace = true
+web-time.workspace = true
 
-#! ### Optional dependencies
-## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+# Optional dependencies
 
-#egui_glow = { workspace = true, optional = true }
+#egui_glow = { workspace = true, optional = true, default-features = false }
 #glow = { workspace = true, optional = true }
 # glutin stuck on old version of raw-window-handle:
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
@@ -147,7 +156,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, features = [
+egui-winit = { workspace = true, default-features = false, features = [
   "clipboard",
   "links",
 ] }
@@ -168,7 +177,12 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 glutin = { version = "0.31", optional = true }
 glutin-winit = { version = "0.4", optional = true }
 puffin = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true, features = [
+  # Let's enable some backends so that users can use `eframe` out-of-the-box
+  # without having to explicitly opt-in to backends
+  "metal",
+  "webgpu",
+] }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
@@ -177,7 +191,7 @@ objc = "0.2.7"
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = "0.3.9"
+winapi = { version = "0.3.9", features = ["winuser"] }
 
 # -------------------------------------------
 # web:
