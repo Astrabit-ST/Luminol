@@ -66,9 +66,24 @@ if (typeof window === 'undefined') {
                 return new Request(url, r);
             })()
             : r;
+
+        const url = new URL(request.url);
+        url.hash = "";
+        url.pathname = url.pathname.trim();
+        // Unescape escape codes like "%2f"
+        url.pathname = decodeURIComponent(url.pathname);
+        // Replace backslashes with forward slashes
+        url.pathname = url.pathname.replace(/\\/g, "/");
+        // Collapse repeated slashes
+        url.pathname = url.pathname.replace(/\/+/g, "/");
+        // Remove trailing slashes
+        if (url.pathname.endsWith("/")) url.pathname = url.pathname.slice(0, -1);
+        // Strip "index.html" from the end
+        if (url.pathname.endsWith("/index.html")) url.pathname = url.pathname.slice(0, -11);
+
         event.respondWith(
             self.caches
-                .match(request)
+                .match(url)
                 .then((cached) => cached || fetch(request)) // Respond with cached response if one exists for this request
                 .then((response) => {
                     if (response.status === 0) {
@@ -96,7 +111,7 @@ if (typeof window === 'undefined') {
                     } else {
                         return self.caches
                             .open(CACHE_NAME)
-                            .then((cache) => cache.put(request, newResponse.clone()))
+                            .then((cache) => cache.put(url, newResponse.clone()))
                             .then(() => newResponse);
                     }
                 })
