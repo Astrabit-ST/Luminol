@@ -18,8 +18,8 @@
 import wasm_bindgen, { luminol_worker_start } from './luminol.js';
 
 onmessage = async function (e) {
-    const [memory, canvas] = e.data;
+    const [module, memory, canvas] = e.data;
 
-    await wasm_bindgen(undefined, memory);
+    await wasm_bindgen(module, memory);
     await luminol_worker_start(canvas);
 };
