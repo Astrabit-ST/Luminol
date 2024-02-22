@@ -524,6 +524,7 @@ pub fn luminol_main_start() {
     worker_cell.set(worker.clone()).unwrap();
 
     let message = js_sys::Array::new();
+    message.push(&wasm_bindgen::module());
     message.push(&wasm_bindgen::memory());
     message.push(&offscreen_canvas);
     let transfer = js_sys::Array::new();
