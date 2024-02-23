@@ -20,6 +20,7 @@ pub mod binding_helpers;
 pub use binding_helpers::{BindGroupBuilder, BindGroupLayoutBuilder};
 
 pub mod collision;
+pub mod grid;
 pub mod quad;
 pub mod sprite;
 pub mod tiles;
@@ -49,18 +50,23 @@ pub struct GraphicsState {
 
     pipelines: Pipelines,
     bind_group_layouts: BindGroupLayouts,
+
+    texture_error_tx: crossbeam::channel::Sender<color_eyre::Report>,
+    texture_error_rx: crossbeam::channel::Receiver<color_eyre::Report>,
 }
 
 pub struct BindGroupLayouts {
     sprite: wgpu::BindGroupLayout,
     tiles: wgpu::BindGroupLayout,
     collision: wgpu::BindGroupLayout,
+    grid: wgpu::BindGroupLayout,
 }
 
 pub struct Pipelines {
     sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
     tiles: wgpu::RenderPipeline,
     collision: wgpu::RenderPipeline,
+    grid: wgpu::RenderPipeline,
 }
 
 impl GraphicsState {
@@ -69,6 +75,7 @@ impl GraphicsState {
             sprite: sprite::create_bind_group_layout(&render_state),
             tiles: tiles::create_bind_group_layout(&render_state),
             collision: collision::create_bind_group_layout(&render_state),
+            grid: grid::create_bind_group_layout(&render_state),
         };
 
         let pipelines = Pipelines {
@@ -78,6 +85,7 @@ impl GraphicsState {
                 &render_state,
                 &bind_group_layouts,
             ),
+            grid: grid::shader::create_render_pipeline(&render_state, &bind_group_layouts),
         };
 
         let texture_loader = texture_loader::Loader::new(render_state.clone());
@@ -94,6 +102,8 @@ impl GraphicsState {
                 ..Default::default()
             });
 
+        let (texture_error_tx, texture_error_rx) = crossbeam::channel::unbounded();
+
         Self {
             texture_loader,
             atlas_loader: atlas_cache,
@@ -103,11 +113,30 @@ impl GraphicsState {
 
             pipelines,
             bind_group_layouts,
+
+            texture_error_tx,
+            texture_error_rx,
         }
     }
 
     pub fn push_constants_supported(&self) -> bool {
         push_constants_supported(&self.render_state)
+    }
+
+    pub fn send_texture_error(&self, error: color_eyre::Report) {
+        self.texture_error_tx
+            .try_send(error)
+            .expect("failed to send texture error");
+    }
+
+    pub fn texture_errors(&self) -> impl Iterator<Item = color_eyre::Report> + '_ {
+        self.texture_error_rx.try_iter()
+    }
+
+    pub fn placeholder_img(&self) -> image::RgbaImage {
+        image::load_from_memory(include_bytes!("../data/placeholder.png"))
+            .expect("assets/placeholder.png is not a valid image")
+            .to_rgba8()
     }
 }
 

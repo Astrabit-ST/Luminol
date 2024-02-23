@@ -35,13 +35,14 @@ struct CactusNode {
 /// This cache stores the lowercased versions of paths and their corresponding original paths.
 /// Given a lowercased path, for example "data/mapinfos", you can find the original path by first
 /// appending a forward slash followed by `TRIE_SUFFIX` to the end of the path, then looking up the
-/// file at that path in `trie`. This gives you the index of a node in `cactus`, which stores the
+/// file at that path in `trie` and then looking up the lowercased file extension.
+/// This gives you the index of a node in `cactus`, which stores the
 /// original path. To recover the original path, follow the chain of cactus stack nodes by
 /// following the `next` field on the nodes. This gives you the path components of the original
 /// path in reverse order.
 #[derive(Debug, Default, Clone)]
 struct Cache {
-    trie: crate::FileSystemTrie<usize>,
+    trie: crate::FileSystemTrie<qp_trie::Trie<qp_trie::wrapper::BString, usize>>,
     cactus: slab::Slab<CactusNode>,
 }
 
@@ -79,14 +80,19 @@ impl Cache {
         path: impl AsRef<camino::Utf8Path>,
     ) -> crate::Result<()> {
         let mut path = to_lowercase(path);
+        let extension = path.extension().unwrap_or_default().to_string();
         path.set_extension("");
         if self.trie.contains_dir(&path) {
             return Ok(());
         }
 
         let prefix = self.trie.get_dir_prefix(&path);
-        let mut cactus_index = (!prefix.as_str().is_empty())
-            .then(|| *self.trie.get_file(with_trie_suffix(prefix)).unwrap());
+        let mut cactus_index = (!prefix.as_str().is_empty()).then(|| {
+            let extension_trie = self.trie.get_file(with_trie_suffix(prefix)).unwrap();
+            *extension_trie
+                .get_str(&extension)
+                .unwrap_or(extension_trie.values().next().unwrap())
+        });
         let mut len = prefix.iter().count();
 
         // Get the longest prefix of the path that is in the trie, convert it to lowercase and
@@ -130,19 +136,25 @@ impl Cache {
                     .file_stem()
                     .unwrap_or(entry.file_name())
                     .to_lowercase();
+                let entry_extension = camino::Utf8Path::new(entry.file_name())
+                    .extension()
+                    .unwrap_or_default()
+                    .to_lowercase();
                 let index = self.cactus.insert(CactusNode {
                     value: entry.file_name().to_string(),
                     next: cactus_index,
                     len,
                 });
-                self.trie.create_file(
-                    if lower_string.is_empty() {
-                        with_trie_suffix(&entry_name)
-                    } else {
-                        format!("{lower_string}/{entry_name}/{TRIE_SUFFIX}").into()
-                    },
-                    index,
-                );
+                self.trie
+                    .get_or_create_file_with_mut(
+                        if lower_string.is_empty() {
+                            with_trie_suffix(&entry_name)
+                        } else {
+                            format!("{lower_string}/{entry_name}/{TRIE_SUFFIX}").into()
+                        },
+                        Default::default,
+                    )
+                    .insert_str(&entry_extension, index);
                 if entry_name == name {
                     original_name = Some(entry.file_name().to_string());
                     new_cactus_index = index;
@@ -175,10 +187,17 @@ impl Cache {
             return Some(Default::default());
         }
         let mut path = to_lowercase(path);
+        let extension = path.extension().unwrap_or_default().to_string();
         path.set_extension("");
         self.trie
             .get_file(with_trie_suffix(&path))
-            .map(|i| self.get_path_from_cactus_index(*i))
+            .map(|extension_trie| {
+                self.get_path_from_cactus_index(
+                    *extension_trie
+                        .get_str(&extension)
+                        .unwrap_or(extension_trie.values().next().unwrap()),
+                )
+            })
     }
 }
 
@@ -208,7 +227,7 @@ where
                 ui.text_style_height(&egui::TextStyle::Body),
                 cache.cactus.len(),
                 |ui, rows| {
-                    for (_, (key, index)) in cache
+                    for (_, (key, extension_trie)) in cache
                         .trie
                         .iter_prefix("")
                         .unwrap()
@@ -222,7 +241,13 @@ where
                         ui.horizontal(|ui| {
                             ui.label(key);
                             ui.label("➡");
-                            ui.label(cache.get_path_from_cactus_index(*index).as_str());
+                            ui.label(
+                                cache
+                                    .get_path_from_cactus_index(
+                                        *extension_trie.values().next().unwrap(),
+                                    )
+                                    .as_str(),
+                            );
                         });
                     }
                 },
@@ -325,16 +350,15 @@ where
 
         self.fs.rename(&from, to).wrap_err_with(|| c.clone())?;
 
-        for index in cache
-            .trie
-            .iter_prefix(&from)
-            .unwrap()
-            .map(|(_, i)| *i)
-            .collect_vec()
         {
-            cache.cactus.remove(index);
+            let cache = &mut *cache;
+            for extension_trie in cache.trie.iter_prefix(&from).unwrap().map(|(_, t)| t) {
+                for index in extension_trie.values().copied() {
+                    cache.cactus.remove(index);
+                }
+            }
+            cache.trie.remove_dir(&from);
         }
-        cache.trie.remove_dir(&from);
 
         Ok(())
     }
@@ -354,10 +378,15 @@ where
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
 
         let mut lower_path = to_lowercase(path);
+        let extension = lower_path.extension().unwrap_or_default().to_string();
         lower_path.set_extension("");
         let prefix = cache.trie.get_dir_prefix(lower_path);
-        let cactus_index = (!prefix.as_str().is_empty())
-            .then(|| *cache.trie.get_file(with_trie_suffix(prefix)).unwrap());
+        let cactus_index = (!prefix.as_str().is_empty()).then(|| {
+            let extension_trie = cache.trie.get_file(with_trie_suffix(prefix)).unwrap();
+            *extension_trie
+                .get_str(&extension)
+                .unwrap_or(extension_trie.values().next().unwrap())
+        });
         let original_prefix =
             cactus_index.map_or_else(Default::default, |i| cache.get_path_from_cactus_index(i));
         let len = original_prefix.iter().count();
@@ -390,16 +419,15 @@ where
 
         self.fs.remove_dir(&path).wrap_err_with(|| c.clone())?;
 
-        for index in cache
-            .trie
-            .iter_prefix(&path)
-            .unwrap()
-            .map(|(_, i)| *i)
-            .collect_vec()
         {
-            cache.cactus.remove(index);
+            let cache = &mut *cache;
+            for extension_trie in cache.trie.iter_prefix(&path).unwrap().map(|(_, t)| t) {
+                for index in extension_trie.values().copied() {
+                    cache.cactus.remove(index);
+                }
+            }
+            cache.trie.remove_dir(&path);
         }
-        cache.trie.remove_dir(&path);
 
         Ok(())
     }
@@ -416,16 +444,15 @@ where
 
         self.fs.remove_file(&path).wrap_err_with(|| c.clone())?;
 
-        for index in cache
-            .trie
-            .iter_prefix(&path)
-            .unwrap()
-            .map(|(_, i)| *i)
-            .collect_vec()
         {
-            cache.cactus.remove(index);
+            let cache = &mut *cache;
+            for extension_trie in cache.trie.iter_prefix(&path).unwrap().map(|(_, t)| t) {
+                for index in extension_trie.values().copied() {
+                    cache.cactus.remove(index);
+                }
+            }
+            cache.trie.remove_dir(&path);
         }
-        cache.trie.remove_dir(&path);
 
         Ok(())
     }

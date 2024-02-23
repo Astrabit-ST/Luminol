@@ -16,11 +16,11 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::util::{
-    generate_key, get_subdir, get_subdir_create, get_tmp_dir, handle_event, idb, to_future,
+    generate_key, get_subdir, get_subdir_create, get_tmp_dir, handle_event, to_future,
 };
 use super::FileSystemCommand;
 use crate::{DirEntry, Error, Metadata, OpenFlags};
-use indexed_db_futures::prelude::*;
+use luminol_web::IdbQuerySource;
 use std::io::ErrorKind::{InvalidInput, PermissionDenied};
 use wasm_bindgen::prelude::*;
 
@@ -121,7 +121,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                 FileSystemCommand::DirFromIdb(idb_key, tx) => {
                     handle_event(tx, async {
-                        let dir = idb(IdbTransactionMode::Readonly, |store| {
+                        let dir = luminol_web::idb("filesystem.dir_handles", luminol_web::IdbTransactionMode::Readonly, |store| {
                             store.get_owned(&idb_key)
                         })
                         .await
@@ -138,7 +138,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                                     let name = dir.name();
                                     (dirs.insert(dir), name)
                                 }).ok_or(color_eyre::eyre::eyre!("Failed to request permission for directory handle restored from IndexedDB"))?;
-                        idb(IdbTransactionMode::Readwrite, |store| {
+                        luminol_web::idb("filesystem.dir_handles", luminol_web::IdbTransactionMode::Readwrite, |store| {
                             store.delete_owned(&idb_key)
                         })
                         .await
@@ -151,9 +151,11 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                 FileSystemCommand::DirToIdb(key, idb_key, tx) => {
                     handle_event(tx, async {
                         let dir = dirs.get(key).unwrap();
-                        idb(IdbTransactionMode::Readwrite, |store| {
-                            store.put_key_val_owned(idb_key, dir)
-                        })
+                        luminol_web::idb(
+                            "filesystem.dir_handles",
+                            luminol_web::IdbTransactionMode::Readwrite,
+                            |store| store.put_key_val_owned(idb_key, dir),
+                        )
                         .await
                         .is_ok()
                     })

@@ -24,9 +24,9 @@
  * SOFTWARE.
 */
 
-const CACHE_NAME = "luminol";
+const CACHE_NAME = "astrabit.luminol";
 
-let coepCredentialless = false;
+let coepCredentialless = true;
 if (typeof window === 'undefined') {
     self.addEventListener("install", () => self.skipWaiting());
     self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -66,9 +66,24 @@ if (typeof window === 'undefined') {
                 return new Request(url, r);
             })()
             : r;
+
+        const url = new URL(request.url);
+        url.hash = "";
+        url.pathname = url.pathname.trim();
+        // Unescape escape codes like "%2f"
+        url.pathname = decodeURIComponent(url.pathname);
+        // Replace backslashes with forward slashes
+        url.pathname = url.pathname.replace(/\\/g, "/");
+        // Collapse repeated slashes
+        url.pathname = url.pathname.replace(/\/+/g, "/");
+        // Remove trailing slashes
+        if (url.pathname.endsWith("/")) url.pathname = url.pathname.slice(0, -1);
+        // Strip "index.html" from the end
+        if (url.pathname.endsWith("/index.html")) url.pathname = url.pathname.slice(0, -11);
+
         event.respondWith(
             self.caches
-                .match(request)
+                .match(url)
                 .then((cached) => cached || fetch(request)) // Respond with cached response if one exists for this request
                 .then((response) => {
                     if (response.status === 0) {
@@ -90,22 +105,81 @@ if (typeof window === 'undefined') {
                         headers: newHeaders,
                     });
 
-                    // Auto-cache non-error, non-opaque responses for all same-origin requests
-                    if (response.type === "error" || new URL(request.url).origin !== self.origin) {
+                    // Auto-cache non-error, non-opaque responses for all same-origin requests other than buildinfo.json
+                    if (response.type === "error" || url.origin !== self.origin || url.pathname.endsWith("/buildinfo.json")) {
                         return newResponse;
                     } else {
                         return self.caches
                             .open(CACHE_NAME)
-                            .then((cache) => cache.put(request, newResponse.clone()))
+                            .then((cache) => cache.put(url, newResponse.clone()))
                             .then(() => newResponse);
                     }
                 })
-                .catch((e) => console.error(e))
+                .catch((e) => {
+                    if (!url.pathname.endsWith("/buildinfo.json")) {
+                        console.error(e);
+                    }
+                })
         );
     });
 
 } else {
     (() => {
+        // Check for the current Luminol build info, and then clear the cache storage if
+        // it doesn't match the build info we previously stored in local storage
+        if (!window.sessionStorage.getItem("luminolCheckedForUpdate") && window.sessionStorage.getItem("coiReloadedAfterSuccess")) {
+            (
+                window.location.hash === "#dev"
+                    ? Promise.resolve(null)
+                    : fetch("./buildinfo.json")
+                        .then((response) => {
+                            if (response.status === 200) {
+                                return response.json();
+                            } else {
+                                console.warn("Error checking for Luminol updates: request returned status code", response.status);
+                            }
+                        })
+            )
+                .then((info) => {
+                    if (info === undefined) {
+                        return;
+                    }
+                    const oldInfo = JSON.parse(window.localStorage.getItem("luminolBuildInfo"));
+                    if (
+                        info === null
+                            || oldInfo === null
+                            || info.epoch !== oldInfo.epoch
+                            || info.rev !== oldInfo.rev
+                            || info.profile !== oldInfo.profile
+                            || info.profile !== "release"
+                            || info.rev.endsWith("-modified")
+                    ) {
+                        !coi.quiet && console.log("New Luminol update detected - clearing cache.");
+                        return window.caches.delete(CACHE_NAME).then(() => info);
+                    }
+                })
+                .then((info) => {
+                    if (info === undefined) {
+                        return false;
+                    }
+                    window.sessionStorage.clear();
+                    window.localStorage.setItem("luminolBuildInfo", JSON.stringify(info));
+                    window.sessionStorage.setItem("luminolCheckedForUpdate", "true");
+                    return window.navigator?.serviceWorker.getRegistration()
+                        .then((registration) => registration?.unregister())
+                        .then(() => true)
+                            ?? true;
+                })
+                .then((shouldRefresh) => {
+                    if (!shouldRefresh) {
+                        return;
+                    }
+                    !coi.quiet && console.log("Reloading page to finish clearing cache.");
+                    coi.doReload();
+                })
+                .catch((e) => console.warn("Error checking for Luminol updates:", e));
+        }
+
         const reloadedBySelf = window.sessionStorage.getItem("coiReloadedBySelf");
         window.sessionStorage.removeItem("coiReloadedBySelf");
         const coepDegrading = (reloadedBySelf == "coepdegrade");
@@ -160,6 +234,9 @@ if (typeof window === 'undefined') {
                 !coi.quiet && console.log("Reloading page to set COEP for this service worker.");
                 window.sessionStorage.setItem("coiReloadedAfterSuccess", "true");
                 coi.doReload("coepaftersuccess");
+            } else {
+                window.sessionStorage.removeItem("luminolCheckedForUpdate");
+                window.sessionStorage.removeItem("coiReloadedAfterSuccess");
             }
             return;
         }
@@ -167,12 +244,14 @@ if (typeof window === 'undefined') {
 
         if (!window.isSecureContext) {
             !coi.quiet && console.log("COOP/COEP Service Worker not registered, a secure context is required.");
+            window.sessionStorage.removeItem("luminolCheckedForUpdate");
             return;
         }
 
         // In some environments (e.g. Firefox private mode) this won't be available
         if (!n.serviceWorker) {
             !coi.quiet && console.error("COOP/COEP Service Worker not registered, perhaps due to private mode.");
+            window.sessionStorage.removeItem("luminolCheckedForUpdate");
             return;
         }
 
@@ -194,6 +273,7 @@ if (typeof window === 'undefined') {
                 }
             },
             (err) => {
+                window.sessionStorage.removeItem("luminolCheckedForUpdate");
                 !coi.quiet && console.error("COOP/COEP Service Worker failed to register:", err);
             }
         );

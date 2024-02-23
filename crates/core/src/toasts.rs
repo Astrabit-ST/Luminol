@@ -26,14 +26,25 @@ use color_eyre::Section;
 use itertools::Itertools;
 
 /// A toasts management struct.
-#[derive(Default)]
 pub struct Toasts {
     inner: egui_notify::Toasts,
+}
+
+impl Default for Toasts {
+    fn default() -> Self {
+        Self {
+            inner: egui_notify::Toasts::default().reverse(true),
+        }
+    }
 }
 
 // We wrap the toasts structs in a RefCell to maintain interior mutability.
 #[allow(dead_code)]
 impl Toasts {
+    fn new() -> Self {
+        Default::default()
+    }
+
     /// Add a custom toast.
     pub fn add(&mut self, toast: egui_notify::Toast) {
         self.inner.add(toast);

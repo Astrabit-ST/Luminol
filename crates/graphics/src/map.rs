@@ -15,13 +15,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use color_eyre::eyre::Context;
+use image::EncodableLayout;
+use itertools::Itertools;
+use wgpu::util::DeviceExt;
+
 use std::sync::Arc;
 
 use std::time::Duration;
 
 use fragile::Fragile;
 
-use crate::{collision::Collision, tiles::Tiles, viewport::Viewport, GraphicsState, Plane};
+use crate::{
+    collision::Collision, grid::Grid, tiles::Tiles, viewport::Viewport, GraphicsState, Plane,
+};
 
 pub struct Map {
     resources: Arc<Resources>,
@@ -31,6 +38,7 @@ pub struct Map {
     pub fog_enabled: bool,
     pub pano_enabled: bool,
     pub coll_enabled: bool,
+    pub grid_enabled: bool,
     pub enabled_layers: Vec<bool>,
 }
 
@@ -39,6 +47,7 @@ struct Resources {
     panorama: Option<Plane>,
     fog: Option<Plane>,
     collision: Collision,
+    grid: Grid,
 }
 
 // wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
@@ -57,6 +66,7 @@ struct OverlayCallback {
 
     fog_enabled: bool,
     coll_enabled: bool,
+    grid_enabled: bool,
 }
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
@@ -87,7 +97,7 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
 impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
     fn paint<'a>(
         &'a self,
-        _info: egui::PaintCallbackInfo,
+        info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
@@ -102,6 +112,10 @@ impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
 
         if self.coll_enabled {
             resources.collision.draw(graphics_state, render_pass);
+        }
+
+        if self.grid_enabled {
+            resources.grid.draw(graphics_state, &info, render_pass);
         }
     }
 }
@@ -125,17 +139,69 @@ impl Map {
         ));
 
         let tiles = Tiles::new(graphics_state, viewport.clone(), atlas, &map.data);
+        let grid = Grid::new(
+            graphics_state,
+            viewport.clone(),
+            map.data.xsize(),
+            map.data.ysize(),
+        );
         let collision = Collision::new(graphics_state, viewport.clone(), passages);
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
+            let texture = graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
+                .wrap_err_with(|| format!("Error loading map panorama {panorama_name:?}"))
+                .unwrap_or_else(|e| {
+                    graphics_state.send_texture_error(e);
+
+                    graphics_state
+                        .texture_loader
+                        .get("placeholder_tile_texture")
+                        .unwrap_or_else(|| {
+                            let placeholder_img = graphics_state.placeholder_img();
+
+                            graphics_state.texture_loader.register_texture(
+                                "placeholder_tile_texture",
+                                graphics_state.render_state.device.create_texture_with_data(
+                                    &graphics_state.render_state.queue,
+                                    &wgpu::TextureDescriptor {
+                                        label: Some("placeholder_tile_texture"),
+                                        size: wgpu::Extent3d {
+                                            width: 32,
+                                            height: 32,
+                                            depth_or_array_layers: 1,
+                                        },
+                                        dimension: wgpu::TextureDimension::D2,
+                                        mip_level_count: 1,
+                                        sample_count: 1,
+                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                                        usage: wgpu::TextureUsages::COPY_SRC
+                                            | wgpu::TextureUsages::COPY_DST
+                                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                                        view_formats: &[],
+                                    },
+                                    wgpu::util::TextureDataOrder::LayerMajor,
+                                    &itertools::iproduct!(0..32, 0..32, 0..4)
+                                        .map(|(y, x, c)| {
+                                            // Tile the placeholder image
+                                            placeholder_img.as_bytes()[(c
+                                                + (x % placeholder_img.width()) * 4
+                                                + (y % placeholder_img.height())
+                                                    * 4
+                                                    * placeholder_img.width())
+                                                as usize]
+                                        })
+                                        .collect_vec(),
+                                ),
+                            )
+                        })
+                });
+
             Some(Plane::new(
                 graphics_state,
                 viewport.clone(),
-                graphics_state.texture_loader.load_now_dir(
-                    filesystem,
-                    "Graphics/Panoramas",
-                    panorama_name,
-                )?,
+                texture,
                 tileset.panorama_hue,
                 100,
                 luminol_data::BlendMode::Normal,
@@ -147,14 +213,60 @@ impl Map {
             None
         };
         let fog = if let Some(ref fog_name) = tileset.fog_name {
+            let texture = graphics_state
+                .texture_loader
+                .load_now_dir(filesystem, "Graphics/Fogs", fog_name)
+                .wrap_err_with(|| format!("Error loading map fog {fog_name:?}"))
+                .unwrap_or_else(|e| {
+                    graphics_state.send_texture_error(e);
+
+                    graphics_state
+                        .texture_loader
+                        .get("placeholder_tile_texture")
+                        .unwrap_or_else(|| {
+                            let placeholder_img = graphics_state.placeholder_img();
+
+                            graphics_state.texture_loader.register_texture(
+                                "placeholder_tile_texture",
+                                graphics_state.render_state.device.create_texture_with_data(
+                                    &graphics_state.render_state.queue,
+                                    &wgpu::TextureDescriptor {
+                                        label: Some("placeholder_tile_texture"),
+                                        size: wgpu::Extent3d {
+                                            width: 32,
+                                            height: 32,
+                                            depth_or_array_layers: 1,
+                                        },
+                                        dimension: wgpu::TextureDimension::D2,
+                                        mip_level_count: 1,
+                                        sample_count: 1,
+                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                                        usage: wgpu::TextureUsages::COPY_SRC
+                                            | wgpu::TextureUsages::COPY_DST
+                                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                                        view_formats: &[],
+                                    },
+                                    wgpu::util::TextureDataOrder::LayerMajor,
+                                    &itertools::iproduct!(0..32, 0..32, 0..4)
+                                        .map(|(y, x, c)| {
+                                            // Tile the placeholder image
+                                            placeholder_img.as_bytes()[(c
+                                                + (x % placeholder_img.width()) * 4
+                                                + (y % placeholder_img.height())
+                                                    * 4
+                                                    * placeholder_img.width())
+                                                as usize]
+                                        })
+                                        .collect_vec(),
+                                ),
+                            )
+                        })
+                });
+
             Some(Plane::new(
                 graphics_state,
                 viewport.clone(),
-                graphics_state.texture_loader.load_now_dir(
-                    filesystem,
-                    "Graphics/Fogs",
-                    fog_name,
-                )?,
+                texture,
                 tileset.fog_hue,
                 tileset.fog_zoom,
                 tileset.fog_blend_type,
@@ -172,6 +284,7 @@ impl Map {
                 panorama,
                 fog,
                 collision,
+                grid,
             }),
             viewport,
 
@@ -180,6 +293,7 @@ impl Map {
             fog_enabled: true,
             pano_enabled: true,
             coll_enabled: false,
+            grid_enabled: true,
             enabled_layers: vec![true; map.data.zsize()],
         })
     }
@@ -251,8 +365,14 @@ impl Map {
         &mut self,
         graphics_state: Arc<GraphicsState>,
         painter: &egui::Painter,
+        grid_inner_thickness: f32,
         rect: egui::Rect,
     ) {
+        self.resources
+            .grid
+            .display
+            .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
+
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
             OverlayCallback {
@@ -261,6 +381,7 @@ impl Map {
 
                 fog_enabled: self.fog_enabled,
                 coll_enabled: self.coll_enabled,
+                grid_enabled: self.grid_enabled,
             },
         ));
     }

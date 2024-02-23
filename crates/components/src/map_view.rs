@@ -214,7 +214,7 @@ impl MapView {
         if let Some(pos) = response.hover_pos() {
             // We need to store the old scale before applying any transformations
             let old_scale = self.scale;
-            let delta = ui.input(|i| i.scroll_delta.y);
+            let delta = ui.input(|i| i.smooth_scroll_delta.y);
 
             // Apply scroll and cap max zoom to 15%
             self.scale *= (delta / 9.0f32.exp2()).exp2();
@@ -228,6 +228,8 @@ impl MapView {
         }
 
         self.previous_scale = self.scale;
+
+        let grid_inner_thickness = if self.scale >= 50. { 1. } else { 0. };
 
         let ctrl_drag = ui.input(|i| {
             if is_focused {
@@ -507,7 +509,7 @@ impl MapView {
                                     5.,
                                     egui::Stroke::new(1., egui::Color32::WHITE),
                                 ),
-                            }
+                            };
                         });
 
                         if let Some(hover_tile) = self.hover_tile {
@@ -571,8 +573,12 @@ impl MapView {
             self.selected_event_id = selected_event.map(|e| e.id);
 
             // Draw the fog and collision layers
-            self.map
-                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
+            self.map.paint_overlay(
+                graphics_state.clone(),
+                ui.painter(),
+                grid_inner_thickness,
+                canvas_rect,
+            );
 
             // Draw white rectangles on the border of all events
             while let Some(rect) = self.event_rects.pop() {
@@ -596,8 +602,12 @@ impl MapView {
             }
         } else {
             // Draw the fog and collision layers
-            self.map
-                .paint_overlay(graphics_state.clone(), ui.painter(), canvas_rect);
+            self.map.paint_overlay(
+                graphics_state.clone(),
+                ui.painter(),
+                grid_inner_thickness,
+                canvas_rect,
+            );
         }
 
         // Do we display the visible region?

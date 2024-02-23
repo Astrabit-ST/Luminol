@@ -21,6 +21,7 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![feature(is_sorted)]
 
 pub type UpdateState<'res> = luminol_core::UpdateState<'res>;
 
@@ -185,7 +186,8 @@ window_enum! {
         FilesystemDebug(windows::misc::FilesystemDebug),
         NewProject(windows::new_project::Window),
         ScriptEdit(windows::script_edit::Window),
-        SoundTest(windows::sound_test::Window)
+        SoundTest(windows::sound_test::Window),
+        WgpuDebug(windows::misc::WgpuDebugInfo)
     }
 }
 #[cfg(target_arch = "wasm32")]

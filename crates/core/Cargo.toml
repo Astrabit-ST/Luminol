@@ -19,9 +19,9 @@ workspace = true
 [dependencies]
 egui.workspace = true
 
-egui_dock = "0.10.0"
-egui-notify = "0.12.0"
-egui-modal = "0.3.2"
+egui_dock = "0.11.2"
+egui-notify = "0.13.0"
+egui-modal = "0.3.4"
 
 poll-promise.workspace = true
 once_cell.workspace = true

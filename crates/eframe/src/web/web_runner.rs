@@ -96,16 +96,12 @@ impl WebRunner {
                     }
 
                     super::WebRunnerOutput::StorageGet(key, oneshot_tx) => {
-                        let _ = oneshot_tx.send(super::storage::local_storage_get(&key));
+                        let _ = oneshot_tx.send(super::storage::storage_get(&key).await.ok());
                     }
 
                     super::WebRunnerOutput::StorageSet(key, value, oneshot_tx) => {
-                        if super::storage::local_storage().is_none() {
-                            let _ = oneshot_tx.send(false);
-                        } else {
-                            super::storage::local_storage_set(&key, &value);
-                            let _ = oneshot_tx.send(true);
-                        }
+                        let _ =
+                            oneshot_tx.send(super::storage::storage_set(&key, value).await.is_ok());
                     }
                 }
             }

@@ -17,3 +17,49 @@
 
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;
+
+#[cfg(target_arch = "wasm32")]
+use std::future::IntoFuture;
+
+#[cfg(target_arch = "wasm32")]
+pub use indexed_db_futures::prelude::IdbTransactionMode;
+
+#[cfg(target_arch = "wasm32")]
+pub use indexed_db_futures::IdbQuerySource;
+
+#[cfg(target_arch = "wasm32")]
+use indexed_db_futures::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+/// Helper function for performing IndexedDB operations on an `IdbObjectStore` with a given
+/// `IdbTransactionMode`.
+pub async fn idb<R>(
+    store_name: &str,
+    mode: IdbTransactionMode,
+    f: impl FnOnce(IdbObjectStore<'_>) -> std::result::Result<R, web_sys::DomException>,
+) -> std::result::Result<R, web_sys::DomException> {
+    let mut db_req = IdbDatabase::open_u32("astrabit.luminol", 2)?;
+
+    db_req.set_on_upgrade_needed(Some(|e: &IdbVersionChangeEvent| {
+        if !e
+            .db()
+            .object_store_names()
+            .any(|n| n == "filesystem.dir_handles")
+        {
+            e.db().create_object_store("filesystem.dir_handles")?;
+        }
+
+        if !e.db().object_store_names().any(|n| n == "eframe.storage") {
+            e.db().create_object_store("eframe.storage")?;
+        }
+
+        Ok(())
+    }));
+
+    let db = db_req.into_future().await?;
+    let tx = db.transaction_on_one_with_mode(store_name, mode)?;
+    let store = tx.object_store(store_name)?;
+    let r = f(store);
+    tx.await.into_result()?;
+    r
+}

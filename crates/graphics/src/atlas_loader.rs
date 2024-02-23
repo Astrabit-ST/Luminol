@@ -31,7 +31,7 @@ impl Loader {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .or_try_insert_with(|| Atlas::new(graphics_state, filesystem, tileset))?
+            .or_insert_with(|| Atlas::new(graphics_state, filesystem, tileset))
             .clone())
     }
 
@@ -44,7 +44,7 @@ impl Loader {
         Ok(self
             .atlases
             .entry(tileset.id)
-            .insert(Atlas::new(graphics_state, filesystem, tileset)?)
+            .insert(Atlas::new(graphics_state, filesystem, tileset))
             .clone())
     }
 

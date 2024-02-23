@@ -77,19 +77,18 @@ impl luminol_core::Window for Window {
 
                             let scripts_len = scripts.data.len();
                             for (index, script) in scripts.data.iter_mut().enumerate() {
-                                let response = ui
-                                    .text_edit_singleline(&mut script.name)
-                                    .context_menu(|ui| {
-                                        if ui.button("Insert").clicked() {
-                                            insert_index = Some(index);
-                                        }
+                                let response = ui.text_edit_singleline(&mut script.name);
+                                response.context_menu(|ui| {
+                                    if ui.button("Insert").clicked() {
+                                        insert_index = Some(index);
+                                    }
 
-                                        ui.add_enabled_ui(scripts_len > 1, |ui| {
-                                            if ui.button("Delete").clicked() {
-                                                del_index = Some(index);
-                                            }
-                                        });
+                                    ui.add_enabled_ui(scripts_len > 1, |ui| {
+                                        if ui.button("Delete").clicked() {
+                                            del_index = Some(index);
+                                        }
                                     });
+                                });
 
                                 if response.double_clicked() {
                                     self.tabs

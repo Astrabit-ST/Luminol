@@ -208,10 +208,13 @@ fn main() {
                 "_",
                 "core::",
                 "alloc::",
+                "cocoa::",
                 "tokio::",
                 "winit::",
+                "accesskit",
                 "std::rt::",
                 "std::sys_",
+                "windows::",
                 "egui::ui::",
                 "E as eyre::",
                 "T as core::",
@@ -221,14 +224,15 @@ fn main() {
                 "luminol_eframe::",
                 "std::panicking::",
                 "egui::containers::",
+                "glPushClientAttrib",
                 "std::thread::local::",
             ];
             frames.retain(|frame| {
                 !filters.iter().any(|f| {
-                    frame
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| name.strip_prefix('<').unwrap_or(name).starts_with(f))
+                    frame.name.as_ref().is_some_and(|name| {
+                        name.starts_with(|c: char| c.is_ascii_uppercase())
+                            || name.strip_prefix('<').unwrap_or(name).starts_with(f)
+                    })
                 })
             })
         }))
@@ -316,9 +320,11 @@ fn main() {
                     ..wgpu::Limits::default()
                 },
             }),
+            power_preference: wgpu::util::power_preference_from_env().unwrap_or_default(),
             ..Default::default()
         },
         persist_window: true,
+
         ..Default::default()
     };
 
@@ -518,6 +524,7 @@ pub fn luminol_main_start() {
     worker_cell.set(worker.clone()).unwrap();
 
     let message = js_sys::Array::new();
+    message.push(&wasm_bindgen::module());
     message.push(&wasm_bindgen::memory());
     message.push(&offscreen_canvas);
     let transfer = js_sys::Array::new();

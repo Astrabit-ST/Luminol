@@ -1,25 +1,37 @@
-pub(super) fn local_storage() -> Option<web_sys::Storage> {
-    web_sys::window()?.local_storage().ok()?
+use luminol_web::IdbQuerySource;
+use wasm_bindgen::prelude::*;
+
+/// Read data from storage.
+pub async fn storage_get(key: &str) -> Result<String, web_sys::DomException> {
+    luminol_web::idb(
+        "eframe.storage",
+        luminol_web::IdbTransactionMode::Readonly,
+        |store| store.get_owned(key),
+    )
+    .await?
+    .await?
+    .ok_or_else(|| web_sys::DomException::new_with_message("Key not found in storage").unwrap())?
+    .as_string()
+    .ok_or_else(|| web_sys::DomException::new_with_message("Stored value is not a string").unwrap())
 }
 
-/// Read data from local storage.
-pub fn local_storage_get(key: &str) -> Option<String> {
-    local_storage().map(|storage| storage.get_item(key).ok())??
-}
-
-/// Write data to local storage.
-pub fn local_storage_set(key: &str, value: &str) {
-    local_storage().map(|storage| storage.set_item(key, value));
+/// Write data to storage.
+pub async fn storage_set(
+    key: &str,
+    value: impl Into<js_sys::JsString>,
+) -> Result<(), web_sys::DomException> {
+    luminol_web::idb(
+        "eframe.storage",
+        luminol_web::IdbTransactionMode::Readwrite,
+        |store| store.put_key_val_owned(key, &value.into()),
+    )
+    .await
+    .map(|_| ())
 }
 
 #[cfg(feature = "persistence")]
-pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {
-    let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    channels.send(super::WebRunnerOutput::StorageGet(
-        String::from("egui_memory_ron"),
-        oneshot_tx,
-    ));
-    if let Some(memory) = oneshot_rx.await.ok().flatten() {
+pub(crate) async fn load_memory(ctx: &egui::Context) {
+    if let Ok(memory) = storage_get("egui_memory_ron").await {
         match ron::from_str(&memory) {
             Ok(memory) => {
                 ctx.memory_mut(|m| *m = memory);
@@ -30,7 +42,7 @@ pub(crate) async fn load_memory(ctx: &egui::Context, channels: &super::WorkerCha
 }
 
 #[cfg(not(feature = "persistence"))]
-pub(crate) async fn load_memory(_: &egui::Context, _: &super::WorkerChannels) {}
+pub(crate) async fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub(crate) fn save_memory(ctx: &egui::Context, channels: &super::WorkerChannels) {

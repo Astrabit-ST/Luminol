@@ -58,10 +58,11 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
 ///
 /// Monotonically increasing.
 pub fn now_sec() -> f64 {
-    luminol_web::bindings::performance(
-        &luminol_web::bindings::worker().expect("should have a DedicatedWorkerGlobalScope"),
-    )
-    .now()
+    luminol_web::bindings::worker()
+        .expect("should have a DedicatedWorkerGlobalScope")
+        .performance()
+        .unwrap()
+        .now()
         / 1000.0
 }
 

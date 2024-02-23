@@ -28,8 +28,6 @@ luminol-modals.workspace = true
 
 egui.workspace = true
 
-catppuccin-egui = "4.0.0"
-
 camino.workspace = true
 
 strum.workspace = true
@@ -53,6 +51,8 @@ qp-trie.workspace = true
 itertools.workspace = true
 
 color-eyre.workspace = true
+
+wgpu.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 luminol-term = { version = "0.4.0", path = "../term/" }

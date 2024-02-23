@@ -19,7 +19,6 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(module = "/js/bindings.js")]
 extern "C" {
     pub fn worker() -> Option<web_sys::DedicatedWorkerGlobalScope>;
-    pub fn performance(worker: &web_sys::DedicatedWorkerGlobalScope) -> web_sys::Performance;
     pub fn filesystem_supported() -> bool;
     #[wasm_bindgen(catch)]
     async fn _show_directory_picker() -> Result<JsValue, JsValue>;
