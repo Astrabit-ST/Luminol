@@ -83,12 +83,17 @@ impl Process {
 }
 
 impl super::Backend for Process {
-    fn with_term(&mut self, f: &mut dyn FnMut(&mut Term<EventListener>)) {
-        let mut lock = self.term.lock();
-        f(&mut lock)
+    fn with_term<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Term<EventListener>) -> T,
+    {
+        f(&mut self.term.lock())
     }
 
-    fn with_event_recv(&mut self, f: &mut dyn FnMut(&mut Receiver<Event>)) {
+    fn with_event_recv<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Receiver<Event>) -> T,
+    {
         f(&mut self.event_reciever)
     }
 
@@ -105,6 +110,10 @@ impl super::Backend for Process {
             cell_width: 0,
         }));
         self.term.lock().resize(TermSize::new(cols, rows))
+    }
+
+    fn send(&mut self, msg: alacritty_terminal::event_loop::Msg) {
+        let _ = self.event_loop_sender.send(msg);
     }
 
     fn kill(&mut self) {

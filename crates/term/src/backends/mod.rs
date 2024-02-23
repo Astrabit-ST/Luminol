@@ -32,7 +32,7 @@ pub use channel::Channel;
 pub use process::Process;
 
 #[derive(Clone)]
-pub(crate) struct EventListener(Sender<Event>);
+pub struct EventListener(Sender<Event>);
 
 impl alacritty_terminal::event::EventListener for EventListener {
     fn send_event(&self, event: Event) {
@@ -41,16 +41,22 @@ impl alacritty_terminal::event::EventListener for EventListener {
     }
 }
 
-pub(crate) trait Backend {
-    fn with_term(&mut self, f: &mut dyn FnMut(&mut alacritty_terminal::Term<EventListener>));
+pub trait Backend {
+    fn with_term<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut alacritty_terminal::Term<EventListener>) -> T;
 
-    fn with_event_recv(&mut self, f: &mut dyn FnMut(&mut Receiver<Event>));
+    fn with_event_recv<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Receiver<Event>) -> T;
 
     fn size(&self) -> (usize, usize);
 
     fn resize(&mut self, rows: usize, cols: usize);
 
     fn update(&mut self) {}
+
+    fn send(&mut self, _msg: alacritty_terminal::event_loop::Msg) {}
 
     fn kill(&mut self) {}
 }

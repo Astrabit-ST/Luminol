@@ -24,7 +24,7 @@
 
 pub struct LogWindow {
     pub(super) term_shown: bool,
-    term: luminol_term::widget::Terminal,
+    term: luminol_term::widget::ChannelTerminal,
     save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
 }
 

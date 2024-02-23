@@ -64,11 +64,17 @@ impl Channel {
 }
 
 impl super::Backend for Channel {
-    fn with_term(&mut self, f: &mut dyn FnMut(&mut Term<EventListener>)) {
+    fn with_term<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Term<EventListener>) -> T,
+    {
         f(&mut self.term)
     }
 
-    fn with_event_recv(&mut self, f: &mut dyn FnMut(&mut Receiver<Event>)) {
+    fn with_event_recv<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Receiver<Event>) -> T,
+    {
         f(&mut self.event_reciever)
     }
 

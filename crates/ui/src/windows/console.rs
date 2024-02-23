@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub struct Window {
-    term: luminol_term::widget::Terminal,
+    term: luminol_term::widget::ProcessTerminal,
 }
 
 impl Window {

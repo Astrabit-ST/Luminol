@@ -29,33 +29,42 @@ use crate::backends::Backend;
 mod theme;
 pub use theme::Theme;
 
-pub struct Terminal {
-    // REVIEW should we use generics or trait objects?
-    backend: Box<dyn Backend>,
+pub struct Terminal<T> {
+    backend: T,
     theme: Theme, // TODO convert into shared config (possibly do this in luminol-preferences)
     title: String,
 }
 
-impl Terminal {
-    fn new(backend: impl Backend + 'static) -> Self {
+pub type ProcessTerminal = Terminal<crate::backends::Process>;
+pub type ChannelTerminal = Terminal<crate::backends::Channel>;
+
+impl<T> Terminal<T> {
+    fn new(backend: T) -> Self {
         Self {
-            backend: Box::new(backend),
+            backend,
             theme: Theme::default(),
             title: "Luminol Terminal".to_string(),
         }
     }
+}
 
+impl ProcessTerminal {
     pub fn process(options: &alacritty_terminal::tty::Options) -> std::io::Result<Self> {
         crate::backends::Process::new(options).map(Self::new)
     }
+}
 
+impl ChannelTerminal {
     pub fn channel(recv: std::sync::mpsc::Receiver<u8>) -> Self {
         let backend = crate::backends::Channel::new(recv);
         Self::new(backend)
     }
 }
 
-impl Terminal {
+impl<T> Terminal<T>
+where
+    T: Backend,
+{
     pub fn title(&self) -> String {
         self.title.to_string()
     }
@@ -89,13 +98,13 @@ impl Terminal {
     }
 
     pub fn erase_scrollback(&mut self) {
-        self.backend.with_term(&mut |term| {
+        self.backend.with_term(|term| {
             term.grid_mut().clear_history();
         });
     }
 
     pub fn erase_scrollback_and_viewport(&mut self) {
-        self.backend.with_term(&mut |term| {
+        self.backend.with_term(|term| {
             term.grid_mut().clear_viewport();
         });
     }
@@ -107,7 +116,8 @@ impl Terminal {
     pub fn ui(&mut self, ui: &mut egui::Ui) -> color_eyre::Result<()> {
         self.backend.update();
 
-        self.backend.with_term(&mut |term| {
+        // TODO cache render jobs
+        let job = self.backend.with_term(|term| {
             let content = term.renderable_content();
 
             let mut job = egui::text::LayoutJob::default();
@@ -128,23 +138,26 @@ impl Terminal {
                     job.append("\n", 0.0, Default::default());
                 }
             }
-            let galley = ui.fonts(|f| f.layout_job(job));
-            let (response, painter) =
-                ui.allocate_painter(galley.rect.size(), egui::Sense::click_and_drag());
 
-            painter.rect_filled(
-                galley.rect.translate(response.rect.min.to_vec2()),
-                0.0,
-                egui::Color32::from_rgb(40, 39, 39),
-            );
-
-            painter.galley(response.rect.min, galley, egui::Color32::WHITE);
-
-            if response.hovered() {
-                ui.output_mut(|o| o.mutable_text_under_cursor = true);
-                ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
-            }
+            job
         });
+
+        let galley = ui.fonts(|f| f.layout_job(job));
+        let (response, painter) =
+            ui.allocate_painter(galley.rect.size(), egui::Sense::click_and_drag());
+
+        painter.rect_filled(
+            galley.rect.translate(response.rect.min.to_vec2()),
+            0.0,
+            egui::Color32::from_rgb(40, 39, 39),
+        );
+
+        painter.galley(response.rect.min, galley, egui::Color32::WHITE);
+
+        if response.hovered() {
+            ui.output_mut(|o| o.mutable_text_under_cursor = true);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
+        }
 
         Ok(())
     }
