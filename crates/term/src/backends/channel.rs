@@ -73,7 +73,7 @@ impl super::Backend for Channel {
     }
 
     fn size(&self) -> (usize, usize) {
-        (self.term.screen_lines(), self.term.columns())
+        (self.term.columns(), self.term.screen_lines())
     }
 
     fn resize(&mut self, rows: usize, cols: usize) {

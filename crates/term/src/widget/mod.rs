@@ -81,11 +81,11 @@ impl Terminal {
     }
 
     pub fn cols(&self) -> usize {
-        self.backend.size().1
+        self.backend.size().0
     }
 
     pub fn rows(&self) -> usize {
-        self.backend.size().0
+        self.backend.size().1
     }
 
     pub fn erase_scrollback(&mut self) {
@@ -98,6 +98,10 @@ impl Terminal {
         self.backend.with_term(&mut |term| {
             term.grid_mut().clear_viewport();
         });
+    }
+
+    pub fn update(&mut self) {
+        self.backend.update()
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> color_eyre::Result<()> {

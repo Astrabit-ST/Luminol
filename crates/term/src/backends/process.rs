@@ -94,7 +94,7 @@ impl super::Backend for Process {
 
     fn size(&self) -> (usize, usize) {
         let term = self.term.lock();
-        (term.screen_lines(), term.columns())
+        (term.columns(), term.screen_lines())
     }
 
     fn resize(&mut self, rows: usize, cols: usize) {

@@ -22,28 +22,18 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::collections::VecDeque;
-
-static BUFFER_CAPACITY: usize = 1 << 24;
-
 pub struct LogWindow {
     pub(super) term_shown: bool,
-    term: luminol_term::Terminal,
+    term: luminol_term::widget::Terminal,
     save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
-    buffer: VecDeque<u8>,
-    buffer_entry_sizes: VecDeque<usize>,
-    byte_rx: luminol_term::ByteReceiver,
 }
 
 impl LogWindow {
-    pub fn new(term: luminol_term::Terminal, byte_rx: luminol_term::ByteReceiver) -> Self {
+    pub fn new(byte_rx: std::sync::mpsc::Receiver<u8>) -> Self {
         Self {
             term_shown: false,
             save_promise: None,
-            buffer: VecDeque::new(),
-            buffer_entry_sizes: VecDeque::new(),
-            term,
-            byte_rx,
+            term: luminol_term::widget::Terminal::channel(byte_rx),
         }
     }
 
@@ -51,16 +41,6 @@ impl LogWindow {
         // We update the log terminal even if it's not open so that we don't encounter
         // performance problems when the terminal has to parse all the new input at once
         self.term.update();
-
-        for bytes in self.byte_rx.try_iter() {
-            while self.buffer.len() + bytes.len() > BUFFER_CAPACITY {
-                for _ in 0..self.buffer_entry_sizes.pop_front().unwrap() {
-                    self.buffer.pop_front();
-                }
-            }
-            self.buffer_entry_sizes.push_back(bytes.len());
-            self.buffer.extend(bytes);
-        }
 
         egui::Window::new("Log")
             .id(self.term.id())
@@ -76,13 +56,12 @@ impl LogWindow {
                     resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
 
                     if resize {
-                        self.term.set_size(update_state, cols, rows);
+                        self.term.set_size(cols, rows);
                     }
 
                     ui.add_space(ui.style().spacing.indent);
 
                     if ui.button("Clear").clicked() {
-                        self.buffer.clear();
                         self.term.erase_scrollback_and_viewport();
                     }
 
@@ -109,19 +88,19 @@ impl LogWindow {
                             Err(p) => self.save_promise = Some(p),
                         }
                     } else if ui.button("Save to file").clicked() {
-                        self.buffer.make_contiguous();
-                        let buffer = self.buffer.clone();
+                        // self.buffer.make_contiguous();
+                        // let buffer = self.buffer.clone();
 
-                        self.save_promise = Some(luminol_core::spawn_future(async move {
-                            use futures_lite::AsyncWriteExt;
+                        // self.save_promise = Some(luminol_core::spawn_future(async move {
+                        //     use futures_lite::AsyncWriteExt;
 
-                            let mut tmp = luminol_filesystem::host::File::new()?;
-                            let mut cursor = async_std::io::Cursor::new(buffer.as_slices().0);
-                            async_std::io::copy(&mut cursor, &mut tmp).await?;
-                            tmp.flush().await?;
-                            tmp.save("luminol.log", "Log files").await?;
-                            Ok(())
-                        }));
+                        //     let mut tmp = luminol_filesystem::host::File::new()?;
+                        //     let mut cursor = async_std::io::Cursor::new(buffer.as_slices().0);
+                        //     async_std::io::copy(&mut cursor, &mut tmp).await?;
+                        //     tmp.flush().await?;
+                        //     tmp.save("luminol.log", "Log files").await?;
+                        //     Ok(())
+                        // }));
                     }
                 });
 

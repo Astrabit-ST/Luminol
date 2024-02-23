@@ -28,15 +28,15 @@ use crate::lumi::Lumi;
 #[cfg(feature = "steamworks")]
 use crate::steam::Steamworks;
 
-// #[cfg(not(target_arch = "wasm32"))]
-// mod log_window;
+#[cfg(not(target_arch = "wasm32"))]
+mod log_window;
 mod top_bar;
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct App {
     top_bar: top_bar::TopBar,
-    // #[cfg(not(target_arch = "wasm32"))]
-    // log: log_window::LogWindow,
+    #[cfg(not(target_arch = "wasm32"))]
+    log: log_window::LogWindow,
     lumi: Lumi,
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -86,8 +86,7 @@ impl App {
         cc: &luminol_eframe::CreationContext<'_>,
         report: Option<String>,
         modified: luminol_core::ModifiedState,
-        // #[cfg(not(target_arch = "wasm32"))] log_term_rx: luminol_term::TermReceiver,
-        // #[cfg(not(target_arch = "wasm32"))] log_byte_rx: luminol_term::ByteReceiver,
+        #[cfg(not(target_arch = "wasm32"))] log_byte_rx: std::sync::mpsc::Receiver<u8>,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -221,18 +220,8 @@ impl App {
 
         Self {
             top_bar: top_bar::TopBar::default(),
-            // #[cfg(not(target_arch = "wasm32"))]
-            // log: log_window::LogWindow::new(
-            //     luminol_term::Terminal::new_readonly(
-            //         &cc.egui_ctx,
-            //         "luminol_log".into(),
-            //         "Log",
-            //         log_term_rx,
-            //         132,
-            //         43,
-            //     ),
-            //     log_byte_rx,
-            // ),
+            #[cfg(not(target_arch = "wasm32"))]
+            log: log_window::LogWindow::new(log_byte_rx),
             lumi,
 
             audio,
@@ -366,9 +355,9 @@ impl luminol_eframe::App for App {
                 {
                     if self.top_bar.show_log {
                         self.top_bar.show_log = false;
-                        // self.log.term_shown = true;
+                        self.log.term_shown = true;
                     }
-                    // self.log.ui(ui, &mut update_state);
+                    self.log.ui(ui, &mut update_state);
                 }
             });
 
