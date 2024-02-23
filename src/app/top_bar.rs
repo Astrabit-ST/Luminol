@@ -363,18 +363,17 @@ impl TopBar {
                     //         .expect("project not loaded"),
                     // );
 
-                    let result =
-                        luminol_ui::windows::console::Window::new(ui.ctx()).or_else(|_| {
-                            // let mut cmd = luminol_term::CommandBuilder::new("game");
-                            // cmd.cwd(
-                            //     update_state
-                            //         .filesystem
-                            //         .project_path()
-                            //         .expect("project not loaded"),
-                            // );
+                    let result = luminol_ui::windows::console::Window::new().or_else(|_| {
+                        // let mut cmd = luminol_term::CommandBuilder::new("game");
+                        // cmd.cwd(
+                        //     update_state
+                        //         .filesystem
+                        //         .project_path()
+                        //         .expect("project not loaded"),
+                        // );
 
-                            luminol_ui::windows::console::Window::new(ui.ctx())
-                        });
+                        luminol_ui::windows::console::Window::new()
+                    });
 
                     match result {
                         Ok(w) => update_state.edit_windows.add_window(w),
@@ -399,7 +398,7 @@ impl TopBar {
                     //         .project_path()
                     //         .expect("project not loaded"),
                     // );
-                    match luminol_ui::windows::console::Window::new(ui.ctx()) {
+                    match luminol_ui::windows::console::Window::new() {
                         Ok(w) => update_state.edit_windows.add_window(w),
                         Err(e) => luminol_core::error!(
                             update_state.toasts,

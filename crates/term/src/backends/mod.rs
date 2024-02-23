@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Lily Lyons
+// Copyright (C) 2024 Lily Lyons
 //
 // This file is part of Luminol.
 //
@@ -22,8 +22,35 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-#[cfg(not(target_arch = "wasm32"))]
-mod backends;
+mod channel;
+mod process;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub mod widget;
+use alacritty_terminal::event::Event;
+use std::sync::mpsc::{Receiver, Sender};
+
+pub use channel::Channel;
+pub use process::Process;
+
+#[derive(Clone)]
+pub(crate) struct EventListener(Sender<Event>);
+
+impl alacritty_terminal::event::EventListener for EventListener {
+    fn send_event(&self, event: Event) {
+        println!("Recv event: {event:#?}");
+        let _ = self.0.send(event);
+    }
+}
+
+pub(crate) trait Backend {
+    fn with_term(&mut self, f: &mut dyn FnMut(&mut alacritty_terminal::Term<EventListener>));
+
+    fn with_event_recv(&mut self, f: &mut dyn FnMut(&mut Receiver<Event>));
+
+    fn size(&self) -> (usize, usize);
+
+    fn resize(&mut self, rows: usize, cols: usize);
+
+    fn update(&mut self) {}
+
+    fn kill(&mut self) {}
+}

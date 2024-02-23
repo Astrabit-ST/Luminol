@@ -27,7 +27,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-11-14
+          toolchain: nightly-2024-02-23
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - run: cargo check --all-features 
@@ -45,7 +45,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-11-14
+          toolchain: nightly-2024-02-23
           targets: wasm32-unknown-unknown
           components: rust-src
       - name: Rust Cache
@@ -64,7 +64,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-11-14
+          toolchain: nightly-2024-02-23
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace 
@@ -82,7 +82,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-11-14
+          toolchain: nightly-2024-02-23
           components: rustfmt
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -101,7 +101,7 @@ jobs:
           sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-11-14
+          toolchain: nightly-2024-02-23
           components: clippy
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2

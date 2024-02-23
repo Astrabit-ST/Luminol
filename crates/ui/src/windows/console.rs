@@ -23,14 +23,14 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub struct Window {
-    term: luminol_term::Terminal,
+    term: luminol_term::widget::Terminal,
 }
 
 impl Window {
-    pub fn new(ctx: &egui::Context) -> std::io::Result<Self> {
+    pub fn new() -> std::io::Result<Self> {
         Ok(Self {
             // TODO
-            term: luminol_term::Terminal::new(ctx, &Default::default())?,
+            term: luminol_term::widget::Terminal::process(&Default::default())?,
         })
     }
 }
@@ -90,7 +90,7 @@ impl luminol_core::Window for Window {
                     resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
 
                     if resize {
-                        self.term.set_size(update_state, cols, rows);
+                        self.term.set_size(cols, rows);
                     }
                 });
             });
