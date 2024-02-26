@@ -113,6 +113,7 @@ impl super::Backend for Process {
     }
 
     fn send(&mut self, msg: alacritty_terminal::event_loop::Msg) {
+        println!("{:?}", msg);
         let _ = self.event_loop_sender.send(msg);
     }
 

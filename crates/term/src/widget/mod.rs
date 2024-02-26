@@ -22,9 +22,13 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use alacritty_terminal::grid::Dimensions;
+use alacritty_terminal::event::Event;
+use alacritty_terminal::term::TermMode;
+use alacritty_terminal::{event_loop::Msg, grid::Dimensions};
 
 use crate::backends::Backend;
+
+mod keys;
 
 mod theme;
 pub use theme::Theme;
@@ -32,7 +36,8 @@ pub use theme::Theme;
 pub struct Terminal<T> {
     backend: T,
     theme: Theme, // TODO convert into shared config (possibly do this in luminol-preferences)
-    title: String,
+    pub id: egui::Id,
+    pub title: String,
 }
 
 pub type ProcessTerminal = Terminal<crate::backends::Process>;
@@ -42,6 +47,7 @@ impl<T> Terminal<T> {
     fn new(backend: T) -> Self {
         Self {
             backend,
+            id: egui::Id::new("luminol_term_terminal"),
             theme: Theme::default(),
             title: "Luminol Terminal".to_string(),
         }
@@ -65,14 +71,6 @@ impl<T> Terminal<T>
 where
     T: Backend,
 {
-    pub fn title(&self) -> String {
-        self.title.to_string()
-    }
-
-    pub fn id(&self) -> egui::Id {
-        egui::Id::new("luminol_term_terminal").with(&self.title)
-    }
-
     pub fn set_size(&mut self, cols: usize, lines: usize) {
         self.backend.resize(lines, cols)
     }
@@ -116,8 +114,20 @@ where
     pub fn ui(&mut self, ui: &mut egui::Ui) -> color_eyre::Result<()> {
         self.backend.update();
 
+        self.backend.with_event_recv(|recv| {
+            //
+            for event in recv.try_iter() {
+                match event {
+                    Event::Title(title) => self.title = title,
+                    Event::ResetTitle => "Luminol Terminal".clone_into(&mut self.title),
+
+                    _ => {}
+                }
+            }
+        });
+
         // TODO cache render jobs
-        let job = self.backend.with_term(|term| {
+        let (job, term_mode) = self.backend.with_term(|term| {
             let content = term.renderable_content();
 
             let mut job = egui::text::LayoutJob::default();
@@ -125,10 +135,19 @@ where
                 let mut buf = [0; 4];
                 let text = cell.c.encode_utf8(&mut buf);
 
+                let (color, background) = if cell.point == term.grid().cursor.point {
+                    (egui::Color32::BLACK, egui::Color32::WHITE)
+                } else {
+                    (
+                        self.theme.get_ansi_color(cell.fg),
+                        self.theme.get_ansi_color(cell.bg),
+                    )
+                };
+
                 let format = egui::TextFormat {
                     font_id: egui::FontId::monospace(12.),
-                    color: self.theme.get_ansi_color(cell.fg),
-                    background: self.theme.get_ansi_color(cell.bg),
+                    color,
+                    background,
                     ..Default::default()
                 };
 
@@ -139,7 +158,7 @@ where
                 }
             }
 
-            job
+            (job, *term.mode())
         });
 
         let galley = ui.fonts(|f| f.layout_job(job));
@@ -152,11 +171,69 @@ where
             egui::Color32::from_rgb(40, 39, 39),
         );
 
-        painter.galley(response.rect.min, galley, egui::Color32::WHITE);
+        painter.galley(response.rect.min, galley.clone(), egui::Color32::WHITE);
+
+        let id = response.id;
+        let event_filter = egui::EventFilter {
+            tab: true,
+            horizontal_arrows: true,
+            vertical_arrows: true,
+            escape: true,
+        };
 
         if response.hovered() {
             ui.output_mut(|o| o.mutable_text_under_cursor = true);
             ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
+        }
+
+        if response.clicked() && !response.lost_focus() {
+            ui.memory_mut(|mem| mem.request_focus(id))
+        }
+
+        if ui.memory(|mem| mem.has_focus(id)) {
+            ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
+
+            let (events, modifiers) = ui.input(|i| (i.filtered_events(&event_filter), i.modifiers));
+
+            for event in events {
+                match event {
+                    egui::Event::Paste(text) | egui::Event::Text(text) => {
+                        let bytes = text.into_bytes();
+                        let cow = std::borrow::Cow::Owned(bytes);
+                        self.backend.send(Msg::Input(cow));
+                    }
+                    egui::Event::Key {
+                        key, pressed: true, ..
+                    } => {
+                        if let Some(bytes) = keys::key_to_codes(key, modifiers, term_mode) {
+                            let cow = std::borrow::Cow::Borrowed(bytes);
+                            self.backend.send(Msg::Input(cow));
+                        }
+                    }
+                    egui::Event::Scroll(scroll_delta) => {
+                        let delta = scroll_delta.y as i32;
+                        if term_mode.contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL) {
+                            let line_cmd = if delta.is_positive() { b'A' } else { b'B' };
+                            let mut bytes = vec![];
+
+                            for _ in 0..delta.abs() {
+                                bytes.push(0x1b);
+                                bytes.push(b'O');
+                                bytes.push(line_cmd);
+                            }
+
+                            let cow = std::borrow::Cow::Owned(bytes);
+                            self.backend.send(Msg::Input(cow));
+                        } else {
+                            self.backend.with_term(|term| {
+                                term.grid_mut()
+                                    .scroll_display(alacritty_terminal::grid::Scroll::Delta(delta));
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
 
         Ok(())

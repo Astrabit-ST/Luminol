@@ -37,11 +37,11 @@ impl Window {
 
 impl luminol_core::Window for Window {
     fn name(&self) -> String {
-        self.term.title()
+        self.term.title.clone()
     }
 
     fn id(&self) -> egui::Id {
-        self.term.id()
+        self.term.id
     }
 
     fn requires_filesystem(&self) -> bool {
@@ -55,7 +55,7 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
-            .id(self.term.id())
+            .id(self.term.id)
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {

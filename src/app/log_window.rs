@@ -43,7 +43,7 @@ impl LogWindow {
         self.term.update();
 
         egui::Window::new("Log")
-            .id(self.term.id())
+            .id(self.term.id)
             .open(&mut self.term_shown)
             .resizable(false)
             .show(ui.ctx(), |ui| {
