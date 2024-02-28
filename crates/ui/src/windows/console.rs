@@ -27,13 +27,10 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(
-        ctx: &egui::Context,
-        exec: luminol_term::widget::ExecOptions,
-    ) -> std::io::Result<Self> {
+    pub fn new(exec: luminol_term::widget::ExecOptions) -> std::io::Result<Self> {
         Ok(Self {
             // TODO
-            term: luminol_term::widget::Terminal::process(exec, ctx)?,
+            term: luminol_term::widget::Terminal::process(exec)?,
         })
     }
 }

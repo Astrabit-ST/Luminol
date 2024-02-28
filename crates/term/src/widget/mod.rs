@@ -66,7 +66,7 @@ impl<T> Terminal<T> {
 }
 
 impl ProcessTerminal {
-    pub fn process(exec: ExecOptions, ctx: &egui::Context) -> std::io::Result<Self> {
+    pub fn process(exec: ExecOptions) -> std::io::Result<Self> {
         let options = alacritty_terminal::tty::Options {
             shell: exec
                 .program
@@ -74,7 +74,7 @@ impl ProcessTerminal {
             working_directory: exec.working_directory,
             hold: false,
         };
-        crate::backends::Process::new(&options, ctx).map(Self::new)
+        crate::backends::Process::new(&options).map(Self::new)
     }
 }
 

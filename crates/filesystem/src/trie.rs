@@ -245,9 +245,7 @@ impl<T> FileSystemTrie<T> {
     /// Gets an immutable reference to the value in the file at the given path, if it exists.
     pub fn get_file(&self, path: impl AsRef<camino::Utf8Path>) -> Option<&T> {
         let path = path.as_ref();
-        let Some(filename) = path.iter().next_back() else {
-            return None;
-        };
+        let filename = path.iter().next_back()?;
         let dir = path.parent().unwrap_or(camino::Utf8Path::new(""));
         self.0
             .get_str(dir.as_str())
@@ -258,9 +256,7 @@ impl<T> FileSystemTrie<T> {
     /// Gets a mutable reference to the value in the file at the given path, if it exists.
     pub fn get_file_mut(&mut self, path: impl AsRef<camino::Utf8Path>) -> Option<&mut T> {
         let path = path.as_ref();
-        let Some(filename) = path.iter().next_back() else {
-            return None;
-        };
+        let filename = path.iter().next_back()?;
         let dir = path.parent().unwrap_or(camino::Utf8Path::new(""));
         self.0
             .get_mut_str(dir.as_str())
@@ -345,9 +341,7 @@ impl<T> FileSystemTrie<T> {
     /// Removes the file at the given path if it exists, and returns the original value.
     pub fn remove_file(&mut self, path: impl AsRef<camino::Utf8Path>) -> Option<T> {
         let path = path.as_ref();
-        let Some(filename) = path.iter().next_back() else {
-            return None;
-        };
+        let filename = path.iter().next_back()?;
         let dir = path.parent().unwrap_or(camino::Utf8Path::new(""));
         self.0
             .get_mut_str(dir.as_str())
