@@ -26,25 +26,17 @@ mod channel;
 mod process;
 
 use alacritty_terminal::event::Event;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
 pub use channel::Channel;
 pub use process::Process;
 
-#[derive(Clone)]
-pub struct EventListener(Sender<Event>);
-
-impl alacritty_terminal::event::EventListener for EventListener {
-    fn send_event(&self, event: Event) {
-        println!("Recv event: {event:#?}");
-        let _ = self.0.send(event);
-    }
-}
-
 pub trait Backend {
+    type EventListener: alacritty_terminal::event::EventListener;
+
     fn with_term<T, F>(&mut self, f: F) -> T
     where
-        F: FnOnce(&mut alacritty_terminal::Term<EventListener>) -> T;
+        F: FnOnce(&mut alacritty_terminal::Term<Self::EventListener>) -> T;
 
     fn with_event_recv<T, F>(&mut self, f: F) -> T
     where

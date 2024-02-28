@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, Sender};
 
 use alacritty_terminal::{
     event::Event,
@@ -31,13 +31,21 @@ use alacritty_terminal::{
     vte,
 };
 
-use super::EventListener;
-
 pub struct Channel {
     processor: vte::ansi::Processor,
-    term: Term<EventListener>,
+    term: Term<ForwardEventListener>,
     event_reciever: Receiver<Event>,
     byte_recv: Receiver<u8>,
+}
+
+#[derive(Clone)]
+pub struct ForwardEventListener(Sender<Event>);
+
+impl alacritty_terminal::event::EventListener for ForwardEventListener {
+    fn send_event(&self, event: Event) {
+        println!("Recv event: {event:#?}");
+        let _ = self.0.send(event);
+    }
 }
 
 impl Channel {
@@ -45,7 +53,7 @@ impl Channel {
         let processor = vte::ansi::Processor::new();
 
         let (sender, event_reciever) = std::sync::mpsc::channel();
-        let event_proxy = EventListener(sender);
+        let event_proxy = ForwardEventListener(sender);
 
         let term_size = TermSize::new(80, 24);
         let term = Term::new(
@@ -64,9 +72,11 @@ impl Channel {
 }
 
 impl super::Backend for Channel {
+    type EventListener = ForwardEventListener;
+
     fn with_term<T, F>(&mut self, f: F) -> T
     where
-        F: FnOnce(&mut Term<EventListener>) -> T,
+        F: FnOnce(&mut Term<ForwardEventListener>) -> T,
     {
         f(&mut self.term)
     }

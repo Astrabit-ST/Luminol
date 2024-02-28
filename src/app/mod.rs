@@ -110,6 +110,14 @@ impl App {
                 .unwrap(),
             ),
         );
+        #[cfg(not(target_arch = "wasm32"))]
+        fonts.font_data.insert(
+            "Iosevka Term Regular".to_owned(),
+            egui::FontData::from_static(luminol_macros::include_asset!(
+                "assets/fonts/IosevkaTermNerdFont-Regular.ttf"
+            )),
+        );
+
         fonts
             .families
             .get_mut(&egui::FontFamily::Proportional)
@@ -120,6 +128,12 @@ impl App {
             .get_mut(&egui::FontFamily::Monospace)
             .unwrap()
             .push("Source Han Sans Regular".to_owned());
+
+        #[cfg(not(target_arch = "wasm32"))]
+        fonts.families.insert(
+            egui::FontFamily::Name("Iosevka Term".into()),
+            vec!["Iosevka Term Regular".to_owned()],
+        );
         cc.egui_ctx.set_fonts(fonts);
 
         #[cfg(not(debug_assertions))]

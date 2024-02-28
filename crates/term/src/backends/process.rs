@@ -22,7 +22,10 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::sync::{mpsc::Receiver, Arc};
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Arc,
+};
 
 use alacritty_terminal::{
     event::{Event, WindowSize},
@@ -32,16 +35,31 @@ use alacritty_terminal::{
     term::{test::TermSize, Term},
 };
 
-use super::EventListener;
-
 pub struct Process {
-    term: Arc<FairMutex<Term<EventListener>>>,
+    term: Arc<FairMutex<Term<WakeupEventListener>>>,
     event_loop_sender: EventLoopSender,
     event_reciever: Receiver<Event>,
 }
 
+#[derive(Clone)]
+pub struct WakeupEventListener(Sender<Event>, egui::Context);
+
+impl alacritty_terminal::event::EventListener for WakeupEventListener {
+    fn send_event(&self, event: Event) {
+        println!("Recv event: {event:#?}");
+        if let Event::Wakeup = event {
+            println!("repainting ui");
+            self.1.request_repaint();
+        }
+        let _ = self.0.send(event);
+    }
+}
+
 impl Process {
-    pub fn new(options: &alacritty_terminal::tty::Options) -> std::io::Result<Self> {
+    pub fn new(
+        options: &alacritty_terminal::tty::Options,
+        ctx: &egui::Context,
+    ) -> std::io::Result<Self> {
         let pty = alacritty_terminal::tty::new(
             options,
             WindowSize {
@@ -54,7 +72,7 @@ impl Process {
         )?;
 
         let (sender, event_reciever) = std::sync::mpsc::channel();
-        let event_proxy = EventListener(sender);
+        let event_proxy = WakeupEventListener(sender, ctx.clone());
 
         let term_size = TermSize::new(80, 24);
         let term = Term::new(
@@ -83,9 +101,11 @@ impl Process {
 }
 
 impl super::Backend for Process {
+    type EventListener = WakeupEventListener;
+
     fn with_term<T, F>(&mut self, f: F) -> T
     where
-        F: FnOnce(&mut Term<EventListener>) -> T,
+        F: FnOnce(&mut Term<WakeupEventListener>) -> T,
     {
         f(&mut self.term.lock())
     }

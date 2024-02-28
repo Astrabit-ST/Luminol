@@ -41,6 +41,13 @@ pub struct Terminal<T> {
     pub title: String,
 }
 
+#[derive(Default, Clone)]
+pub struct ExecOptions {
+    pub program: Option<String>,
+    pub args: Vec<String>,
+    pub working_directory: Option<std::path::PathBuf>,
+}
+
 pub type ProcessTerminal = Terminal<crate::backends::Process>;
 pub type ChannelTerminal = Terminal<crate::backends::Channel>;
 
@@ -56,8 +63,15 @@ impl<T> Terminal<T> {
 }
 
 impl ProcessTerminal {
-    pub fn process(options: &alacritty_terminal::tty::Options) -> std::io::Result<Self> {
-        crate::backends::Process::new(options).map(Self::new)
+    pub fn process(exec: ExecOptions, ctx: &egui::Context) -> std::io::Result<Self> {
+        let options = alacritty_terminal::tty::Options {
+            shell: exec
+                .program
+                .map(|program| alacritty_terminal::tty::Shell::new(program, exec.args)),
+            working_directory: exec.working_directory,
+            hold: false,
+        };
+        crate::backends::Process::new(&options, ctx).map(Self::new)
     }
 }
 
@@ -134,7 +148,7 @@ where
         });
 
         let response = self.backend.with_term(|term| {
-            let font_id = egui::FontId::monospace(14.);
+            let font_id = egui::FontId::new(14., egui::FontFamily::Name("Iosevka Term".into()));
             let (row_height, char_width) = ui.fonts(|f| {
                 (
                     f.row_height(&font_id).round(),
