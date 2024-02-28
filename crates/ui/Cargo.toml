@@ -25,6 +25,7 @@ luminol-graphics.workspace = true
 luminol-filesystem.workspace = true
 luminol-components.workspace = true
 luminol-modals.workspace = true
+luminol-macros.workspace = true
 
 egui.workspace = true
 

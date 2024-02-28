@@ -33,7 +33,7 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Embedded icon 256x256 in size.
-const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
+const ICON: &[u8] = luminol_macros::include_asset!("assets/icons/icon.png");
 
 static RESTART_AFTER_PANIC: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);

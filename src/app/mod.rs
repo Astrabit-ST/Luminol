@@ -104,7 +104,7 @@ impl App {
             String::from("Source Han Sans Regular"),
             egui::FontData::from_owned(
                 zstd::bulk::decompress(
-                    include_bytes!("../../assets/SourceHanSans-Regular.ttc.zst"),
+                    luminol_macros::include_asset!("assets/fonts/SourceHanSans-Regular.ttc.zst"),
                     19485724,
                 )
                 .unwrap(),

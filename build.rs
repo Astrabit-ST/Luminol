@@ -26,11 +26,11 @@ fn main() {
     #[cfg(windows)]
     {
         let mut res = winres::WindowsResource::new();
-        res.set_icon("assets/windows-icon.ico");
+        res.set_icon("assets/icons/native/windows-icon.ico");
         res.set("ProductVersion", env!("CARGO_PKG_VERSION"));
-        res.set_icon_with_id("assets/rxproj-icon.ico", "2");
-        res.set_icon_with_id("assets/rxdata-icon.ico", "3");
-        res.set_icon_with_id("assets/lumproj-icon.ico", "4");
+        res.set_icon_with_id("assets/icons/native/rxproj-icon.ico", "2");
+        res.set_icon_with_id("assets/icons/native/rxdata-icon.ico", "3");
+        res.set_icon_with_id("assets/icons/native/lumproj-icon.ico", "4");
         res.set_language(0x0009);
 
         let _ = res.compile();
