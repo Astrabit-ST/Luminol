@@ -25,6 +25,7 @@
 use alacritty_terminal::event::Event;
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::TermMode;
+use alacritty_terminal::vte::ansi::CursorShape;
 use alacritty_terminal::{event_loop::Msg, grid::Dimensions};
 
 use crate::backends::Backend;
@@ -37,6 +38,7 @@ pub use theme::Theme;
 pub struct Terminal<T> {
     backend: T,
     theme: Theme, // TODO convert into shared config (possibly do this in luminol-preferences)
+    stable_time: f32,
     pub id: egui::Id,
     pub title: String,
 }
@@ -56,6 +58,7 @@ impl<T> Terminal<T> {
         Self {
             backend,
             id: egui::Id::new("luminol_term_terminal"),
+            stable_time: 0.0,
             theme: Theme::default(),
             title: "Luminol Terminal".to_string(),
         }
@@ -160,7 +163,6 @@ where
                 char_width * term.columns() as f32,
                 row_height * term.screen_lines() as f32,
             );
-
             let (response, painter) =
                 ui.allocate_painter(terminal_size, egui::Sense::click_and_drag());
 
@@ -171,15 +173,8 @@ where
                 let mut buf = [0; 4];
                 let text = cell.c.encode_utf8(&mut buf);
 
-                let (color, background) =
-                    if cell.point == term.grid().cursor.point && response.has_focus() {
-                        (egui::Color32::BLACK, egui::Color32::WHITE)
-                    } else {
-                        (
-                            self.theme.get_ansi_color(cell.fg),
-                            self.theme.get_ansi_color(cell.bg),
-                        )
-                    };
+                let color = self.theme.get_ansi_color(cell.fg);
+                let background = self.theme.get_ansi_color(cell.bg);
 
                 let italics = cell.flags.contains(Flags::ITALIC);
                 let underline = cell
@@ -229,25 +224,54 @@ where
                 response.request_focus();
             }
 
-            let cursor_pos = term.grid().cursor.point;
-            let ppp = painter.ctx().pixels_per_point();
+            let mut cursor_shape = term.cursor_style().shape;
+            if !response.has_focus() {
+                cursor_shape = CursorShape::HollowBlock;
+            }
 
-            let cursor_rect = egui::Rect::from_min_size(
-                egui::pos2(
-                    cursor_pos.column.0 as f32 * char_width + response.rect.min.x,
-                    cursor_pos.line.0 as f32 * row_height + response.rect.min.y + 1.,
-                ),
-                egui::vec2(char_width - ppp, row_height - ppp),
+            self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
+            let (mut inner_color, outer_color) = match cursor_shape {
+                CursorShape::Block | CursorShape::Underline | CursorShape::Beam => {
+                    (egui::Color32::WHITE, egui::Color32::WHITE)
+                }
+                CursorShape::HollowBlock => (egui::Color32::TRANSPARENT, egui::Color32::WHITE),
+                CursorShape::Hidden => (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT),
+            };
+            if !term.cursor_style().blinking {
+                let sin_component = self.stable_time / std::f32::consts::FRAC_PI_2 * 13.;
+                let alpha = (sin_component.sin() + 1.) / 2.;
+                inner_color = inner_color.gamma_multiply(alpha);
+            }
+
+            let cursor_point = term.grid().cursor.point;
+            let mut cursor_pos = egui::pos2(
+                cursor_point.column.0 as f32 * char_width + response.rect.min.x + 1.,
+                cursor_point.line.0 as f32 * row_height + response.rect.min.y,
             );
 
-            if !response.has_focus() {
-                painter.rect(
-                    cursor_rect,
-                    egui::Rounding::ZERO,
-                    egui::Color32::TRANSPARENT,
-                    egui::Stroke::new(1.0, egui::Color32::WHITE),
-                );
-            }
+            let cursor_rect = match cursor_shape {
+                CursorShape::Block | CursorShape::HollowBlock | CursorShape::Hidden => {
+                    egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, row_height))
+                }
+                CursorShape::Beam => {
+                    egui::Rect::from_min_size(cursor_pos, egui::vec2(2.0, row_height))
+                }
+                CursorShape::Underline => {
+                    cursor_pos.y += row_height - 2.0;
+                    egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, 2.0))
+                }
+            };
+
+            painter.rect(
+                cursor_rect,
+                egui::Rounding::ZERO,
+                inner_color,
+                egui::Stroke::new(1.0, outer_color),
+            );
+
+            painter
+                .ctx()
+                .request_repaint_after(std::time::Duration::from_millis(16));
 
             response
         });
@@ -264,12 +288,14 @@ where
 
     fn process_egui_events(&mut self, events: Vec<egui::Event>, modifiers: egui::Modifiers) {
         let term_mode = self.backend.with_term(|term| *term.mode());
+        let mut term_modified = false;
         for event in events {
             match event {
                 egui::Event::Paste(text) | egui::Event::Text(text) => {
                     let bytes = text.into_bytes();
                     let cow = std::borrow::Cow::Owned(bytes);
                     self.backend.send(Msg::Input(cow));
+                    term_modified = true;
                 }
                 egui::Event::Key {
                     key, pressed: true, ..
@@ -278,9 +304,10 @@ where
                         let cow = std::borrow::Cow::Borrowed(bytes);
                         self.backend.send(Msg::Input(cow));
                     }
+                    term_modified = true;
                 }
                 egui::Event::Scroll(scroll_delta) => {
-                    let delta = scroll_delta.y as i32;
+                    let delta = (scroll_delta.y / 16.) as i32;
                     let alt_scroll = self.backend.with_term(|term| {
                         term.mode()
                             .contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL)
@@ -306,6 +333,12 @@ where
                 }
                 _ => {}
             }
+        }
+
+        if term_modified {
+            self.backend.with_term(|term| {
+                term.scroll_display(alacritty_terminal::grid::Scroll::Bottom);
+            })
         }
     }
 

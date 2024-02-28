@@ -112,9 +112,9 @@ impl App {
         );
         #[cfg(not(target_arch = "wasm32"))]
         fonts.font_data.insert(
-            "Iosevka Term Regular".to_owned(),
+            "Iosevka Term".to_owned(),
             egui::FontData::from_static(luminol_macros::include_asset!(
-                "assets/fonts/IosevkaTermNerdFont-Regular.ttf"
+                "assets/fonts/IosevkaTermNerdFont-Extended.ttf"
             )),
         );
 
@@ -132,7 +132,10 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         fonts.families.insert(
             egui::FontFamily::Name("Iosevka Term".into()),
-            vec!["Iosevka Term Regular".to_owned()],
+            vec![
+                "Iosevka Term".to_owned(),
+                "Source Han Sans Regular".to_owned(),
+            ],
         );
         cc.egui_ctx.set_fonts(fonts);
 
