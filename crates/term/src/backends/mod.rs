@@ -48,7 +48,7 @@ pub trait Backend {
 
     fn update(&mut self) {}
 
-    fn send(&mut self, _msg: alacritty_terminal::event_loop::Msg) {}
+    fn send(&mut self, _bytes: impl Into<std::borrow::Cow<'static, [u8]>>) {}
 
     fn kill(&mut self) {}
 }

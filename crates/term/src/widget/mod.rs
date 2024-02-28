@@ -23,10 +23,10 @@
 // Program grant you additional permission to convey the resulting work.
 
 use alacritty_terminal::event::Event;
+use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::TermMode;
 use alacritty_terminal::vte::ansi::CursorShape;
-use alacritty_terminal::{event_loop::Msg, grid::Dimensions};
 
 use crate::backends::Backend;
 
@@ -39,6 +39,7 @@ pub struct Terminal<T> {
     backend: T,
     theme: Theme, // TODO convert into shared config (possibly do this in luminol-preferences)
     stable_time: f32,
+    scroll_pt: f32,
     pub id: egui::Id,
     pub title: String,
 }
@@ -58,6 +59,7 @@ impl<T> Terminal<T> {
         Self {
             backend,
             id: egui::Id::new("luminol_term_terminal"),
+            scroll_pt: 0.0,
             stable_time: 0.0,
             theme: Theme::default(),
             title: "Luminol Terminal".to_string(),
@@ -150,7 +152,7 @@ where
             }
         });
 
-        let response = self.backend.with_term(|term| {
+        let (response, galley) = self.backend.with_term(|term| {
             let font_id = egui::FontId::new(14., egui::FontFamily::Name("Iosevka Term".into()));
             let (row_height, char_width) = ui.fonts(|f| {
                 (
@@ -231,23 +233,26 @@ where
 
             self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
             let (mut inner_color, outer_color) = match cursor_shape {
-                CursorShape::Block | CursorShape::Underline | CursorShape::Beam => {
+                CursorShape::Block | CursorShape::Underline => {
                     (egui::Color32::WHITE, egui::Color32::WHITE)
                 }
+                CursorShape::Beam => (egui::Color32::WHITE, egui::Color32::TRANSPARENT),
                 CursorShape::HollowBlock => (egui::Color32::TRANSPARENT, egui::Color32::WHITE),
                 CursorShape::Hidden => (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT),
             };
-            if !term.cursor_style().blinking {
+            if term.cursor_style().blinking {
                 let sin_component = self.stable_time / std::f32::consts::FRAC_PI_2 * 13.;
                 let alpha = (sin_component.sin() + 1.) / 2.;
                 inner_color = inner_color.gamma_multiply(alpha);
             }
 
             let cursor_point = term.grid().cursor.point;
-            let mut cursor_pos = egui::pos2(
-                cursor_point.column.0 as f32 * char_width + response.rect.min.x + 1.,
-                cursor_point.line.0 as f32 * row_height + response.rect.min.y,
-            );
+            let cursor = galley.from_rcursor(egui::epaint::text::cursor::RCursor {
+                row: cursor_point.line.0 as usize,
+                column: cursor_point.column.0,
+            });
+
+            let mut cursor_pos = galley.pos_from_cursor(&cursor).min + response.rect.min.to_vec2();
 
             let cursor_rect = match cursor_shape {
                 CursorShape::Block | CursorShape::HollowBlock | CursorShape::Hidden => {
@@ -273,64 +278,107 @@ where
                 .ctx()
                 .request_repaint_after(std::time::Duration::from_millis(16));
 
-            response
+            (response, galley)
         });
 
         if response.has_focus() {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(response.id, FILTER));
 
             let (events, modifiers) = ui.input(|i| (i.filtered_events(&FILTER), i.modifiers));
-            self.process_egui_events(events, modifiers);
+            self.process_egui_events(events, modifiers, response.rect.min, &galley);
         }
 
         Ok(())
     }
 
-    fn process_egui_events(&mut self, events: Vec<egui::Event>, modifiers: egui::Modifiers) {
+    fn handle_scroll(&mut self, scroll_delta: egui::Vec2) {
+        self.scroll_pt -= scroll_delta.y;
+        let delta = (self.scroll_pt / 16.).trunc() as i32;
+        self.scroll_pt %= 16.;
+
+        let alt_scroll = self.backend.with_term(|term| {
+            term.mode()
+                .contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL)
+        });
+
+        if alt_scroll {
+            let line_cmd = if delta.is_positive() { b'A' } else { b'B' };
+            let mut bytes = vec![];
+
+            for _ in 0..delta.abs() {
+                bytes.push(0x1b);
+                bytes.push(b'O');
+                bytes.push(line_cmd);
+            }
+
+            self.backend.send(bytes);
+        } else {
+            self.backend.with_term(|term| {
+                term.grid_mut()
+                    .scroll_display(alacritty_terminal::grid::Scroll::Delta(delta));
+            });
+        }
+    }
+
+    fn process_egui_events(
+        &mut self,
+        events: Vec<egui::Event>,
+        modifiers: egui::Modifiers,
+        response_pos: egui::Pos2,
+        galley: &egui::Galley,
+    ) {
         let term_mode = self.backend.with_term(|term| *term.mode());
         let mut term_modified = false;
         for event in events {
             match event {
                 egui::Event::Paste(text) | egui::Event::Text(text) => {
-                    let bytes = text.into_bytes();
-                    let cow = std::borrow::Cow::Owned(bytes);
-                    self.backend.send(Msg::Input(cow));
+                    self.backend.send(text.into_bytes());
                     term_modified = true;
+                }
+                egui::Event::PointerButton {
+                    pos,
+                    pressed,
+                    button,
+                    ..
+                } => {
+                    let relative_pos = pos - response_pos;
+                    let cursor = galley.cursor_from_pos(relative_pos).rcursor;
+
+                    if term_mode.contains(TermMode::SGR_MOUSE) && modifiers.is_none() {
+                        let c = if pressed { 'M' } else { 'm' };
+
+                        let msg = format!(
+                            "\x1b[<{};{};{}{}",
+                            button as u8,
+                            cursor.column + 1,
+                            cursor.row + 1,
+                            c
+                        );
+
+                        self.backend.send(msg.into_bytes());
+                        term_modified = true;
+                    }
+                }
+                egui::Event::PointerMoved(pos) => {
+                    let relative_pos = pos - response_pos;
+                    let cursor = galley.cursor_from_pos(relative_pos).rcursor;
+
+                    if term_mode.contains(TermMode::SGR_MOUSE) && modifiers.is_none() {
+                        let msg = format!("\x1b[<32;{};{}M", cursor.column + 1, cursor.row + 1);
+
+                        self.backend.send(msg.into_bytes());
+                        term_modified = true;
+                    }
                 }
                 egui::Event::Key {
                     key, pressed: true, ..
                 } => {
                     if let Some(bytes) = keys::key_to_codes(key, modifiers, term_mode) {
-                        let cow = std::borrow::Cow::Borrowed(bytes);
-                        self.backend.send(Msg::Input(cow));
+                        self.backend.send(bytes);
                     }
                     term_modified = true;
                 }
-                egui::Event::Scroll(scroll_delta) => {
-                    let delta = (scroll_delta.y / 16.) as i32;
-                    let alt_scroll = self.backend.with_term(|term| {
-                        term.mode()
-                            .contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL)
-                    });
-                    if alt_scroll {
-                        let line_cmd = if delta.is_positive() { b'A' } else { b'B' };
-                        let mut bytes = vec![];
-
-                        for _ in 0..delta.abs() {
-                            bytes.push(0x1b);
-                            bytes.push(b'O');
-                            bytes.push(line_cmd);
-                        }
-
-                        let cow = std::borrow::Cow::Owned(bytes);
-                        self.backend.send(Msg::Input(cow));
-                    } else {
-                        self.backend.with_term(|term| {
-                            term.grid_mut()
-                                .scroll_display(alacritty_terminal::grid::Scroll::Delta(delta));
-                        });
-                    }
-                }
+                egui::Event::Scroll(scroll_delta) => self.handle_scroll(scroll_delta),
                 _ => {}
             }
         }

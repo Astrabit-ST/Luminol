@@ -28,8 +28,8 @@ use std::sync::{
 };
 
 use alacritty_terminal::{
-    event::{Event, WindowSize},
-    event_loop::{EventLoopSender, Msg},
+    event::{Event, Notify, WindowSize},
+    event_loop::{Msg, Notifier},
     grid::Dimensions,
     sync::FairMutex,
     term::{test::TermSize, Term},
@@ -37,7 +37,7 @@ use alacritty_terminal::{
 
 pub struct Process {
     term: Arc<FairMutex<Term<ForwardEventListener>>>,
-    event_loop_sender: EventLoopSender,
+    notifier: Notifier,
     event_reciever: Receiver<Event>,
 }
 
@@ -83,11 +83,13 @@ impl Process {
             false,
         );
         let event_loop_sender = event_loop.channel();
+        let notifier = Notifier(event_loop_sender);
         event_loop.spawn();
 
         Ok(Self {
             term,
-            event_loop_sender,
+
+            notifier,
             event_reciever,
         })
     }
@@ -116,7 +118,7 @@ impl super::Backend for Process {
     }
 
     fn resize(&mut self, rows: usize, cols: usize) {
-        let _ = self.event_loop_sender.send(Msg::Resize(WindowSize {
+        let _ = self.notifier.0.send(Msg::Resize(WindowSize {
             num_cols: cols as _,
             num_lines: rows as _,
             cell_height: 0,
@@ -125,12 +127,13 @@ impl super::Backend for Process {
         self.term.lock().resize(TermSize::new(cols, rows))
     }
 
-    fn send(&mut self, msg: alacritty_terminal::event_loop::Msg) {
-        println!("{:?}", msg);
-        let _ = self.event_loop_sender.send(msg);
+    fn send(&mut self, bytes: impl Into<std::borrow::Cow<'static, [u8]>>) {
+        let bytes = bytes.into();
+        println!("{:?}", bytes);
+        self.notifier.notify(bytes);
     }
 
     fn kill(&mut self) {
-        let _ = self.event_loop_sender.send(Msg::Shutdown);
+        let _ = self.notifier.0.send(Msg::Shutdown);
     }
 }
