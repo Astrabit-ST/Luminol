@@ -413,7 +413,12 @@ impl TopBar {
 
         ui.separator();
 
-        ui.label("Brush:");
+        ui.vertical(|ui| {
+            ui.add_space(ui.spacing().button_padding.y.max(
+                (ui.spacing().interact_size.y - ui.text_style_height(&egui::TextStyle::Body)) / 2.,
+            ));
+            ui.label("Brush:");
+        });
 
         for brush in luminol_core::Pencil::iter() {
             ui.selectable_value(&mut update_state.toolbar.pencil, brush, brush.to_string());
