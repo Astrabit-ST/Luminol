@@ -57,7 +57,6 @@ pub fn key_to_codes(
     key_binding! {
       key, modifiers, term_mode;
       // ANY
-      Space;     b" ";
       Enter;     b"\x0d";
       Backspace; b"\x7f";
       Escape;    b"\x1b";
