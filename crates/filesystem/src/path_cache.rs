@@ -220,8 +220,6 @@ where
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
         let cache = self.cache.read();
 
-        ui.set_width(ui.available_width());
-
         ui.with_layout(
             egui::Layout {
                 cross_justify: true,
