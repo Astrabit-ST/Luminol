@@ -292,7 +292,7 @@ where
     }
 
     fn handle_scroll(&mut self, scroll_delta: egui::Vec2) {
-        self.scroll_pt -= scroll_delta.y;
+        self.scroll_pt += scroll_delta.y;
         let delta = (self.scroll_pt / 16.).trunc() as i32;
         self.scroll_pt %= 16.;
 
