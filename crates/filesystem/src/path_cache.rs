@@ -235,24 +235,26 @@ where
                         ui.text_style_height(&egui::TextStyle::Body),
                         cache.cactus.len(),
                         |ui, rows| {
-                            for (_, (key, extension_trie)) in cache
+                            for (_, (key, cactus_index)) in cache
                                 .trie
                                 .iter_prefix("")
                                 .unwrap()
+                                .filter_map(|(mut key, extension_trie)| {
+                                    (key.file_name() == Some(TRIE_SUFFIX)).then(|| {
+                                        key.pop();
+                                        extension_trie
+                                            .values()
+                                            .map(move |&cactus_index| (key.clone(), cactus_index))
+                                    })
+                                })
+                                .flatten()
                                 .enumerate()
-                                .filter(|(index, _)| rows.contains(index))
+                                .filter(|(row, _)| rows.contains(row))
                             {
-                                let Some(key) =
-                                    key.as_str().strip_suffix(&format!("/{TRIE_SUFFIX}"))
-                                else {
-                                    continue;
-                                };
                                 ui.add(
                                     egui::Label::new(format!(
                                         "{key} ➡ {}",
-                                        cache.get_path_from_cactus_index(
-                                            *extension_trie.values().next().unwrap(),
-                                        ),
+                                        cache.get_path_from_cactus_index(cactus_index),
                                     ))
                                     .truncate(true),
                                 );
