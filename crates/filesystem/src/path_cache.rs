@@ -220,38 +220,47 @@ where
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
         let cache = self.cache.read();
 
-        egui::ScrollArea::vertical()
-            .id_source("luminol_path_cache_debug_ui")
-            .show_rows(
-                ui,
-                ui.text_style_height(&egui::TextStyle::Body),
-                cache.cactus.len(),
-                |ui, rows| {
-                    for (_, (key, extension_trie)) in cache
-                        .trie
-                        .iter_prefix("")
-                        .unwrap()
-                        .enumerate()
-                        .filter(|(index, _)| rows.contains(index))
-                    {
-                        let Some(key) = key.as_str().strip_suffix(&format!("/{TRIE_SUFFIX}"))
-                        else {
-                            continue;
-                        };
-                        ui.horizontal(|ui| {
-                            ui.label(key);
-                            ui.label("➡");
-                            ui.label(
-                                cache
-                                    .get_path_from_cactus_index(
-                                        *extension_trie.values().next().unwrap(),
-                                    )
-                                    .as_str(),
-                            );
-                        });
-                    }
-                },
-            );
+        ui.set_width(ui.available_width());
+
+        ui.with_layout(
+            egui::Layout {
+                cross_justify: true,
+                ..*ui.layout()
+            },
+            |ui| {
+                egui::ScrollArea::vertical()
+                    .id_source("luminol_path_cache_debug_ui")
+                    .show_rows(
+                        ui,
+                        ui.text_style_height(&egui::TextStyle::Body),
+                        cache.cactus.len(),
+                        |ui, rows| {
+                            for (_, (key, extension_trie)) in cache
+                                .trie
+                                .iter_prefix("")
+                                .unwrap()
+                                .enumerate()
+                                .filter(|(index, _)| rows.contains(index))
+                            {
+                                let Some(key) =
+                                    key.as_str().strip_suffix(&format!("/{TRIE_SUFFIX}"))
+                                else {
+                                    continue;
+                                };
+                                ui.add(
+                                    egui::Label::new(format!(
+                                        "{key} ➡ {}",
+                                        cache.get_path_from_cactus_index(
+                                            *extension_trie.values().next().unwrap(),
+                                        ),
+                                    ))
+                                    .truncate(true),
+                                );
+                            }
+                        },
+                    );
+            },
+        );
     }
 }
 
