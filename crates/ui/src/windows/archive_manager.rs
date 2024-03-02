@@ -472,7 +472,11 @@ impl Window {
 
                                                         let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
                                                             &mut file,
-                                                            version,
+                                                            if version == 2 {
+                                                                1
+                                                            } else {
+                                                                version
+                                                            },
                                                             file_paths.iter().map(|path| {
                                                                 if is_first {
                                                                     is_first = false;
