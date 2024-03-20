@@ -226,8 +226,8 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            ui.columns(2, |columns| {
-                                modified |= columns[0]
+                            if item.parameter_type.is_none() {
+                                modified |= ui
                                     .add(luminol_components::Field::new(
                                         "Parameter",
                                         luminol_components::EnumComboBox::new(
@@ -236,18 +236,27 @@ impl luminol_core::Window for Window {
                                         ),
                                     ))
                                     .changed();
+                            } else {
+                                ui.columns(2, |columns| {
+                                    modified |= columns[0]
+                                        .add(luminol_components::Field::new(
+                                            "Parameter",
+                                            luminol_components::EnumComboBox::new(
+                                                "parameter_type",
+                                                &mut item.parameter_type,
+                                            ),
+                                        ))
+                                        .changed();
 
-                                modified |= columns[1]
-                                    .add_enabled(
-                                        !item.parameter_type.is_none(),
-                                        luminol_components::Field::new(
+                                    modified |= columns[1]
+                                        .add(luminol_components::Field::new(
                                             "Parameter Increment",
                                             egui::DragValue::new(&mut item.parameter_points)
                                                 .clamp_range(0..=i32::MAX),
-                                        ),
-                                    )
-                                    .changed();
-                            });
+                                        ))
+                                        .changed();
+                                });
+                            }
                         });
 
                         ui.with_padded_stripe(false, |ui| {

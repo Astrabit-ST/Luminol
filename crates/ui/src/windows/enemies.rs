@@ -460,7 +460,8 @@ impl luminol_core::Window for Window {
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Treasure Probability",
-                                        egui::Slider::new(&mut enemy.treasure_prob, 0..=100),
+                                        egui::Slider::new(&mut enemy.treasure_prob, 0..=100)
+                                            .suffix("%"),
                                     ))
                                     .changed();
                             });
@@ -470,22 +471,6 @@ impl luminol_core::Window for Window {
                                     enemy.item_id = None;
                                     enemy.weapon_id = None;
                                     enemy.armor_id = None;
-                                    ui.add_enabled(
-                                        false,
-                                        luminol_components::Field::new(
-                                            "Treasure",
-                                            |ui: &mut egui::Ui| {
-                                                egui::ComboBox::from_id_source((enemy.id, "none"))
-                                                    .wrap(true)
-                                                    .width(
-                                                        ui.available_width()
-                                                            - ui.spacing().item_spacing.x,
-                                                    )
-                                                    .show_ui(ui, |_ui| {})
-                                                    .response
-                                            },
-                                        ),
-                                    );
                                 }
 
                                 TreasureType::Item => {

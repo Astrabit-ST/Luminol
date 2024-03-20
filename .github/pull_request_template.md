@@ -18,6 +18,6 @@ person(s) who reviewed your changes. This will make sure it gets re-added to the
 
 - [ ] Run `cargo fmt`.
 - [ ] Run `cargo clippy`. If applicable, add:
-  - [ ] `--target wasm32-unknown-unknown`
-- [ ] Run `cargo build --release` 
+  - [ ] `--target wasm32-unknown-unknown -Z build-std=std,panic_abort`
+- [ ] Run `cargo build --release`
 - [ ] If applicable, run `trunk build --release`

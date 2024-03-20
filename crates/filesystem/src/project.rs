@@ -177,6 +177,8 @@ impl FileSystem {
     }
 
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
+        ui.set_width(ui.available_width());
+
         match self {
             FileSystem::Unloaded => {
                 ui.label("Unloaded");
