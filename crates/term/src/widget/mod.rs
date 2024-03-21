@@ -52,10 +52,10 @@ pub type ProcessTerminal = Terminal<crate::backends::Process>;
 pub type ChannelTerminal = Terminal<crate::backends::Channel>;
 
 impl<T> Terminal<T> {
-    fn new(backend: T) -> Self {
+    fn new(backend: T, id: egui::Id) -> Self {
         Self {
             backend,
-            id: egui::Id::new("luminol_term_terminal"), // FIXME add unique id system
+            id, // FIXME add unique id system
             scroll_pt: 0.0,
             stable_time: 0.0,
 
@@ -76,7 +76,12 @@ impl ProcessTerminal {
             working_directory: exec.working_directory,
             hold: false,
         };
-        crate::backends::Process::new(&options, config).map(Self::new)
+        let backend = crate::backends::Process::new(&options, config)?;
+        let process_id = backend.process_id();
+        Ok(Self::new(
+            backend,
+            egui::Id::new("luminol_term_process").with(process_id),
+        ))
     }
 }
 
@@ -86,7 +91,7 @@ impl ChannelTerminal {
         recv: std::sync::mpsc::Receiver<u8>,
     ) -> Self {
         let backend = crate::backends::Channel::new(recv, config);
-        Self::new(backend)
+        Self::new(backend, egui::Id::new("luminol_term_channel"))
     }
 }
 

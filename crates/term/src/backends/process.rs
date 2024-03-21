@@ -39,6 +39,7 @@ pub struct Process {
     term: Arc<FairMutex<Term<ForwardEventListener>>>,
     notifier: Notifier,
     event_reciever: Receiver<Event>,
+    process_id: u32,
 }
 
 #[derive(Clone)]
@@ -66,6 +67,7 @@ impl Process {
             },
             0,
         )?;
+        let process_id = pty.child().id();
 
         let (sender, event_reciever) = std::sync::mpsc::channel();
         let event_proxy = ForwardEventListener(sender);
@@ -94,10 +96,14 @@ impl Process {
 
         Ok(Self {
             term,
-
+            process_id,
             notifier,
             event_reciever,
         })
+    }
+
+    pub fn process_id(&self) -> u32 {
+        self.process_id
     }
 }
 
