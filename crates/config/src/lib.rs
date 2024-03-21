@@ -18,6 +18,8 @@
 pub mod command_db;
 pub mod global;
 pub mod project;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod terminal;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]

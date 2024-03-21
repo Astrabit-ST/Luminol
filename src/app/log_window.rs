@@ -29,11 +29,14 @@ pub struct LogWindow {
 }
 
 impl LogWindow {
-    pub fn new(byte_rx: std::sync::mpsc::Receiver<u8>) -> Self {
+    pub fn new(
+        config: &luminol_config::terminal::Config,
+        byte_rx: std::sync::mpsc::Receiver<u8>,
+    ) -> Self {
         Self {
             term_shown: false,
             save_promise: None,
-            term: luminol_term::widget::Terminal::channel(byte_rx),
+            term: luminol_term::widget::Terminal::channel(config, byte_rx),
         }
     }
 

@@ -35,8 +35,6 @@ use alacritty_terminal::{
     term::{test::TermSize, Term},
 };
 
-use crate::widget::Config;
-
 pub struct Process {
     term: Arc<FairMutex<Term<ForwardEventListener>>>,
     notifier: Notifier,
@@ -56,7 +54,7 @@ impl alacritty_terminal::event::EventListener for ForwardEventListener {
 impl Process {
     pub fn new(
         options: &alacritty_terminal::tty::Options,
-        config: &Config,
+        config: &luminol_config::terminal::Config,
     ) -> std::io::Result<Self> {
         let pty = alacritty_terminal::tty::new(
             options,

@@ -378,7 +378,10 @@ impl TopBar {
                         ..Default::default()
                     };
 
-                    match luminol_ui::windows::console::Window::new(exec.clone()) {
+                    match luminol_ui::windows::console::Window::new(
+                        &update_state.global_config.terminal,
+                        exec.clone(),
+                    ) {
                         Ok(w) => update_state.edit_windows.add_window(w),
                         Err(e) => luminol_core::error!(
                             update_state.toasts,
@@ -400,7 +403,10 @@ impl TopBar {
                         ..Default::default()
                     };
 
-                    match luminol_ui::windows::console::Window::new(exec) {
+                    match luminol_ui::windows::console::Window::new(
+                        &update_state.global_config.terminal,
+                        exec,
+                    ) {
                         Ok(w) => update_state.edit_windows.add_window(w),
                         Err(e) => luminol_core::error!(
                             update_state.toasts,

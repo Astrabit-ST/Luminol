@@ -238,7 +238,7 @@ impl App {
         Self {
             top_bar: top_bar::TopBar::default(),
             #[cfg(not(target_arch = "wasm32"))]
-            log: log_window::LogWindow::new(log_byte_rx),
+            log: log_window::LogWindow::new(&global_config.terminal, log_byte_rx),
             lumi,
 
             audio,

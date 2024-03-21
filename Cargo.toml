@@ -133,6 +133,8 @@ tempfile = "3.8.1"
 
 rand = "0.8.5"
 
+alacritty_terminal = "0.22.0"
+
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
 luminol-components = { version = "0.4.0", path = "crates/components/" }
 luminol-config = { version = "0.4.0", path = "crates/config/" }

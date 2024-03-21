@@ -2944,6 +2944,8 @@ dependencies = [
 name = "luminol-config"
 version = "0.4.0"
 dependencies = [
+ "alacritty_terminal",
+ "egui",
  "luminol-data",
  "once_cell",
  "ron",
@@ -3145,7 +3147,7 @@ dependencies = [
  "crossbeam-channel",
  "egui",
  "luminol-audio",
- "luminol-components",
+ "luminol-config",
  "luminol-core",
  "luminol-macros",
  "serde",

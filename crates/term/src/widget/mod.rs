@@ -27,21 +27,14 @@ use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::TermMode;
 use alacritty_terminal::vte::ansi::CursorShape;
+use luminol_config::terminal::CursorBlinking;
 
 use crate::backends::Backend;
 
 mod keys;
 
-mod config;
-pub use config::{Config, CursorBlinking};
-
-mod theme;
-pub use theme::Theme;
-
 pub struct Terminal<T> {
     backend: T,
-    config: Config, // TODO convert into shared config (possibly do this in luminol-preferences)
-    config_ui: config::ConfigUi,
     stable_time: f32,
     scroll_pt: f32,
     pub id: egui::Id,
@@ -59,23 +52,23 @@ pub type ProcessTerminal = Terminal<crate::backends::Process>;
 pub type ChannelTerminal = Terminal<crate::backends::Channel>;
 
 impl<T> Terminal<T> {
-    fn new(backend: T, config: Config) -> Self {
-        let config_ui = config::ConfigUi::new(&config);
+    fn new(backend: T) -> Self {
         Self {
             backend,
             id: egui::Id::new("luminol_term_terminal"), // FIXME add unique id system
             scroll_pt: 0.0,
             stable_time: 0.0,
-            config,
-            config_ui,
+
             title: "Luminol Terminal".to_string(),
         }
     }
 }
 
 impl ProcessTerminal {
-    pub fn process(exec: ExecOptions) -> std::io::Result<Self> {
-        let config = Config::default();
+    pub fn process(
+        config: &luminol_config::terminal::Config,
+        exec: ExecOptions,
+    ) -> std::io::Result<Self> {
         let options = alacritty_terminal::tty::Options {
             shell: exec
                 .program
@@ -83,15 +76,17 @@ impl ProcessTerminal {
             working_directory: exec.working_directory,
             hold: false,
         };
-        crate::backends::Process::new(&options, &config).map(|b| Self::new(b, config))
+        crate::backends::Process::new(&options, config).map(Self::new)
     }
 }
 
 impl ChannelTerminal {
-    pub fn channel(recv: std::sync::mpsc::Receiver<u8>) -> Self {
-        let config = Config::default();
-        let backend = crate::backends::Channel::new(recv, &config);
-        Self::new(backend, config)
+    pub fn channel(
+        config: &luminol_config::terminal::Config,
+        recv: std::sync::mpsc::Receiver<u8>,
+    ) -> Self {
+        let backend = crate::backends::Channel::new(recv, config);
+        Self::new(backend)
     }
 }
 
@@ -151,13 +146,9 @@ where
         update_state: &mut luminol_core::UpdateState<'_>,
         ui: &mut egui::Ui,
     ) -> color_eyre::Result<()> {
-        egui::Window::new("config test")
-            .show(ui.ctx(), |ui| self.config_ui.ui(&mut self.config, ui));
-
         self.backend.update();
 
         self.backend.with_event_recv(|recv| {
-            //
             for event in recv.try_iter() {
                 match event {
                     Event::Title(title) => self.title = title,
@@ -175,8 +166,10 @@ where
             }
         });
 
+        let config = &update_state.global_config.terminal;
+
         let (response, galley) = self.backend.with_term(|term| {
-            let font_id = self.config.font.clone();
+            let font_id = config.font.clone();
             let (row_height, char_width) = ui.fonts(|f| {
                 (
                     f.row_height(&font_id).round(),
@@ -201,8 +194,8 @@ where
                 let mut buf = [0; 4];
                 let text = cell.c.encode_utf8(&mut buf);
 
-                let mut color = self.config.theme.get_ansi_color(cell.fg);
-                let mut background = self.config.theme.get_ansi_color(cell.bg);
+                let mut color = config.theme.get_ansi_color(cell.fg);
+                let mut background = config.theme.get_ansi_color(cell.bg);
 
                 if cell.flags.contains(Flags::INVERSE) {
                     color = invert_color(color);
@@ -264,18 +257,15 @@ where
 
             self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
             let (mut inner_color, outer_color) = match cursor_shape {
-                CursorShape::Block | CursorShape::Underline => (
-                    self.config.theme.cursor_color,
-                    self.config.theme.cursor_color,
-                ),
-                CursorShape::Beam => (self.config.theme.cursor_color, egui::Color32::TRANSPARENT),
-                CursorShape::HollowBlock => {
-                    (egui::Color32::TRANSPARENT, self.config.theme.cursor_color)
+                CursorShape::Block | CursorShape::Underline => {
+                    (config.theme.cursor_color, config.theme.cursor_color)
                 }
+                CursorShape::Beam => (config.theme.cursor_color, egui::Color32::TRANSPARENT),
+                CursorShape::HollowBlock => (egui::Color32::TRANSPARENT, config.theme.cursor_color),
                 CursorShape::Hidden => (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT),
             };
 
-            let blink = match self.config.cursor_blinking {
+            let blink = match config.cursor_blinking {
                 CursorBlinking::Always => true,
                 CursorBlinking::Never => false,
                 CursorBlinking::Terminal => term.cursor_style().blinking,
