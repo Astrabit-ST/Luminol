@@ -3144,8 +3144,10 @@ dependencies = [
  "color-eyre",
  "crossbeam-channel",
  "egui",
+ "luminol-audio",
  "luminol-components",
  "luminol-core",
+ "luminol-macros",
  "serde",
  "strum",
 ]

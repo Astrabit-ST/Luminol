@@ -23,6 +23,8 @@ serde.workspace = true
 
 luminol-core.workspace = true
 luminol-components.workspace = true
+luminol-macros.workspace = true
+luminol-audio.workspace = true
 color-eyre.workspace = true
 
 strum.workspace = true

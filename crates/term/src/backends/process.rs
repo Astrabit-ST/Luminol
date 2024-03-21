@@ -129,7 +129,6 @@ impl super::Backend for Process {
 
     fn send(&mut self, bytes: impl Into<std::borrow::Cow<'static, [u8]>>) {
         let bytes = bytes.into();
-        println!("{:?}", bytes);
         self.notifier.notify(bytes);
     }
 

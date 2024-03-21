@@ -53,7 +53,6 @@ pub fn key_to_codes(
     modifiers: egui::Modifiers,
     term_mode: TermMode,
 ) -> Option<&'static [u8]> {
-    println!("{key:?} {modifiers:?}");
     key_binding! {
       key, modifiers, term_mode;
       // ANY

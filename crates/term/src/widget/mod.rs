@@ -161,7 +161,14 @@ where
                 match event {
                     Event::Title(title) => self.title = title,
                     Event::ResetTitle => "Luminol Terminal".clone_into(&mut self.title),
-                    Event::Bell => {}
+                    Event::Bell => {
+                        let bell = luminol_macros::include_asset!("assets/sounds/bell.wav");
+                        let cursor = std::io::Cursor::new(bell);
+                        update_state
+                            .audio
+                            .play_from_file(cursor, false, 25, 100, luminol_audio::Source::SE)
+                            .unwrap();
+                    }
                     _ => {}
                 }
             }
@@ -349,15 +356,19 @@ where
     fn process_egui_events(
         &mut self,
         events: Vec<egui::Event>,
-        modifiers: egui::Modifiers,
+        mut modifiers: egui::Modifiers,
         response_pos: egui::Pos2,
         galley: &egui::Galley,
     ) {
+        // i have no idea how CMD works on mac. nor do i have a machine to test it with
+        // but without this it messes up the key conversion
+        modifiers.command = false;
+
         let term_mode = self.backend.with_term(|term| *term.mode());
         let mut term_modified = false;
         for event in events {
             match event {
-                egui::Event::Paste(text) | egui::Event::Text(text) => {
+                egui::Event::Text(text) => {
                     self.backend.send(text.into_bytes());
                     term_modified = true;
                 }
@@ -395,6 +406,28 @@ where
                         self.backend.send(msg.into_bytes());
                         term_modified = true;
                     }
+                }
+                egui::Event::Paste(text) => {
+                    if let Some(bytes) = keys::key_to_codes(egui::Key::V, modifiers, term_mode) {
+                        self.backend.send(bytes);
+                    }
+
+                    if modifiers.shift {
+                        self.backend.send(text.into_bytes());
+                    }
+                    term_modified = true;
+                }
+                egui::Event::Copy => {
+                    if let Some(bytes) = keys::key_to_codes(egui::Key::C, modifiers, term_mode) {
+                        self.backend.send(bytes);
+                    }
+                    term_modified = true;
+                }
+                egui::Event::Cut => {
+                    if let Some(bytes) = keys::key_to_codes(egui::Key::X, modifiers, term_mode) {
+                        self.backend.send(bytes);
+                    }
+                    term_modified = true;
                 }
                 egui::Event::Key {
                     key, pressed: true, ..
