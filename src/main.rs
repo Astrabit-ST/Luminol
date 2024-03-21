@@ -92,6 +92,10 @@ impl std::io::Write for LogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let sender = LOG_BYTE_SENDER.get().unwrap();
         for &byte in buf {
+            #[cfg(target_os = "linux")]
+            if byte == b'\n' {
+                let _ = sender.send(b'\r');
+            }
             let _ = sender.send(byte);
         }
 
