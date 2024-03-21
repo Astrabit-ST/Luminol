@@ -153,7 +153,7 @@ impl Theme {
                 NamedColor::BrightCyan |
                 NamedColor::BrightWhite => self.color_pallette[c as usize],
                 // FIXME what do?
-                _ => egui::Color32::from_rgb(0, 0, 0), 
+                _ => egui::Color32::from_rgb(0, 0, 0),
             },
         }
     }
