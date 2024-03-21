@@ -372,23 +372,37 @@ where
             ui.memory_mut(|mem| mem.set_focus_lock_filter(response.id, FILTER));
 
             let (events, modifiers) = ui.input(|i| (i.filtered_events(&FILTER), i.modifiers));
-            self.process_egui_events(events, modifiers, response.rect.min, &galley);
+            self.process_egui_events(
+                events,
+                modifiers,
+                response.rect.min,
+                response.hover_pos(),
+                &galley,
+            );
         }
 
         Ok(())
     }
 
-    fn handle_scroll(&mut self, scroll_delta: egui::Vec2) {
+    fn handle_scroll(
+        &mut self,
+        cursor_pos: Option<egui::epaint::text::cursor::RCursor>,
+        scroll_delta: egui::Vec2,
+    ) {
         self.scroll_pt += scroll_delta.y;
         let delta = (self.scroll_pt / 16.).trunc() as i32;
         self.scroll_pt %= 16.;
 
-        let alt_scroll = self.backend.with_term(|term| {
-            term.mode()
-                .contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL)
-        });
+        let term_mode = self.backend.with_term(|term| *term.mode());
 
-        if alt_scroll {
+        if term_mode.contains(TermMode::SGR_MOUSE) {
+            if let Some(cursor_pos) = cursor_pos {
+                let button = 64 + delta.is_positive() as i32;
+
+                let command = format!("\x1b[<{button};{};{}M", cursor_pos.column, cursor_pos.row);
+                self.backend.send(command.into_bytes());
+            }
+        } else if term_mode.contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL) {
             let line_cmd = if delta.is_positive() { b'A' } else { b'B' };
             let mut bytes = vec![];
 
@@ -412,6 +426,7 @@ where
         events: Vec<egui::Event>,
         mut modifiers: egui::Modifiers,
         response_pos: egui::Pos2,
+        hover_pos: Option<egui::Pos2>,
         galley: &egui::Galley,
     ) {
         // i have no idea how CMD works on mac. nor do i have a machine to test it with
@@ -491,7 +506,10 @@ where
                     }
                     term_modified = true;
                 }
-                egui::Event::Scroll(scroll_delta) => self.handle_scroll(scroll_delta),
+                egui::Event::Scroll(scroll_delta) => self.handle_scroll(
+                    hover_pos.map(|pos| galley.cursor_from_pos(pos.to_vec2()).rcursor),
+                    scroll_delta,
+                ),
                 _ => {}
             }
         }
