@@ -152,7 +152,8 @@ impl Theme {
                 NamedColor::BrightMagenta |
                 NamedColor::BrightCyan |
                 NamedColor::BrightWhite => self.color_pallette[c as usize],
-                _ => egui::Color32::from_rgb(0, 0, 0), // FIXME what do?
+                // FIXME what do?
+                _ => egui::Color32::from_rgb(0, 0, 0), 
             },
         }
     }

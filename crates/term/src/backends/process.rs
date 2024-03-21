@@ -35,6 +35,8 @@ use alacritty_terminal::{
     term::{test::TermSize, Term},
 };
 
+use crate::widget::Config;
+
 pub struct Process {
     term: Arc<FairMutex<Term<ForwardEventListener>>>,
     notifier: Notifier,
@@ -52,12 +54,15 @@ impl alacritty_terminal::event::EventListener for ForwardEventListener {
 }
 
 impl Process {
-    pub fn new(options: &alacritty_terminal::tty::Options) -> std::io::Result<Self> {
+    pub fn new(
+        options: &alacritty_terminal::tty::Options,
+        config: &Config,
+    ) -> std::io::Result<Self> {
         let pty = alacritty_terminal::tty::new(
             options,
             WindowSize {
-                num_cols: 80,
-                num_lines: 24,
+                num_cols: config.initial_size.0,
+                num_lines: config.initial_size.1,
                 cell_width: 0,
                 cell_height: 0,
             },
@@ -67,7 +72,10 @@ impl Process {
         let (sender, event_reciever) = std::sync::mpsc::channel();
         let event_proxy = ForwardEventListener(sender);
 
-        let term_size = TermSize::new(80, 24);
+        let term_size = TermSize::new(
+            config.initial_size.0 as usize,
+            config.initial_size.1 as usize,
+        );
         let term = Term::new(
             alacritty_terminal::term::Config::default(),
             &term_size,

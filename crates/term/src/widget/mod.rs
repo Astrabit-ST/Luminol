@@ -59,8 +59,7 @@ pub type ProcessTerminal = Terminal<crate::backends::Process>;
 pub type ChannelTerminal = Terminal<crate::backends::Channel>;
 
 impl<T> Terminal<T> {
-    fn new(backend: T) -> Self {
-        let config = Config::default();
+    fn new(backend: T, config: Config) -> Self {
         let config_ui = config::ConfigUi::new(&config);
         Self {
             backend,
@@ -76,6 +75,7 @@ impl<T> Terminal<T> {
 
 impl ProcessTerminal {
     pub fn process(exec: ExecOptions) -> std::io::Result<Self> {
+        let config = Config::default();
         let options = alacritty_terminal::tty::Options {
             shell: exec
                 .program
@@ -83,14 +83,15 @@ impl ProcessTerminal {
             working_directory: exec.working_directory,
             hold: false,
         };
-        crate::backends::Process::new(&options).map(Self::new)
+        crate::backends::Process::new(&options, &config).map(|b| Self::new(b, config))
     }
 }
 
 impl ChannelTerminal {
     pub fn channel(recv: std::sync::mpsc::Receiver<u8>) -> Self {
-        let backend = crate::backends::Channel::new(recv);
-        Self::new(backend)
+        let config = Config::default();
+        let backend = crate::backends::Channel::new(recv, &config);
+        Self::new(backend, config)
     }
 }
 
@@ -187,8 +188,10 @@ where
                 char_width * term.columns() as f32,
                 row_height * term.screen_lines() as f32,
             );
-            let (response, painter) =
-                ui.allocate_painter(terminal_size, egui::Sense::click_and_drag());
+            let (response, painter) = ui.allocate_painter(
+                terminal_size + egui::vec2(5.0, 0.0),
+                egui::Sense::click_and_drag(),
+            );
 
             // TODO cache render jobs
             let content = term.renderable_content();
@@ -198,8 +201,13 @@ where
                 let mut buf = [0; 4];
                 let text = cell.c.encode_utf8(&mut buf);
 
-                let color = self.config.theme.get_ansi_color(cell.fg);
-                let background = self.config.theme.get_ansi_color(cell.bg);
+                let mut color = self.config.theme.get_ansi_color(cell.fg);
+                let mut background = self.config.theme.get_ansi_color(cell.bg);
+
+                if cell.flags.contains(Flags::INVERSE) {
+                    color = invert_color(color);
+                    background = invert_color(background);
+                }
 
                 let italics = cell.flags.contains(Flags::ITALIC);
                 let underline = cell
@@ -305,6 +313,35 @@ where
                 egui::Rounding::ZERO,
                 inner_color,
                 egui::Stroke::new(1.0, outer_color),
+            );
+
+            // scrollbar
+            let min = response.rect.min + egui::vec2(galley.rect.width(), 0.0);
+            let size = egui::vec2(5., response.rect.height());
+            let sidebar_rect = egui::Rect::from_min_size(min, size);
+            painter.rect_filled(
+                sidebar_rect,
+                egui::Rounding::ZERO,
+                ui.visuals().extreme_bg_color,
+            );
+
+            // handle
+            let scrollbar_percent = term.screen_lines() as f32 / term.total_lines() as f32;
+            let scrollbar_height = scrollbar_percent * response.rect.height();
+
+            let scrollbar_offset_percent =
+                content.display_offset as f32 / term.total_lines() as f32;
+            let scrollbar_offset = scrollbar_offset_percent * response.rect.height();
+            let scrollbar_y = response.rect.max.y - scrollbar_offset - scrollbar_height;
+
+            let min = egui::pos2(min.x, scrollbar_y);
+            let size = egui::vec2(5., scrollbar_height);
+            let scrollbar_rect = egui::Rect::from_min_size(min, size);
+
+            painter.rect_filled(
+                scrollbar_rect,
+                egui::Rounding::same(5.),
+                ui.visuals().widgets.active.fg_stroke.color,
             );
 
             painter
@@ -452,4 +489,9 @@ where
     pub fn kill(&mut self) {
         self.backend.kill();
     }
+}
+
+fn invert_color(color: egui::Color32) -> egui::Color32 {
+    let [r, g, b, a] = color.to_array();
+    egui::Color32::from_rgba_premultiplied(!r, !g, !b, a)
 }

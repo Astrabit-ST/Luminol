@@ -31,6 +31,8 @@ use alacritty_terminal::{
     vte,
 };
 
+use crate::widget::Config;
+
 pub struct Channel {
     processor: vte::ansi::Processor,
     term: Term<ForwardEventListener>,
@@ -49,13 +51,16 @@ impl alacritty_terminal::event::EventListener for ForwardEventListener {
 }
 
 impl Channel {
-    pub fn new(byte_recv: Receiver<u8>) -> Self {
+    pub fn new(byte_recv: Receiver<u8>, config: &Config) -> Self {
         let processor = vte::ansi::Processor::new();
 
         let (sender, event_reciever) = std::sync::mpsc::channel();
         let event_proxy = ForwardEventListener(sender);
 
-        let term_size = TermSize::new(80, 24);
+        let term_size = TermSize::new(
+            config.initial_size.0 as usize,
+            config.initial_size.1 as usize,
+        );
         let term = Term::new(
             alacritty_terminal::term::Config::default(),
             &term_size,

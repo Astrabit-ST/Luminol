@@ -29,7 +29,7 @@ use super::Theme;
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct Config {
     pub font: egui::FontId,
-    pub initial_size: (u32, u32),
+    pub initial_size: (u16, u16),
     pub bell_enabled: bool,
 
     pub cursor_blinking: CursorBlinking,
