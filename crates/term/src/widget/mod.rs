@@ -77,10 +77,9 @@ impl ProcessTerminal {
             hold: false,
         };
         let backend = crate::backends::Process::new(&options, config)?;
-        let process_id = backend.process_id();
         Ok(Self::new(
             backend,
-            egui::Id::new("luminol_term_process").with(process_id),
+            egui::Id::new("luminol_term_process").with(std::time::Instant::now()),
         ))
     }
 }
