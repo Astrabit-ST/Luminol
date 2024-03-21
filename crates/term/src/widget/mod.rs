@@ -32,12 +32,16 @@ use crate::backends::Backend;
 
 mod keys;
 
+mod config;
+pub use config::{Config, CursorBlinking};
+
 mod theme;
 pub use theme::Theme;
 
 pub struct Terminal<T> {
     backend: T,
-    theme: Theme, // TODO convert into shared config (possibly do this in luminol-preferences)
+    config: Config, // TODO convert into shared config (possibly do this in luminol-preferences)
+    config_ui: config::ConfigUi,
     stable_time: f32,
     scroll_pt: f32,
     pub id: egui::Id,
@@ -56,12 +60,15 @@ pub type ChannelTerminal = Terminal<crate::backends::Channel>;
 
 impl<T> Terminal<T> {
     fn new(backend: T) -> Self {
+        let config = Config::default();
+        let config_ui = config::ConfigUi::new(&config);
         Self {
             backend,
-            id: egui::Id::new("luminol_term_terminal"),
+            id: egui::Id::new("luminol_term_terminal"), // FIXME add unique id system
             scroll_pt: 0.0,
             stable_time: 0.0,
-            theme: Theme::default(),
+            config,
+            config_ui,
             title: "Luminol Terminal".to_string(),
         }
     }
@@ -138,7 +145,14 @@ where
         self.backend.update()
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> color_eyre::Result<()> {
+    pub fn ui(
+        &mut self,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        ui: &mut egui::Ui,
+    ) -> color_eyre::Result<()> {
+        egui::Window::new("config test")
+            .show(ui.ctx(), |ui| self.config_ui.ui(&mut self.config, ui));
+
         self.backend.update();
 
         self.backend.with_event_recv(|recv| {
@@ -147,13 +161,14 @@ where
                 match event {
                     Event::Title(title) => self.title = title,
                     Event::ResetTitle => "Luminol Terminal".clone_into(&mut self.title),
+                    Event::Bell => {}
                     _ => {}
                 }
             }
         });
 
         let (response, galley) = self.backend.with_term(|term| {
-            let font_id = egui::FontId::new(14., egui::FontFamily::Name("Iosevka Term".into()));
+            let font_id = self.config.font.clone();
             let (row_height, char_width) = ui.fonts(|f| {
                 (
                     f.row_height(&font_id).round(),
@@ -171,12 +186,13 @@ where
             // TODO cache render jobs
             let content = term.renderable_content();
             let mut job = egui::text::LayoutJob::default();
+
             for cell in content.display_iter {
                 let mut buf = [0; 4];
                 let text = cell.c.encode_utf8(&mut buf);
 
-                let color = self.theme.get_ansi_color(cell.fg);
-                let background = self.theme.get_ansi_color(cell.bg);
+                let color = self.config.theme.get_ansi_color(cell.fg);
+                let background = self.config.theme.get_ansi_color(cell.bg);
 
                 let italics = cell.flags.contains(Flags::ITALIC);
                 let underline = cell
@@ -233,14 +249,24 @@ where
 
             self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
             let (mut inner_color, outer_color) = match cursor_shape {
-                CursorShape::Block | CursorShape::Underline => {
-                    (egui::Color32::WHITE, egui::Color32::WHITE)
+                CursorShape::Block | CursorShape::Underline => (
+                    self.config.theme.cursor_color,
+                    self.config.theme.cursor_color,
+                ),
+                CursorShape::Beam => (self.config.theme.cursor_color, egui::Color32::TRANSPARENT),
+                CursorShape::HollowBlock => {
+                    (egui::Color32::TRANSPARENT, self.config.theme.cursor_color)
                 }
-                CursorShape::Beam => (egui::Color32::WHITE, egui::Color32::TRANSPARENT),
-                CursorShape::HollowBlock => (egui::Color32::TRANSPARENT, egui::Color32::WHITE),
                 CursorShape::Hidden => (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT),
             };
-            if term.cursor_style().blinking {
+
+            let blink = match self.config.cursor_blinking {
+                CursorBlinking::Always => true,
+                CursorBlinking::Never => false,
+                CursorBlinking::Terminal => term.cursor_style().blinking,
+            };
+
+            if blink {
                 let sin_component = self.stable_time / std::f32::consts::FRAC_PI_2 * 13.;
                 let alpha = (sin_component.sin() + 1.) / 2.;
                 inner_color = inner_color.gamma_multiply(alpha);

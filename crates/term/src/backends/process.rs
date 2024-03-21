@@ -81,7 +81,7 @@ impl Process {
             pty,
             false,
             false,
-        );
+        )?;
         let event_loop_sender = event_loop.channel();
         let notifier = Notifier(event_loop_sender);
         event_loop.spawn();

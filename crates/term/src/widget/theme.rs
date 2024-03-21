@@ -32,6 +32,9 @@ use alacritty_terminal::vte::ansi::{Color as AnsiColor, NamedColor};
 #[derive(Debug, Clone)]
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Theme {
+    pub color_pallette: [egui::Color32; 16],
+    pub background_color: egui::Color32,
+    pub cursor_color: egui::Color32,
     ansi_colors: HashMap<u8, egui::Color32>,
 }
 
@@ -61,7 +64,12 @@ impl Default for Theme {
             ansi_colors.insert(232 + i, egui::Color32::from_rgb(value, value, value));
         }
 
-        Self { ansi_colors }
+        Self {
+            ansi_colors,
+            background_color: egui::Color32::from_rgb(15, 15, 15),
+            cursor_color: egui::Color32::WHITE,
+            color_pallette: Self::default_configurable_colors(),
+        }
     }
 }
 
@@ -84,33 +92,36 @@ impl IndexMut<u8> for Theme {
 }
 
 impl Theme {
+    const fn default_configurable_colors() -> [egui::Color32; 16] {
+        [
+            // Default terminal reserved colors
+            egui::Color32::from_rgb(40, 39, 39),
+            egui::Color32::from_rgb(203, 35, 29),
+            egui::Color32::from_rgb(152, 150, 26),
+            egui::Color32::from_rgb(214, 152, 33),
+            egui::Color32::from_rgb(69, 132, 135),
+            egui::Color32::from_rgb(176, 97, 133),
+            egui::Color32::from_rgb(104, 156, 105),
+            egui::Color32::from_rgb(168, 152, 131),
+            // Bright terminal reserved colors
+            egui::Color32::from_rgb(146, 130, 115),
+            egui::Color32::from_rgb(250, 72, 52),
+            egui::Color32::from_rgb(184, 186, 38),
+            egui::Color32::from_rgb(249, 188, 47),
+            egui::Color32::from_rgb(131, 164, 151),
+            egui::Color32::from_rgb(210, 133, 154),
+            egui::Color32::from_rgb(142, 191, 123),
+            egui::Color32::from_rgb(235, 218, 177),
+        ]
+    }
+
     pub fn get_ansi_color(&self, color: AnsiColor) -> egui::Color32 {
         match color {
             AnsiColor::Spec(rgb) => egui::Color32::from_rgb(rgb.r, rgb.g, rgb.b),
             AnsiColor::Indexed(index) => {
                 // maybe allow editing of colors?
                 if index <= 15 {
-                    return match index {
-                        // Default terminal reserved colors
-                        0 => egui::Color32::from_rgb(40, 39, 39),
-                        1 => egui::Color32::from_rgb(203, 35, 29),
-                        2 => egui::Color32::from_rgb(152, 150, 26),
-                        3 => egui::Color32::from_rgb(214, 152, 33),
-                        4 => egui::Color32::from_rgb(69, 132, 135),
-                        5 => egui::Color32::from_rgb(176, 97, 133),
-                        6 => egui::Color32::from_rgb(104, 156, 105),
-                        7 => egui::Color32::from_rgb(168, 152, 131),
-                        // Bright terminal reserved colors
-                        8 => egui::Color32::from_rgb(146, 130, 115),
-                        9 => egui::Color32::from_rgb(250, 72, 52),
-                        10 => egui::Color32::from_rgb(184, 186, 38),
-                        11 => egui::Color32::from_rgb(249, 188, 47),
-                        12 => egui::Color32::from_rgb(131, 164, 151),
-                        13 => egui::Color32::from_rgb(210, 133, 154),
-                        14 => egui::Color32::from_rgb(142, 191, 123),
-                        15 => egui::Color32::from_rgb(235, 218, 177),
-                        _ => egui::Color32::from_rgb(0, 0, 0),
-                    };
+                    return self.color_pallette[index as usize];
                 }
 
                 // Other colors
@@ -120,28 +131,28 @@ impl Theme {
                 }
             }
             AnsiColor::Named(c) => match c {
+                NamedColor::Background => self.background_color,
                 NamedColor::Foreground => egui::Color32::from_rgb(235, 218, 177),
-                NamedColor::Background => egui::Color32::from_rgb(40, 39, 39),
-                // Default terminal reserved colors
-                NamedColor::Black => egui::Color32::from_rgb(40, 39, 39),
-                NamedColor::Red => egui::Color32::from_rgb(203, 35, 29),
-                NamedColor::Green => egui::Color32::from_rgb(152, 150, 26),
-                NamedColor::Yellow => egui::Color32::from_rgb(214, 152, 33),
-                NamedColor::Blue => egui::Color32::from_rgb(69, 132, 135),
-                NamedColor::Magenta => egui::Color32::from_rgb(176, 97, 133),
-                NamedColor::Cyan => egui::Color32::from_rgb(104, 156, 105),
-                NamedColor::White => egui::Color32::from_rgb(168, 152, 131),
-                // Bright terminal reserved colors
-                NamedColor::BrightBlack => egui::Color32::from_rgb(146, 130, 115),
-                NamedColor::BrightRed => egui::Color32::from_rgb(250, 72, 52),
-                NamedColor::BrightGreen => egui::Color32::from_rgb(184, 186, 38),
-                NamedColor::BrightYellow => egui::Color32::from_rgb(249, 188, 47),
-                NamedColor::BrightBlue => egui::Color32::from_rgb(131, 164, 151),
-                NamedColor::BrightMagenta => egui::Color32::from_rgb(210, 133, 154),
-                NamedColor::BrightCyan => egui::Color32::from_rgb(142, 191, 123),
-                NamedColor::BrightWhite => egui::Color32::from_rgb(235, 218, 177),
                 NamedColor::BrightForeground => egui::Color32::from_rgb(235, 218, 177),
-                _ => egui::Color32::from_rgb(0, 0, 0),
+                // Default terminal reserved colors
+                NamedColor::Black |
+                NamedColor::Red |
+                NamedColor::Green |
+                NamedColor::Yellow |
+                NamedColor::Blue |
+                NamedColor::Magenta |
+                NamedColor::Cyan |
+                NamedColor::White |
+                // Bright terminal reserved colors
+                NamedColor::BrightBlack |
+                NamedColor::BrightRed |
+                NamedColor::BrightGreen |
+                NamedColor::BrightYellow |
+                NamedColor::BrightBlue |
+                NamedColor::BrightMagenta |
+                NamedColor::BrightCyan |
+                NamedColor::BrightWhite => self.color_pallette[c as usize],
+                _ => egui::Color32::from_rgb(0, 0, 0), // FIXME what do?
             },
         }
     }

@@ -145,9 +145,9 @@ dependencies = [
 
 [[package]]
 name = "alacritty_terminal"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35229555d7cc7e83392dfc27c96bec560b1076d756184893296cd60125f4a264"
+checksum = "cc7ceabf6fc76511f616ca216b51398a2511f19ba9f71bcbd977999edff1b0d1"
 dependencies = [
  "base64",
  "bitflags 2.4.2",
@@ -3144,8 +3144,10 @@ dependencies = [
  "color-eyre",
  "crossbeam-channel",
  "egui",
+ "luminol-components",
  "luminol-core",
  "serde",
+ "strum",
 ]
 
 [[package]]

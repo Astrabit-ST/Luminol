@@ -106,7 +106,7 @@ impl LogWindow {
 
                 ui.add_space(ui.spacing().item_spacing.y);
 
-                if let Err(e) = self.term.ui(ui) {
+                if let Err(e) = self.term.ui(update_state, ui) {
                     luminol_core::error!(
                         update_state.toasts,
                         e.wrap_err("Error displaying log window"),
