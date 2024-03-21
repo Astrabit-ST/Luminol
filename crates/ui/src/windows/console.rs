@@ -60,7 +60,6 @@ impl luminol_core::Window for Window {
         egui::Window::new(self.name())
             .id(self.term.id)
             .open(open)
-            .resizable(false)
             .show(ctx, |ui| {
                 if let Err(e) = self.term.ui(update_state, ui) {
                     luminol_core::error!(
@@ -68,34 +67,6 @@ impl luminol_core::Window for Window {
                         e.wrap_err("Error displaying terminal"),
                     );
                 }
-
-                ui.add_space(ui.spacing().item_spacing.y);
-
-                ui.horizontal(|ui| {
-                    if ui
-                        .button(egui::RichText::new("KILL").color(egui::Color32::RED))
-                        .clicked()
-                    {
-                        // if let Err(e) = self.term.kill() {
-                        //     luminol_core::error!(
-                        //         update_state.toasts,
-                        //         e.wrap_err("Error killing child"),
-                        //     );
-                        // }
-                        self.term.kill()
-                    }
-
-                    let mut resize = false;
-                    let (mut cols, mut rows) = self.term.size();
-
-                    resize |= ui.add(egui::DragValue::new(&mut cols)).changed();
-                    ui.label("×");
-                    resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
-
-                    if resize {
-                        self.term.set_size(cols, rows);
-                    }
-                });
             });
     }
 }

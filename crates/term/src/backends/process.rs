@@ -35,6 +35,8 @@ use alacritty_terminal::{
     term::{test::TermSize, Term},
 };
 
+use super::Backend;
+
 pub struct Process {
     term: Arc<FairMutex<Term<ForwardEventListener>>>,
     notifier: Notifier,
@@ -107,7 +109,7 @@ impl Process {
     }
 }
 
-impl super::Backend for Process {
+impl Backend for Process {
     type EventListener = ForwardEventListener;
 
     fn with_term<T, F>(&mut self, f: F) -> T
@@ -146,5 +148,11 @@ impl super::Backend for Process {
 
     fn kill(&mut self) {
         let _ = self.notifier.0.send(Msg::Shutdown);
+    }
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        self.kill()
     }
 }

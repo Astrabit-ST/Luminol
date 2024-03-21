@@ -48,20 +48,8 @@ impl LogWindow {
         egui::Window::new("Log")
             .id(self.term.id)
             .open(&mut self.term_shown)
-            .resizable(false)
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
-                    let mut resize = false;
-                    let (mut cols, mut rows) = self.term.size();
-
-                    resize |= ui.add(egui::DragValue::new(&mut cols)).changed();
-                    ui.label("×");
-                    resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
-
-                    if resize {
-                        self.term.set_size(cols, rows);
-                    }
-
                     ui.add_space(ui.style().spacing.indent);
 
                     if ui.button("Clear").clicked() {

@@ -138,7 +138,7 @@ where
 
     pub fn erase_scrollback_and_viewport(&mut self) {
         self.backend.with_term(|term| {
-            term.grid_mut().clear_viewport();
+            term.grid_mut().reset();
         });
     }
 
@@ -172,25 +172,17 @@ where
         });
 
         let config = &update_state.global_config.terminal;
+        let font_id = config.font.clone();
 
-        let (response, galley) = self.backend.with_term(|term| {
-            let font_id = config.font.clone();
-            let (row_height, char_width) = ui.fonts(|f| {
-                (
-                    f.row_height(&font_id).round(),
-                    f.glyph_width(&font_id, '*').round(),
-                )
-            });
-
-            let terminal_size = egui::vec2(
-                char_width * term.columns() as f32,
-                row_height * term.screen_lines() as f32,
-            );
-            let (response, painter) = ui.allocate_painter(
-                terminal_size + egui::vec2(5.0, 0.0),
-                egui::Sense::click_and_drag(),
-            );
-
+        let (
+            galley,
+            screen_columns,
+            screen_lines,
+            total_lines,
+            display_offset,
+            cursor_style,
+            cursor_point,
+        ) = self.backend.with_term(|term| {
             // TODO cache render jobs
             let content = term.renderable_content();
             let mut job = egui::text::LayoutJob::default();
@@ -236,115 +228,145 @@ where
                 }
             }
 
-            let galley = ui.fonts(|f| f.layout_job(job));
-
-            painter.rect_filled(
-                egui::Rect::from_min_size(response.rect.min, terminal_size),
-                0.0,
-                egui::Color32::from_rgb(40, 39, 39),
-            );
-
-            painter.galley(response.rect.min, galley.clone(), egui::Color32::WHITE);
-
-            if response.hovered() {
-                ui.output_mut(|o| o.mutable_text_under_cursor = true);
-                ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
-            }
-
-            if response.clicked() && !response.lost_focus() {
-                response.request_focus();
-            }
-
-            let mut cursor_shape = term.cursor_style().shape;
-            if !response.has_focus() {
-                cursor_shape = CursorShape::HollowBlock;
-            }
-
-            self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
-            let (mut inner_color, outer_color) = match cursor_shape {
-                CursorShape::Block | CursorShape::Underline => {
-                    (config.theme.cursor_color, config.theme.cursor_color)
-                }
-                CursorShape::Beam => (config.theme.cursor_color, egui::Color32::TRANSPARENT),
-                CursorShape::HollowBlock => (egui::Color32::TRANSPARENT, config.theme.cursor_color),
-                CursorShape::Hidden => (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT),
-            };
-
-            let blink = match config.cursor_blinking {
-                CursorBlinking::Always => true,
-                CursorBlinking::Never => false,
-                CursorBlinking::Terminal => term.cursor_style().blinking,
-            };
-
-            if blink {
-                let sin_component = self.stable_time / std::f32::consts::FRAC_PI_2 * 13.;
-                let alpha = (sin_component.sin() + 1.) / 2.;
-                inner_color = inner_color.gamma_multiply(alpha);
-            }
-
-            let cursor_point = term.grid().cursor.point;
-            let cursor = galley.from_rcursor(egui::epaint::text::cursor::RCursor {
-                row: cursor_point.line.0 as usize,
-                column: cursor_point.column.0,
-            });
-
-            let mut cursor_pos = galley.pos_from_cursor(&cursor).min + response.rect.min.to_vec2();
-
-            let cursor_rect = match cursor_shape {
-                CursorShape::Block | CursorShape::HollowBlock | CursorShape::Hidden => {
-                    egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, row_height))
-                }
-                CursorShape::Beam => {
-                    egui::Rect::from_min_size(cursor_pos, egui::vec2(2.0, row_height))
-                }
-                CursorShape::Underline => {
-                    cursor_pos.y += row_height - 2.0;
-                    egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, 2.0))
-                }
-            };
-
-            painter.rect(
-                cursor_rect,
-                egui::Rounding::ZERO,
-                inner_color,
-                egui::Stroke::new(1.0, outer_color),
-            );
-
-            // scrollbar
-            let min = response.rect.min + egui::vec2(galley.rect.width(), 0.0);
-            let size = egui::vec2(5., response.rect.height());
-            let sidebar_rect = egui::Rect::from_min_size(min, size);
-            painter.rect_filled(
-                sidebar_rect,
-                egui::Rounding::ZERO,
-                ui.visuals().extreme_bg_color,
-            );
-
-            // handle
-            let scrollbar_percent = term.screen_lines() as f32 / term.total_lines() as f32;
-            let scrollbar_height = scrollbar_percent * response.rect.height();
-
-            let scrollbar_offset_percent =
-                content.display_offset as f32 / term.total_lines() as f32;
-            let scrollbar_offset = scrollbar_offset_percent * response.rect.height();
-            let scrollbar_y = response.rect.max.y - scrollbar_offset - scrollbar_height;
-
-            let min = egui::pos2(min.x, scrollbar_y);
-            let size = egui::vec2(5., scrollbar_height);
-            let scrollbar_rect = egui::Rect::from_min_size(min, size);
-
-            painter.rect_filled(
-                scrollbar_rect,
-                egui::Rounding::same(5.),
-                ui.visuals().widgets.active.fg_stroke.color,
-            );
-
-            painter
-                .ctx()
-                .request_repaint_after(std::time::Duration::from_millis(16));
-
-            (response, galley)
+            (
+                ui.fonts(|f| f.layout_job(job)),
+                term.columns(),
+                term.screen_lines(),
+                term.total_lines(),
+                content.display_offset,
+                term.cursor_style(),
+                term.grid().cursor.point,
+            )
         });
+
+        let max_size = ui.available_size();
+        let (row_height, char_width) = ui.fonts(|f| {
+            (
+                f.row_height(&font_id).round(),
+                f.glyph_width(&font_id, '*').round(),
+            )
+        });
+
+        let terminal_size = egui::vec2(
+            char_width * screen_columns as f32,
+            row_height * screen_lines as f32,
+        );
+        let total_area = terminal_size + egui::vec2(5.0, 0.0);
+
+        let (response, painter) = egui::ScrollArea::neither()
+            .show(ui, |ui| {
+                ui.allocate_painter(max_size.max(total_area), egui::Sense::click_and_drag())
+            })
+            .inner;
+
+        if max_size != total_area {
+            let new_size = max_size - egui::vec2(5.0, 0.0);
+
+            let cols = (new_size.x / char_width) as _;
+            let lines = (new_size.y / row_height) as _;
+            self.set_size(cols, lines)
+        }
+
+        painter.rect_filled(
+            egui::Rect::from_min_size(response.rect.min, terminal_size),
+            0.0,
+            egui::Color32::from_rgb(40, 39, 39),
+        );
+
+        painter.galley(response.rect.min, galley.clone(), egui::Color32::WHITE);
+
+        if response.hovered() {
+            ui.output_mut(|o| o.mutable_text_under_cursor = true);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Text);
+        }
+
+        if response.clicked() && !response.lost_focus() {
+            response.request_focus();
+        }
+
+        let mut cursor_shape = cursor_style.shape;
+        if !response.has_focus() {
+            cursor_shape = CursorShape::HollowBlock;
+        }
+
+        self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
+        let (mut inner_color, outer_color) = match cursor_shape {
+            CursorShape::Block | CursorShape::Underline => {
+                (config.theme.cursor_color, config.theme.cursor_color)
+            }
+            CursorShape::Beam => (config.theme.cursor_color, egui::Color32::TRANSPARENT),
+            CursorShape::HollowBlock => (egui::Color32::TRANSPARENT, config.theme.cursor_color),
+            CursorShape::Hidden => (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT),
+        };
+
+        let blink = match config.cursor_blinking {
+            CursorBlinking::Always => true,
+            CursorBlinking::Never => false,
+            CursorBlinking::Terminal => cursor_style.blinking,
+        };
+
+        if blink {
+            let sin_component = self.stable_time / std::f32::consts::FRAC_PI_2 * 13.;
+            let alpha = (sin_component.sin() + 1.) / 2.;
+            inner_color = inner_color.gamma_multiply(alpha);
+        }
+
+        let cursor = galley.from_rcursor(egui::epaint::text::cursor::RCursor {
+            row: cursor_point.line.0 as usize,
+            column: cursor_point.column.0,
+        });
+
+        let mut cursor_pos = galley.pos_from_cursor(&cursor).min + response.rect.min.to_vec2();
+
+        let cursor_rect = match cursor_shape {
+            CursorShape::Block | CursorShape::HollowBlock | CursorShape::Hidden => {
+                egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, row_height))
+            }
+            CursorShape::Beam => egui::Rect::from_min_size(cursor_pos, egui::vec2(2.0, row_height)),
+            CursorShape::Underline => {
+                cursor_pos.y += row_height - 2.0;
+                egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, 2.0))
+            }
+        };
+
+        painter.rect(
+            cursor_rect,
+            egui::Rounding::ZERO,
+            inner_color,
+            egui::Stroke::new(1.0, outer_color),
+        );
+
+        // scrollbar
+        let min = response.rect.min + egui::vec2(galley.rect.width(), 0.0);
+        let size = egui::vec2(5., response.rect.height());
+        let sidebar_rect = egui::Rect::from_min_size(min, size);
+        painter.rect_filled(
+            sidebar_rect,
+            egui::Rounding::ZERO,
+            ui.visuals().extreme_bg_color,
+        );
+
+        // handle
+        let scrollbar_percent = screen_lines as f32 / total_lines as f32;
+        let scrollbar_height = scrollbar_percent * response.rect.height();
+
+        let scrollbar_offset_percent = display_offset as f32 / total_lines as f32;
+        let scrollbar_offset = scrollbar_offset_percent * response.rect.height();
+        let scrollbar_y = response.rect.max.y - scrollbar_offset - scrollbar_height;
+
+        let min = egui::pos2(min.x, scrollbar_y);
+        let size = egui::vec2(5., scrollbar_height);
+        let scrollbar_rect = egui::Rect::from_min_size(min, size);
+
+        painter.rect_filled(
+            scrollbar_rect,
+            egui::Rounding::same(5.),
+            ui.visuals().widgets.active.fg_stroke.color,
+        );
+
+        painter
+            .ctx()
+            .request_repaint_after(std::time::Duration::from_millis(16));
 
         if response.has_focus() {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(response.id, FILTER));
