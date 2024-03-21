@@ -49,7 +49,6 @@ pub struct ForwardEventListener(Sender<Event>);
 
 impl alacritty_terminal::event::EventListener for ForwardEventListener {
     fn send_event(&self, event: Event) {
-        println!("Recv event: {event:#?}");
         let _ = self.0.send(event);
     }
 }
