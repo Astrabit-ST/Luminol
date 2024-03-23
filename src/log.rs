@@ -24,11 +24,14 @@
 
 use std::io::Write;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
+
+use once_cell::sync::OnceCell;
 
 #[derive(Clone)]
 struct LogWriter {
     sender: Sender<u8>,
-    context: egui::Context,
+    context: Arc<OnceCell<egui::Context>>,
 }
 
 impl std::io::Write for LogWriter {
@@ -40,7 +43,9 @@ impl std::io::Write for LogWriter {
             let _ = self.sender.send(byte);
         }
 
-        self.context.request_repaint();
+        if let Some(ctx) = self.context.get() {
+            ctx.request_repaint();
+        }
 
         Ok(buf.len())
     }
@@ -68,7 +73,7 @@ where
     }
 }
 
-pub fn initialize_log(sender: Sender<u8>, context: egui::Context) {
+pub fn initialize_log(sender: Sender<u8>, context: Arc<OnceCell<egui::Context>>) {
     let log_writer = LogWriter { sender, context };
     tracing_subscriber::fmt()
         // we clone + move the log_writer so this closure impls Fn()

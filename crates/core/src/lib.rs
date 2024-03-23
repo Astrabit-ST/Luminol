@@ -168,6 +168,7 @@ impl<'res> UpdateState<'res> {
         &'this mut self,
         edit_windows: &'this mut window::EditWindows,
     ) -> UpdateState<'this> {
+        tracing::info!("dvasacjkfsadcdfngaxjnfdsa");
         UpdateState {
             ctx: self.ctx,
             audio: self.audio,

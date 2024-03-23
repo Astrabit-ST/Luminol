@@ -205,6 +205,10 @@ fn main() {
         }
     }));
 
+    let (log_byte_tx, log_byte_rx) = std::sync::mpsc::channel();
+    let ctx_cell = std::sync::Arc::new(once_cell::sync::OnceCell::new());
+    log::initialize_log(log_byte_tx, ctx_cell.clone());
+
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
     let native_options = luminol_eframe::NativeOptions {
@@ -239,9 +243,10 @@ fn main() {
     luminol_eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| {
-            let (log_byte_tx, log_byte_rx) = std::sync::mpsc::channel();
-            log::initialize_log(log_byte_tx, cc.egui_ctx.clone());
+        Box::new(move |cc| {
+            ctx_cell
+                .set(cc.egui_ctx.clone())
+                .expect("egui context cell already set (this shouldn't happen!)");
 
             Box::new(app::App::new(
                 cc,
