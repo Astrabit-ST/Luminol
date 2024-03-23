@@ -201,7 +201,6 @@ tokio = { version = "1.33", features = [
 ] } # *sigh*
 tempfile.workspace = true
 luminol-term.workspace = true
-ringbuf = "0.3.3"
 
 # Set poll promise features here based on the target
 # I'd much rather do it in the workspace, but cargo doesn't support that yet
