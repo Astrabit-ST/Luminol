@@ -86,6 +86,7 @@ impl LogWindow {
                     ui.add_space(ui.style().spacing.indent);
 
                     if ui.button("Clear").clicked() {
+                        self.ringbuf.clear();
                         self.term.erase_scrollback_and_viewport();
                     }
 
