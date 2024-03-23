@@ -418,8 +418,11 @@ impl luminol_core::Tab for Tab {
                     }
 
                     // Tile drawing
-                    if response.dragged_by(egui::PointerButton::Primary)
-                        && !ui.input(|i| i.modifiers.command)
+                    if response.is_pointer_button_down_on()
+                        && ui.input(|i| {
+                            i.pointer.button_down(egui::PointerButton::Primary)
+                                && !i.modifiers.command
+                        })
                     {
                         self.handle_brush(
                             map_x as usize,
