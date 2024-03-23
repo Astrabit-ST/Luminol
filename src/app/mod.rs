@@ -110,13 +110,18 @@ impl App {
                 .unwrap(),
             ),
         );
+
         #[cfg(not(target_arch = "wasm32"))]
-        fonts.font_data.insert(
-            "Iosevka Term".to_owned(),
-            egui::FontData::from_static(luminol_macros::include_asset!(
-                "assets/fonts/IosevkaTermNerdFont-Extended.ttf"
-            )),
-        );
+        let fd = zstd::bulk::decompress(
+            luminol_macros::include_asset!("assets/fonts/IosevkaTermNerdFont-Extended.ttf.zst"),
+            11849324,
+        )
+        .unwrap();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        fonts
+            .font_data
+            .insert("Iosevka Term".to_owned(), egui::FontData::from_owned(fd));
 
         fonts
             .families

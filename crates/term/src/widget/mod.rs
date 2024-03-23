@@ -338,7 +338,7 @@ where
                 egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, 2.0))
             }
         };
-        let cursor_rect_witout_offset =
+        let cursor_rect_without_offset =
             egui::Rect::from_min_size(cursor_pos_without_offset, cursor_rect.size());
 
         painter.rect(
@@ -385,7 +385,7 @@ where
             ui.output_mut(|o| {
                 o.ime = Some(egui::output::IMEOutput {
                     rect: galley.rect,
-                    cursor_rect: cursor_rect_witout_offset,
+                    cursor_rect: cursor_rect_without_offset,
                 });
             });
 
