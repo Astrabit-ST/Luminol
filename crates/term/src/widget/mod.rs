@@ -373,6 +373,7 @@ where
         let mut cursor_shape = cursor_style.shape;
         if !response.has_focus() {
             cursor_shape = CursorShape::HollowBlock;
+            self.ime_text = None;
         }
 
         self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
