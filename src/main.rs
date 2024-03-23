@@ -39,6 +39,8 @@ static RESTART_AFTER_PANIC: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 mod app;
+#[cfg(not(target_arch = "wasm32"))]
+mod log;
 mod lumi;
 
 #[cfg(all(feature = "steamworks", target_arch = "wasm32"))]
@@ -56,60 +58,6 @@ pub fn git_revision() -> &'static str {
     option_env!("LUMINOL_VERSION").unwrap_or(git_version::git_version!())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-/// A writer that copies whatever is written to it to two other writers.
-struct CopyWriter<A, B>(A, B);
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<A, B> Write for CopyWriter<A, B>
-where
-    A: Write,
-    B: Write,
-{
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        Ok(self.0.write(buf)?.min(self.1.write(buf)?))
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.0.flush()?;
-        self.1.flush()?;
-        Ok(())
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-static LOG_BYTE_SENDER: once_cell::sync::OnceCell<std::sync::mpsc::Sender<u8>> =
-    once_cell::sync::OnceCell::new();
-#[cfg(not(target_arch = "wasm32"))]
-static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::OnceCell::new();
-
-/// A writer that writes to Luminol's log window.
-#[cfg(not(target_arch = "wasm32"))]
-struct LogWriter;
-
-#[cfg(not(target_arch = "wasm32"))]
-impl std::io::Write for LogWriter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let sender = LOG_BYTE_SENDER.get().unwrap();
-        for &byte in buf {
-            #[cfg(target_os = "linux")]
-            if byte == b'\n' {
-                let _ = sender.send(b'\r');
-            }
-            let _ = sender.send(byte);
-        }
-
-        if let Some(ctx) = CONTEXT.get() {
-            ctx.request_repaint();
-        }
-
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // Load the panic report from the previous run if it exists
@@ -257,16 +205,6 @@ fn main() {
         }
     }));
 
-    // Log to stderr as well as Luminol's log.
-    let (log_byte_tx, log_byte_rx) = std::sync::mpsc::channel();
-    LOG_BYTE_SENDER.set(log_byte_tx).unwrap();
-    tracing_subscriber::fmt()
-        .with_writer(|| CopyWriter(std::io::stderr(), LogWriter))
-        .init();
-    // tracing_subscriber::fmt()
-    //     .with_writer(std::io::stdout)
-    //     .init();
-
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
     let native_options = luminol_eframe::NativeOptions {
@@ -302,7 +240,9 @@ fn main() {
         "Luminol",
         native_options,
         Box::new(|cc| {
-            CONTEXT.set(cc.egui_ctx.clone()).unwrap();
+            let (log_byte_tx, log_byte_rx) = std::sync::mpsc::channel();
+            log::initialize_log(log_byte_tx, cc.egui_ctx.clone());
+
             Box::new(app::App::new(
                 cc,
                 report,
