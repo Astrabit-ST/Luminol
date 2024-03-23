@@ -27,6 +27,7 @@ use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::TermMode;
 use alacritty_terminal::vte::ansi::CursorShape;
+use egui::epaint::text::cursor::RCursor;
 use luminol_config::terminal::CursorBlinking;
 
 use crate::backends::Backend;
@@ -310,12 +311,21 @@ where
             inner_color = inner_color.gamma_multiply(alpha);
         }
 
-        let cursor = galley.from_rcursor(egui::epaint::text::cursor::RCursor {
-            row: cursor_point.line.0 as usize + display_offset,
+        let rcursor_without_offset = RCursor {
+            row: cursor_point.line.0 as usize,
             column: cursor_point.column.0,
-        });
+        };
+        let rcursor = RCursor {
+            row: rcursor_without_offset.row + display_offset,
+            ..rcursor_without_offset
+        };
+
+        let cursor = galley.from_rcursor(rcursor);
+        let cursor_without_offset = galley.from_rcursor(rcursor_without_offset);
 
         let mut cursor_pos = galley.pos_from_cursor(&cursor).min + response.rect.min.to_vec2();
+        let mut cursor_pos_without_offset =
+            galley.pos_from_cursor(&cursor_without_offset).min + response.rect.min.to_vec2();
 
         let cursor_rect = match cursor_shape {
             CursorShape::Block | CursorShape::HollowBlock | CursorShape::Hidden => {
@@ -324,9 +334,12 @@ where
             CursorShape::Beam => egui::Rect::from_min_size(cursor_pos, egui::vec2(2.0, row_height)),
             CursorShape::Underline => {
                 cursor_pos.y += row_height - 2.0;
+                cursor_pos_without_offset.y += row_height - 2.0;
                 egui::Rect::from_min_size(cursor_pos, egui::vec2(char_width, 2.0))
             }
         };
+        let cursor_rect_witout_offset =
+            egui::Rect::from_min_size(cursor_pos_without_offset, cursor_rect.size());
 
         painter.rect(
             cursor_rect,
@@ -369,6 +382,12 @@ where
 
         if response.has_focus() {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(response.id, FILTER));
+            ui.output_mut(|o| {
+                o.ime = Some(egui::output::IMEOutput {
+                    rect: galley.rect,
+                    cursor_rect: cursor_rect_witout_offset,
+                });
+            });
 
             let (events, modifiers) = ui.input(|i| (i.filtered_events(&FILTER), i.modifiers));
             self.process_egui_events(
@@ -383,11 +402,7 @@ where
         Ok(())
     }
 
-    fn handle_scroll(
-        &mut self,
-        cursor_pos: Option<egui::epaint::text::cursor::RCursor>,
-        scroll_delta: egui::Vec2,
-    ) {
+    fn handle_scroll(&mut self, cursor_pos: Option<RCursor>, scroll_delta: egui::Vec2) {
         self.scroll_pt += scroll_delta.y;
         let delta = (self.scroll_pt / 16.).trunc() as i32;
         self.scroll_pt %= 16.;
