@@ -274,7 +274,9 @@ impl Tilepicker {
         };
         let pos = ((pos - canvas_rect.min) / 32.).to_pos2();
 
-        if response.dragged_by(egui::PointerButton::Primary) {
+        if response.is_pointer_button_down_on()
+            && ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary))
+        {
             let drag_origin = if let Some(drag_origin) = self.drag_origin {
                 drag_origin
             } else {
