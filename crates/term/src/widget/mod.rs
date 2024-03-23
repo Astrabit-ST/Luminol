@@ -23,10 +23,12 @@
 // Program grant you additional permission to convey the resulting work.
 
 use alacritty_terminal::event::Event;
-use alacritty_terminal::grid::Dimensions;
-use alacritty_terminal::term::cell::Flags;
-use alacritty_terminal::term::TermMode;
+use alacritty_terminal::grid::{Dimensions, GridIterator};
+use alacritty_terminal::index::{Column, Line, Point};
+use alacritty_terminal::term::cell::{Cell, Flags};
+use alacritty_terminal::term::{LineDamageBounds, TermDamage, TermMode};
 use alacritty_terminal::vte::ansi::CursorShape;
+use alacritty_terminal::Grid;
 use egui::epaint::text::cursor::RCursor;
 use luminol_config::terminal::CursorBlinking;
 
@@ -38,6 +40,9 @@ pub struct Terminal<T> {
     backend: T,
     stable_time: f32,
     scroll_pt: f32,
+
+    layout_job: egui::text::LayoutJob,
+
     pub id: egui::Id,
     pub title: String,
 }
@@ -59,6 +64,8 @@ impl<T> Terminal<T> {
             id, // FIXME add unique id system
             scroll_pt: 0.0,
             stable_time: 0.0,
+
+            layout_job: egui::text::LayoutJob::default(),
 
             title: "Luminol Terminal".to_string(),
         }
@@ -146,6 +153,102 @@ where
         self.backend.update()
     }
 
+    fn layout_job_damage(
+        job: &mut egui::text::LayoutJob,
+        config: &luminol_config::terminal::Config,
+        grid: &Grid<Cell>,
+        damage: impl IntoIterator<Item = LineDamageBounds>,
+    ) {
+        for line in damage {
+            for column in line.left..=line.right {
+                let point = Point::new(Line(line.line as i32), Column(column));
+                let cell = &grid[point];
+
+                // we have to offset the index by the line to account for additional newlines
+                let index = line.line * grid.columns() + column + line.line; // index is an index into a section
+
+                let section = &mut job.sections[index];
+
+                let mut buf = [0; 4];
+                let text = cell.c.encode_utf8(&mut buf);
+                let text_format = Self::text_format_for_cell(config, cell);
+
+                let old_range = section.byte_range.clone();
+                let delta = (old_range.end - old_range.start) as isize - text.len() as isize;
+
+                // I'm pretty sure this handles multibyte correctly?
+                job.text.replace_range(old_range.clone(), text);
+                section.byte_range.end = section.byte_range.start + text.len();
+                section.format = text_format;
+
+                // we need to update the byte ranges of everything *after* this
+                for section in &mut job.sections[index + 1..] {
+                    section.byte_range.start =
+                        section.byte_range.start.checked_add_signed(-delta).unwrap();
+                    section.byte_range.end =
+                        section.byte_range.end.checked_add_signed(-delta).unwrap();
+                }
+            }
+        }
+    }
+
+    fn layout_job_full(
+        columns: usize,
+        config: &luminol_config::terminal::Config,
+        display_iter: GridIterator<'_, Cell>,
+    ) -> egui::text::LayoutJob {
+        let mut job = egui::text::LayoutJob::default();
+
+        for cell in display_iter {
+            let mut buf = [0; 4];
+            let text = cell.c.encode_utf8(&mut buf);
+
+            let format = Self::text_format_for_cell(config, &cell);
+            job.append(text, 0.0, format);
+
+            if cell.point.column >= columns - 1 {
+                job.append("\n", 0.0, Default::default())
+            }
+        }
+
+        job
+    }
+
+    fn text_format_for_cell(
+        config: &luminol_config::terminal::Config,
+        cell: &Cell,
+    ) -> egui::TextFormat {
+        let mut color = config.theme.get_ansi_color(cell.fg);
+        let mut background = config.theme.get_ansi_color(cell.bg);
+
+        if cell.flags.contains(Flags::INVERSE) {
+            color = invert_color(color);
+            background = invert_color(background);
+        }
+
+        let italics = cell.flags.contains(Flags::ITALIC);
+        let underline = cell
+            .flags
+            .contains(Flags::UNDERLINE)
+            .then_some(egui::Stroke::new(1.0, color))
+            .unwrap_or_default();
+        let strikethrough = cell
+            .flags
+            .contains(Flags::STRIKEOUT)
+            .then_some(egui::Stroke::new(1.0, color))
+            .unwrap_or_default();
+
+        egui::TextFormat {
+            font_id: config.font.clone(),
+            color,
+            background,
+            italics,
+            underline,
+            strikethrough,
+            ..Default::default()
+        }
+    }
+
     pub fn ui(
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,
@@ -174,70 +277,35 @@ where
         let config = &update_state.global_config.terminal;
         let font_id = config.font.clone();
 
-        let (
-            galley,
-            screen_columns,
-            screen_lines,
-            total_lines,
-            display_offset,
-            cursor_style,
-            cursor_point,
-        ) = self.backend.with_term(|term| {
-            // TODO cache render jobs
-            let content = term.renderable_content();
-            let mut job = egui::text::LayoutJob::default();
-
-            for cell in content.display_iter {
-                let mut buf = [0; 4];
-                let text = cell.c.encode_utf8(&mut buf);
-
-                let mut color = config.theme.get_ansi_color(cell.fg);
-                let mut background = config.theme.get_ansi_color(cell.bg);
-
-                if cell.flags.contains(Flags::INVERSE) {
-                    color = invert_color(color);
-                    background = invert_color(background);
+        let (screen_columns, screen_lines, total_lines, display_offset, cursor_style, cursor_point) =
+            self.backend.with_term(|term| {
+                match term.damage() {
+                    TermDamage::Full => {
+                        self.layout_job = Self::layout_job_full(
+                            term.columns(),
+                            config,
+                            term.renderable_content().display_iter,
+                        );
+                    }
+                    TermDamage::Partial(damage) => {
+                        // We have to collect here to avoid borrowing the terminal mutably twice (even though it isn't, really)
+                        let damage = damage.collect::<Vec<_>>();
+                        Self::layout_job_damage(&mut self.layout_job, config, term.grid(), damage)
+                    }
                 }
+                term.reset_damage();
 
-                let italics = cell.flags.contains(Flags::ITALIC);
-                let underline = cell
-                    .flags
-                    .contains(Flags::UNDERLINE)
-                    .then_some(egui::Stroke::new(1.0, color))
-                    .unwrap_or_default();
-                let strikethrough = cell
-                    .flags
-                    .contains(Flags::STRIKEOUT)
-                    .then_some(egui::Stroke::new(1.0, color))
-                    .unwrap_or_default();
+                (
+                    term.columns(),
+                    term.screen_lines(),
+                    term.total_lines(),
+                    term.grid().display_offset(),
+                    term.cursor_style(),
+                    term.grid().cursor.point,
+                )
+            });
 
-                let format = egui::TextFormat {
-                    font_id: font_id.clone(),
-                    color,
-                    background,
-                    italics,
-                    underline,
-                    strikethrough,
-                    ..Default::default()
-                };
-
-                job.append(text, 0.0, format);
-
-                if cell.point.column >= term.columns() - 1 {
-                    job.append("\n", 0.0, Default::default());
-                }
-            }
-
-            (
-                ui.fonts(|f| f.layout_job(job)),
-                term.columns(),
-                term.screen_lines(),
-                term.total_lines(),
-                content.display_offset,
-                term.cursor_style(),
-                term.grid().cursor.point,
-            )
-        });
+        let galley = ui.fonts(|f| f.layout_job(self.layout_job.clone()));
 
         let max_size = ui.available_size();
         let (row_height, char_width) = ui.fonts(|f| {
@@ -346,6 +414,7 @@ where
             egui::Stroke::new(1.0, outer_color),
         );
 
+        // FIXME render to galley.rect, not response.rect. swapping them out mostly works, but the handle doesn't display quite right!
         // scrollbar
         let min = response.rect.min + egui::vec2(galley.rect.width(), 0.0);
         let size = egui::vec2(5., response.rect.height());
@@ -409,13 +478,13 @@ where
 
         if term_mode.contains(TermMode::SGR_MOUSE) {
             if let Some(cursor_pos) = cursor_pos {
-                let button = 64 + delta.is_positive() as i32;
+                let button = 64 + delta.is_negative() as i32;
 
                 let command = format!("\x1b[<{button};{};{}M", cursor_pos.column, cursor_pos.row);
                 self.backend.send(command.into_bytes());
             }
         } else if term_mode.contains(TermMode::ALT_SCREEN | TermMode::ALTERNATE_SCROLL) {
-            let line_cmd = if delta.is_positive() { b'A' } else { b'B' };
+            let line_cmd = if delta.is_negative() { b'A' } else { b'B' };
             let mut bytes = vec![];
 
             for _ in 0..delta.abs() {
