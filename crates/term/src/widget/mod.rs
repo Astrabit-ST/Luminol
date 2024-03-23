@@ -42,6 +42,7 @@ pub struct Terminal<T> {
     scroll_pt: f32,
 
     layout_job: egui::text::LayoutJob,
+    ime_text: Option<String>,
 
     pub id: egui::Id,
     pub title: String,
@@ -66,6 +67,7 @@ impl<T> Terminal<T> {
             stable_time: 0.0,
 
             layout_job: egui::text::LayoutJob::default(),
+            ime_text: None,
 
             title: "Luminol Terminal".to_string(),
         }
@@ -305,8 +307,6 @@ where
                 )
             });
 
-        let galley = ui.fonts(|f| f.layout_job(self.layout_job.clone()));
-
         let max_size = ui.available_size();
         let (row_height, char_width) = ui.fonts(|f| {
             (
@@ -341,7 +341,25 @@ where
             egui::Color32::from_rgb(40, 39, 39),
         );
 
+        let galley = painter.layout_job(self.layout_job.clone());
         painter.galley(response.rect.min, galley.clone(), egui::Color32::WHITE);
+
+        if let Some(ime_text) = self.ime_text.clone() {
+            let ime_text_galley = painter.layout(
+                ime_text,
+                font_id.clone(),
+                egui::Color32::WHITE,
+                galley.rect.width(),
+            );
+
+            let background_rect = ime_text_galley.rect.translate(response.rect.min.to_vec2());
+            painter.rect_filled(
+                background_rect,
+                egui::Rounding::ZERO,
+                egui::Color32::from_rgb(40, 39, 39),
+            );
+            painter.galley(response.rect.min, ime_text_galley, egui::Color32::WHITE);
+        }
 
         if response.hovered() {
             ui.output_mut(|o| o.mutable_text_under_cursor = true);
@@ -591,6 +609,12 @@ where
                     hover_pos.map(|pos| galley.cursor_from_pos(pos.to_vec2()).rcursor),
                     scroll_delta,
                 ),
+                egui::Event::CompositionUpdate(text) => self.ime_text = Some(text),
+                egui::Event::CompositionEnd(text) => {
+                    self.ime_text = None;
+                    self.backend.send(text.into_bytes());
+                    term_modified = true;
+                }
                 _ => {}
             }
         }
