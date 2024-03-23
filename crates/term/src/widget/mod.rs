@@ -67,8 +67,8 @@ impl<T> Terminal<T> {
 
 impl ProcessTerminal {
     pub fn process(
-        config: &luminol_config::terminal::Config,
         exec: ExecOptions,
+        update_state: &luminol_core::UpdateState<'_>,
     ) -> std::io::Result<Self> {
         let options = alacritty_terminal::tty::Options {
             shell: exec
@@ -77,7 +77,7 @@ impl ProcessTerminal {
             working_directory: exec.working_directory,
             hold: false,
         };
-        let backend = crate::backends::Process::new(&options, config)?;
+        let backend = crate::backends::Process::new(&options, update_state)?;
         Ok(Self::new(
             backend,
             egui::Id::new("luminol_term_process").with(std::time::Instant::now()),
@@ -87,8 +87,8 @@ impl ProcessTerminal {
 
 impl ChannelTerminal {
     pub fn channel(
-        config: &luminol_config::terminal::Config,
         recv: std::sync::mpsc::Receiver<u8>,
+        config: &luminol_config::terminal::Config,
     ) -> Self {
         let backend = crate::backends::Channel::new(recv, config);
         Self::new(backend, egui::Id::new("luminol_term_channel"))
@@ -305,10 +305,8 @@ where
             CursorBlinking::Terminal => cursor_style.blinking,
         };
 
-        if blink {
-            let sin_component = self.stable_time / std::f32::consts::FRAC_PI_2 * 13.;
-            let alpha = (sin_component.sin() + 1.) / 2.;
-            inner_color = inner_color.gamma_multiply(alpha);
+        if blink && (self.stable_time % 2.).round() > 1.0 {
+            inner_color = egui::Color32::TRANSPARENT;
         }
 
         let rcursor_without_offset = RCursor {
@@ -376,9 +374,9 @@ where
             ui.visuals().widgets.active.fg_stroke.color,
         );
 
-        painter
-            .ctx()
-            .request_repaint_after(std::time::Duration::from_millis(16));
+        update_state
+            .ctx
+            .request_repaint_after(std::time::Duration::from_secs(1));
 
         if response.has_focus() {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(response.id, FILTER));

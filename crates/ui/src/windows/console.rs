@@ -28,12 +28,12 @@ pub struct Window {
 
 impl Window {
     pub fn new(
-        config: &luminol_config::terminal::Config,
         exec: luminol_term::widget::ExecOptions,
+        update_state: &luminol_core::UpdateState<'_>,
     ) -> std::io::Result<Self> {
         Ok(Self {
             // TODO
-            term: luminol_term::widget::Terminal::process(config, exec)?,
+            term: luminol_term::widget::Terminal::process(exec, update_state)?,
         })
     }
 }

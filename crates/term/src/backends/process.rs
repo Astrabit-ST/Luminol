@@ -44,10 +44,13 @@ pub struct Process {
 }
 
 #[derive(Clone)]
-pub struct ForwardEventListener(Sender<Event>);
+pub struct ForwardEventListener(Sender<Event>, egui::Context);
 
 impl alacritty_terminal::event::EventListener for ForwardEventListener {
     fn send_event(&self, event: Event) {
+        if matches!(event, Event::Wakeup) {
+            self.1.request_repaint();
+        }
         let _ = self.0.send(event);
     }
 }
@@ -55,8 +58,9 @@ impl alacritty_terminal::event::EventListener for ForwardEventListener {
 impl Process {
     pub fn new(
         options: &alacritty_terminal::tty::Options,
-        config: &luminol_config::terminal::Config,
+        update_state: &luminol_core::UpdateState<'_>,
     ) -> std::io::Result<Self> {
+        let config = &update_state.global_config.terminal;
         let pty = alacritty_terminal::tty::new(
             options,
             WindowSize {
@@ -69,7 +73,7 @@ impl Process {
         )?;
 
         let (sender, event_reciever) = std::sync::mpsc::channel();
-        let event_proxy = ForwardEventListener(sender);
+        let event_proxy = ForwardEventListener(sender, update_state.ctx.clone());
 
         let term_size = TermSize::new(
             config.initial_size.0 as usize,

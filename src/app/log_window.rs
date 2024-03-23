@@ -43,7 +43,7 @@ impl LogWindow {
         byte_rx: std::sync::mpsc::Receiver<u8>,
     ) -> Self {
         let (byte_tx, term_byte_rx) = std::sync::mpsc::channel();
-        let term = luminol_term::widget::Terminal::channel(config, term_byte_rx);
+        let term = luminol_term::widget::Terminal::channel(term_byte_rx, config);
         let ringbuf = RingBuf::new(2 << 12);
 
         Self {
@@ -57,6 +57,7 @@ impl LogWindow {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+        let mut did_recv = false;
         for byte in self.byte_rx.try_iter() {
             let _ = self.byte_tx.send(byte);
 
@@ -72,6 +73,12 @@ impl LogWindow {
                 self.ringbuf = new_ringbuf;
             }
             self.ringbuf.push_overwrite(byte);
+
+            did_recv = true;
+        }
+
+        if did_recv {
+            update_state.ctx.request_repaint();
         }
 
         // We update the log terminal even if it's not open so that we don't encounter
