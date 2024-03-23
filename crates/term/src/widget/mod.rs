@@ -311,7 +311,7 @@ where
         }
 
         let cursor = galley.from_rcursor(egui::epaint::text::cursor::RCursor {
-            row: cursor_point.line.0 as usize,
+            row: cursor_point.line.0 as usize + display_offset,
             column: cursor_point.column.0,
         });
 
