@@ -379,7 +379,7 @@ where
             self.ime_text = None;
         }
 
-        self.stable_time += ui.input(|i| i.stable_dt.min(0.1));
+        self.stable_time += ui.input(|i| i.unstable_dt);
         let (mut inner_color, outer_color) = match cursor_shape {
             CursorShape::Block | CursorShape::Underline => {
                 (config.theme.cursor_color, config.theme.cursor_color)
@@ -395,7 +395,13 @@ where
             CursorBlinking::Terminal => cursor_style.blinking,
         };
 
-        if blink && (self.stable_time % 2.).round() > 1.0 {
+        if blink {
+            update_state
+                .ctx
+                .request_repaint_after(std::time::Duration::from_secs(1));
+        }
+
+        if blink && (self.stable_time % 2.) > 1.0 {
             inner_color = egui::Color32::TRANSPARENT;
         }
 
@@ -464,10 +470,6 @@ where
             egui::Rounding::same(5.),
             ui.visuals().widgets.active.fg_stroke.color,
         );
-
-        update_state
-            .ctx
-            .request_repaint_after(std::time::Duration::from_secs(1));
 
         if response.has_focus() {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(response.id, FILTER));
