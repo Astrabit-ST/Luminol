@@ -143,12 +143,14 @@ where
         self.backend.with_term(|term| {
             term.grid_mut().clear_history();
         });
+        self.layout_job = Default::default();
     }
 
     pub fn erase_scrollback_and_viewport(&mut self) {
         self.backend.with_term(|term| {
             term.grid_mut().reset();
         });
+        self.layout_job = Default::default();
     }
 
     pub fn update(&mut self) {
@@ -282,17 +284,18 @@ where
         let (screen_columns, screen_lines, total_lines, display_offset, cursor_style, cursor_point) =
             self.backend.with_term(|term| {
                 match term.damage() {
-                    TermDamage::Full => {
+                    // we only do partial repaints if the layout job is empty
+                    TermDamage::Partial(damage) if !self.layout_job.is_empty() => {
+                        // We have to collect here to avoid borrowing the terminal mutably twice (even though it isn't, really)
+                        let damage = damage.collect::<Vec<_>>();
+                        Self::layout_job_damage(&mut self.layout_job, config, term.grid(), damage)
+                    }
+                    _ => {
                         self.layout_job = Self::layout_job_full(
                             term.columns(),
                             config,
                             term.renderable_content().display_iter,
                         );
-                    }
-                    TermDamage::Partial(damage) => {
-                        // We have to collect here to avoid borrowing the terminal mutably twice (even though it isn't, really)
-                        let damage = damage.collect::<Vec<_>>();
-                        Self::layout_job_damage(&mut self.layout_job, config, term.grid(), damage)
                     }
                 }
                 term.reset_damage();
@@ -518,6 +521,7 @@ where
                 term.grid_mut()
                     .scroll_display(alacritty_terminal::grid::Scroll::Delta(delta));
             });
+            self.layout_job = Default::default();
         }
     }
 
@@ -623,7 +627,8 @@ where
         if term_modified {
             self.backend.with_term(|term| {
                 term.scroll_display(alacritty_terminal::grid::Scroll::Bottom);
-            })
+            });
+            self.layout_job = Default::default();
         }
     }
 
