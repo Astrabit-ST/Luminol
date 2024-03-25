@@ -48,10 +48,12 @@ pub struct ForwardEventListener(Sender<Event>, egui::Context);
 
 impl alacritty_terminal::event::EventListener for ForwardEventListener {
     fn send_event(&self, event: Event) {
-        if matches!(event, Event::Wakeup) {
+        let needs_repaint = matches!(event, Event::Wakeup);
+        let _ = self.0.send(event);
+
+        if needs_repaint {
             self.1.request_repaint();
         }
-        let _ = self.0.send(event);
     }
 }
 
