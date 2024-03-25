@@ -22,63 +22,67 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::collections::VecDeque;
-
-static BUFFER_CAPACITY: usize = 1 << 24;
+use std::{
+    collections::VecDeque,
+    sync::mpsc::{Receiver, Sender},
+};
 
 pub struct LogWindow {
     pub(super) term_shown: bool,
-    term: luminol_term::Terminal,
-    save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
+    byte_rx: Receiver<u8>,
+    byte_tx: Sender<u8>,
     buffer: VecDeque<u8>,
-    buffer_entry_sizes: VecDeque<usize>,
-    byte_rx: luminol_term::ByteReceiver,
+    term: luminol_term::widget::ChannelTerminal,
+    save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
 }
+const MAX_BUFFER_CAPACITY: usize = 1 << 24;
 
 impl LogWindow {
-    pub fn new(term: luminol_term::Terminal, byte_rx: luminol_term::ByteReceiver) -> Self {
+    pub fn new(
+        config: &luminol_config::terminal::Config,
+        byte_rx: std::sync::mpsc::Receiver<u8>,
+    ) -> Self {
+        let (byte_tx, term_byte_rx) = std::sync::mpsc::channel();
+        let term = luminol_term::widget::Terminal::channel(term_byte_rx, config);
+
         Self {
+            byte_rx,
+            byte_tx,
+            buffer: VecDeque::new(),
+            term,
             term_shown: false,
             save_promise: None,
-            buffer: VecDeque::new(),
-            buffer_entry_sizes: VecDeque::new(),
-            term,
-            byte_rx,
         }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
+        let mut did_recv = false;
+        for byte in self.byte_rx.try_iter() {
+            let _ = self.byte_tx.send(byte);
+
+            if self.buffer.len() >= MAX_BUFFER_CAPACITY {
+                self.buffer.pop_front();
+                self.buffer.push_back(byte);
+            } else {
+                self.buffer.push_back(byte);
+            }
+
+            did_recv = true;
+        }
+
+        if did_recv {
+            update_state.ctx.request_repaint();
+        }
+
         // We update the log terminal even if it's not open so that we don't encounter
         // performance problems when the terminal has to parse all the new input at once
         self.term.update();
 
-        for bytes in self.byte_rx.try_iter() {
-            while self.buffer.len() + bytes.len() > BUFFER_CAPACITY {
-                for _ in 0..self.buffer_entry_sizes.pop_front().unwrap() {
-                    self.buffer.pop_front();
-                }
-            }
-            self.buffer_entry_sizes.push_back(bytes.len());
-            self.buffer.extend(bytes);
-        }
-
         egui::Window::new("Log")
-            .id(self.term.id())
+            .id(self.term.id)
             .open(&mut self.term_shown)
-            .resizable(false)
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
-                    let mut resize = false;
-                    let (mut cols, mut rows) = self.term.size();
-
-                    resize |= ui.add(egui::DragValue::new(&mut cols)).changed();
-                    ui.label("×");
-                    resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
-
-                    if resize {
-                        self.term.set_size(update_state, cols, rows);
-                    }
-
                     ui.add_space(ui.style().spacing.indent);
 
                     if ui.button("Clear").clicked() {
@@ -109,30 +113,32 @@ impl LogWindow {
                             Err(p) => self.save_promise = Some(p),
                         }
                     } else if ui.button("Save to file").clicked() {
-                        self.buffer.make_contiguous();
-                        let buffer = self.buffer.clone();
+                        let buffer = self.buffer.make_contiguous().to_vec();
 
-                        self.save_promise = Some(luminol_core::spawn_future(async move {
-                            use futures_lite::AsyncWriteExt;
-
-                            let mut tmp = luminol_filesystem::host::File::new()?;
-                            let mut cursor = async_std::io::Cursor::new(buffer.as_slices().0);
-                            async_std::io::copy(&mut cursor, &mut tmp).await?;
-                            tmp.flush().await?;
-                            tmp.save("luminol.log", "Log files").await?;
-                            Ok(())
-                        }));
+                        self.save_promise =
+                            Some(luminol_core::spawn_future(Self::save_promise(buffer)));
                     }
                 });
 
                 ui.add_space(ui.spacing().item_spacing.y);
 
-                if let Err(e) = self.term.ui(ui) {
+                if let Err(e) = self.term.ui(update_state, ui) {
                     luminol_core::error!(
                         update_state.toasts,
                         e.wrap_err("Error displaying log window"),
                     );
                 }
             });
+    }
+
+    async fn save_promise(buffer: Vec<u8>) -> luminol_filesystem::Result<()> {
+        use futures_lite::AsyncWriteExt;
+
+        let mut tmp = luminol_filesystem::host::File::new()?;
+        let mut cursor = async_std::io::Cursor::new(buffer);
+        async_std::io::copy(&mut cursor, &mut tmp).await?;
+        tmp.flush().await?;
+        tmp.save("luminol.log", "Log files").await?;
+        Ok(())
     }
 }

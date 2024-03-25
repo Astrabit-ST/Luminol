@@ -21,3 +21,5 @@ steamworks/*
 !steamworks/redistributable_bin
 #! renderdoc
 captures/
+
+rustc-ice*

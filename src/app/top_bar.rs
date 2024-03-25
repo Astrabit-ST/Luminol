@@ -359,52 +359,48 @@ impl TopBar {
 
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Playtest").clicked() {
-                    let mut cmd = luminol_term::CommandBuilder::new("steamshim");
-                    cmd.cwd(
-                        update_state
-                            .filesystem
-                            .project_path()
-                            .expect("project not loaded"),
-                    );
+                    let program = update_state
+                        .project_config
+                        .as_ref()
+                        .expect("project not loaded")
+                        .project
+                        .playtest_exe
+                        .clone();
+                    let working_directory = update_state
+                        .filesystem
+                        .project_path()
+                        .expect("project not loaded")
+                        .into_std_path_buf();
 
-                    let result =
-                        luminol_ui::windows::console::Window::new(ui.ctx(), cmd).or_else(|_| {
-                            let mut cmd = luminol_term::CommandBuilder::new("game");
-                            cmd.cwd(
-                                update_state
-                                    .filesystem
-                                    .project_path()
-                                    .expect("project not loaded"),
-                            );
+                    let exec = luminol_term::widget::ExecOptions {
+                        program: Some(program.clone()),
+                        working_directory: Some(working_directory),
+                        ..Default::default()
+                    };
 
-                            luminol_ui::windows::console::Window::new(ui.ctx(), cmd)
-                        });
-
-                    match result {
+                    match luminol_ui::windows::console::Window::new(exec.clone(), update_state) {
                         Ok(w) => update_state.edit_windows.add_window(w),
                         Err(e) => luminol_core::error!(
                             update_state.toasts,
-                            color_eyre::eyre::eyre!(e).wrap_err(
-                                "Error starting game (tried steamshim.exe and then game.exe)"
-                            )
+                            color_eyre::eyre::eyre!(e)
+                                .wrap_err(format!("Error starting {program:?}"))
                         ),
                     }
                 }
 
                 if ui.button("Terminal").clicked() {
-                    #[cfg(windows)]
-                    let shell = "powershell";
-                    #[cfg(unix)]
-                    let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
-                    let mut cmd = luminol_term::CommandBuilder::new(shell);
-                    cmd.cwd(
-                        update_state
-                            .filesystem
-                            .project_path()
-                            .expect("project not loaded"),
-                    );
+                    let working_directory = update_state
+                        .filesystem
+                        .project_path()
+                        .expect("project not loaded")
+                        .into_std_path_buf();
 
-                    match luminol_ui::windows::console::Window::new(ui.ctx(), cmd) {
+                    let exec = luminol_term::widget::ExecOptions {
+                        working_directory: Some(working_directory),
+                        ..Default::default()
+                    };
+
+                    match luminol_ui::windows::console::Window::new(exec, update_state) {
                         Ok(w) => update_state.edit_windows.add_window(w),
                         Err(e) => luminol_core::error!(
                             update_state.toasts,

@@ -62,8 +62,11 @@ pub struct EnumMenuButton<'e, T> {
 }
 
 impl<'e, T> EnumMenuButton<'e, T> {
-    pub fn new(current_value: &'e mut T, id: egui::Id) -> Self {
-        Self { current_value, id }
+    pub fn new(current_value: &'e mut T, id_source: impl std::hash::Hash) -> Self {
+        Self {
+            current_value,
+            id: egui::Id::new(id_source),
+        }
     }
 }
 
@@ -131,6 +134,8 @@ where
 pub struct EnumComboBox<'a, H, T> {
     id_source: H,
     reference: &'a mut T,
+
+    max_width: f32,
 }
 
 impl<'a, H, T> EnumComboBox<'a, H, T>
@@ -143,7 +148,12 @@ where
         Self {
             id_source,
             reference,
+            max_width: f32::INFINITY,
         }
+    }
+
+    pub fn max_width(self, max_width: f32) -> Self {
+        Self { max_width, ..self }
     }
 }
 
@@ -154,9 +164,11 @@ where
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
+        let available_width = ui.available_width() - ui.spacing().item_spacing.x;
+        let width = self.max_width.min(available_width);
         let mut response = egui::ComboBox::from_id_source(&self.id_source)
             .wrap(true)
-            .width(ui.available_width() - ui.spacing().item_spacing.x)
+            .width(width)
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
                 ui.style_mut().wrap = Some(true);

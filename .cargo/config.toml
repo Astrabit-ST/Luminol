@@ -24,3 +24,6 @@ rustflags = [
 	"-Z",
 	"threads=8",
 ]
+
+[env]
+LUMINOL_ASSETS_PATH = { value = "assets", relative = true }
