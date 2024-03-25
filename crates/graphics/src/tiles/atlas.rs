@@ -399,7 +399,8 @@ fn write_texture_region<P>(
     P: image::Pixel,
     P::Subpixel: bytemuck::Pod,
 {
-    let (x, y, width, height) = image.bounds();
+    let (x, y) = image.offsets();
+    let (width, height) = image.dimensions();
     let bytes = bytemuck::cast_slice(image.inner().as_raw());
 
     let inner_width = image.inner().width();
