@@ -2,7 +2,7 @@
 
 ### Common funtionality
 
-- [x] Common event editor
+- [ ] Common event editor
 - [x] Script editor
 - [x] Sound test
 - [x] Properly render blend modes and opacity
@@ -17,21 +17,21 @@
 - [ ] Resize maps
 - [x] Open events
 - [ ] Edit event commands
-- [x] View event commands
+- [ ] View event commands
 - [x] Change tiles on map
 - [x] Multiple brush types
 - [x] Change autotiles on map
 - [x] Hardware accelerated tilemap
-- [ ] Actor editor
-- [ ] Class editor
-- [ ] Skill editor
+- [x] Actor editor
+- [x] Class editor
+- [x] Skill editor
 - [x] Item editor
-- [ ] Weapon editor
-- [ ] Armor editor
+- [x] Weapon editor
+- [x] Armor editor
 - [ ] Enemy editor
 - [ ] Troop editor
-- [ ] State editor
-- [ ] Animation editor
+- [x] State editor
+- [x] Animation editor
 - [ ] Tileset editor
 
 ### RPG Maker VX
@@ -96,7 +96,7 @@
 - [ ] Language server support for script editor?
 - [x] Custom event commands
 - [x] Procedural event commands
-- [ ] Debugger support?
+- [x] Debugger support (via rdbg and integrated terminal)
 - [ ] Custom data formats
 - [ ] Extra layers
 - [x] Move route previews
