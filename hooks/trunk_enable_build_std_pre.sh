@@ -11,7 +11,6 @@ echo "{\"epoch\":0,\"rev\":\"$git_version\",\"profile\":\"$TRUNK_PROFILE\"}" > $
 [ ! -f $TRUNK_SOURCE_DIR/.cargo/config.toml.bak ] || mv $TRUNK_SOURCE_DIR/.cargo/config.toml.bak $TRUNK_SOURCE_DIR/.cargo/config.toml
 cp $TRUNK_SOURCE_DIR/.cargo/config.toml $TRUNK_SOURCE_DIR/.cargo/config.toml.bak
 
-echo '[env]' >> $TRUNK_SOURCE_DIR/.cargo/config.toml
 echo "LUMINOL_VERSION = { value = \"$git_version\", force = true }" >> $TRUNK_SOURCE_DIR/.cargo/config.toml
 
 echo '[unstable]' >> $TRUNK_SOURCE_DIR/.cargo/config.toml

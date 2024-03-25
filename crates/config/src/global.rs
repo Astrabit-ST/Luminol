@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::terminal;
 use crate::CodeTheme;
 
 use std::collections::HashMap;
@@ -37,6 +39,8 @@ pub struct Config {
     #[cfg(target_arch = "wasm32")]
     /// Recently open projects.
     pub recent_projects: VecDeque<(String, String)>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub terminal: terminal::Config,
 
     /// The current code theme
     pub theme: CodeTheme,
@@ -55,6 +59,8 @@ impl Config {
             recent_projects: VecDeque::new(),
             theme: CodeTheme::dark(),
             rtp_paths: HashMap::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            terminal: terminal::Config::default(),
         }
     }
 }

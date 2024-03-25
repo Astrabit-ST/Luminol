@@ -86,8 +86,7 @@ impl App {
         cc: &luminol_eframe::CreationContext<'_>,
         report: Option<String>,
         modified: luminol_core::ModifiedState,
-        #[cfg(not(target_arch = "wasm32"))] log_term_rx: luminol_term::TermReceiver,
-        #[cfg(not(target_arch = "wasm32"))] log_byte_rx: luminol_term::ByteReceiver,
+        #[cfg(not(target_arch = "wasm32"))] log_byte_rx: std::sync::mpsc::Receiver<u8>,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
         #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
@@ -105,12 +104,25 @@ impl App {
             String::from("Source Han Sans Regular"),
             egui::FontData::from_owned(
                 zstd::bulk::decompress(
-                    include_bytes!("../../assets/SourceHanSans-Regular.ttc.zst"),
+                    luminol_macros::include_asset!("assets/fonts/SourceHanSans-Regular.ttc.zst"),
                     19485724,
                 )
                 .unwrap(),
             ),
         );
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let fd = zstd::bulk::decompress(
+            luminol_macros::include_asset!("assets/fonts/IosevkaTermNerdFont-Extended.ttf.zst"),
+            11849324,
+        )
+        .unwrap();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        fonts
+            .font_data
+            .insert("Iosevka Term".to_owned(), egui::FontData::from_owned(fd));
+
         fonts
             .families
             .get_mut(&egui::FontFamily::Proportional)
@@ -121,6 +133,15 @@ impl App {
             .get_mut(&egui::FontFamily::Monospace)
             .unwrap()
             .push("Source Han Sans Regular".to_owned());
+
+        #[cfg(not(target_arch = "wasm32"))]
+        fonts.families.insert(
+            egui::FontFamily::Name("Iosevka Term".into()),
+            vec![
+                "Iosevka Term".to_owned(),
+                "Source Han Sans Regular".to_owned(),
+            ],
+        );
         cc.egui_ctx.set_fonts(fonts);
 
         #[cfg(not(debug_assertions))]
@@ -222,17 +243,7 @@ impl App {
         Self {
             top_bar: top_bar::TopBar::default(),
             #[cfg(not(target_arch = "wasm32"))]
-            log: log_window::LogWindow::new(
-                luminol_term::Terminal::new_readonly(
-                    &cc.egui_ctx,
-                    "luminol_log".into(),
-                    "Log",
-                    log_term_rx,
-                    132,
-                    43,
-                ),
-                log_byte_rx,
-            ),
+            log: log_window::LogWindow::new(&global_config.terminal, log_byte_rx),
             lumi,
 
             audio,

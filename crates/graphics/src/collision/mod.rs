@@ -65,9 +65,7 @@ pub fn calculate_passages(
         events
             .iter()
             .filter_map(|(_, event)| {
-                let Some(page) = event.pages.first() else {
-                    return None;
-                };
+                let page = event.pages.first()?;
                 if page.through {
                     return None;
                 }

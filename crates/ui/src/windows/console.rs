@@ -23,27 +23,28 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub struct Window {
-    term: luminol_term::Terminal,
+    term: luminol_term::widget::ProcessTerminal,
 }
 
 impl Window {
     pub fn new(
-        ctx: &egui::Context,
-        command: luminol_term::CommandBuilder,
-    ) -> Result<Self, luminol_term::Error> {
+        exec: luminol_term::widget::ExecOptions,
+        update_state: &luminol_core::UpdateState<'_>,
+    ) -> std::io::Result<Self> {
         Ok(Self {
-            term: luminol_term::Terminal::new(ctx, command)?,
+            // TODO
+            term: luminol_term::widget::Terminal::process(exec, update_state)?,
         })
     }
 }
 
 impl luminol_core::Window for Window {
     fn name(&self) -> String {
-        self.term.title()
+        self.term.title.clone()
     }
 
     fn id(&self) -> egui::Id {
-        self.term.id()
+        self.term.id
     }
 
     fn requires_filesystem(&self) -> bool {
@@ -57,38 +58,10 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name())
-            .id(self.term.id())
+            .id(self.term.id)
             .open(open)
-            .resizable(false)
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if ui
-                        .button(egui::RichText::new("KILL").color(egui::Color32::RED))
-                        .clicked()
-                    {
-                        if let Err(e) = self.term.kill() {
-                            luminol_core::error!(
-                                update_state.toasts,
-                                e.wrap_err("Error killing child"),
-                            );
-                        }
-                    }
-
-                    let mut resize = false;
-                    let (mut cols, mut rows) = self.term.size();
-
-                    resize |= ui.add(egui::DragValue::new(&mut cols)).changed();
-                    ui.label("×");
-                    resize |= ui.add(egui::DragValue::new(&mut rows)).changed();
-
-                    if resize {
-                        self.term.set_size(update_state, cols, rows);
-                    }
-                });
-
-                ui.add_space(ui.spacing().item_spacing.y);
-
-                if let Err(e) = self.term.ui(ui) {
+                if let Err(e) = self.term.ui(update_state, ui) {
                     luminol_core::error!(
                         update_state.toasts,
                         e.wrap_err("Error displaying terminal"),

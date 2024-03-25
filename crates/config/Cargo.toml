@@ -17,6 +17,7 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+egui.workspace = true
 rust-ini.workspace = true
 serde.workspace = true
 
@@ -26,3 +27,6 @@ ron.workspace = true
 once_cell.workspace = true
 
 luminol-data.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+alacritty_terminal.workspace = true

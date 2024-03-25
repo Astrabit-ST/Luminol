@@ -33,12 +33,14 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Embedded icon 256x256 in size.
-const ICON: &[u8] = include_bytes!("../assets/icon-256.png");
+const ICON: &[u8] = luminol_macros::include_asset!("assets/icons/icon.png");
 
 static RESTART_AFTER_PANIC: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 mod app;
+#[cfg(not(target_arch = "wasm32"))]
+mod log;
 mod lumi;
 
 #[cfg(all(feature = "steamworks", target_arch = "wasm32"))]
@@ -54,86 +56,6 @@ pub fn git_revision() -> &'static str {
     }
     #[cfg(target_arch = "wasm32")]
     option_env!("LUMINOL_VERSION").unwrap_or(git_version::git_version!())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// A writer that copies whatever is written to it to two other writers.
-struct CopyWriter<A, B>(A, B);
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<A, B> Write for CopyWriter<A, B>
-where
-    A: Write,
-    B: Write,
-{
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        Ok(self.0.write(buf)?.min(self.1.write(buf)?))
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.0.flush()?;
-        self.1.flush()?;
-        Ok(())
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-static LOG_TERM_SENDER: once_cell::sync::OnceCell<luminol_term::TermSender> =
-    once_cell::sync::OnceCell::new();
-
-#[cfg(not(target_arch = "wasm32"))]
-static LOG_BYTE_SENDER: once_cell::sync::OnceCell<luminol_term::ByteSender> =
-    once_cell::sync::OnceCell::new();
-
-#[cfg(not(target_arch = "wasm32"))]
-static CONTEXT: once_cell::sync::OnceCell<egui::Context> = once_cell::sync::OnceCell::new();
-
-#[cfg(not(target_arch = "wasm32"))]
-/// A writer that writes to Luminol's log window.
-struct LogWriter(luminol_term::termwiz::escape::parser::Parser);
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Write for LogWriter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        LOG_BYTE_SENDER
-            .get()
-            .unwrap()
-            .try_send(buf.into())
-            .map_err(std::io::Error::other)?;
-
-        let parsed = self.0.parse_as_vec(buf);
-
-        // Convert from LF line endings to CRLF so that wezterm will display them properly
-        let mut vec = Vec::with_capacity(2 * parsed.len());
-        for action in parsed {
-            if action
-                == luminol_term::termwiz::escape::Action::Control(
-                    luminol_term::termwiz::escape::ControlCode::LineFeed,
-                )
-            {
-                vec.push(luminol_term::termwiz::escape::Action::Control(
-                    luminol_term::termwiz::escape::ControlCode::CarriageReturn,
-                ));
-            }
-            vec.push(action);
-        }
-
-        LOG_TERM_SENDER
-            .get()
-            .unwrap()
-            .try_send(vec)
-            .map_err(std::io::Error::other)?;
-
-        if let Some(ctx) = CONTEXT.get() {
-            ctx.request_repaint();
-        }
-
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -283,19 +205,9 @@ fn main() {
         }
     }));
 
-    // Log to stderr as well as Luminol's log.
-    let (log_term_tx, log_term_rx) = luminol_term::unbounded();
-    let (log_byte_tx, log_byte_rx) = luminol_term::unbounded();
-    LOG_TERM_SENDER.set(log_term_tx).unwrap();
-    LOG_BYTE_SENDER.set(log_byte_tx).unwrap();
-    tracing_subscriber::fmt()
-        .with_writer(|| {
-            CopyWriter(
-                std::io::stderr(),
-                LogWriter(luminol_term::termwiz::escape::parser::Parser::new()),
-            )
-        })
-        .init();
+    let (log_byte_tx, log_byte_rx) = std::sync::mpsc::channel();
+    let ctx_cell = std::sync::Arc::new(once_cell::sync::OnceCell::new());
+    log::initialize_log(log_byte_tx, ctx_cell.clone());
 
     let image = image::load_from_memory(ICON).expect("Failed to load Icon data.");
 
@@ -331,13 +243,15 @@ fn main() {
     luminol_eframe::run_native(
         "Luminol",
         native_options,
-        Box::new(|cc| {
-            CONTEXT.set(cc.egui_ctx.clone()).unwrap();
+        Box::new(move |cc| {
+            ctx_cell
+                .set(cc.egui_ctx.clone())
+                .expect("egui context cell already set (this shouldn't happen!)");
+
             Box::new(app::App::new(
                 cc,
                 report,
                 Default::default(),
-                log_term_rx,
                 log_byte_rx,
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
