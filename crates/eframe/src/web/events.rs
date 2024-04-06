@@ -128,14 +128,6 @@ fn paint_if_needed(runner: &mut AppRunner) {
     runner.auto_save_if_needed();
 }
 
-pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
-    let worker = luminol_web::bindings::worker().unwrap();
-    let closure = Closure::once(move || paint_and_schedule(&runner_ref));
-    worker.request_animation_frame(closure.as_ref().unchecked_ref())?;
-    closure.forget(); // We must forget it, or else the callback is canceled on drop
-    Ok(())
-}
-
 // ------------------------------------------------------------------------
 
 pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> {

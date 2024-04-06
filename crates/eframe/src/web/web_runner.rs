@@ -134,7 +134,7 @@ impl WebRunner {
         self.runner.replace(Some(runner));
 
         {
-            events::request_animation_frame(self.clone())?;
+            self.request_animation_frame()?;
         }
 
         Ok(())
@@ -249,12 +249,12 @@ impl WebRunner {
     }
 
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
-        let window = web_sys::window().unwrap();
+        let worker = luminol_web::bindings::worker().unwrap();
         let closure = Closure::once({
             let runner_ref = self.clone();
             move || events::paint_and_schedule(&runner_ref)
         });
-        let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
+        let id = worker.request_animation_frame(closure.as_ref().unchecked_ref())?;
         self.request_animation_frame_id.set(Some(id));
         closure.forget(); // We must forget it, or else the callback is canceled on drop
         Ok(())
