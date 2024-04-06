@@ -14,6 +14,7 @@ pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> 
         let mut modifiers = runner_lock.input.raw.modifiers;
         let mut should_save = false;
         let mut touch = None;
+        let mut has_focus = None;
         runner_lock.input.raw.events = Vec::new();
         let mut events = Vec::new();
 
@@ -40,7 +41,22 @@ pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> 
                 WebRunnerEvent::Touch(touch_id, touch_pos) => {
                     touch = Some((touch_id, touch_pos));
                 }
+
+                WebRunnerEvent::Focus(new_has_focus) => {
+                    has_focus = Some(new_has_focus);
+                    events.push(egui::Event::WindowFocused(new_has_focus));
+                    touch = None;
+                }
             }
+        }
+
+        // If web page has been defocused/focused, update the focused state in the input, reset
+        // touch state and trigger a rerender
+        if let Some(has_focus) = has_focus {
+            runner_lock.input.raw.focused = has_focus;
+            runner_lock.input.latest_touch_pos_id = None;
+            runner_lock.input.latest_touch_pos = None;
+            runner_lock.needs_repaint.repaint_asap();
         }
 
         // If a touch event has been detected, put it into the input and trigger a rerender
@@ -143,7 +159,7 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
                 state.channels.send_custom(WebRunnerEvent::Save);
             }
 
-            //runner.input.on_web_page_focus_change(has_focus);
+            state.channels.send_custom(WebRunnerEvent::Focus(has_focus));
             //runner.egui_ctx().request_repaint();
         };
 
@@ -321,7 +337,7 @@ pub(crate) fn install_window_events(state: &MainState) -> Result<(), JsValue> {
                 state.channels.send_custom(WebRunnerEvent::Save);
             }
 
-            //runner.input.on_web_page_focus_change(has_focus);
+            state.channels.send_custom(WebRunnerEvent::Focus(has_focus));
             //runner.egui_ctx().request_repaint();
         };
 

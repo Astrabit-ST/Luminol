@@ -440,6 +440,9 @@ enum WebRunnerEvent {
     Save,
     /// The browser detected a touchstart or touchmove event with this ID and position in canvas coordinates
     Touch(Option<egui::TouchId>, egui::Pos2),
+    /// This should be sent whenever the web page gains or loses focus (true when focus is gained,
+    /// false when focus is lost)
+    Focus(bool),
 }
 
 /// A custom output that can be sent from the worker thread to the main thread.
