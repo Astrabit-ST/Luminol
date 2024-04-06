@@ -334,7 +334,7 @@ impl luminol_eframe::App for App {
         // If a file/folder picker is open, prevent the user from interacting with the application
         // with the mouse.
         if update_state.project_manager.is_picker_open() {
-            egui::Area::new("luminol_picker_overlay").show(ctx, |ui| {
+            egui::Area::new("luminol_picker_overlay".into()).show(ctx, |ui| {
                 ui.allocate_response(
                     ui.ctx().input(|i| i.screen_rect.size()),
                     egui::Sense::click_and_drag(),

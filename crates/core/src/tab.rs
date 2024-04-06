@@ -84,31 +84,24 @@ impl Tabs {
         ui: &mut egui::Ui,
         update_state: &mut crate::UpdateState<'_>,
     ) {
-        // This scroll area with hidden scrollbars is a hacky workaround for
-        // https://github.com/Adanos020/egui_dock/issues/90
-        // which, for us, seems to manifest when the user moves tabs around
-        egui::ScrollArea::vertical()
-            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
-            .show(ui, |ui| {
-                let mut style = egui_dock::Style::from_egui(ui.style());
-                style.overlay.surface_fade_opacity = 1.;
+        let mut style = egui_dock::Style::from_egui(ui.style());
+        style.overlay.surface_fade_opacity = 1.;
 
-                let focused_id = ui
-                    .memory(|m| m.focus().is_none())
-                    .then_some(self.dock_state.find_active_focused().map(|(_, t)| t.id()))
-                    .flatten();
-                egui_dock::DockArea::new(&mut self.dock_state)
-                    .id(self.id)
-                    .style(style)
-                    .show_inside(
-                        ui,
-                        &mut TabViewer {
-                            update_state,
-                            focused_id,
-                            allowed_in_windows: self.allowed_in_windows,
-                        },
-                    );
-            });
+        let focused_id = ui
+            .memory(|m| m.focused().is_none())
+            .then_some(self.dock_state.find_active_focused().map(|(_, t)| t.id()))
+            .flatten();
+        egui_dock::DockArea::new(&mut self.dock_state)
+            .id(self.id)
+            .style(style)
+            .show_inside(
+                ui,
+                &mut TabViewer {
+                    update_state,
+                    focused_id,
+                    allowed_in_windows: self.allowed_in_windows,
+                },
+            );
     }
 
     /// Display all tabs.

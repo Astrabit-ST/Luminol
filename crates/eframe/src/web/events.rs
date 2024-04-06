@@ -5,7 +5,7 @@ use super::*;
 /// Calls `request_animation_frame` to schedule repaint.
 ///
 /// It will only paint if needed, but will always call `request_animation_frame` immediately.
-fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
     // Only paint and schedule if there has been no panic
     if let Some(mut runner_lock) = runner_ref.try_lock() {
         let mut width = runner_lock.painter.width;
@@ -14,32 +14,49 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
         let mut modifiers = runner_lock.input.raw.modifiers;
         let mut should_save = false;
         let mut touch = None;
+        let mut has_focus = None;
+        runner_lock.input.raw.events = Vec::new();
+        let mut events = Vec::new();
 
-        for event in runner_lock
-            .worker_options
-            .channels
-            .custom_event_rx
-            .try_iter()
-        {
+        for event in runner_lock.worker_options.channels.event_rx.try_iter() {
             match event {
-                WebRunnerCustomEvent::ScreenResize(new_width, new_height, new_pixel_ratio) => {
+                WebRunnerEvent::EguiEvent(event) => {
+                    events.push(event);
+                }
+
+                WebRunnerEvent::ScreenResize(new_width, new_height, new_pixel_ratio) => {
                     width = new_width;
                     height = new_height;
                     pixel_ratio = new_pixel_ratio;
                 }
 
-                WebRunnerCustomEvent::Modifiers(new_modifiers) => {
+                WebRunnerEvent::Modifiers(new_modifiers) => {
                     modifiers = new_modifiers;
                 }
 
-                WebRunnerCustomEvent::Save => {
+                WebRunnerEvent::Save => {
                     should_save = true;
                 }
 
-                WebRunnerCustomEvent::Touch(touch_id, touch_pos) => {
+                WebRunnerEvent::Touch(touch_id, touch_pos) => {
                     touch = Some((touch_id, touch_pos));
                 }
+
+                WebRunnerEvent::Focus(new_has_focus) => {
+                    has_focus = Some(new_has_focus);
+                    events.push(egui::Event::WindowFocused(new_has_focus));
+                    touch = None;
+                }
             }
+        }
+
+        // If web page has been defocused/focused, update the focused state in the input, reset
+        // touch state and trigger a rerender
+        if let Some(has_focus) = has_focus {
+            runner_lock.input.raw.focused = has_focus;
+            runner_lock.input.latest_touch_pos_id = None;
+            runner_lock.input.latest_touch_pos = None;
+            runner_lock.needs_repaint.repaint_asap();
         }
 
         // If a touch event has been detected, put it into the input and trigger a rerender
@@ -55,12 +72,7 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
             runner_lock.needs_repaint.repaint_asap();
         }
 
-        runner_lock.input.raw.events = runner_lock
-            .worker_options
-            .channels
-            .event_rx
-            .try_iter()
-            .collect();
+        runner_lock.input.raw.events = events;
         if !runner_lock.input.raw.events.is_empty() {
             // Render immediately if there are any pending events
             runner_lock.needs_repaint.repaint_asap();
@@ -97,7 +109,7 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
 
         paint_if_needed(&mut runner_lock);
         drop(runner_lock);
-        request_animation_frame(runner_ref.clone())?;
+        runner_ref.request_animation_frame()?;
     }
     Ok(())
 }
@@ -132,41 +144,26 @@ fn paint_if_needed(runner: &mut AppRunner) {
     runner.auto_save_if_needed();
 }
 
-pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
-    let worker = luminol_web::bindings::worker().unwrap();
-    let closure = Closure::once(move || paint_and_schedule(&runner_ref));
-    worker.request_animation_frame(closure.as_ref().unchecked_ref())?;
-    closure.forget(); // We must forget it, or else the callback is canceled on drop
-    Ok(())
-}
-
 // ------------------------------------------------------------------------
 
 pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
 
-    {
-        // Avoid sticky modifier keys on alt-tab:
-        for event_name in ["blur", "focus"] {
-            let closure = move |event: web_sys::MouseEvent, state: &MainState| {
-                let has_focus = event_name == "focus";
+    for event_name in ["blur", "focus"] {
+        let closure = move |_event: web_sys::MouseEvent, state: &MainState| {
+            // log::debug!("{event_name:?}");
+            let has_focus = event_name == "focus";
 
-                if !has_focus {
-                    // We lost focus - good idea to save
-                    state.channels.send_custom(WebRunnerCustomEvent::Save);
-                }
+            if !has_focus {
+                // We lost focus - good idea to save
+                state.channels.send_custom(WebRunnerEvent::Save);
+            }
 
-                //runner.input.on_web_page_focus_change(has_focus);
-                //runner.egui_ctx().request_repaint();
-                // log::debug!("{event_name:?}");
+            state.channels.send_custom(WebRunnerEvent::Focus(has_focus));
+            //runner.egui_ctx().request_repaint();
+        };
 
-                state.channels.send_custom(WebRunnerCustomEvent::Modifiers(
-                    modifiers_from_mouse_event(&event),
-                ));
-            };
-
-            state.add_event_listener(&document, event_name, closure)?;
-        }
+        state.add_event_listener(&document, event_name, closure)?;
     }
 
     state.add_event_listener(
@@ -178,10 +175,10 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
                 return;
             }
 
-            let modifiers = modifiers_from_event(&event);
+            let modifiers = modifiers_from_kb_event(&event);
             state
                 .channels
-                .send_custom(WebRunnerCustomEvent::Modifiers(modifiers));
+                .send_custom(WebRunnerEvent::Modifiers(modifiers));
 
             let key = event.key();
             let egui_key = translate_key(&key);
@@ -189,7 +186,7 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
             if let Some(key) = egui_key {
                 state.channels.send(egui::Event::Key {
                     key,
-                    physical_key: None, // TODO
+                    physical_key: None, // TODO(fornwall)
                     pressed: true,
                     repeat: false, // egui will fill this in for us!
                     modifiers,
@@ -254,14 +251,14 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
         &document,
         "keyup",
         |event: web_sys::KeyboardEvent, state| {
-            let modifiers = modifiers_from_event(&event);
+            let modifiers = modifiers_from_kb_event(&event);
             state
                 .channels
-                .send_custom(WebRunnerCustomEvent::Modifiers(modifiers));
+                .send_custom(WebRunnerEvent::Modifiers(modifiers));
             if let Some(key) = translate_key(&event.key()) {
                 state.channels.send(egui::Event::Key {
                     key,
-                    physical_key: None, // TODO
+                    physical_key: None, // TODO(fornwall)
                     pressed: false,
                     repeat: false,
                     modifiers,
@@ -330,6 +327,23 @@ pub(crate) fn install_document_events(state: &MainState) -> Result<(), JsValue> 
 pub(crate) fn install_window_events(state: &MainState) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
+    for event_name in ["blur", "focus"] {
+        let closure = move |_event: web_sys::MouseEvent, state: &MainState| {
+            // log::debug!("{event_name:?}");
+            let has_focus = event_name == "focus";
+
+            if !has_focus {
+                // We lost focus - good idea to save
+                state.channels.send_custom(WebRunnerEvent::Save);
+            }
+
+            state.channels.send_custom(WebRunnerEvent::Focus(has_focus));
+            //runner.egui_ctx().request_repaint();
+        };
+
+        state.add_event_listener(&window, event_name, closure)?;
+    }
+
     /*
 
     // Save-on-close
@@ -338,7 +352,8 @@ pub(crate) fn install_window_events(state: &MainState) -> Result<(), JsValue> {
     })?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
-        runner_ref.add_event_listener(&window, event_name, |_: web_sys::Event, runner| {
+        runner_ref.add_event_listener(&window, event_name, move |_: web_sys::Event, runner| {
+            // log::debug!("{event_name:?}");
             runner.needs_repaint.repaint_asap();
         })?;
     }
@@ -346,6 +361,7 @@ pub(crate) fn install_window_events(state: &MainState) -> Result<(), JsValue> {
     runner_ref.add_event_listener(&window, "hashchange", |_: web_sys::Event, runner| {
         // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
         runner.frame.info.web_info.location.hash = location_hash();
+        runner.needs_repaint.repaint_asap(); // tell the user about the new hash
     })?;
 
     */
@@ -369,11 +385,7 @@ pub(crate) fn install_window_events(state: &MainState) -> Result<(), JsValue> {
                 .set_attribute("height", height.to_string().as_str());
             state
                 .channels
-                .send_custom(WebRunnerCustomEvent::ScreenResize(
-                    width,
-                    height,
-                    pixel_ratio,
-                ));
+                .send_custom(WebRunnerEvent::ScreenResize(width, height, pixel_ratio));
         }
     };
     closure(web_sys::Event::new("")?, state);
@@ -428,8 +440,12 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "mousedown",
         |event: web_sys::MouseEvent, state| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            state
+                .channels
+                .send_custom(WebRunnerEvent::Modifiers(modifiers));
             if let Some(button) = button_from_mouse_event(&event) {
-                let pos = pos_from_mouse_event(&state.canvas, &event);
+                let pos = pos_from_mouse_event(&state.canvas, &event, state.channels.zoom_factor());
                 let modifiers = modifiers_from_mouse_event(&event);
                 state.channels.send(egui::Event::PointerButton {
                     pos,
@@ -454,7 +470,11 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "mousemove",
         |event: web_sys::MouseEvent, state| {
-            let pos = pos_from_mouse_event(&state.canvas, &event);
+            let modifiers = modifiers_from_mouse_event(&event);
+            state
+                .channels
+                .send_custom(WebRunnerEvent::Modifiers(modifiers));
+            let pos = pos_from_mouse_event(&state.canvas, &event, state.channels.zoom_factor());
             state.channels.send(egui::Event::PointerMoved(pos));
             //runner.needs_repaint.repaint_asap();
             event.stop_propagation();
@@ -466,9 +486,12 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "mouseup",
         |event: web_sys::MouseEvent, state| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            state
+                .channels
+                .send_custom(WebRunnerEvent::Modifiers(modifiers));
             if let Some(button) = button_from_mouse_event(&event) {
-                let pos = pos_from_mouse_event(&state.canvas, &event);
-                let modifiers = modifiers_from_mouse_event(&event);
+                let pos = pos_from_mouse_event(&state.canvas, &event, state.channels.zoom_factor());
                 state.channels.send(egui::Event::PointerButton {
                     pos,
                     button,
@@ -494,7 +517,7 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         &state.canvas,
         "mouseleave",
         |event: web_sys::MouseEvent, state| {
-            state.channels.send_custom(WebRunnerCustomEvent::Save);
+            state.channels.send_custom(WebRunnerEvent::Save);
 
             state.channels.send(egui::Event::PointerGone);
             //runner.needs_repaint.repaint_asap();
@@ -509,10 +532,15 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         |event: web_sys::TouchEvent, state| {
             let mut inner = state.inner.borrow_mut();
 
-            inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
+            inner.touch_pos = pos_from_touch_event(
+                &state.canvas,
+                &event,
+                &mut inner.touch_id,
+                state.channels.zoom_factor(),
+            );
             state
                 .channels
-                .send_custom(WebRunnerCustomEvent::Touch(inner.touch_id, inner.touch_pos));
+                .send_custom(WebRunnerEvent::Touch(inner.touch_id, inner.touch_pos));
             let modifiers = modifiers_from_touch_event(&event);
             state.channels.send(egui::Event::PointerButton {
                 pos: inner.touch_pos,
@@ -534,10 +562,15 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
         |event: web_sys::TouchEvent, state| {
             let mut inner = state.inner.borrow_mut();
 
-            inner.touch_pos = pos_from_touch_event(&state.canvas, &event, &mut inner.touch_id);
+            inner.touch_pos = pos_from_touch_event(
+                &state.canvas,
+                &event,
+                &mut inner.touch_id,
+                state.channels.zoom_factor(),
+            );
             state
                 .channels
-                .send_custom(WebRunnerCustomEvent::Touch(inner.touch_id, inner.touch_pos));
+                .send_custom(WebRunnerEvent::Touch(inner.touch_id, inner.touch_pos));
             state
                 .channels
                 .send(egui::Event::PointerMoved(inner.touch_pos));
@@ -609,7 +642,9 @@ pub(crate) fn install_canvas_events(state: &MainState) -> Result<(), JsValue> {
             });
 
             let scroll_multiplier = match unit {
-                egui::MouseWheelUnit::Page => canvas_size_in_points(&state.canvas).y,
+                egui::MouseWheelUnit::Page => {
+                    canvas_size_in_points(&state.canvas, state.channels.zoom_factor()).y
+                }
                 egui::MouseWheelUnit::Line => {
                     #[allow(clippy::let_and_return)]
                     let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.
