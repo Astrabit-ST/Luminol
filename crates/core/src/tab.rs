@@ -94,7 +94,7 @@ impl Tabs {
                 style.overlay.surface_fade_opacity = 1.;
 
                 let focused_id = ui
-                    .memory(|m| m.focus().is_none())
+                    .memory(|m| m.focused().is_none())
                     .then_some(self.dock_state.find_active_focused().map(|(_, t)| t.id()))
                     .flatten();
                 egui_dock::DockArea::new(&mut self.dock_state)
