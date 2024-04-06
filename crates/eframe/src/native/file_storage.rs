@@ -104,7 +104,6 @@ impl crate::Storage for FileStorage {
                 .spawn(move || {
                     save_to_disk(&file_path, &kv);
                 });
-
             match result {
                 Ok(join_handle) => {
                     self.last_save_join_handle = Some(join_handle);

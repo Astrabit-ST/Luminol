@@ -90,7 +90,9 @@ impl AppRunner {
         super::storage::load_memory(&egui_ctx).await;
 
         egui_ctx.options_mut(|o| {
-            // On web, the browser controls the zoom factor:
+            // On web by default egui follows the zoom factor of the browser,
+            // and lets the browser handle the zoom shortscuts.
+            // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
         });
@@ -105,6 +107,9 @@ impl AppRunner {
 
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
+
+            #[cfg(feature = "glow")]
+            get_proc_address: None,
 
             #[cfg(all(feature = "wgpu", not(feature = "glow")))]
             wgpu_render_state: painter.render_state(),
@@ -188,6 +193,10 @@ impl AppRunner {
         self.last_save_time = now_sec();
     }
 
+    pub fn canvas(&self) -> &web_sys::OffscreenCanvas {
+        self.painter.canvas()
+    }
+
     pub fn destroy(mut self) {
         log::debug!("Destroying AppRunner");
         self.painter.destroy();
@@ -230,6 +239,10 @@ impl AppRunner {
         }
 
         self.mutable_text_under_cursor = platform_output.mutable_text_under_cursor;
+        self.worker_options.channels.zoom_tx.store(
+            self.egui_ctx.zoom_factor(),
+            portable_atomic::Ordering::Relaxed,
+        );
         self.worker_options
             .channels
             .send(super::WebRunnerOutput::PlatformOutput(

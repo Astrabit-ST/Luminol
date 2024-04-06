@@ -5,7 +5,7 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
+use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -262,6 +262,8 @@ impl WgpuWinitApp {
             storage: integration.frame.storage(),
             #[cfg(feature = "glow")]
             gl: None,
+            #[cfg(feature = "glow")]
+            get_proc_address: None,
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
@@ -433,13 +435,12 @@ impl WinitApp for WgpuWinitApp {
                     self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
                 };
 
-                EventResult::RepaintNow(
-                    running.shared.borrow().viewports[&ViewportId::ROOT]
-                        .window
-                        .as_ref()
-                        .unwrap()
-                        .id(),
-                )
+                let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
+                if let Some(window) = &viewport.window {
+                    EventResult::RepaintNow(window.id())
+                } else {
+                    EventResult::Wait
+                }
             }
 
             winit::event::Event::Suspended => {
@@ -451,6 +452,33 @@ impl WinitApp for WgpuWinitApp {
             winit::event::Event::WindowEvent { event, window_id } => {
                 if let Some(running) = &mut self.running {
                     running.on_window_event(*window_id, event)
+                } else {
+                    EventResult::Wait
+                }
+            }
+
+            winit::event::Event::DeviceEvent {
+                device_id: _,
+                event: winit::event::DeviceEvent::MouseMotion { delta },
+            } => {
+                if let Some(running) = &mut self.running {
+                    let mut shared = running.shared.borrow_mut();
+                    if let Some(viewport) = shared
+                        .focused_viewport
+                        .and_then(|viewport| shared.viewports.get_mut(&viewport))
+                    {
+                        if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                            egui_winit.on_mouse_motion(*delta);
+                        }
+
+                        if let Some(window) = viewport.window.as_ref() {
+                            EventResult::RepaintNext(window.id())
+                        } else {
+                            EventResult::Wait
+                        }
+                    } else {
+                        EventResult::Wait
+                    }
                 } else {
                     EventResult::Wait
                 }
@@ -584,7 +612,9 @@ impl WgpuWinitRunning {
                 }
             }
 
-            let egui_winit = egui_winit.as_mut().unwrap();
+            let Some(egui_winit) = egui_winit.as_mut() else {
+                return EventResult::Wait;
+            };
             let mut raw_input = egui_winit.take_egui_input(window);
 
             integration.pre_update();
@@ -744,7 +774,6 @@ impl WgpuWinitRunning {
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
                 if let Some(viewport_id) = viewport_id {
-                    use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),

@@ -100,14 +100,14 @@ fn theme_from_dark_mode(dark_mode: bool) -> Theme {
     }
 }
 
-fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
+fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
     canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
 }
 
-fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    canvas_element(canvas_id)
+fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
+    get_canvas_element_by_id(canvas_id)
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
@@ -116,8 +116,8 @@ fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement) -> egui::Vec2 {
-    let pixels_per_point = native_pixels_per_point();
+fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, zoom_factor: f32) -> egui::Vec2 {
+    let pixels_per_point = zoom_factor * native_pixels_per_point();
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
@@ -130,51 +130,46 @@ fn resize_canvas_to_screen_size(
 ) -> Option<()> {
     let parent = canvas.parent_element()?;
 
-    // Prefer the client width and height so that if the parent
-    // element is resized that the egui canvas resizes appropriately.
-    let width = parent.client_width();
-    let height = parent.client_height();
-
-    let canvas_real_size = Vec2 {
-        x: width as f32,
-        y: height as f32,
-    };
-
-    if width <= 0 || height <= 0 {
-        log::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
-    }
-
+    // In this function we use "pixel" to mean physical pixel,
+    // and "point" to mean "logical CSS pixel".
     let pixels_per_point = native_pixels_per_point();
 
-    let max_size_pixels = pixels_per_point * max_size_points;
+    // Prefer the client width and height so that if the parent
+    // element is resized that the egui canvas resizes appropriately.
+    let parent_size_points = Vec2 {
+        x: parent.client_width() as f32,
+        y: parent.client_height() as f32,
+    };
 
-    let canvas_size_pixels = pixels_per_point * canvas_real_size;
-    let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
-
-    // Make sure that the height and width are always even numbers.
-    // otherwise, the page renders blurry on some platforms.
-    // See https://github.com/emilk/egui/issues/103
-    fn round_to_even(v: f32) -> f32 {
-        (v / 2.0).round() * 2.0
+    if parent_size_points.x <= 0.0 || parent_size_points.y <= 0.0 {
+        log::error!("The parent element of the egui canvas is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", parent_size_points.x, parent_size_points.y);
     }
 
+    // We take great care here to ensure the rendered canvas aligns
+    // perfectly to the physical pixel grid, lest we get blurry text.
+    // At the time of writing, we get pixel perfection on Chromium and Firefox on Mac,
+    // but Desktop Safari will be blurry on most zoom levels.
+    // See https://github.com/emilk/egui/issues/4241 for more.
+
+    let canvas_size_pixels = pixels_per_point * parent_size_points.min(max_size_points);
+
+    // Make sure that the size is always an even number of pixels,
+    // otherwise, the page renders blurry on some platforms.
+    // See https://github.com/emilk/egui/issues/103
+    let canvas_size_pixels = (canvas_size_pixels / 2.0).round() * 2.0;
+
+    let canvas_size_points = canvas_size_pixels / pixels_per_point;
+
     canvas
         .style()
-        .set_property(
-            "width",
-            &format!("{}px", round_to_even(canvas_size_points.x)),
-        )
+        .set_property("width", &format!("{}px", canvas_size_points.x))
         .ok()?;
     canvas
         .style()
-        .set_property(
-            "height",
-            &format!("{}px", round_to_even(canvas_size_points.y)),
-        )
+        .set_property("height", &format!("{}px", canvas_size_points.y))
         .ok()?;
-    canvas.set_width(round_to_even(canvas_size_pixels.x) as u32);
-    canvas.set_height(round_to_even(canvas_size_pixels.y) as u32);
+    canvas.set_width(canvas_size_pixels.x as u32);
+    canvas.set_height(canvas_size_pixels.y as u32);
 
     Some(())
 }
@@ -282,6 +277,13 @@ pub fn percent_decode(s: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
+// ensure that AtomicF32 and AtomicF64 is using atomic ops (otherwise it would use global locks, and that would be bad)
+const _: [(); 0 - !{
+    const ASSERT: bool = portable_atomic::AtomicF32::is_always_lock_free()
+        && portable_atomic::AtomicF64::is_always_lock_free();
+    ASSERT
+} as usize] = [];
+
 /// Options and state that will be sent to the web worker part of the web runner.
 #[derive(Clone)]
 pub struct WorkerOptions {
@@ -298,11 +300,11 @@ pub struct WorkerOptions {
 #[derive(Clone)]
 pub struct WorkerChannels {
     /// The receiver used to receive egui events from the main thread.
-    event_rx: flume::Receiver<egui::Event>,
-    /// The receiver used to receive custom events from the main thread.
-    custom_event_rx: flume::Receiver<WebRunnerCustomEvent>,
+    event_rx: flume::Receiver<WebRunnerEvent>,
     /// The sender used to send outputs to the main thread.
     output_tx: flume::Sender<WebRunnerOutput>,
+    /// This should be set to the app's current zoom factor every frame.
+    zoom_tx: std::sync::Arc<portable_atomic::AtomicF32>,
 }
 
 impl WorkerChannels {
@@ -345,11 +347,11 @@ pub struct MainStateInner {
 #[derive(Clone)]
 pub struct MainChannels {
     /// The sender used to send egui events to the worker thread.
-    event_tx: flume::Sender<egui::Event>,
-    /// The sender used to send custom events to the worker thread.
-    custom_event_tx: flume::Sender<WebRunnerCustomEvent>,
+    event_tx: flume::Sender<WebRunnerEvent>,
     /// The receiver used to receive outputs from the worker thread.
     output_rx: flume::Receiver<WebRunnerOutput>,
+    /// This is set to the app's current zoom factor every frame.
+    zoom_rx: std::sync::Arc<portable_atomic::AtomicF32>,
 }
 
 impl MainState {
@@ -393,36 +395,43 @@ impl MainState {
 impl MainChannels {
     /// Send an egui event to the worker thread.
     fn send(&self, event: egui::Event) {
-        let _ = self.event_tx.send(event);
+        let _ = self.event_tx.send(WebRunnerEvent::EguiEvent(event));
     }
 
     /// Send a custom event to the worker thread.
-    fn send_custom(&self, event: WebRunnerCustomEvent) {
-        let _ = self.custom_event_tx.send(event);
+    fn send_custom(&self, event: WebRunnerEvent) {
+        let _ = self.event_tx.send(event);
+    }
+
+    /// Get the egui app's current zoom factor from the worker thread.
+    fn zoom_factor(&self) -> f32 {
+        self.zoom_rx.load(portable_atomic::Ordering::Relaxed)
     }
 }
 
 /// Create a new connected `(WorkerChannels, MainChannels)` pair for initializing a web runner.
 pub fn channels() -> (WorkerChannels, MainChannels) {
     let (event_tx, event_rx) = flume::unbounded();
-    let (custom_event_tx, custom_event_rx) = flume::unbounded();
     let (output_tx, output_rx) = flume::unbounded();
+    let zoom_arc = std::sync::Arc::new(portable_atomic::AtomicF32::new(1.));
     (
         WorkerChannels {
             event_rx,
-            custom_event_rx,
             output_tx,
+            zoom_tx: zoom_arc.clone(),
         },
         MainChannels {
             event_tx,
-            custom_event_tx,
             output_rx,
+            zoom_rx: zoom_arc,
         },
     )
 }
 
 /// A custom event that can be sent from the main thread to the worker thread.
-enum WebRunnerCustomEvent {
+enum WebRunnerEvent {
+    /// Misc egui events
+    EguiEvent(egui::Event),
     /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
     ScreenResize(u32, u32, f32),
     /// This should be sent whenever the modifiers change

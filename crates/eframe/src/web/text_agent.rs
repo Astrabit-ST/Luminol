@@ -5,7 +5,7 @@ use std::{cell::Cell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use super::{canvas_element, AppRunner, WebRunner};
+use super::{AppRunner, WebRunner};
 
 static AGENT_ID: &str = "egui_text_agent";
 
@@ -229,8 +229,7 @@ pub fn move_text_cursor(
     ime: Option<egui::output::IMEOutput>,
     canvas: &web_sys::HtmlCanvasElement,
 ) -> Option<()> {
-    let input = text_agent();
-    let style = input.style();
+    let style = text_agent().style();
     // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
         ime.as_ref().and_then(|ime| {
