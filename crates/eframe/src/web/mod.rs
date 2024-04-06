@@ -455,5 +455,5 @@ enum WebRunnerOutput {
 static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
 
 thread_local! {
-    static EVENTS_TO_UNSUBSCRIBE: std::cell::RefCell<Vec<web_runner::EventToUnsubscribe>> = std::cell::RefCell::new(Vec::new());
+    static EVENTS_TO_UNSUBSCRIBE: std::cell::RefCell<Vec<web_runner::EventToUnsubscribe>> = const { std::cell::RefCell::new(Vec::new()) };
 }
