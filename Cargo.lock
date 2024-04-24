@@ -3174,6 +3174,7 @@ dependencies = [
  "luminol-macros",
  "luminol-modals",
  "luminol-term",
+ "murmur3",
  "once_cell",
  "poll-promise",
  "qp-trie",
@@ -3393,6 +3394,12 @@ checksum = "359f76430b20a79f9e20e115b3428614e654f04fab314482fc0fda0ebd3c6044"
 dependencies = [
  "windows-sys 0.48.0",
 ]
+
+[[package]]
+name = "murmur3"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9252111cf132ba0929b6f8e030cac2a24b507f3a4d6db6fb2896f27b354c714b"
 
 [[package]]
 name = "naga"

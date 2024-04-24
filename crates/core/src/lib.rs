@@ -151,6 +151,9 @@ impl ModifiedState {
 pub struct ToolbarState {
     /// The currently selected pencil.
     pub pencil: Pencil,
+    /// Brush density between 0 and 1 inclusive; determines the proportion of randomly chosen tiles
+    /// the brush draws on if less than 1
+    pub brush_density: f32,
 }
 
 #[derive(Default, strum::EnumIter, strum::Display, PartialEq, Eq, Clone, Copy)]

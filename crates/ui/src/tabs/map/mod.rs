@@ -85,6 +85,12 @@ pub struct Tab {
     /// This stores the passage values for every position on the map so that we can figure out
     /// which passage values have changed in the current frame
     passages: luminol_data::Table2,
+
+    /// Brush density between 0 and 1 inclusive; determines the proportion of randomly chosen tiles
+    /// the brush draws on if less than 1
+    brush_density: f32,
+    /// Seed for the PRNG used for the brush when brush density is less than 1
+    brush_seed: [u8; 8],
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -157,6 +163,15 @@ impl Tab {
             tilemap_undo_cache_layer: 0,
 
             passages,
+
+            brush_density: 1.,
+            brush_seed: update_state
+                .project_config
+                .as_ref()
+                .expect("project not loaded")
+                .project
+                .persistence_id
+                .to_le_bytes(),
         })
     }
 }
@@ -190,6 +205,8 @@ impl luminol_core::Tab for Tab {
         update_state: &mut luminol_core::UpdateState<'_>,
         is_focused: bool,
     ) {
+        self.brush_density = update_state.toolbar.brush_density;
+
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
