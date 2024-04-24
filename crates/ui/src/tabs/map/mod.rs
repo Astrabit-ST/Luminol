@@ -400,7 +400,9 @@ impl luminol_core::Tab for Tab {
                     }
                 }
 
-                if !response.dragged_by(egui::PointerButton::Primary) {
+                if !response.is_pointer_button_down_on()
+                    || ui.input(|i| !i.pointer.button_down(egui::PointerButton::Primary))
+                {
                     if self.drawing_shape {
                         self.drawing_shape = false;
                     }
@@ -429,17 +431,6 @@ impl luminol_core::Tab for Tab {
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =
                     self.view.selected_layer
                 {
-                    // Before drawing tiles, save the state of the current layer so we can undo it
-                    // later if we need to
-                    if response.drag_started_by(egui::PointerButton::Primary)
-                        && !ui.input(|i| i.modifiers.command)
-                    {
-                        self.tilemap_undo_cache_layer = tile_layer;
-                        for i in 0..self.layer_cache.len() {
-                            self.tilemap_undo_cache[i] = self.layer_cache[i];
-                        }
-                    }
-
                     // Tile drawing
                     if response.is_pointer_button_down_on()
                         && ui.input(|i| {
@@ -447,6 +438,13 @@ impl luminol_core::Tab for Tab {
                                 && !i.modifiers.command
                         })
                     {
+                        if self.drawing_shape_pos.is_none() {
+                            // Before drawing tiles, save the state of the current layer so we can
+                            // undo it later if we need to
+                            self.tilemap_undo_cache_layer = tile_layer;
+                            self.tilemap_undo_cache.copy_from_slice(&self.layer_cache);
+                        }
+
                         self.handle_brush(
                             map_x as usize,
                             map_y as usize,
