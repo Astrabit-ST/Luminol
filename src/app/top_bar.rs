@@ -424,19 +424,19 @@ impl TopBar {
             ui.selectable_value(&mut update_state.toolbar.pencil, brush, brush.to_string());
         }
 
-        ui.separator();
-
-        ui.vertical(|ui| {
-            ui.add_space(ui.spacing().button_padding.y.max(
-                (ui.spacing().interact_size.y - ui.text_style_height(&egui::TextStyle::Body)) / 2.,
-            ));
-            ui.label("Brush Density:");
-        });
-
         ui.add(egui::Slider::new(
             &mut update_state.toolbar.brush_density,
             0.0..=1.0,
-        ));
+        ))
+        .on_hover_text("The proportion of tiles the brush is able to draw on");
+
+        let alt_down = ui.input(|i| i.modifiers.alt);
+        let mut brush_random = update_state.toolbar.brush_random != alt_down;
+        ui.add(egui::Checkbox::new(
+            &mut brush_random, "Randomize ID",
+        ))
+        .on_hover_text("If enabled, the brush will randomly place tiles out of the selected tiles in the tilepicker instead of placing them in a pattern");
+        update_state.toolbar.brush_random = brush_random != alt_down;
 
         if open_project {
             update_state.project_manager.open_project_picker();

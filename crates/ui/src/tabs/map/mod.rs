@@ -90,7 +90,7 @@ pub struct Tab {
     /// the brush draws on if less than 1
     brush_density: f32,
     /// Seed for the PRNG used for the brush when brush density is less than 1
-    brush_seed: [u8; 8],
+    brush_seed: [u8; 16],
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -139,6 +139,18 @@ impl Tab {
             |x, y, passage| passages[(x, y)] = passage,
         );
 
+        let mut brush_seed = [0u8; 16];
+        brush_seed[0..8].copy_from_slice(
+            &update_state
+                .project_config
+                .as_ref()
+                .expect("project not loaded")
+                .project
+                .persistence_id
+                .to_le_bytes(),
+        );
+        brush_seed[8..16].copy_from_slice(&(id as u64).to_le_bytes());
+
         Ok(Self {
             id,
 
@@ -165,13 +177,7 @@ impl Tab {
             passages,
 
             brush_density: 1.,
-            brush_seed: update_state
-                .project_config
-                .as_ref()
-                .expect("project not loaded")
-                .project
-                .persistence_id
-                .to_le_bytes(),
+            brush_seed,
         })
     }
 }

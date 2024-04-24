@@ -154,17 +154,17 @@ impl super::Tab {
             }
 
             // Pick a pseudorandom normal f32 uniformly in the interval [0, 1)
-            let mut image = [0u8; 40];
-            image[0..8].copy_from_slice(&self.brush_seed);
-            image[8..16].copy_from_slice(&(position.0 as u64).to_le_bytes());
-            image[16..24].copy_from_slice(&(position.1 as u64).to_le_bytes());
-            image[24..32].copy_from_slice(&(position.2 as u64).to_le_bytes());
-            let f = (murmur3::murmur3_32(&mut std::io::Cursor::new(image), self.id as u32).unwrap()
+            let mut preimage = [0u8; 40];
+            preimage[0..16].copy_from_slice(&self.brush_seed);
+            preimage[16..24].copy_from_slice(&(position.0 as u64).to_le_bytes());
+            preimage[24..32].copy_from_slice(&(position.1 as u64).to_le_bytes());
+            preimage[32..40].copy_from_slice(&(position.2 as u64).to_le_bytes());
+            let image = (murmur3::murmur3_32(&mut std::io::Cursor::new(preimage), 1729).unwrap()
                 & 16777215) as f32
                 / 16777216f32;
 
             // Set the tile only if that's less than the brush density
-            if f >= self.brush_density {
+            if image >= self.brush_density {
                 return;
             }
         }

@@ -132,6 +132,7 @@ rfd = "0.12.0"
 tempfile = "3.8.1"
 
 rand = "0.8.5"
+murmur3 = "0.5.2"
 
 alacritty_terminal = "0.22.0"
 

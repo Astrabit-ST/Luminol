@@ -46,13 +46,19 @@ impl super::Tab {
 
         match pencil {
             luminol_core::Pencil::Pen => {
+                let (rect_width, rect_height) = if self.tilepicker.brush_random {
+                    (1, 1)
+                } else {
+                    (width, height)
+                };
+
                 let drawing_shape_pos = if let Some(drawing_shape_pos) = self.drawing_shape_pos {
                     drawing_shape_pos
                 } else {
                     self.drawing_shape_pos = Some(map_pos);
                     map_pos
                 };
-                for (y, x) in (0..height).cartesian_product(0..width) {
+                for (y, x) in (0..rect_height).cartesian_product(0..rect_width) {
                     let absolute_x = map_x + x as usize;
                     let absolute_y = map_y + y as usize;
 
@@ -64,6 +70,9 @@ impl super::Tab {
                     self.set_tile(
                         map,
                         self.tilepicker.get_tile_from_offset(
+                            absolute_x as i16,
+                            absolute_y as i16,
+                            tile_layer as i16,
                             x + (map_x as f32 - drawing_shape_pos.x) as i16,
                             y + (map_y as f32 - drawing_shape_pos.y) as i16,
                         ),
@@ -87,6 +96,9 @@ impl super::Tab {
                     self.set_tile(
                         map,
                         self.tilepicker.get_tile_from_offset(
+                            position.0 as i16,
+                            position.1 as i16,
+                            tile_layer as i16,
                             position.0 as i16 - drawing_shape_pos.x as i16,
                             position.1 as i16 - drawing_shape_pos.y as i16,
                         ),
@@ -159,6 +171,9 @@ impl super::Tab {
                             self.set_tile(
                                 map,
                                 self.tilepicker.get_tile_from_offset(
+                                    x as i16,
+                                    y as i16,
+                                    tile_layer as i16,
                                     x as i16 - drawing_shape_pos.x as i16,
                                     y as i16 - drawing_shape_pos.y as i16,
                                 ),
@@ -202,6 +217,9 @@ impl super::Tab {
                         self.set_tile(
                             map,
                             self.tilepicker.get_tile_from_offset(
+                                map_x as i16,
+                                map_y as i16,
+                                tile_layer as i16,
                                 map_x as i16 - drawing_shape_pos.x as i16,
                                 map_y as i16 - drawing_shape_pos.y as i16,
                             ),
@@ -250,6 +268,9 @@ impl super::Tab {
                                     self.set_tile(
                                         map,
                                         self.tilepicker.get_tile_from_offset(
+                                            x as i16,
+                                            y as i16,
+                                            tile_layer as i16,
                                             x as i16 - drawing_shape_pos.x as i16,
                                             y as i16 - drawing_shape_pos.y as i16,
                                         ),
@@ -292,6 +313,9 @@ impl super::Tab {
                                     self.set_tile(
                                         map,
                                         self.tilepicker.get_tile_from_offset(
+                                            x as i16,
+                                            y as i16,
+                                            tile_layer as i16,
                                             x as i16 - drawing_shape_pos.x as i16,
                                             y as i16 - drawing_shape_pos.y as i16,
                                         ),

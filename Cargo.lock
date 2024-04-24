@@ -2933,6 +2933,7 @@ dependencies = [
  "luminol-egui-wgpu",
  "luminol-filesystem",
  "luminol-graphics",
+ "murmur3",
  "parking_lot",
  "qp-trie",
  "strum",

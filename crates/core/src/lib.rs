@@ -147,13 +147,14 @@ impl ModifiedState {
 }
 
 #[allow(missing_docs)]
-#[derive(Default)]
 pub struct ToolbarState {
     /// The currently selected pencil.
     pub pencil: Pencil,
     /// Brush density between 0 and 1 inclusive; determines the proportion of randomly chosen tiles
     /// the brush draws on if less than 1
     pub brush_density: f32,
+    /// Whether or not brush tile ID randomization is active.
+    pub brush_random: bool,
 }
 
 #[derive(Default, strum::EnumIter, strum::Display, PartialEq, Eq, Clone, Copy)]
@@ -164,6 +165,16 @@ pub enum Pencil {
     Circle,
     Rectangle,
     Fill,
+}
+
+impl Default for ToolbarState {
+    fn default() -> Self {
+        Self {
+            pencil: Default::default(),
+            brush_density: 1.,
+            brush_random: false,
+        }
+    }
 }
 
 impl<'res> UpdateState<'res> {

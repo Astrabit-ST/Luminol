@@ -352,7 +352,8 @@ impl MapView {
         );
         let pattern_rect = egui::Rect::from_min_size(
             map_rect.min + (self.cursor_pos.to_vec2() * tile_size),
-            if !force_show_pattern_rect && drawing_shape_pos.is_some() {
+            if tilepicker.brush_random || (!force_show_pattern_rect && drawing_shape_pos.is_some())
+            {
                 egui::Vec2::splat(tile_size)
             } else {
                 egui::vec2(
