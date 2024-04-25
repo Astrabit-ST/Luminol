@@ -34,6 +34,11 @@ pub struct Tilepicker {
     resources: Arc<Resources>,
     viewport: Arc<luminol_graphics::viewport::Viewport>,
     ani_time: Option<f64>,
+
+    /// When true, brush tile ID randomization is enabled.
+    pub brush_random: bool,
+    /// Seed for the PRNG used for the brush when brush tile ID randomization is enabled.
+    brush_seed: [u8; 16],
 }
 
 struct Resources {
@@ -174,6 +179,18 @@ impl Tilepicker {
             &passages,
         );
 
+        let mut brush_seed = [0u8; 16];
+        brush_seed[0..8].copy_from_slice(
+            &update_state
+                .project_config
+                .as_ref()
+                .expect("project not loaded")
+                .project
+                .persistence_id
+                .to_le_bytes(),
+        );
+        brush_seed[8..16].copy_from_slice(&(map_id as u64).to_le_bytes());
+
         Ok(Self {
             resources: Arc::new(Resources {
                 tiles,
@@ -189,14 +206,44 @@ impl Tilepicker {
             coll_enabled: false,
             grid_enabled: true,
             drag_origin: None,
+            brush_seed,
+            brush_random: false,
         })
     }
 
-    pub fn get_tile_from_offset(&self, x: i16, y: i16) -> SelectedTile {
+    pub fn get_tile_from_offset(
+        &self,
+        absolute_x: i16,
+        absolute_y: i16,
+        absolute_z: i16,
+        relative_x: i16,
+        relative_y: i16,
+    ) -> SelectedTile {
         let width = self.selected_tiles_right - self.selected_tiles_left + 1;
         let height = self.selected_tiles_bottom - self.selected_tiles_top + 1;
-        let x = self.selected_tiles_left + x.rem_euclid(width);
-        let y = self.selected_tiles_top + y.rem_euclid(height);
+
+        let (x, y) = if self.brush_random {
+            let mut preimage = [0u8; 40];
+            preimage[0..16].copy_from_slice(&self.brush_seed);
+            preimage[16..24].copy_from_slice(&(absolute_x as u64).to_le_bytes());
+            preimage[24..32].copy_from_slice(&(absolute_y as u64).to_le_bytes());
+            preimage[32..40].copy_from_slice(&(absolute_z as u64).to_le_bytes());
+            let image = murmur3::murmur3_32(&mut std::io::Cursor::new(preimage), 5381).unwrap();
+            let x = (image & 0xffff) as i16;
+            let y = (image >> 16) as i16;
+            (
+                self.selected_tiles_left
+                    + (self.selected_tiles_left + x.rem_euclid(width)).rem_euclid(width),
+                self.selected_tiles_top
+                    + (self.selected_tiles_top + y.rem_euclid(height)).rem_euclid(height),
+            )
+        } else {
+            (
+                self.selected_tiles_left + relative_x.rem_euclid(width),
+                self.selected_tiles_top + relative_y.rem_euclid(height),
+            )
+        };
+
         match y {
             ..=0 => SelectedTile::Autotile(x),
             _ => SelectedTile::Tile(x + (y - 1) * 8 + 384),
@@ -209,6 +256,8 @@ impl Tilepicker {
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
     ) -> egui::Response {
+        self.brush_random = update_state.toolbar.brush_random != ui.input(|i| i.modifiers.alt);
+
         let time = ui.ctx().input(|i| i.time);
         let graphics_state = update_state.graphics.clone();
 

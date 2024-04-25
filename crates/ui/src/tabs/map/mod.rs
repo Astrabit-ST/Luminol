@@ -85,6 +85,12 @@ pub struct Tab {
     /// This stores the passage values for every position on the map so that we can figure out
     /// which passage values have changed in the current frame
     passages: luminol_data::Table2,
+
+    /// Brush density between 0 and 1 inclusive; determines the proportion of randomly chosen tiles
+    /// the brush draws on if less than 1
+    brush_density: f32,
+    /// Seed for the PRNG used for the brush when brush density is less than 1
+    brush_seed: [u8; 16],
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -133,6 +139,18 @@ impl Tab {
             |x, y, passage| passages[(x, y)] = passage,
         );
 
+        let mut brush_seed = [0u8; 16];
+        brush_seed[0..8].copy_from_slice(
+            &update_state
+                .project_config
+                .as_ref()
+                .expect("project not loaded")
+                .project
+                .persistence_id
+                .to_le_bytes(),
+        );
+        brush_seed[8..16].copy_from_slice(&(id as u64).to_le_bytes());
+
         Ok(Self {
             id,
 
@@ -157,6 +175,9 @@ impl Tab {
             tilemap_undo_cache_layer: 0,
 
             passages,
+
+            brush_density: 1.,
+            brush_seed,
         })
     }
 }
@@ -190,6 +211,8 @@ impl luminol_core::Tab for Tab {
         update_state: &mut luminol_core::UpdateState<'_>,
         is_focused: bool,
     ) {
+        self.brush_density = update_state.toolbar.brush_density;
+
         // Display the toolbar.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -377,7 +400,9 @@ impl luminol_core::Tab for Tab {
                     }
                 }
 
-                if !response.dragged_by(egui::PointerButton::Primary) {
+                if !response.is_pointer_button_down_on()
+                    || ui.input(|i| !i.pointer.button_down(egui::PointerButton::Primary))
+                {
                     if self.drawing_shape {
                         self.drawing_shape = false;
                     }
@@ -406,17 +431,6 @@ impl luminol_core::Tab for Tab {
                 if let luminol_components::SelectedLayer::Tiles(tile_layer) =
                     self.view.selected_layer
                 {
-                    // Before drawing tiles, save the state of the current layer so we can undo it
-                    // later if we need to
-                    if response.drag_started_by(egui::PointerButton::Primary)
-                        && !ui.input(|i| i.modifiers.command)
-                    {
-                        self.tilemap_undo_cache_layer = tile_layer;
-                        for i in 0..self.layer_cache.len() {
-                            self.tilemap_undo_cache[i] = self.layer_cache[i];
-                        }
-                    }
-
                     // Tile drawing
                     if response.is_pointer_button_down_on()
                         && ui.input(|i| {
@@ -424,6 +438,13 @@ impl luminol_core::Tab for Tab {
                                 && !i.modifiers.command
                         })
                     {
+                        if self.drawing_shape_pos.is_none() {
+                            // Before drawing tiles, save the state of the current layer so we can
+                            // undo it later if we need to
+                            self.tilemap_undo_cache_layer = tile_layer;
+                            self.tilemap_undo_cache.copy_from_slice(&self.layer_cache);
+                        }
+
                         self.handle_brush(
                             map_x as usize,
                             map_y as usize,

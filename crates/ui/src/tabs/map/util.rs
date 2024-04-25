@@ -148,6 +148,27 @@ impl super::Tab {
         tile: luminol_components::SelectedTile,
         position: (usize, usize, usize),
     ) {
+        if self.brush_density != 1. {
+            if self.brush_density == 0. {
+                return;
+            }
+
+            // Pick a pseudorandom normal f32 uniformly in the interval [0, 1)
+            let mut preimage = [0u8; 40];
+            preimage[0..16].copy_from_slice(&self.brush_seed);
+            preimage[16..24].copy_from_slice(&(position.0 as u64).to_le_bytes());
+            preimage[24..32].copy_from_slice(&(position.1 as u64).to_le_bytes());
+            preimage[32..40].copy_from_slice(&(position.2 as u64).to_le_bytes());
+            let image = (murmur3::murmur3_32(&mut std::io::Cursor::new(preimage), 1729).unwrap()
+                & 16777215) as f32
+                / 16777216f32;
+
+            // Set the tile only if that's less than the brush density
+            if image >= self.brush_density {
+                return;
+            }
+        }
+
         map.data[position] = tile.to_id();
 
         for y in -1i8..=1i8 {
