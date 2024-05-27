@@ -214,6 +214,7 @@ impl luminol_core::Tab for Tab {
         self.brush_density = update_state.toolbar.brush_density;
 
         // Display the toolbar.
+        // FIXME: find a proper place for this toolbar! it looks very out of place right now.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.add(
@@ -285,17 +286,23 @@ impl luminol_core::Tab for Tab {
 
                 ui.separator();
 
-                ui.checkbox(&mut self.view.visible_display, "Display visible area")
-                    .on_hover_text("Display the visible area in-game (640x480)");
-                ui.checkbox(&mut self.view.move_preview, "Preview event move routes")
-                    .on_hover_text("Preview event page move routes");
-                ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
-                    .on_hover_text("Snaps the viewport to the tile grid");
-                ui.checkbox(
-                    &mut self.view.darken_unselected_layers,
-                    "Darken unselected layers",
-                )
-                .on_hover_text("Toggles darkening unselected layers");
+                ui.menu_button("Display options ⏷", |ui| {
+                    ui.checkbox(&mut self.view.visible_display, "Display visible area")
+                        .on_hover_text("Display the visible area in-game (640x480)");
+                    ui.checkbox(&mut self.view.move_preview, "Preview event move routes")
+                        .on_hover_text("Preview event page move routes");
+                    ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
+                        .on_hover_text("Snaps the viewport to the tile grid");
+                    ui.checkbox(
+                        &mut self.view.darken_unselected_layers,
+                        "Darken unselected layers",
+                    )
+                    .on_hover_text("Toggles darkening unselected layers");
+                    ui.checkbox(&mut self.view.display_tile_ids, "Display tile IDs")
+                        .on_disabled_hover_text(
+                            "Display the tile IDs of the currently selected layer",
+                        );
+                });
 
                 /*
                 if ui.button("Save map preview").clicked() {

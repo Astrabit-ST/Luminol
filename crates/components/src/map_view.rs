@@ -47,6 +47,9 @@ pub struct MapView {
 
     pub darken_unselected_layers: bool,
 
+    /// Whether to display the tile IDs on the map
+    pub display_tile_ids: bool,
+
     pub scale: f32,
     pub previous_scale: f32,
 
@@ -160,6 +163,8 @@ impl MapView {
             hover_tile: None,
 
             selected_event_is_hovered: false,
+
+            display_tile_ids: false,
 
             scale,
             previous_scale: scale,
@@ -609,6 +614,29 @@ impl MapView {
                 grid_inner_thickness,
                 canvas_rect,
             );
+        }
+
+        // FIXME: If we want to be fast, we should be rendering all the tile ids to a texture once and then just rendering that texture here
+        if self.display_tile_ids {
+            if let SelectedLayer::Tiles(layer) = self.selected_layer {
+                for (i, id) in map.data.layer_as_slice(layer).iter().copied().enumerate() {
+                    let x = i % map.data.xsize();
+                    let y = i / map.data.xsize();
+
+                    let tile_x = x as f32 * tile_size;
+                    let tile_y = y as f32 * tile_size;
+                    let tile_pos = egui::Pos2::new(tile_x, tile_y)
+                        + egui::Vec2::splat(tile_size / 2.0)
+                        + map_rect.min.to_vec2();
+                    ui.painter().text(
+                        tile_pos,
+                        egui::Align2::CENTER_CENTER,
+                        id.to_string(),
+                        egui::FontId::monospace(12. * scale),
+                        egui::Color32::WHITE,
+                    );
+                }
+            }
         }
 
         // Do we display the visible region?
