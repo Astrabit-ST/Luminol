@@ -5,7 +5,7 @@ struct VertexInput {
 
 struct InstanceInput {
     @location(2) tile_position: vec3<f32>,
-    @location(3) tile_id: i32,
+    @location(3) tile_id: u32,
     @location(4) layer: u32,
 }
 
@@ -57,44 +57,43 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     let autotiles = push_constants.autotiles;
 #endif
 
-    if instance.tile_id < 48 {
+    if instance.tile_id < #AUTOTILE_ID_AMOUNT {
         return out;
     }
 
-    let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * 32.), 0.0, 1.0);
+    let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * f32(#TILE_SIZE)), 0.0, 1.0);
     out.clip_position = vec4<f32>(position.xy, instance.tile_position.z, 1.0);
 
-    let is_autotile = instance.tile_id < 384;
+    let is_autotile = instance.tile_id < #TOTAL_AUTOTILE_ID_AMOUNT;
 
-    // 1712 is the number of non-autotile tiles that can fit under the autotiles without wrapping around
-    let max_tiles_under_autotiles = i32(autotiles.max_frame_count) * 1712;
-    let is_under_autotiles = !is_autotile && instance.tile_id - 384 < max_tiles_under_autotiles;
+    let max_tiles_under_autotiles = autotiles.max_frame_count * #ROWS_UNDER_AUTOTILES_TIMES_COLUMNS;
+    let is_under_autotiles = !is_autotile && instance.tile_id - #TOTAL_AUTOTILE_ID_AMOUNT < max_tiles_under_autotiles;
 
     var atlas_tile_position: vec2<f32>;
     if is_autotile {
         atlas_tile_position = vec2<f32>(
             // If the tile is an autotile
-            f32((instance.tile_id - 48) % 8 * 32),
-            f32((instance.tile_id - 48) / 8 * 32)
+            f32((instance.tile_id - #AUTOTILE_ID_AMOUNT) % #AUTOTILE_FRAME_COLS * #TILE_SIZE),
+            f32((instance.tile_id - #AUTOTILE_ID_AMOUNT) / #AUTOTILE_FRAME_COLS * #TILE_SIZE)
         );
     } else {
         if is_under_autotiles {
             atlas_tile_position = vec2<f32>(
             // If the tile is not an autotile but is located underneath the autotiles in the atlas
-                f32((instance.tile_id % 8 + (instance.tile_id - 384) / 1712 * 8) * 32),
-                f32(((instance.tile_id - 384) / 8 % 214 + 42) * 32)
+                f32((instance.tile_id % #TILESET_COLUMNS + (instance.tile_id - #TOTAL_AUTOTILE_ID_AMOUNT) / #ROWS_UNDER_AUTOTILES_TIMES_COLUMNS * #TILESET_COLUMNS) * #TILE_SIZE),
+                f32(((instance.tile_id - #TOTAL_AUTOTILE_ID_AMOUNT) / #TILESET_COLUMNS % #ROWS_UNDER_AUTOTILES + #TOTAL_AUTOTILE_ROWS) * #TILE_SIZE)
             );
         } else {
             atlas_tile_position = vec2<f32>(
             // If the tile is not an autotile and is not located underneath the autotiles in the atlas
-                f32((instance.tile_id % 8 + ((instance.tile_id - 384 - max_tiles_under_autotiles) / 2048 + i32(autotiles.max_frame_count)) * 8) * 32),
-                f32((instance.tile_id - 384 - max_tiles_under_autotiles) / 8 % 256 * 32)
+                f32((instance.tile_id % #TILESET_COLUMNS + ((instance.tile_id - #TOTAL_AUTOTILE_ID_AMOUNT - max_tiles_under_autotiles) / (#MAX_SIZE / #TILE_SIZE * #TILESET_COLUMNS) + autotiles.max_frame_count) * #TILESET_COLUMNS) * #TILE_SIZE),
+                f32((instance.tile_id - #TOTAL_AUTOTILE_ID_AMOUNT - max_tiles_under_autotiles) / #TILESET_COLUMNS % (#MAX_SIZE / #TILE_SIZE) * #TILE_SIZE)
             );
         }
     }
 
     if is_autotile {
-        let autotile_type = instance.tile_id / 48 - 1;
+        let autotile_type = instance.tile_id / #AUTOTILE_ID_AMOUNT - 1;
 // we get an error about non constant indexing without this.
 // not sure why
 #if USE_PUSH_CONSTANTS == true
@@ -104,7 +103,7 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
 #endif
 
         let frame = autotiles.animation_index % frame_count;
-        atlas_tile_position.x += f32(frame * 256u);
+        atlas_tile_position.x += f32(frame * #AUTOTILE_FRAME_WIDTH);
     }
     let tex_size = vec2<f32>(textureDimensions(atlas));
     out.tex_coords = vertex.tex_coords + (atlas_tile_position / tex_size);
