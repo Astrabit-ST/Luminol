@@ -14,15 +14,18 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, id_vec, optional_id};
+use crate::{id_alox, id_serde, id_vec_alox, id_vec_serde, optional_id_alox, optional_id_serde};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::State")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::State")]
 pub struct State {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub animation_id: Option<usize>,
     pub restriction: Restriction,
     pub nonresistance: bool,
@@ -46,11 +49,14 @@ pub struct State {
     pub hold_turn: i32,
     pub auto_release_prob: i32,
     pub shock_release_prob: i32,
-    #[serde(with = "id_vec")]
+    #[serde(with = "id_vec_serde")]
+    #[marshal(with = "id_vec_alox")]
     pub guard_element_set: Vec<usize>,
-    #[serde(with = "id_vec")]
+    #[serde(with = "id_vec_serde")]
+    #[marshal(with = "id_vec_alox")]
     pub plus_state_set: Vec<usize>,
-    #[serde(with = "id_vec")]
+    #[serde(with = "id_vec_serde")]
+    #[marshal(with = "id_vec_alox")]
     pub minus_state_set: Vec<usize>,
 }
 
@@ -62,9 +68,12 @@ pub struct State {
     strum::EnumIter
 )]
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
 pub enum Restriction {
     #[default]
     None = 0,

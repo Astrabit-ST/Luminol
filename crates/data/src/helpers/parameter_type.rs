@@ -25,10 +25,11 @@
 use crate::rgss_structs::{Color, Tone};
 use crate::shared::{AudioFile, MoveCommand, MoveRoute};
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Value", into = "alox_48::Value")] // TODO make this serde compatible
 #[allow(missing_docs)]
-#[serde(from = "alox_48::Value")]
-#[serde(into = "alox_48::Value")]
 pub enum ParameterType {
     Integer(i32),
     String(String),
@@ -45,6 +46,7 @@ pub enum ParameterType {
     None,
 }
 
+// FIXME this really should be try_from and try_into
 impl From<alox_48::Value> for ParameterType {
     fn from(value: alox_48::Value) -> Self {
         match value {

@@ -14,12 +14,17 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, optional_id, optional_path, rpg::MoveRoute, BlendMode, ParameterType, Path};
+use crate::{
+    id_alox, id_serde, optional_id_alox, optional_id_serde, optional_path_alox,
+    optional_path_serde, rpg::MoveRoute, BlendMode, ParameterType, Path,
+};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename = "RPG::Event")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Event")]
 pub struct Event {
-    // #[serde(with = "id")]
+    // #[serde(with = "id_serde")]
+    // #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
     pub x: i32,
@@ -27,6 +32,7 @@ pub struct Event {
     pub pages: Vec<EventPage>,
 
     #[serde(skip)]
+    #[marshal(skip)]
     pub extra_data: EventExtraData,
 }
 
@@ -52,9 +58,11 @@ impl Event {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename = "RPG::CommonEvent")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::CommonEvent")]
 pub struct CommonEvent {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
     pub trigger: usize,
@@ -63,7 +71,8 @@ pub struct CommonEvent {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename = "RPG::Event::Page")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Event::Page")]
 pub struct EventPage {
     pub condition: EventCondition,
     pub graphic: Graphic,
@@ -101,11 +110,14 @@ impl Default for EventPage {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename = "RPG::Event::Page::Graphic")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Event::Page::Graphic")]
 pub struct Graphic {
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub tile_id: Option<usize>,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub character_name: Path,
     pub character_hue: i32,
     pub direction: i32,
@@ -129,15 +141,18 @@ impl Default for Graphic {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename = "RPG::Event::Page::Condition")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Event::Page::Condition")]
 pub struct EventCondition {
     pub switch1_valid: bool,
     pub switch2_valid: bool,
     pub variable_valid: bool,
     pub self_switch_valid: bool,
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub switch1_id: usize,
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub switch2_id: usize,
     pub variable_id: usize,
     pub variable_value: i32,
@@ -161,8 +176,9 @@ impl Default for EventCondition {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[allow(missing_docs)]
-#[serde(rename = "RPG::EventCommand")]
+#[marshal(class = "RPG::EventCommand")]
 pub struct EventCommand {
     pub code: u16,
     pub indent: usize,

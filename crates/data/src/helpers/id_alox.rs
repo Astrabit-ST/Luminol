@@ -14,27 +14,23 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::rpg::{AudioFile, Event};
-use crate::{id_alox, id_serde, option_vec, Table3};
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[derive(alox_48::Deserialize, alox_48::Serialize)]
-#[marshal(class = "RPG::Map")]
-pub struct Map {
-    #[serde(with = "id_serde")]
-    #[marshal(with = "id_alox")]
-    pub tileset_id: usize,
-    pub width: usize,
-    pub height: usize,
-    pub autoplay_bgm: bool,
-    pub bgm: AudioFile,
-    pub autoplay_bgs: bool,
-    pub bgs: AudioFile,
-    pub encounter_list: Vec<i32>,
-    pub encounter_step: i32,
-    pub data: Table3,
-    pub events: option_vec::OptionVec<Event>,
+pub fn deserialize_with<'de, D>(deserializer: D) -> Result<usize, alox_48::DeError>
+where
+    D: alox_48::DeserializerTrait<'de>,
+{
+    use alox_48::Deserialize;
 
-    #[serde(skip)]
-    pub modified: bool,
+    let id = std::num::NonZeroUsize::deserialize(deserializer)?;
+
+    Ok(id.get() - 1)
+}
+
+pub fn serialize_with<S>(value: &usize, serializer: S) -> Result<S::Ok, alox_48::SerError>
+where
+    S: alox_48::SerializerTrait,
+{
+    use alox_48::Serialize;
+
+    (value + 1).serialize(serializer)
 }

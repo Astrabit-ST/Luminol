@@ -35,9 +35,12 @@ pub use script::*;
     strum::EnumIter
 )]
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
 pub enum BlendMode {
     #[default]
     Normal = 0,
@@ -53,9 +56,12 @@ pub enum BlendMode {
     strum::EnumIter
 )]
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
 pub enum Scope {
     #[default]
     None = 0,
@@ -83,9 +89,12 @@ pub enum Scope {
     strum::EnumIter
 )]
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
 pub enum Occasion {
     #[default]
     Always = 0,

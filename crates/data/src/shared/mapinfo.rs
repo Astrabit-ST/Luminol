@@ -16,7 +16,8 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
-#[serde(rename = "RPG::MapInfo")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::MapInfo")]
 pub struct MapInfo {
     pub name: String,
     // because mapinfos is stored in a hash, we dont actually need to modify values! this can just stay as a usize.

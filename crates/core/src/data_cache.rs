@@ -61,7 +61,7 @@ fn read_data<T>(
     filename: impl AsRef<camino::Utf8Path>,
 ) -> color_eyre::Result<T>
 where
-    T: serde::de::DeserializeOwned,
+    T: for<'de> alox_48::Deserialize<'de>,
 {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
     let data = filesystem.read(path)?;
@@ -70,7 +70,7 @@ where
 }
 
 fn write_data(
-    data: &impl serde::Serialize,
+    data: &impl alox_48::Serialize,
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
 ) -> color_eyre::Result<()> {
@@ -87,18 +87,18 @@ fn read_nil_padded<T>(
     filename: impl AsRef<camino::Utf8Path>,
 ) -> color_eyre::Result<Vec<T>>
 where
-    T: serde::de::DeserializeOwned,
+    T: for<'de> alox_48::Deserialize<'de>,
 {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
     let data = filesystem.read(path)?;
 
     let mut de = alox_48::Deserializer::new(&data)?;
 
-    luminol_data::helpers::nil_padded::deserialize(&mut de).map_err(color_eyre::Report::from)
+    luminol_data::helpers::nil_padded_alox::deserialize(&mut de).map_err(color_eyre::Report::from)
 }
 
 fn write_nil_padded(
-    data: &[impl serde::Serialize],
+    data: &[impl alox_48::Serialize],
     filesystem: &impl luminol_filesystem::FileSystem,
     filename: impl AsRef<camino::Utf8Path>,
 ) -> color_eyre::Result<()> {
@@ -106,7 +106,7 @@ fn write_nil_padded(
 
     let mut ser = alox_48::Serializer::new();
 
-    luminol_data::helpers::nil_padded::serialize(data, &mut ser)?;
+    luminol_data::helpers::nil_padded_alox::serialize(data, &mut ser)?;
     filesystem
         .write(path, ser.output)
         .map_err(color_eyre::Report::from)

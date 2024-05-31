@@ -14,12 +14,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{optional_path, Path};
+use crate::{optional_path_alox, optional_path_serde, Path};
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
-#[serde(rename = "RPG::AudioFile")]
+#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::AudioFile")]
 pub struct AudioFile {
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub name: Path,
     pub volume: u8,
     pub pitch: u8,
@@ -48,7 +51,7 @@ impl From<alox_48::Object> for AudioFile {
 
 impl From<AudioFile> for alox_48::Object {
     fn from(a: AudioFile) -> Self {
-        let mut fields = alox_48::value::RbFields::with_capacity(3);
+        let mut fields = alox_48::RbFields::with_capacity(3);
         fields.insert(
             "name".into(),
             a.name

@@ -14,36 +14,49 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, optional_id, optional_path, Path, Table2};
+use crate::{
+    id_alox, id_serde, optional_id_alox, optional_id_serde, optional_path_alox,
+    optional_path_serde, Path, Table2,
+};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Actor")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Actor")]
 pub struct Actor {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub class_id: usize,
     pub initial_level: i32,
     pub final_level: i32,
     pub exp_basis: i32,
     pub exp_inflation: i32,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub character_name: Path,
     pub character_hue: i32,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub battler_name: Path,
     pub battler_hue: i32,
     pub parameters: Table2,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub weapon_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub armor1_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub armor2_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub armor3_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub armor4_id: Option<usize>,
     pub weapon_fix: bool,
     pub armor1_fix: bool,

@@ -17,7 +17,8 @@
 use crate::helpers::ParameterType;
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
-#[serde(rename = "RPG::MoveRoute")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::MoveRoute")]
 pub struct MoveRoute {
     pub repeat: bool,
     pub skippable: bool,
@@ -45,7 +46,7 @@ impl From<alox_48::Object> for MoveRoute {
 
 impl From<MoveRoute> for alox_48::Object {
     fn from(value: MoveRoute) -> Self {
-        let mut fields = alox_48::value::RbFields::with_capacity(3);
+        let mut fields = alox_48::RbFields::with_capacity(3);
         fields.insert("repeat".into(), alox_48::Value::Bool(value.repeat));
         fields.insert("skippable".into(), alox_48::Value::Bool(value.skippable));
         fields.insert(
@@ -68,8 +69,9 @@ impl From<MoveRoute> for alox_48::Object {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::MoveCommand")]
 #[allow(missing_docs)]
-#[serde(rename = "RPG::MoveCommand")]
 pub struct MoveCommand {
     pub code: u16,
     pub parameters: Vec<ParameterType>,
@@ -98,7 +100,7 @@ impl From<alox_48::Object> for MoveCommand {
 
 impl From<MoveCommand> for alox_48::Object {
     fn from(c: MoveCommand) -> Self {
-        let mut fields = alox_48::value::RbFields::with_capacity(2);
+        let mut fields = alox_48::RbFields::with_capacity(2);
         fields.insert("code".into(), alox_48::Value::Integer(c.code as _));
         fields.insert(
             "parameters".into(),

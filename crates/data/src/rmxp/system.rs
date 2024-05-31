@@ -14,28 +14,38 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{id, id_vec, nil_padded, optional_id, optional_path, rpg::AudioFile, Path};
+pub use crate::{
+    id_alox, id_serde, id_vec_alox, id_vec_serde, nil_padded_serde, optional_id_alox,
+    optional_id_serde, optional_path_alox, optional_path_serde, rpg::AudioFile, Path,
+};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[serde(default)] // ??? rmxp???
-#[serde(rename = "RPG::System")]
+#[marshal(default)]
+#[marshal(class = "RPG::System")]
 pub struct System {
     pub magic_number: i32,
-    #[serde(with = "id_vec")]
+    #[serde(with = "id_vec_serde")]
+    #[marshal(with = "id_vec_alox")]
     pub party_members: Vec<usize>,
     pub elements: Vec<String>,
-    #[serde(with = "nil_padded")]
+    #[serde(with = "nil_padded_serde")]
     pub switches: Vec<String>,
-    #[serde(with = "nil_padded")]
+    #[serde(with = "nil_padded_serde")]
     pub variables: Vec<String>,
 
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub windowskin_name: Path,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub title_name: Path,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub gameover_name: Path,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub battle_transition: Path,
     pub title_bgm: AudioFile,
     pub battle_bgm: AudioFile,
@@ -56,15 +66,19 @@ pub struct System {
     pub words: Words,
     // #[serde(skip_deserializing)]
     pub test_battlers: Vec<TestBattler>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub test_troop_id: Option<usize>,
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub start_map_id: usize,
     pub start_x: i32,
     pub start_y: i32,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub battleback_name: Path,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub battler_name: Path,
     pub battler_hue: i32,
     pub edit_map_id: usize,
@@ -74,7 +88,8 @@ pub struct System {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::System::Words")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::System::Words")]
 #[serde(default)]
 pub struct Words {
     gold: String,
@@ -100,20 +115,27 @@ pub struct Words {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::System::TestBattler")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::System::TestBattler")]
 pub struct TestBattler {
     level: i32,
 
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     actor_id: usize,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     weapon_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     armor1_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     armor2_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     armor3_id: Option<usize>,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     armor4_id: Option<usize>,
 }
