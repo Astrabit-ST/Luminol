@@ -33,7 +33,7 @@ pub struct Instances {
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Instance {
     position: [f32; 3],
-    tile_id: i32, // force this to be an i32 to avoid padding issues
+    tile_id: u32, // force this to be an u32 to avoid padding issues
     layer: u32,
 }
 
@@ -87,7 +87,7 @@ impl Instances {
             offset as wgpu::BufferAddress,
             bytemuck::bytes_of(&Instance {
                 position: [position.0 as f32, position.1 as f32, 0.0],
-                tile_id: tile_id as i32,
+                tile_id: tile_id as u32,
                 layer: position.2 as u32,
             }),
         )
@@ -115,7 +115,7 @@ impl Instances {
                         map_y as f32,
                         0., // We don't do a depth buffer. z doesn't matter
                     ],
-                    tile_id: tile_id as i32,
+                    tile_id: tile_id as u32,
                     layer: map_z as u32,
                 }
             })
@@ -141,7 +141,7 @@ impl Instances {
 
     pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ARRAY: &[wgpu::VertexAttribute] =
-            &wgpu::vertex_attr_array![2 => Float32x3, 3 => Sint32, 4 => Uint32];
+            &wgpu::vertex_attr_array![2 => Float32x3, 3 => Uint32, 4 => Uint32];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,

@@ -32,7 +32,7 @@ struct Data {
     autotile_frames: [u32; 7],
     _array_padding: u32,
     ani_index: u32,
-    autotile_region_width: u32,
+    max_frame_count: u32,
     _end_padding: u64,
 }
 
@@ -40,7 +40,7 @@ impl Autotiles {
     pub fn new(graphics_state: &GraphicsState, atlas: &super::Atlas) -> Self {
         let autotiles = Data {
             autotile_frames: atlas.autotile_frames,
-            autotile_region_width: atlas.autotile_width,
+            max_frame_count: atlas.autotile_width / super::atlas::AUTOTILE_FRAME_WIDTH,
             ani_index: 0,
             _array_padding: 0,
             _end_padding: 0,
