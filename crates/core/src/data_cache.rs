@@ -24,6 +24,7 @@
 
 use color_eyre::eyre::WrapErr;
 use luminol_data::rpg;
+use std::fmt::Write;
 use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
@@ -66,7 +67,17 @@ where
     let path = camino::Utf8PathBuf::from("Data").join(filename);
     let data = filesystem.read(path)?;
 
-    alox_48::from_bytes(&data).map_err(color_eyre::Report::from)
+    let mut trace = alox_48::path_to_error::Trace::new();
+    let mut de = alox_48::Deserializer::new(&data)?;
+    let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
+
+    T::deserialize(de).map_err(|e| {
+        let mut message = e.to_string();
+        for context in trace.context.iter().rev() {
+            writeln!(message, "  in {}", context).unwrap();
+        }
+        color_eyre::Report::msg(message)
+    })
 }
 
 fn write_data(
@@ -92,9 +103,17 @@ where
     let path = camino::Utf8PathBuf::from("Data").join(filename);
     let data = filesystem.read(path)?;
 
+    let mut trace = alox_48::path_to_error::Trace::new();
     let mut de = alox_48::Deserializer::new(&data)?;
+    let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
 
-    luminol_data::helpers::nil_padded_alox::deserialize(&mut de).map_err(color_eyre::Report::from)
+    luminol_data::helpers::nil_padded_alox::deserialize_with(de).map_err(|e| {
+        let mut message = e.to_string();
+        for context in trace.context.iter().rev() {
+            writeln!(message, "  in {}", context).unwrap();
+        }
+        color_eyre::Report::msg(message)
+    })
 }
 
 fn write_nil_padded(
@@ -106,7 +125,7 @@ fn write_nil_padded(
 
     let mut ser = alox_48::Serializer::new();
 
-    luminol_data::helpers::nil_padded_alox::serialize(data, &mut ser)?;
+    luminol_data::helpers::nil_padded_alox::serialize_with(data, &mut ser)?;
     filesystem
         .write(path, ser.output)
         .map_err(color_eyre::Report::from)

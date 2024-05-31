@@ -15,8 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::{
-    id_alox, id_serde, id_vec_alox, id_vec_serde, nil_padded_serde, optional_id_alox,
-    optional_id_serde, optional_path_alox, optional_path_serde, rpg::AudioFile, Path,
+    id_alox, id_serde, id_vec_alox, id_vec_serde, nil_padded_alox, nil_padded_serde,
+    optional_id_alox, optional_id_serde, optional_path_alox, optional_path_serde, rpg::AudioFile,
+    Path,
 };
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
@@ -30,8 +31,10 @@ pub struct System {
     #[marshal(with = "id_vec_alox")]
     pub party_members: Vec<usize>,
     pub elements: Vec<String>,
+    #[marshal(with = "nil_padded_alox")]
     #[serde(with = "nil_padded_serde")]
     pub switches: Vec<String>,
+    #[marshal(with = "nil_padded_alox")]
     #[serde(with = "nil_padded_serde")]
     pub variables: Vec<String>,
 
@@ -83,6 +86,7 @@ pub struct System {
     pub battler_hue: i32,
     pub edit_map_id: usize,
 
+    #[marshal(skip)]
     #[serde(skip)]
     pub modified: bool,
 }

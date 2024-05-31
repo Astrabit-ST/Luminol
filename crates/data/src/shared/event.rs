@@ -184,6 +184,8 @@ pub struct EventCommand {
     pub indent: usize,
     pub parameters: Vec<ParameterType>,
 
+    #[marshal(default = "rand::random")]
+    #[marshal(skip)]
     #[serde(default = "rand::random")]
     #[serde(skip)]
     pub guid: u16,

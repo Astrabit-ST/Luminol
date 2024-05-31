@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Vec<T>, alox_48::DeError>
+pub fn deserialize_with<'de, D, T>(deserializer: D) -> Result<Vec<T>, alox_48::DeError>
 where
     D: alox_48::DeserializerTrait<'de>,
     T: alox_48::Deserialize<'de>,
@@ -59,7 +59,7 @@ where
     })
 }
 
-pub fn serialize<S, T>(elements: &[T], serializer: S) -> Result<S::Ok, alox_48::SerError>
+pub fn serialize_with<S, T>(elements: &[T], serializer: S) -> Result<S::Ok, alox_48::SerError>
 where
     S: alox_48::SerializerTrait,
     T: alox_48::Serialize,

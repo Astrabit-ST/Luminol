@@ -35,6 +35,7 @@ pub struct Map {
     pub data: Table3,
     pub events: option_vec::OptionVec<Event>,
 
+    #[marshal(skip)]
     #[serde(skip)]
     pub modified: bool,
 }
