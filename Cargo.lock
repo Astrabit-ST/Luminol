@@ -176,7 +176,7 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 [[package]]
 name = "alox-48"
 version = "0.5.0-pre.2"
-source = "git+https://github.com/Speak2Erase/alox-48#e226d3ac0578cc13ea534708a783a55b2320ee94"
+source = "git+https://github.com/Speak2Erase/alox-48#d12e1359ae0287773ac1612c71b26940f5ad3b3c"
 dependencies = [
  "alox-48-derive",
  "enum-as-inner",
@@ -188,7 +188,7 @@ dependencies = [
 [[package]]
 name = "alox-48-derive"
 version = "0.2.0"
-source = "git+https://github.com/Speak2Erase/alox-48#e226d3ac0578cc13ea534708a783a55b2320ee94"
+source = "git+https://github.com/Speak2Erase/alox-48#d12e1359ae0287773ac1612c71b26940f5ad3b3c"
 dependencies = [
  "darling",
  "itertools 0.13.0",

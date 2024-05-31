@@ -20,7 +20,8 @@ pub use crate::{
     Path,
 };
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug)]
+#[derive(serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[serde(default)] // ??? rmxp???
 #[marshal(default)]
@@ -67,8 +68,9 @@ pub struct System {
     pub actor_collapse_se: AudioFile,
     pub enemy_collapse_se: AudioFile,
     pub words: Words,
-    // #[serde(skip_deserializing)]
-    pub test_battlers: Vec<TestBattler>,
+    #[serde(skip)]
+    // #[marshal(skip)]
+    pub test_battlers: alox_48::Value,
     #[serde(with = "optional_id_serde")]
     #[marshal(with = "optional_id_alox")]
     pub test_troop_id: Option<usize>,
