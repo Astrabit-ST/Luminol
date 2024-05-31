@@ -72,9 +72,9 @@ where
     let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
 
     T::deserialize(de).map_err(|e| {
-        let mut message = e.to_string();
+        let mut message = format!("Error {e}:\n");
         for context in trace.context.iter().rev() {
-            writeln!(message, "  in {}", context).unwrap();
+            writeln!(message, "  {}", context).unwrap();
         }
         color_eyre::Report::msg(message)
     })
@@ -108,9 +108,9 @@ where
     let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
 
     luminol_data::helpers::nil_padded_alox::deserialize_with(de).map_err(|e| {
-        let mut message = e.to_string();
+        let mut message = format!("Error {e}:\n");
         for context in trace.context.iter().rev() {
-            writeln!(message, "  in {}", context).unwrap();
+            writeln!(message, "  {}", context).unwrap();
         }
         color_eyre::Report::msg(message)
     })
