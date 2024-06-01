@@ -49,8 +49,10 @@ pub struct Item {
     pub recover_hp: i32,
     // These fields are missing in rmxp data *sometimes*.
     // Why? Who knows!
+    #[marshal(default)]
     #[serde(default)]
     pub recover_sp_rate: i32,
+    #[marshal(default)]
     #[serde(default)]
     pub recover_sp: i32,
     pub hit: i32,

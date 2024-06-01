@@ -188,9 +188,9 @@ dependencies = [
 
 [[package]]
 name = "alox-48-derive"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6152ba1b6253ae07208325b9902222d3b0fbf84d2500d95d14ad79e9e5745033"
+checksum = "9073fcb619243134e8fc566465a7f4d747e1c367e9fb345664c1d03b2a30266f"
 dependencies = [
  "darling",
  "itertools 0.13.0",

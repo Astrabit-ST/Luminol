@@ -130,7 +130,7 @@ fn format_traced_error(
     trace: alox_48::path_to_error::Trace,
 ) -> color_eyre::Report {
     let mut message = format!("Error {error}:");
-    for context in trace.context.iter().rev() {
+    for context in trace.context {
         write!(message, "\n  {}", context).unwrap();
     }
     color_eyre::Report::msg(message)
