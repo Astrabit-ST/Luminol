@@ -24,7 +24,6 @@
 
 use color_eyre::eyre::WrapErr;
 use luminol_data::rpg;
-use std::fmt::Write;
 use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
@@ -126,14 +125,14 @@ fn write_nil_padded(
 }
 
 fn format_traced_error(
-    error: impl std::fmt::Display,
+    error: impl Into<color_eyre::Report>,
     trace: alox_48::path_to_error::Trace,
 ) -> color_eyre::Report {
-    let mut message = format!("Error {error}:");
+    let mut error = error.into();
     for context in trace.context {
-        write!(message, "\n  {}", context).unwrap();
+        error = error.wrap_err(context);
     }
-    color_eyre::Report::msg(message)
+    error
 }
 
 macro_rules! load {
