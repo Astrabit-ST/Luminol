@@ -175,8 +175,9 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "alox-48"
-version = "0.5.0-pre.2"
-source = "git+https://github.com/Speak2Erase/alox-48#d12e1359ae0287773ac1612c71b26940f5ad3b3c"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10b95702b328de6416c5504d9d7d74438362f06ec907579d3be0f28ee94084dc"
 dependencies = [
  "alox-48-derive",
  "enum-as-inner",
@@ -187,8 +188,9 @@ dependencies = [
 
 [[package]]
 name = "alox-48-derive"
-version = "0.2.0"
-source = "git+https://github.com/Speak2Erase/alox-48#d12e1359ae0287773ac1612c71b26940f5ad3b3c"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6152ba1b6253ae07208325b9902222d3b0fbf84d2500d95d14ad79e9e5745033"
 dependencies = [
  "darling",
  "itertools 0.13.0",

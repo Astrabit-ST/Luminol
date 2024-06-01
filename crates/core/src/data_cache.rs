@@ -67,17 +67,10 @@ where
     let path = camino::Utf8PathBuf::from("Data").join(filename);
     let data = filesystem.read(path)?;
 
-    let mut trace = alox_48::path_to_error::Trace::new();
     let mut de = alox_48::Deserializer::new(&data)?;
-    let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
+    let result = alox_48::path_to_error::deserialize(&mut de);
 
-    T::deserialize(de).map_err(|e| {
-        let mut message = format!("Error {e}:\n");
-        for context in trace.context.iter().rev() {
-            writeln!(message, "  {}", context).unwrap();
-        }
-        color_eyre::Report::msg(message)
-    })
+    result.map_err(|(error, trace)| format_traced_error(error, trace))
 }
 
 fn write_data(
@@ -87,9 +80,12 @@ fn write_data(
 ) -> color_eyre::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
-    let bytes = alox_48::to_bytes(data)?;
+    let mut serializer = alox_48::Serializer::new();
+    alox_48::path_to_error::serialize(data, &mut serializer)
+        .map_err(|(error, trace)| format_traced_error(error, trace))?;
+
     filesystem
-        .write(path, bytes)
+        .write(path, serializer.output)
         .map_err(color_eyre::Report::from)
 }
 
@@ -107,13 +103,8 @@ where
     let mut de = alox_48::Deserializer::new(&data)?;
     let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
 
-    luminol_data::helpers::nil_padded_alox::deserialize_with(de).map_err(|e| {
-        let mut message = format!("Error {e}:\n");
-        for context in trace.context.iter().rev() {
-            writeln!(message, "  {}", context).unwrap();
-        }
-        color_eyre::Report::msg(message)
-    })
+    luminol_data::helpers::nil_padded_alox::deserialize_with(de)
+        .map_err(|error| format_traced_error(error, trace))
 }
 
 fn write_nil_padded(
@@ -123,12 +114,26 @@ fn write_nil_padded(
 ) -> color_eyre::Result<()> {
     let path = camino::Utf8PathBuf::from("Data").join(filename);
 
+    let mut trace = alox_48::path_to_error::Trace::new();
     let mut ser = alox_48::Serializer::new();
+    let trace_ser = alox_48::path_to_error::Serializer::new(&mut ser, &mut trace);
 
-    luminol_data::helpers::nil_padded_alox::serialize_with(data, &mut ser)?;
+    luminol_data::helpers::nil_padded_alox::serialize_with(data, trace_ser)
+        .map_err(|error| format_traced_error(error, trace))?;
     filesystem
         .write(path, ser.output)
         .map_err(color_eyre::Report::from)
+}
+
+fn format_traced_error(
+    error: impl std::fmt::Display,
+    trace: alox_48::path_to_error::Trace,
+) -> color_eyre::Report {
+    let mut message = format!("Error {error}:");
+    for context in trace.context.iter().rev() {
+        write!(message, "\n  {}", context).unwrap();
+    }
+    color_eyre::Report::msg(message)
 }
 
 macro_rules! load {
