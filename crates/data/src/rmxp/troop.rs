@@ -14,12 +14,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, optional_id, rpg::EventCommand};
+use crate::{id_alox, id_serde, optional_id_alox, optional_id_serde, rpg::EventCommand};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Troop")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Troop")]
 pub struct Troop {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
     pub members: Vec<Member>,
@@ -27,9 +29,11 @@ pub struct Troop {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Troop::Member")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Troop::Member")]
 pub struct Member {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub enemy_id: usize,
     pub x: i32,
     pub y: i32,
@@ -38,7 +42,8 @@ pub struct Member {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Troop::Page")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Troop::Page")]
 pub struct Page {
     pub condition: Condition,
     pub span: i32,
@@ -46,7 +51,8 @@ pub struct Page {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Troop::Page::Condition")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Troop::Page::Condition")]
 pub struct Condition {
     pub turn_valid: bool,
     pub enemy_valid: bool,
@@ -56,9 +62,11 @@ pub struct Condition {
     pub turn_b: i32,
     pub enemy_index: usize,
     pub enemy_hp: i32,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub actor_id: Option<usize>,
     pub actor_hp: i32,
-    #[serde(with = "optional_id")]
+    #[serde(with = "optional_id_serde")]
+    #[marshal(with = "optional_id_alox")]
     pub switch_id: Option<usize>,
 }

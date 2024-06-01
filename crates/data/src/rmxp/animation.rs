@@ -14,15 +14,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id, optional_path, rpg::AudioFile, Color, Path, Table2};
+use crate::{
+    id_alox, id_serde, optional_path_alox, optional_path_serde, rpg::AudioFile, Color, Path, Table2,
+};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Animation")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Animation")]
 pub struct Animation {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "optional_path")]
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
     pub animation_name: Path,
     pub animation_hue: i32,
     pub position: Position,
@@ -32,7 +37,8 @@ pub struct Animation {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Animation::Timing")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Animation::Timing")]
 pub struct Timing {
     pub frame: i32,
     pub se: AudioFile,
@@ -43,7 +49,8 @@ pub struct Timing {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Animation::Frame")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Animation::Frame")]
 pub struct Frame {
     pub cell_max: i32,
     pub cell_data: Table2,
@@ -57,9 +64,12 @@ pub struct Frame {
     strum::EnumIter
 )]
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
 pub enum Position {
     Top = 0,
     #[default]

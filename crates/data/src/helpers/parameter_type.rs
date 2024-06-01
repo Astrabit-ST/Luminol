@@ -25,10 +25,11 @@
 use crate::rgss_structs::{Color, Tone};
 use crate::shared::{AudioFile, MoveCommand, MoveRoute};
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Value", into = "alox_48::Value")] // TODO make this serde compatible
 #[allow(missing_docs)]
-#[serde(from = "alox_48::Value")]
-#[serde(into = "alox_48::Value")]
 pub enum ParameterType {
     Integer(i32),
     String(String),
@@ -45,51 +46,17 @@ pub enum ParameterType {
     None,
 }
 
+// FIXME this really should be try_from and try_into
 impl From<alox_48::Value> for ParameterType {
-    fn from(value: alox_48::Value) -> Self {
-        match value {
-            alox_48::Value::Integer(i) => Self::Integer(i as _),
-            alox_48::Value::String(str) => Self::String(str.to_string_lossy().into_owned()),
-            alox_48::Value::Object(obj) if obj.class == "RPG::AudioFile" => {
-                Self::AudioFile(obj.into())
-            }
-            alox_48::Value::Object(obj) if obj.class == "RPG::MoveRoute" => {
-                Self::MoveRoute(obj.into())
-            }
-            alox_48::Value::Object(obj) if obj.class == "RPG::MoveCommand" => {
-                Self::MoveCommand(obj.into())
-            }
-            alox_48::Value::Float(f) => Self::Float(f as _),
-            alox_48::Value::Array(ary) => Self::Array(ary.into_iter().map(|v| v.into()).collect()),
-            alox_48::Value::Bool(b) => Self::Bool(b),
-            alox_48::Value::Userdata(data) if data.class == "Color" => {
-                Self::Color(Color::from(data))
-            }
-            alox_48::Value::Userdata(data) if data.class == "Tone" => Self::Tone(Tone::from(data)),
-            _ => panic!("Unexpected type {value:#?}"),
-        }
+    // This is a massive sore spot right now, so I'm not even bothering...
+    fn from(_value: alox_48::Value) -> Self {
+        ParameterType::None
     }
 }
 
 impl From<ParameterType> for alox_48::Value {
-    fn from(value: ParameterType) -> Self {
-        match value {
-            ParameterType::Integer(i) => alox_48::Value::Integer(i as _),
-            ParameterType::String(s) => alox_48::Value::String(s.into()),
-            ParameterType::Color(c) => c.into(),
-            ParameterType::Tone(t) => t.into(),
-            ParameterType::Float(f) => alox_48::Value::Float(f as _),
-            ParameterType::Array(a) => {
-                alox_48::Value::Array(a.into_iter().map(Into::into).collect())
-            }
-            ParameterType::Bool(b) => alox_48::Value::Bool(b),
-
-            ParameterType::MoveRoute(r) => alox_48::Value::Object(r.into()),
-            ParameterType::MoveCommand(c) => alox_48::Value::Object(c.into()),
-            ParameterType::AudioFile(a) => alox_48::Value::Object(a.into()),
-
-            ParameterType::None => alox_48::Value::Nil,
-        }
+    fn from(_value: ParameterType) -> Self {
+        alox_48::Value::Nil
     }
 }
 

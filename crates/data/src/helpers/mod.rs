@@ -15,11 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod id;
-pub mod id_vec;
-pub mod nil_padded;
-pub mod optional_id;
-pub mod optional_path;
+pub mod id_serde;
+pub mod id_vec_serde;
+pub mod nil_padded_serde;
+pub mod optional_id_serde;
+pub mod optional_path_serde;
+
+pub mod id_alox;
+pub mod id_vec_alox;
+pub mod nil_padded_alox;
+pub mod optional_id_alox;
+pub mod optional_path_alox;
 
 mod parameter_type;
 

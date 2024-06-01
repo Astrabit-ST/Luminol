@@ -16,50 +16,50 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 #[allow(missing_docs)]
+#[derive(serde::Deserialize, serde::Serialize)]
 #[derive(Debug, Clone)]
 pub struct Script {
     pub name: String,
     pub script_text: String,
 }
 
-impl<'de> serde::Deserialize<'de> for Script {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+impl<'de> alox_48::Deserialize<'de> for Script {
+    fn deserialize<D>(deserializer: D) -> Result<Self, alox_48::DeError>
     where
-        D: serde::Deserializer<'de>,
+        D: alox_48::DeserializerTrait<'de>,
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl<'de> alox_48::Visitor<'de> for Visitor {
             type Value = Script;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("an array")
             }
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            fn visit_array<A>(self, mut array: A) -> Result<Self::Value, alox_48::DeError>
             where
-                A: serde::de::SeqAccess<'de>,
+                A: alox_48::ArrayAccess<'de>,
             {
-                use serde::de::Error;
                 use std::io::Read;
 
-                let Some(_) = seq.next_element::<serde::de::IgnoredAny>()? else {
-                    return Err(A::Error::missing_field("id"));
+                let Some(_) = array.next_element::<alox_48::de::Ignored>()? else {
+                    return Err(alox_48::DeError::missing_field("id".into()));
                 };
 
-                let Some(name) = seq.next_element()? else {
-                    return Err(A::Error::missing_field("name"));
+                let Some(name) = array.next_element()? else {
+                    return Err(alox_48::DeError::missing_field("name".into()));
                 };
 
-                let Some(data) = seq.next_element::<alox_48::RbString>()? else {
-                    return Err(A::Error::missing_field("data"));
+                let Some(data) = array.next_element::<alox_48::RbString>()? else {
+                    return Err(alox_48::DeError::missing_field("data".into()));
                 };
 
                 let mut decoder = flate2::bufread::ZlibDecoder::new(data.data.as_slice());
                 let mut script = String::new();
                 decoder
                     .read_to_string(&mut script)
-                    .map_err(A::Error::custom)?;
+                    .map_err(alox_48::DeError::custom)?;
 
                 Ok(Script {
                     name,
@@ -68,34 +68,30 @@ impl<'de> serde::Deserialize<'de> for Script {
             }
         }
 
-        deserializer.deserialize_any(Visitor)
+        deserializer.deserialize(Visitor)
     }
 }
 
-impl serde::Serialize for Script {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl alox_48::Serialize for Script {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, alox_48::SerError>
     where
-        S: serde::Serializer,
+        S: alox_48::SerializerTrait,
     {
-        use serde::ser::Error;
-        use serde::ser::SerializeSeq;
+        use alox_48::SerializeArray;
         use std::io::Write;
 
-        let mut seq = serializer.serialize_seq(Some(3))?;
+        let mut array = serializer.serialize_array(3)?;
 
         let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Default::default());
         let data = encoder
             .write_all(self.script_text.as_bytes())
             .and_then(|_| encoder.finish())
-            .map_err(S::Error::custom)?;
+            .map_err(alox_48::SerError::custom)?;
 
-        seq.serialize_element(&0usize)?;
-        seq.serialize_element(&self.name)?;
-        seq.serialize_element(&alox_48::RbString {
-            data,
-            ..Default::default()
-        })?;
+        array.serialize_element(&0usize)?;
+        array.serialize_element(&self.name)?;
+        array.serialize_element(&alox_48::RbString { data })?;
 
-        seq.end()
+        array.end()
     }
 }

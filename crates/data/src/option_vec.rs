@@ -17,6 +17,7 @@
 
 use std::ops::{Index, IndexMut};
 
+use alox_48::SerializeHash;
 use serde::ser::SerializeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,6 +241,53 @@ where
         S: serde::Serializer,
     {
         let mut ser = serializer.serialize_map(Some(self.size()))?;
+        for (index, element) in self {
+            ser.serialize_key(&index)?;
+            ser.serialize_value(element)?;
+        }
+        ser.end()
+    }
+}
+
+impl<'de, T> alox_48::Visitor<'de> for Visitor<T>
+where
+    T: alox_48::Deserialize<'de>,
+{
+    type Value = OptionVec<T>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a key-value mapping")
+    }
+
+    fn visit_hash<A>(self, mut map: A) -> Result<Self::Value, alox_48::DeError>
+    where
+        A: alox_48::HashAccess<'de>,
+    {
+        std::iter::from_fn(|| map.next_entry().transpose()).collect()
+    }
+}
+
+impl<'de, T> alox_48::Deserialize<'de> for OptionVec<T>
+where
+    T: alox_48::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, alox_48::DeError>
+    where
+        D: alox_48::DeserializerTrait<'de>,
+    {
+        deserializer.deserialize(Visitor(std::marker::PhantomData))
+    }
+}
+
+impl<T> alox_48::Serialize for OptionVec<T>
+where
+    T: alox_48::Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, alox_48::SerError>
+    where
+        S: alox_48::SerializerTrait,
+    {
+        let mut ser = serializer.serialize_hash(self.size())?;
         for (index, element) in self {
             ser.serialize_key(&index)?;
             ser.serialize_value(element)?;

@@ -17,97 +17,25 @@
 use crate::helpers::ParameterType;
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
-#[serde(rename = "RPG::MoveRoute")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::MoveRoute")]
 pub struct MoveRoute {
     pub repeat: bool,
     pub skippable: bool,
     pub list: Vec<MoveCommand>,
 }
 
-impl From<alox_48::Object> for MoveRoute {
-    fn from(obj: alox_48::Object) -> Self {
-        MoveRoute {
-            repeat: obj.fields["repeat"].clone().into_bool().unwrap(),
-            skippable: obj.fields["skippable"].clone().into_bool().unwrap(),
-            list: obj.fields["list"]
-                .clone()
-                .into_array()
-                .unwrap()
-                .into_iter()
-                .map(|obj| {
-                    let obj = obj.into_object().unwrap();
-                    obj.into()
-                })
-                .collect(),
-        }
-    }
-}
-
-impl From<MoveRoute> for alox_48::Object {
-    fn from(value: MoveRoute) -> Self {
-        let mut fields = alox_48::value::RbFields::with_capacity(3);
-        fields.insert("repeat".into(), alox_48::Value::Bool(value.repeat));
-        fields.insert("skippable".into(), alox_48::Value::Bool(value.skippable));
-        fields.insert(
-            "list".into(),
-            alox_48::Value::Array(
-                value
-                    .list
-                    .into_iter()
-                    .map(Into::into)
-                    .map(alox_48::Value::Object)
-                    .collect(),
-            ),
-        );
-
-        alox_48::Object {
-            class: "RPG::MoveRoute".into(),
-            fields,
-        }
-    }
-}
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::MoveCommand")]
 #[allow(missing_docs)]
-#[serde(rename = "RPG::MoveCommand")]
 pub struct MoveCommand {
     pub code: u16,
     pub parameters: Vec<ParameterType>,
 
+    #[marshal(default = "rand::random")]
+    #[marshal(skip)]
     #[serde(default = "rand::random")]
     #[serde(skip)]
     pub guid: u16,
-}
-
-impl From<alox_48::Object> for MoveCommand {
-    fn from(obj: alox_48::Object) -> Self {
-        MoveCommand {
-            code: obj.fields["code"].clone().into_integer().unwrap() as _,
-            parameters: obj.fields["parameters"]
-                .clone()
-                .into_array()
-                .unwrap()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-
-            guid: rand::random(),
-        }
-    }
-}
-
-impl From<MoveCommand> for alox_48::Object {
-    fn from(c: MoveCommand) -> Self {
-        let mut fields = alox_48::value::RbFields::with_capacity(2);
-        fields.insert("code".into(), alox_48::Value::Integer(c.code as _));
-        fields.insert(
-            "parameters".into(),
-            alox_48::Value::Array(c.parameters.into_iter().map(Into::into).collect()),
-        );
-
-        alox_48::Object {
-            class: "RPG::MoveCommand".into(),
-            fields,
-        }
-    }
 }

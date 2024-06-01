@@ -14,18 +14,22 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{id, id_vec, Table1};
+pub use crate::{id_alox, id_serde, id_vec_alox, id_vec_serde, Table1};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Class")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Class")]
 pub struct Class {
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
     pub position: Position,
-    #[serde(with = "id_vec")]
+    #[serde(with = "id_vec_serde")]
+    #[marshal(with = "id_vec_alox")]
     pub weapon_set: Vec<usize>,
-    #[serde(with = "id_vec")]
+    #[serde(with = "id_vec_serde")]
+    #[marshal(with = "id_vec_alox")]
     pub armor_set: Vec<usize>,
     pub element_ranks: Table1,
     pub state_ranks: Table1,
@@ -33,10 +37,12 @@ pub struct Class {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "RPG::Class::Learning")]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(class = "RPG::Class::Learning")]
 pub struct Learning {
     pub level: i32,
-    #[serde(with = "id")]
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub skill_id: usize,
 }
 
@@ -48,9 +54,12 @@ pub struct Learning {
     strum::EnumIter
 )]
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[repr(u8)]
 #[serde(into = "u8")]
 #[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
 pub enum Position {
     #[default]
     Front = 0,

@@ -14,16 +14,23 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{optional_path_alox, optional_path_serde, Path};
 
-#[derive(Default, Debug, Clone, PartialEq)]
-#[derive(serde::Deserialize, serde::Serialize)]
-#[derive(alox_48::Deserialize, alox_48::Serialize)]
-#[marshal(class = "RPG::AudioFile")]
-pub struct AudioFile {
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
-    pub name: Path,
-    pub volume: u8,
-    pub pitch: u8,
+pub fn deserialize_with<'de, D>(deserializer: D) -> Result<usize, alox_48::DeError>
+where
+    D: alox_48::DeserializerTrait<'de>,
+{
+    use alox_48::Deserialize;
+
+    let id = std::num::NonZeroUsize::deserialize(deserializer)?;
+
+    Ok(id.get() - 1)
+}
+
+pub fn serialize_with<S>(value: &usize, serializer: S) -> Result<S::Ok, alox_48::SerError>
+where
+    S: alox_48::SerializerTrait,
+{
+    use alox_48::Serialize;
+
+    (value + 1).serialize(serializer)
 }

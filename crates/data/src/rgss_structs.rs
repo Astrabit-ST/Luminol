@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
-use serde::{Deserialize, Serialize};
 
 /// **A struct representing an RGBA color.**
 ///
 /// Used all over the place in RGSS.
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
-#[serde(from = "alox_48::Userdata")]
-#[serde(into = "alox_48::Userdata")]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Userdata", into = "alox_48::Userdata")]
 #[derive(bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 pub struct Color {
@@ -52,9 +52,10 @@ impl Default for Color {
 /// **A struct representing an offset to an RGBA color.**
 ///
 /// Its members are f64 but must not exceed the range of 255..-255.
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
-#[serde(from = "alox_48::Userdata")]
-#[serde(into = "alox_48::Userdata")]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Userdata", into = "alox_48::Userdata")]
 #[derive(bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 pub struct Tone {
@@ -90,9 +91,10 @@ use std::ops::{Index, IndexMut};
 /// Normal RGSS has dynamically dimensioned arrays, but in practice that does not map well to Rust.
 /// We don't particularly need dynamically sized arrays anyway.
 /// 1D Table.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(from = "alox_48::Userdata")]
-#[serde(into = "alox_48::Userdata")]
+#[derive(Debug, Default, Clone)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Userdata", into = "alox_48::Userdata")]
 pub struct Table1 {
     xsize: usize,
     data: Vec<i16>,
@@ -196,9 +198,10 @@ impl IndexMut<usize> for Table1 {
 }
 
 /// 2D table. See [`Table1`].
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(from = "alox_48::Userdata")]
-#[serde(into = "alox_48::Userdata")]
+#[derive(Debug, Default, Clone)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Userdata", into = "alox_48::Userdata")]
 pub struct Table2 {
     xsize: usize,
     ysize: usize,
@@ -320,9 +323,10 @@ impl IndexMut<(usize, usize)> for Table2 {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(from = "alox_48::Userdata")]
-#[serde(into = "alox_48::Userdata")]
+#[derive(Debug, Default, Clone)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[marshal(from = "alox_48::Userdata", into = "alox_48::Userdata")]
 /// 3D table. See [`Table2`].
 pub struct Table3 {
     xsize: usize,
