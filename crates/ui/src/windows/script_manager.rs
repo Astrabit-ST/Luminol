@@ -54,15 +54,32 @@ enum Mode {
 
 struct ScriptsFileSystem(
     std::sync::Arc<
-        parking_lot::Mutex<qp_trie::Trie<qp_trie::wrapper::BString, luminol_data::rpg::Script>>,
+        parking_lot::Mutex<luminol_filesystem::FileSystemTrie<luminol_data::rpg::Script>>,
     >,
 );
 
 impl ScriptsFileSystem {
     fn new(scripts: impl Iterator<Item = luminol_data::rpg::Script>) -> Self {
-        let mut trie = qp_trie::Trie::new();
+        let mut trie = luminol_filesystem::FileSystemTrie::new();
         for script in scripts {
-            trie.insert_str(&script.name.clone(), script);
+            let mut name = script.name.clone();
+            loop {
+                let new_name = name.replace("//", "/");
+                if new_name == name {
+                    break;
+                } else {
+                    name = new_name;
+                }
+            }
+            if let Some(stripped) = name.strip_prefix('/') {
+                name = stripped.to_string();
+            }
+            if let Some(stripped) = name.strip_suffix('/') {
+                name = stripped.to_string();
+            }
+            if !name.is_empty() && !script.script_text.is_empty() {
+                trie.create_file(name, script);
+            }
         }
         Self(std::sync::Arc::new(parking_lot::Mutex::new(trie)))
     }
@@ -73,24 +90,28 @@ impl luminol_filesystem::ReadDir for ScriptsFileSystem {
         &self,
         path: impl AsRef<camino::Utf8Path>,
     ) -> luminol_filesystem::Result<Vec<luminol_filesystem::DirEntry>> {
-        Ok(path
-            .as_ref()
-            .as_str()
-            .is_empty()
-            .then(|| {
-                self.0
-                    .lock()
-                    .iter()
-                    .map(|(_, script)| luminol_filesystem::DirEntry {
-                        path: script.name.clone().into(),
-                        metadata: luminol_filesystem::Metadata {
+        let path = path.as_ref();
+        Ok(self
+            .0
+            .lock()
+            .iter_dir(path)
+            .map_or_else(Default::default, |iter| {
+                iter.map(|(name, maybe_script)| luminol_filesystem::DirEntry {
+                    path: format!("{path}/{name}").into(),
+                    metadata: if let Some(script) = maybe_script {
+                        luminol_filesystem::Metadata {
                             is_file: true,
                             size: script.script_text.as_bytes().len() as u64,
-                        },
-                    })
-                    .collect()
-            })
-            .unwrap_or_default())
+                        }
+                    } else {
+                        luminol_filesystem::Metadata {
+                            is_file: false,
+                            size: 0,
+                        }
+                    },
+                })
+                .collect()
+            }))
     }
 }
 
@@ -126,16 +147,35 @@ impl luminol_core::Window for Window {
             if let Some(host) = update_state.filesystem.host() {
                 match &mut self.mode {
                     Mode::Extract { view, .. } => {
-                        if let Some(scripts_fs) = (|| {
-                            let data = host.read("Data/Scripts.rxdata").ok()?;
-                            let mut de = luminol_core::alox_48::Deserializer::new(&data).ok()?;
-                            let vec: Vec<_> = de.deserialize_value().ok()?;
-                            Some(ScriptsFileSystem::new(vec.into_iter()))
-                        })() {
+                        if let Some((path, scripts_fs)) = update_state
+                            .project_config
+                            .as_ref()
+                            .map(|config| config.project.scripts_path.as_str())
+                            .into_iter()
+                            .chain([
+                                "xScripts.rxdata",
+                                "Scripts.rxdata",
+                                "xScripts.rvdata",
+                                "Scripts.rvdata",
+                                "xScripts.rvdata2",
+                                "Scripts.rvdata2",
+                            ])
+                            .find_map(|filename| {
+                                let path = camino::Utf8PathBuf::from("Data").join(filename);
+                                let data = host.read(&path).ok()?;
+                                let mut de =
+                                    luminol_core::alox_48::Deserializer::new(&data).ok()?;
+                                let vec: Vec<_> = de.deserialize_value().ok()?;
+                                Some((
+                                    path.to_string().replace('\\', "/"),
+                                    ScriptsFileSystem::new(vec.into_iter()),
+                                ))
+                            })
+                        {
                             *view = Some(luminol_components::FileSystemView::new(
                                 "luminol_script_manager_extract_view".into(),
                                 scripts_fs,
-                                "Data/Scripts.rxdata".to_string(),
+                                path,
                             ))
                         }
                     }
@@ -298,7 +338,7 @@ impl Window {
                                     *load_promise = Some(luminol_core::spawn_future(async {
                                         let (mut file, filename) = luminol_filesystem::host::File::from_file_picker(
                                             "RPG Maker data",
-                                            &["rxdata"],
+                                            &["rxdata", "rvdata", "rvdata2"],
                                         ).await?;
                                         let mut buf = Vec::with_capacity(file.metadata()?.size as usize);
                                         file.read_to_end(&mut buf).await?;
@@ -342,7 +382,7 @@ impl Window {
                                                     if let Some(parent) = path.parent() {
                                                         dest_fs.create_dir(parent)?;
                                                     }
-                                                    let src = scripts.lock().get_str(path.as_str()).ok_or(luminol_filesystem::Error::NotExist)?.script_text.clone();
+                                                    let src = scripts.lock().get_file(path.as_str()).ok_or(luminol_filesystem::Error::NotExist)?.script_text.clone();
                                                     let src_data = src.as_bytes();
                                                     if let Some(filename) = path.file_name() {
                                                         path.set_file_name(format!("{filename}.rb"));
@@ -431,8 +471,10 @@ impl Window {
 
                 ui.horizontal(|ui| {
                     ui.label("Version:");
-                    ui.columns(2, |columns| {
+                    ui.columns(4, |columns| {
                         columns[1].radio_value(version, 1, "XP");
+                        columns[2].radio_value(version, 2, "VX");
+                        columns[3].radio_value(version, 3, "VX Ace");
                     });
                 });
 
@@ -496,17 +538,17 @@ impl Window {
                                                                 ctx.request_repaint();
                                                             }
 
-                                                            let filename = path.file_name().ok_or_else(|| color_eyre::eyre::eyre!(format!("Could not extract filename from {path}")))?;
+                                                            let name = path.to_string().replace('\\', "/");
 
                                                             let mut script_text = String::new();
                                                             view_filesystem.open_file(&path, OpenFlags::Read)?.read_to_string(&mut script_text).await?;
 
                                                             let script = luminol_data::rpg::Script {
-                                                                name: if [".rb", ".ru"].iter().any(|suffix| filename.to_lowercase().ends_with(suffix)) {
-                                                                    filename.rsplit_once('.').unwrap().0
+                                                                name: if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
+                                                                    name.rsplit_once('.').unwrap().0.to_string()
                                                                 } else {
-                                                                    filename
-                                                                }.to_string(),
+                                                                    name
+                                                                },
                                                                 script_text,
                                                             };
                                                             scripts.push(script);
@@ -525,6 +567,8 @@ impl Window {
                                                         file.save(
                                                             match version {
                                                                 1 => "Scripts.rxdata",
+                                                                2 => "Scripts.rvdata",
+                                                                3 => "Scripts.rvdata2",
                                                                 _ => unreachable!(),
                                                             },
                                                             "RPG Maker data",
