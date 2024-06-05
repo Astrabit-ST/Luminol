@@ -97,7 +97,11 @@ impl luminol_filesystem::ReadDir for ScriptsFileSystem {
             .iter_dir(path)
             .map_or_else(Default::default, |iter| {
                 iter.map(|(name, maybe_script)| luminol_filesystem::DirEntry {
-                    path: format!("{path}/{name}").into(),
+                    path: if path.as_str().is_empty() {
+                        name.into()
+                    } else {
+                        format!("{path}/{name}").into()
+                    },
                     metadata: if let Some(script) = maybe_script {
                         luminol_filesystem::Metadata {
                             is_file: true,
