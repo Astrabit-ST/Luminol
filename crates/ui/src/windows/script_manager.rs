@@ -33,6 +33,8 @@ pub struct Window {
     progress: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
+type Scripts = Vec<luminol_data::rpg::Script>;
+
 enum Mode {
     Extract {
         view: Option<luminol_components::FileSystemView<ScriptsFileSystem>>,
@@ -51,15 +53,8 @@ enum Mode {
         progress_total: usize,
     },
     Convert {
-        scripts: Option<(
-            std::sync::Arc<parking_lot::Mutex<Vec<luminol_data::rpg::Script>>>,
-            String,
-        )>,
-        load_promise: Option<
-            poll_promise::Promise<
-                luminol_filesystem::Result<(Vec<luminol_data::rpg::Script>, String)>,
-            >,
-        >,
+        scripts: Option<(std::sync::Arc<parking_lot::Mutex<Scripts>>, String)>,
+        load_promise: Option<poll_promise::Promise<luminol_filesystem::Result<(Scripts, String)>>>,
         save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
         format: ScriptsFormat,
     },

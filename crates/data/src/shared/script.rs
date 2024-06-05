@@ -146,11 +146,11 @@ impl<'de> serde::Deserialize<'de> for Script {
                 }
 
                 let Some(name) = name else {
-                    return Err(A::Error::missing_field("name".into()));
+                    return Err(A::Error::missing_field("name"));
                 };
 
                 let Some(data) = data else {
-                    return Err(A::Error::missing_field("data".into()));
+                    return Err(A::Error::missing_field("data"));
                 };
 
                 let mut decoder = flate2::bufread::ZlibDecoder::new(std::io::Cursor::new(
