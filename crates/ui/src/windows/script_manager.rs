@@ -50,6 +50,19 @@ enum Mode {
         format: ScriptsFormat,
         progress_total: usize,
     },
+    Convert {
+        scripts: Option<(
+            std::sync::Arc<parking_lot::Mutex<Vec<luminol_data::rpg::Script>>>,
+            String,
+        )>,
+        load_promise: Option<
+            poll_promise::Promise<
+                luminol_filesystem::Result<(Vec<luminol_data::rpg::Script>, String)>,
+            >,
+        >,
+        save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
+        format: ScriptsFormat,
+    },
 }
 
 #[derive(Clone, Copy, strum::Display, strum::EnumIter)]
@@ -161,67 +174,62 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
+        let get_scripts_from_host = |host: luminol_filesystem::host::FileSystem| {
+            update_state
+                .project_config
+                .as_ref()
+                .map(|config| config.project.scripts_path.as_str())
+                .into_iter()
+                .chain([
+                    "xScripts.rxdata",
+                    "xScripts.rvdata",
+                    "xScripts.rvdata2",
+                    "xScripts.json",
+                    "xScripts.yaml",
+                    "xScripts.yml",
+                    "xScripts.ron",
+                    "Scripts.rxdata",
+                    "Scripts.rvdata",
+                    "Scripts.rvdata2",
+                    "Scripts.json",
+                    "Scripts.yaml",
+                    "Scripts.yml",
+                    "Scripts.ron",
+                ])
+                .find_map(|filename| {
+                    let path = camino::Utf8PathBuf::from("Data").join(filename);
+                    let file = host.open_file(&path, OpenFlags::Read).ok()?;
+                    let vec: Vec<_> = match path.extension() {
+                        Some("json") => {
+                            serde_json::from_reader(std::io::BufReader::new(file)).ok()?
+                        }
+
+                        Some("yaml" | "yml") => {
+                            serde_yml::from_reader(std::io::BufReader::new(file)).ok()?
+                        }
+
+                        Some("ron") => ron::de::from_reader(std::io::BufReader::new(file)).ok()?,
+
+                        _ => {
+                            let data = host.read(&path).ok()?;
+                            let mut de = luminol_core::alox_48::Deserializer::new(&data).ok()?;
+                            de.deserialize_value().ok()?
+                        }
+                    };
+                    Some((path.to_string().replace('\\', "/"), vec))
+                })
+        };
+
         // Open the currently loaded project by default
         if !self.initialized {
             self.initialized = true;
             if let Some(host) = update_state.filesystem.host() {
                 match &mut self.mode {
                     Mode::Extract { view, .. } => {
-                        if let Some((path, scripts_fs)) = update_state
-                            .project_config
-                            .as_ref()
-                            .map(|config| config.project.scripts_path.as_str())
-                            .into_iter()
-                            .chain([
-                                "xScripts.rxdata",
-                                "xScripts.rvdata",
-                                "xScripts.rvdata2",
-                                "xScripts.json",
-                                "xScripts.yaml",
-                                "xScripts.yml",
-                                "xScripts.ron",
-                                "Scripts.rxdata",
-                                "Scripts.rvdata",
-                                "Scripts.rvdata2",
-                                "Scripts.json",
-                                "Scripts.yaml",
-                                "Scripts.yml",
-                                "Scripts.ron",
-                            ])
-                            .find_map(|filename| {
-                                let path = camino::Utf8PathBuf::from("Data").join(filename);
-                                let file = host.open_file(&path, OpenFlags::Read).ok()?;
-                                let vec: Vec<_> = match path.extension() {
-                                    Some("json") => {
-                                        serde_json::from_reader(std::io::BufReader::new(file))
-                                            .ok()?
-                                    }
-
-                                    Some("yaml" | "yml") => {
-                                        serde_yml::from_reader(std::io::BufReader::new(file))
-                                            .ok()?
-                                    }
-
-                                    Some("ron") => {
-                                        ron::de::from_reader(std::io::BufReader::new(file)).ok()?
-                                    }
-
-                                    _ => {
-                                        let data = host.read(&path).ok()?;
-                                        let mut de =
-                                            luminol_core::alox_48::Deserializer::new(&data).ok()?;
-                                        de.deserialize_value().ok()?
-                                    }
-                                };
-                                Some((
-                                    path.to_string().replace('\\', "/"),
-                                    ScriptsFileSystem::new(vec.into_iter()),
-                                ))
-                            })
-                        {
+                        if let Some((path, vec)) = get_scripts_from_host(host) {
                             *view = Some(luminol_components::FileSystemView::new(
                                 "luminol_script_manager_extract_view".into(),
-                                scripts_fs,
+                                ScriptsFileSystem::new(vec.into_iter()),
                                 path,
                             ))
                         }
@@ -235,6 +243,13 @@ impl luminol_core::Window for Window {
                             name,
                         ));
                     }
+
+                    Mode::Convert { scripts, .. } => {
+                        if let Some((path, vec)) = get_scripts_from_host(host) {
+                            *scripts =
+                                Some((std::sync::Arc::new(parking_lot::Mutex::new(vec)), path));
+                        }
+                    }
                 }
             }
         }
@@ -242,6 +257,7 @@ impl luminol_core::Window for Window {
         let mut window_open = true;
         egui::Window::new("Script Manager")
             .open(&mut window_open)
+            .default_width(500.)
             .show(ctx, |ui| {
                 let enabled = match &self.mode {
                     Mode::Extract {
@@ -254,9 +270,14 @@ impl luminol_core::Window for Window {
                         save_promise,
                         ..
                     } => load_promise.is_none() && save_promise.is_none(),
+                    Mode::Convert {
+                        load_promise,
+                        save_promise,
+                        ..
+                    } => load_promise.is_none() && save_promise.is_none(),
                 };
                 ui.add_enabled_ui(enabled, |ui| {
-                    ui.columns(2, |columns| {
+                    ui.columns(3, |columns| {
                         if columns[0]
                             .add(egui::SelectableLabel::new(
                                 matches!(self.mode, Mode::Extract { .. }),
@@ -294,6 +315,24 @@ impl luminol_core::Window for Window {
                                 progress_total: 0,
                             };
                         }
+                        if columns[2]
+                            .add(egui::SelectableLabel::new(
+                                matches!(self.mode, Mode::Convert { .. }),
+                                "Convert Scripts file",
+                            ))
+                            .clicked()
+                        {
+                            self.initialized = false;
+                            self.progress = std::sync::Arc::new(
+                                std::sync::atomic::AtomicUsize::new(usize::MAX),
+                            );
+                            self.mode = Mode::Convert {
+                                scripts: None,
+                                load_promise: None,
+                                save_promise: None,
+                                format: ScriptsFormat::Rxdata,
+                            };
+                        }
                     });
 
                     ui.separator();
@@ -309,19 +348,22 @@ impl luminol_core::Window for Window {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, None);
                                     } else {
-                                        ui.add(
-                                            egui::Label::new("No Scripts file chosen").wrap(false),
-                                        );
+                                        ui.add(egui::Label::new("No Scripts file chosen"));
                                     }
                                 }
                                 Mode::Create { view, .. } => {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, None);
                                     } else {
-                                        ui.add(
-                                            egui::Label::new("No source folder chosen").wrap(false),
-                                        );
+                                        ui.add(egui::Label::new("No source folder chosen"));
                                     }
+                                }
+                                Mode::Convert { scripts, .. } => {
+                                    ui.add(if let Some((_, path)) = scripts {
+                                        egui::Label::new(format!("Scripts file: {path:?}"))
+                                    } else {
+                                        egui::Label::new("No Scripts file chosen")
+                                    });
                                 }
                             });
                         });
@@ -533,7 +575,7 @@ impl Window {
                 }
 
                 ui.horizontal(|ui| {
-                    ui.label("Format:");
+                    ui.label("Output Format:");
                     ui.add(luminol_components::EnumComboBox::new(
                         "luminol_script_manager_create_format",
                         format,
@@ -676,6 +718,191 @@ impl Window {
                         .show_percentage(),
                     );
                 }
+
+                if let Some(p) = save_promise.take() {
+                    match p.try_take() {
+                        Ok(Ok(())) => {
+                            luminol_core::info!(
+                                update_state.toasts,
+                                "Created Scripts file successfully!"
+                            );
+                        }
+                        Ok(Err(e)) => {
+                            if !matches!(
+                                e.root_cause().downcast_ref(),
+                                Some(luminol_filesystem::Error::CancelledLoading)
+                            ) {
+                                luminol_core::error!(
+                                    update_state.toasts,
+                                    e.wrap_err("Error creating Scripts file")
+                                );
+                            }
+                        }
+                        Err(p) => *save_promise = Some(p),
+                    }
+                }
+            }
+
+            Mode::Convert {
+                scripts,
+                load_promise,
+                save_promise,
+                format,
+            } => {
+                if let Some(p) = load_promise.take() {
+                    match p.try_take() {
+                        Ok(Ok((vec, name))) => {
+                            *scripts =
+                                Some((std::sync::Arc::new(parking_lot::Mutex::new(vec)), name));
+                        }
+                        Ok(Err(e)) => {
+                            if !matches!(
+                                e.root_cause().downcast_ref(),
+                                Some(luminol_filesystem::Error::CancelledLoading)
+                            ) {
+                                luminol_core::error!(
+                                    update_state.toasts,
+                                    e.wrap_err("Unable to read Scripts file")
+                                );
+                            }
+                        }
+                        Err(p) => *load_promise = Some(p),
+                    }
+                }
+
+                ui.horizontal(|ui| {
+                    ui.label("Output Format:");
+                    ui.add(luminol_components::EnumComboBox::new(
+                        "luminol_script_manager_convert_format",
+                        format,
+                    ));
+                });
+
+                ui.separator();
+
+                ui.columns(2, |columns| {
+                    columns[0].with_cross_justify_center(|ui| {
+                        if load_promise.is_none() && ui.button("Choose Scripts file").clicked() {
+                            *load_promise = Some(luminol_core::spawn_future(async {
+                                let (mut file, filename) =
+                                    luminol_filesystem::host::File::from_file_picker(
+                                        "RPG Maker data",
+                                        &[
+                                            "rxdata", "rvdata", "rvdata2", "json", "yaml", "yml",
+                                            "ron",
+                                        ],
+                                    )
+                                    .await?;
+                                let vec: Vec<_> = match filename
+                                    .to_lowercase()
+                                    .rsplit_once('.')
+                                    .map(|(_, ext)| ext)
+                                {
+                                    Some("json") => {
+                                        serde_json::from_reader(std::io::BufReader::new(file))?
+                                    }
+
+                                    Some("yaml" | "yml") => {
+                                        serde_yml::from_reader(std::io::BufReader::new(file))?
+                                    }
+
+                                    Some("ron") => {
+                                        ron::de::from_reader(std::io::BufReader::new(file))?
+                                    }
+
+                                    _ => {
+                                        let mut buf =
+                                            Vec::with_capacity(file.metadata()?.size as usize);
+                                        file.read_to_end(&mut buf).await?;
+                                        let mut de =
+                                            luminol_core::alox_48::Deserializer::new(&buf)?;
+                                        luminol_core::alox_48::path_to_error::deserialize(&mut de)
+                                            .map_err(|(error, trace)| {
+                                            luminol_core::format_traced_error(error, trace)
+                                        })?
+                                    }
+                                };
+                                Ok((vec, filename))
+                            }));
+                        } else if load_promise.is_some() {
+                            ui.spinner();
+                        }
+                    });
+
+                    columns[1].with_cross_justify_center(|ui| {
+                        if save_promise.is_none()
+                            && ui
+                                .add_enabled(scripts.is_some(), egui::Button::new("Convert"))
+                                .clicked()
+                        {
+                            if let Some((scripts, _)) = scripts {
+                                let format = *format;
+                                let scripts = scripts.clone();
+
+                                *save_promise = Some(luminol_core::spawn_future(async move {
+                                    let mut file = luminol_filesystem::host::File::new()?;
+
+                                    match format {
+                                        ScriptsFormat::Json => {
+                                            serde_json::to_writer_pretty(
+                                                std::io::BufWriter::new(&mut file),
+                                                &*scripts.lock(),
+                                            )?;
+                                        }
+
+                                        ScriptsFormat::Yaml => {
+                                            serde_yml::to_writer(
+                                                std::io::BufWriter::new(&mut file),
+                                                &*scripts.lock(),
+                                            )?;
+                                        }
+
+                                        ScriptsFormat::Ron => {
+                                            ron::ser::to_writer_pretty(
+                                                std::io::BufWriter::new(&mut file),
+                                                &*scripts.lock(),
+                                                ron::ser::PrettyConfig::new().indentor("  ".into()),
+                                            )?;
+                                        }
+
+                                        ScriptsFormat::Rxdata
+                                        | ScriptsFormat::Rvdata
+                                        | ScriptsFormat::Rvdata2 => {
+                                            let mut serializer =
+                                                luminol_core::alox_48::Serializer::new();
+                                            luminol_core::alox_48::path_to_error::serialize(
+                                                &*scripts.lock(),
+                                                &mut serializer,
+                                            )
+                                            .map_err(
+                                                |(error, trace)| {
+                                                    luminol_core::format_traced_error(error, trace)
+                                                },
+                                            )?;
+                                            file.write_all(&serializer.output).await?;
+                                        }
+                                    }
+
+                                    file.flush().await?;
+                                    file.save(
+                                        match format {
+                                            ScriptsFormat::Rxdata => "Scripts.rxdata",
+                                            ScriptsFormat::Rvdata => "Scripts.rvdata",
+                                            ScriptsFormat::Rvdata2 => "Scripts.rvdata2",
+                                            ScriptsFormat::Json => "Scripts.json",
+                                            ScriptsFormat::Yaml => "Scripts.yaml",
+                                            ScriptsFormat::Ron => "Scripts.ron",
+                                        },
+                                        "RPG Maker data",
+                                    )
+                                    .await
+                                }));
+                            }
+                        } else if save_promise.is_some() {
+                            ui.spinner();
+                        }
+                    });
+                });
 
                 if let Some(p) = save_promise.take() {
                     match p.try_take() {

@@ -206,16 +206,14 @@ impl luminol_core::Window for Window {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, None);
                                     } else {
-                                        ui.add(egui::Label::new("No archive chosen").wrap(false));
+                                        ui.add(egui::Label::new("No archive chosen"));
                                     }
                                 }
                                 Mode::Create { view, .. } => {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, Some(&CREATE_DEFAULT_SELECTED_DIRS));
                                     } else {
-                                        ui.add(
-                                            egui::Label::new("No source folder chosen").wrap(false),
-                                        );
+                                        ui.add(egui::Label::new("No source folder chosen"));
                                     }
                                 }
                             });
