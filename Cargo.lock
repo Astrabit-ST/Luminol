@@ -3240,6 +3240,7 @@ dependencies = [
  "luminol-term",
  "murmur3",
  "once_cell",
+ "parking_lot",
  "poll-promise",
  "qp-trie",
  "reqwest",

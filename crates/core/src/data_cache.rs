@@ -124,7 +124,7 @@ fn write_nil_padded(
         .map_err(color_eyre::Report::from)
 }
 
-fn format_traced_error(
+pub fn format_traced_error(
     error: impl Into<color_eyre::Report>,
     trace: alox_48::path_to_error::Trace,
 ) -> color_eyre::Report {

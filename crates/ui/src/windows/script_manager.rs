@@ -22,19 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use futures_util::{AsyncReadExt, AsyncWriteExt};
 use luminol_components::UiExt;
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
-static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
-    qp_trie::Trie<qp_trie::wrapper::BString, ()>,
-> = once_cell::sync::Lazy::new(|| {
-    let mut trie = qp_trie::Trie::new();
-    trie.insert_str("Data", ());
-    trie.insert_str("Graphics", ());
-    trie
-});
-
-/// The archive manager for creating and extracting RGSSAD archives.
+/// The script manager for creating and extracting Scripts.rxdata.
 pub struct Window {
     mode: Mode,
     initialized: bool,
@@ -43,16 +35,9 @@ pub struct Window {
 
 enum Mode {
     Extract {
-        view: Option<
-            luminol_components::FileSystemView<
-                luminol_filesystem::archiver::FileSystem<luminol_filesystem::host::File>,
-            >,
-        >,
-        load_promise: Option<
-            poll_promise::Promise<
-                luminol_filesystem::Result<(luminol_filesystem::host::File, String)>,
-            >,
-        >,
+        view: Option<luminol_components::FileSystemView<ScriptsFileSystem>>,
+        load_promise:
+            Option<poll_promise::Promise<luminol_filesystem::Result<(ScriptsFileSystem, String)>>>,
         save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
         progress_total: usize,
     },
@@ -65,6 +50,48 @@ enum Mode {
         version: u8,
         progress_total: usize,
     },
+}
+
+struct ScriptsFileSystem(
+    std::sync::Arc<
+        parking_lot::Mutex<qp_trie::Trie<qp_trie::wrapper::BString, luminol_data::rpg::Script>>,
+    >,
+);
+
+impl ScriptsFileSystem {
+    fn new(scripts: impl Iterator<Item = luminol_data::rpg::Script>) -> Self {
+        let mut trie = qp_trie::Trie::new();
+        for script in scripts {
+            trie.insert_str(&script.name.clone(), script);
+        }
+        Self(std::sync::Arc::new(parking_lot::Mutex::new(trie)))
+    }
+}
+
+impl luminol_filesystem::ReadDir for ScriptsFileSystem {
+    fn read_dir(
+        &self,
+        path: impl AsRef<camino::Utf8Path>,
+    ) -> luminol_filesystem::Result<Vec<luminol_filesystem::DirEntry>> {
+        Ok(path
+            .as_ref()
+            .as_str()
+            .is_empty()
+            .then(|| {
+                self.0
+                    .lock()
+                    .iter()
+                    .map(|(_, script)| luminol_filesystem::DirEntry {
+                        path: script.name.clone().into(),
+                        metadata: luminol_filesystem::Metadata {
+                            is_file: true,
+                            size: script.script_text.as_bytes().len() as u64,
+                        },
+                    })
+                    .collect()
+            })
+            .unwrap_or_default())
+    }
 }
 
 impl Default for Window {
@@ -84,7 +111,7 @@ impl Default for Window {
 
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
-        egui::Id::new("RGSSAD Archive Manager")
+        egui::Id::new("Script Manager")
     }
 
     fn show(
@@ -99,27 +126,16 @@ impl luminol_core::Window for Window {
             if let Some(host) = update_state.filesystem.host() {
                 match &mut self.mode {
                     Mode::Extract { view, .. } => {
-                        if let Ok(Some((entry, archive))) = (|| {
-                            host.read_dir("")?
-                                .into_iter()
-                                .find(|entry| {
-                                    entry.metadata.is_file
-                                        && matches!(
-                                            entry.path.extension(),
-                                            Some("rgssad" | "rgss2a" | "rgss3a")
-                                        )
-                                })
-                                .map(|entry| {
-                                    host.open_file(&entry.path, OpenFlags::Read)
-                                        .and_then(luminol_filesystem::archiver::FileSystem::new)
-                                        .map(|archive| (entry, archive))
-                                })
-                                .transpose()
+                        if let Some(scripts_fs) = (|| {
+                            let data = host.read("Data/Scripts.rxdata").ok()?;
+                            let mut de = luminol_core::alox_48::Deserializer::new(&data).ok()?;
+                            let vec: Vec<_> = de.deserialize_value().ok()?;
+                            Some(ScriptsFileSystem::new(vec.into_iter()))
                         })() {
                             *view = Some(luminol_components::FileSystemView::new(
-                                "luminol_archive_manager_extract_view".into(),
-                                archive,
-                                entry.path.to_string(),
+                                "luminol_script_manager_extract_view".into(),
+                                scripts_fs,
+                                "Data/Scripts.rxdata".to_string(),
                             ))
                         }
                     }
@@ -127,7 +143,7 @@ impl luminol_core::Window for Window {
                     Mode::Create { view, .. } => {
                         let name = host.root_path().to_string();
                         *view = Some(luminol_components::FileSystemView::new(
-                            "luminol_archive_manager_create_view".into(),
+                            "luminol_script_manager_create_view".into(),
                             host,
                             name,
                         ));
@@ -137,7 +153,7 @@ impl luminol_core::Window for Window {
         }
 
         let mut window_open = true;
-        egui::Window::new("RGSSAD Archive Manager")
+        egui::Window::new("Script Manager")
             .open(&mut window_open)
             .show(ctx, |ui| {
                 let enabled = match &self.mode {
@@ -157,7 +173,7 @@ impl luminol_core::Window for Window {
                         if columns[0]
                             .add(egui::SelectableLabel::new(
                                 matches!(self.mode, Mode::Extract { .. }),
-                                "Extract from archive",
+                                "Extract from Scripts file",
                             ))
                             .clicked()
                         {
@@ -175,7 +191,7 @@ impl luminol_core::Window for Window {
                         if columns[1]
                             .add(egui::SelectableLabel::new(
                                 matches!(self.mode, Mode::Create { .. }),
-                                "Create new archive",
+                                "Create new Scripts file",
                             ))
                             .clicked()
                         {
@@ -206,12 +222,14 @@ impl luminol_core::Window for Window {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, None);
                                     } else {
-                                        ui.add(egui::Label::new("No archive chosen").wrap(false));
+                                        ui.add(
+                                            egui::Label::new("No Scripts file chosen").wrap(false),
+                                        );
                                     }
                                 }
                                 Mode::Create { view, .. } => {
                                     if let Some(v) = view {
-                                        v.ui(ui, update_state, Some(&CREATE_DEFAULT_SELECTED_DIRS));
+                                        v.ui(ui, update_state, None);
                                     } else {
                                         ui.add(
                                             egui::Label::new("No source folder chosen").wrap(false),
@@ -245,20 +263,12 @@ impl Window {
             } => {
                 if let Some(p) = load_promise.take() {
                     match p.try_take() {
-                        Ok(Ok((handle, name))) => {
-                            match luminol_filesystem::archiver::FileSystem::new(handle) {
-                                Ok(archiver) => {
-                                    *view = Some(luminol_components::FileSystemView::new(
-                                        "luminol_archive_manager_extract_view".into(),
-                                        archiver,
-                                        name,
-                                    ))
-                                }
-                                Err(e) => luminol_core::error!(
-                                    update_state.toasts,
-                                    e.wrap_err("Error parsing archive contents")
-                                ),
-                            }
+                        Ok(Ok((fs, name))) => {
+                            *view = Some(luminol_components::FileSystemView::new(
+                                "luminol_script_manager_extract_view".into(),
+                                fs,
+                                name,
+                            ))
                         }
                         Ok(Err(e)) => {
                             if !matches!(
@@ -267,7 +277,7 @@ impl Window {
                             ) {
                                 luminol_core::error!(
                                     update_state.toasts,
-                                    e.wrap_err("Unable to read archive file")
+                                    e.wrap_err("Unable to read Scripts file")
                                 );
                             }
                         }
@@ -284,13 +294,19 @@ impl Window {
                     ui.columns(2, |columns| {
                         columns[0].with_cross_justify_center(
                             |ui| {
-                                if load_promise.is_none() && ui.button("Choose archive").clicked() {
-                                    *load_promise = Some(luminol_core::spawn_future(
-                                        luminol_filesystem::host::File::from_file_picker(
-                                            "RGSSAD archives",
-                                            &["rgssad", "rgss2a", "rgss3a"],
-                                        ),
-                                    ));
+                                if load_promise.is_none() && ui.button("Choose Scripts file").clicked() {
+                                    *load_promise = Some(luminol_core::spawn_future(async {
+                                        let (mut file, filename) = luminol_filesystem::host::File::from_file_picker(
+                                            "RPG Maker data",
+                                            &["rxdata"],
+                                        ).await?;
+                                        let mut buf = Vec::with_capacity(file.metadata()?.size as usize);
+                                        file.read_to_end(&mut buf).await?;
+                                        let mut de = luminol_core::alox_48::Deserializer::new(&buf)?;
+                                        let vec: Vec<_> = luminol_core::alox_48::path_to_error::deserialize(&mut de)
+                                            .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?;
+                                        Ok((ScriptsFileSystem::new(vec.into_iter()), filename))
+                                    }));
                                 } else if load_promise.is_some() {
                                     ui.spinner();
                                 }
@@ -313,7 +329,7 @@ impl Window {
                                         Ok(file_paths) => {
                                             let ctx = ui.ctx().clone();
                                             let progress = progress.clone();
-                                            let view_filesystem = view.filesystem().clone();
+                                            let scripts = view.filesystem().0.clone();
                                             *progress_total = file_paths.len();
                                             progress.store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
 
@@ -322,13 +338,17 @@ impl Window {
                                                 progress.store(0, std::sync::atomic::Ordering::Relaxed);
                                                 ctx.request_repaint();
 
-                                                for path in file_paths {
+                                                for mut path in file_paths {
                                                     if let Some(parent) = path.parent() {
                                                         dest_fs.create_dir(parent)?;
                                                     }
-                                                    let mut src_file = view_filesystem.open_file(&path, OpenFlags::Read)?;
+                                                    let src = scripts.lock().get_str(path.as_str()).ok_or(luminol_filesystem::Error::NotExist)?.script_text.clone();
+                                                    let src_data = src.as_bytes();
+                                                    if let Some(filename) = path.file_name() {
+                                                        path.set_file_name(format!("{filename}.rb"));
+                                                    }
                                                     let mut dest_file = dest_fs.open_file(&path, OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
-                                                    async_std::io::copy(&mut src_file, &mut dest_file).await?;
+                                                    async_std::io::copy(&mut async_std::io::Cursor::new(src_data), &mut dest_file).await?;
 
                                                     progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                                     ctx.request_repaint();
@@ -337,7 +357,7 @@ impl Window {
                                                 Ok(())
                                             }));
                                         }
-                                        Err(e) => luminol_core::error!(update_state.toasts, e.wrap_err("Error enumerating files to extract from archive")),
+                                        Err(e) => luminol_core::error!(update_state.toasts, e.wrap_err("Error enumerating files to extract from Scripts file")),
                                     }
                                 } else if save_promise.is_some() {
                                     ui.spinner();
@@ -368,7 +388,7 @@ impl Window {
                             ) {
                                 luminol_core::error!(
                                     update_state.toasts,
-                                    e.wrap_err("Error extracting archive")
+                                    e.wrap_err("Error extracting from Scripts file")
                                 );
                             }
                         }
@@ -389,7 +409,7 @@ impl Window {
                         Ok(Ok(handle)) => {
                             let name = handle.root_path().to_string();
                             *view = Some(luminol_components::FileSystemView::new(
-                                "luminol_archive_manager_create_view".into(),
+                                "luminol_script_manager_create_view".into(),
                                 handle,
                                 name,
                             ));
@@ -411,10 +431,8 @@ impl Window {
 
                 ui.horizontal(|ui| {
                     ui.label("Version:");
-                    ui.columns(4, |columns| {
+                    ui.columns(2, |columns| {
                         columns[1].radio_value(version, 1, "XP");
-                        columns[2].radio_value(version, 2, "VX");
-                        columns[3].radio_value(version, 3, "VX Ace");
                     });
                 });
 
@@ -463,50 +481,58 @@ impl Window {
 
                                                 *save_promise =
                                                     Some(luminol_core::spawn_future(async move {
-                                                        let mut file = luminol_filesystem::host::File::new()?;
-
                                                         let mut is_first = true;
 
                                                         progress.store(0, std::sync::atomic::Ordering::Relaxed);
                                                         ctx.request_repaint();
 
-                                                        let _ = luminol_filesystem::archiver::FileSystem::from_buffer_and_files(
-                                                            &mut file,
-                                                            if version == 2 {
-                                                                1
-                                                            } else {
-                                                                version
-                                                            },
-                                                            file_paths.iter().map(|path| {
-                                                                if is_first {
-                                                                    is_first = false;
-                                                                } else {
-                                                                    progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                                                    ctx.request_repaint();
-                                                                }
+                                                        let mut scripts = Vec::with_capacity(file_paths.len());
 
-                                                                let file = view_filesystem.open_file(path, OpenFlags::Read)?;
-                                                                let size = file.metadata()?.size as u32;
-                                                                Ok((path, size, file))
-                                                            }),
-                                                        ).await?;
+                                                        for path in file_paths {
+                                                            if is_first {
+                                                                is_first = false;
+                                                            } else {
+                                                                progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                                ctx.request_repaint();
+                                                            }
+
+                                                            let filename = path.file_name().ok_or_else(|| color_eyre::eyre::eyre!(format!("Could not extract filename from {path}")))?;
+
+                                                            let mut script_text = String::new();
+                                                            view_filesystem.open_file(&path, OpenFlags::Read)?.read_to_string(&mut script_text).await?;
+
+                                                            let script = luminol_data::rpg::Script {
+                                                                name: if [".rb", ".ru"].iter().any(|suffix| filename.to_lowercase().ends_with(suffix)) {
+                                                                    filename.rsplit_once('.').unwrap().0
+                                                                } else {
+                                                                    filename
+                                                                }.to_string(),
+                                                                script_text,
+                                                            };
+                                                            scripts.push(script);
+                                                        }
 
                                                         progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                                         ctx.request_repaint();
 
+                                                        let mut serializer = luminol_core::alox_48::Serializer::new();
+                                                        luminol_core::alox_48::path_to_error::serialize(scripts, &mut serializer)
+                                                            .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?;
+
+                                                        let mut file = luminol_filesystem::host::File::new()?;
+                                                        file.write_all(&serializer.output).await?;
+                                                        file.flush().await?;
                                                         file.save(
                                                             match version {
-                                                                1 => "Game.rgssad",
-                                                                2 => "Game.rgss2a",
-                                                                3 => "Game.rgss3a",
+                                                                1 => "Scripts.rxdata",
                                                                 _ => unreachable!(),
                                                             },
-                                                            "RGSSAD archives",
+                                                            "RPG Maker data",
                                                         )
                                                         .await
                                                     }));
                                             }
-                                            Err(e) => luminol_core::error!(update_state.toasts, e.wrap_err("Error enumerating files to create archive from")),
+                                            Err(e) => luminol_core::error!(update_state.toasts, e.wrap_err("Error enumerating files to create Scripts file from")),
                                         }
                                     }
                                 } else if save_promise.is_some() {
@@ -531,7 +557,7 @@ impl Window {
                         Ok(Ok(())) => {
                             luminol_core::info!(
                                 update_state.toasts,
-                                "Created archive successfully!"
+                                "Created Scripts file successfully!"
                             );
                         }
                         Ok(Err(e)) => {
@@ -541,7 +567,7 @@ impl Window {
                             ) {
                                 luminol_core::error!(
                                     update_state.toasts,
-                                    e.wrap_err("Error creating archive")
+                                    e.wrap_err("Error creating Scripts file")
                                 );
                             }
                         }
