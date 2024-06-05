@@ -47,9 +47,25 @@ enum Mode {
             poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
         >,
         save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
-        version: u8,
+        format: ScriptsFormat,
         progress_total: usize,
     },
+}
+
+#[derive(Clone, Copy, strum::Display, strum::EnumIter)]
+enum ScriptsFormat {
+    #[strum(to_string = "RPG Maker XP")]
+    Rxdata,
+    #[strum(to_string = "RPG Maker VX")]
+    Rvdata,
+    #[strum(to_string = "RPG Maker VX Ace")]
+    Rvdata2,
+    #[strum(to_string = "JSON")]
+    Json,
+    #[strum(to_string = "YAML")]
+    Yaml,
+    #[strum(to_string = "RON")]
+    Ron,
 }
 
 struct ScriptsFileSystem(
@@ -158,18 +174,45 @@ impl luminol_core::Window for Window {
                             .into_iter()
                             .chain([
                                 "xScripts.rxdata",
-                                "Scripts.rxdata",
                                 "xScripts.rvdata",
-                                "Scripts.rvdata",
                                 "xScripts.rvdata2",
+                                "xScripts.json",
+                                "xScripts.yaml",
+                                "xScripts.yml",
+                                "xScripts.ron",
+                                "Scripts.rxdata",
+                                "Scripts.rvdata",
                                 "Scripts.rvdata2",
+                                "Scripts.json",
+                                "Scripts.yaml",
+                                "Scripts.yml",
+                                "Scripts.ron",
                             ])
                             .find_map(|filename| {
                                 let path = camino::Utf8PathBuf::from("Data").join(filename);
-                                let data = host.read(&path).ok()?;
-                                let mut de =
-                                    luminol_core::alox_48::Deserializer::new(&data).ok()?;
-                                let vec: Vec<_> = de.deserialize_value().ok()?;
+                                let file = host.open_file(&path, OpenFlags::Read).ok()?;
+                                let vec: Vec<_> = match path.extension() {
+                                    Some("json") => {
+                                        serde_json::from_reader(std::io::BufReader::new(file))
+                                            .ok()?
+                                    }
+
+                                    Some("yaml" | "yml") => {
+                                        serde_yml::from_reader(std::io::BufReader::new(file))
+                                            .ok()?
+                                    }
+
+                                    Some("ron") => {
+                                        ron::de::from_reader(std::io::BufReader::new(file)).ok()?
+                                    }
+
+                                    _ => {
+                                        let data = host.read(&path).ok()?;
+                                        let mut de =
+                                            luminol_core::alox_48::Deserializer::new(&data).ok()?;
+                                        de.deserialize_value().ok()?
+                                    }
+                                };
                                 Some((
                                     path.to_string().replace('\\', "/"),
                                     ScriptsFileSystem::new(vec.into_iter()),
@@ -247,7 +290,7 @@ impl luminol_core::Window for Window {
                                 view: None,
                                 load_promise: None,
                                 save_promise: None,
-                                version: 1,
+                                format: ScriptsFormat::Rxdata,
                                 progress_total: 0,
                             };
                         }
@@ -342,13 +385,29 @@ impl Window {
                                     *load_promise = Some(luminol_core::spawn_future(async {
                                         let (mut file, filename) = luminol_filesystem::host::File::from_file_picker(
                                             "RPG Maker data",
-                                            &["rxdata", "rvdata", "rvdata2"],
+                                            &["rxdata", "rvdata", "rvdata2", "json", "yaml", "yml", "ron"],
                                         ).await?;
-                                        let mut buf = Vec::with_capacity(file.metadata()?.size as usize);
-                                        file.read_to_end(&mut buf).await?;
-                                        let mut de = luminol_core::alox_48::Deserializer::new(&buf)?;
-                                        let vec: Vec<_> = luminol_core::alox_48::path_to_error::deserialize(&mut de)
-                                            .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?;
+                                        let vec: Vec<_> = match filename.to_lowercase().rsplit_once('.').map(|(_, ext)| ext) {
+                                            Some("json") => {
+                                                serde_json::from_reader(std::io::BufReader::new(file))?
+                                            }
+
+                                            Some("yaml" | "yml") => {
+                                                serde_yml::from_reader(std::io::BufReader::new(file))?
+                                            }
+
+                                            Some("ron") => {
+                                                ron::de::from_reader(std::io::BufReader::new(file))?
+                                            }
+
+                                            _ => {
+                                                let mut buf = Vec::with_capacity(file.metadata()?.size as usize);
+                                                file.read_to_end(&mut buf).await?;
+                                                let mut de = luminol_core::alox_48::Deserializer::new(&buf)?;
+                                                luminol_core::alox_48::path_to_error::deserialize(&mut de)
+                                                    .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?
+                                            }
+                                        };
                                         Ok((ScriptsFileSystem::new(vec.into_iter()), filename))
                                     }));
                                 } else if load_promise.is_some() {
@@ -445,7 +504,7 @@ impl Window {
                 view,
                 load_promise,
                 save_promise,
-                version,
+                format,
                 progress_total,
             } => {
                 if let Some(p) = load_promise.take() {
@@ -474,12 +533,11 @@ impl Window {
                 }
 
                 ui.horizontal(|ui| {
-                    ui.label("Version:");
-                    ui.columns(4, |columns| {
-                        columns[1].radio_value(version, 1, "XP");
-                        columns[2].radio_value(version, 2, "VX");
-                        columns[3].radio_value(version, 3, "VX Ace");
-                    });
+                    ui.label("Format:");
+                    ui.add(luminol_components::EnumComboBox::new(
+                        "luminol_script_manager_create_format",
+                        format,
+                    ));
                 });
 
                 ui.separator();
@@ -516,7 +574,7 @@ impl Window {
                                         .clicked()
                                 {
                                     if let Some(view) = view {
-                                        let version = *version;
+                                        let format = *format;
                                         match Self::find_files(view) {
                                             Ok(file_paths) => {
                                                 let ctx = ui.ctx().clone();
@@ -547,33 +605,52 @@ impl Window {
                                                             let mut script_text = String::new();
                                                             view_filesystem.open_file(&path, OpenFlags::Read)?.read_to_string(&mut script_text).await?;
 
-                                                            let script = luminol_data::rpg::Script {
-                                                                name: if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
+                                                            let script = luminol_data::rpg::Script::new(
+                                                                if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
                                                                     name.rsplit_once('.').unwrap().0.to_string()
                                                                 } else {
                                                                     name
                                                                 },
                                                                 script_text,
-                                                            };
+                                                            );
                                                             scripts.push(script);
                                                         }
 
                                                         progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                                         ctx.request_repaint();
 
-                                                        let mut serializer = luminol_core::alox_48::Serializer::new();
-                                                        luminol_core::alox_48::path_to_error::serialize(scripts, &mut serializer)
-                                                            .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?;
-
                                                         let mut file = luminol_filesystem::host::File::new()?;
-                                                        file.write_all(&serializer.output).await?;
+
+                                                        match format {
+                                                            ScriptsFormat::Json => {
+                                                                serde_json::to_writer_pretty(std::io::BufWriter::new(&mut file), &scripts)?;
+                                                            }
+
+                                                            ScriptsFormat::Yaml => {
+                                                                serde_yml::to_writer(std::io::BufWriter::new(&mut file), &scripts)?;
+                                                            }
+
+                                                            ScriptsFormat::Ron => {
+                                                                ron::ser::to_writer_pretty(std::io::BufWriter::new(&mut file), &scripts, ron::ser::PrettyConfig::new().indentor("  ".into()))?;
+                                                            }
+
+                                                            ScriptsFormat::Rxdata | ScriptsFormat::Rvdata | ScriptsFormat::Rvdata2 => {
+                                                                let mut serializer = luminol_core::alox_48::Serializer::new();
+                                                                luminol_core::alox_48::path_to_error::serialize(scripts, &mut serializer)
+                                                                    .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?;
+                                                                file.write_all(&serializer.output).await?;
+                                                            }
+                                                        }
+
                                                         file.flush().await?;
                                                         file.save(
-                                                            match version {
-                                                                1 => "Scripts.rxdata",
-                                                                2 => "Scripts.rvdata",
-                                                                3 => "Scripts.rvdata2",
-                                                                _ => unreachable!(),
+                                                            match format {
+                                                                ScriptsFormat::Rxdata => "Scripts.rxdata",
+                                                                ScriptsFormat::Rvdata => "Scripts.rvdata",
+                                                                ScriptsFormat::Rvdata2 => "Scripts.rvdata2",
+                                                                ScriptsFormat::Json => "Scripts.json",
+                                                                ScriptsFormat::Yaml => "Scripts.yaml",
+                                                                ScriptsFormat::Ron => "Scripts.ron",
                                                             },
                                                             "RPG Maker data",
                                                         )
