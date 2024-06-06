@@ -158,6 +158,89 @@ impl Default for Window {
     }
 }
 
+fn get_scripts_from_filesystem<T>(
+    scripts_path: Option<&str>,
+    filesystem: &T,
+) -> Option<(String, Scripts)>
+where
+    T: luminol_filesystem::FileSystem,
+{
+    type InnerOk = Option<(String, Scripts)>;
+    type InnerErr<T> = (String, luminol_filesystem::archiver::FileSystem<T>);
+    fn inner<T>(scripts_path: Option<&str>, filesystem: &T) -> Result<InnerOk, InnerErr<T::File>>
+    where
+        T: luminol_filesystem::FileSystem,
+    {
+        let mut archive = None;
+        let output = scripts_path
+            .into_iter()
+            .chain([
+                "xScripts.rxdata",
+                "xScripts.rvdata",
+                "xScripts.rvdata2",
+                "xScripts.json",
+                "xScripts.yaml",
+                "xScripts.yml",
+                "xScripts.ron",
+                "Scripts.rxdata",
+                "Scripts.rvdata",
+                "Scripts.rvdata2",
+                "Scripts.json",
+                "Scripts.yaml",
+                "Scripts.yml",
+                "Scripts.ron",
+                "Game.rgssad",
+                "Game.rgss2a",
+                "Game.rgss3a",
+            ])
+            .find_map(|filename| {
+                let path = if filename.starts_with("Game") {
+                    filename.into()
+                } else {
+                    camino::Utf8PathBuf::from("Data").join(filename)
+                };
+                let file = filesystem.open_file(&path, OpenFlags::Read).ok()?;
+                let vec: Vec<_> = match path.extension() {
+                    Some("json") => serde_json::from_reader(std::io::BufReader::new(file)).ok()?,
+
+                    Some("yaml" | "yml") => {
+                        serde_yml::from_reader(std::io::BufReader::new(file)).ok()?
+                    }
+
+                    Some("ron") => ron::de::from_reader(std::io::BufReader::new(file)).ok()?,
+
+                    Some("rgssad" | "rgss2a" | "rgss3a") => {
+                        archive = Some((
+                            path.into(),
+                            luminol_filesystem::archiver::FileSystem::new(file).ok()?,
+                        ));
+                        return Default::default();
+                    }
+
+                    _ => {
+                        let data = filesystem.read(&path).ok()?;
+                        let mut de = luminol_core::alox_48::Deserializer::new(&data).ok()?;
+                        de.deserialize_value().ok()?
+                    }
+                };
+                Some((path.to_string().replace('\\', "/"), vec))
+            });
+        if let Some(archive) = archive {
+            Err(archive)
+        } else {
+            Ok(output)
+        }
+    }
+
+    match inner(scripts_path, filesystem) {
+        Ok(output) => output,
+        Err((prefix, archive)) => match inner(scripts_path, &archive) {
+            Ok(output) => output.map(|(suffix, scripts)| (format!("{prefix}/{suffix}"), scripts)),
+            Err(_) => None,
+        },
+    }
+}
+
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
         egui::Id::new("Script Manager")
@@ -169,59 +252,19 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let get_scripts_from_host = |host: luminol_filesystem::host::FileSystem| {
-            update_state
-                .project_config
-                .as_ref()
-                .map(|config| config.project.scripts_path.as_str())
-                .into_iter()
-                .chain([
-                    "xScripts.rxdata",
-                    "xScripts.rvdata",
-                    "xScripts.rvdata2",
-                    "xScripts.json",
-                    "xScripts.yaml",
-                    "xScripts.yml",
-                    "xScripts.ron",
-                    "Scripts.rxdata",
-                    "Scripts.rvdata",
-                    "Scripts.rvdata2",
-                    "Scripts.json",
-                    "Scripts.yaml",
-                    "Scripts.yml",
-                    "Scripts.ron",
-                ])
-                .find_map(|filename| {
-                    let path = camino::Utf8PathBuf::from("Data").join(filename);
-                    let file = host.open_file(&path, OpenFlags::Read).ok()?;
-                    let vec: Vec<_> = match path.extension() {
-                        Some("json") => {
-                            serde_json::from_reader(std::io::BufReader::new(file)).ok()?
-                        }
-
-                        Some("yaml" | "yml") => {
-                            serde_yml::from_reader(std::io::BufReader::new(file)).ok()?
-                        }
-
-                        Some("ron") => ron::de::from_reader(std::io::BufReader::new(file)).ok()?,
-
-                        _ => {
-                            let data = host.read(&path).ok()?;
-                            let mut de = luminol_core::alox_48::Deserializer::new(&data).ok()?;
-                            de.deserialize_value().ok()?
-                        }
-                    };
-                    Some((path.to_string().replace('\\', "/"), vec))
-                })
-        };
-
         // Open the currently loaded project by default
         if !self.initialized {
             self.initialized = true;
             if let Some(host) = update_state.filesystem.host() {
+                let scripts_path = update_state
+                    .project_config
+                    .as_ref()
+                    .map(|config| config.project.scripts_path.as_str());
+
                 match &mut self.mode {
                     Mode::Extract { view, .. } => {
-                        if let Some((path, vec)) = get_scripts_from_host(host) {
+                        if let Some((path, vec)) = get_scripts_from_filesystem(scripts_path, &host)
+                        {
                             *view = Some(luminol_components::FileSystemView::new(
                                 "luminol_script_manager_extract_view".into(),
                                 ScriptsFileSystem::new(vec.into_iter()),
@@ -240,7 +283,8 @@ impl luminol_core::Window for Window {
                     }
 
                     Mode::Convert { scripts, .. } => {
-                        if let Some((path, vec)) = get_scripts_from_host(host) {
+                        if let Some((path, vec)) = get_scripts_from_filesystem(scripts_path, &host)
+                        {
                             *scripts =
                                 Some((std::sync::Arc::new(parking_lot::Mutex::new(vec)), path));
                         }
@@ -419,33 +463,45 @@ impl Window {
                         columns[0].with_cross_justify_center(
                             |ui| {
                                 if load_promise.is_none() && ui.button("Choose Scripts file").clicked() {
-                                    *load_promise = Some(luminol_core::spawn_future(async {
+                                    let scripts_path = update_state
+                                        .project_config
+                                        .as_ref()
+                                        .map(|config| config.project.scripts_path.clone());
+
+                                    *load_promise = Some(luminol_core::spawn_future(async move {
                                         let (mut file, filename) = luminol_filesystem::host::File::from_file_picker(
                                             "RPG Maker data",
-                                            &["rxdata", "rvdata", "rvdata2", "json", "yaml", "yml", "ron"],
+                                            &["rxdata", "rvdata", "rvdata2", "json", "yaml", "yml", "ron", "rgssad", "rgss2a", "rgss3a"],
                                         ).await?;
-                                        let vec: Vec<_> = match filename.to_lowercase().rsplit_once('.').map(|(_, ext)| ext) {
+                                        let (vec, path): (Vec<_>, _) = match filename.to_lowercase().rsplit_once('.').map(|(_, ext)| ext) {
                                             Some("json") => {
-                                                serde_json::from_reader(std::io::BufReader::new(file))?
+                                                (serde_json::from_reader(std::io::BufReader::new(file))?, filename)
                                             }
 
                                             Some("yaml" | "yml") => {
-                                                serde_yml::from_reader(std::io::BufReader::new(file))?
+                                                (serde_yml::from_reader(std::io::BufReader::new(file))?, filename)
                                             }
 
                                             Some("ron") => {
-                                                ron::de::from_reader(std::io::BufReader::new(file))?
+                                                (ron::de::from_reader(std::io::BufReader::new(file))?, filename)
+                                            }
+
+                                            Some("rgssad" | "rgss2a" | "rgss3a") => {
+                                                let archive = luminol_filesystem::archiver::FileSystem::new(file)?;
+                                                let (path, scripts) = get_scripts_from_filesystem(scripts_path.as_deref(), &archive)
+                                                    .ok_or(color_eyre::eyre::eyre!("No Scripts file found in the archive"))?;
+                                                (scripts, format!("{filename}/{path}"))
                                             }
 
                                             _ => {
                                                 let mut buf = Vec::with_capacity(file.metadata()?.size as usize);
                                                 file.read_to_end(&mut buf).await?;
                                                 let mut de = luminol_core::alox_48::Deserializer::new(&buf)?;
-                                                luminol_core::alox_48::path_to_error::deserialize(&mut de)
-                                                    .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?
+                                                (luminol_core::alox_48::path_to_error::deserialize(&mut de)
+                                                    .map_err(|(error, trace)| luminol_core::format_traced_error(error, trace))?, filename)
                                             }
                                         };
-                                        Ok((ScriptsFileSystem::new(vec.into_iter()), filename))
+                                        Ok((ScriptsFileSystem::new(vec.into_iter()), path))
                                     }));
                                 } else if load_promise.is_some() {
                                     ui.spinner();
@@ -778,13 +834,18 @@ impl Window {
                 ui.columns(2, |columns| {
                     columns[0].with_cross_justify_center(|ui| {
                         if load_promise.is_none() && ui.button("Choose Scripts file").clicked() {
-                            *load_promise = Some(luminol_core::spawn_future(async {
+                            let scripts_path = update_state
+                                .project_config
+                                .as_ref()
+                                .map(|config| config.project.scripts_path.clone());
+
+                            *load_promise = Some(luminol_core::spawn_future(async move {
                                 let (mut file, filename) =
                                     luminol_filesystem::host::File::from_file_picker(
                                         "RPG Maker data",
                                         &[
                                             "rxdata", "rvdata", "rvdata2", "json", "yaml", "yml",
-                                            "ron",
+                                            "ron", "rgssad", "rgss2a", "rgss3a",
                                         ],
                                     )
                                     .await?;
@@ -803,6 +864,19 @@ impl Window {
 
                                     Some("ron") => {
                                         ron::de::from_reader(std::io::BufReader::new(file))?
+                                    }
+
+                                    Some("rgssad" | "rgss2a" | "rgss3a") => {
+                                        let archive =
+                                            luminol_filesystem::archiver::FileSystem::new(file)?;
+                                        let (_, scripts) = get_scripts_from_filesystem(
+                                            scripts_path.as_deref(),
+                                            &archive,
+                                        )
+                                        .ok_or(color_eyre::eyre::eyre!(
+                                            "No Scripts file found in the archive"
+                                        ))?;
+                                        scripts
                                     }
 
                                     _ => {
