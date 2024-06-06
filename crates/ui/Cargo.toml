@@ -44,6 +44,7 @@ strip-ansi-escapes = "0.2.0"
 
 poll-promise.workspace = true
 async-std.workspace = true
+futures-lite.workspace = true
 futures-util = "0.3.30"
 reqwest = { version = "0.11.23", features = ["json"] }
 

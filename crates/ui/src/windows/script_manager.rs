@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use futures_util::{AsyncReadExt, AsyncWriteExt};
+use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use luminol_components::UiExt;
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
@@ -76,17 +76,20 @@ enum ScriptsFormat {
     Ron,
 }
 
-struct ScriptsFileSystem(
-    std::sync::Arc<
-        parking_lot::Mutex<luminol_filesystem::FileSystemTrie<luminol_data::rpg::Script>>,
-    >,
-);
+struct ScriptsFileSystem(std::sync::Arc<parking_lot::Mutex<ScriptsFileSystemInner>>);
+
+struct ScriptsFileSystemInner {
+    trie: luminol_filesystem::FileSystemTrie<luminol_data::rpg::Script>,
+    names: Vec<String>,
+}
 
 impl ScriptsFileSystem {
     fn new(scripts: impl Iterator<Item = luminol_data::rpg::Script>) -> Self {
         let mut trie = luminol_filesystem::FileSystemTrie::new();
+        let (_, hint) = scripts.size_hint();
+        let mut names = Vec::with_capacity(hint.unwrap_or_default());
         for script in scripts {
-            let mut name = script.name.clone();
+            let mut name = script.name.replace('\\', "/");
             loop {
                 let new_name = name.replace("//", "/");
                 if new_name == name {
@@ -102,10 +105,13 @@ impl ScriptsFileSystem {
                 name = stripped.to_string();
             }
             if !name.is_empty() && !script.script_text.is_empty() {
-                trie.create_file(name, script);
+                trie.create_file(&name, script);
+                names.push(name);
             }
         }
-        Self(std::sync::Arc::new(parking_lot::Mutex::new(trie)))
+        Self(std::sync::Arc::new(parking_lot::Mutex::new(
+            ScriptsFileSystemInner { trie, names },
+        )))
     }
 }
 
@@ -118,6 +124,7 @@ impl luminol_filesystem::ReadDir for ScriptsFileSystem {
         Ok(self
             .0
             .lock()
+            .trie
             .iter_dir(path)
             .map_or_else(Default::default, |iter| {
                 iter.map(|(name, maybe_script)| luminol_filesystem::DirEntry {
@@ -514,8 +521,7 @@ impl Window {
                                 if save_promise.is_none()
                                     && ui
                                         .add_enabled(
-                                            view.as_ref()
-                                                .is_some_and(|view| view.iter().next().is_some()),
+                                            view.is_some(),
                                             egui::Button::new("Extract selected files"),
                                         )
                                         .clicked()
@@ -531,14 +537,25 @@ impl Window {
 
                                             *save_promise = Some(luminol_core::spawn_future(async move {
                                                 let dest_fs = luminol_filesystem::host::FileSystem::from_folder_picker().await?;
+
                                                 progress.store(0, std::sync::atomic::Ordering::Relaxed);
                                                 ctx.request_repaint();
+
+                                                let mut names_file = dest_fs.open_file("_scripts.txt", OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
+                                                let names_len = scripts.lock().names.len();
+                                                for i in 0..names_len {
+                                                    let name = scripts.lock().names[i].clone();
+                                                    names_file.write_all(name.as_bytes()).await?;
+                                                    names_file.write_all(b"\n").await?;
+                                                }
+                                                names_file.flush().await?;
+                                                drop(names_file);
 
                                                 for mut path in file_paths {
                                                     if let Some(parent) = path.parent() {
                                                         dest_fs.create_dir(parent)?;
                                                     }
-                                                    let src = scripts.lock().get_file(path.as_str()).ok_or(luminol_filesystem::Error::NotExist)?.script_text.clone();
+                                                    let src = scripts.lock().trie.get_file(path.as_str()).ok_or(luminol_filesystem::Error::NotExist)?.script_text.clone();
                                                     let src_data = src.as_bytes();
                                                     if let Some(filename) = path.file_name() {
                                                         path.set_file_name(format!("{filename}.rb"));
@@ -678,14 +695,62 @@ impl Window {
 
                                                 *save_promise =
                                                     Some(luminol_core::spawn_future(async move {
+                                                        use async_std::io::prelude::BufReadExt;
+
                                                         let mut is_first = true;
 
                                                         progress.store(0, std::sync::atomic::Ordering::Relaxed);
                                                         ctx.request_repaint();
 
+                                                        let mut lines = view_filesystem.exists("_scripts.txt")?
+                                                            .then(|| view_filesystem.open_file("_scripts.txt", OpenFlags::Read))
+                                                            .transpose()?
+                                                            .map(|names_file| async_std::io::BufReader::new(names_file).lines());
+
                                                         let mut scripts = Vec::with_capacity(file_paths.len());
 
-                                                        for path in file_paths {
+                                                        let mut file_path_trie = qp_trie::Trie::new();
+                                                        for path in file_paths.iter() {
+                                                            let name = path.as_str().replace('\\', "/");
+                                                            let name = if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
+                                                                name.rsplit_once('.').unwrap().0.to_string()
+                                                            } else {
+                                                                continue;
+                                                            };
+                                                            file_path_trie.insert_str(&name, ());
+                                                        }
+                                                        let mut file_path_iter = file_paths.iter();
+
+                                                        while let Some(path) =
+                                                            if let Some(mut l) = lines.take() {
+                                                                let line = loop {
+                                                                    let line = l.next().await;
+                                                                    if !line.as_ref().is_some_and(|line| line.as_ref().is_ok_and(|line| line.is_empty())) {
+                                                                        break line;
+                                                                    }
+                                                                };
+                                                                if line.is_some() {
+                                                                    lines = Some(l);
+                                                                    line.transpose().map(|o| o.map(|line| format!("{line}.rb")))
+                                                                } else {
+                                                                    Ok(file_path_iter.next().map(ToString::to_string))
+                                                                }
+                                                            } else {
+                                                                Ok(file_path_iter.next().map(ToString::to_string))
+                                                            }?
+                                                        {
+                                                            let name = path.to_string().replace('\\', "/");
+                                                            let name = if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
+                                                                name.rsplit_once('.').unwrap().0.to_string()
+                                                            } else {
+                                                                continue;
+                                                            };
+
+                                                            if !file_path_trie.contains_key_str(&name) {
+                                                                continue;
+                                                            }
+                                                            file_path_trie.remove_str(&name);
+
                                                             if is_first {
                                                                 is_first = false;
                                                             } else {
@@ -693,17 +758,11 @@ impl Window {
                                                                 ctx.request_repaint();
                                                             }
 
-                                                            let name = path.to_string().replace('\\', "/");
-
                                                             let mut script_text = String::new();
                                                             view_filesystem.open_file(&path, OpenFlags::Read)?.read_to_string(&mut script_text).await?;
 
                                                             let script = luminol_data::rpg::Script::new(
-                                                                if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
-                                                                    name.rsplit_once('.').unwrap().0.to_string()
-                                                                } else {
-                                                                    name
-                                                                },
+                                                                name,
                                                                 script_text,
                                                             );
                                                             scripts.push(script);
