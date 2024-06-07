@@ -180,33 +180,31 @@ where
     {
         let mut archive = None;
         let output = scripts_path
+            .map(|path| format!("Data/{path}"))
+            .as_deref()
             .into_iter()
             .chain([
-                "xScripts.rxdata",
-                "xScripts.rvdata",
-                "xScripts.rvdata2",
-                "xScripts.json",
-                "xScripts.yaml",
-                "xScripts.yml",
-                "xScripts.ron",
-                "Scripts.rxdata",
-                "Scripts.rvdata",
-                "Scripts.rvdata2",
-                "Scripts.json",
-                "Scripts.yaml",
-                "Scripts.yml",
-                "Scripts.ron",
+                "Data/xScripts.rxdata",
+                "Data/xScripts.rvdata",
+                "Data/xScripts.rvdata2",
+                "Data/xScripts.json",
+                "Data/xScripts.yaml",
+                "Data/xScripts.yml",
+                "Data/xScripts.ron",
+                "Data/Scripts.rxdata",
+                "Data/Scripts.rvdata",
+                "Data/Scripts.rvdata2",
+                "Data/Scripts.json",
+                "Data/Scripts.yaml",
+                "Data/Scripts.yml",
+                "Data/Scripts.ron",
                 "Game.rgssad",
                 "Game.rgss2a",
                 "Game.rgss3a",
             ])
-            .find_map(|filename| {
-                let path = if filename.starts_with("Game") {
-                    filename.into()
-                } else {
-                    camino::Utf8PathBuf::from("Data").join(filename)
-                };
-                let file = filesystem.open_file(&path, OpenFlags::Read).ok()?;
+            .find_map(|path| {
+                let path = camino::Utf8PathBuf::from(path);
+                let mut file = filesystem.open_file(&path, OpenFlags::Read).ok()?;
                 let vec: Vec<_> = match path.extension() {
                     Some("json") => serde_json::from_reader(std::io::BufReader::new(file)).ok()?,
 
@@ -225,7 +223,9 @@ where
                     }
 
                     _ => {
-                        let data = filesystem.read(&path).ok()?;
+                        use std::io::Read;
+                        let mut data = Vec::with_capacity(file.metadata().ok()?.size as usize);
+                        file.read_to_end(&mut data).ok()?;
                         let mut de = luminol_core::alox_48::Deserializer::new(&data).ok()?;
                         de.deserialize_value().ok()?
                     }
