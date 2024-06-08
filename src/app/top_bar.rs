@@ -281,6 +281,12 @@ impl TopBar {
                     .edit_windows
                     .add_window(luminol_ui::windows::archive_manager::Window::default());
             }
+
+            if ui.button("Script Manager").clicked() {
+                update_state
+                    .edit_windows
+                    .add_window(luminol_ui::windows::script_manager::Window::default());
+            }
         });
 
         ui.separator();

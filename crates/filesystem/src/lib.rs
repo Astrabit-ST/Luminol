@@ -261,3 +261,16 @@ pub trait FileSystem: Send + Sync {
         Ok(())
     }
 }
+
+pub trait ReadDir {
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>>;
+}
+
+impl<T> ReadDir for T
+where
+    T: FileSystem,
+{
+    fn read_dir(&self, path: impl AsRef<camino::Utf8Path>) -> Result<Vec<DirEntry>> {
+        self.read_dir(path)
+    }
+}

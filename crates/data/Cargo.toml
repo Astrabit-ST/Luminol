@@ -22,6 +22,7 @@ num_enum = "0.7.0"
 rand.workspace = true
 
 flate2 = "1.0"
+base64 = "0.22.1"
 
 serde.workspace = true
 alox-48.workspace = true

@@ -34,6 +34,9 @@ camino.workspace = true
 strum.workspace = true
 
 serde.workspace = true
+serde_json.workspace = true
+serde_yml.workspace = true
+ron.workspace = true
 
 target-triple = "0.1.2"
 
@@ -41,11 +44,13 @@ strip-ansi-escapes = "0.2.0"
 
 poll-promise.workspace = true
 async-std.workspace = true
+futures-lite.workspace = true
 futures-util = "0.3.30"
 reqwest = { version = "0.11.23", features = ["json"] }
 
 zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
 
+parking_lot.workspace = true
 once_cell.workspace = true
 qp-trie.workspace = true
 

@@ -57,6 +57,8 @@ pub mod new_project;
 pub mod reporter;
 /// The script editor
 pub mod script_edit;
+/// The script manager for creating and extracting Scripts.rxdata.
+pub mod script_manager;
 /// The skill editor.
 pub mod skills;
 /// The sound test.

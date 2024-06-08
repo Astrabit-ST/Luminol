@@ -99,10 +99,7 @@ impl luminol_core::Window for Window {
                             if let Some(index) = insert_index {
                                 scripts.data.insert(
                                     index,
-                                    luminol_data::rpg::Script {
-                                        name: "New Script".to_string(),
-                                        script_text: String::new(),
-                                    },
+                                    luminol_data::rpg::Script::new("New Script", String::new()),
                                 );
                             }
 

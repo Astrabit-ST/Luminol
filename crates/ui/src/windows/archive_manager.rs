@@ -206,16 +206,14 @@ impl luminol_core::Window for Window {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, None);
                                     } else {
-                                        ui.add(egui::Label::new("No archive chosen").wrap(false));
+                                        ui.add(egui::Label::new("No archive chosen"));
                                     }
                                 }
                                 Mode::Create { view, .. } => {
                                     if let Some(v) = view {
                                         v.ui(ui, update_state, Some(&CREATE_DEFAULT_SELECTED_DIRS));
                                     } else {
-                                        ui.add(
-                                            egui::Label::new("No source folder chosen").wrap(false),
-                                        );
+                                        ui.add(egui::Label::new("No source folder chosen"));
                                     }
                                 }
                             });
@@ -553,7 +551,7 @@ impl Window {
     }
 
     fn find_files(
-        view: &luminol_components::FileSystemView<impl luminol_filesystem::FileSystem>,
+        view: &luminol_components::FileSystemView<impl luminol_filesystem::ReadDir>,
     ) -> luminol_filesystem::Result<Vec<camino::Utf8PathBuf>> {
         let mut vec = Vec::new();
         for metadata in view {
@@ -569,7 +567,7 @@ impl Window {
 
     fn find_files_recurse(
         vec: &mut Vec<camino::Utf8PathBuf>,
-        src_fs: &impl luminol_filesystem::FileSystem,
+        src_fs: &impl luminol_filesystem::ReadDir,
         path: &camino::Utf8Path,
         is_file: bool,
     ) -> luminol_filesystem::Result<()> {

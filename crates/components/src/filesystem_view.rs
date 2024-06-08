@@ -86,7 +86,7 @@ impl Entry {
 
 impl<T> FileSystemView<T>
 where
-    T: luminol_filesystem::FileSystem,
+    T: luminol_filesystem::ReadDir,
 {
     pub fn new(id: egui::Id, filesystem: T, root_name: String) -> Self {
         let mut arena = indextree::Arena::new();
@@ -641,17 +641,17 @@ pub struct Metadata {
 /// none of its contents.
 pub struct SelectedIter<'a, T>
 where
-    T: luminol_filesystem::FileSystem,
+    T: luminol_filesystem::ReadDir,
 {
     view: &'a FileSystemView<T>,
     edge: Option<indextree::NodeEdge>,
 }
 
-impl<'a, T> std::iter::FusedIterator for SelectedIter<'a, T> where T: luminol_filesystem::FileSystem {}
+impl<'a, T> std::iter::FusedIterator for SelectedIter<'a, T> where T: luminol_filesystem::ReadDir {}
 
 impl<'a, T> Iterator for SelectedIter<'a, T>
 where
-    T: luminol_filesystem::FileSystem,
+    T: luminol_filesystem::ReadDir,
 {
     type Item = Metadata;
     fn next(&mut self) -> Option<Self::Item> {
@@ -724,7 +724,7 @@ where
 
 impl<'a, T> IntoIterator for &'a FileSystemView<T>
 where
-    T: luminol_filesystem::FileSystem,
+    T: luminol_filesystem::ReadDir,
 {
     type Item = Metadata;
     type IntoIter = SelectedIter<'a, T>;
