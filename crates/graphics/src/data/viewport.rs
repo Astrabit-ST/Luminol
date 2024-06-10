@@ -38,7 +38,7 @@ impl Viewport {
         let uniform = graphics_state.render_state.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("tilemap viewport buffer"),
-                contents: bytemuck::cast_slice(&[proj]),
+                contents: bytemuck::bytes_of(&proj),
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
             },
         );
@@ -78,11 +78,9 @@ impl Viewport {
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        render_state.queue.write_buffer(
-            &self.uniform,
-            0,
-            bytemuck::cast_slice(&[self.data.load()]),
-        );
+        render_state
+            .queue
+            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data.load()));
     }
 
     pub fn add_to_bind_group_layout(

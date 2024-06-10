@@ -44,103 +44,6 @@ pub enum CollisionType {
     Tile,
 }
 
-/// Determines the passage values for every position on the map, running `f(x, y, passage)` for
-/// every position.
-///
-/// `layers` should be an iterator over the enabled layer numbers of the map from top to bottom.
-pub fn calculate_passages(
-    passages: &luminol_data::Table1,
-    priorities: &luminol_data::Table1,
-    tiles: &luminol_data::Table3,
-    events: Option<&luminol_data::OptionVec<luminol_data::rpg::Event>>,
-    layers: impl Iterator<Item = usize> + Clone,
-    mut f: impl FnMut(usize, usize, i16),
-) {
-    let tileset_size = passages.len().min(priorities.len());
-
-    let mut event_map = if let Some(events) = events {
-        events
-            .iter()
-            .filter_map(|(_, event)| {
-                let page = event.pages.first()?;
-                if page.through {
-                    return None;
-                }
-                let tile_event = page
-                    .graphic
-                    .tile_id
-                    .map_or((15, 1, CollisionType::Event), |id| {
-                        let tile_id = id + 1;
-                        if tile_id >= tileset_size {
-                            (0, 0, CollisionType::Event)
-                        } else {
-                            (passages[tile_id], priorities[tile_id], CollisionType::Event)
-                        }
-                    });
-                Some(((event.x as usize, event.y as usize), tile_event))
-            })
-            .collect()
-    } else {
-        std::collections::HashMap::new()
-    };
-
-    for (y, x) in (0..tiles.ysize()).cartesian_product(0..tiles.xsize()) {
-        let tile_event = event_map.remove(&(x, y));
-
-        f(
-            x,
-            y,
-            calculate_passage(tile_event.into_iter().chain(layers.clone().map(|z| {
-                let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
-                let collision_type = if tile_id < 48 {
-                    CollisionType::BlankTile
-                } else {
-                    CollisionType::Tile
-                };
-                if tile_id >= tileset_size {
-                    (0, 0, collision_type)
-                } else {
-                    (passages[tile_id], priorities[tile_id], collision_type)
-                }
-            }))),
-        );
-    }
-}
-
-/// Determines the passage value for a position on the map given an iterator over the
-/// `(passage, priority, collision_type)` values for the tiles in each layer on that position.
-/// The iterator should iterate over the layers from top to bottom.
-pub fn calculate_passage(layers: impl Iterator<Item = (i16, i16, CollisionType)> + Clone) -> i16 {
-    let mut computed_passage = 0;
-
-    for direction in [1, 2, 4, 8] {
-        let mut at_least_one_layer_not_blank = false;
-        let mut layers = layers.clone().peekable();
-        while let Some((passage, priority, collision_type)) = layers.next() {
-            if matches!(
-                collision_type,
-                CollisionType::Tile | CollisionType::BlankTile
-            ) {
-                if matches!(collision_type, CollisionType::BlankTile)
-                    && (at_least_one_layer_not_blank || layers.peek().is_some())
-                {
-                    continue;
-                } else {
-                    at_least_one_layer_not_blank = true;
-                }
-            }
-            if passage & direction != 0 {
-                computed_passage |= direction;
-                break;
-            } else if priority == 0 {
-                break;
-            }
-        }
-    }
-
-    computed_passage
-}
-
 impl Collision {
     pub fn new(
         graphics_state: &GraphicsState,
@@ -185,6 +88,105 @@ impl Collision {
 
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();
+    }
+
+    /// Determines the passage values for every position on the map, running `f(x, y, passage)` for
+    /// every position.
+    ///
+    /// `layers` should be an iterator over the enabled layer numbers of the map from top to bottom.
+    pub fn calculate_passages(
+        passages: &luminol_data::Table1,
+        priorities: &luminol_data::Table1,
+        tiles: &luminol_data::Table3,
+        events: Option<&luminol_data::OptionVec<luminol_data::rpg::Event>>,
+        layers: impl Iterator<Item = usize> + Clone,
+        mut f: impl FnMut(usize, usize, i16),
+    ) {
+        let tileset_size = passages.len().min(priorities.len());
+
+        let mut event_map = if let Some(events) = events {
+            events
+                .iter()
+                .filter_map(|(_, event)| {
+                    let page = event.pages.first()?;
+                    if page.through {
+                        return None;
+                    }
+                    let tile_event =
+                        page.graphic
+                            .tile_id
+                            .map_or((15, 1, CollisionType::Event), |id| {
+                                let tile_id = id + 1;
+                                if tile_id >= tileset_size {
+                                    (0, 0, CollisionType::Event)
+                                } else {
+                                    (passages[tile_id], priorities[tile_id], CollisionType::Event)
+                                }
+                            });
+                    Some(((event.x as usize, event.y as usize), tile_event))
+                })
+                .collect()
+        } else {
+            std::collections::HashMap::new()
+        };
+
+        for (y, x) in (0..tiles.ysize()).cartesian_product(0..tiles.xsize()) {
+            let tile_event = event_map.remove(&(x, y));
+
+            f(
+                x,
+                y,
+                Self::calculate_passage(tile_event.into_iter().chain(layers.clone().map(|z| {
+                    let tile_id = tiles[(x, y, z)].try_into().unwrap_or_default();
+                    let collision_type = if tile_id < 48 {
+                        CollisionType::BlankTile
+                    } else {
+                        CollisionType::Tile
+                    };
+                    if tile_id >= tileset_size {
+                        (0, 0, collision_type)
+                    } else {
+                        (passages[tile_id], priorities[tile_id], collision_type)
+                    }
+                }))),
+            );
+        }
+    }
+
+    /// Determines the passage value for a position on the map given an iterator over the
+    /// `(passage, priority, collision_type)` values for the tiles in each layer on that position.
+    /// The iterator should iterate over the layers from top to bottom.
+    pub fn calculate_passage(
+        layers: impl Iterator<Item = (i16, i16, CollisionType)> + Clone,
+    ) -> i16 {
+        let mut computed_passage = 0;
+
+        for direction in [1, 2, 4, 8] {
+            let mut at_least_one_layer_not_blank = false;
+            let mut layers = layers.clone().peekable();
+            while let Some((passage, priority, collision_type)) = layers.next() {
+                if matches!(
+                    collision_type,
+                    CollisionType::Tile | CollisionType::BlankTile
+                ) {
+                    if matches!(collision_type, CollisionType::BlankTile)
+                        && (at_least_one_layer_not_blank || layers.peek().is_some())
+                    {
+                        continue;
+                    } else {
+                        at_least_one_layer_not_blank = true;
+                    }
+                }
+                if passage & direction != 0 {
+                    computed_passage |= direction;
+                    break;
+                } else if priority == 0 {
+                    break;
+                }
+            }
+        }
+
+        computed_passage
     }
 }
 

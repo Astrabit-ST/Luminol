@@ -49,7 +49,7 @@ impl Graphic {
         let uniform = graphics_state.render_state.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("tilemap sprite graphic buffer"),
-                contents: bytemuck::cast_slice(&[data]),
+                contents: bytemuck::bytes_of(&data),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             },
         );
@@ -117,11 +117,9 @@ impl Graphic {
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        render_state.queue.write_buffer(
-            &self.uniform,
-            0,
-            bytemuck::cast_slice(&[self.data.load()]),
-        );
+        render_state
+            .queue
+            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data.load()));
     }
 }
 
