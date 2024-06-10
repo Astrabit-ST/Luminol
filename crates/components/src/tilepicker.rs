@@ -32,7 +32,7 @@ pub struct Tilepicker {
     drag_origin: Option<egui::Pos2>,
 
     resources: Arc<Resources>,
-    viewport: Arc<luminol_graphics::viewport::Viewport>,
+    viewport: Arc<luminol_graphics::Viewport>,
     ani_time: Option<f64>,
 
     /// When true, brush tile ID randomization is enabled.
@@ -42,9 +42,9 @@ pub struct Tilepicker {
 }
 
 struct Resources {
-    tiles: luminol_graphics::tiles::Tiles,
-    collision: luminol_graphics::collision::Collision,
-    grid: luminol_graphics::grid::Grid,
+    tiles: luminol_graphics::Tiles,
+    collision: luminol_graphics::Collision,
+    grid: luminol_graphics::Grid,
 }
 
 // wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
@@ -137,20 +137,20 @@ impl Tilepicker {
             tilepicker_data,
         );
 
-        let viewport = Arc::new(luminol_graphics::viewport::Viewport::new(
+        let viewport = Arc::new(luminol_graphics::Viewport::new(
             &update_state.graphics,
             256.,
             atlas.tileset_height as f32 + 32.,
         ));
 
-        let tiles = luminol_graphics::tiles::Tiles::new(
+        let tiles = luminol_graphics::Tiles::new(
             &update_state.graphics,
             viewport.clone(),
             atlas,
             &tilepicker_data,
         );
 
-        let grid = luminol_graphics::grid::Grid::new(
+        let grid = luminol_graphics::Grid::new(
             &update_state.graphics,
             viewport.clone(),
             tilepicker_data.xsize(),
@@ -173,11 +173,8 @@ impl Tilepicker {
             (passages.len().saturating_sub(8)).min(tileset.passages.len().saturating_sub(384));
         passages.as_mut_slice()[8..8 + length]
             .copy_from_slice(&tileset.passages.as_slice()[384..384 + length]);
-        let collision = luminol_graphics::collision::Collision::new(
-            &update_state.graphics,
-            viewport.clone(),
-            &passages,
-        );
+        let collision =
+            luminol_graphics::Collision::new(&update_state.graphics, viewport.clone(), &passages);
 
         let mut brush_seed = [0u8; 16];
         brush_seed[0..8].copy_from_slice(

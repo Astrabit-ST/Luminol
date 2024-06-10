@@ -16,11 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use std::sync::Arc;
 
-use crate::{
-    quad::Quad,
-    viewport::{self, Viewport},
-    BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Texture,
-};
+use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Quad, Texture, Viewport};
 
 pub(crate) mod graphic;
 pub(crate) mod shader;
@@ -133,7 +129,7 @@ pub fn create_bind_group_layout(
         );
 
     if !crate::push_constants_supported(render_state) {
-        viewport::add_to_bind_group_layout(&mut builder);
+        Viewport::add_to_bind_group_layout(&mut builder);
         graphic::add_to_bind_group_layout(&mut builder);
     }
 

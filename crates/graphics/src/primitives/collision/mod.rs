@@ -17,10 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::{
-    viewport::{self, Viewport},
-    BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState,
-};
+use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
 
 use instance::Instances;
 use itertools::Itertools;
@@ -207,7 +204,7 @@ pub fn create_bind_group_layout(
     let mut builder = BindGroupLayoutBuilder::new();
 
     if !crate::push_constants_supported(render_state) {
-        viewport::add_to_bind_group_layout(&mut builder);
+        Viewport::add_to_bind_group_layout(&mut builder);
     }
 
     builder.build(&render_state.device, Some("collision bind group layout"))

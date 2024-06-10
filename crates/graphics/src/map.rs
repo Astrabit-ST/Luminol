@@ -26,9 +26,7 @@ use std::time::Duration;
 
 use fragile::Fragile;
 
-use crate::{
-    collision::Collision, grid::Grid, tiles::Tiles, viewport::Viewport, GraphicsState, Plane,
-};
+use crate::{Collision, GraphicsState, Grid, Plane, Tiles, Viewport};
 
 pub struct Map {
     resources: Arc<Resources>,

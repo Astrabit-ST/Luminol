@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use fragile::Fragile;
 
-use crate::{quad::Quad, sprite::Sprite, tiles::Atlas, viewport::Viewport, GraphicsState};
+use crate::{Atlas, GraphicsState, Quad, Sprite, Viewport};
 
 pub struct Event {
     sprite: Arc<Sprite>,

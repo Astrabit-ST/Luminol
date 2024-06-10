@@ -21,7 +21,7 @@ use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 use super::autotile_ids::AUTOTILES;
-use crate::{quad::Quad, GraphicsState, Texture};
+use crate::{GraphicsState, Quad, Texture};
 
 pub const MAX_SIZE: u32 = 8192; // Max texture size in one dimension
 pub const TILE_SIZE: u32 = 32; // Tiles are 32x32

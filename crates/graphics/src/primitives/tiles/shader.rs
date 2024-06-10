@@ -16,21 +16,16 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::instance::Instances;
-use crate::{vertex::Vertex, BindGroupLayouts};
+use crate::{primitives::BindGroupLayouts, Vertex};
 
 pub fn create_render_pipeline(
+    composer: &mut naga_oil::compose::Composer,
     render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
-) -> wgpu::RenderPipeline {
+) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
     let push_constants_supported = crate::push_constants_supported(render_state);
 
-    let mut composer = naga_oil::compose::Composer::default().with_capabilities(
-        push_constants_supported
-            .then_some(naga::valid::Capabilities::PUSH_CONSTANT)
-            .unwrap_or_default(),
-    );
-
-    let result = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
+    let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("tilemap.wgsl"),
         file_path: "tilemap.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
@@ -83,14 +78,7 @@ pub fn create_render_pipeline(
             ),
         ]),
         additional_imports: &[],
-    });
-    let module = match result {
-        Ok(module) => module,
-        Err(e) => {
-            let error = e.emit_to_string(&composer);
-            panic!("{error}");
-        }
-    };
+    })?;
 
     let shader_module = render_state
         .device
@@ -130,7 +118,7 @@ pub fn create_render_pipeline(
                 push_constant_ranges,
             });
 
-    render_state
+    Ok(render_state
         .device
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Tilemap Render Pipeline"),
@@ -152,5 +140,5 @@ pub fn create_render_pipeline(
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
-        })
+        }))
 }

@@ -17,10 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::{
-    viewport::{self, Viewport},
-    BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState,
-};
+use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
 
 pub use atlas::Atlas;
 
@@ -170,7 +167,7 @@ pub fn create_bind_group_layout(
         );
 
     if !crate::push_constants_supported(render_state) {
-        viewport::add_to_bind_group_layout(&mut builder);
+        Viewport::add_to_bind_group_layout(&mut builder);
         autotiles::add_to_bind_group_layout(&mut builder);
         opacity::add_to_bind_group_layout(&mut builder);
     }

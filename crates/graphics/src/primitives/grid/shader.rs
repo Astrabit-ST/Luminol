@@ -15,65 +15,59 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use super::display;
 use super::instance::Instances;
 use super::Vertex;
 
 pub fn create_render_pipeline(
+    composer: &mut naga_oil::compose::Composer,
     render_state: &luminol_egui_wgpu::RenderState,
-    bind_group_layouts: &crate::BindGroupLayouts,
-) -> wgpu::RenderPipeline {
+    bind_group_layouts: &crate::primitives::BindGroupLayouts,
+) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
     let push_constants_supported = crate::push_constants_supported(render_state);
 
-    let mut composer = naga_oil::compose::Composer::default().with_capabilities(
-        push_constants_supported
-            .then_some(naga::valid::Capabilities::PUSH_CONSTANT)
-            .unwrap_or_default(),
-    );
-
-    let result = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
-        source: include_str!("collision.wgsl"),
-        file_path: "collision.wgsl",
+    let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
+        source: include_str!("grid.wgsl"),
+        file_path: "grid.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
         shader_defs: std::collections::HashMap::from([(
             "USE_PUSH_CONSTANTS".to_string(),
             naga_oil::compose::ShaderDefValue::Bool(push_constants_supported),
         )]),
         additional_imports: &[],
-    });
-    let module = match result {
-        Ok(module) => module,
-        Err(e) => {
-            let error = e.emit_to_string(&composer);
-            panic!("{error}");
-        }
-    };
+    })?;
 
     let shader_module = render_state
         .device
         .create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Tilemap Collision Shader Module"),
+            label: Some("Tilemap Grid Shader Module"),
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
     let push_constant_ranges: &[_] = if push_constants_supported {
         &[
-            // Viewport
+            // Vertex
             wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::VERTEX,
                 range: 0..64,
+            },
+            // Fragment
+            wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::FRAGMENT,
+                range: 64..64 + std::mem::size_of::<display::Data>() as u32,
             },
         ]
     } else {
         &[]
     };
     let label = if push_constants_supported {
-        "Tilemap Collision Render Pipeline Layout (push constants)"
+        "Tilemap Grid Render Pipeline Layout (push constants)"
     } else {
-        "Tilemap Collision Render Pipeline Layout (uniforms)"
+        "Tilemap Grid Render Pipeline Layout (uniforms)"
     };
 
-    let collision_bgl: &wgpu::BindGroupLayout = &bind_group_layouts.collision;
-    let bind_group_layout_slice = std::slice::from_ref(&collision_bgl);
+    let grid_bgl: &wgpu::BindGroupLayout = &bind_group_layouts.grid;
+    let bind_group_layout_slice = std::slice::from_ref(&grid_bgl);
     let bind_group_layouts: &[&wgpu::BindGroupLayout] = if push_constants_supported {
         &[]
     } else {
@@ -89,10 +83,10 @@ pub fn create_render_pipeline(
                 push_constant_ranges,
             });
 
-    render_state
+    Ok(render_state
         .device
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Tilemap Collision Render Pipeline"),
+            label: Some("Tilemap Grid Render Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader_module,
@@ -111,5 +105,5 @@ pub fn create_render_pipeline(
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
-        })
+        }))
 }

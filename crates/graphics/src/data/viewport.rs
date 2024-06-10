@@ -86,18 +86,18 @@ impl Viewport {
                 .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
         }
     }
-}
 
-pub fn add_to_bind_group_layout(
-    layout_builder: &mut BindGroupLayoutBuilder,
-) -> &mut BindGroupLayoutBuilder {
-    layout_builder.append(
-        wgpu::ShaderStages::VERTEX_FRAGMENT,
-        wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Uniform,
-            has_dynamic_offset: false,
-            min_binding_size: None,
-        },
-        None,
-    )
+    pub fn add_to_bind_group_layout(
+        layout_builder: &mut BindGroupLayoutBuilder,
+    ) -> &mut BindGroupLayoutBuilder {
+        layout_builder.append(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            None,
+        )
+    }
 }

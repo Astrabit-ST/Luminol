@@ -18,7 +18,7 @@
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-use crate::quad::Quad;
+use crate::Quad;
 
 #[derive(Debug)]
 pub struct Instances {

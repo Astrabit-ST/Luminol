@@ -130,7 +130,7 @@ impl Tab {
         let tileset = &tilesets.data[map.tileset_id];
 
         let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
-        luminol_graphics::collision::calculate_passages(
+        luminol_graphics::primitives::collision::calculate_passages(
             &tileset.passages,
             &tileset.priorities,
             &map.data,
@@ -647,7 +647,7 @@ impl luminol_core::Tab for Tab {
                 }
 
                 // Update the collision preview
-                luminol_graphics::collision::calculate_passages(
+                luminol_graphics::primitives::collision::calculate_passages(
                     &tileset.passages,
                     &tileset.priorities,
                     &map.data,

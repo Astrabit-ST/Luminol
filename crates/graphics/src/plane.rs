@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{quad::Quad, sprite::Sprite, viewport::Viewport, GraphicsState, Texture};
+use crate::{GraphicsState, Quad, Sprite, Texture, Viewport};
 use std::sync::Arc;
 
 pub struct Plane {
