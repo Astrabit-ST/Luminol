@@ -23,7 +23,7 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 #[derive(Debug)]
 pub struct Autotiles {
     data: AtomicCell<Data>,
-    uniform: Option<wgpu::Buffer>,
+    uniform: wgpu::Buffer,
 }
 
 #[repr(C, align(16))]
@@ -46,15 +46,13 @@ impl Autotiles {
             _end_padding: 0,
         };
 
-        let uniform = (!graphics_state.push_constants_supported()).then(|| {
-            graphics_state.render_state.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap autotile buffer"),
-                    contents: bytemuck::cast_slice(&[autotiles]),
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                },
-            )
-        });
+        let uniform = graphics_state.render_state.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("tilemap autotile buffer"),
+                contents: bytemuck::cast_slice(&[autotiles]),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+            },
+        );
 
         Autotiles {
             data: AtomicCell::new(autotiles),
@@ -75,16 +73,16 @@ impl Autotiles {
         bytemuck::cast(self.data.load())
     }
 
-    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
-        self.uniform.as_ref()
+    pub fn as_buffer(&self) -> &wgpu::Buffer {
+        &self.uniform
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state
-                .queue
-                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
-        }
+        render_state.queue.write_buffer(
+            &self.uniform,
+            0,
+            bytemuck::cast_slice(&[self.data.load()]),
+        );
     }
 }
 

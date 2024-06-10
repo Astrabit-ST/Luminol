@@ -34,7 +34,7 @@ pub struct Grid {
     pub display: display::Display,
     pub viewport: Arc<Viewport>,
 
-    pub bind_group: Option<wgpu::BindGroup>,
+    pub bind_group: wgpu::BindGroup,
 }
 
 impl Grid {
@@ -47,16 +47,14 @@ impl Grid {
         let instances = Instances::new(&graphics_state.render_state, map_width, map_height);
         let display = Display::new(graphics_state);
 
-        let bind_group = (!graphics_state.push_constants_supported()).then(|| {
-            let mut bind_group_builder = BindGroupBuilder::new();
-            bind_group_builder.append_buffer(viewport.as_buffer().unwrap());
-            bind_group_builder.append_buffer(display.as_buffer().unwrap());
-            bind_group_builder.build(
-                &graphics_state.render_state.device,
-                Some("grid bind group"),
-                &graphics_state.bind_group_layouts.grid,
-            )
-        });
+        let mut bind_group_builder = BindGroupBuilder::new();
+        bind_group_builder.append_buffer(viewport.as_buffer());
+        bind_group_builder.append_buffer(display.as_buffer());
+        let bind_group = bind_group_builder.build(
+            &graphics_state.render_state.device,
+            Some("grid bind group"),
+            &graphics_state.bind_group_layouts.grid,
+        );
 
         Self {
             instances,
@@ -82,20 +80,7 @@ impl Grid {
         render_pass.push_debug_group("tilemap grid renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.grid);
 
-        if let Some(bind_group) = &self.bind_group {
-            render_pass.set_bind_group(0, bind_group, &[])
-        } else {
-            render_pass.set_push_constants(
-                wgpu::ShaderStages::VERTEX,
-                0,
-                &self.viewport.as_bytes(),
-            );
-            render_pass.set_push_constants(
-                wgpu::ShaderStages::FRAGMENT,
-                64,
-                &self.display.as_bytes(),
-            );
-        }
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
 
         self.display
             .update_viewport_size(&graphics_state.render_state, info);
@@ -110,10 +95,8 @@ pub fn create_bind_group_layout(
 ) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
 
-    if !crate::push_constants_supported(render_state) {
-        Viewport::add_to_bind_group_layout(&mut builder);
-        display::add_to_bind_group_layout(&mut builder);
-    }
+    Viewport::add_to_bind_group_layout(&mut builder);
+    display::add_to_bind_group_layout(&mut builder);
 
     builder.build(&render_state.device, Some("grid bind group layout"))
 }

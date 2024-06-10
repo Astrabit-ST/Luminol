@@ -50,11 +50,11 @@ impl Sprite {
         bind_group_builder
             .append_texture_view(&texture.view)
             .append_sampler(&graphics_state.nearest_sampler);
-        if !graphics_state.push_constants_supported() {
-            bind_group_builder
-                .append_buffer(viewport.as_buffer().unwrap())
-                .append_buffer(graphic.as_buffer().unwrap());
-        }
+
+        bind_group_builder
+            .append_buffer(viewport.as_buffer())
+            .append_buffer(graphic.as_buffer());
+
         let bind_group = bind_group_builder.build(
             &graphics_state.render_state.device,
             Some("sprite bind group"),
@@ -90,19 +90,6 @@ impl Sprite {
         render_pass.set_pipeline(&graphics_state.pipelines.sprites[&self.blend_mode]);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
-        if graphics_state.push_constants_supported() {
-            render_pass.set_push_constants(
-                wgpu::ShaderStages::VERTEX,
-                0,
-                &self.viewport.as_bytes(),
-            );
-            render_pass.set_push_constants(
-                wgpu::ShaderStages::FRAGMENT,
-                64,
-                &self.graphic.as_bytes(),
-            );
-        }
-
         self.vertices.draw(render_pass);
         render_pass.pop_debug_group();
     }
@@ -128,10 +115,8 @@ pub fn create_bind_group_layout(
             None,
         );
 
-    if !crate::push_constants_supported(render_state) {
-        Viewport::add_to_bind_group_layout(&mut builder);
-        graphic::add_to_bind_group_layout(&mut builder);
-    }
+    Viewport::add_to_bind_group_layout(&mut builder);
+    graphic::add_to_bind_group_layout(&mut builder);
 
     builder.build(&render_state.device, Some("sprite bind group layout"))
 }

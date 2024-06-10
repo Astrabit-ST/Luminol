@@ -23,17 +23,11 @@ pub fn create_render_pipeline(
     render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
-    let push_constants_supported = crate::push_constants_supported(render_state);
-
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("tilemap.wgsl"),
         file_path: "tilemap.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
         shader_defs: std::collections::HashMap::from([
-            (
-                "USE_PUSH_CONSTANTS".to_string(),
-                naga_oil::compose::ShaderDefValue::Bool(push_constants_supported),
-            ),
             (
                 "AUTOTILE_ID_AMOUNT".to_string(),
                 naga_oil::compose::ShaderDefValue::UInt(super::atlas::AUTOTILE_ID_AMOUNT),
@@ -87,35 +81,13 @@ pub fn create_render_pipeline(
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
-    let push_constant_ranges: &[_] = if push_constants_supported {
-        &[
-            // Viewport + Autotiles
-            wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX,
-                range: 0..(64 + 48),
-            },
-            // Fragment
-            wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::FRAGMENT,
-                range: (64 + 48)..(64 + 48 + 4),
-            },
-        ]
-    } else {
-        &[]
-    };
-    let label = if push_constants_supported {
-        "Tilemap Render Pipeline Layout (push constants)"
-    } else {
-        "Tilemap Render Pipeline Layout (uniforms)"
-    };
-
     let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some(label),
+                label: Some("Tilemap Render Pipeline Layout"),
                 bind_group_layouts: &[&bind_group_layouts.tiles],
-                push_constant_ranges,
+                push_constant_ranges: &[],
             });
 
     Ok(render_state

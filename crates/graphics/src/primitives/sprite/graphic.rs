@@ -23,7 +23,7 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 #[derive(Debug)]
 pub struct Graphic {
     data: AtomicCell<Data>,
-    uniform: Option<wgpu::Buffer>,
+    uniform: wgpu::Buffer,
 }
 
 #[repr(C)]
@@ -46,15 +46,13 @@ impl Graphic {
             _padding: 0,
         };
 
-        let uniform = (!graphics_state.push_constants_supported()).then(|| {
-            graphics_state.render_state.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap sprite graphic buffer"),
-                    contents: bytemuck::cast_slice(&[data]),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                },
-            )
-        });
+        let uniform = graphics_state.render_state.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("tilemap sprite graphic buffer"),
+                contents: bytemuck::cast_slice(&[data]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            },
+        );
 
         Self {
             data: AtomicCell::new(data),
@@ -114,16 +112,16 @@ impl Graphic {
         bytemuck::cast(self.data.load())
     }
 
-    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
-        self.uniform.as_ref()
+    pub fn as_buffer(&self) -> &wgpu::Buffer {
+        &self.uniform
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state
-                .queue
-                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
-        }
+        render_state.queue.write_buffer(
+            &self.uniform,
+            0,
+            bytemuck::cast_slice(&[self.data.load()]),
+        );
     }
 }
 

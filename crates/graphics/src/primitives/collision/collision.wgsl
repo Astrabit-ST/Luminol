@@ -16,23 +16,12 @@ struct Viewport {
     proj: mat4x4<f32>,
 }
 
-#if USE_PUSH_CONSTANTS == true
-struct PushConstants {
-    viewport: Viewport,
-}
-var<push_constant> push_constants: PushConstants;
-#else
 @group(0) @binding(0)
 var<uniform> viewport: Viewport;
-#endif
 
 @vertex
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
-
-#if USE_PUSH_CONSTANTS == true
-    let viewport = push_constants.viewport;
-#endif
 
     if (instance.passage & vertex.direction) == 0u {
         return out;

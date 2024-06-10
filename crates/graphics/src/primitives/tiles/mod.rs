@@ -61,12 +61,12 @@ impl Tiles {
         bind_group_builder
             .append_texture_view(&atlas.atlas_texture.view)
             .append_sampler(&graphics_state.nearest_sampler);
-        if !graphics_state.push_constants_supported() {
-            bind_group_builder
-                .append_buffer(viewport.as_buffer().unwrap())
-                .append_buffer(autotiles.as_buffer().unwrap())
-                .append_buffer(opacity.as_buffer().unwrap());
-        }
+
+        bind_group_builder
+            .append_buffer(viewport.as_buffer())
+            .append_buffer(autotiles.as_buffer())
+            .append_buffer(opacity.as_buffer());
+
         let bind_group = bind_group_builder.build(
             &graphics_state.render_state.device,
             Some("tilemap bind group"),
@@ -111,17 +111,6 @@ impl Tiles {
         render_pass.set_pipeline(&graphics_state.pipelines.tiles);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
-        if graphics_state.push_constants_supported() {
-            render_pass.set_push_constants(
-                wgpu::ShaderStages::VERTEX,
-                0,
-                bytemuck::bytes_of(&VertexPushConstant {
-                    viewport: self.viewport.as_bytes(),
-                    autotiles: self.autotiles.as_bytes(),
-                }),
-            );
-        }
-
         for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
             let opacity = if selected_layer.is_some_and(|s| s != layer) {
                 0.5
@@ -131,13 +120,6 @@ impl Tiles {
             if enabled {
                 self.opacity
                     .set_opacity(&graphics_state.render_state, layer, opacity);
-                if graphics_state.push_constants_supported() {
-                    render_pass.set_push_constants(
-                        wgpu::ShaderStages::FRAGMENT,
-                        64 + 48,
-                        bytemuck::bytes_of::<f32>(&opacity),
-                    );
-                }
 
                 self.instances.draw(render_pass, layer);
             }
@@ -166,11 +148,9 @@ pub fn create_bind_group_layout(
             None,
         );
 
-    if !crate::push_constants_supported(render_state) {
-        Viewport::add_to_bind_group_layout(&mut builder);
-        autotiles::add_to_bind_group_layout(&mut builder);
-        opacity::add_to_bind_group_layout(&mut builder);
-    }
+    Viewport::add_to_bind_group_layout(&mut builder);
+    autotiles::add_to_bind_group_layout(&mut builder);
+    opacity::add_to_bind_group_layout(&mut builder);
 
     builder.build(&render_state.device, Some("tilemap bind group layout"))
 }

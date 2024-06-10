@@ -89,10 +89,6 @@ impl GraphicsState {
         }
     }
 
-    pub fn push_constants_supported(&self) -> bool {
-        push_constants_supported(&self.render_state)
-    }
-
     pub fn send_texture_error(&self, error: color_eyre::Report) {
         self.texture_error_tx
             .try_send(error)
@@ -108,11 +104,4 @@ impl GraphicsState {
             .expect("assets/placeholder.png is not a valid image")
             .to_rgba8()
     }
-}
-
-pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
-    render_state
-        .device
-        .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS)
 }

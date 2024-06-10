@@ -23,22 +23,20 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 #[derive(Debug)]
 pub struct Opacity {
     data: AtomicCell<[f32; 4]>, // length has to be a multiple of 4
-    uniform: Option<wgpu::Buffer>,
+    uniform: wgpu::Buffer,
 }
 
 impl Opacity {
     pub fn new(graphics_state: &GraphicsState) -> Self {
         let opacity = [1.; 4];
 
-        let uniform = (!graphics_state.push_constants_supported()).then(|| {
-            graphics_state.render_state.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap opacity buffer"),
-                    contents: bytemuck::cast_slice(&[opacity]),
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                },
-            )
-        });
+        let uniform = graphics_state.render_state.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("tilemap opacity buffer"),
+                contents: bytemuck::cast_slice(&[opacity]),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+            },
+        );
 
         Self {
             data: AtomicCell::new(opacity),
@@ -50,8 +48,8 @@ impl Opacity {
         self.data.load()[layer]
     }
 
-    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
-        self.uniform.as_ref()
+    pub fn as_buffer(&self) -> &wgpu::Buffer {
+        &self.uniform
     }
 
     pub fn set_opacity(
@@ -69,11 +67,11 @@ impl Opacity {
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state
-                .queue
-                .write_buffer(uniform, 0, bytemuck::cast_slice(&[self.data.load()]));
-        }
+        render_state.queue.write_buffer(
+            &self.uniform,
+            0,
+            bytemuck::cast_slice(&[self.data.load()]),
+        );
     }
 }
 

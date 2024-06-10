@@ -24,26 +24,14 @@ struct Display {
     inner_thickness_in_points: f32,
 }
 
-#if USE_PUSH_CONSTANTS == true
-struct PushConstants {
-    viewport: Viewport,
-    display: Display,
-}
-var<push_constant> push_constants: PushConstants;
-#else
 @group(0) @binding(0)
 var<uniform> viewport: Viewport;
 @group(0) @binding(1)
 var<uniform> display: Display;
-#endif
 
 @vertex
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
-
-#if USE_PUSH_CONSTANTS == true
-    let viewport = push_constants.viewport;
-#endif
 
     out.position = (viewport.proj * vec4<f32>((vertex.position + instance.tile_position) * 32., 0., 1.)).xy;
     out.vertex_position = out.position;
@@ -53,10 +41,6 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-#if USE_PUSH_CONSTANTS == true
-    let display = push_constants.display;
-#endif
-
     if display.viewport_size_in_pixels.x == 0. || display.viewport_size_in_pixels.y == 0. {
         discard;
     }

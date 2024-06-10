@@ -23,7 +23,7 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 #[derive(Debug)]
 pub struct Display {
     data: AtomicCell<Data>,
-    uniform: Option<wgpu::Buffer>,
+    uniform: wgpu::Buffer,
 }
 
 #[repr(C, align(16))]
@@ -42,15 +42,13 @@ impl Display {
             inner_thickness_in_points: 1.,
         };
 
-        let uniform = (!graphics_state.push_constants_supported()).then(|| {
-            graphics_state.render_state.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("grid display buffer"),
-                    contents: bytemuck::bytes_of(&display),
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                },
-            )
-        });
+        let uniform = graphics_state.render_state.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("grid display buffer"),
+                contents: bytemuck::bytes_of(&display),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+            },
+        );
 
         Display {
             data: AtomicCell::new(display),
@@ -62,8 +60,8 @@ impl Display {
         bytemuck::cast(self.data.load())
     }
 
-    pub fn as_buffer(&self) -> Option<&wgpu::Buffer> {
-        self.uniform.as_ref()
+    pub fn as_buffer(&self) -> &wgpu::Buffer {
+        &self.uniform
     }
 
     pub fn set_inner_thickness(
@@ -106,11 +104,9 @@ impl Display {
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
-        if let Some(uniform) = &self.uniform {
-            render_state
-                .queue
-                .write_buffer(uniform, 0, bytemuck::bytes_of(&self.data.load()));
-        }
+        render_state
+            .queue
+            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data.load()));
     }
 }
 

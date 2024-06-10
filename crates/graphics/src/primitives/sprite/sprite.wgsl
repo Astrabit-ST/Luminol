@@ -25,19 +25,10 @@ var t_diffuse: texture_2d<f32>;
 @group(0) @binding(1)
 var s_diffuse: sampler;
 
-#if USE_PUSH_CONSTANTS == true
-struct PushConstants {
-    viewport: Viewport,
-    graphic: Graphic,
-}
-var<push_constant> push_constants: PushConstants;
-#else
 @group(0) @binding(2)
 var<uniform> viewport: Viewport;
 @group(0) @binding(3)
 var<uniform> graphic: Graphic;
-#endif
-
 
 fn rgb_to_hsv(c: vec3<f32>) -> vec3<f32> {
     let K = vec4<f32>(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -68,10 +59,6 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-#if USE_PUSH_CONSTANTS == true
-    let viewport = push_constants.viewport;
-#endif
-
     var position = viewport.proj * vec4<f32>(model.position.xy, 0.0, 1.0);
 
     out.clip_position = vec4<f32>(position.xy, model.position.z, 1.0);
@@ -94,10 +81,6 @@ fn gamma_from_linear_rgba(linear_rgba: vec4<f32>) -> vec4<f32> {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-
-#if USE_PUSH_CONSTANTS == true
-    let graphic = push_constants.graphic;
-#endif
 
     tex_sample.a *= graphic.opacity * graphic.opacity_multiplier;
     if tex_sample.a <= 0. {

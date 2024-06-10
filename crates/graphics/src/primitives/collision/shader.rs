@@ -23,16 +23,11 @@ pub fn create_render_pipeline(
     render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &crate::primitives::BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
-    let push_constants_supported = crate::push_constants_supported(render_state);
-
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("collision.wgsl"),
         file_path: "collision.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
-        shader_defs: std::collections::HashMap::from([(
-            "USE_PUSH_CONSTANTS".to_string(),
-            naga_oil::compose::ShaderDefValue::Bool(push_constants_supported),
-        )]),
+        shader_defs: std::collections::HashMap::new(),
         additional_imports: &[],
     })?;
 
@@ -43,38 +38,13 @@ pub fn create_render_pipeline(
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
-    let push_constant_ranges: &[_] = if push_constants_supported {
-        &[
-            // Viewport
-            wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX,
-                range: 0..64,
-            },
-        ]
-    } else {
-        &[]
-    };
-    let label = if push_constants_supported {
-        "Tilemap Collision Render Pipeline Layout (push constants)"
-    } else {
-        "Tilemap Collision Render Pipeline Layout (uniforms)"
-    };
-
-    let collision_bgl: &wgpu::BindGroupLayout = &bind_group_layouts.collision;
-    let bind_group_layout_slice = std::slice::from_ref(&collision_bgl);
-    let bind_group_layouts: &[&wgpu::BindGroupLayout] = if push_constants_supported {
-        &[]
-    } else {
-        bind_group_layout_slice
-    };
-
     let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some(label),
-                bind_group_layouts,
-                push_constant_ranges,
+                label: Some("Tilemap Collision Render Pipeline Layout"),
+                bind_group_layouts: &[&bind_group_layouts.collision],
+                push_constant_ranges: &[],
             });
 
     Ok(render_state

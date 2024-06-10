@@ -31,31 +31,17 @@ var atlas: texture_2d<f32>;
 @group(0) @binding(1)
 var atlas_sampler: sampler;
 
-#if USE_PUSH_CONSTANTS == true
-struct PushConstants {
-    viewport: Viewport,
-    autotiles: Autotiles,
-    opacity: f32,
-}
-var<push_constant> push_constants: PushConstants;
-#else
 @group(0) @binding(2)
 var<uniform> viewport: Viewport;
 @group(0) @binding(3)
 var<uniform> autotiles: Autotiles;
 @group(0) @binding(4)
 var<uniform> opacity: array<vec4<f32>, 1>;
-#endif
 
 @vertex
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
     out.layer = instance.layer;
-
-#if USE_PUSH_CONSTANTS == true
-    let viewport = push_constants.viewport;
-    let autotiles = push_constants.autotiles;
-#endif
 
     if instance.tile_id < #AUTOTILE_ID_AMOUNT {
         return out;
@@ -96,11 +82,7 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
         let autotile_type = instance.tile_id / #AUTOTILE_ID_AMOUNT - 1;
 // we get an error about non constant indexing without this.
 // not sure why
-#if USE_PUSH_CONSTANTS == true
-        let frame_count = push_constants.autotiles.frame_counts[autotile_type / 4][autotile_type % 4];
-#else
         let frame_count = autotiles.frame_counts[autotile_type / 4][autotile_type % 4];
-#endif
 
         let frame = autotiles.animation_index % frame_count;
         atlas_tile_position.x += f32(frame * #AUTOTILE_FRAME_WIDTH);
@@ -128,11 +110,7 @@ fn gamma_from_linear_rgba(linear_rgba: vec4<f32>) -> vec4<f32> {
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(atlas, atlas_sampler, input.tex_coords);
 
-#if USE_PUSH_CONSTANTS == true
-    let layer_opacity = push_constants.opacity;
-#else
     let layer_opacity = opacity[input.layer / 4u][input.layer % 4u];
-#endif
     color.a *= layer_opacity;
 
     if color.a <= 0.0 {

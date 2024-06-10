@@ -27,16 +27,11 @@ fn create_shader(
     bind_group_layouts: &BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> Result<wgpu::RenderPipeline, ComposerError> {
-    let push_constants_supported = crate::push_constants_supported(render_state);
-
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("sprite.wgsl"),
         file_path: "sprite.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
-        shader_defs: HashMap::from([(
-            "USE_PUSH_CONSTANTS".to_string(),
-            naga_oil::compose::ShaderDefValue::Bool(push_constants_supported),
-        )]),
+        shader_defs: HashMap::new(),
         additional_imports: &[],
     })?;
 
@@ -47,34 +42,13 @@ fn create_shader(
             source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(module)),
         });
 
-    let push_constant_ranges: &[_] = if push_constants_supported {
-        &[
-            // Viewport
-            wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX,
-                range: 0..64,
-            },
-            wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::FRAGMENT,
-                range: 64..(64 + 16),
-            },
-        ]
-    } else {
-        &[]
-    };
-    let label = if push_constants_supported {
-        "Sprite Pipeline Layout (push constants)"
-    } else {
-        "Sprite Pipeline Layout (uniforms)"
-    };
-
     let pipeline_layout =
         render_state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some(label),
+                label: Some("Sprite Pipeline Layout"),
                 bind_group_layouts: &[&bind_group_layouts.sprite],
-                push_constant_ranges,
+                push_constant_ranges: &[],
             });
 
     Ok(render_state
