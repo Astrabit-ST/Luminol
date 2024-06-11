@@ -24,7 +24,7 @@ pub fn create_render_pipeline(
     bind_group_layouts: &crate::primitives::BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
-        source: include_str!("grid.wgsl"),
+        source: include_str!("../shaders/grid.wgsl"),
         file_path: "grid.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
         shader_defs: std::collections::HashMap::default(),
