@@ -32,16 +32,13 @@ pub struct Instances {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Instance {
-    position: [f32; 3],
     tile_id: u32, // force this to be an u32 to avoid padding issues
-    layer: u32,
 }
 
 const TILE_QUAD: Quad = Quad::new(
     egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
     // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
     egui::Rect::from_min_max(egui::pos2(0.01, 0.01), egui::pos2(31.99, 31.99)),
-    0.0,
 );
 
 impl Instances {
@@ -86,9 +83,7 @@ impl Instances {
             &self.instance_buffer,
             offset as wgpu::BufferAddress,
             bytemuck::bytes_of(&Instance {
-                position: [position.0 as f32, position.1 as f32, 0.0],
                 tile_id: tile_id as u32,
-                layer: position.2 as u32,
             }),
         )
     }
@@ -97,27 +92,11 @@ impl Instances {
         map_data
             .iter()
             .copied()
-            .enumerate()
             // Previously we'd filter out tiles that would not display (anything < 48).
             // However, storing the entire map like this makes it easier to edit tiles without remaking the entire buffer.
             // It's a memory tradeoff for a lot of performance.
-            .map(|(index, tile_id)| {
-                // We reset the x every xsize elements.
-                let map_x = index % map_data.xsize();
-                // We reset the y every ysize elements, but only increment it every xsize elements.
-                let map_y = (index / map_data.xsize()) % map_data.ysize();
-                // We increment the z every xsize * ysize elements.
-                let map_z = index / (map_data.xsize() * map_data.ysize());
-
-                Instance {
-                    position: [
-                        map_x as f32,
-                        map_y as f32,
-                        0., // We don't do a depth buffer. z doesn't matter
-                    ],
-                    tile_id: tile_id as u32,
-                    layer: map_z as u32,
-                }
+            .map(|tile_id| Instance {
+                tile_id: tile_id as u32,
             })
             .collect_vec()
     }
@@ -140,8 +119,7 @@ impl Instances {
     }
 
     pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
-        const ARRAY: &[wgpu::VertexAttribute] =
-            &wgpu::vertex_attr_array![2 => Float32x3, 3 => Uint32, 4 => Uint32];
+        const ARRAY: &[wgpu::VertexAttribute] = &wgpu::vertex_attr_array![2 => Uint32];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,

@@ -27,8 +27,20 @@ fn create_shader(
     bind_group_layouts: &BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> Result<wgpu::RenderPipeline, ComposerError> {
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/hue.wgsl"),
+        file_path: "hue.wgsl",
+        ..Default::default()
+    })?;
+
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/gamma.wgsl"),
+        file_path: "gamma.wgsl",
+        ..Default::default()
+    })?;
+
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
-        source: include_str!("sprite.wgsl"),
+        source: include_str!("../shaders/sprite.wgsl"),
         file_path: "sprite.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
         shader_defs: HashMap::new(),

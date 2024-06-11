@@ -48,7 +48,6 @@ impl Plane {
         let quad = Quad::new(
             egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(map_width, map_height)),
             tex_coords,
-            0.0,
         );
 
         let sprite = Sprite::new(

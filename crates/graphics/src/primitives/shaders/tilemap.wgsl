@@ -1,18 +1,18 @@
+#import luminol::gamma as Gamma
+
 struct VertexInput {
-    @location(0) position: vec3<f32>,
+    @location(0) position: vec2<f32>,
     @location(1) tex_coords: vec2<f32>,
 }
 
 struct InstanceInput {
-    @location(2) tile_position: vec3<f32>,
-    @location(3) tile_id: u32,
-    @location(4) layer: u32,
+    @location(2) tile_id: u32,
+    @builtin(instance_index) index: u32
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-    @location(1) @interpolate(flat) layer: u32,
     // todo: look into using multiple textures?
 }
 
@@ -31,24 +31,34 @@ var atlas: texture_2d<f32>;
 @group(0) @binding(1)
 var atlas_sampler: sampler;
 
+struct Display {
+    opacity: f32,
+    map_size: vec2<u32>,
+}
+
 @group(0) @binding(2)
 var<uniform> viewport: Viewport;
 @group(0) @binding(3)
 var<uniform> autotiles: Autotiles;
 @group(0) @binding(4)
-var<uniform> opacity: array<vec4<f32>, 1>;
+var<uniform> display: Display;
 
 @vertex
 fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
-    out.layer = instance.layer;
 
     if instance.tile_id < #AUTOTILE_ID_AMOUNT {
         return out;
     }
 
-    let position = viewport.proj * vec4<f32>(vertex.position.xy + (instance.tile_position.xy * f32(#TILE_SIZE)), 0.0, 1.0);
-    out.clip_position = vec4<f32>(position.xy, instance.tile_position.z, 1.0);
+    let layer_instance_index = instance.index % (display.map_size.x * display.map_size.y);
+    let tile_position = vec2<f32>(
+        f32(layer_instance_index % display.map_size.x), 
+        f32(layer_instance_index / display.map_size.x)
+    );
+
+    let position = viewport.proj * vec4<f32>(vertex.position.xy + (tile_position * 32.), 0.0, 1.0);
+    out.clip_position = vec4<f32>(position.xy, 0.0, 1.0); // we don't set the z because we have no z buffer
 
     let is_autotile = instance.tile_id < #TOTAL_AUTOTILE_ID_AMOUNT;
 
@@ -93,29 +103,15 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
     return out;
 }
 
-// 0-1 sRGB gamma  from  0-1 linear
-fn gamma_from_linear_rgb(rgb: vec3<f32>) -> vec3<f32> {
-    let cutoff = rgb < vec3<f32>(0.0031308);
-    let lower = rgb * vec3<f32>(12.92);
-    let higher = vec3<f32>(1.055) * pow(rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
-    return select(higher, lower, cutoff);
-}
-
-// 0-1 sRGBA gamma  from  0-1 linear
-fn gamma_from_linear_rgba(linear_rgba: vec4<f32>) -> vec4<f32> {
-    return vec4<f32>(gamma_from_linear_rgb(linear_rgba.rgb), linear_rgba.a);
-}
-
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(atlas, atlas_sampler, input.tex_coords);
 
-    let layer_opacity = opacity[input.layer / 4u][input.layer % 4u];
-    color.a *= layer_opacity;
+    color.a *= display.opacity;
 
     if color.a <= 0.0 {
         discard;
     }
 
-    return gamma_from_linear_rgba(color);
+    return Gamma::from_linear_rgba(color);
 }

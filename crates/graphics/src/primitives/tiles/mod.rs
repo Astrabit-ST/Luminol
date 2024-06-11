@@ -22,21 +22,21 @@ use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
 pub use atlas::Atlas;
 
 use autotiles::Autotiles;
+use display::Display;
 use instance::Instances;
-use opacity::Opacity;
 
 mod atlas;
 mod autotile_ids;
 pub(crate) mod autotiles;
+pub(crate) mod display;
 mod instance;
-pub(crate) mod opacity;
 pub(crate) mod shader;
 
 pub struct Tiles {
     pub autotiles: Autotiles,
     pub atlas: Atlas,
     pub instances: Instances,
-    pub opacity: Opacity,
+    pub display: Display,
     pub viewport: Arc<Viewport>,
 
     pub bind_group: wgpu::BindGroup,
@@ -55,7 +55,12 @@ impl Tiles {
             tiles,
             atlas.atlas_texture.size(),
         );
-        let opacity = Opacity::new(graphics_state);
+        let display = Display::new(
+            graphics_state,
+            tiles.xsize() as u32,
+            tiles.ysize() as u32,
+            tiles.zsize(),
+        );
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
@@ -65,7 +70,7 @@ impl Tiles {
         bind_group_builder
             .append_buffer(viewport.as_buffer())
             .append_buffer(autotiles.as_buffer())
-            .append_buffer(opacity.as_buffer());
+            .append_buffer_with_size(display.as_buffer(), display.aligned_layer_size() as u64);
 
         let bind_group = bind_group_builder.build(
             &graphics_state.render_state.device,
@@ -77,7 +82,7 @@ impl Tiles {
             autotiles,
             atlas,
             instances,
-            opacity,
+            display,
 
             bind_group,
             viewport,
@@ -109,7 +114,6 @@ impl Tiles {
 
         render_pass.push_debug_group("tilemap tiles renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.tiles);
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
 
         for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
             let opacity = if selected_layer.is_some_and(|s| s != layer) {
@@ -118,8 +122,14 @@ impl Tiles {
                 1.0
             };
             if enabled {
-                self.opacity
-                    .set_opacity(&graphics_state.render_state, layer, opacity);
+                self.display
+                    .set_opacity(&graphics_state.render_state, opacity, layer);
+
+                render_pass.set_bind_group(
+                    0,
+                    &self.bind_group,
+                    &[self.display.layer_offset(layer)],
+                );
 
                 self.instances.draw(render_pass, layer);
             }
@@ -150,7 +160,7 @@ pub fn create_bind_group_layout(
 
     Viewport::add_to_bind_group_layout(&mut builder);
     autotiles::add_to_bind_group_layout(&mut builder);
-    opacity::add_to_bind_group_layout(&mut builder);
+    display::add_to_bind_group_layout(&mut builder);
 
     builder.build(&render_state.device, Some("tilemap bind group layout"))
 }

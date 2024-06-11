@@ -21,12 +21,11 @@ use wgpu::util::DeviceExt;
 pub struct Quad {
     pub pos: egui::Rect,
     pub tex_coords: egui::Rect,
-    pub z: f32,
 }
 
 impl Quad {
-    pub const fn new(pos: egui::Rect, tex_coords: egui::Rect, z: f32) -> Self {
-        Self { pos, tex_coords, z }
+    pub const fn new(pos: egui::Rect, tex_coords: egui::Rect) -> Self {
+        Self { pos, tex_coords }
     }
 
     fn norm_tex_coords(self, extents: wgpu::Extent3d) -> Self {
@@ -41,12 +40,12 @@ impl Quad {
     }
 
     fn into_corners(self) -> [Vertex; 4] {
-        let Self { pos, tex_coords, z } = self;
+        let Self { pos, tex_coords } = self;
         let top_left = {
             let position = pos.left_top();
             let tex_coords = tex_coords.left_top();
             Vertex {
-                position: glam::vec3(position.x, position.y, z),
+                position: glam::vec2(position.x, position.y),
                 tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
@@ -54,7 +53,7 @@ impl Quad {
             let position = pos.right_top();
             let tex_coords = tex_coords.right_top();
             Vertex {
-                position: glam::vec3(position.x, position.y, z),
+                position: glam::vec2(position.x, position.y),
                 tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
@@ -62,7 +61,7 @@ impl Quad {
             let position = pos.right_bottom();
             let tex_coords = tex_coords.right_bottom();
             Vertex {
-                position: glam::vec3(position.x, position.y, z),
+                position: glam::vec2(position.x, position.y),
                 tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };
@@ -70,7 +69,7 @@ impl Quad {
             let position = pos.left_bottom();
             let tex_coords = tex_coords.left_bottom();
             Vertex {
-                position: glam::vec3(position.x, position.y, z),
+                position: glam::vec2(position.x, position.y),
                 tex_coords: glam::vec2(tex_coords.x, tex_coords.y),
             }
         };

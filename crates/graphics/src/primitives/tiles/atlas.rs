@@ -381,7 +381,6 @@ impl Atlas {
                 atlas_tile_position + egui::vec2(0.01, 0.01),
                 egui::vec2(TILE_SIZE as f32 - 0.02, TILE_SIZE as f32 - 0.02),
             ),
-            0.0,
         )
     }
 }

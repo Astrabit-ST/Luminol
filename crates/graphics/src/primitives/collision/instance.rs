@@ -31,7 +31,7 @@ pub struct Instances {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Instance {
-    position: [f32; 3],
+    position: [f32; 2],
     passage: u32,
 }
 
@@ -81,7 +81,7 @@ impl Instances {
             &self.instance_buffer,
             offset as wgpu::BufferAddress,
             bytemuck::bytes_of(&Instance {
-                position: [position.0 as f32, position.1 as f32, 0.0],
+                position: [position.0 as f32, position.1 as f32],
                 passage: passage as u32,
             }),
         )
@@ -99,11 +99,7 @@ impl Instances {
                 let map_y = (index / passages.xsize()) % passages.ysize();
 
                 Instance {
-                    position: [
-                        map_x as f32,
-                        map_y as f32,
-                        0., // We don't do a depth buffer. z doesn't matter
-                    ],
+                    position: [map_x as f32, map_y as f32],
                     passage: passage as u32,
                 }
             })
@@ -112,11 +108,11 @@ impl Instances {
 
     fn calculate_vertices() -> [Vertex; 12] {
         let rect = egui::Rect::from_min_size(egui::pos2(0., 0.), egui::vec2(32., 32.));
-        let center = glam::vec3(rect.center().x, rect.center().y, 0.);
-        let top_left = glam::vec3(rect.left_top().x, rect.left_top().y, 0.);
-        let top_right = glam::vec3(rect.right_top().x, rect.right_top().y, 0.);
-        let bottom_left = glam::vec3(rect.left_bottom().x, rect.left_bottom().y, 0.);
-        let bottom_right = glam::vec3(rect.right_bottom().x, rect.right_bottom().y, 0.);
+        let center = glam::vec2(rect.center().x, rect.center().y);
+        let top_left = glam::vec2(rect.left_top().x, rect.left_top().y);
+        let top_right = glam::vec2(rect.right_top().x, rect.right_top().y);
+        let bottom_left = glam::vec2(rect.left_bottom().x, rect.left_bottom().y);
+        let bottom_right = glam::vec2(rect.right_bottom().x, rect.right_bottom().y);
 
         [
             Vertex {

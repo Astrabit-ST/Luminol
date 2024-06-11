@@ -151,7 +151,7 @@ impl Event {
                 ),
                 egui::vec2(cw - 0.02, ch - 0.02),
             );
-            let quad = Quad::new(pos, tex_coords, 0.0);
+            let quad = Quad::new(pos, tex_coords);
 
             let viewport = Arc::new(Viewport::new(graphics_state, cw, ch));
 
