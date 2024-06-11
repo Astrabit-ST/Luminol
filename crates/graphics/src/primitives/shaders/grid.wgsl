@@ -1,7 +1,3 @@
-struct VertexInput {
-    @location(0) position: vec2<f32>,
-}
-
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec2<f32>,
@@ -27,16 +23,42 @@ var<uniform> viewport: Viewport;
 @group(0) @binding(1)
 var<uniform> display: Display;
 
+// OpenGL and WebGL use the last vertex in each triangle as the provoking vertex, and
+// Direct3D, Metal, Vulkan and WebGPU use the first vertex in each triangle
+#ifdef LUMINOL_BACKEND_GL
+const QUAD_VERTICES: array<vec2f, 6> = array<vec2f, 6>(
+    vec2f(1., 0.),
+    vec2f(0., 1.),
+    vec2f(0., 0.), // Provoking vertex
+    
+    vec2f(0., 1.),
+    vec2f(1., 0.),
+    vec2f(1., 1.), // Provoking vertex
+);
+#else
+const QUAD_VERTICES: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
+    vec2<f32>(0., 0.),
+    vec2<f32>(1., 0.),
+    vec2<f32>(0., 1.), // Provoking vertex
+    
+    vec2<f32>(1., 1.),
+    vec2<f32>(0., 1.),
+    vec2<f32>(1., 0.), // Provoking vertex
+);
+#endif
+
 @vertex
-fn vs_main(vertex: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
 
+    var quad_vertices = QUAD_VERTICES;
+    let vertex_position = quad_vertices[vertex_index % 6u];
     let tile_position = vec2<f32>(
         f32(instance_index % display.map_size.x), 
         f32(instance_index / display.map_size.x)
     );
 
-    out.position = (viewport.proj * vec4<f32>((vertex.position + tile_position) * 32., 0., 1.)).xy;
+    out.position = (viewport.proj * vec4<f32>((vertex_position + tile_position) * 32., 0., 1.)).xy;
     out.vertex_position = out.position;
     out.clip_position = vec4<f32>(out.position, 0., 1.);
     return out;

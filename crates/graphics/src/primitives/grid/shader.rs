@@ -15,18 +15,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::Vertex;
-
 pub fn create_render_pipeline(
     composer: &mut naga_oil::compose::Composer,
     render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &crate::primitives::BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
+    let shader_defs = if render_state.adapter.get_info().backend == wgpu::Backend::Gl {
+        std::collections::HashMap::from([(
+            "LUMINOL_BACKEND_GL".to_string(),
+            naga_oil::compose::ShaderDefValue::Bool(true),
+        )])
+    } else {
+        std::collections::HashMap::default()
+    };
+
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("../shaders/grid.wgsl"),
         file_path: "grid.wgsl",
         shader_type: naga_oil::compose::ShaderType::Wgsl,
-        shader_defs: std::collections::HashMap::default(),
+        shader_defs,
         additional_imports: &[],
     })?;
 
@@ -54,7 +61,7 @@ pub fn create_render_pipeline(
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,

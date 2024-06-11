@@ -21,12 +21,10 @@ use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
 
 use display::Display;
 use instance::Instances;
-use vertex::Vertex;
 
 pub mod display;
 mod instance;
 pub(crate) mod shader;
-mod vertex;
 
 #[derive(Debug)]
 pub struct Grid {
@@ -44,7 +42,7 @@ impl Grid {
         map_width: u32,
         map_height: u32,
     ) -> Self {
-        let instances = Instances::new(&graphics_state.render_state, map_width, map_height);
+        let instances = Instances::new(map_width, map_height);
         let display = Display::new(graphics_state, map_width, map_height);
 
         let mut bind_group_builder = BindGroupBuilder::new();
