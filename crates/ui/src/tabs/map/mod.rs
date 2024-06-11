@@ -335,8 +335,8 @@ impl luminol_core::Tab for Tab {
                             .persistence_id,
                     )
                     .show_viewport(ui, |ui, rect| {
-                        self.tilepicker.coll_enabled = self.view.map.coll_enabled;
-                        self.tilepicker.grid_enabled = self.view.map.grid_enabled;
+                        self.tilepicker.view.coll_enabled = self.view.map.coll_enabled;
+                        self.tilepicker.view.grid_enabled = self.view.map.grid_enabled;
                         self.tilepicker.ui(update_state, ui, rect);
                         ui.separator();
                     });

@@ -34,10 +34,12 @@ pub use data::*;
 pub mod event;
 pub mod map;
 pub mod plane;
+pub mod tilepicker;
 
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;
+pub use tilepicker::Tilepicker;
 
 pub struct GraphicsState {
     pub texture_loader: loaders::texture::Loader,
