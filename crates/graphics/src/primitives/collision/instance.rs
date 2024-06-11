@@ -15,14 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::Vertex;
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 pub struct Instances {
     instance_buffer: wgpu::Buffer,
-    vertex_buffer: wgpu::Buffer,
 
     map_width: usize,
     map_height: usize,
@@ -50,19 +48,8 @@ impl Instances {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let vertices = Self::calculate_vertices();
-        let vertex_buffer =
-            render_state
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("tilemap collision vertex buffer"),
-                    contents: bytemuck::cast_slice(&vertices),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                });
-
         Self {
             instance_buffer,
-            vertex_buffer,
 
             map_width: passages.xsize(),
             map_height: passages.ysize(),
@@ -106,69 +93,7 @@ impl Instances {
             .collect_vec()
     }
 
-    fn calculate_vertices() -> [Vertex; 12] {
-        let rect = egui::Rect::from_min_size(egui::pos2(0., 0.), egui::vec2(32., 32.));
-        let center = glam::vec2(rect.center().x, rect.center().y);
-        let top_left = glam::vec2(rect.left_top().x, rect.left_top().y);
-        let top_right = glam::vec2(rect.right_top().x, rect.right_top().y);
-        let bottom_left = glam::vec2(rect.left_bottom().x, rect.left_bottom().y);
-        let bottom_right = glam::vec2(rect.right_bottom().x, rect.right_bottom().y);
-
-        [
-            Vertex {
-                position: center,
-                direction: 1,
-            },
-            Vertex {
-                position: bottom_left,
-                direction: 1,
-            },
-            Vertex {
-                position: bottom_right,
-                direction: 1,
-            },
-            Vertex {
-                position: center,
-                direction: 2,
-            },
-            Vertex {
-                position: top_left,
-                direction: 2,
-            },
-            Vertex {
-                position: bottom_left,
-                direction: 2,
-            },
-            Vertex {
-                position: center,
-                direction: 4,
-            },
-            Vertex {
-                position: bottom_right,
-                direction: 4,
-            },
-            Vertex {
-                position: top_right,
-                direction: 4,
-            },
-            Vertex {
-                position: center,
-                direction: 8,
-            },
-            Vertex {
-                position: top_right,
-                direction: 8,
-            },
-            Vertex {
-                position: top_left,
-                direction: 8,
-            },
-        ]
-    }
-
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-
         // Calculate the start and end index of the buffer, as well as the amount of instances.
         let start_index = 0;
         let end_index = self.map_width * self.map_height;
@@ -178,14 +103,14 @@ impl Instances {
         let start = (start_index * std::mem::size_of::<Instance>()) as wgpu::BufferAddress;
         let end = (end_index * std::mem::size_of::<Instance>()) as wgpu::BufferAddress;
 
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(start..end));
+        render_pass.set_vertex_buffer(0, self.instance_buffer.slice(start..end));
 
         render_pass.draw(0..12, 0..count);
     }
 
     pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ARRAY: &[wgpu::VertexAttribute] =
-            &wgpu::vertex_attr_array![2 => Float32x2, 3 => Uint32];
+            &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,

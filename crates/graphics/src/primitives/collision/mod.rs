@@ -21,11 +21,9 @@ use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
 
 use instance::Instances;
 use itertools::Itertools;
-use vertex::Vertex;
 
 mod instance;
 pub(crate) mod shader;
-mod vertex;
 
 #[derive(Debug)]
 pub struct Collision {

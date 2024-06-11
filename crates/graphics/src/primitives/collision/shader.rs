@@ -16,7 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::instance::Instances;
-use super::Vertex;
 
 pub fn create_render_pipeline(
     composer: &mut naga_oil::compose::Composer,
@@ -55,7 +54,7 @@ pub fn create_render_pipeline(
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc(), Instances::desc()],
+                buffers: &[Instances::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
