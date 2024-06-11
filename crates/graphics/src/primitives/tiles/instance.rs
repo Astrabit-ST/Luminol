@@ -18,12 +18,9 @@
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-use crate::Quad;
-
 #[derive(Debug)]
 pub struct Instances {
     instance_buffer: wgpu::Buffer,
-    vertex_buffer: wgpu::Buffer,
 
     map_width: usize,
     map_height: usize,
@@ -35,17 +32,10 @@ struct Instance {
     tile_id: u32, // force this to be an u32 to avoid padding issues
 }
 
-const TILE_QUAD: Quad = Quad::new(
-    egui::Rect::from_min_max(egui::pos2(0., 0.), egui::pos2(32., 32.0)),
-    // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
-    egui::Rect::from_min_max(egui::pos2(0.01, 0.01), egui::pos2(31.99, 31.99)),
-);
-
 impl Instances {
     pub fn new(
         render_state: &luminol_egui_wgpu::RenderState,
         map_data: &luminol_data::Table3,
-        atlas_size: wgpu::Extent3d,
     ) -> Self {
         let instances = Self::calculate_instances(map_data);
         let instance_buffer =
@@ -57,11 +47,8 @@ impl Instances {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let (vertex_buffer, _) = Quad::into_buffer(render_state, &[TILE_QUAD], atlas_size);
-
         Self {
             instance_buffer,
-            vertex_buffer,
 
             map_width: map_data.xsize(),
             map_height: map_data.ysize(),
@@ -102,8 +89,6 @@ impl Instances {
     }
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>, layer: usize) {
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-
         // Calculate the start and end index of the buffer, as well as the amount of instances.
         let start_index = layer * self.map_width * self.map_height;
         let end_index = (layer + 1) * self.map_width * self.map_height;
@@ -113,13 +98,13 @@ impl Instances {
         let start = (start_index * std::mem::size_of::<Instance>()) as wgpu::BufferAddress;
         let end = (end_index * std::mem::size_of::<Instance>()) as wgpu::BufferAddress;
 
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(start..end));
+        render_pass.set_vertex_buffer(0, self.instance_buffer.slice(start..end));
 
         render_pass.draw(0..6, 0..count);
     }
 
     pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
-        const ARRAY: &[wgpu::VertexAttribute] = &wgpu::vertex_attr_array![2 => Uint32];
+        const ARRAY: &[wgpu::VertexAttribute] = &wgpu::vertex_attr_array![0 => Uint32];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,

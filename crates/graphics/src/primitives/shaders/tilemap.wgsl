@@ -1,12 +1,7 @@
 #import luminol::gamma as Gamma
 
-struct VertexInput {
-    @location(0) position: vec2<f32>,
-    @location(1) tex_coords: vec2<f32>,
-}
-
 struct InstanceInput {
-    @location(2) tile_id: u32,
+    @location(0) tile_id: u32,
     @builtin(instance_index) index: u32
 }
 
@@ -43,8 +38,28 @@ var<uniform> autotiles: Autotiles;
 @group(0) @binding(4)
 var<uniform> display: Display;
 
+const VERTEX_POSITIONS = array<vec2f, 6>(
+    vec2f(0.0, 0.0),
+    vec2f(32.0, 0.0),
+    vec2f(0.0, 32.0),
+
+    vec2f(32.0, 0.0),
+    vec2f(0.0, 32.0),
+    vec2f(32.0, 32.0),
+);
+const TEX_COORDS = array<vec2f, 6>(
+    // slightly smaller than 32x32 to reduce bleeding from adjacent pixels in the atlas
+    vec2f(0.01, 0.01),
+    vec2f(31.99, 0.01),
+    vec2f(0.01, 31.99),
+
+    vec2f(31.99, 0.01),
+    vec2f(0.01, 31.99),
+    vec2f(31.99, 31.99),
+);
+
 @vertex
-fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) vertex_index: u32, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
 
     if instance.tile_id < #AUTOTILE_ID_AMOUNT {
@@ -57,7 +72,10 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
         f32(layer_instance_index / display.map_size.x)
     );
 
-    let position = viewport.proj * vec4<f32>(vertex.position.xy + (tile_position * 32.), 0.0, 1.0);
+    var vertex_positions = VERTEX_POSITIONS;
+    let vertex_position = vertex_positions[vertex_index];
+
+    let position = viewport.proj * vec4<f32>(vertex_position + (tile_position * 32.), 0.0, 1.0);
     out.clip_position = vec4<f32>(position.xy, 0.0, 1.0); // we don't set the z because we have no z buffer
 
     let is_autotile = instance.tile_id < #TOTAL_AUTOTILE_ID_AMOUNT;
@@ -90,15 +108,17 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
 
     if is_autotile {
         let autotile_type = instance.tile_id / #AUTOTILE_ID_AMOUNT - 1;
-// we get an error about non constant indexing without this.
-// not sure why
         let frame_count = autotiles.frame_counts[autotile_type / 4][autotile_type % 4];
 
         let frame = autotiles.animation_index % frame_count;
         atlas_tile_position.x += f32(frame * #AUTOTILE_FRAME_WIDTH);
     }
+
     let tex_size = vec2<f32>(textureDimensions(atlas));
-    out.tex_coords = vertex.tex_coords + (atlas_tile_position / tex_size);
+    var vertex_tex_coords = TEX_COORDS;
+    let vertex_tex_coord = vertex_tex_coords[vertex_index] /  tex_size;
+
+    out.tex_coords = vertex_tex_coord + (atlas_tile_position / tex_size);
 
     return out;
 }

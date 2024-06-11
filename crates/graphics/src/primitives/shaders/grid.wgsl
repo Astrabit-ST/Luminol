@@ -52,7 +52,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) in
     var out: VertexOutput;
 
     var quad_vertices = QUAD_VERTICES;
-    let vertex_position = quad_vertices[vertex_index % 6u];
+    let vertex_position = quad_vertices[vertex_index];
     let tile_position = vec2<f32>(
         f32(instance_index % display.map_size.x), 
         f32(instance_index / display.map_size.x)

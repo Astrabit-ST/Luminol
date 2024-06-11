@@ -50,11 +50,7 @@ impl Tiles {
         tiles: &luminol_data::Table3,
     ) -> Self {
         let autotiles = Autotiles::new(graphics_state, &atlas);
-        let instances = Instances::new(
-            &graphics_state.render_state,
-            tiles,
-            atlas.atlas_texture.size(),
-        );
+        let instances = Instances::new(&graphics_state.render_state, tiles);
         let display = Display::new(
             graphics_state,
             tiles.xsize() as u32,
