@@ -2,10 +2,6 @@ struct VertexInput {
     @location(0) position: vec2<f32>,
 }
 
-struct InstanceInput {
-    @location(1) tile_position: vec2<f32>,
-}
-
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec2<f32>,
@@ -22,6 +18,8 @@ struct Display {
     viewport_size_in_pixels: vec2<f32>,
     pixels_per_point: f32,
     inner_thickness_in_points: f32,
+    // we need this size(16) because in webgl, buffers cannot have a size that is not a multiple of 16.
+    @size(16) map_size: vec2<u32>,
 }
 
 @group(0) @binding(0)
@@ -30,10 +28,15 @@ var<uniform> viewport: Viewport;
 var<uniform> display: Display;
 
 @vertex
-fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
+fn vs_main(vertex: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
 
-    out.position = (viewport.proj * vec4<f32>((vertex.position + instance.tile_position) * 32., 0., 1.)).xy;
+    let tile_position = vec2<f32>(
+        f32(instance_index % display.map_size.x), 
+        f32(instance_index / display.map_size.x)
+    );
+
+    out.position = (viewport.proj * vec4<f32>((vertex.position + tile_position) * 32., 0., 1.)).xy;
     out.vertex_position = out.position;
     out.clip_position = vec4<f32>(out.position, 0., 1.);
     return out;

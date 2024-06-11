@@ -32,14 +32,18 @@ pub struct Data {
     viewport_size_in_pixels: [f32; 2],
     pixels_per_point: f32,
     inner_thickness_in_points: f32,
+    map_size: [u32; 2],
+    _pad: [u8; 8],
 }
 
 impl Display {
-    pub fn new(graphics_state: &GraphicsState) -> Self {
+    pub fn new(graphics_state: &GraphicsState, map_width: u32, map_height: u32) -> Self {
         let display = Data {
             viewport_size_in_pixels: [0., 0.],
             pixels_per_point: 1.,
             inner_thickness_in_points: 1.,
+            map_size: [map_width, map_height],
+            _pad: [0; 8],
         };
 
         let uniform = graphics_state.render_state.device.create_buffer_init(
@@ -114,7 +118,7 @@ pub fn add_to_bind_group_layout(
     layout_builder: &mut BindGroupLayoutBuilder,
 ) -> &mut BindGroupLayoutBuilder {
     layout_builder.append(
-        wgpu::ShaderStages::FRAGMENT,
+        wgpu::ShaderStages::VERTEX_FRAGMENT,
         wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Uniform,
             has_dynamic_offset: false,

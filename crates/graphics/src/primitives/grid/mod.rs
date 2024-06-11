@@ -41,11 +41,11 @@ impl Grid {
     pub fn new(
         graphics_state: &GraphicsState,
         viewport: Arc<Viewport>,
-        map_width: usize,
-        map_height: usize,
+        map_width: u32,
+        map_height: u32,
     ) -> Self {
         let instances = Instances::new(&graphics_state.render_state, map_width, map_height);
-        let display = Display::new(graphics_state);
+        let display = Display::new(graphics_state, map_width, map_height);
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder.append_buffer(viewport.as_buffer());

@@ -140,8 +140,8 @@ impl Map {
         let grid = Grid::new(
             graphics_state,
             viewport.clone(),
-            map.data.xsize(),
-            map.data.ysize(),
+            map.data.xsize() as u32,
+            map.data.ysize() as u32,
         );
         let collision = Collision::new(graphics_state, viewport.clone(), passages);
 

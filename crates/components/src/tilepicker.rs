@@ -153,8 +153,8 @@ impl Tilepicker {
         let grid = luminol_graphics::Grid::new(
             &update_state.graphics,
             viewport.clone(),
-            tilepicker_data.xsize(),
-            tilepicker_data.ysize(),
+            tilepicker_data.xsize() as u32,
+            tilepicker_data.ysize() as u32,
         );
 
         let mut passages =
