@@ -185,7 +185,7 @@ impl Instances {
 
     pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ARRAY: &[wgpu::VertexAttribute] =
-            &wgpu::vertex_attr_array![2 => Float32x3, 3 => Uint32];
+            &wgpu::vertex_attr_array![2 => Float32x2, 3 => Uint32];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
