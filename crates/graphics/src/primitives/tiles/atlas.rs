@@ -60,33 +60,19 @@ impl Atlas {
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
     ) -> Atlas {
-        let tileset_img = tileset.tileset_name.as_ref().map(|tileset_name| {
-            filesystem
+        let tileset_img = tileset.tileset_name.as_ref().and_then(|tileset_name| {
+            let result = filesystem
                 .read(camino::Utf8Path::new("Graphics/Tilesets").join(tileset_name))
                 .and_then(|file| image::load_from_memory(&file).map_err(|e| e.into()))
-                .wrap_err_with(|| format!("Error loading atlas tileset {tileset_name:?}"))
-                .unwrap_or_else(|e| {
+                .wrap_err_with(|| format!("Error loading atlas tileset {tileset_name:?}"));
+            // we don't actually need to unwrap this to a placeholder image because we fill in the atlas texture with the placeholder image.
+            match result {
+                Ok(img) => Some(img.into_rgba8()),
+                Err(e) => {
                     graphics_state.send_texture_error(e);
-                    let width = 256;
-                    let height = 256;
-                    let placeholder_img = graphics_state.placeholder_img();
-                    image::RgbaImage::from_raw(
-                        width,
-                        height,
-                        itertools::iproduct!(0..height, 0..width, 0..4)
-                            .map(|(y, x, c)| {
-                                // Tile the placeholder image
-                                placeholder_img.as_bytes()[(c
-                                    + (x % placeholder_img.width()) * 4
-                                    + (y % placeholder_img.height()) * 4 * placeholder_img.width())
-                                    as usize]
-                            })
-                            .collect_vec(),
-                    )
-                    .unwrap()
-                    .into()
-                })
-                .to_rgba8()
+                    None
+                }
+            }
         });
 
         let tileset_height = tileset_img
@@ -99,33 +85,7 @@ impl Atlas {
             .iter()
             .map(|s| {
                 if s.is_empty() {
-                    let blank_autotile_texture = graphics_state
-                        .texture_loader
-                        .get("blank_autotile_texture")
-                        .unwrap_or_else(|| {
-                            graphics_state.texture_loader.register_texture(
-                                "blank_autotile_texture",
-                                graphics_state.render_state.device.create_texture(
-                                    &wgpu::TextureDescriptor {
-                                        label: Some("blank_autotile_texture"),
-                                        size: wgpu::Extent3d {
-                                            width: AUTOTILE_FRAME_COLS * TILE_SIZE,
-                                            height: AUTOTILE_ROWS * TILE_SIZE,
-                                            depth_or_array_layers: 1,
-                                        },
-                                        dimension: wgpu::TextureDimension::D2,
-                                        mip_level_count: 1,
-                                        sample_count: 1,
-                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                                        usage: wgpu::TextureUsages::COPY_SRC
-                                            | wgpu::TextureUsages::COPY_DST
-                                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                                        view_formats: &[],
-                                    },
-                                ),
-                            )
-                        });
-                    Some(blank_autotile_texture)
+                    Some(graphics_state.texture_loader.blank_autotile_texture())
                 } else {
                     graphics_state
                         .texture_loader
@@ -193,8 +153,7 @@ impl Atlas {
             height = MAX_SIZE;
         }
 
-        let placeholder_img = graphics_state.placeholder_img();
-
+        let placeholder_img = graphics_state.texture_loader.placeholder_image();
         let atlas_texture = graphics_state.render_state.device.create_texture_with_data(
             &graphics_state.render_state.queue,
             &wgpu::TextureDescriptor {
@@ -214,6 +173,7 @@ impl Atlas {
                 view_formats: &[],
             },
             wgpu::util::TextureDataOrder::LayerMajor,
+            // we can avoid this collect_vec() by mapping a buffer and then copying that to a texture. it'd also allow us to copy everything easier too. do we want to do this?
             &itertools::iproduct!(0..height, 0..width, 0..4)
                 .map(|(y, x, c)| {
                     // Tile the placeholder image to fill the atlas

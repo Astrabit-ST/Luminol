@@ -16,9 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use color_eyre::eyre::Context;
-use image::EncodableLayout;
-use itertools::Itertools;
-use wgpu::util::DeviceExt;
 
 use std::sync::Arc;
 
@@ -64,6 +61,7 @@ impl Event {
             color_eyre::eyre::bail!("event does not have first page");
         };
 
+        let mut is_placeholder = false;
         let texture = if let Some(ref filename) = page.graphic.character_name {
             let texture = graphics_state
                 .texture_loader
@@ -73,50 +71,8 @@ impl Event {
                 Ok(t) => t,
                 Err(e) => {
                     graphics_state.send_texture_error(e);
-
-                    let placeholder_char_texture = graphics_state
-                        .texture_loader
-                        .get("placeholder_char_texture")
-                        .unwrap_or_else(|| {
-                            let placeholder_img = graphics_state.placeholder_img();
-
-                            graphics_state.texture_loader.register_texture(
-                                "placeholder_char_texture",
-                                graphics_state.render_state.device.create_texture_with_data(
-                                    &graphics_state.render_state.queue,
-                                    &wgpu::TextureDescriptor {
-                                        label: Some("placeholder_char_texture"),
-                                        size: wgpu::Extent3d {
-                                            width: 128,
-                                            height: 128,
-                                            depth_or_array_layers: 1,
-                                        },
-                                        dimension: wgpu::TextureDimension::D2,
-                                        mip_level_count: 1,
-                                        sample_count: 1,
-                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                                        usage: wgpu::TextureUsages::COPY_SRC
-                                            | wgpu::TextureUsages::COPY_DST
-                                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                                        view_formats: &[],
-                                    },
-                                    wgpu::util::TextureDataOrder::LayerMajor,
-                                    &itertools::iproduct!(0..128, 0..128, 0..4)
-                                        .map(|(y, x, c)| {
-                                            // Tile the placeholder image
-                                            placeholder_img.as_bytes()[(c
-                                                + (x % placeholder_img.width()) * 4
-                                                + (y % placeholder_img.height())
-                                                    * 4
-                                                    * placeholder_img.width())
-                                                as usize]
-                                        })
-                                        .collect_vec(),
-                                ),
-                            )
-                        });
-
-                    placeholder_char_texture
+                    is_placeholder = true;
+                    graphics_state.texture_loader.placeholder_texture()
                 }
             }
         } else if page.graphic.tile_id.is_some() {
@@ -128,6 +84,13 @@ impl Event {
         let (quads, viewport, sprite_size) = if let Some(id) = page.graphic.tile_id {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
+
+            let viewport = Arc::new(Viewport::new(graphics_state, 32., 32.));
+
+            (quad, viewport, egui::vec2(32., 32.))
+        } else if is_placeholder {
+            let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(32., 32.0));
+            let quad = Quad::new(rect, rect);
 
             let viewport = Arc::new(Viewport::new(graphics_state, 32., 32.));
 

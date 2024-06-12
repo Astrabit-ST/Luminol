@@ -41,5 +41,6 @@ camino.workspace = true
 
 luminol-data.workspace = true
 luminol-filesystem.workspace = true
+luminol-macros.workspace = true
 
 fragile.workspace = true

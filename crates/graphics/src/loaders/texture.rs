@@ -31,6 +31,10 @@ use wgpu::util::DeviceExt;
 pub struct Loader {
     loaded_textures: DashMap<camino::Utf8PathBuf, Arc<Texture>>,
 
+    placeholder_texture: Arc<Texture>,
+    blank_autotile_texture: Arc<Texture>,
+    placeholder_image: image::RgbaImage,
+
     render_state: luminol_egui_wgpu::RenderState,
 }
 
@@ -58,13 +62,27 @@ fn load_wgpu_texture_from_path(
     let file = filesystem.read(path)?;
     let texture_data = image::load_from_memory(&file)?.to_rgba8();
 
-    Ok(device.create_texture_with_data(
+    Ok(load_wgpu_texture_from_image(
+        &texture_data,
+        device,
+        queue,
+        Some(path),
+    ))
+}
+
+fn load_wgpu_texture_from_image(
+    image: &image::RgbaImage,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    label: Option<&str>,
+) -> wgpu::Texture {
+    device.create_texture_with_data(
         queue,
         &wgpu::TextureDescriptor {
-            label: Some(path),
+            label,
             size: wgpu::Extent3d {
-                width: texture_data.width(),
-                height: texture_data.height(),
+                width: image.width(),
+                height: image.height(),
                 depth_or_array_layers: 1,
             },
             dimension: wgpu::TextureDimension::D2,
@@ -77,8 +95,30 @@ fn load_wgpu_texture_from_path(
             view_formats: &[],
         },
         wgpu::util::TextureDataOrder::LayerMajor,
-        &texture_data,
-    ))
+        image,
+    )
+}
+
+fn register_native_texture(
+    render_state: luminol_egui_wgpu::RenderState,
+    texture: wgpu::Texture,
+    label: Option<&str>,
+) -> Arc<Texture> {
+    let view = texture.create_view(&wgpu::TextureViewDescriptor {
+        label,
+        ..Default::default()
+    });
+    let texture_id = render_state.renderer.write().register_native_texture(
+        &render_state.device,
+        &view,
+        wgpu::FilterMode::Nearest,
+    );
+    Arc::new(Texture {
+        texture,
+        view,
+        texture_id,
+        render_state,
+    })
 }
 
 impl Texture {
@@ -101,8 +141,55 @@ impl Texture {
 
 impl Loader {
     pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
+        let placeholder_image =
+            image::load_from_memory(luminol_macros::include_asset!("assets/placeholder.png"))
+                .expect("assets/placeholder.png is not a valid image")
+                .to_rgba8();
+
+        let placeholder_texture = load_wgpu_texture_from_image(
+            &placeholder_image,
+            &render_state.device,
+            &render_state.queue,
+            Some("assets/placeholder.png"),
+        );
+        let placeholder_texture = register_native_texture(
+            render_state.clone(),
+            placeholder_texture,
+            Some("placeholder texture"),
+        );
+
+        let blank_autotile_texture = render_state
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("blank autotile texture"),
+                size: wgpu::Extent3d {
+                    width: crate::primitives::tiles::AUTOTILE_FRAME_COLS
+                        * crate::primitives::tiles::TILE_SIZE,
+                    height: crate::primitives::tiles::AUTOTILE_ROWS
+                        * crate::primitives::tiles::TILE_SIZE,
+                    depth_or_array_layers: 1,
+                },
+                dimension: wgpu::TextureDimension::D2,
+                mip_level_count: 1,
+                sample_count: 1,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+        let blank_autotile_texture = register_native_texture(
+            render_state.clone(),
+            blank_autotile_texture,
+            Some("blank autotile texture"),
+        );
+
         Self {
             loaded_textures: DashMap::with_capacity(64),
+
+            placeholder_texture,
+            blank_autotile_texture,
+            placeholder_image,
 
             render_state,
         }
@@ -142,26 +229,8 @@ impl Loader {
     ) -> Arc<Texture> {
         let path = path.into();
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some(path.as_str()),
-            ..Default::default()
-        });
-
-        // todo maybe use custom sampler descriptor?
-        // would allow for better texture names in debuggers
-        let texture_id = self.render_state.renderer.write().register_native_texture(
-            &self.render_state.device,
-            &view,
-            wgpu::FilterMode::Nearest,
-        );
-
-        let texture = Arc::new(Texture {
-            texture,
-            view,
-            texture_id,
-
-            render_state: self.render_state.clone(),
-        });
+        let texture =
+            register_native_texture(self.render_state.clone(), texture, Some(path.as_str()));
         self.loaded_textures.insert(path, texture.clone());
         texture
     }
@@ -178,5 +247,17 @@ impl Loader {
 
     pub fn clear(&self) {
         self.loaded_textures.clear();
+    }
+
+    pub fn placeholder_texture(&self) -> Arc<Texture> {
+        self.placeholder_texture.clone()
+    }
+
+    pub fn blank_autotile_texture(&self) -> Arc<Texture> {
+        self.blank_autotile_texture.clone()
+    }
+
+    pub fn placeholder_image(&self) -> &image::RgbaImage {
+        &self.placeholder_image
     }
 }

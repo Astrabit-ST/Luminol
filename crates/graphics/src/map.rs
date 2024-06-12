@@ -16,9 +16,6 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use color_eyre::eyre::Context;
-use image::EncodableLayout;
-use itertools::Itertools;
-use wgpu::util::DeviceExt;
 
 use std::sync::Arc;
 
@@ -153,47 +150,7 @@ impl Map {
                 .unwrap_or_else(|e| {
                     graphics_state.send_texture_error(e);
 
-                    graphics_state
-                        .texture_loader
-                        .get("placeholder_tile_texture")
-                        .unwrap_or_else(|| {
-                            let placeholder_img = graphics_state.placeholder_img();
-
-                            graphics_state.texture_loader.register_texture(
-                                "placeholder_tile_texture",
-                                graphics_state.render_state.device.create_texture_with_data(
-                                    &graphics_state.render_state.queue,
-                                    &wgpu::TextureDescriptor {
-                                        label: Some("placeholder_tile_texture"),
-                                        size: wgpu::Extent3d {
-                                            width: 32,
-                                            height: 32,
-                                            depth_or_array_layers: 1,
-                                        },
-                                        dimension: wgpu::TextureDimension::D2,
-                                        mip_level_count: 1,
-                                        sample_count: 1,
-                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                                        usage: wgpu::TextureUsages::COPY_SRC
-                                            | wgpu::TextureUsages::COPY_DST
-                                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                                        view_formats: &[],
-                                    },
-                                    wgpu::util::TextureDataOrder::LayerMajor,
-                                    &itertools::iproduct!(0..32, 0..32, 0..4)
-                                        .map(|(y, x, c)| {
-                                            // Tile the placeholder image
-                                            placeholder_img.as_bytes()[(c
-                                                + (x % placeholder_img.width()) * 4
-                                                + (y % placeholder_img.height())
-                                                    * 4
-                                                    * placeholder_img.width())
-                                                as usize]
-                                        })
-                                        .collect_vec(),
-                                ),
-                            )
-                        })
+                    graphics_state.texture_loader.placeholder_texture()
                 });
 
             Some(Plane::new(
@@ -218,47 +175,7 @@ impl Map {
                 .unwrap_or_else(|e| {
                     graphics_state.send_texture_error(e);
 
-                    graphics_state
-                        .texture_loader
-                        .get("placeholder_tile_texture")
-                        .unwrap_or_else(|| {
-                            let placeholder_img = graphics_state.placeholder_img();
-
-                            graphics_state.texture_loader.register_texture(
-                                "placeholder_tile_texture",
-                                graphics_state.render_state.device.create_texture_with_data(
-                                    &graphics_state.render_state.queue,
-                                    &wgpu::TextureDescriptor {
-                                        label: Some("placeholder_tile_texture"),
-                                        size: wgpu::Extent3d {
-                                            width: 32,
-                                            height: 32,
-                                            depth_or_array_layers: 1,
-                                        },
-                                        dimension: wgpu::TextureDimension::D2,
-                                        mip_level_count: 1,
-                                        sample_count: 1,
-                                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                                        usage: wgpu::TextureUsages::COPY_SRC
-                                            | wgpu::TextureUsages::COPY_DST
-                                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                                        view_formats: &[],
-                                    },
-                                    wgpu::util::TextureDataOrder::LayerMajor,
-                                    &itertools::iproduct!(0..32, 0..32, 0..4)
-                                        .map(|(y, x, c)| {
-                                            // Tile the placeholder image
-                                            placeholder_img.as_bytes()[(c
-                                                + (x % placeholder_img.width()) * 4
-                                                + (y % placeholder_img.height())
-                                                    * 4
-                                                    * placeholder_img.width())
-                                                as usize]
-                                        })
-                                        .collect_vec(),
-                                ),
-                            )
-                        })
+                    graphics_state.texture_loader.placeholder_texture()
                 });
 
             Some(Plane::new(

@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
 
-pub use atlas::Atlas;
+pub use atlas::*;
 
 use autotiles::Autotiles;
 use display::Display;

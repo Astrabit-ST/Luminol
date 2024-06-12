@@ -3184,6 +3184,7 @@ dependencies = [
  "luminol-data",
  "luminol-egui-wgpu",
  "luminol-filesystem",
+ "luminol-macros",
  "naga",
  "naga_oil",
  "parking_lot",
