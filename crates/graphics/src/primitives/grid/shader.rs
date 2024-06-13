@@ -20,6 +20,12 @@ pub fn create_render_pipeline(
     render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &crate::primitives::BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/translation.wgsl"),
+        file_path: "translation.wgsl",
+        ..Default::default()
+    })?;
+
     let shader_defs = if render_state.adapter.get_info().backend == wgpu::Backend::Gl {
         std::collections::HashMap::from([(
             "LUMINOL_BACKEND_GL".to_string(),

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Instances {
     map_size: u32,
 }
@@ -27,7 +27,7 @@ impl Instances {
         }
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw(self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.draw(0..6, 0..self.map_size);
     }
 }

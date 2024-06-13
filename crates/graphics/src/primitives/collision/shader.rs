@@ -22,6 +22,12 @@ pub fn create_render_pipeline(
     render_state: &luminol_egui_wgpu::RenderState,
     bind_group_layouts: &crate::primitives::BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/translation.wgsl"),
+        file_path: "translation.wgsl",
+        ..Default::default()
+    })?;
+
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("../shaders/collision.wgsl"),
         file_path: "collision.wgsl",

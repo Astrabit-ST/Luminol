@@ -1,3 +1,5 @@
+#import luminol::translation as Trans // 🏳️‍⚧️
+
 struct InstanceInput {
     @location(0) tile_position: vec2<f32>,
     @location(1) passage: u32,
@@ -7,12 +9,10 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
 }
 
-struct Viewport {
-    proj: mat4x4<f32>,
-}
-
 @group(0) @binding(0)
-var<uniform> viewport: Viewport;
+var<uniform> viewport: Trans::Viewport;
+@group(0) @binding(1)
+var<uniform> transform: Trans::Transform;
 
 const VERTEX_POSITIONS = array<vec2f, 12>(
     vec2f(16., 16.),
@@ -51,10 +51,10 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32, instance: InstanceInput) ->
     }
 
     var vertex_positions = VERTEX_POSITIONS;
-    let vertex_position = vertex_positions[vertex_index];
+    let vertex_position = (vertex_positions[vertex_index] + instance.tile_position) * 32.;
+    let normalized_pos = Trans::translate_vertex(vertex_position, viewport, transform);
 
-    let position = viewport.proj * vec4<f32>(vertex_position + (instance.tile_position.xy * 32.), 0.0, 1.0);
-    out.clip_position = vec4<f32>(position.xy, 0.0, 1.0);
+    out.clip_position = vec4<f32>(normalized_pos, 0.0, 1.0);
 
     return out;
 }

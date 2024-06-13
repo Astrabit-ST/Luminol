@@ -16,31 +16,37 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use std::sync::Arc;
 
-use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Quad, Texture, Viewport};
+use crate::{
+    BindGroupBuilder, BindGroupLayoutBuilder, Drawable, GraphicsState, Quad, Renderable, Texture,
+    Transform, Viewport,
+};
 
 pub(crate) mod graphic;
 pub(crate) mod shader;
 mod vertices;
 
 pub struct Sprite {
-    pub texture: Arc<Texture>,
     pub graphic: graphic::Graphic,
-    pub vertices: vertices::Vertices,
+    pub transform: Transform,
     pub blend_mode: luminol_data::BlendMode,
-    pub viewport: Arc<Viewport>,
 
-    pub bind_group: wgpu::BindGroup,
+    // stored in an Arc so we can use it in rendering
+    vertices: Arc<vertices::Vertices>,
+    bind_group: Arc<wgpu::BindGroup>,
 }
 
 impl Sprite {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: Arc<Viewport>,
         quad: Quad,
-        texture: Arc<Texture>,
-        blend_mode: luminol_data::BlendMode,
         hue: i32,
         opacity: i32,
+        blend_mode: luminol_data::BlendMode,
+        // arranged in order of use in bind group
+        texture: &Texture,
+        viewport: &Viewport,
+        transform: Transform,
     ) -> Self {
         let vertices =
             vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
@@ -49,10 +55,9 @@ impl Sprite {
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
             .append_texture_view(&texture.view)
-            .append_sampler(&graphics_state.nearest_sampler);
-
-        bind_group_builder
+            .append_sampler(&graphics_state.nearest_sampler)
             .append_buffer(viewport.as_buffer())
+            .append_buffer(transform.as_buffer())
             .append_buffer(graphic.as_buffer());
 
         let bind_group = bind_group_builder.build(
@@ -62,32 +67,44 @@ impl Sprite {
         );
 
         Self {
-            texture,
             graphic,
-            vertices,
             blend_mode,
-            viewport,
+            transform,
 
-            bind_group,
+            vertices: Arc::new(vertices),
+            bind_group: Arc::new(bind_group),
         }
     }
+}
 
-    pub fn reupload_verts(&self, render_state: &luminol_egui_wgpu::RenderState, quads: &[Quad]) {
-        let vertices = Quad::into_vertices(quads, self.texture.size());
-        render_state.queue.write_buffer(
-            &self.vertices.vertex_buffer,
-            0,
-            bytemuck::cast_slice(&vertices),
-        );
+pub struct Prepared {
+    bind_group: Arc<wgpu::BindGroup>,
+    vertices: Arc<vertices::Vertices>,
+    graphics_state: Arc<GraphicsState>,
+    blend_mode: luminol_data::BlendMode,
+}
+
+impl Renderable for Sprite {
+    type Prepared = Prepared;
+
+    fn prepare(&mut self, graphics_state: &Arc<GraphicsState>) -> Self::Prepared {
+        let bind_group = Arc::clone(&self.bind_group);
+        let graphics_state = Arc::clone(graphics_state);
+        let vertices = Arc::clone(&self.vertices);
+
+        Prepared {
+            bind_group,
+            vertices,
+            graphics_state,
+            blend_mode: self.blend_mode,
+        }
     }
+}
 
-    pub fn draw<'rpass>(
-        &'rpass self,
-        graphics_state: &'rpass GraphicsState,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
+impl Drawable for Prepared {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
         render_pass.push_debug_group("sprite render");
-        render_pass.set_pipeline(&graphics_state.pipelines.sprites[&self.blend_mode]);
+        render_pass.set_pipeline(&self.graphics_state.pipelines.sprites[&self.blend_mode]);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
         self.vertices.draw(render_pass);
@@ -116,6 +133,7 @@ pub fn create_bind_group_layout(
         );
 
     Viewport::add_to_bind_group_layout(&mut builder);
+    Transform::add_to_bind_group_layout(&mut builder);
     graphic::add_to_bind_group_layout(&mut builder);
 
     builder.build(&render_state.device, Some("sprite bind group layout"))

@@ -15,53 +15,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
 use crate::{BindGroupLayoutBuilder, GraphicsState};
 
 #[derive(Debug)]
 pub struct Display {
-    data: AtomicCell<Data>,
+    data: Data,
     uniform: wgpu::Buffer,
 }
 
 #[repr(C, align(16))]
 #[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Data {
-    viewport_size_in_pixels: [f32; 2],
     pixels_per_point: f32,
     inner_thickness_in_points: f32,
     map_size: [u32; 2],
-    _pad: [u8; 8],
 }
 
 impl Display {
     pub fn new(graphics_state: &GraphicsState, map_width: u32, map_height: u32) -> Self {
-        let display = Data {
-            viewport_size_in_pixels: [0., 0.],
+        let data = Data {
             pixels_per_point: 1.,
             inner_thickness_in_points: 1.,
             map_size: [map_width, map_height],
-            _pad: [0; 8],
         };
 
         let uniform = graphics_state.render_state.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("grid display buffer"),
-                contents: bytemuck::bytes_of(&display),
+                contents: bytemuck::bytes_of(&data),
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
             },
         );
 
-        Display {
-            data: AtomicCell::new(display),
-            uniform,
-        }
-    }
-
-    pub fn as_bytes(&self) -> [u8; std::mem::size_of::<Data>()] {
-        bytemuck::cast(self.data.load())
+        Display { data, uniform }
     }
 
     pub fn as_buffer(&self) -> &wgpu::Buffer {
@@ -69,40 +57,12 @@ impl Display {
     }
 
     pub fn set_inner_thickness(
-        &self,
+        &mut self,
         render_state: &luminol_egui_wgpu::RenderState,
         inner_thickness_in_points: f32,
     ) {
-        let data = self.data.load();
-        if data.inner_thickness_in_points != inner_thickness_in_points {
-            self.data.store(Data {
-                inner_thickness_in_points,
-                ..data
-            });
-            self.regen_buffer(render_state);
-        }
-    }
-
-    pub(super) fn update_viewport_size(
-        &self,
-        render_state: &luminol_egui_wgpu::RenderState,
-        info: &egui::PaintCallbackInfo,
-    ) {
-        let viewport_size = info.viewport_in_pixels();
-        let viewport_size = [
-            viewport_size.width_px as f32,
-            viewport_size.height_px as f32,
-        ];
-        let pixels_per_point = info.pixels_per_point.max(1.).floor();
-        let data = self.data.load();
-        if data.viewport_size_in_pixels != viewport_size
-            || data.pixels_per_point != pixels_per_point
-        {
-            self.data.store(Data {
-                viewport_size_in_pixels: viewport_size,
-                pixels_per_point,
-                ..data
-            });
+        if self.data.inner_thickness_in_points != inner_thickness_in_points {
+            self.data.inner_thickness_in_points = inner_thickness_in_points;
             self.regen_buffer(render_state);
         }
     }
@@ -110,7 +70,7 @@ impl Display {
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         render_state
             .queue
-            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data.load()));
+            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));
     }
 }
 

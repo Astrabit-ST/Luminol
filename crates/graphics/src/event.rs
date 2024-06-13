@@ -17,36 +17,11 @@
 
 use color_eyre::eyre::Context;
 
-use std::sync::Arc;
-
-use fragile::Fragile;
-
-use crate::{Atlas, GraphicsState, Quad, Sprite, Viewport};
+use crate::{Atlas, GraphicsState, Quad, Renderable, Sprite, Transform, Viewport};
 
 pub struct Event {
-    sprite: Arc<Sprite>,
-    viewport: Arc<Viewport>,
+    pub sprite: Sprite,
     pub sprite_size: egui::Vec2,
-}
-
-// wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
-struct Callback {
-    sprite: Fragile<Arc<Sprite>>,
-    graphics_state: Fragile<Arc<GraphicsState>>,
-}
-
-impl luminol_egui_wgpu::CallbackTrait for Callback {
-    fn paint<'a>(
-        &'a self,
-        _info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
-    ) {
-        let sprite = self.sprite.get();
-        let graphics_state = self.graphics_state.get();
-
-        sprite.draw(graphics_state, render_pass);
-    }
 }
 
 impl Event {
@@ -54,6 +29,8 @@ impl Event {
     pub fn new(
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
+        viewport: &Viewport,
+        transform: Transform,
         event: &luminol_data::rpg::Event,
         atlas: &Atlas,
     ) -> color_eyre::Result<Option<Self>> {
@@ -81,20 +58,16 @@ impl Event {
             return Ok(None);
         };
 
-        let (quads, viewport, sprite_size) = if let Some(id) = page.graphic.tile_id {
+        let (quad, sprite_size) = if let Some(id) = page.graphic.tile_id {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
-            let viewport = Arc::new(Viewport::new(graphics_state, 32., 32.));
-
-            (quad, viewport, egui::vec2(32., 32.))
+            (quad, egui::vec2(32., 32.))
         } else if is_placeholder {
             let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(32., 32.0));
             let quad = Quad::new(rect, rect);
 
-            let viewport = Arc::new(Viewport::new(graphics_state, 32., 32.));
-
-            (quad, viewport, egui::vec2(32., 32.))
+            (quad, egui::vec2(32., 32.))
         } else {
             let cw = texture.width() as f32 / 4.;
             let ch = texture.height() as f32 / 4.;
@@ -116,24 +89,22 @@ impl Event {
             );
             let quad = Quad::new(pos, tex_coords);
 
-            let viewport = Arc::new(Viewport::new(graphics_state, cw, ch));
-
-            (quad, viewport, egui::vec2(cw, ch))
+            (quad, egui::vec2(cw, ch))
         };
 
-        let sprite = Arc::new(Sprite::new(
+        let sprite = Sprite::new(
             graphics_state,
-            viewport.clone(),
-            quads,
-            texture,
-            page.graphic.blend_type,
+            quad,
             page.graphic.character_hue,
             page.graphic.opacity,
-        ));
+            page.graphic.blend_type,
+            &texture,
+            viewport,
+            transform,
+        );
 
         Ok(Some(Self {
             sprite,
-            viewport,
             sprite_size,
         }))
     }
@@ -141,23 +112,12 @@ impl Event {
     pub fn sprite(&self) -> &Sprite {
         &self.sprite
     }
+}
 
-    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
-        self.viewport.set_proj(render_state, proj);
-    }
+impl Renderable for Event {
+    type Prepared = <Sprite as Renderable>::Prepared;
 
-    pub fn paint(
-        &self,
-        graphics_state: Arc<GraphicsState>,
-        painter: &egui::Painter,
-        rect: egui::Rect,
-    ) {
-        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
-            rect,
-            Callback {
-                sprite: Fragile::new(self.sprite.clone()),
-                graphics_state: Fragile::new(graphics_state),
-            },
-        ));
+    fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared {
+        self.sprite.prepare(graphics_state)
     }
 }

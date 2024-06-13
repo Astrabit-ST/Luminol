@@ -28,6 +28,12 @@ fn create_shader(
     target: wgpu::BlendState,
 ) -> Result<wgpu::RenderPipeline, ComposerError> {
     composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/translation.wgsl"),
+        file_path: "translation.wgsl",
+        ..Default::default()
+    })?;
+
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
         source: include_str!("../shaders/hue.wgsl"),
         file_path: "hue.wgsl",
         ..Default::default()

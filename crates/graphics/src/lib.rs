@@ -101,3 +101,35 @@ impl GraphicsState {
         self.texture_error_rx.try_iter()
     }
 }
+
+pub trait Renderable {
+    type Prepared: Drawable;
+    fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared;
+}
+
+pub trait Drawable {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>);
+}
+
+pub struct Painter<T> {
+    prepared: fragile::Fragile<T>,
+}
+
+impl<T> Painter<T> {
+    pub fn new(prepared: T) -> Self {
+        Self {
+            prepared: fragile::Fragile::new(prepared),
+        }
+    }
+}
+
+impl<T: Drawable> luminol_egui_wgpu::CallbackTrait for Painter<T> {
+    fn paint<'a>(
+        &'a self,
+        _: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        _: &'a luminol_egui_wgpu::CallbackResources,
+    ) {
+        self.prepared.get().draw(render_pass);
+    }
+}

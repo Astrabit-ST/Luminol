@@ -15,11 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{GraphicsState, Quad, Sprite, Texture, Viewport};
-use std::sync::Arc;
+use crate::{GraphicsState, Quad, Renderable, Sprite, Texture, Transform, Viewport};
 
 pub struct Plane {
-    sprite: Sprite,
+    pub sprite: Sprite,
 }
 
 impl Plane {
@@ -27,8 +26,8 @@ impl Plane {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: Arc<Viewport>,
-        texture: Arc<Texture>,
+        viewport: &Viewport,
+        texture: &Texture,
         hue: i32,
         zoom: i32,
         blend_mode: luminol_data::BlendMode,
@@ -52,22 +51,23 @@ impl Plane {
 
         let sprite = Sprite::new(
             graphics_state,
-            viewport,
             quad,
-            texture,
-            blend_mode,
             hue,
             opacity,
+            blend_mode,
+            texture,
+            viewport,
+            Transform::unit(graphics_state),
         );
 
         Self { sprite }
     }
+}
 
-    pub fn draw<'rpass>(
-        &'rpass self,
-        graphics_state: &'rpass GraphicsState,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
-        self.sprite.draw(graphics_state, render_pass);
+impl Renderable for Plane {
+    type Prepared = <Sprite as Renderable>::Prepared;
+
+    fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared {
+        self.sprite.prepare(graphics_state)
     }
 }

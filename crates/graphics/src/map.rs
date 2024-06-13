@@ -16,103 +16,28 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use color_eyre::eyre::Context;
+use itertools::Itertools;
 
-use std::sync::Arc;
-
-use std::time::Duration;
-
-use fragile::Fragile;
-
-use crate::{Collision, GraphicsState, Grid, Plane, Tiles, Viewport};
+use crate::{
+    Collision, Drawable, Event, GraphicsState, Grid, Plane, Renderable, Tiles, Transform, Viewport,
+};
 
 pub struct Map {
-    resources: Arc<Resources>,
-    viewport: Arc<Viewport>,
+    pub tiles: Tiles,
+    pub panorama: Option<Plane>,
+    pub fog: Option<Plane>,
+    pub collision: Collision,
+    pub grid: Grid,
+    pub events: luminol_data::OptionVec<Event>,
+
+    pub viewport: Viewport,
     ani_time: Option<f64>,
 
     pub fog_enabled: bool,
     pub pano_enabled: bool,
     pub coll_enabled: bool,
     pub grid_enabled: bool,
-    pub enabled_layers: Vec<bool>,
-}
-
-struct Resources {
-    tiles: Tiles,
-    panorama: Option<Plane>,
-    fog: Option<Plane>,
-    collision: Collision,
-    grid: Grid,
-}
-
-// wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
-struct Callback {
-    resources: Fragile<Arc<Resources>>,
-    graphics_state: Fragile<Arc<GraphicsState>>,
-
-    pano_enabled: bool,
-    enabled_layers: Vec<bool>,
-    selected_layer: Option<usize>,
-}
-
-struct OverlayCallback {
-    resources: Fragile<Arc<Resources>>,
-    graphics_state: Fragile<Arc<GraphicsState>>,
-
-    fog_enabled: bool,
-    coll_enabled: bool,
-    grid_enabled: bool,
-}
-
-impl luminol_egui_wgpu::CallbackTrait for Callback {
-    fn paint<'a>(
-        &'a self,
-        _info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
-    ) {
-        let resources = self.resources.get();
-        let graphics_state = self.graphics_state.get();
-
-        if self.pano_enabled {
-            if let Some(panorama) = &resources.panorama {
-                panorama.draw(graphics_state, render_pass);
-            }
-        }
-
-        resources.tiles.draw(
-            graphics_state,
-            &self.enabled_layers,
-            self.selected_layer,
-            render_pass,
-        );
-    }
-}
-
-impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
-    fn paint<'a>(
-        &'a self,
-        info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
-    ) {
-        let resources = self.resources.get();
-        let graphics_state = self.graphics_state.get();
-
-        if self.fog_enabled {
-            if let Some(fog) = &resources.fog {
-                fog.draw(graphics_state, render_pass);
-            }
-        }
-
-        if self.coll_enabled {
-            resources.collision.draw(graphics_state, render_pass);
-        }
-
-        if self.grid_enabled {
-            resources.grid.draw(graphics_state, &info, render_pass);
-        }
-    }
+    pub event_enabled: bool,
 }
 
 impl Map {
@@ -127,20 +52,31 @@ impl Map {
             .atlas_loader
             .load_atlas(graphics_state, filesystem, tileset)?;
 
-        let viewport = Arc::new(Viewport::new(
+        let viewport = Viewport::new(
             graphics_state,
-            map.width as f32 * 32.,
-            map.height as f32 * 32.,
-        ));
+            glam::vec2(map.width as f32 * 32., map.height as f32 * 32.),
+        );
 
-        let tiles = Tiles::new(graphics_state, viewport.clone(), atlas, &map.data);
+        let tiles = Tiles::new(
+            graphics_state,
+            &map.data,
+            &atlas,
+            &viewport,
+            Transform::unit(graphics_state),
+        );
         let grid = Grid::new(
             graphics_state,
-            viewport.clone(),
+            &viewport,
+            Transform::unit(graphics_state),
             map.data.xsize() as u32,
             map.data.ysize() as u32,
         );
-        let collision = Collision::new(graphics_state, viewport.clone(), passages);
+        let collision = Collision::new(
+            graphics_state,
+            &viewport,
+            Transform::unit(graphics_state),
+            passages,
+        );
 
         let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
             let texture = graphics_state
@@ -155,8 +91,8 @@ impl Map {
 
             Some(Plane::new(
                 graphics_state,
-                viewport.clone(),
-                texture,
+                &viewport,
+                &texture,
                 tileset.panorama_hue,
                 100,
                 luminol_data::BlendMode::Normal,
@@ -180,8 +116,8 @@ impl Map {
 
             Some(Plane::new(
                 graphics_state,
-                viewport.clone(),
-                texture,
+                &viewport,
+                &texture,
                 tileset.fog_hue,
                 tileset.fog_zoom,
                 tileset.fog_blend_type,
@@ -193,14 +129,33 @@ impl Map {
             None
         };
 
+        let events = map
+            .events
+            .iter()
+            .map(|(id, event)| {
+                Event::new(
+                    graphics_state,
+                    filesystem,
+                    &viewport,
+                    Transform::new_position(
+                        graphics_state,
+                        glam::vec2(event.x as f32 * 32., event.y as f32 * 32.),
+                    ),
+                    event,
+                    &atlas,
+                )
+                .map(|opt_e| opt_e.map(|e| (id, e)))
+            })
+            .flatten_ok()
+            .try_collect()?;
+
         Ok(Self {
-            resources: std::sync::Arc::new(Resources {
-                tiles,
-                panorama,
-                fog,
-                collision,
-                grid,
-            }),
+            tiles,
+            panorama,
+            fog,
+            collision,
+            grid,
+            events,
             viewport,
 
             ani_time: None,
@@ -209,7 +164,7 @@ impl Map {
             pano_enabled: true,
             coll_enabled: false,
             grid_enabled: true,
-            enabled_layers: vec![true; map.data.zsize()],
+            event_enabled: true,
         })
     }
 
@@ -219,9 +174,7 @@ impl Map {
         tile_id: i16,
         position: (usize, usize, usize),
     ) {
-        self.resources
-            .tiles
-            .set_tile(render_state, tile_id, position);
+        self.tiles.set_tile(render_state, tile_id, position);
     }
 
     pub fn set_passage(
@@ -230,74 +183,84 @@ impl Map {
         passage: i16,
         position: (usize, usize),
     ) {
-        self.resources
-            .collision
-            .set_passage(render_state, passage, position);
+        self.collision.set_passage(render_state, passage, position);
     }
 
-    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
-        self.viewport.set_proj(render_state, proj);
-    }
-
-    pub fn paint(
-        &mut self,
-        graphics_state: Arc<GraphicsState>,
-        painter: &egui::Painter,
-        selected_layer: Option<usize>,
-        rect: egui::Rect,
-    ) {
-        let time = painter.ctx().input(|i| i.time);
+    pub fn update_animation(&mut self, render_state: &luminol_egui_wgpu::RenderState, time: f64) {
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. {
                 self.ani_time = Some(time);
-                self.resources
-                    .tiles
-                    .autotiles
-                    .inc_ani_index(&graphics_state.render_state);
+                self.tiles.autotiles.inc_ani_index(render_state);
             }
         } else {
             self.ani_time = Some(time);
         }
-
-        painter
-            .ctx()
-            .request_repaint_after(Duration::from_secs_f64(16. / 60.));
-
-        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
-            rect,
-            Callback {
-                resources: Fragile::new(self.resources.clone()),
-                graphics_state: Fragile::new(graphics_state),
-
-                pano_enabled: self.pano_enabled,
-                enabled_layers: self.enabled_layers.clone(),
-                selected_layer,
-            },
-        ));
     }
+}
 
-    pub fn paint_overlay(
-        &mut self,
-        graphics_state: Arc<GraphicsState>,
-        painter: &egui::Painter,
-        grid_inner_thickness: f32,
-        rect: egui::Rect,
-    ) {
-        self.resources
-            .grid
-            .display
-            .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
+pub struct Prepared {
+    tiles: <Tiles as Renderable>::Prepared,
+    panorama: Option<<Plane as Renderable>::Prepared>,
+    fog: Option<<Plane as Renderable>::Prepared>,
+    collision: Option<<Collision as Renderable>::Prepared>,
+    events: Vec<<Event as Renderable>::Prepared>,
+}
 
-        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
-            rect,
-            OverlayCallback {
-                resources: Fragile::new(self.resources.clone()),
-                graphics_state: Fragile::new(graphics_state),
+impl Renderable for Map {
+    type Prepared = Prepared;
 
-                fog_enabled: self.fog_enabled,
-                coll_enabled: self.coll_enabled,
-                grid_enabled: self.grid_enabled,
-            },
-        ));
+    fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared {
+        let tiles = self.tiles.prepare(graphics_state);
+        let panorama = self
+            .panorama
+            .as_mut()
+            .filter(|_| self.pano_enabled)
+            .map(|pano| pano.prepare(graphics_state));
+        let fog = self
+            .fog
+            .as_mut()
+            .filter(|_| self.fog_enabled)
+            .map(|fog| fog.prepare(graphics_state));
+        let collision = self
+            .coll_enabled
+            .then(|| self.collision.prepare(graphics_state));
+        let events = if self.event_enabled {
+            self.events
+                .iter_mut()
+                .map(|(_, event)| event.prepare(graphics_state))
+                .collect()
+        } else {
+            vec![]
+        };
+
+        Prepared {
+            tiles,
+            panorama,
+            fog,
+            collision,
+            events,
+        }
+    }
+}
+
+impl Drawable for Prepared {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        self.tiles.draw(render_pass);
+
+        if let Some(ref pano) = self.panorama {
+            pano.draw(render_pass);
+        }
+
+        for event in &self.events {
+            event.draw(render_pass);
+        }
+
+        if let Some(ref fog) = self.fog {
+            fog.draw(render_pass);
+        }
+
+        if let Some(ref collision) = self.collision {
+            collision.draw(render_pass);
+        }
     }
 }

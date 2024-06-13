@@ -1,3 +1,5 @@
+#import luminol::translation as Trans  // 🏳️‍⚧️
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec2<f32>,
@@ -6,22 +8,11 @@ struct VertexOutput {
     @location(1) @interpolate(flat) vertex_position: vec2<f32>,
 }
 
-struct Viewport {
-    proj: mat4x4<f32>,
-}
-
 struct Display {
-    viewport_size_in_pixels: vec2<f32>,
     pixels_per_point: f32,
     inner_thickness_in_points: f32,
-    // we need this size(16) because in webgl, buffers cannot have a size that is not a multiple of 16.
-    @size(16) map_size: vec2<u32>,
+    map_size: vec2<u32>,
 }
-
-@group(0) @binding(0)
-var<uniform> viewport: Viewport;
-@group(0) @binding(1)
-var<uniform> display: Display;
 
 // OpenGL and WebGL use the last vertex in each triangle as the provoking vertex, and
 // Direct3D, Metal, Vulkan and WebGPU use the first vertex in each triangle
@@ -47,33 +38,41 @@ const QUAD_VERTICES: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
 );
 #endif
 
+@group(0) @binding(0)
+var<uniform> viewport: Trans::Viewport;
+@group(0) @binding(1)
+var<uniform> transform: Trans::Transform;
+@group(0) @binding(2)
+var<uniform> display: Display;
+
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
 
     var quad_vertices = QUAD_VERTICES;
-    let vertex_position = quad_vertices[vertex_index];
     let tile_position = vec2<f32>(
         f32(instance_index % display.map_size.x), 
         f32(instance_index / display.map_size.x)
     );
+    let vertex_position = (quad_vertices[vertex_index] + tile_position) * 32.;
+    let normalized_pos = Trans::translate_vertex(vertex_position, viewport, transform);
 
-    out.position = (viewport.proj * vec4<f32>((vertex_position + tile_position) * 32., 0., 1.)).xy;
-    out.vertex_position = out.position;
-    out.clip_position = vec4<f32>(out.position, 0., 1.);
+    out.position = normalized_pos;
+    out.vertex_position = normalized_pos;
+    out.clip_position = vec4<f32>(normalized_pos, 0., 1.);
     return out;
 }
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    if display.viewport_size_in_pixels.x == 0. || display.viewport_size_in_pixels.y == 0. {
+    if viewport.screen_size.x == 0. || viewport.screen_size.y == 0. {
         discard;
     }
 
     var color: f32;
     var alpha: f32;
 
-    let diff = abs(input.position - input.vertex_position) * (display.viewport_size_in_pixels / 2.);
+    let diff = abs(input.position - input.vertex_position) * (viewport.screen_size / 2.);
 
     let adjusted_outer_thickness = 1.001 * display.pixels_per_point;
     let adjusted_inner_thickness = display.inner_thickness_in_points * adjusted_outer_thickness;

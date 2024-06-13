@@ -17,7 +17,10 @@
 
 use std::sync::Arc;
 
-use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
+use crate::{
+    BindGroupBuilder, BindGroupLayoutBuilder, Drawable, GraphicsState, Renderable, Transform,
+    Viewport,
+};
 
 use instance::Instances;
 use itertools::Itertools;
@@ -27,9 +30,10 @@ pub(crate) mod shader;
 
 #[derive(Debug)]
 pub struct Collision {
-    pub instances: Instances,
-    pub viewport: Arc<Viewport>,
-    pub bind_group: wgpu::BindGroup,
+    pub transform: Transform,
+    // in an Arc so we can use it in rendering
+    instances: Arc<Instances>,
+    bind_group: Arc<wgpu::BindGroup>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,13 +49,15 @@ pub enum CollisionType {
 impl Collision {
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: Arc<Viewport>,
+        viewport: &Viewport,
+        transform: Transform,
         passages: &luminol_data::Table2,
     ) -> Self {
         let instances = Instances::new(&graphics_state.render_state, passages);
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder.append_buffer(viewport.as_buffer());
+        bind_group_builder.append_buffer(transform.as_buffer());
         let bind_group = bind_group_builder.build(
             &graphics_state.render_state.device,
             Some("collision bind group"),
@@ -59,9 +65,9 @@ impl Collision {
         );
 
         Self {
-            instances,
-            viewport,
-            bind_group,
+            transform,
+            instances: Arc::new(instances),
+            bind_group: Arc::new(bind_group),
         }
     }
 
@@ -72,20 +78,6 @@ impl Collision {
         position: (usize, usize),
     ) {
         self.instances.set_passage(render_state, passage, position)
-    }
-
-    pub fn draw<'rpass>(
-        &'rpass self,
-        graphics_state: &'rpass GraphicsState,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
-        render_pass.push_debug_group("tilemap collision renderer");
-        render_pass.set_pipeline(&graphics_state.pipelines.collision);
-
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
-
-        self.instances.draw(render_pass);
-        render_pass.pop_debug_group();
     }
 
     /// Determines the passage values for every position on the map, running `f(x, y, passage)` for
@@ -188,12 +180,47 @@ impl Collision {
     }
 }
 
+pub struct Prepared {
+    bind_group: Arc<wgpu::BindGroup>,
+    instances: Arc<Instances>,
+    graphics_state: Arc<GraphicsState>,
+}
+
+impl Renderable for Collision {
+    type Prepared = Prepared;
+
+    fn prepare(&mut self, graphics_state: &Arc<GraphicsState>) -> Self::Prepared {
+        let bind_group = Arc::clone(&self.bind_group);
+        let graphics_state = Arc::clone(graphics_state);
+        let instances = Arc::clone(&self.instances);
+
+        Prepared {
+            bind_group,
+            instances,
+            graphics_state,
+        }
+    }
+}
+
+impl Drawable for Prepared {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.push_debug_group("tilemap collision renderer");
+        render_pass.set_pipeline(&self.graphics_state.pipelines.collision);
+
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
+
+        self.instances.draw(render_pass);
+        render_pass.pop_debug_group();
+    }
+}
+
 pub fn create_bind_group_layout(
     render_state: &luminol_egui_wgpu::RenderState,
 ) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
 
     Viewport::add_to_bind_group_layout(&mut builder);
+    Transform::add_to_bind_group_layout(&mut builder);
 
     builder.build(&render_state.device, Some("collision bind group layout"))
 }

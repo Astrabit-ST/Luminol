@@ -1,4 +1,5 @@
 #import luminol::gamma as Gamma
+#import luminol::translation as Trans  // 🏳️‍⚧️
 
 struct InstanceInput {
     @location(0) tile_id: u32,
@@ -9,10 +10,6 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
     // todo: look into using multiple textures?
-}
-
-struct Viewport {
-    proj: mat4x4<f32>,
 }
 
 struct Autotiles {
@@ -32,10 +29,12 @@ struct Display {
 }
 
 @group(0) @binding(2)
-var<uniform> viewport: Viewport;
+var<uniform> viewport: Trans::Viewport;
 @group(0) @binding(3)
-var<uniform> autotiles: Autotiles;
+var<uniform> transform: Trans::Transform;
 @group(0) @binding(4)
+var<uniform> autotiles: Autotiles;
+@group(0) @binding(5)
 var<uniform> display: Display;
 
 const VERTEX_POSITIONS = array<vec2f, 6>(
@@ -73,10 +72,10 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32, instance: InstanceInput) ->
     );
 
     var vertex_positions = VERTEX_POSITIONS;
-    let vertex_position = vertex_positions[vertex_index];
+    let vertex_position = vertex_positions[vertex_index] + (tile_position * 32.0);
+    let normalized_pos = Trans::translate_vertex(vertex_position, viewport, transform);
 
-    let position = viewport.proj * vec4<f32>(vertex_position + (tile_position * 32.), 0.0, 1.0);
-    out.clip_position = vec4<f32>(position.xy, 0.0, 1.0); // we don't set the z because we have no z buffer
+    out.clip_position = vec4<f32>(normalized_pos, 0.0, 1.0); // we don't set the z because we have no z buffer
 
     let is_autotile = instance.tile_id < #TOTAL_AUTOTILE_ID_AMOUNT;
 

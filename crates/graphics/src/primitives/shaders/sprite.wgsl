@@ -1,5 +1,6 @@
 #import luminol::gamma as Gamma
 #import luminol::hue as Hue
+#import luminol::translation as Trans  // 🏳️‍⚧️
 
 // Vertex shader
 struct VertexInput {
@@ -10,10 +11,6 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-}
-
-struct Viewport {
-    proj: mat4x4<f32>,
 }
 
 struct Graphic {
@@ -29,8 +26,10 @@ var t_diffuse: texture_2d<f32>;
 var s_diffuse: sampler;
 
 @group(0) @binding(2)
-var<uniform> viewport: Viewport;
+var<uniform> viewport: Trans::Viewport;
 @group(0) @binding(3)
+var<uniform> transform: Trans::Transform;
+@group(0) @binding(4)
 var<uniform> graphic: Graphic;
 
 @vertex
@@ -40,9 +39,8 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    var position = viewport.proj * vec4<f32>(model.position, 0.0, 1.0);
+    out.clip_position = vec4<f32>(Trans::translate_vertex(model.position, viewport, transform), 0.0, 1.0);
 
-    out.clip_position = vec4<f32>(position.xy, 0.0, 1.0);
     return out;
 }
 

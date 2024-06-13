@@ -22,14 +22,13 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use parking_lot::RwLock;
 use wgpu::util::DeviceExt;
 
 use crate::{BindGroupLayoutBuilder, GraphicsState};
 
 #[derive(Debug)]
 pub struct Display {
-    data: RwLock<LayerData>,
+    data: LayerData,
     uniform: wgpu::Buffer,
 }
 
@@ -113,7 +112,7 @@ impl Display {
         );
 
         Self {
-            data: RwLock::new(layer_data),
+            data: layer_data,
             uniform,
         }
     }
@@ -122,35 +121,39 @@ impl Display {
         &self.uniform
     }
 
-    pub fn bytes_of_layer(&self, layer: usize) -> impl std::ops::Deref<Target = [u8]> + '_ {
-        parking_lot::RwLockReadGuard::map(self.data.read(), |d| d.bytes_of_layer(layer))
+    pub fn bytes_of_layer(&self, layer: usize) -> &[u8] {
+        self.data.bytes_of_layer(layer)
     }
 
     pub fn opacity(&self, layer: usize) -> f32 {
-        self.data.read().read_data_at(layer).opacity
+        self.data.read_data_at(layer).opacity
     }
 
     pub fn set_opacity(
-        &self,
+        &mut self,
         render_state: &luminol_egui_wgpu::RenderState,
         opacity: f32,
         layer: usize,
     ) {
-        let mut data = self.data.write();
-        let layer_data = data.read_data_at_mut(layer);
+        let layer_data = self.data.read_data_at_mut(layer);
         if layer_data.opacity != opacity {
             layer_data.opacity = opacity;
-            self.regen_buffer(render_state, &data.data);
+            self.regen_buffer(render_state, &self.data.data);
         }
     }
 
     pub fn aligned_layer_size(&self) -> usize {
-        let data = self.data.read();
-        Data::aligned_size_of(data.min_alignment_size)
+        Data::aligned_size_of(self.data.min_alignment_size)
+    }
+
+    pub fn layer_offsets(&self) -> Vec<u32> {
+        (0..self.data.data.len() / self.aligned_layer_size())
+            .map(|layer| self.layer_offset(layer))
+            .collect()
     }
 
     pub fn layer_offset(&self, layer: usize) -> u32 {
-        self.data.read().range_of_layer(layer).start as u32
+        self.data.range_of_layer(layer).start as u32
     }
 
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState, data: &[u8]) {

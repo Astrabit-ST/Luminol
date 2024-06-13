@@ -22,58 +22,25 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use fragile::Fragile;
 use itertools::Itertools;
 
-use crate::{Atlas, Collision, GraphicsState, Grid, Tiles, Viewport};
+use crate::{
+    Atlas, Collision, Drawable, GraphicsState, Grid, Renderable, Tiles, Transform, Viewport,
+};
 
 pub struct Tilepicker {
     pub coll_enabled: bool,
     pub grid_enabled: bool,
 
-    resources: Arc<Resources>,
-    viewport: Arc<Viewport>,
+    pub tiles: Tiles,
+    pub collision: Collision,
+    pub grid: Grid,
+    pub atlas: Atlas,
+
+    pub viewport: Viewport,
     ani_time: Option<f64>,
-}
-
-struct Resources {
-    tiles: Tiles,
-    collision: Collision,
-    grid: Grid,
-}
-
-struct Callback {
-    resources: Fragile<Arc<Resources>>,
-    graphics_state: Fragile<Arc<GraphicsState>>,
-
-    coll_enabled: bool,
-    grid_enabled: bool,
-}
-
-impl luminol_egui_wgpu::CallbackTrait for Callback {
-    fn paint<'a>(
-        &'a self,
-        info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
-    ) {
-        let resources = self.resources.get();
-        let graphics_state = self.graphics_state.get();
-
-        resources
-            .tiles
-            .draw(graphics_state, &[true], None, render_pass);
-
-        if self.coll_enabled {
-            resources.collision.draw(graphics_state, render_pass);
-        }
-
-        if self.grid_enabled {
-            resources.grid.draw(graphics_state, &info, render_pass);
-        }
-    }
 }
 
 impl Tilepicker {
@@ -97,17 +64,23 @@ impl Tilepicker {
             tilepicker_data,
         );
 
-        let viewport = Arc::new(Viewport::new(
+        let viewport = Viewport::new(
             graphics_state,
-            256.,
-            atlas.tileset_height as f32 + 32.,
-        ));
+            glam::vec2(256., atlas.tileset_height as f32 + 32.),
+        );
 
-        let tiles = Tiles::new(graphics_state, viewport.clone(), atlas, &tilepicker_data);
+        let tiles = Tiles::new(
+            graphics_state,
+            &tilepicker_data,
+            &atlas,
+            &viewport,
+            Transform::unit(graphics_state),
+        );
 
         let grid = Grid::new(
             graphics_state,
-            viewport.clone(),
+            &viewport,
+            Transform::unit(graphics_state),
             tilepicker_data.xsize() as u32,
             tilepicker_data.ysize() as u32,
         );
@@ -128,61 +101,85 @@ impl Tilepicker {
             (passages.len().saturating_sub(8)).min(tileset.passages.len().saturating_sub(384));
         passages.as_mut_slice()[8..8 + length]
             .copy_from_slice(&tileset.passages.as_slice()[384..384 + length]);
-        let collision = Collision::new(graphics_state, viewport.clone(), &passages);
+        let collision = Collision::new(
+            graphics_state,
+            &viewport,
+            Transform::unit(graphics_state),
+            &passages,
+        );
 
         Ok(Self {
-            resources: Arc::new(Resources {
-                tiles,
-                collision,
-                grid,
-            }),
+            tiles,
+            collision,
+            grid,
+            atlas,
+
             viewport,
+
             coll_enabled: false,
             grid_enabled: false,
             ani_time: None,
         })
     }
 
-    pub fn paint(
-        &mut self,
-        graphics_state: Arc<GraphicsState>,
-        painter: &egui::Painter,
-        rect: egui::Rect,
-    ) {
-        let time = painter.ctx().input(|i| i.time);
+    pub fn update_animation(&mut self, render_state: &luminol_egui_wgpu::RenderState, time: f64) {
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. {
                 self.ani_time = Some(time);
-                self.resources
-                    .tiles
-                    .autotiles
-                    .inc_ani_index(&graphics_state.render_state);
+                self.tiles.autotiles.inc_ani_index(render_state);
             }
         } else {
             self.ani_time = Some(time);
         }
-
-        painter
-            .ctx()
-            .request_repaint_after(Duration::from_secs_f64(16. / 60.));
-
-        painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
-            rect,
-            Callback {
-                resources: Fragile::new(self.resources.clone()),
-                graphics_state: Fragile::new(graphics_state),
-
-                coll_enabled: self.coll_enabled,
-                grid_enabled: self.grid_enabled,
-            },
-        ));
     }
 
-    pub fn set_proj(&self, render_state: &luminol_egui_wgpu::RenderState, proj: glam::Mat4) {
-        self.viewport.set_proj(render_state, proj);
+    pub fn set_position(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        position: glam::Vec2,
+    ) {
+        self.tiles.transform.set_position(render_state, position);
+        self.collision
+            .transform
+            .set_position(render_state, position);
+        self.grid.transform.set_position(render_state, position);
     }
+}
 
-    pub fn atlas(&self) -> &Atlas {
-        &self.resources.tiles.atlas
+pub struct Prepared {
+    tiles: <Tiles as Renderable>::Prepared,
+    collision: <Collision as Renderable>::Prepared,
+    grid: <Grid as Renderable>::Prepared,
+
+    coll_enabled: bool,
+    grid_enabled: bool,
+}
+
+impl Renderable for Tilepicker {
+    type Prepared = Prepared;
+
+    fn prepare(&mut self, graphics_state: &Arc<GraphicsState>) -> Self::Prepared {
+        Prepared {
+            tiles: self.tiles.prepare(graphics_state),
+            collision: self.collision.prepare(graphics_state),
+            grid: self.grid.prepare(graphics_state),
+
+            coll_enabled: self.coll_enabled,
+            grid_enabled: self.grid_enabled,
+        }
+    }
+}
+
+impl Drawable for Prepared {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        self.tiles.draw(render_pass);
+
+        if self.coll_enabled {
+            self.collision.draw(render_pass);
+        }
+
+        if self.grid_enabled {
+            self.grid.draw(render_pass);
+        }
     }
 }

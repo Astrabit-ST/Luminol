@@ -15,14 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crossbeam::atomic::AtomicCell;
 use wgpu::util::DeviceExt;
 
 use crate::{BindGroupLayoutBuilder, GraphicsState};
 
 #[derive(Debug)]
 pub struct Graphic {
-    data: AtomicCell<Data>,
+    data: Data,
     uniform: wgpu::Buffer,
 }
 
@@ -54,62 +53,48 @@ impl Graphic {
             },
         );
 
-        Self {
-            data: AtomicCell::new(data),
-            uniform,
-        }
+        Self { data, uniform }
     }
 
     pub fn hue(&self) -> i32 {
-        (self.data.load().hue * 360.) as i32
+        (self.data.hue * 360.) as i32
     }
 
-    pub fn set_hue(&self, render_state: &luminol_egui_wgpu::RenderState, hue: i32) {
+    pub fn set_hue(&mut self, render_state: &luminol_egui_wgpu::RenderState, hue: i32) {
         let hue = (hue % 360) as f32 / 360.0;
-        let data = self.data.load();
 
-        if data.hue != hue {
-            self.data.store(Data { hue, ..data });
+        if self.data.hue != hue {
+            self.data.hue = hue;
             self.regen_buffer(render_state);
         }
     }
 
     pub fn opacity(&self) -> i32 {
-        (self.data.load().opacity * 255.) as i32
+        (self.data.opacity * 255.) as i32
     }
 
-    pub fn set_opacity(&self, render_state: &luminol_egui_wgpu::RenderState, opacity: i32) {
+    pub fn set_opacity(&mut self, render_state: &luminol_egui_wgpu::RenderState, opacity: i32) {
         let opacity = opacity as f32 / 255.0;
-        let data = self.data.load();
 
-        if data.opacity != opacity {
-            self.data.store(Data { opacity, ..data });
+        if self.data.opacity != opacity {
+            self.data.opacity = opacity;
             self.regen_buffer(render_state);
         }
     }
 
     pub fn opacity_multiplier(&self) -> f32 {
-        self.data.load().opacity_multiplier
+        self.data.opacity_multiplier
     }
 
     pub fn set_opacity_multiplier(
-        &self,
+        &mut self,
         render_state: &luminol_egui_wgpu::RenderState,
         opacity_multiplier: f32,
     ) {
-        let data = self.data.load();
-
-        if data.opacity_multiplier != opacity_multiplier {
-            self.data.store(Data {
-                opacity_multiplier,
-                ..data
-            });
+        if self.data.opacity_multiplier != opacity_multiplier {
+            self.data.opacity_multiplier = opacity_multiplier;
             self.regen_buffer(render_state);
         }
-    }
-
-    pub fn as_bytes(&self) -> [u8; std::mem::size_of::<Data>()] {
-        bytemuck::cast(self.data.load())
     }
 
     pub fn as_buffer(&self) -> &wgpu::Buffer {
@@ -119,7 +104,7 @@ impl Graphic {
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         render_state
             .queue
-            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data.load()));
+            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));
     }
 }
 

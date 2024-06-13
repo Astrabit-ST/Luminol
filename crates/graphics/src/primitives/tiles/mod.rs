@@ -17,7 +17,10 @@
 
 use std::sync::Arc;
 
-use crate::{BindGroupBuilder, BindGroupLayoutBuilder, GraphicsState, Viewport};
+use crate::{
+    BindGroupBuilder, BindGroupLayoutBuilder, Drawable, GraphicsState, Renderable, Transform,
+    Viewport,
+};
 
 pub use atlas::*;
 
@@ -34,22 +37,25 @@ pub(crate) mod shader;
 
 pub struct Tiles {
     pub autotiles: Autotiles,
-    pub atlas: Atlas,
-    pub instances: Instances,
     pub display: Display,
-    pub viewport: Arc<Viewport>,
+    pub transform: Transform,
+    pub enabled_layers: Vec<bool>,
+    pub selected_layer: Option<usize>,
 
-    pub bind_group: wgpu::BindGroup,
+    instances: Arc<Instances>,
+    bind_group: Arc<wgpu::BindGroup>,
 }
 
 impl Tiles {
     pub fn new(
         graphics_state: &GraphicsState,
-        viewport: Arc<Viewport>,
-        atlas: Atlas,
         tiles: &luminol_data::Table3,
+        // in order of use in bind group
+        atlas: &Atlas,
+        viewport: &Viewport,
+        transform: Transform,
     ) -> Self {
-        let autotiles = Autotiles::new(graphics_state, &atlas);
+        let autotiles = Autotiles::new(graphics_state, atlas);
         let instances = Instances::new(&graphics_state.render_state, tiles);
         let display = Display::new(
             graphics_state,
@@ -61,10 +67,9 @@ impl Tiles {
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
             .append_texture_view(&atlas.atlas_texture.view)
-            .append_sampler(&graphics_state.nearest_sampler);
-
-        bind_group_builder
+            .append_sampler(&graphics_state.nearest_sampler)
             .append_buffer(viewport.as_buffer())
+            .append_buffer(transform.as_buffer())
             .append_buffer(autotiles.as_buffer())
             .append_buffer_with_size(display.as_buffer(), display.aligned_layer_size() as u64);
 
@@ -76,12 +81,13 @@ impl Tiles {
 
         Self {
             autotiles,
-            atlas,
-            instances,
             display,
+            transform,
+            enabled_layers: vec![true; tiles.zsize()],
+            selected_layer: None,
 
-            bind_group,
-            viewport,
+            instances: Arc::new(instances),
+            bind_group: Arc::new(bind_group),
         }
     }
 
@@ -93,42 +99,60 @@ impl Tiles {
     ) {
         self.instances.set_tile(render_state, tile_id, position)
     }
+}
 
-    pub fn draw<'rpass>(
-        &'rpass self,
-        graphics_state: &'rpass GraphicsState,
-        enabled_layers: &[bool],
-        selected_layer: Option<usize>,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
-        #[repr(C)]
-        #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-        struct VertexPushConstant {
-            viewport: [u8; 64],
-            autotiles: [u8; 48],
-        }
+pub struct Prepared {
+    bind_group: Arc<wgpu::BindGroup>,
+    instances: Arc<Instances>,
+    graphics_state: Arc<GraphicsState>,
 
-        render_pass.push_debug_group("tilemap tiles renderer");
-        render_pass.set_pipeline(&graphics_state.pipelines.tiles);
+    layer_offsets: Vec<u32>,
+    enabled_layers: Vec<bool>,
+}
 
-        for (layer, enabled) in enabled_layers.iter().copied().enumerate() {
-            let opacity = if selected_layer.is_some_and(|s| s != layer) {
+impl Renderable for Tiles {
+    type Prepared = Prepared;
+
+    fn prepare(&mut self, graphics_state: &Arc<GraphicsState>) -> Self::Prepared {
+        let bind_group = Arc::clone(&self.bind_group);
+        let graphics_state = Arc::clone(graphics_state);
+        let instances = Arc::clone(&self.instances);
+
+        for layer in 0..self.enabled_layers.len() {
+            let opacity = if self.selected_layer.is_some_and(|s| s != layer) {
                 0.5
             } else {
                 1.0
             };
-            if enabled {
-                self.display
-                    .set_opacity(&graphics_state.render_state, opacity, layer);
+            self.display
+                .set_opacity(&graphics_state.render_state, opacity, layer);
+        }
 
-                render_pass.set_bind_group(
-                    0,
-                    &self.bind_group,
-                    &[self.display.layer_offset(layer)],
-                );
+        Prepared {
+            bind_group,
+            instances,
+            graphics_state,
 
-                self.instances.draw(render_pass, layer);
-            }
+            layer_offsets: self.display.layer_offsets(),
+            enabled_layers: self.enabled_layers.clone(),
+        }
+    }
+}
+
+impl Drawable for Prepared {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        render_pass.push_debug_group("tilemap tiles renderer");
+        render_pass.set_pipeline(&self.graphics_state.pipelines.tiles);
+
+        for layer in self
+            .enabled_layers
+            .iter()
+            .enumerate()
+            .filter_map(|(layer, enabled)| enabled.then_some(layer))
+        {
+            render_pass.set_bind_group(0, &self.bind_group, &[self.layer_offsets[layer]]);
+
+            self.instances.draw(render_pass, layer);
         }
         render_pass.pop_debug_group();
     }
@@ -155,6 +179,7 @@ pub fn create_bind_group_layout(
         );
 
     Viewport::add_to_bind_group_layout(&mut builder);
+    Transform::add_to_bind_group_layout(&mut builder);
     autotiles::add_to_bind_group_layout(&mut builder);
     display::add_to_bind_group_layout(&mut builder);
 

@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use luminol_graphics::Renderable;
+
 pub struct Tilepicker {
     pub selected_tiles_left: i16,
     pub selected_tiles_top: i16,
@@ -150,10 +152,8 @@ impl Tilepicker {
     ) -> egui::Response {
         self.brush_random = update_state.toolbar.brush_random != ui.input(|i| i.modifiers.alt);
 
-        let graphics_state = update_state.graphics.clone();
-
         let (canvas_rect, response) = ui.allocate_exact_size(
-            egui::vec2(256., self.view.atlas().tileset_height as f32 + 32.),
+            egui::vec2(256., self.view.atlas.tileset_height as f32 + 32.),
             egui::Sense::click_and_drag(),
         );
 
@@ -163,20 +163,17 @@ impl Tilepicker {
             .intersect(scroll_rect.translate(canvas_rect.min.to_vec2()));
         let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
 
-        self.view.set_proj(
-            &graphics_state.render_state,
-            glam::Mat4::orthographic_rh(
-                scroll_rect.left(),
-                scroll_rect.right(),
-                scroll_rect.bottom(),
-                scroll_rect.top(),
-                -1.,
-                1.,
-            ),
+        self.view.set_position(
+            &update_state.graphics.render_state,
+            glam::vec2(scroll_rect.left(), scroll_rect.top()),
         );
-        // FIXME: move this into graphics
-        self.view
-            .paint(graphics_state, ui.painter(), absolute_scroll_rect);
+
+        let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
+        ui.painter()
+            .add(luminol_egui_wgpu::Callback::new_paint_callback(
+                absolute_scroll_rect,
+                painter,
+            ));
 
         let rect = egui::Rect::from_x_y_ranges(
             (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,
@@ -201,7 +198,7 @@ impl Tilepicker {
                 pos
             };
             let rect = egui::Rect::from_two_pos(drag_origin, pos);
-            let bottom = self.view.atlas().tileset_height as i16 / 32;
+            let bottom = self.view.atlas.tileset_height as i16 / 32;
             self.selected_tiles_left = (rect.left() as i16).clamp(0, 7);
             self.selected_tiles_right = (rect.right() as i16).clamp(0, 7);
             self.selected_tiles_top = (rect.top() as i16).clamp(0, bottom);

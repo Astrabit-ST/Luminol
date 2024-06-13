@@ -24,6 +24,12 @@ pub fn create_render_pipeline(
     bind_group_layouts: &BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
     composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/translation.wgsl"),
+        file_path: "translation.wgsl",
+        ..Default::default()
+    })?;
+
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
         source: include_str!("../shaders/gamma.wgsl"),
         file_path: "gamma.wgsl",
         ..Default::default()

@@ -15,7 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use itertools::Itertools;
+use luminol_graphics::Renderable;
+use std::collections::HashMap;
 
 pub struct MapView {
     /// Toggle to display the visible region in-game.
@@ -28,13 +29,13 @@ pub struct MapView {
 
     /// The first sprite is for drawing on the tilemap,
     /// and the second sprite is for the hover preview.
-    pub events: luminol_data::OptionVec<(luminol_graphics::Event, luminol_graphics::Event)>,
+    pub preview_events: HashMap<usize, luminol_graphics::Event>,
+    pub last_events: HashMap<usize, luminol_graphics::Event>,
     pub map: luminol_graphics::Map,
 
     pub selected_layer: SelectedLayer,
     pub selected_event_id: Option<usize>,
     pub cursor_pos: egui::Pos2,
-    pub event_enabled: bool,
     pub snap_to_grid: bool,
 
     /// The map coordinates of the tile being hovered over
@@ -88,36 +89,6 @@ impl MapView {
             |x, y, passage| passages[(x, y)] = passage,
         );
 
-        let atlas = update_state.graphics.atlas_loader.load_atlas(
-            &update_state.graphics,
-            update_state.filesystem,
-            tileset,
-        )?;
-        let events = map
-            .events
-            .iter()
-            .map(|(id, e)| -> color_eyre::Result<_> {
-                let sprite = luminol_graphics::Event::new(
-                    &update_state.graphics,
-                    update_state.filesystem,
-                    e,
-                    &atlas,
-                )?;
-                let preview_sprite = luminol_graphics::Event::new(
-                    &update_state.graphics,
-                    update_state.filesystem,
-                    e,
-                    &atlas,
-                )?;
-
-                Ok(if let Some(sprite) = sprite {
-                    preview_sprite.map(|preview_sprite| (id, (sprite, preview_sprite)))
-                } else {
-                    None
-                })
-            })
-            .flatten_ok()
-            .try_collect()?;
         let map = luminol_graphics::Map::new(
             &update_state.graphics,
             update_state.filesystem,
@@ -149,13 +120,13 @@ impl MapView {
             pan,
             inter_tile_pan,
 
-            events,
+            preview_events: HashMap::new(),
+            last_events: HashMap::new(),
             map,
 
             selected_layer: SelectedLayer::default(),
             selected_event_id: None,
             cursor_pos,
-            event_enabled: true,
             snap_to_grid: false,
 
             darken_unselected_layers: true,
@@ -196,11 +167,6 @@ impl MapView {
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
-        let min_clip = (ui.ctx().screen_rect().min - canvas_rect.min).max(Default::default());
-        let max_clip = (canvas_rect.max - ui.ctx().screen_rect().max).max(Default::default());
-        let clip_offset = (max_clip - min_clip) / 2.;
-        let canvas_rect = ui.ctx().screen_rect().intersect(canvas_rect);
-
         self.cursor_pos = self.cursor_pos.clamp(
             egui::Pos2::ZERO,
             egui::pos2(
@@ -235,6 +201,10 @@ impl MapView {
         self.previous_scale = self.scale;
 
         let grid_inner_thickness = if self.scale >= 50. { 1. } else { 0. };
+        self.map
+            .grid
+            .display
+            .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
 
         let ctrl_drag = ui.input(|i| {
             if is_focused {
@@ -314,36 +284,20 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
-        let proj_center_x = width2 * 32. - (self.pan.x + clip_offset.x) / scale;
-        let proj_center_y = height2 * 32. - (self.pan.y + clip_offset.y) / scale;
-        let proj_width2 = canvas_rect.width() / scale / 2.;
-        let proj_height2 = canvas_rect.height() / scale / 2.;
-
         let graphics_state = graphics_state.clone();
 
-        self.map.set_proj(
-            &graphics_state.render_state,
-            glam::Mat4::orthographic_rh(
-                proj_center_x - proj_width2,
-                proj_center_x + proj_width2,
-                proj_center_y + proj_height2,
-                proj_center_y - proj_height2,
-                -1.,
-                1.,
-            ),
-        );
-        self.map.paint(
-            graphics_state.clone(),
-            ui.painter(),
-            match self.selected_layer {
-                SelectedLayer::Events => None,
-                SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
-                    Some(selected_layer)
-                }
-                SelectedLayer::Tiles(_) => None,
-            },
-            canvas_rect,
-        );
+        self.map.tiles.selected_layer = match self.selected_layer {
+            SelectedLayer::Events => None,
+            SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
+                Some(selected_layer)
+            }
+            SelectedLayer::Tiles(_) => None,
+        };
+        let painter = luminol_graphics::Painter::new(self.map.prepare(&graphics_state));
+        ui.painter()
+            .add(luminol_egui_wgpu::Callback::new_paint_callback(
+                map_rect, painter,
+            ));
 
         ui.painter().rect_stroke(
             map_rect,
@@ -373,25 +327,26 @@ impl MapView {
         )
         .intersect(map_rect);
 
-        if !self.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
+        if !self.map.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
             self.selected_event_id = None;
         }
         self.selected_event_is_hovered = false;
 
-        if self.event_enabled {
+        if self.map.event_enabled {
             let mut selected_event = None;
             let mut selected_event_rect = None;
 
             for (_, event) in map.events.iter() {
-                let sprites = self.events.get(event.id);
-                let event_size = sprites
-                    .map(|e| e.0.sprite_size)
+                let sprite = self.map.events.get_mut(event.id);
+                let event_size = sprite
+                    .as_ref()
+                    .map(|e| e.sprite_size)
                     .unwrap_or(egui::vec2(32., 32.));
                 let scaled_event_size = event_size * scale;
 
                 // Darken the graphic if required
-                if let Some((sprite, _)) = sprites {
-                    sprite.sprite().graphic.set_opacity_multiplier(
+                if let Some(sprite) = sprite {
+                    sprite.sprite.graphic.set_opacity_multiplier(
                         &graphics_state.render_state,
                         if self.darken_unselected_layers
                             && !matches!(self.selected_layer, SelectedLayer::Events)
@@ -411,25 +366,6 @@ impl MapView {
                         ),
                     scaled_event_size,
                 );
-
-                if let Some((sprite, _)) = sprites {
-                    if canvas_rect.intersects(box_rect) {
-                        let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
-                        let y = event.y as f32 * 32. + (32. - event_size.y);
-                        sprite.set_proj(
-                            &graphics_state.render_state,
-                            glam::Mat4::orthographic_rh(
-                                proj_center_x - proj_width2 - x,
-                                proj_center_x + proj_width2 - x,
-                                proj_center_y + proj_height2 - y,
-                                proj_center_y - proj_height2 - y,
-                                -1.,
-                                1.,
-                            ),
-                        );
-                        sprite.paint(graphics_state.clone(), ui.painter(), canvas_rect);
-                    }
-                }
 
                 if matches!(self.selected_layer, SelectedLayer::Events)
                     && ui.input(|i| !i.modifiers.shift)
@@ -471,39 +407,11 @@ impl MapView {
                         response = response.on_hover_ui_at_pointer(|ui| {
                             ui.label(format!("Event {:0>3}: {:?}", event.id, event.name));
 
-                            let (response, painter) = ui.allocate_painter(
+                            let (response, _painter) = ui.allocate_painter(
                                 event_size * ui.ctx().pixels_per_point(),
                                 egui::Sense::click(),
                             );
-                            if let Some((_, preview_sprite)) = sprites {
-                                if response.rect.is_positive() {
-                                    let clipped_rect =
-                                        ui.ctx().screen_rect().intersect(response.rect);
-                                    let proj_rect = egui::Rect::from_min_size(
-                                        (ui.ctx().screen_rect().min - response.rect.min)
-                                            .max(Default::default())
-                                            .to_pos2(),
-                                        preview_sprite.sprite_size * clipped_rect.size()
-                                            / response.rect.size(),
-                                    );
-                                    preview_sprite.set_proj(
-                                        &graphics_state.render_state,
-                                        glam::Mat4::orthographic_rh(
-                                            proj_rect.left(),
-                                            proj_rect.right(),
-                                            proj_rect.bottom(),
-                                            proj_rect.top(),
-                                            -1.,
-                                            1.,
-                                        ),
-                                    );
-                                    preview_sprite.paint(
-                                        graphics_state.clone(),
-                                        &painter,
-                                        clipped_rect,
-                                    );
-                                }
-                            }
+
                             match self.selected_event_id {
                                 Some(id) if id == event.id => ui.painter().rect_stroke(
                                     response.rect,
@@ -578,14 +486,6 @@ impl MapView {
 
             self.selected_event_id = selected_event.map(|e| e.id);
 
-            // Draw the fog and collision layers
-            self.map.paint_overlay(
-                graphics_state.clone(),
-                ui.painter(),
-                grid_inner_thickness,
-                canvas_rect,
-            );
-
             // Draw white rectangles on the border of all events
             while let Some(rect) = self.event_rects.pop() {
                 ui.painter()
@@ -606,14 +506,6 @@ impl MapView {
                     }
                 }
             }
-        } else {
-            // Draw the fog and collision layers
-            self.map.paint_overlay(
-                graphics_state.clone(),
-                ui.painter(),
-                grid_inner_thickness,
-                canvas_rect,
-            );
         }
 
         // FIXME: If we want to be fast, we should be rendering all the tile ids to a texture once and then just rendering that texture here
