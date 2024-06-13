@@ -711,9 +711,9 @@ impl MapView {
     ) -> impl std::future::Future<Output = color_eyre::Result<()>> {
         let c = "While screenshotting the map";
 
-        let width_unpadded = (map.width * 32) as u32;
+        let width = (map.width * 32) as u32;
         let height = (map.height * 32) as u32;
-        let width = width_unpadded.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
+        let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
         let viewport_rect =
             egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(width as f32, height as f32));
 
@@ -740,7 +740,7 @@ impl MapView {
             .device
             .create_buffer(&wgpu::BufferDescriptor {
                 label: Some("map editor screenshot buffer"),
-                size: width as u64 * height as u64 * 4,
+                size: width_padded as u64 * height as u64 * 4,
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             });
@@ -857,7 +857,7 @@ impl MapView {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(width * 4),
+                    bytes_per_row: Some(width_padded * 4),
                     rows_per_image: Some(height),
                 },
             },
@@ -893,8 +893,8 @@ impl MapView {
             let mut vec = buffer
                 .slice(..)
                 .get_mapped_range()
-                .chunks_exact(width as usize * 4)
-                .flat_map(|row| row[..width_unpadded as usize * 4].iter())
+                .chunks_exact(width_padded as usize * 4)
+                .flat_map(|row| row[..width as usize * 4].iter())
                 .copied()
                 .collect_vec();
             if graphics_state.render_state.target_format == wgpu::TextureFormat::Bgra8Unorm {
@@ -903,7 +903,7 @@ impl MapView {
                 }
             }
 
-            let screenshot = image::RgbaImage::from_raw(width_unpadded, height, vec).wrap_err(c)?;
+            let screenshot = image::RgbaImage::from_raw(width, height, vec).wrap_err(c)?;
             let mut file = luminol_filesystem::host::File::new().wrap_err(c)?;
             screenshot
                 .write_to(
