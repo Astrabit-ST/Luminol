@@ -709,6 +709,8 @@ impl MapView {
         graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
         map: &luminol_data::rpg::Map,
     ) -> impl std::future::Future<Output = color_eyre::Result<()>> {
+        let c = "While screenshotting the map";
+
         let width_unpadded = (map.width * 32) as u32;
         let height = (map.height * 32) as u32;
         let width = width_unpadded.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
@@ -870,72 +872,49 @@ impl MapView {
             .queue
             .submit(Some(command_encoder.finish()));
 
-        ScreenshotState {
-            graphics_state: graphics_state.clone(),
-            buffer,
-            width,
-            height,
-            width_unpadded,
-        }
-        .consume()
-    }
-}
-
-struct ScreenshotState {
-    graphics_state: std::sync::Arc<luminol_graphics::GraphicsState>,
-    buffer: wgpu::Buffer,
-    width: u32,
-    height: u32,
-    width_unpadded: u32,
-}
-
-impl ScreenshotState {
-    async fn consume(self) -> color_eyre::Result<()> {
-        let c = "While screenshotting the map";
-
+        let graphics_state = graphics_state.clone();
         let (tx, rx) = oneshot::channel();
-        self.buffer
-            .slice(..)
-            .map_async(wgpu::MapMode::Read, move |result| {
-                let _ = tx.send(result);
-            });
-        if !self
-            .graphics_state
-            .render_state
-            .device
-            .poll(wgpu::Maintain::Wait)
-            .is_queue_empty()
-        {
-            return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
-        }
-        rx.await.unwrap().wrap_err(c)?;
-
-        let mut vec = self
-            .buffer
-            .slice(..)
-            .get_mapped_range()
-            .chunks_exact(self.width as usize * 4)
-            .flat_map(|row| row[..self.width_unpadded as usize * 4].iter())
-            .copied()
-            .collect_vec();
-        if self.graphics_state.render_state.target_format == wgpu::TextureFormat::Bgra8Unorm {
-            for (b, _g, r, _a) in vec.iter_mut().tuples() {
-                std::mem::swap(b, r);
+        async move {
+            buffer
+                .slice(..)
+                .map_async(wgpu::MapMode::Read, move |result| {
+                    let _ = tx.send(result);
+                });
+            if !graphics_state
+                .render_state
+                .device
+                .poll(wgpu::Maintain::Wait)
+                .is_queue_empty()
+            {
+                return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
             }
-        }
+            rx.await.unwrap().wrap_err(c)?;
 
-        let screenshot =
-            image::RgbaImage::from_raw(self.width_unpadded, self.height, vec).wrap_err(c)?;
-        let mut file = luminol_filesystem::host::File::new().wrap_err(c)?;
-        screenshot
-            .write_to(
-                &mut std::io::BufWriter::new(&mut file),
-                image::ImageOutputFormat::Png,
-            )
-            .wrap_err(c)?;
-        file.flush().wrap_err(c)?;
-        file.save("map.png", "Portable Network Graphics")
-            .await
-            .wrap_err(c)
+            let mut vec = buffer
+                .slice(..)
+                .get_mapped_range()
+                .chunks_exact(width as usize * 4)
+                .flat_map(|row| row[..width_unpadded as usize * 4].iter())
+                .copied()
+                .collect_vec();
+            if graphics_state.render_state.target_format == wgpu::TextureFormat::Bgra8Unorm {
+                for (b, _g, r, _a) in vec.iter_mut().tuples() {
+                    std::mem::swap(b, r);
+                }
+            }
+
+            let screenshot = image::RgbaImage::from_raw(width_unpadded, height, vec).wrap_err(c)?;
+            let mut file = luminol_filesystem::host::File::new().wrap_err(c)?;
+            screenshot
+                .write_to(
+                    &mut std::io::BufWriter::new(&mut file),
+                    image::ImageOutputFormat::Png,
+                )
+                .wrap_err(c)?;
+            file.flush().wrap_err(c)?;
+            file.save("map.png", "Portable Network Graphics")
+                .await
+                .wrap_err(c)
+        }
     }
 }
