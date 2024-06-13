@@ -175,9 +175,9 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "alox-48"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10b95702b328de6416c5504d9d7d74438362f06ec907579d3be0f28ee94084dc"
+checksum = "6934ee23d65ca3613e4656d66ab8b20082b52eafd7c84c3529c3719b820c16b8"
 dependencies = [
  "alox-48-derive",
  "enum-as-inner",
