@@ -15,7 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
+use color_eyre::eyre::{ContextCompat, WrapErr};
 use itertools::Itertools;
+use std::io::Write;
 
 pub struct MapView {
     /// Toggle to display the visible region in-game.
@@ -696,5 +698,244 @@ impl MapView {
         });
 
         response
+    }
+
+    /// Saves the current state of the map to an image file of the user's choice (will prompt the
+    /// user with a file picker).
+    /// This function returns a future that you need to `.await` to finish saving the image, but
+    /// the future doesn't borrow anything so you don't need to worry about lifetime-related issues.
+    pub fn save_as_image(
+        &self,
+        graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
+        map: &luminol_data::rpg::Map,
+    ) -> impl std::future::Future<Output = color_eyre::Result<()>> {
+        let width_unpadded = (map.width * 32) as u32;
+        let height = (map.height * 32) as u32;
+        let width = width_unpadded.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
+        let viewport_rect =
+            egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(width as f32, height as f32));
+
+        let texture = graphics_state
+            .render_state
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("map editor screenshot texture"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: graphics_state.render_state.target_format,
+                usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let buffer = graphics_state
+            .render_state
+            .device
+            .create_buffer(&wgpu::BufferDescriptor {
+                label: Some("map editor screenshot buffer"),
+                size: width as u64 * height as u64 * 4,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            });
+
+        self.map.set_proj(
+            &graphics_state.render_state,
+            glam::Mat4::orthographic_rh(0., width as f32, height as f32, 0., -1., 1.),
+        );
+
+        let mut command_encoder = graphics_state
+            .render_state
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        {
+            let map_callback = self.map.callback(
+                graphics_state.clone(),
+                match self.selected_layer {
+                    SelectedLayer::Events => None,
+                    SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
+                        Some(selected_layer)
+                    }
+                    SelectedLayer::Tiles(_) => None,
+                },
+            );
+            let map_overlay_callback = self.map.overlay_callback(graphics_state.clone(), 1.);
+
+            let event_callbacks = map
+                .events
+                .iter()
+                .filter_map(|(_, event)| {
+                    let sprites = self.events.get(event.id);
+                    let tile_size = 32.;
+                    let event_size = sprites
+                        .map(|e| e.0.sprite_size)
+                        .unwrap_or(egui::vec2(32., 32.));
+
+                    if let Some((sprite, _)) = sprites {
+                        sprite.sprite().graphic.set_opacity_multiplier(
+                            &graphics_state.render_state,
+                            if self.darken_unselected_layers
+                                && !matches!(self.selected_layer, SelectedLayer::Events)
+                            {
+                                0.5
+                            } else {
+                                1.
+                            },
+                        );
+                    }
+
+                    let rect = egui::Rect::from_min_size(
+                        egui::pos2(
+                            (event.x as f32 * tile_size) + (tile_size - event_size.x) / 2.,
+                            (event.y as f32 * tile_size) + (tile_size - event_size.y),
+                        ),
+                        event_size,
+                    );
+
+                    sprites.and_then(|(sprite, _)| {
+                        viewport_rect.intersects(rect).then(|| {
+                            let x = event.x as f32 * 32. + (32. - event_size.x) / 2.;
+                            let y = event.y as f32 * 32. + (32. - event_size.y);
+                            sprite.set_proj(
+                                &graphics_state.render_state,
+                                glam::Mat4::orthographic_rh(
+                                    -x,
+                                    width as f32 - x,
+                                    height as f32 - y,
+                                    -y,
+                                    -1.,
+                                    1.,
+                                ),
+                            );
+                            sprite.callback(graphics_state.clone())
+                        })
+                    })
+                })
+                .collect_vec();
+
+            let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("map editor screenshot render pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations::default(),
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            map_callback.paint(&mut render_pass);
+            for event_callback in event_callbacks.iter() {
+                event_callback.paint(&mut render_pass);
+            }
+            map_overlay_callback.paint(
+                egui::PaintCallbackInfo {
+                    viewport: viewport_rect,
+                    clip_rect: viewport_rect,
+                    pixels_per_point: 1.,
+                    screen_size_px: [width, height],
+                },
+                &mut render_pass,
+            );
+        }
+
+        command_encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(width * 4),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+        graphics_state
+            .render_state
+            .queue
+            .submit(Some(command_encoder.finish()));
+
+        ScreenshotState {
+            graphics_state: graphics_state.clone(),
+            buffer,
+            width,
+            height,
+            width_unpadded,
+        }
+        .consume()
+    }
+}
+
+struct ScreenshotState {
+    graphics_state: std::sync::Arc<luminol_graphics::GraphicsState>,
+    buffer: wgpu::Buffer,
+    width: u32,
+    height: u32,
+    width_unpadded: u32,
+}
+
+impl ScreenshotState {
+    async fn consume(self) -> color_eyre::Result<()> {
+        let c = "While screenshotting the map";
+
+        let (tx, rx) = oneshot::channel();
+        self.buffer
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                let _ = tx.send(result);
+            });
+        if !self
+            .graphics_state
+            .render_state
+            .device
+            .poll(wgpu::Maintain::Wait)
+            .is_queue_empty()
+        {
+            return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
+        }
+        rx.await.unwrap().wrap_err(c)?;
+
+        let mut vec = self
+            .buffer
+            .slice(..)
+            .get_mapped_range()
+            .chunks_exact(self.width as usize * 4)
+            .flat_map(|row| row[..self.width_unpadded as usize * 4].iter())
+            .copied()
+            .collect_vec();
+        if self.graphics_state.render_state.target_format == wgpu::TextureFormat::Bgra8Unorm {
+            for (b, _g, r, _a) in vec.iter_mut().tuples() {
+                std::mem::swap(b, r);
+            }
+        }
+
+        let screenshot =
+            image::RgbaImage::from_raw(self.width_unpadded, self.height, vec).wrap_err(c)?;
+        let mut file = luminol_filesystem::host::File::new().wrap_err(c)?;
+        screenshot
+            .write_to(
+                &mut std::io::BufWriter::new(&mut file),
+                image::ImageOutputFormat::Png,
+            )
+            .wrap_err(c)?;
+        file.flush().wrap_err(c)?;
+        file.save("map.png", "Portable Network Graphics")
+            .await
+            .wrap_err(c)
     }
 }
