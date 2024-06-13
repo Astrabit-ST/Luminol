@@ -739,7 +739,7 @@ impl MapView {
             .map(|(y_offset, x_offset)| {
                 let width = max_texture_width.min(screenshot_width - x_offset);
                 let height = max_texture_height.min(screenshot_height - y_offset);
-                let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+                let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
                 let viewport_rect = egui::Rect::from_min_size(
                     egui::pos2(x_offset as f32, y_offset as f32),
                     egui::vec2(width as f32, height as f32),
@@ -927,7 +927,7 @@ impl MapView {
                 .zip(buffers)
             {
                 let width = max_texture_width.min(screenshot_width - x_offset);
-                let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+                let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
 
                 let (tx, rx) = oneshot::channel();
                 buffer
