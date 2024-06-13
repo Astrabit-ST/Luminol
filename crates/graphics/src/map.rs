@@ -193,6 +193,7 @@ pub struct Prepared {
     panorama: Option<<Plane as Renderable>::Prepared>,
     fog: Option<<Plane as Renderable>::Prepared>,
     collision: Option<<Collision as Renderable>::Prepared>,
+    grid: Option<<Grid as Renderable>::Prepared>,
     events: Vec<<Event as Renderable>::Prepared>,
 }
 
@@ -214,6 +215,7 @@ impl Renderable for Map {
         let collision = self
             .coll_enabled
             .then(|| self.collision.prepare(graphics_state));
+        let grid = self.grid_enabled.then(|| self.grid.prepare(graphics_state));
         let events = if self.event_enabled {
             self.events
                 .iter_mut()
@@ -228,6 +230,7 @@ impl Renderable for Map {
             panorama,
             fog,
             collision,
+            grid,
             events,
         }
     }
@@ -251,6 +254,10 @@ impl Drawable for Prepared {
 
         if let Some(ref collision) = self.collision {
             collision.draw(render_pass);
+        }
+
+        if let Some(ref grid) = self.grid {
+            grid.draw(render_pass);
         }
     }
 }
