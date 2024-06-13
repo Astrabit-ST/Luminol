@@ -30,7 +30,6 @@ impl Event {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         viewport: &Viewport,
-        transform: Transform,
         event: &luminol_data::rpg::Event,
         atlas: &Atlas,
     ) -> color_eyre::Result<Option<Self>> {
@@ -91,6 +90,10 @@ impl Event {
 
             (quad, egui::vec2(cw, ch))
         };
+
+        let x = event.x as f32 * 32. + (32. - sprite_size.x) / 2.;
+        let y = event.y as f32 * 32. + (32. - sprite_size.y);
+        let transform = Transform::new_position(graphics_state, glam::vec2(x, y));
 
         let sprite = Sprite::new(
             graphics_state,

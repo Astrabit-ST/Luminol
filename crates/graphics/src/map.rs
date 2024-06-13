@@ -133,18 +133,8 @@ impl Map {
             .events
             .iter()
             .map(|(id, event)| {
-                Event::new(
-                    graphics_state,
-                    filesystem,
-                    &viewport,
-                    Transform::new_position(
-                        graphics_state,
-                        glam::vec2(event.x as f32 * 32., event.y as f32 * 32.),
-                    ),
-                    event,
-                    &atlas,
-                )
-                .map(|opt_e| opt_e.map(|e| (id, e)))
+                Event::new(graphics_state, filesystem, &viewport, event, &atlas)
+                    .map(|opt_e| opt_e.map(|e| (id, e)))
             })
             .flatten_ok()
             .try_collect()?;
@@ -245,11 +235,11 @@ impl Renderable for Map {
 
 impl Drawable for Prepared {
     fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        self.tiles.draw(render_pass);
-
         if let Some(ref pano) = self.panorama {
             pano.draw(render_pass);
         }
+
+        self.tiles.draw(render_pass);
 
         for event in &self.events {
             event.draw(render_pass);

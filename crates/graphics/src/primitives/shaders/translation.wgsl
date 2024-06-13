@@ -12,5 +12,5 @@ struct Viewport {
 fn translate_vertex(position: vec2f, viewport: Viewport, transform: Transform) -> vec2f {
   let position_px = position * transform.scale + transform.position;
   let position_norm = position_px / viewport.screen_size * 2.0 - 1.0; // convert to normalized device coordinates
-  return position_norm;
+  return vec2f(position_norm.x, -position_norm.y); // flip y-axis
 }
