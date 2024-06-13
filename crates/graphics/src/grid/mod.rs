@@ -85,6 +85,9 @@ impl Grid {
         render_pass.push_debug_group("tilemap grid renderer");
         render_pass.set_pipeline(&graphics_state.pipelines.grid);
 
+        self.display
+            .update_viewport_size(&graphics_state.render_state, info);
+
         if let Some(bind_group) = &self.bind_group {
             render_pass.set_bind_group(0, bind_group, &[])
         } else {
@@ -99,9 +102,6 @@ impl Grid {
                 &self.display.as_bytes(),
             );
         }
-
-        self.display
-            .update_viewport_size(&graphics_state.render_state, info);
 
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();
