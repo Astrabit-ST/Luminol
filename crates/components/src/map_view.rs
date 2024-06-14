@@ -727,8 +727,7 @@ impl MapView {
 
         let max_texture_width = screenshot_width
             .min(max_texture_dimension_2d)
-            .min(max_buffer_size / wgpu::COPY_BYTES_PER_ROW_ALIGNMENT)
-            .next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
+            .min(max_buffer_size);
         let max_texture_height = screenshot_height
             .min(max_texture_dimension_2d)
             .min(max_buffer_size / (max_texture_width * 4));
