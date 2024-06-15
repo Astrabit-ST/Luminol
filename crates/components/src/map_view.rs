@@ -210,6 +210,10 @@ impl MapView {
             .grid
             .display
             .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
+        self.map
+            .grid
+            .display
+            .set_pixels_per_point(&graphics_state.render_state, ui.ctx().pixels_per_point());
 
         let ctrl_drag = ui.input(|i| {
             if is_focused {

@@ -163,6 +163,11 @@ impl Tilepicker {
             .intersect(scroll_rect.translate(canvas_rect.min.to_vec2()));
         let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
 
+        self.view.grid.display.set_pixels_per_point(
+            &update_state.graphics.render_state,
+            ui.ctx().pixels_per_point(),
+        );
+
         self.view.set_position(
             &update_state.graphics.render_state,
             glam::vec2(0.0, -scroll_rect.top()),

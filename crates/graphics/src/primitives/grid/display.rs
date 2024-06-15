@@ -67,6 +67,17 @@ impl Display {
         }
     }
 
+    pub fn set_pixels_per_point(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        pixels_per_point: f32,
+    ) {
+        if self.data.pixels_per_point != pixels_per_point {
+            self.data.pixels_per_point = pixels_per_point;
+            self.regen_buffer(render_state);
+        }
+    }
+
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         render_state
             .queue
