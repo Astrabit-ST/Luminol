@@ -51,7 +51,7 @@ struct Resources {
 }
 
 // wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
-struct Callback {
+pub struct Callback {
     resources: Fragile<Arc<Resources>>,
     graphics_state: Fragile<Arc<GraphicsState>>,
 
@@ -60,7 +60,7 @@ struct Callback {
     selected_layer: Option<usize>,
 }
 
-struct OverlayCallback {
+pub struct OverlayCallback {
     resources: Fragile<Arc<Resources>>,
     graphics_state: Fragile<Arc<GraphicsState>>,
 
@@ -69,13 +69,8 @@ struct OverlayCallback {
     grid_enabled: bool,
 }
 
-impl luminol_egui_wgpu::CallbackTrait for Callback {
-    fn paint<'a>(
-        &'a self,
-        _info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
-    ) {
+impl Callback {
+    pub fn paint<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         let resources = self.resources.get();
         let graphics_state = self.graphics_state.get();
 
@@ -94,12 +89,11 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
     }
 }
 
-impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
-    fn paint<'a>(
+impl OverlayCallback {
+    pub fn paint<'a>(
         &'a self,
         info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
         let resources = self.resources.get();
         let graphics_state = self.graphics_state.get();
@@ -117,6 +111,28 @@ impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
         if self.grid_enabled {
             resources.grid.draw(graphics_state, &info, render_pass);
         }
+    }
+}
+
+impl luminol_egui_wgpu::CallbackTrait for Callback {
+    fn paint<'a>(
+        &'a self,
+        _info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
+    ) {
+        self.paint(render_pass);
+    }
+}
+
+impl luminol_egui_wgpu::CallbackTrait for OverlayCallback {
+    fn paint<'a>(
+        &'a self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
+    ) {
+        self.paint(info, render_pass);
     }
 }
 
@@ -324,6 +340,20 @@ impl Map {
         self.viewport.set_proj(render_state, proj);
     }
 
+    pub fn callback(
+        &self,
+        graphics_state: Arc<GraphicsState>,
+        selected_layer: Option<usize>,
+    ) -> Callback {
+        Callback {
+            resources: Fragile::new(self.resources.clone()),
+            graphics_state: Fragile::new(graphics_state),
+            pano_enabled: self.pano_enabled,
+            enabled_layers: self.enabled_layers.clone(),
+            selected_layer,
+        }
+    }
+
     pub fn paint(
         &mut self,
         graphics_state: Arc<GraphicsState>,
@@ -350,39 +380,39 @@ impl Map {
 
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
-            Callback {
-                resources: Fragile::new(self.resources.clone()),
-                graphics_state: Fragile::new(graphics_state),
-
-                pano_enabled: self.pano_enabled,
-                enabled_layers: self.enabled_layers.clone(),
-                selected_layer,
-            },
+            self.callback(graphics_state, selected_layer),
         ));
     }
 
-    pub fn paint_overlay(
-        &mut self,
+    pub fn overlay_callback(
+        &self,
         graphics_state: Arc<GraphicsState>,
-        painter: &egui::Painter,
         grid_inner_thickness: f32,
-        rect: egui::Rect,
-    ) {
+    ) -> OverlayCallback {
         self.resources
             .grid
             .display
             .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
 
+        OverlayCallback {
+            resources: Fragile::new(self.resources.clone()),
+            graphics_state: Fragile::new(graphics_state),
+            fog_enabled: self.fog_enabled,
+            coll_enabled: self.coll_enabled,
+            grid_enabled: self.grid_enabled,
+        }
+    }
+
+    pub fn paint_overlay(
+        &self,
+        graphics_state: Arc<GraphicsState>,
+        painter: &egui::Painter,
+        grid_inner_thickness: f32,
+        rect: egui::Rect,
+    ) {
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
-            OverlayCallback {
-                resources: Fragile::new(self.resources.clone()),
-                graphics_state: Fragile::new(graphics_state),
-
-                fog_enabled: self.fog_enabled,
-                coll_enabled: self.coll_enabled,
-                grid_enabled: self.grid_enabled,
-            },
+            self.overlay_callback(graphics_state, grid_inner_thickness),
         ));
     }
 }

@@ -33,9 +33,18 @@ pub struct Event {
 }
 
 // wgpu types are not Send + Sync on webassembly, so we use fragile to make sure we never access any wgpu resources across thread boundaries
-struct Callback {
+pub struct Callback {
     sprite: Fragile<Arc<Sprite>>,
     graphics_state: Fragile<Arc<GraphicsState>>,
+}
+
+impl Callback {
+    pub fn paint<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        let sprite = self.sprite.get();
+        let graphics_state = self.graphics_state.get();
+
+        sprite.draw(graphics_state, render_pass);
+    }
 }
 
 impl luminol_egui_wgpu::CallbackTrait for Callback {
@@ -45,10 +54,7 @@ impl luminol_egui_wgpu::CallbackTrait for Callback {
         render_pass: &mut wgpu::RenderPass<'a>,
         _callback_resources: &'a luminol_egui_wgpu::CallbackResources,
     ) {
-        let sprite = self.sprite.get();
-        let graphics_state = self.graphics_state.get();
-
-        sprite.draw(graphics_state, render_pass);
+        self.paint(render_pass)
     }
 }
 
@@ -183,6 +189,13 @@ impl Event {
         self.viewport.set_proj(render_state, proj);
     }
 
+    pub fn callback(&self, graphics_state: Arc<GraphicsState>) -> Callback {
+        Callback {
+            sprite: Fragile::new(self.sprite.clone()),
+            graphics_state: Fragile::new(graphics_state),
+        }
+    }
+
     pub fn paint(
         &self,
         graphics_state: Arc<GraphicsState>,
@@ -191,10 +204,7 @@ impl Event {
     ) {
         painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
             rect,
-            Callback {
-                sprite: Fragile::new(self.sprite.clone()),
-                graphics_state: Fragile::new(graphics_state),
-            },
+            self.callback(graphics_state),
         ));
     }
 }
