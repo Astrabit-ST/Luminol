@@ -38,7 +38,7 @@ struct LayerData {
     min_alignment_size: u32,
 }
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Data {
     opacity: f32,
@@ -48,7 +48,10 @@ pub struct Data {
 
 impl Data {
     fn aligned_size_of(min_alignment_size: u32) -> usize {
-        wgpu::util::align_to(std::mem::size_of::<Self>(), min_alignment_size as usize)
+        wgpu::util::align_to(
+            std::mem::size_of::<Self>(),
+            (min_alignment_size as usize).max(std::mem::align_of::<Data>()),
+        )
     }
 }
 
