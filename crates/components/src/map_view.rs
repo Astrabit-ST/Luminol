@@ -167,6 +167,11 @@ impl MapView {
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
+        let min_clip = (ui.ctx().screen_rect().min - canvas_rect.min).max(Default::default());
+        let max_clip = (canvas_rect.max - ui.ctx().screen_rect().max).max(Default::default());
+        let clip_offset = (max_clip - min_clip) / 2.;
+        let canvas_rect = ui.ctx().screen_rect().intersect(canvas_rect);
+
         self.cursor_pos = self.cursor_pos.clamp(
             egui::Pos2::ZERO,
             egui::pos2(
@@ -284,8 +289,6 @@ impl MapView {
             max: canvas_pos + pos,
         };
 
-        let graphics_state = graphics_state.clone();
-
         self.map.tiles.selected_layer = match self.selected_layer {
             SelectedLayer::Events => None,
             SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
@@ -293,10 +296,24 @@ impl MapView {
             }
             SelectedLayer::Tiles(_) => None,
         };
-        let painter = luminol_graphics::Painter::new(self.map.prepare(&graphics_state));
+
+        // no idea why this math works (could probably be simplified)
+        let proj_center_x = width2 * 32. - (self.pan.x + clip_offset.x) / scale;
+        let proj_center_y = height2 * 32. - (self.pan.y + clip_offset.y) / scale;
+        let proj_width2 = canvas_rect.width() / scale / 2.;
+        let proj_height2 = canvas_rect.height() / scale / 2.;
+        self.map.viewport.set(
+            &graphics_state.render_state,
+            glam::vec2(canvas_rect.width(), canvas_rect.height()),
+            glam::vec2(proj_width2 - proj_center_x, proj_height2 - proj_center_y) * scale,
+            glam::Vec2::splat(scale),
+        );
+
+        let painter = luminol_graphics::Painter::new(self.map.prepare(graphics_state));
         ui.painter()
             .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                map_rect, painter,
+                canvas_rect,
+                painter,
             ));
 
         ui.painter().rect_stroke(

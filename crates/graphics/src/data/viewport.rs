@@ -21,32 +21,47 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 
 #[derive(Debug)]
 pub struct Viewport {
-    size: glam::Vec2,
+    data: Data,
     uniform: wgpu::Buffer,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+struct Data {
+    viewport_size: glam::Vec2,
+    viewport_translation: glam::Vec2,
+    viewport_scale: glam::Vec2,
+}
+
 impl Viewport {
-    pub fn new(graphics_state: &GraphicsState, screen_size: glam::Vec2) -> Self {
+    pub fn new(graphics_state: &GraphicsState, viewport_size: glam::Vec2) -> Self {
+        let data = Data {
+            viewport_size,
+            viewport_translation: glam::Vec2::ZERO,
+            viewport_scale: glam::Vec2::ONE,
+        };
         let uniform = graphics_state.render_state.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("viewport buffer"),
-                contents: bytemuck::bytes_of(&screen_size),
+                contents: bytemuck::bytes_of(&data),
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
             },
         );
 
-        Self {
-            size: screen_size,
-            uniform,
-        }
+        Self { data, uniform }
     }
 
-    pub fn set_size(
+    pub fn set(
         &mut self,
         render_state: &luminol_egui_wgpu::RenderState,
-        screen_size: glam::Vec2,
+        size: glam::Vec2,
+        translation: glam::Vec2,
+        scale: glam::Vec2,
     ) {
-        self.size = screen_size;
+        self.data.viewport_size = size;
+        self.data.viewport_translation = translation;
+        self.data.viewport_scale = scale;
         self.regen_buffer(render_state);
     }
 
@@ -57,7 +72,7 @@ impl Viewport {
     fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
         render_state
             .queue
-            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.size));
+            .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));
     }
 
     pub fn add_to_bind_group_layout(

@@ -165,7 +165,13 @@ impl Tilepicker {
 
         self.view.set_position(
             &update_state.graphics.render_state,
-            glam::vec2(scroll_rect.left(), scroll_rect.top()),
+            glam::vec2(0.0, -scroll_rect.top()),
+        );
+        self.view.viewport.set(
+            &update_state.graphics.render_state,
+            glam::vec2(scroll_rect.width(), scroll_rect.height()),
+            glam::Vec2::ZERO,
+            glam::Vec2::ONE,
         );
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));

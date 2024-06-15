@@ -65,14 +65,14 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) in
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    if viewport.screen_size.x == 0. || viewport.screen_size.y == 0. {
+    if viewport.viewport_size.x == 0. || viewport.viewport_size.y == 0. {
         discard;
     }
 
     var color: f32;
     var alpha: f32;
 
-    let diff = abs(input.position - input.vertex_position) * (viewport.screen_size / 2.);
+    let diff = abs(input.position - input.vertex_position) * (viewport.viewport_size / 2.);
 
     let adjusted_outer_thickness = 1.001 * display.pixels_per_point;
     let adjusted_inner_thickness = display.inner_thickness_in_points * adjusted_outer_thickness;
