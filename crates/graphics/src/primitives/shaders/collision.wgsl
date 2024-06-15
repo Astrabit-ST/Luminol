@@ -51,7 +51,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32, instance: InstanceInput) ->
     }
 
     var vertex_positions = VERTEX_POSITIONS;
-    let vertex_position = (vertex_positions[vertex_index] + instance.tile_position) * 32.;
+    let vertex_position = vertex_positions[vertex_index] + (instance.tile_position * 32.);
     let normalized_pos = Trans::translate_vertex(vertex_position, viewport, transform);
 
     out.clip_position = vec4<f32>(normalized_pos, 0.0, 1.0);
