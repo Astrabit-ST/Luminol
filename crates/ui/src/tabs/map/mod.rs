@@ -359,7 +359,7 @@ impl luminol_core::Tab for Tab {
 
                 let response = self.view.ui(
                     ui,
-                    &update_state.graphics,
+                    update_state,
                     &map,
                     &self.tilepicker,
                     self.event_drag_info.is_some(),

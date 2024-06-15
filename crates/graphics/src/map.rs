@@ -19,7 +19,8 @@ use color_eyre::eyre::Context;
 use itertools::Itertools;
 
 use crate::{
-    Collision, Drawable, Event, GraphicsState, Grid, Plane, Renderable, Tiles, Transform, Viewport,
+    Atlas, Collision, Drawable, Event, GraphicsState, Grid, Plane, Renderable, Tiles, Transform,
+    Viewport,
 };
 
 pub struct Map {
@@ -29,6 +30,7 @@ pub struct Map {
     pub collision: Collision,
     pub grid: Grid,
     pub events: luminol_data::OptionVec<Event>,
+    pub atlas: Atlas,
 
     pub viewport: Viewport,
     ani_time: Option<f64>,
@@ -133,7 +135,7 @@ impl Map {
             .events
             .iter()
             .map(|(id, event)| {
-                Event::new(graphics_state, filesystem, &viewport, event, &atlas)
+                Event::new_map(graphics_state, filesystem, &viewport, event, &atlas)
                     .map(|opt_e| opt_e.map(|e| (id, e)))
             })
             .flatten_ok()
@@ -147,6 +149,7 @@ impl Map {
             grid,
             events,
             viewport,
+            atlas,
 
             ani_time: None,
 

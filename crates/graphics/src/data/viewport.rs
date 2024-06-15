@@ -52,6 +52,11 @@ impl Viewport {
         Self { data, uniform }
     }
 
+    pub fn set_size(&mut self, render_state: &luminol_egui_wgpu::RenderState, size: glam::Vec2) {
+        self.data.viewport_size = size;
+        self.regen_buffer(render_state);
+    }
+
     pub fn set(
         &mut self,
         render_state: &luminol_egui_wgpu::RenderState,

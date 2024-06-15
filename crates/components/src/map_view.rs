@@ -29,8 +29,8 @@ pub struct MapView {
 
     /// The first sprite is for drawing on the tilemap,
     /// and the second sprite is for the hover preview.
-    pub preview_events: HashMap<usize, luminol_graphics::Event>,
-    pub last_events: HashMap<usize, luminol_graphics::Event>,
+    preview_events: HashMap<usize, luminol_graphics::Event>,
+    last_events: HashMap<usize, luminol_graphics::Event>,
     pub map: luminol_graphics::Map,
 
     pub selected_layer: SelectedLayer,
@@ -151,7 +151,7 @@ impl MapView {
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
+        update_state: &luminol_core::UpdateState<'_>,
         map: &luminol_data::rpg::Map,
         tilepicker: &crate::Tilepicker,
         dragging_event: bool,
@@ -209,11 +209,11 @@ impl MapView {
         self.map
             .grid
             .display
-            .set_inner_thickness(&graphics_state.render_state, grid_inner_thickness);
-        self.map
-            .grid
-            .display
-            .set_pixels_per_point(&graphics_state.render_state, ui.ctx().pixels_per_point());
+            .set_inner_thickness(&update_state.graphics.render_state, grid_inner_thickness);
+        self.map.grid.display.set_pixels_per_point(
+            &update_state.graphics.render_state,
+            ui.ctx().pixels_per_point(),
+        );
 
         let ctrl_drag = ui.input(|i| {
             if is_focused {
@@ -307,18 +307,18 @@ impl MapView {
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
         self.map.viewport.set(
-            &graphics_state.render_state,
+            &update_state.graphics.render_state,
             glam::vec2(canvas_rect.width(), canvas_rect.height()),
             glam::vec2(proj_width2 - proj_center_x, proj_height2 - proj_center_y) * scale,
             glam::Vec2::splat(scale),
         );
 
         self.map
-            .update_animation(&graphics_state.render_state, ui.input(|i| i.time));
+            .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_secs_f32(16. / 60.));
 
-        let painter = luminol_graphics::Painter::new(self.map.prepare(graphics_state));
+        let painter = luminol_graphics::Painter::new(self.map.prepare(&update_state.graphics));
         ui.painter()
             .add(luminol_egui_wgpu::Callback::new_paint_callback(
                 canvas_rect,
@@ -364,16 +364,18 @@ impl MapView {
 
             for (_, event) in map.events.iter() {
                 let sprite = self.map.events.get_mut(event.id);
+                let has_sprite = sprite.is_some();
                 let event_size = sprite
                     .as_ref()
                     .map(|e| e.sprite_size)
                     .unwrap_or(egui::vec2(32., 32.));
                 let scaled_event_size = event_size * scale;
 
-                // Darken the graphic if required
+                // update relevant properties
                 if let Some(sprite) = sprite {
+                    sprite.set_position(&update_state.graphics.render_state, event.x, event.y);
                     sprite.sprite.graphic.set_opacity_multiplier(
-                        &graphics_state.render_state,
+                        &update_state.graphics.render_state,
                         if self.darken_unselected_layers
                             && !matches!(self.selected_layer, SelectedLayer::Events)
                         {
@@ -437,6 +439,41 @@ impl MapView {
                                 event_size * ui.ctx().pixels_per_point(),
                                 egui::Sense::click(),
                             );
+
+                            if has_sprite {
+                                let mut preview_sprite =
+                                    self.last_events.remove(&event.id).unwrap_or_else(|| {
+                                        let viewport = luminol_graphics::Viewport::new(
+                                            &update_state.graphics,
+                                            glam::vec2(event_size.x, event_size.y),
+                                        );
+                                        luminol_graphics::Event::new_standalone(
+                                            &update_state.graphics,
+                                            update_state.filesystem,
+                                            &viewport,
+                                            event,
+                                            &self.map.atlas,
+                                        )
+                                        .unwrap()
+                                        .unwrap()
+                                    });
+
+                                if response.rect.is_positive() {
+                                    let clipped_rect =
+                                        ui.ctx().screen_rect().intersect(response.rect);
+                                    let painter = luminol_graphics::Painter::new(
+                                        preview_sprite.prepare(&update_state.graphics),
+                                    );
+                                    ui.painter().add(
+                                        luminol_egui_wgpu::Callback::new_paint_callback(
+                                            clipped_rect,
+                                            painter,
+                                        ),
+                                    );
+                                }
+
+                                self.preview_events.insert(event.id, preview_sprite);
+                            }
 
                             match self.selected_event_id {
                                 Some(id) if id == event.id => ui.painter().rect_stroke(
