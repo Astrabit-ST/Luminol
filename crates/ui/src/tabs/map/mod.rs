@@ -91,6 +91,9 @@ pub struct Tab {
     brush_density: f32,
     /// Seed for the PRNG used for the brush when brush density is less than 1
     brush_seed: [u8; 16],
+
+    /// Asynchronous task used to save the map as an image file
+    save_as_image_promise: Option<poll_promise::Promise<color_eyre::Result<()>>>,
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -178,6 +181,8 @@ impl Tab {
 
             brush_density: 1.,
             brush_seed,
+
+            save_as_image_promise: None,
         })
     }
 }
@@ -304,11 +309,17 @@ impl luminol_core::Tab for Tab {
                         );
                 });
 
-                /*
-                if ui.button("Save map preview").clicked() {
-                    self.tilemap.save_to_disk();
+                ui.separator();
+
+                if ui.button("Save map preview").clicked() && self.save_as_image_promise.is_none() {
+                    self.save_as_image_promise =
+                        Some(luminol_core::spawn_future(self.view.save_as_image(
+                            &update_state.graphics,
+                            &update_state.data.get_map(self.id),
+                        )))
                 }
 
+                /*
                 if map.preview_move_route.is_some()
                 && ui.button("Clear move route preview").clicked()
                 {
@@ -674,6 +685,22 @@ impl luminol_core::Tab for Tab {
         });
 
         self.event_windows.display(ui.ctx(), update_state);
+
+        if let Some(p) = self.save_as_image_promise.take() {
+            match p.try_take() {
+                Ok(Ok(())) => {}
+                Ok(Err(error))
+                    if !matches!(
+                        error.root_cause().downcast_ref(),
+                        Some(luminol_filesystem::Error::CancelledLoading)
+                    ) =>
+                {
+                    luminol_core::error!(update_state.toasts, error);
+                }
+                Ok(Err(_)) => {}
+                Err(p) => self.save_as_image_promise = Some(p),
+            }
+        }
     }
 
     fn requires_filesystem(&self) -> bool {

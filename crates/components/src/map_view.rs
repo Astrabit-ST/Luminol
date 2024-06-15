@@ -15,8 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use luminol_graphics::Renderable;
+use color_eyre::eyre::{ContextCompat, WrapErr};
+use itertools::Itertools;
+use luminol_graphics::{Drawable, Renderable};
 use std::collections::HashMap;
+use std::io::Write;
 
 pub struct MapView {
     /// Toggle to display the visible region in-game.
@@ -651,5 +654,225 @@ impl MapView {
         });
 
         response
+    }
+
+    /// Saves the current state of the map to an image file of the user's choice (will prompt the
+    /// user with a file picker).
+    /// This function returns a future that you need to `.await` to finish saving the image, but
+    /// the future doesn't borrow anything so you don't need to worry about lifetime-related issues.
+    pub fn save_as_image(
+        &mut self,
+        graphics_state: &std::sync::Arc<luminol_graphics::GraphicsState>,
+        map: &luminol_data::rpg::Map,
+    ) -> impl std::future::Future<Output = color_eyre::Result<()>> {
+        let c = "While screenshotting the map";
+
+        let max_texture_dimension_2d = graphics_state
+            .render_state
+            .device
+            .limits()
+            .max_texture_dimension_2d
+            / wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
+            * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let max_buffer_size = graphics_state.render_state.device.limits().max_buffer_size as u32
+            / wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
+            * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+
+        let screenshot_width = map.width as u32 * 32;
+        let screenshot_height = map.height as u32 * 32;
+
+        let max_texture_width = screenshot_width
+            .min(max_texture_dimension_2d)
+            .min(max_buffer_size);
+        let max_texture_height = screenshot_height
+            .min(max_texture_dimension_2d)
+            .min(max_buffer_size / (max_texture_width * 4));
+
+        let mut command_encoder = graphics_state
+            .render_state
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        let buffers = (0..screenshot_height)
+            .step_by(max_texture_height as usize)
+            .cartesian_product((0..screenshot_width).step_by(max_texture_width as usize))
+            .map(|(y_offset, x_offset)| {
+                let width = max_texture_width.min(screenshot_width - x_offset);
+                let height = max_texture_height.min(screenshot_height - y_offset);
+                let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
+
+                let texture =
+                    graphics_state
+                        .render_state
+                        .device
+                        .create_texture(&wgpu::TextureDescriptor {
+                            label: Some("map editor screenshot texture"),
+                            size: wgpu::Extent3d {
+                                width,
+                                height,
+                                depth_or_array_layers: 1,
+                            },
+                            mip_level_count: 1,
+                            sample_count: 1,
+                            dimension: wgpu::TextureDimension::D2,
+                            format: graphics_state.render_state.target_format,
+                            usage: wgpu::TextureUsages::COPY_SRC
+                                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                            view_formats: &[],
+                        });
+                let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+                let buffer =
+                    graphics_state
+                        .render_state
+                        .device
+                        .create_buffer(&wgpu::BufferDescriptor {
+                            label: Some("map editor screenshot buffer"),
+                            size: width_padded as u64 * height as u64 * 4,
+                            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                            mapped_at_creation: false,
+                        });
+
+                self.map.viewport.set(
+                    &graphics_state.render_state,
+                    glam::vec2(width as f32, height as f32),
+                    glam::vec2(x_offset as f32, y_offset as f32),
+                    glam::Vec2::ONE,
+                );
+
+                self.map.tiles.selected_layer = match self.selected_layer {
+                    SelectedLayer::Events => None,
+                    SelectedLayer::Tiles(selected_layer) if self.darken_unselected_layers => {
+                        Some(selected_layer)
+                    }
+                    SelectedLayer::Tiles(_) => None,
+                };
+
+                for (_, event) in map.events.iter() {
+                    if let Some(sprite) = self.map.events.get_mut(event.id) {
+                        sprite.sprite.graphic.set_opacity_multiplier(
+                            &graphics_state.render_state,
+                            if self.darken_unselected_layers
+                                && !matches!(self.selected_layer, SelectedLayer::Events)
+                            {
+                                0.5
+                            } else {
+                                1.
+                            },
+                        );
+                    }
+                }
+
+                // we probably don't need to prepare the map every time, but it's not that expensive
+                let prepared = self.map.prepare(graphics_state);
+
+                let mut render_pass =
+                    command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("map editor screenshot render pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            resolve_target: None,
+                            ops: wgpu::Operations::default(),
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                    });
+
+                prepared.draw(&mut render_pass);
+
+                drop(render_pass);
+
+                command_encoder.copy_texture_to_buffer(
+                    wgpu::ImageCopyTexture {
+                        texture: &texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::ImageCopyBuffer {
+                        buffer: &buffer,
+                        layout: wgpu::ImageDataLayout {
+                            offset: 0,
+                            bytes_per_row: Some(width_padded * 4),
+                            rows_per_image: Some(height),
+                        },
+                    },
+                    wgpu::Extent3d {
+                        width,
+                        height,
+                        depth_or_array_layers: 1,
+                    },
+                );
+
+                buffer
+            })
+            .collect_vec();
+
+        graphics_state
+            .render_state
+            .queue
+            .submit(std::iter::once(command_encoder.finish()));
+
+        let graphics_state = graphics_state.clone();
+        let mut vec = vec![0; screenshot_width as usize * screenshot_height as usize * 4];
+        async move {
+            for ((y_offset, x_offset), buffer) in (0..screenshot_height)
+                .step_by(max_texture_height as usize)
+                .cartesian_product((0..screenshot_width).step_by(max_texture_width as usize))
+                .zip(buffers)
+            {
+                let width = max_texture_width.min(screenshot_width - x_offset);
+                let width_padded = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT / 4);
+
+                let (tx, rx) = oneshot::channel();
+                buffer
+                    .slice(..)
+                    .map_async(wgpu::MapMode::Read, move |result| {
+                        let _ = tx.send(result);
+                    });
+                if !graphics_state
+                    .render_state
+                    .device
+                    .poll(wgpu::Maintain::Wait)
+                    .is_queue_empty()
+                {
+                    return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
+                }
+                rx.await.unwrap().wrap_err(c)?;
+
+                for (i, row) in buffer
+                    .slice(..)
+                    .get_mapped_range()
+                    .chunks_exact(width_padded as usize * 4)
+                    .enumerate()
+                {
+                    let offset = ((y_offset as usize + i) * screenshot_width as usize
+                        + x_offset as usize)
+                        * 4;
+                    vec[offset..offset + width as usize * 4]
+                        .copy_from_slice(&row[..width as usize * 4]);
+                }
+            }
+
+            if graphics_state.render_state.target_format == wgpu::TextureFormat::Bgra8Unorm {
+                for (b, _g, r, _a) in vec.iter_mut().tuples() {
+                    std::mem::swap(b, r);
+                }
+            }
+
+            let screenshot =
+                image::RgbaImage::from_raw(screenshot_width, screenshot_height, vec).wrap_err(c)?;
+            let mut file = luminol_filesystem::host::File::new().wrap_err(c)?;
+            screenshot
+                .write_to(
+                    &mut std::io::BufWriter::new(&mut file),
+                    image::ImageOutputFormat::Png,
+                )
+                .wrap_err(c)?;
+            file.flush().wrap_err(c)?;
+            file.save("map.png", "Portable Network Graphics")
+                .await
+                .wrap_err(c)
+        }
     }
 }
