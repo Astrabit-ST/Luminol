@@ -309,6 +309,11 @@ impl MapView {
             glam::Vec2::splat(scale),
         );
 
+        self.map
+            .update_animation(&graphics_state.render_state, ui.input(|i| i.time));
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f32(16. / 60.));
+
         let painter = luminol_graphics::Painter::new(self.map.prepare(graphics_state));
         ui.painter()
             .add(luminol_egui_wgpu::Callback::new_paint_callback(

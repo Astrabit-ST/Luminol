@@ -173,6 +173,8 @@ impl Tilepicker {
             glam::Vec2::ZERO,
             glam::Vec2::ONE,
         );
+        self.view
+            .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
         ui.painter()
