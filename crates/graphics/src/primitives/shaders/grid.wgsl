@@ -28,13 +28,13 @@ const QUAD_VERTICES: array<vec2f, 6> = array<vec2f, 6>(
 );
 #else
 const QUAD_VERTICES: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(0., 0.),
+    vec2<f32>(0., 0.), // Provoking vertex
     vec2<f32>(1., 0.),
-    vec2<f32>(0., 1.), // Provoking vertex
-    
-    vec2<f32>(1., 1.),
     vec2<f32>(0., 1.),
-    vec2<f32>(1., 0.), // Provoking vertex
+    
+    vec2<f32>(1., 1.), // Provoking vertex
+    vec2<f32>(0., 1.),
+    vec2<f32>(1., 0.),
 );
 #endif
 

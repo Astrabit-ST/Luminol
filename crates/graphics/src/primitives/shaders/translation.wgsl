@@ -9,6 +9,7 @@ struct Viewport {
   viewport_size: vec2f, // size of the viewport in pixels
   viewport_translation: vec2f, // additional translation in pixels
   viewport_scale: vec2f, // additional scale in pixels
+  _pad: vec2u // 16 byte alignment (webgl requires 16 byte alignment for uniform buffers)
 }
 
 fn translate_vertex(position: vec2f, viewport: Viewport, transform: Transform) -> vec2f {

@@ -27,11 +27,12 @@ pub struct Viewport {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable)]
-#[repr(C)]
+#[repr(C, align(16))]
 struct Data {
     viewport_size: glam::Vec2,
     viewport_translation: glam::Vec2,
     viewport_scale: glam::Vec2,
+    _pad: [u32; 2],
 }
 
 impl Viewport {
@@ -40,6 +41,7 @@ impl Viewport {
             viewport_size,
             viewport_translation: glam::Vec2::ZERO,
             viewport_scale: glam::Vec2::ONE,
+            _pad: [0; 2],
         };
         let uniform = graphics_state.render_state.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
