@@ -32,8 +32,8 @@ pub struct MapView {
 
     /// The first sprite is for drawing on the tilemap,
     /// and the second sprite is for the hover preview.
-    preview_events: HashMap<usize, luminol_graphics::Event>,
-    last_events: HashMap<usize, luminol_graphics::Event>,
+    preview_events: HashMap<usize, PreviewEvent>,
+    last_events: HashMap<usize, PreviewEvent>,
     pub map: luminol_graphics::Map,
 
     pub selected_layer: SelectedLayer,
@@ -62,6 +62,11 @@ pub struct MapView {
     pub event_rects: Vec<egui::Rect>,
 
     pub data_id: egui::Id,
+}
+
+struct PreviewEvent {
+    viewport: luminol_graphics::Viewport,
+    sprite: luminol_graphics::Event,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
@@ -376,6 +381,7 @@ impl MapView {
 
                 // update relevant properties
                 if let Some(sprite) = sprite {
+                    // FIXME only update if necessary
                     sprite.set_position(&update_state.graphics.render_state, event.x, event.y);
                     sprite.sprite.graphic.set_opacity_multiplier(
                         &update_state.graphics.render_state,
@@ -444,13 +450,13 @@ impl MapView {
                             );
 
                             if has_sprite {
-                                let mut preview_sprite =
+                                let mut preview =
                                     self.last_events.remove(&event.id).unwrap_or_else(|| {
                                         let viewport = luminol_graphics::Viewport::new(
                                             &update_state.graphics,
                                             glam::vec2(event_size.x, event_size.y),
                                         );
-                                        luminol_graphics::Event::new_standalone(
+                                        let sprite = luminol_graphics::Event::new_standalone(
                                             &update_state.graphics,
                                             update_state.filesystem,
                                             &viewport,
@@ -458,14 +464,20 @@ impl MapView {
                                             &self.map.atlas,
                                         )
                                         .unwrap()
-                                        .unwrap()
+                                        .unwrap(); // FIXME: handle error
+                                        PreviewEvent { viewport, sprite }
                                     });
 
                                 if response.rect.is_positive() {
                                     let clipped_rect =
                                         ui.ctx().screen_rect().intersect(response.rect);
+                                    preview.viewport.set_size(
+                                        &update_state.graphics.render_state,
+                                        glam::vec2(clipped_rect.width(), clipped_rect.height()),
+                                    );
+
                                     let painter = luminol_graphics::Painter::new(
-                                        preview_sprite.prepare(&update_state.graphics),
+                                        preview.sprite.prepare(&update_state.graphics),
                                     );
                                     ui.painter().add(
                                         luminol_egui_wgpu::Callback::new_paint_callback(
@@ -473,9 +485,9 @@ impl MapView {
                                             painter,
                                         ),
                                     );
-                                }
 
-                                self.preview_events.insert(event.id, preview_sprite);
+                                    self.preview_events.insert(event.id, preview);
+                                }
                             }
 
                             match self.selected_event_id {
@@ -549,6 +561,9 @@ impl MapView {
                     );
                 }
             }
+
+            self.last_events.clear();
+            std::mem::swap(&mut self.preview_events, &mut self.last_events); // swap and clear preview events, so we only keep the ones used this frame
 
             self.selected_event_id = selected_event.map(|e| e.id);
 
