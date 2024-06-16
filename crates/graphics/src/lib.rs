@@ -19,77 +19,49 @@
 pub mod binding_helpers;
 pub use binding_helpers::{BindGroupBuilder, BindGroupLayoutBuilder};
 
-pub mod collision;
-pub mod grid;
-pub mod quad;
-pub mod sprite;
-pub mod tiles;
-pub mod vertex;
-pub mod viewport;
+pub mod loaders;
+pub use loaders::texture::Texture;
+
+// Building blocks that make up more complex parts (i.e. the map view, or events)
+pub mod primitives;
+pub use primitives::{
+    collision::Collision, grid::Grid, sprite::Sprite, tiles::Atlas, tiles::Tiles,
+};
+
+pub mod data;
+pub use data::*;
 
 pub mod event;
 pub mod map;
 pub mod plane;
-
-pub mod atlas_loader;
-
-pub mod texture_loader;
+pub mod tilepicker;
 
 pub use event::Event;
 pub use map::Map;
 pub use plane::Plane;
-
-pub use texture_loader::Texture;
+pub use tilepicker::Tilepicker;
 
 pub struct GraphicsState {
-    pub texture_loader: texture_loader::Loader,
-    pub atlas_loader: atlas_loader::Loader,
+    pub texture_loader: loaders::texture::Loader,
+    pub atlas_loader: loaders::atlas::Loader,
     pub render_state: luminol_egui_wgpu::RenderState,
 
     pub nearest_sampler: wgpu::Sampler,
 
-    pipelines: Pipelines,
-    bind_group_layouts: BindGroupLayouts,
+    pipelines: primitives::Pipelines,
+    bind_group_layouts: primitives::BindGroupLayouts,
 
     texture_error_tx: crossbeam::channel::Sender<color_eyre::Report>,
     texture_error_rx: crossbeam::channel::Receiver<color_eyre::Report>,
 }
 
-pub struct BindGroupLayouts {
-    sprite: wgpu::BindGroupLayout,
-    tiles: wgpu::BindGroupLayout,
-    collision: wgpu::BindGroupLayout,
-    grid: wgpu::BindGroupLayout,
-}
-
-pub struct Pipelines {
-    sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
-    tiles: wgpu::RenderPipeline,
-    collision: wgpu::RenderPipeline,
-    grid: wgpu::RenderPipeline,
-}
-
 impl GraphicsState {
     pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
-        let bind_group_layouts = BindGroupLayouts {
-            sprite: sprite::create_bind_group_layout(&render_state),
-            tiles: tiles::create_bind_group_layout(&render_state),
-            collision: collision::create_bind_group_layout(&render_state),
-            grid: grid::create_bind_group_layout(&render_state),
-        };
+        let bind_group_layouts = primitives::BindGroupLayouts::new(&render_state);
+        let pipelines = primitives::Pipelines::new(&render_state, &bind_group_layouts);
 
-        let pipelines = Pipelines {
-            sprites: sprite::shader::create_sprite_shaders(&render_state, &bind_group_layouts),
-            tiles: tiles::shader::create_render_pipeline(&render_state, &bind_group_layouts),
-            collision: collision::shader::create_render_pipeline(
-                &render_state,
-                &bind_group_layouts,
-            ),
-            grid: grid::shader::create_render_pipeline(&render_state, &bind_group_layouts),
-        };
-
-        let texture_loader = texture_loader::Loader::new(render_state.clone());
-        let atlas_cache = atlas_loader::Loader::default();
+        let texture_loader = loaders::texture::Loader::new(render_state.clone());
+        let atlas_cache = loaders::atlas::Loader::default();
 
         let nearest_sampler = render_state
             .device
@@ -119,10 +91,6 @@ impl GraphicsState {
         }
     }
 
-    pub fn push_constants_supported(&self) -> bool {
-        push_constants_supported(&self.render_state)
-    }
-
     pub fn send_texture_error(&self, error: color_eyre::Report) {
         self.texture_error_tx
             .try_send(error)
@@ -132,17 +100,36 @@ impl GraphicsState {
     pub fn texture_errors(&self) -> impl Iterator<Item = color_eyre::Report> + '_ {
         self.texture_error_rx.try_iter()
     }
+}
 
-    pub fn placeholder_img(&self) -> image::RgbaImage {
-        image::load_from_memory(include_bytes!("../data/placeholder.png"))
-            .expect("assets/placeholder.png is not a valid image")
-            .to_rgba8()
+pub trait Renderable {
+    type Prepared: Drawable;
+    fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared;
+}
+
+pub trait Drawable {
+    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>);
+}
+
+pub struct Painter<T> {
+    prepared: fragile::Fragile<T>,
+}
+
+impl<T> Painter<T> {
+    pub fn new(prepared: T) -> Self {
+        Self {
+            prepared: fragile::Fragile::new(prepared),
+        }
     }
 }
 
-pub fn push_constants_supported(render_state: &luminol_egui_wgpu::RenderState) -> bool {
-    render_state
-        .device
-        .features()
-        .contains(wgpu::Features::PUSH_CONSTANTS)
+impl<T: Drawable> luminol_egui_wgpu::CallbackTrait for Painter<T> {
+    fn paint<'a>(
+        &'a self,
+        _: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        _: &'a luminol_egui_wgpu::CallbackResources,
+    ) {
+        self.prepared.get().draw(render_pass);
+    }
 }

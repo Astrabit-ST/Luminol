@@ -18,7 +18,7 @@ pub struct Color {
 
 impl From<alox_48::Userdata> for Color {
     fn from(value: alox_48::Userdata) -> Self {
-        bytemuck::cast_slice(&value.data)[0]
+        *bytemuck::from_bytes(&value.data)
     }
 }
 
@@ -26,7 +26,7 @@ impl From<Color> for alox_48::Userdata {
     fn from(value: Color) -> Self {
         alox_48::Userdata {
             class: "Color".into(),
-            data: bytemuck::cast_slice(&[value]).to_vec(),
+            data: bytemuck::bytes_of(&value).to_vec(),
         }
     }
 }
@@ -67,7 +67,7 @@ pub struct Tone {
 
 impl From<alox_48::Userdata> for Tone {
     fn from(value: alox_48::Userdata) -> Self {
-        bytemuck::cast_slice(&value.data)[0]
+        *bytemuck::from_bytes(&value.data)
     }
 }
 
@@ -75,7 +75,7 @@ impl From<Tone> for alox_48::Userdata {
     fn from(value: Tone) -> Self {
         alox_48::Userdata {
             class: "Tone".into(),
-            data: bytemuck::cast_slice(&[value]).to_vec(),
+            data: bytemuck::bytes_of(&value).to_vec(),
         }
     }
 }

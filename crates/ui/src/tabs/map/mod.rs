@@ -111,7 +111,7 @@ enum HistoryEntry {
     /// Contains a deleted event and its corresponding graphic.
     EventDeleted {
         event: luminol_data::rpg::Event,
-        sprites: Option<(luminol_graphics::Event, luminol_graphics::Event)>,
+        sprite: Option<luminol_graphics::Event>,
     },
 }
 
@@ -133,7 +133,7 @@ impl Tab {
         let tileset = &tilesets.data[map.tileset_id];
 
         let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
-        luminol_graphics::collision::calculate_passages(
+        luminol_graphics::Collision::calculate_passages(
             &tileset.passages,
             &tileset.priorities,
             &map.data,
@@ -250,7 +250,7 @@ impl luminol_core::Tab for Tab {
                                 ui.end_row();
 
                                 for (index, layer) in
-                                    self.view.map.enabled_layers.iter_mut().enumerate()
+                                    self.view.map.tiles.enabled_layers.iter_mut().enumerate()
                                 {
                                     ui.columns(1, |columns| {
                                         columns[0].selectable_value(
@@ -271,7 +271,7 @@ impl luminol_core::Tab for Tab {
                                         egui::RichText::new("Events").italics(),
                                     );
                                 });
-                                ui.checkbox(&mut self.view.event_enabled, "👁");
+                                ui.checkbox(&mut self.view.map.event_enabled, "👁");
                                 ui.end_row();
 
                                 ui.label(egui::RichText::new("Fog").underline());
@@ -346,8 +346,8 @@ impl luminol_core::Tab for Tab {
                             .persistence_id,
                     )
                     .show_viewport(ui, |ui, rect| {
-                        self.tilepicker.coll_enabled = self.view.map.coll_enabled;
-                        self.tilepicker.grid_enabled = self.view.map.grid_enabled;
+                        self.tilepicker.view.coll_enabled = self.view.map.coll_enabled;
+                        self.tilepicker.view.grid_enabled = self.view.map.grid_enabled;
                         self.tilepicker.ui(update_state, ui, rect);
                         ui.separator();
                     });
@@ -370,7 +370,7 @@ impl luminol_core::Tab for Tab {
 
                 let response = self.view.ui(
                     ui,
-                    &update_state.graphics,
+                    update_state,
                     &map,
                     &self.tilepicker,
                     self.event_drag_info.is_some(),
@@ -485,11 +485,11 @@ impl luminol_core::Tab for Tab {
                     // Press delete or backspace to delete the selected event
                     if is_delete_pressed {
                         let event = map.events.remove(selected_event_id);
-                        let sprites = self.view.events.try_remove(selected_event_id).ok();
+                        let sprite = self.view.map.events.try_remove(selected_event_id).ok();
                         self.push_to_history(
                             update_state,
                             &mut map,
-                            HistoryEntry::EventDeleted { event, sprites },
+                            HistoryEntry::EventDeleted { event, sprite },
                         );
                     }
 
@@ -609,15 +609,15 @@ impl luminol_core::Tab for Tab {
 
                         Some(HistoryEntry::EventCreated(id)) => {
                             let event = map.events.remove(id);
-                            let sprites = self.view.events.try_remove(id).ok();
-                            Some(HistoryEntry::EventDeleted { event, sprites })
+                            let sprite = self.view.map.events.try_remove(id).ok();
+                            Some(HistoryEntry::EventDeleted { event, sprite })
                         }
 
-                        Some(HistoryEntry::EventDeleted { event, sprites }) => {
+                        Some(HistoryEntry::EventDeleted { event, sprite }) => {
                             let id = event.id;
                             map.events.insert(id, event);
-                            if let Some(sprites) = sprites {
-                                self.view.events.insert(id, sprites);
+                            if let Some(sprite) = sprite {
+                                self.view.map.events.insert(id, sprite);
                             }
                             Some(HistoryEntry::EventCreated(id))
                         }
@@ -658,17 +658,17 @@ impl luminol_core::Tab for Tab {
                 }
 
                 // Update the collision preview
-                luminol_graphics::collision::calculate_passages(
+                luminol_graphics::Collision::calculate_passages(
                     &tileset.passages,
                     &tileset.priorities,
                     &map.data,
-                    if self.view.event_enabled {
+                    if self.view.map.event_enabled {
                         Some(&map.events)
                     } else {
                         None
                     },
                     (0..map.data.zsize())
-                        .filter(|&i| self.view.map.enabled_layers[i])
+                        .filter(|&i| self.view.map.tiles.enabled_layers[i])
                         .rev(),
                     |x, y, passage| {
                         if self.passages[(x, y)] != passage {

@@ -214,7 +214,6 @@ fn main() {
     let native_options = luminol_eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_drag_and_drop(true)
-            .with_transparent(true)
             .with_icon(egui::IconData {
                 width: image.width(),
                 height: image.height(),
@@ -223,16 +222,9 @@ fn main() {
             .with_app_id("astrabit.luminol"),
         wgpu_options: luminol_egui_wgpu::WgpuConfiguration {
             supported_backends: wgpu::util::backend_bits_from_env()
-                .unwrap_or(wgpu::Backends::PRIMARY),
-            device_descriptor: std::sync::Arc::new(|_| wgpu::DeviceDescriptor {
-                label: Some("luminol device descriptor"),
-                required_features: wgpu::Features::PUSH_CONSTANTS,
-                required_limits: wgpu::Limits {
-                    max_push_constant_size: 128,
-                    ..wgpu::Limits::default()
-                },
-            }),
-            power_preference: wgpu::util::power_preference_from_env().unwrap_or_default(),
+                .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::SECONDARY),
+            power_preference: wgpu::util::power_preference_from_env()
+                .unwrap_or(wgpu::PowerPreference::LowPower),
             ..Default::default()
         },
         persist_window: true,
