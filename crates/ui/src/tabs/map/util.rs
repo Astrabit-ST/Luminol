@@ -227,20 +227,15 @@ impl super::Tab {
             return None;
         };
 
-        map.events.insert(
+        let event = luminol_data::rpg::Event::new(
+            self.view.cursor_pos.x as i32,
+            self.view.cursor_pos.y as i32,
             new_event_id,
-            luminol_data::rpg::Event::new(
-                self.view.cursor_pos.x as i32,
-                self.view.cursor_pos.y as i32,
-                new_event_id,
-            ),
         );
+        map.events.insert(new_event_id, event.clone());
 
         self.event_windows
-            .add_window(crate::windows::event_edit::Window::new(
-                new_event_id,
-                self.id,
-            ));
+            .add_window(crate::windows::event_edit::Window::new(event, self.id));
         Some(new_event_id)
     }
 

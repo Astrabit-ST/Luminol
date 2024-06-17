@@ -76,17 +76,87 @@ pub struct CommonEvent {
 pub struct EventPage {
     pub condition: EventCondition,
     pub graphic: Graphic,
-    pub move_type: usize,
-    pub move_speed: usize,
-    pub move_frequency: usize,
+    pub move_type: MoveType,
+    pub move_speed: MoveSpeed,
+    pub move_frequency: MoveFreq,
     pub move_route: MoveRoute,
     pub walk_anime: bool,
     pub step_anime: bool,
     pub direction_fix: bool,
     pub through: bool,
     pub always_on_top: bool,
-    pub trigger: i32,
+    pub trigger: EventTrigger,
     pub list: Vec<EventCommand>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(num_enum::TryFromPrimitive, num_enum::IntoPrimitive)]
+#[derive(strum::Display, strum::EnumIter)]
+#[serde(try_from = "u8", into = "u8")]
+#[marshal(try_from = "u8", into = "u8")]
+#[repr(u8)]
+pub enum EventTrigger {
+    #[strum(to_string = "Action Button")]
+    ActionButton,
+    #[strum(to_string = "Player Touch")]
+    PlayerTouch,
+    #[strum(to_string = "Event Touch")]
+    EventTouch,
+    #[strum(to_string = "Autorun")]
+    Autorun,
+    #[strum(to_string = "Parallel Process")]
+    Parallel,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(num_enum::TryFromPrimitive, num_enum::IntoPrimitive)]
+#[derive(strum::Display, strum::EnumIter)]
+#[serde(try_from = "u8", into = "u8")]
+#[marshal(try_from = "u8", into = "u8")]
+#[repr(u8)]
+pub enum MoveType {
+    Fixed,
+    Random,
+    Approach,
+    Custom,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(num_enum::TryFromPrimitive, num_enum::IntoPrimitive)]
+#[derive(strum::Display, strum::EnumIter)]
+#[serde(try_from = "u8", into = "u8")]
+#[marshal(try_from = "u8", into = "u8")]
+#[repr(u8)]
+pub enum MoveFreq {
+    Lowest = 1,
+    Lower,
+    Low,
+    High,
+    Higher,
+    Highest,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(num_enum::TryFromPrimitive, num_enum::IntoPrimitive)]
+#[derive(strum::Display, strum::EnumIter)]
+#[serde(try_from = "u8", into = "u8")]
+#[marshal(try_from = "u8", into = "u8")]
+#[repr(u8)]
+pub enum MoveSpeed {
+    Slowest = 1,
+    Slower,
+    Slow,
+    Fast,
+    Faster,
+    Fastest,
 }
 
 impl Default for EventPage {
@@ -94,16 +164,16 @@ impl Default for EventPage {
         Self {
             condition: EventCondition::default(),
             graphic: Graphic::default(),
-            move_type: 0,
-            move_speed: 3,
-            move_frequency: 3,
+            move_type: MoveType::Fixed,
+            move_speed: MoveSpeed::Slow,
+            move_frequency: MoveFreq::Low,
             move_route: MoveRoute::default(),
             walk_anime: true,
             step_anime: false,
             direction_fix: false,
             through: false,
             always_on_top: false,
-            trigger: 0,
+            trigger: EventTrigger::ActionButton,
             list: vec![],
         }
     }
@@ -156,7 +226,7 @@ pub struct EventCondition {
     pub switch2_id: usize,
     pub variable_id: usize,
     pub variable_value: i32,
-    pub self_switch_ch: String,
+    pub self_switch_ch: SelfSwitch,
 }
 
 impl Default for EventCondition {
@@ -170,7 +240,43 @@ impl Default for EventCondition {
             switch2_id: 0,
             variable_id: 0,
             variable_value: 0,
-            self_switch_ch: "A".to_string(),
+            self_switch_ch: SelfSwitch::A,
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(strum::Display, strum::EnumIter)]
+#[serde(from = "String", into = "String")]
+#[marshal(from = "String", into = "String")]
+pub enum SelfSwitch {
+    A,
+    B,
+    C,
+    D,
+}
+
+impl From<String> for SelfSwitch {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "A" => Self::A,
+            "B" => Self::B,
+            "C" => Self::C,
+            "D" => Self::D,
+            _ => panic!("wrong value for self switch"),
+        }
+    }
+}
+
+impl From<SelfSwitch> for String {
+    fn from(val: SelfSwitch) -> Self {
+        match val {
+            SelfSwitch::A => "A".to_string(),
+            SelfSwitch::B => "B".to_string(),
+            SelfSwitch::C => "C".to_string(),
+            SelfSwitch::D => "D".to_string(),
         }
     }
 }

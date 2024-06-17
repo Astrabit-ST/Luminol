@@ -22,55 +22,144 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_core::Modal;
+use luminol_data::rpg;
+use luminol_modals::{switch, variable};
+
 /// The event editor window.
 pub struct Window {
-    id: usize,
     map_id: usize,
-    _selected_page: usize,
-    name: String,
-    _viewed_tab: u8,
+    event: rpg::Event,
+    selected_page: usize,
 
-    _switch_modal_1: Option<luminol_modals::switch::Modal>,
-    _switch_modal_2: Option<luminol_modals::switch::Modal>,
-    _variable_modal: Option<luminol_modals::variable::Modal>,
+    switch_1_modal: switch::Modal,
+    switch_2_modal: switch::Modal,
+    variable_modal: variable::Modal,
 }
 
 impl Window {
     /// Create a new event editor.
-    pub fn new(id: usize, map_id: usize) -> Self {
+    pub fn new(event: rpg::Event, map_id: usize) -> Self {
         Self {
-            id,
             map_id,
-            _selected_page: 0,
-            name: String::from("(unknown)"),
-            _viewed_tab: 2,
+            event,
+            selected_page: 0,
 
-            _switch_modal_1: None,
-            _switch_modal_2: None,
-            _variable_modal: None,
+            switch_1_modal: switch::Modal::default(),
+            switch_2_modal: switch::Modal::default(),
+            variable_modal: variable::Modal::default(),
         }
     }
 }
 
 impl luminol_core::Window for Window {
     fn name(&self) -> String {
-        format!("Event: {}, {} in Map {}", self.name, self.id, self.map_id)
+        format!("Event '{}' ID {}", self.event.name, self.event.id)
     }
 
     fn id(&self) -> egui::Id {
         egui::Id::new("luminol_event_edit")
             .with(self.map_id)
-            .with(self.id)
+            .with(self.event.id)
     }
 
     // This needs an overhaul
     fn show(
         &mut self,
-        _ctx: &egui::Context,
-        _open: &mut bool,
-        _update_state: &mut luminol_core::UpdateState<'_>,
+        ctx: &egui::Context,
+        open: &mut bool,
+        update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        todo!()
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Page: ");
+                for i in 0..self.event.pages.len() {
+                    ui.selectable_value(&mut self.selected_page, i, format!("{}", i + 1));
+                }
+
+                if ui
+                    .button(egui::RichText::new("Add").color(egui::Color32::LIGHT_GREEN))
+                    .clicked()
+                {
+                    self.event.pages.push(rpg::EventPage::default());
+                    self.selected_page = self.event.pages.len() - 1;
+                }
+
+                let button = egui::Button::new(
+                    egui::RichText::new("Delete").color(egui::Color32::LIGHT_RED),
+                );
+                if ui.add_enabled(self.event.pages.len() > 1, button).clicked() {
+                    self.event.pages.remove(self.selected_page);
+                    self.selected_page = self.selected_page.saturating_sub(1);
+                }
+                if ui.button(egui::RichText::new("Clear")).clicked() {
+                    self.event.pages[self.selected_page] = rpg::EventPage::default();
+                }
+            });
+            ui.separator();
+
+            let id_source = self.id();
+            let page = &mut self.event.pages[self.selected_page];
+
+            ui.columns(2, |columns| {
+                columns[0].horizontal(|ui| {
+                    ui.checkbox(&mut page.condition.switch1_valid, "Switch");
+                    ui.add_enabled(
+                        page.condition.switch1_valid,
+                        self.switch_1_modal
+                            .button(&mut page.condition.switch1_id, update_state),
+                    );
+                    ui.label("is ON");
+                });
+                columns[1].horizontal(|ui| {
+                    ui.checkbox(&mut page.condition.switch2_valid, "Switch");
+                    ui.add_enabled(
+                        page.condition.switch2_valid,
+                        self.switch_2_modal
+                            .button(&mut page.condition.switch2_id, update_state),
+                    );
+                    ui.label("is ON");
+                });
+                columns[0].horizontal(|ui| {
+                    ui.checkbox(&mut page.condition.variable_valid, "Variable");
+                    ui.add_enabled(
+                        page.condition.variable_valid,
+                        self.variable_modal
+                            .button(&mut page.condition.variable_id, update_state),
+                    );
+                    ui.label("is");
+                    ui.add_enabled(
+                        page.condition.variable_valid,
+                        egui::DragValue::new(&mut page.condition.variable_value),
+                    );
+                    ui.label("or above");
+                });
+                columns[1].horizontal(|ui| {
+                    ui.checkbox(&mut page.condition.self_switch_valid, "Self Switch");
+                    ui.add_enabled(
+                        page.condition.self_switch_valid,
+                        luminol_components::EnumMenuButton::new(
+                            &mut page.condition.self_switch_ch,
+                            id_source.with("self_switch_ch"),
+                        ),
+                    );
+                    ui.label("is ON");
+                });
+            });
+            ui.separator();
+            ui.columns(2, |columns| {
+                columns[0].checkbox(&mut page.walk_anime, "Move Animation");
+                columns[0].checkbox(&mut page.step_anime, "Stop Animation");
+                columns[0].checkbox(&mut page.direction_fix, "Direction Fix");
+                columns[0].checkbox(&mut page.through, "Through");
+                columns[0].checkbox(&mut page.always_on_top, "Always On Top");
+
+                columns[1].add(luminol_components::EnumMenuButton::new(
+                    &mut page.trigger,
+                    id_source.with("trigger"),
+                ));
+            });
+        });
     }
 
     fn requires_filesystem(&self) -> bool {

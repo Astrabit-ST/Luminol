@@ -477,8 +477,9 @@ impl luminol_core::Tab for Tab {
                     {
                         // Double-click/press enter on events to edit them
                         if ui.input(|i| !i.modifiers.command) {
+                            let event = map.events[selected_event_id].clone();
                             self.event_windows
-                                .add_window(event_edit::Window::new(selected_event_id, self.id));
+                                .add_window(event_edit::Window::new(event, self.id));
                         }
                     }
 

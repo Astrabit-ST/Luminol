@@ -476,3 +476,7 @@ pub fn close_options_ui(ui: &mut egui::Ui, open: &mut bool, save: &mut bool) {
         }
     });
 }
+
+pub fn colored_text(text: impl Into<String>, color: egui::Color32) -> egui::RichText {
+    egui::RichText::new(text).color(color)
+}
