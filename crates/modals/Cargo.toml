@@ -24,3 +24,5 @@ camino.workspace = true
 luminol-core.workspace = true
 luminol-data.workspace = true
 luminol-components.workspace = true
+
+fuzzy-matcher = "0.3.7"

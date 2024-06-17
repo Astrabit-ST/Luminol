@@ -3206,6 +3206,7 @@ version = "0.4.0"
 dependencies = [
  "camino",
  "egui",
+ "fuzzy-matcher",
  "luminol-components",
  "luminol-core",
  "luminol-data",

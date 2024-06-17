@@ -22,110 +22,118 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_components::UiExt;
+
 /// The switch picker modal.
-pub struct Modal {
-    switch_id_range: std::ops::Range<usize>,
-    search_text: String,
+#[derive(Default)]
+pub enum Modal {
+    #[default]
+    Closed,
+    Open {
+        search_text: String,
+        switch_id: usize,
+    },
 }
 
 impl luminol_core::Modal for Modal {
     type Data = usize;
 
-    fn button(
-        this: &mut Option<Self>,
-        ui: &mut egui::Ui,
-        data: &mut Self::Data,
-        update_state: &mut luminol_core::UpdateState<'_>,
-    ) {
-        let system = update_state.data.system();
+    fn button<'m>(
+        &'m mut self,
+        data: &'m mut Self::Data,
+        update_state: &'m mut luminol_core::UpdateState<'_>,
+    ) -> impl egui::Widget + 'm {
+        move |ui: &mut egui::Ui| {
+            let button_text = if ui.is_enabled() {
+                let system = update_state.data.system();
+                *data = system.switches.len().min(*data);
+                format!("{:0>3}: {}", *data + 1, system.switches[*data])
+            } else {
+                "...".to_string()
+            };
+            let button_response = ui.button(button_text);
 
-        if ui
-            .button(format!("{data}: {}", system.switches[*data - 1]))
-            .clicked()
-        {
-            this.get_or_insert(Self {
-                switch_id_range: *data..*data,
-                search_text: String::new(),
-            });
+            if button_response.clicked() {
+                *self = Self::Open {
+                    search_text: String::new(),
+                    switch_id: *data,
+                };
+            }
+            if ui.is_enabled() {
+                self.show_window(ui.ctx(), data, update_state);
+            }
+
+            button_response
         }
-
-        drop(system);
-
-        Modal::show(this, ui.ctx(), data, update_state);
     }
 
-    fn show(
-        this_opt: &mut Option<Self>,
+    fn reset(&mut self) {
+        *self = Self::Closed;
+    }
+}
+
+impl Modal {
+    fn show_window(
+        &mut self,
         ctx: &egui::Context,
-        data: &mut Self::Data,
+        data: &mut usize,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut win_open = this_opt.is_some();
-        let mut needs_close = this_opt.is_some();
+        let mut win_open = true;
+        let mut keep_open = true;
+        let mut needs_save = false;
+
+        let Self::Open {
+            search_text,
+            switch_id,
+        } = self
+        else {
+            return;
+        };
 
         egui::Window::new("Switch Picker")
             .resizable(false)
             .open(&mut win_open)
             .show(ctx, |ui| {
-                let this = this_opt.as_mut().unwrap();
-
                 let system = update_state.data.system();
+
+                let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
                 ui.group(|ui| {
                     egui::ScrollArea::vertical()
                         .auto_shrink([false, false])
                         .max_height(384.)
                         .show(ui, |ui| {
-                            for (id, name) in
-                                system.switches.iter().enumerate().filter(|(id, s)| {
-                                    (id + 1).to_string().contains(&this.search_text)
-                                        || s.contains(&this.search_text)
-                                })
-                            {
-                                let id = id + 1;
-                                let mut text = egui::RichText::new(format!("{id}: {name}"));
-
-                                if this.switch_id_range.start == id {
-                                    text = text.color(egui::Color32::YELLOW);
+                            for (id, name) in system.switches.iter().enumerate() {
+                                let text = format!("{:0>3}: {name}", id + 1);
+                                if matcher.fuzzy(&text, search_text, false).is_none() {
+                                    continue;
                                 }
-
-                                let response = ui.selectable_value(data, id, text);
-
-                                if this.switch_id_range.end == id {
-                                    this.switch_id_range.end = usize::MAX;
-                                    this.switch_id_range.start = id;
-
-                                    response.scroll_to_me(None);
-                                }
-
-                                if response.double_clicked() {
-                                    needs_close = true;
-                                }
+                                ui.with_stripe(id % 2 == 0, |ui| {
+                                    let response = ui.selectable_value(switch_id, id, text);
+                                    if response.double_clicked() {
+                                        keep_open = false;
+                                        needs_save = true;
+                                    }
+                                });
                             }
                         })
                 });
-
                 ui.horizontal(|ui| {
-                    needs_close |= ui.button("Ok").clicked();
-                    needs_close |= ui.button("Cancel").clicked();
+                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
 
-                    if ui
-                        .add(
-                            egui::DragValue::new(&mut this.switch_id_range.start)
-                                .clamp_range(0..=system.switches.len()),
-                        )
-                        .changed()
-                    {
-                        this.switch_id_range.end = this.switch_id_range.start;
-                    };
-                    egui::TextEdit::singleline(&mut this.search_text)
+                    egui::TextEdit::singleline(search_text)
                         .hint_text("Search 🔎")
                         .show(ui);
                 });
             });
 
-        if !win_open || needs_close {
-            *this_opt = None;
+        if needs_save {
+            *data = *switch_id;
+        }
+
+        if !win_open || !keep_open {
+            *self = Self::Closed;
         }
     }
 }

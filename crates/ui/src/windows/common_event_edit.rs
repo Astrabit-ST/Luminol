@@ -88,7 +88,7 @@ impl luminol_core::Window for Window {
                                     self.tabs.add_tab(CommonEventTab {
                                         event: event.clone(),
                                         force_close: false,
-                                        switch_modal: None,
+                                        switch_modal: Default::default(),
                                         command_view: luminol_components::CommandView::new(
                                             format!("common_event_{ele}"),
                                         ),
@@ -111,7 +111,7 @@ impl luminol_core::Window for Window {
 struct CommonEventTab {
     event: luminol_data::rpg::CommonEvent,
     force_close: bool,
-    switch_modal: Option<luminol_modals::switch::Modal>,
+    switch_modal: luminol_modals::switch::Modal,
     command_view: luminol_components::CommandView,
 }
 
@@ -140,14 +140,11 @@ impl luminol_core::Tab for CommonEventTab {
                     }
                 });
 
-            ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                luminol_modals::switch::Modal::button(
-                    &mut self.switch_modal,
-                    ui,
-                    &mut self.event.switch_id,
-                    update_state,
-                );
-            });
+            ui.add_enabled(
+                self.event.trigger > 0,
+                self.switch_modal
+                    .button(&mut self.event.switch_id, update_state),
+            );
 
             let mut save_event = false;
 
