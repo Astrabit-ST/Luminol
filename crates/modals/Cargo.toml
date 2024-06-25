@@ -26,3 +26,5 @@ luminol-data.workspace = true
 luminol-components.workspace = true
 
 fuzzy-matcher = "0.3.7"
+
+ouroboros = "0.18.4"

@@ -30,3 +30,5 @@ pub mod variable;
 pub mod sound_picker;
 
 pub mod graphic_picker;
+
+pub mod database_modal;

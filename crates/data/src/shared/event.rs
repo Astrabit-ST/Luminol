@@ -224,6 +224,8 @@ pub struct EventCondition {
     #[serde(with = "id_serde")]
     #[marshal(with = "id_alox")]
     pub switch2_id: usize,
+    #[serde(with = "id_serde")]
+    #[marshal(with = "id_alox")]
     pub variable_id: usize,
     pub variable_value: i32,
     pub self_switch_ch: SelfSwitch,
