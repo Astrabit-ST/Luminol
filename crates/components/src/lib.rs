@@ -84,6 +84,36 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
     }
 }
 
+pub struct EnumRadioList<'e, T> {
+    current_value: &'e mut T,
+}
+
+impl<'e, T> EnumRadioList<'e, T> {
+    pub fn new(current_value: &'e mut T) -> Self {
+        Self { current_value }
+    }
+}
+
+impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumRadioList<'e, T> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+        let mut response = ui
+            .vertical(|ui| {
+                for variant in T::iter() {
+                    let text = variant.to_string();
+                    if ui.radio_value(self.current_value, variant, text).changed() {
+                        changed = true;
+                    }
+                }
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
+    }
+}
+
 pub struct Field<T> {
     name: String,
     widget: T,

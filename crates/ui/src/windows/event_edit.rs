@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use egui::Widget;
 use luminol_core::Modal;
 use luminol_data::rpg;
 use luminol_modals::database_modal;
@@ -40,7 +41,9 @@ pub struct Window {
 impl Window {
     /// Create a new event editor.
     pub fn new(event: rpg::Event, map_id: usize) -> Self {
-        let id_source = egui::Id::new("event_edit").with(event.id).with(map_id);
+        let id_source = egui::Id::new("luminol_event_edit")
+            .with(event.id)
+            .with(map_id);
         Self {
             map_id,
             event,
@@ -72,93 +75,150 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Page: ");
-                for i in 0..self.event.pages.len() {
-                    ui.selectable_value(&mut self.selected_page, i, format!("{}", i + 1));
-                }
-
-                if ui
-                    .button(egui::RichText::new("Add").color(egui::Color32::LIGHT_GREEN))
-                    .clicked()
-                {
-                    self.event.pages.push(rpg::EventPage::default());
-                    self.selected_page = self.event.pages.len() - 1;
-                }
-
-                let button = egui::Button::new(
-                    egui::RichText::new("Delete").color(egui::Color32::LIGHT_RED),
-                );
-                if ui.add_enabled(self.event.pages.len() > 1, button).clicked() {
-                    self.event.pages.remove(self.selected_page);
-                    self.selected_page = self.selected_page.saturating_sub(1);
-                }
-                if ui.button(egui::RichText::new("Clear")).clicked() {
-                    self.event.pages[self.selected_page] = rpg::EventPage::default();
-                }
-            });
-            ui.separator();
-
             let id_source = self.id();
+            egui::TopBottomPanel::top(id_source.with("top_panel")).show_inside(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Page: ");
+                    for i in 0..self.event.pages.len() {
+                        ui.selectable_value(&mut self.selected_page, i, format!("{}", i + 1));
+                    }
+
+                    if ui
+                        .button(egui::RichText::new("Add").color(egui::Color32::LIGHT_GREEN))
+                        .clicked()
+                    {
+                        self.event.pages.push(rpg::EventPage::default());
+                        self.selected_page = self.event.pages.len() - 1;
+                    }
+
+                    let button = egui::Button::new(
+                        egui::RichText::new("Delete").color(egui::Color32::LIGHT_RED),
+                    );
+                    if ui.add_enabled(self.event.pages.len() > 1, button).clicked() {
+                        self.event.pages.remove(self.selected_page);
+                        self.selected_page = self.selected_page.saturating_sub(1);
+                    }
+                    if ui.button(egui::RichText::new("Clear")).clicked() {
+                        self.event.pages[self.selected_page] = rpg::EventPage::default();
+                    }
+                });
+            });
+
             let page = &mut self.event.pages[self.selected_page];
 
-            ui.columns(2, |columns| {
-                columns[0].horizontal(|ui| {
-                    ui.checkbox(&mut page.condition.switch1_valid, "Switch");
-                    ui.add_enabled(
-                        page.condition.switch1_valid,
-                        self.switch_1_modal
-                            .button(&mut page.condition.switch1_id, update_state),
-                    );
-                    ui.label("is ON");
+            egui::SidePanel::left(id_source.with("side_panel")).show_inside(ui, |ui| {
+                ui.label("Conditions");
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut page.condition.switch1_valid, "Switch");
+                        ui.add_enabled(
+                            page.condition.switch1_valid,
+                            self.switch_1_modal
+                                .button(&mut page.condition.switch1_id, update_state),
+                        );
+                        ui.label("is ON");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut page.condition.switch2_valid, "Switch");
+                        ui.add_enabled(
+                            page.condition.switch2_valid,
+                            self.switch_2_modal
+                                .button(&mut page.condition.switch2_id, update_state),
+                        );
+                        ui.label("is ON");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut page.condition.variable_valid, "Variable");
+                        ui.add_enabled(
+                            page.condition.variable_valid,
+                            self.variable_modal
+                                .button(&mut page.condition.variable_id, update_state),
+                        );
+                        ui.label("is");
+                        ui.add_enabled(
+                            page.condition.variable_valid,
+                            egui::DragValue::new(&mut page.condition.variable_value),
+                        );
+                        ui.label("or above");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut page.condition.self_switch_valid, "Self Switch");
+                        // TODO add self switch text box (config option)
+                        ui.add_enabled(
+                            // FIXME ensure shrink
+                            page.condition.self_switch_valid,
+                            luminol_components::EnumMenuButton::new(
+                                &mut page.condition.self_switch_ch,
+                                id_source.with("self_switch_ch"),
+                            ),
+                        );
+                        ui.label("is ON");
+                        // ensure we expand to fit the side panel
+                        ui.add_space(ui.available_width());
+                    });
                 });
-                columns[1].horizontal(|ui| {
-                    ui.checkbox(&mut page.condition.switch2_valid, "Switch");
-                    ui.add_enabled(
-                        page.condition.switch2_valid,
-                        self.switch_2_modal
-                            .button(&mut page.condition.switch2_id, update_state),
-                    );
-                    ui.label("is ON");
-                });
-                columns[0].horizontal(|ui| {
-                    ui.checkbox(&mut page.condition.variable_valid, "Variable");
-                    ui.add_enabled(
-                        page.condition.variable_valid,
-                        self.variable_modal
-                            .button(&mut page.condition.variable_id, update_state),
-                    );
-                    ui.label("is");
-                    ui.add_enabled(
-                        page.condition.variable_valid,
-                        egui::DragValue::new(&mut page.condition.variable_value),
-                    );
-                    ui.label("or above");
-                });
-                columns[1].horizontal(|ui| {
-                    ui.checkbox(&mut page.condition.self_switch_valid, "Self Switch");
-                    ui.add_enabled(
-                        page.condition.self_switch_valid,
-                        luminol_components::EnumMenuButton::new(
-                            &mut page.condition.self_switch_ch,
-                            id_source.with("self_switch_ch"),
-                        ),
-                    );
-                    ui.label("is ON");
-                });
-            });
-            ui.separator();
-            ui.columns(2, |columns| {
-                columns[0].checkbox(&mut page.walk_anime, "Move Animation");
-                columns[0].checkbox(&mut page.step_anime, "Stop Animation");
-                columns[0].checkbox(&mut page.direction_fix, "Direction Fix");
-                columns[0].checkbox(&mut page.through, "Through");
-                columns[0].checkbox(&mut page.always_on_top, "Always On Top");
 
-                columns[1].add(luminol_components::EnumMenuButton::new(
-                    &mut page.trigger,
-                    id_source.with("trigger"),
-                ));
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Graphic");
+                        // TODO
+                    });
+                    ui.vertical(|ui| {
+                        ui.label("Autonomous Movement");
+                        ui.group(|ui| {
+                            // FIXME these expand to fit, which is kinda annoying
+                            ui.horizontal(|ui| {
+                                ui.label("Move Type");
+                                luminol_components::EnumComboBox::new(
+                                    id_source.with("move_type"),
+                                    &mut page.move_type,
+                                )
+                                .ui(ui);
+                            });
+                            ui.add_enabled(
+                                page.move_type == luminol_data::rpg::MoveType::Custom,
+                                egui::Button::new("Move Route..."),
+                            ); // TODO
+                            ui.horizontal(|ui| {
+                                ui.label("Move Speed");
+                                luminol_components::EnumComboBox::new(
+                                    id_source.with("move_speed"),
+                                    &mut page.move_speed,
+                                )
+                                .ui(ui);
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("Move Frequency");
+                                luminol_components::EnumComboBox::new(
+                                    id_source.with("move_frequency"),
+                                    &mut page.move_frequency,
+                                )
+                                .ui(ui);
+                            });
+                        });
+                    });
+                });
+
+                ui.columns(2, |columns| {
+                    let [left, right] = columns else {
+                        unreachable!()
+                    };
+
+                    left.label("Options");
+                    left.group(|ui| {
+                        ui.style_mut().wrap = Some(false);
+                        ui.checkbox(&mut page.walk_anime, "Move Animation");
+                        ui.checkbox(&mut page.step_anime, "Step Animation");
+                        ui.checkbox(&mut page.direction_fix, "Direction Fix");
+                        ui.checkbox(&mut page.through, "Through");
+                        ui.checkbox(&mut page.always_on_top, "Always on Top");
+                    });
+
+                    right.label("Trigger");
+                    right.group(|ui| {
+                        luminol_components::EnumRadioList::new(&mut page.trigger).ui(ui);
+                    });
+                });
             });
         });
     }
