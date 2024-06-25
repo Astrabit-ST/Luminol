@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_core::Modal;
+use luminol_modals::database_modal;
 
 /// The common event editor.
 pub struct Window {
@@ -75,7 +76,7 @@ impl luminol_core::Window for Window {
 struct CommonEventTab {
     event: luminol_data::rpg::CommonEvent,
     force_close: bool,
-    switch_modal: luminol_modals::switch::Modal,
+    switch_modal: database_modal::SwitchModal,
     command_view: luminol_components::CommandView,
 }
 

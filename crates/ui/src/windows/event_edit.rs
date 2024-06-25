@@ -24,7 +24,7 @@
 
 use luminol_core::Modal;
 use luminol_data::rpg;
-use luminol_modals::{switch, variable};
+use luminol_modals::database_modal;
 
 /// The event editor window.
 pub struct Window {
@@ -32,9 +32,9 @@ pub struct Window {
     event: rpg::Event,
     selected_page: usize,
 
-    switch_1_modal: switch::Modal,
-    switch_2_modal: switch::Modal,
-    variable_modal: variable::Modal,
+    switch_1_modal: database_modal::SwitchModal,
+    switch_2_modal: database_modal::SwitchModal,
+    variable_modal: database_modal::VariableModal,
 }
 
 impl Window {
@@ -46,9 +46,9 @@ impl Window {
             event,
             selected_page: 0,
 
-            switch_1_modal: switch::Modal::new(id_source.with("switch_1_modal")),
-            switch_2_modal: switch::Modal::new(id_source.with("switch_2_modal")),
-            variable_modal: variable::Modal::new(id_source.with("variable_modal")),
+            switch_1_modal: database_modal::Modal::new(id_source.with("switch_1_modal")),
+            switch_2_modal: database_modal::Modal::new(id_source.with("switch_2_modal")),
+            variable_modal: database_modal::Modal::new(id_source.with("variable_modal")),
         }
     }
 }

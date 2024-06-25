@@ -37,6 +37,9 @@ pub struct Modal<M> {
     _phantom: PhantomData<M>, // so that M is constrained
 }
 
+pub type SwitchModal = Modal<Switch>;
+pub type VariableModal = Modal<Variable>;
+
 enum State {
     Closed,
     Open {
