@@ -48,15 +48,20 @@ impl Tilepicker {
         graphics_state: &GraphicsState,
         tileset: &luminol_data::rpg::Tileset,
         filesystem: &impl luminol_filesystem::FileSystem,
+        exclude_autotiles: bool,
     ) -> color_eyre::Result<Self> {
         let atlas = graphics_state
             .atlas_loader
             .load_atlas(graphics_state, filesystem, tileset)?;
 
-        let tilepicker_data = (47..(384 + 47))
-            .step_by(48)
-            .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
-            .collect_vec();
+        let tilepicker_data = if exclude_autotiles {
+            (384..(atlas.tileset_height as i16 / 32 * 8 + 384)).collect_vec()
+        } else {
+            (47..(384 + 47))
+                .step_by(48)
+                .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
+                .collect_vec()
+        };
         let tilepicker_data = luminol_data::Table3::new_data(
             8,
             1 + (atlas.tileset_height / 32) as usize,

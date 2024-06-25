@@ -23,9 +23,8 @@
 // Program grant you additional permission to convey the resulting work.
 
 use egui::Widget;
-use luminol_core::Modal;
-use luminol_data::rpg;
-use luminol_modals::database_modal;
+use luminol_core::prelude::*;
+use luminol_modals::{database_modal, event_graphic_picker};
 
 /// The event editor window.
 pub struct Window {
@@ -36,14 +35,26 @@ pub struct Window {
     switch_1_modal: database_modal::SwitchModal,
     switch_2_modal: database_modal::SwitchModal,
     variable_modal: database_modal::VariableModal,
+    graphic_modal: event_graphic_picker::Modal,
 }
 
 impl Window {
     /// Create a new event editor.
-    pub fn new(event: rpg::Event, map_id: usize) -> Self {
+    pub fn new(
+        update_state: &UpdateState<'_>,
+        event: rpg::Event,
+        map_id: usize,
+        tileset: &rpg::Tileset,
+    ) -> Self {
         let id_source = egui::Id::new("luminol_event_edit")
             .with(event.id)
             .with(map_id);
+        let graphic_modal = event_graphic_picker::Modal::new(
+            update_state,
+            &event.pages[0].graphic,
+            tileset,
+            id_source.with("graphic_modal"),
+        );
         Self {
             map_id,
             event,
@@ -52,6 +63,7 @@ impl Window {
             switch_1_modal: database_modal::Modal::new(id_source.with("switch_1_modal")),
             switch_2_modal: database_modal::Modal::new(id_source.with("switch_2_modal")),
             variable_modal: database_modal::Modal::new(id_source.with("variable_modal")),
+            graphic_modal,
         }
     }
 }
@@ -67,7 +79,6 @@ impl luminol_core::Window for Window {
             .with(self.event.id)
     }
 
-    // This needs an overhaul
     fn show(
         &mut self,
         ctx: &egui::Context,
@@ -76,6 +87,7 @@ impl luminol_core::Window for Window {
     ) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             let id_source = self.id();
+            let previous_page = self.selected_page;
             egui::TopBottomPanel::top(id_source.with("top_panel")).show_inside(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Page: ");
@@ -105,6 +117,11 @@ impl luminol_core::Window for Window {
             });
 
             let page = &mut self.event.pages[self.selected_page];
+            if self.selected_page != previous_page {
+                // we need to update the modal to prevent desyncs
+                self.graphic_modal
+                    .update_graphic(update_state, &page.graphic);
+            }
 
             egui::SidePanel::left(id_source.with("side_panel")).show_inside(ui, |ui| {
                 ui.label("Conditions");
@@ -161,7 +178,11 @@ impl luminol_core::Window for Window {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Graphic");
-                        // TODO
+                        ui.group(|ui| {
+                            self.graphic_modal
+                                .button(&mut page.graphic, update_state)
+                                .ui(ui);
+                        });
                     });
                     ui.vertical(|ui| {
                         ui.label("Autonomous Movement");

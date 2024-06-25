@@ -456,11 +456,12 @@ impl MapView {
                                             &update_state.graphics,
                                             glam::vec2(event_size.x, event_size.y),
                                         );
+                                        let graphic = &event.pages[0].graphic; // FIXME handle missing first page (should never happen though...)
                                         let sprite = luminol_graphics::Event::new_standalone(
                                             &update_state.graphics,
                                             update_state.filesystem,
                                             &viewport,
-                                            event,
+                                            graphic,
                                             &self.map.atlas,
                                         )
                                         .unwrap()

@@ -116,15 +116,11 @@ impl Event {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         viewport: &Viewport,
-        event: &luminol_data::rpg::Event,
+        graphic: &luminol_data::rpg::Graphic,
         atlas: &Atlas,
     ) -> color_eyre::Result<Option<Self>> {
-        let Some(page) = event.pages.first() else {
-            color_eyre::eyre::bail!("event does not have first page");
-        };
-
         let mut is_placeholder = false;
-        let texture = if let Some(ref filename) = page.graphic.character_name {
+        let texture = if let Some(ref filename) = graphic.character_name {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Characters", filename)
@@ -137,13 +133,13 @@ impl Event {
                     graphics_state.texture_loader.placeholder_texture()
                 }
             }
-        } else if page.graphic.tile_id.is_some() {
+        } else if graphic.tile_id.is_some() {
             atlas.atlas_texture.clone()
         } else {
             return Ok(None);
         };
 
-        let (quad, sprite_size) = if let Some(id) = page.graphic.tile_id {
+        let (quad, sprite_size) = if let Some(id) = graphic.tile_id {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
@@ -167,8 +163,8 @@ impl Event {
             // Reduced by 0.01 px on all sides to reduce texture bleeding
             let tex_coords = egui::Rect::from_min_size(
                 egui::pos2(
-                    page.graphic.pattern as f32 * cw + 0.01,
-                    (page.graphic.direction as f32 - 2.) / 2. * ch + 0.01,
+                    graphic.pattern as f32 * cw + 0.01,
+                    (graphic.direction as f32 - 2.) / 2. * ch + 0.01,
                 ),
                 egui::vec2(cw - 0.02, ch - 0.02),
             );
@@ -182,9 +178,9 @@ impl Event {
         let sprite = Sprite::new(
             graphics_state,
             quad,
-            page.graphic.character_hue,
-            page.graphic.opacity,
-            page.graphic.blend_type,
+            graphic.character_hue,
+            graphic.opacity,
+            graphic.blend_type,
             &texture,
             viewport,
             transform,

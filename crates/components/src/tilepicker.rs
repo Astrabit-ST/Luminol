@@ -77,6 +77,7 @@ impl Tilepicker {
             &update_state.graphics,
             tileset,
             update_state.filesystem,
+            false,
         )?;
 
         let mut brush_seed = [0u8; 16];

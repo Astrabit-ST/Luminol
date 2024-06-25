@@ -48,6 +48,14 @@ pub use project_manager::ProjectManager;
 pub use alox_48;
 pub use data_cache::format_traced_error;
 
+pub mod prelude {
+    pub use crate::{Modal, Tab, UpdateState, Window};
+    pub use luminol_audio::Source;
+    pub use luminol_data::rpg;
+    pub use luminol_filesystem::FileSystem;
+    pub use luminol_graphics::*;
+}
+
 static GIT_REVISION: once_cell::sync::OnceCell<&'static str> = once_cell::sync::OnceCell::new();
 
 pub fn set_git_revision(revision: &'static str) {
