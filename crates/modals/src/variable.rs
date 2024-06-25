@@ -24,15 +24,27 @@
 
 use luminol_components::UiExt;
 
-#[derive(Default)]
-/// The variable picker modal.
-pub enum Modal {
-    #[default]
+// TODO generalize modal into id modal
+pub struct Modal {
+    state: State,
+    id: egui::Id,
+}
+
+enum State {
     Closed,
     Open {
         search_text: String,
         variable_id: usize,
     },
+}
+
+impl Modal {
+    pub fn new(id: egui::Id) -> Self {
+        Self {
+            state: State::Closed,
+            id,
+        }
+    }
 }
 
 impl luminol_core::Modal for Modal {
@@ -54,8 +66,8 @@ impl luminol_core::Modal for Modal {
             let button_response = ui.button(button_text);
 
             if button_response.clicked() {
-                *self = Self::Open {
-                    search_text: String::new(),
+                self.state = State::Open {
+                    search_text: "".to_string(),
                     variable_id: *data,
                 };
             }
@@ -68,7 +80,7 @@ impl luminol_core::Modal for Modal {
     }
 
     fn reset(&mut self) {
-        *self = Self::Closed;
+        self.state = State::Closed;
     }
 }
 
@@ -83,10 +95,10 @@ impl Modal {
         let mut keep_open = true;
         let mut needs_save = false;
 
-        let Self::Open {
+        let State::Open {
             search_text,
             variable_id,
-        } = self
+        } = &mut self.state
         else {
             return;
         };
@@ -94,6 +106,7 @@ impl Modal {
         egui::Window::new("Variable Picker")
             .resizable(false)
             .open(&mut win_open)
+            .id(self.id)
             .show(ctx, |ui| {
                 let system = update_state.data.system();
 
@@ -135,7 +148,7 @@ impl Modal {
         }
 
         if !win_open || !keep_open {
-            *self = Self::Closed;
+            self.state = State::Closed;
         }
     }
 }

@@ -63,43 +63,7 @@ impl luminol_core::Window for Window {
             .id(egui::Id::new("common_events_edit"))
             .open(open)
             .show(ctx, |ui| {
-                egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let common_events = update_state.data.common_events();
-
-                    egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
-                        ui,
-                        ui.text_style_height(&egui::TextStyle::Body),
-                        common_events.data.len(),
-                        |ui, rows| {
-                            for (ele, event) in common_events
-                                .data
-                                .iter()
-                                .enumerate()
-                                .filter(|(ele, _)| rows.contains(ele))
-                            {
-                                if ui
-                                    .selectable_value(
-                                        &mut self.selected_id,
-                                        ele,
-                                        format!("{}: {}", event.id, event.name),
-                                    )
-                                    .double_clicked()
-                                {
-                                    self.tabs.add_tab(CommonEventTab {
-                                        event: event.clone(),
-                                        force_close: false,
-                                        switch_modal: Default::default(),
-                                        command_view: luminol_components::CommandView::new(
-                                            format!("common_event_{ele}"),
-                                        ),
-                                    });
-                                }
-                            }
-                        },
-                    );
-                });
-
-                self.tabs.ui(ui, update_state);
+                // TODO
             });
     }
 

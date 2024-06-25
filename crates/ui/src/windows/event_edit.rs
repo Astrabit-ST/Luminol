@@ -40,14 +40,15 @@ pub struct Window {
 impl Window {
     /// Create a new event editor.
     pub fn new(event: rpg::Event, map_id: usize) -> Self {
+        let id_source = egui::Id::new("event_edit").with(event.id).with(map_id);
         Self {
             map_id,
             event,
             selected_page: 0,
 
-            switch_1_modal: switch::Modal::default(),
-            switch_2_modal: switch::Modal::default(),
-            variable_modal: variable::Modal::default(),
+            switch_1_modal: switch::Modal::new(id_source.with("switch_1_modal")),
+            switch_2_modal: switch::Modal::new(id_source.with("switch_2_modal")),
+            variable_modal: variable::Modal::new(id_source.with("variable_modal")),
         }
     }
 }
