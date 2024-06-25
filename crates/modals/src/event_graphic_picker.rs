@@ -100,24 +100,31 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
-            let button_text = match data {
-                rpg::Graphic {
-                    character_name: Some(name),
-                    ..
-                } => name.to_string(),
-                rpg::Graphic {
-                    tile_id: Some(id), ..
-                } => format!("Tile {id}"),
-                _ => "None".to_string(),
-            };
+            let desired_size = self
+                .button_sprite
+                .as_ref()
+                .map(|s| s.sprite_size)
+                .unwrap_or(egui::vec2(32., 32.));
+            let (response, painter) = ui.allocate_painter(desired_size, egui::Sense::click());
 
-            let button_response = ui.button(button_text);
-            if button_response.clicked() {
+            if let Some(sprite) = &mut self.button_sprite {
+                self.button_viewport.set_size(
+                    &update_state.graphics.render_state,
+                    glam::vec2(desired_size.x, desired_size.y),
+                );
+                let callback = luminol_egui_wgpu::Callback::new_paint_callback(
+                    response.rect,
+                    Painter::new(sprite.prepare(&update_state.graphics)),
+                );
+                painter.add(callback);
+            }
+
+            if response.clicked() {
                 self.open = true;
             }
             self.show_window(update_state, ui.ctx(), data);
 
-            button_response
+            response
         }
     }
 
@@ -127,7 +134,17 @@ impl luminol_core::Modal for Modal {
 }
 
 impl Modal {
-    pub fn update_graphic(&mut self, update_state: &UpdateState<'_>, graphic: &rpg::Graphic) {}
+    pub fn update_graphic(&mut self, update_state: &UpdateState<'_>, graphic: &rpg::Graphic) {
+        self.button_sprite = Event::new_standalone(
+            &update_state.graphics,
+            update_state.filesystem,
+            &self.button_viewport,
+            graphic,
+            &self.tilepicker.atlas,
+        )
+        .unwrap();
+        self.sprite = None;
+    }
 
     fn show_window(
         &mut self,

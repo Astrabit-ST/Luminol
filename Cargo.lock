@@ -3213,9 +3213,11 @@ dependencies = [
  "camino",
  "egui",
  "fuzzy-matcher",
+ "glam",
  "luminol-components",
  "luminol-core",
  "luminol-data",
+ "luminol-egui-wgpu",
  "ouroboros",
 ]
 
