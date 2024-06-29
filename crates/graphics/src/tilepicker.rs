@@ -64,7 +64,7 @@ impl Tilepicker {
         };
         let tilepicker_data = luminol_data::Table3::new_data(
             8,
-            1 + (atlas.tileset_height / 32) as usize,
+            !exclude_autotiles as usize + (atlas.tileset_height / 32) as usize,
             1,
             tilepicker_data,
         );

@@ -70,7 +70,7 @@ impl Modal {
             &update_state.graphics,
             tileset,
             update_state.filesystem,
-            false,
+            true,
         )
         .unwrap();
 
@@ -199,11 +199,67 @@ impl Modal {
                                 matches!(self.selected, Selected::Graphic(ref path) if path == entry);
                             if ui.selectable_label(checked, entry.as_str()).clicked() {
                                 self.selected = Selected::Graphic(entry.clone());
+                                self.sprite = None;
                             }
                         }
                     });
                 });
-                luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+
+                match &mut self.selected {
+                    Selected::None => {}
+                    Selected::Graphic(_) => {}
+                    Selected::Tile(id) => {
+                        egui::ScrollArea::vertical().show_viewport(ui, |ui, viewport| {
+                            let (canvas_rect, response) = ui.allocate_exact_size(
+                                egui::vec2(256., self.tilepicker.atlas.tileset_height as f32),
+                                egui::Sense::click(),
+                            );
+
+                            let absolute_scroll_rect = ui
+                                .ctx()
+                                .screen_rect()
+                                .intersect(viewport.translate(canvas_rect.min.to_vec2()));
+                            let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
+
+                            self.tilepicker.grid.display.set_pixels_per_point(
+                                &update_state.graphics.render_state,
+                                ui.ctx().pixels_per_point(),
+                            );
+
+                            self.tilepicker.set_position(
+                                &update_state.graphics.render_state,
+                                glam::vec2(0.0, -scroll_rect.top()),
+                            );
+                            self.tilepicker.viewport.set(
+                                &update_state.graphics.render_state,
+                                glam::vec2(scroll_rect.width(), scroll_rect.height()),
+                                glam::Vec2::ZERO,
+                                glam::Vec2::ONE,
+                            );
+
+                            self.tilepicker
+                                .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
+                
+                            let painter = Painter::new(self.tilepicker.prepare(&update_state.graphics));
+                            ui.painter()
+                                .add(luminol_egui_wgpu::Callback::new_paint_callback(
+                                    absolute_scroll_rect,
+                                    painter,
+                                ));
+
+                            let tile_x = (*id - 384) % 8;
+                            let tile_y = (*id - 384) / 8;
+                            let rect = egui::Rect::from_min_size(egui::Pos2::new(tile_x as f32, tile_y as f32) * 32., egui::Vec2::splat(32.)).translate(canvas_rect.min.to_vec2());
+                            ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+
+                            if response.clicked() {
+                                let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / 32.;
+                                *id = pos.x as usize + pos.y as usize * 8 + 384;
+                            }
+                        });
+                    }
+                }
+
             });
 
         if !keep_open {
