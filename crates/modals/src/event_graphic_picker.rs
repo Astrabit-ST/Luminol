@@ -28,13 +28,21 @@ pub struct Modal {
     entries: Vec<camino::Utf8PathBuf>,
     open: bool,
     id_source: egui::Id,
+    selected: Selected,
 
     tilepicker: Tilepicker,
 
     button_viewport: Viewport,
     button_sprite: Option<Event>,
 
-    sprite: Option<(Viewport, Event)>,
+    sprite: Option<(Viewport, Sprite)>,
+}
+
+#[derive(PartialEq)]
+enum Selected {
+    None,
+    Tile(usize),
+    Graphic(camino::Utf8PathBuf),
 }
 
 impl Modal {
@@ -76,10 +84,19 @@ impl Modal {
         )
         .unwrap();
 
+        let selected = if let Some(id) = graphic.tile_id {
+            Selected::Tile(id)
+        } else if let Some(path) = graphic.character_name.clone() {
+            Selected::Graphic(path)
+        } else {
+            Selected::None
+        };
+
         Self {
             entries,
             open: false,
             id_source,
+            selected,
 
             tilepicker,
 
@@ -100,23 +117,27 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
-            let desired_size = self
-                .button_sprite
-                .as_ref()
-                .map(|s| s.sprite_size)
-                .unwrap_or(egui::vec2(32., 32.));
-            let (response, painter) = ui.allocate_painter(desired_size, egui::Sense::click());
+            let desired_size = egui::vec2(64., 96.) + ui.spacing().button_padding * 2.;
+            let (rect, response) = ui.allocate_at_least(desired_size, egui::Sense::click());
+
+            let visuals = ui.style().interact_selectable(&response, self.open);
+            let rect = rect.expand(visuals.expansion);
+            ui.painter()
+                .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
 
             if let Some(sprite) = &mut self.button_sprite {
-                self.button_viewport.set_size(
+                let translation = (desired_size - sprite.sprite_size) / 2.;
+                self.button_viewport.set(
                     &update_state.graphics.render_state,
                     glam::vec2(desired_size.x, desired_size.y),
+                    glam::vec2(translation.x, translation.y),
+                    glam::Vec2::ONE,
                 );
                 let callback = luminol_egui_wgpu::Callback::new_paint_callback(
                     response.rect,
                     Painter::new(sprite.prepare(&update_state.graphics)),
                 );
-                painter.add(callback);
+                ui.painter().add(callback);
             }
 
             if response.clicked() {
@@ -152,5 +173,41 @@ impl Modal {
         ctx: &egui::Context,
         data: &mut rpg::Graphic,
     ) {
+        let mut keep_open = true;
+        let mut needs_save = false;
+
+        egui::Window::new("Event Graphic Picker")
+            .resizable(true)
+            .open(&mut self.open)
+            .id(self.id_source.with("window"))
+            .show(ctx, |ui| {
+                egui::SidePanel::left(self.id_source.with("sidebar")).show_inside(ui, |ui| {
+                    // FIXME: Its better to use show_rows!
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.selectable_value(&mut self.selected, Selected::None, "(None)");
+
+                        let checked = matches!(self.selected, Selected::Tile(_));
+                        let res = ui.selectable_label(
+                            checked,
+                            "(Tileset)",
+                        );
+                        if res.clicked() && !checked {
+                            self.selected = Selected::Tile(384);
+                        }
+                        for entry in &self.entries {
+                            let checked =
+                                matches!(self.selected, Selected::Graphic(ref path) if path == entry);
+                            if ui.selectable_label(checked, entry.as_str()).clicked() {
+                                self.selected = Selected::Graphic(entry.clone());
+                            }
+                        }
+                    });
+                });
+                luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+            });
+
+        if !keep_open {
+            self.open = false;
+        }
     }
 }

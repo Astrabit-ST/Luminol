@@ -178,11 +178,10 @@ impl luminol_core::Window for Window {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Graphic");
-                        ui.group(|ui| {
-                            self.graphic_modal
-                                .button(&mut page.graphic, update_state)
-                                .ui(ui);
-                        });
+
+                        self.graphic_modal
+                            .button(&mut page.graphic, update_state)
+                            .ui(ui);
                     });
                     ui.vertical(|ui| {
                         ui.label("Autonomous Movement");
@@ -216,6 +215,7 @@ impl luminol_core::Window for Window {
                                 )
                                 .ui(ui);
                             });
+                            ui.add_space(ui.available_height());
                         });
                     });
                 });
