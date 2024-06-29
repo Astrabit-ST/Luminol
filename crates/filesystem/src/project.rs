@@ -294,7 +294,7 @@ impl FileSystem {
                     }
                 }
 
-                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                let path = filesystem.root_path().join("RTP").join(rtp);
                 if let Ok(exists) = filesystem.exists(&path) {
                     if exists {
                         paths.push(path);
@@ -347,7 +347,7 @@ impl FileSystem {
                     }
                 }
 
-                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                let path = filesystem.root_path().join("RTP").join(rtp);
                 if let Ok(exists) = filesystem.exists(&path) {
                     if exists {
                         paths.push(path);
