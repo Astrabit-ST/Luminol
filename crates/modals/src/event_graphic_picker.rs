@@ -28,7 +28,7 @@ use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 pub struct Modal {
-    entries: Vec<camino::Utf8PathBuf>,
+    entries: Vec<Entry>,
     open: bool,
     id_source: egui::Id,
 
@@ -45,6 +45,12 @@ pub struct Modal {
     button_sprite: Option<Event>,
 
     sprite: Option<PreviewSprite>,
+}
+
+#[derive(PartialEq, PartialOrd, Eq, Ord)]
+struct Entry {
+    path: camino::Utf8PathBuf,
+    invalid: bool,
 }
 
 struct PreviewSprite {
@@ -80,10 +86,15 @@ impl Modal {
             .unwrap()
             .into_iter()
             .map(|m| {
-                m.path
+                let path = m
+                    .path
                     .strip_prefix("Graphics/Characters")
                     .unwrap_or(&m.path)
-                    .with_extension("")
+                    .with_extension("");
+                Entry {
+                    path,
+                    invalid: false,
+                }
             })
             .collect();
         entries.sort_unstable();
@@ -334,7 +345,7 @@ impl Modal {
 
                         let mut is_faint = false;
                         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-                        for entry in self.entries.iter() {
+                        for Entry { path: entry ,invalid} in self.entries.iter_mut() {
                             if matcher.fuzzy(entry.as_str(), &self.search_text, false).is_none() {
                                 continue;
                             }
@@ -344,13 +355,18 @@ impl Modal {
                                 ui.with_stripe(is_faint, |ui| {
                                     let checked =
                                         matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
-                                    let res = ui.selectable_label(checked, entry.as_str());
+                                    let mut text = egui::RichText::new(entry.as_str());
+                                    if *invalid {
+                                        text = text.color(egui::Color32::LIGHT_RED);
+                                    }
+                                    let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
                                     ui.add_space(ui.available_width());
                                     if res.clicked() {
                                         let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
                                             Ok(sprite) => sprite,
                                             Err(e) => {
                                                 luminol_core::error!(update_state.toasts, e);
+                                                *invalid = true;
                                                 return;
                                             }
                                         };
