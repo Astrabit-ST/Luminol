@@ -49,10 +49,10 @@ pub struct Modal {
 struct PreviewSprite {
     sprite: Sprite,
     sprite_size: egui::Vec2,
-    viewport: Viewport
+    viewport: Viewport,
 }
 
-#[derive(PartialEq,Default)]
+#[derive(PartialEq, Default)]
 enum Selected {
     #[default]
     None,
@@ -94,7 +94,6 @@ impl Modal {
         )
         .unwrap();
         tilepicker.tiles.auto_opacity = false;
-        
 
         let button_viewport = Viewport::new(&update_state.graphics, Default::default());
         let button_sprite = Event::new_standalone(
@@ -105,7 +104,6 @@ impl Modal {
             &tilepicker.atlas,
         )
         .unwrap();
-
 
         Self {
             entries,
@@ -165,7 +163,11 @@ impl luminol_core::Modal for Modal {
                 self.selected = if let Some(id) = data.tile_id {
                     Selected::Tile(id)
                 } else if let Some(path) = data.character_name.clone() {
-                    Selected::Graphic { path, direction: data.direction, pattern: data.pattern }
+                    Selected::Graphic {
+                        path,
+                        direction: data.direction,
+                        pattern: data.pattern,
+                    }
                 } else {
                     Selected::None
                 };
@@ -228,7 +230,7 @@ impl Modal {
                             ui.horizontal(|ui| {
                                 let res = ui.selectable_value(&mut self.selected, Selected::None, "(None)");
                                 ui.add_space(ui.available_width());
-    
+
                                 if self.first_open && matches!(self.selected, Selected::None) {
                                     res.scroll_to_me(Some(egui::Align::Center));
                                 }
@@ -243,11 +245,11 @@ impl Modal {
                                     "(Tileset)",
                                 );
                                 ui.add_space(ui.available_width());
-    
+
                                 if self.first_open && checked {
                                     res.scroll_to_me(Some(egui::Align::Center));
                                 }
-        
+
                                 if res.clicked() && !checked {
                                     self.selected = Selected::Tile(384);
                                 }
@@ -307,7 +309,7 @@ impl Modal {
                     ui.add_space(ui.style().spacing.item_spacing.y);
                     luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                 });
-                
+
                 egui::CentralPanel::default().show_inside(ui, |ui| {
                     egui::ScrollArea::both().show_viewport(ui, |ui, viewport| {
                         match &mut self.selected {
@@ -320,7 +322,7 @@ impl Modal {
                                     let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
                                     let quad = Quad::new(rect, rect);
                                     let viewport = Viewport::new(&update_state.graphics, glam::vec2(texture.width() as f32, texture.height() as f32));
-                                    
+
                                     let sprite = Sprite::new(&update_state.graphics, quad, self.hue, self.opacity, rpg::BlendMode::Normal, &texture, &viewport, Transform::unit(&update_state.graphics));
                                     PreviewSprite {
                                         sprite,
@@ -333,26 +335,26 @@ impl Modal {
                                     sprite.sprite_size,
                                     egui::Sense::click(),
                                 );
-                                
+
                                 sprite.viewport.set(
                                     &update_state.graphics.render_state,
                                     glam::vec2(canvas_rect.width(), canvas_rect.height()),
                                     glam::Vec2::ZERO,
                                     glam::Vec2::ONE,
                                 );
-            
+
                                 let painter = Painter::new(sprite.sprite.prepare(&update_state.graphics));
                                 ui.painter()
                                     .add(luminol_egui_wgpu::Callback::new_paint_callback(
                                         canvas_rect,
                                         painter,
                                     ));
-            
+
                                 let ch = sprite.sprite_size.y / 4.;
                                 let cw = sprite.sprite_size.x / 4.;
                                 let rect = egui::Rect::from_min_size(egui::pos2(cw ** pattern as f32, ch * (*direction as f32 - 2.) / 2.), egui::vec2(cw, ch)).translate(canvas_rect.min.to_vec2());
                                 ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
-            
+
                                 if response.clicked() {
                                     let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / egui::vec2(cw, ch);
                                     *direction = pos.y as i32 * 2 + 2;
@@ -364,18 +366,18 @@ impl Modal {
                                     egui::vec2(256., self.tilepicker.atlas.tileset_height as f32),
                                     egui::Sense::click(),
                                 );
-        
+
                                 let absolute_scroll_rect = ui
                                     .ctx()
                                     .screen_rect()
                                     .intersect(viewport.translate(canvas_rect.min.to_vec2()));
                                 let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
-        
+
                                 self.tilepicker.grid.display.set_pixels_per_point(
                                     &update_state.graphics.render_state,
                                     ui.ctx().pixels_per_point(),
                                 );
-        
+
                                 self.tilepicker.set_position(
                                     &update_state.graphics.render_state,
                                     glam::vec2(-scroll_rect.left(), -scroll_rect.top()),
@@ -386,22 +388,22 @@ impl Modal {
                                     glam::Vec2::ZERO,
                                     glam::Vec2::ONE,
                                 );
-        
+
                                 self.tilepicker
                                     .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
-        
+
                                 let painter = Painter::new(self.tilepicker.prepare(&update_state.graphics));
                                 ui.painter()
                                     .add(luminol_egui_wgpu::Callback::new_paint_callback(
                                         absolute_scroll_rect,
                                         painter,
                                     ));
-        
+
                                 let tile_x = (*id - 384) % 8;
                                 let tile_y = (*id - 384) / 8;
                                 let rect = egui::Rect::from_min_size(egui::Pos2::new(tile_x as f32, tile_y as f32) * 32., egui::Vec2::splat(32.)).translate(canvas_rect.min.to_vec2());
                                 ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
-        
+
                                 if response.clicked() {
                                     let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / 32.;
                                     *id = pos.x as usize + pos.y as usize * 8 + 384;
@@ -424,7 +426,11 @@ impl Modal {
                     data.tile_id = Some(id);
                     data.character_name = None;
                 }
-                Selected::Graphic { path, direction, pattern } => {
+                Selected::Graphic {
+                    path,
+                    direction,
+                    pattern,
+                } => {
                     data.tile_id = None;
                     data.character_name = Some(path);
                     data.direction = direction;
