@@ -412,9 +412,19 @@ impl Modal {
                                     egui::Sense::click(),
                                 );
 
+                                let absolute_scroll_rect = ui
+                                    .ctx()
+                                    .screen_rect()
+                                    .intersect(viewport.translate(canvas_rect.min.to_vec2()));
+                                let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
+                                sprite.sprite.transform.set_position(
+                                    &update_state.graphics.render_state,
+                                    glam::vec2(-scroll_rect.left(), -scroll_rect.top()),
+                                );
+
                                 sprite.viewport.set(
                                     &update_state.graphics.render_state,
-                                    glam::vec2(canvas_rect.width(), canvas_rect.height()),
+                                    glam::vec2(absolute_scroll_rect.width(), absolute_scroll_rect.height()),
                                     glam::Vec2::ZERO,
                                     glam::Vec2::ONE,
                                 );
@@ -422,7 +432,7 @@ impl Modal {
                                 let painter = Painter::new(sprite.sprite.prepare(&update_state.graphics));
                                 ui.painter()
                                     .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                                        canvas_rect,
+                                        absolute_scroll_rect,
                                         painter,
                                     ));
 
