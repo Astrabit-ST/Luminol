@@ -371,6 +371,23 @@ impl MapView {
             let mut selected_event_rect = None;
 
             for (_, event) in map.events.iter() {
+                if event.extra_data.modified.get() {
+                    event.extra_data.modified.set(false);
+                    let sprite = luminol_graphics::Event::new_map(
+                        &update_state.graphics,
+                        update_state.filesystem,
+                        &self.map.viewport,
+                        event,
+                        &self.map.atlas,
+                    )
+                    .unwrap(); // FIXME handle
+                    if let Some(sprite) = sprite {
+                        self.map.events.insert(event.id, sprite);
+                    } else {
+                        self.map.events.remove(event.id);
+                    }
+                }
+
                 let sprite = self.map.events.get_mut(event.id);
                 let has_sprite = sprite.is_some();
                 let event_size = sprite

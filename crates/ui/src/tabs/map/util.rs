@@ -243,7 +243,7 @@ impl super::Tab {
             .add_window(crate::windows::event_edit::Window::new(
                 update_state,
                 event,
-                map.tileset_id,
+                self.id,
                 tileset,
             ));
         Some(new_event_id)
