@@ -52,8 +52,9 @@ struct PreviewSprite {
     viewport: Viewport
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq,Default)]
 enum Selected {
+    #[default]
     None,
     Tile(usize),
     Graphic {
@@ -137,7 +138,7 @@ impl luminol_core::Modal for Modal {
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
             let desired_size = egui::vec2(64., 96.) + ui.spacing().button_padding * 2.;
-            let (rect, response) = ui.allocate_at_least(desired_size, egui::Sense::click());
+            let (rect, mut response) = ui.allocate_at_least(desired_size, egui::Sense::click());
 
             let visuals = ui.style().interact_selectable(&response, self.open);
             let rect = rect.expand(visuals.expansion);
@@ -160,7 +161,6 @@ impl luminol_core::Modal for Modal {
             }
 
             if response.clicked() {
-
                 self.selected = if let Some(id) = data.tile_id {
                     Selected::Tile(id)
                 } else if let Some(path) = data.character_name.clone() {
@@ -176,7 +176,9 @@ impl luminol_core::Modal for Modal {
 
                 self.open = true;
             }
-            self.show_window(update_state, ui.ctx(), data);
+            if self.show_window(update_state, ui.ctx(), data) {
+                response.mark_changed();
+            }
 
             response
         }
@@ -205,7 +207,7 @@ impl Modal {
         update_state: &luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
         data: &mut rpg::Graphic,
-    ) {
+    ) -> bool {
         let mut keep_open = true;
         let mut needs_save = false;
 
@@ -318,7 +320,7 @@ impl Modal {
                                     let quad = Quad::new(rect, rect);
                                     let viewport = Viewport::new(&update_state.graphics, glam::vec2(texture.width() as f32, texture.height() as f32));
                                     
-                                    let sprite = Sprite::new(&update_state.graphics, quad, 0, 255, rpg::BlendMode::Normal, &texture, &viewport, Transform::unit(&update_state.graphics));
+                                    let sprite = Sprite::new(&update_state.graphics, quad, self.hue, self.opacity, rpg::BlendMode::Normal, &texture, &viewport, Transform::unit(&update_state.graphics));
                                     PreviewSprite {
                                         sprite,
                                         sprite_size: texture.size_vec2(),
@@ -411,8 +413,33 @@ impl Modal {
 
         self.first_open = false;
 
+        if needs_save {
+            match std::mem::take(&mut self.selected) {
+                Selected::None => {
+                    data.tile_id = None;
+                    data.character_name = None;
+                }
+                Selected::Tile(id) => {
+                    data.tile_id = Some(id);
+                    data.character_name = None;
+                }
+                Selected::Graphic { path, direction, pattern } => {
+                    data.tile_id = None;
+                    data.character_name = Some(path);
+                    data.direction = direction;
+                    data.pattern = pattern;
+                }
+            }
+            data.blend_type = self.blend_mode;
+            data.character_hue = self.hue;
+            data.opacity = self.opacity;
+            self.update_graphic(update_state, data);
+        }
+
         if !keep_open {
             self.open = false;
         }
+
+        needs_save
     }
 }
