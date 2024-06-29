@@ -152,7 +152,7 @@ where
     F: Fn(usize) -> String,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        if self.search_needs_update && !self.reference.is_sorted() {
+        if self.search_needs_update && luminol_core::slice_is_sorted(self.reference) {
             self.reference.sort_unstable();
         }
 
@@ -304,10 +304,10 @@ where
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         if self.search_needs_update {
-            if !self.plus.is_sorted() {
+            if !luminol_core::slice_is_sorted(self.plus) {
                 self.plus.sort_unstable();
             }
-            if !self.minus.is_sorted() {
+            if !luminol_core::slice_is_sorted(self.minus) {
                 self.minus.sort_unstable();
             }
         }

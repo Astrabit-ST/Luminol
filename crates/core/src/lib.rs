@@ -436,3 +436,10 @@ impl<'res> UpdateState<'res> {
         self.modified.set(false);
     }
 }
+
+pub fn slice_is_sorted<T: Ord>(s: &[T]) -> bool {
+    s.windows(2).all(|w| {
+        let [a, b] = w else { unreachable!() }; // could maybe do unreachable_unchecked
+        a <= b
+    })
+}

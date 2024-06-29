@@ -277,10 +277,10 @@ impl luminol_core::Window for Window {
                         });
 
                         if let Some(class) = classes.data.get_mut(actor.class_id) {
-                            if !class.weapon_set.is_sorted() {
+                            if !luminol_core::slice_is_sorted(&class.weapon_set) {
                                 class.weapon_set.sort_unstable();
                             }
-                            if !class.armor_set.is_sorted() {
+                            if !luminol_core::slice_is_sorted(&class.armor_set) {
                                 class.armor_set.sort_unstable();
                             }
                         }
