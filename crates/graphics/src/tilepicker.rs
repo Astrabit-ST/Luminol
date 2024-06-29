@@ -122,7 +122,7 @@ impl Tilepicker {
             viewport,
 
             coll_enabled: false,
-            grid_enabled: false,
+            grid_enabled: true,
             ani_time: None,
         })
     }
