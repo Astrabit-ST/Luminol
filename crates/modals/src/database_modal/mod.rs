@@ -153,13 +153,15 @@ where
                         .auto_shrink([false, false])
                         .max_height(384.)
                         .show(ui, |ui| {
+                            let mut is_faint = false;
                             M::iter(update_state, |iter| {
                                 for (id, text) in iter {
                                     if matcher.fuzzy(&text, search_text, false).is_none() {
                                         continue;
                                     }
+                                    is_faint = !is_faint;
 
-                                    ui.with_stripe(id % 2 == 0, |ui| {
+                                    ui.with_stripe(is_faint, |ui| {
                                         ui.horizontal(|ui| {
                                             let response =
                                                 ui.selectable_value(selected_id, id, text);

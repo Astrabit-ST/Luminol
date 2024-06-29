@@ -31,6 +31,7 @@ pub struct Modal {
     open: bool,
     id_source: egui::Id,
 
+    search_text: String,
     selected: Selected,
     opacity: i32,
     hue: i32,
@@ -109,6 +110,7 @@ impl Modal {
             open: false,
             id_source,
 
+            search_text: String::new(),
             selected: Selected::None,
             opacity: graphic.opacity,
             hue: graphic.character_hue,
@@ -213,6 +215,10 @@ impl Modal {
             .id(self.id_source.with("window"))
             .show(ctx, |ui| {
                 egui::SidePanel::left(self.id_source.with("sidebar")).show_inside(ui, |ui| {
+                    egui::TextEdit::singleline(&mut self.search_text)
+                        .hint_text("Search 🔎")
+                        .show(ui);
+                    ui.separator();
                     // FIXME: Its better to use show_rows!
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.with_stripe(true, |ui| {
@@ -245,9 +251,16 @@ impl Modal {
                             });
                         });
 
-                        for (i, entry) in self.entries.iter().enumerate() {
+                        let mut is_faint = false;
+                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                        for entry in self.entries.iter() {
+                            if matcher.fuzzy(entry.as_str(), &self.search_text, false).is_none() {
+                                continue;
+                            }
+                            is_faint = !is_faint;
+
                             ui.horizontal(|ui| {
-                                ui.with_stripe(i % 2 == 0, |ui| {
+                                ui.with_stripe(is_faint, |ui| {
                                     let checked =
                                         matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
                                     let res = ui.selectable_label(checked, entry.as_str());
