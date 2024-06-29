@@ -239,7 +239,7 @@ impl luminol_core::Window for Window {
                         left.group(|ui| {
                             ui.style_mut().wrap = Some(false);
                             ui.checkbox(&mut page.walk_anime, "Move Animation");
-                            ui.checkbox(&mut page.step_anime, "Step Animation");
+                            ui.checkbox(&mut page.step_anime, "Stop Animation");
                             ui.checkbox(&mut page.direction_fix, "Direction Fix");
                             ui.checkbox(&mut page.through, "Through");
                             ui.checkbox(&mut page.always_on_top, "Always on Top");

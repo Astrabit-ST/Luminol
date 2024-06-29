@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use color_eyre::eyre::Context;
 use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
@@ -52,13 +53,14 @@ struct PreviewSprite {
     viewport: Viewport,
 }
 
-#[derive(PartialEq, Default)]
+#[derive(Default)]
 enum Selected {
     #[default]
     None,
     Tile(usize),
     Graphic {
         path: camino::Utf8PathBuf,
+        sprite: PreviewSprite,
         direction: i32,
         pattern: i32,
     },
@@ -163,10 +165,30 @@ impl luminol_core::Modal for Modal {
                 self.selected = if let Some(id) = data.tile_id {
                     Selected::Tile(id)
                 } else if let Some(path) = data.character_name.clone() {
+                    let sprite = match Self::load_preview_sprite(
+                        update_state,
+                        &path,
+                        data.character_hue,
+                        data.opacity,
+                    ) {
+                        Ok(sprite) => sprite,
+                        Err(e) => {
+                            luminol_core::error!(update_state.toasts, e);
+                            let placeholder =
+                                update_state.graphics.texture_loader.placeholder_texture();
+                            Self::create_preview_sprite_from_texture(
+                                update_state,
+                                &placeholder,
+                                data.character_hue,
+                                data.opacity,
+                            )
+                        }
+                    };
                     Selected::Graphic {
                         path,
                         direction: data.direction,
                         pattern: data.pattern,
+                        sprite,
                     }
                 } else {
                     Selected::None
@@ -205,9 +227,59 @@ impl Modal {
         self.sprite = None;
     }
 
+    fn load_preview_sprite(
+        update_state: &luminol_core::UpdateState<'_>,
+        path: &camino::Utf8Path,
+        hue: i32,
+        opacity: i32,
+    ) -> color_eyre::Result<PreviewSprite> {
+        let texture = update_state
+            .graphics
+            .texture_loader
+            .load_now_dir(update_state.filesystem, "Graphics/Characters", path)
+            .wrap_err("While loading a preview sprite")?;
+
+        Ok(Self::create_preview_sprite_from_texture(
+            update_state,
+            &texture,
+            hue,
+            opacity,
+        ))
+    }
+
+    fn create_preview_sprite_from_texture(
+        update_state: &luminol_core::UpdateState<'_>,
+        texture: &Texture,
+        hue: i32,
+        opacity: i32,
+    ) -> PreviewSprite {
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
+        let quad = Quad::new(rect, rect);
+        let viewport = Viewport::new(
+            &update_state.graphics,
+            glam::vec2(texture.width() as f32, texture.height() as f32),
+        );
+
+        let sprite = Sprite::new(
+            &update_state.graphics,
+            quad,
+            hue,
+            opacity,
+            rpg::BlendMode::Normal,
+            texture,
+            &viewport,
+            Transform::unit(&update_state.graphics),
+        );
+        PreviewSprite {
+            sprite,
+            sprite_size: texture.size_vec2(),
+            viewport,
+        }
+    }
+
     fn show_window(
         &mut self,
-        update_state: &luminol_core::UpdateState<'_>,
+        update_state: &mut luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
         data: &mut rpg::Graphic,
     ) -> bool {
@@ -228,11 +300,15 @@ impl Modal {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.with_stripe(true, |ui| {
                             ui.horizontal(|ui| {
-                                let res = ui.selectable_value(&mut self.selected, Selected::None, "(None)");
+                                let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
                                 ui.add_space(ui.available_width());
 
                                 if self.first_open && matches!(self.selected, Selected::None) {
                                     res.scroll_to_me(Some(egui::Align::Center));
+                                }
+
+                                if res.clicked() && !matches!(self.selected, Selected::None) {
+                                    self.selected = Selected::None;
                                 }
                             });
                         });
@@ -271,7 +347,14 @@ impl Modal {
                                     let res = ui.selectable_label(checked, entry.as_str());
                                     ui.add_space(ui.available_width());
                                     if res.clicked() {
-                                        self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0 };
+                                        let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
+                                            Ok(sprite) => sprite,
+                                            Err(e) => {
+                                                luminol_core::error!(update_state.toasts, e);
+                                                return;
+                                            }
+                                        };
+                                        self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
                                         self.sprite = None;
                                     }
                                     if self.first_open && checked {
@@ -314,23 +397,7 @@ impl Modal {
                     egui::ScrollArea::both().show_viewport(ui, |ui, viewport| {
                         match &mut self.selected {
                             Selected::None => {}
-                            Selected::Graphic { path, direction, pattern } => {
-                                let sprite = self.sprite.get_or_insert_with(|| {
-                                    let texture = update_state.graphics
-                                        .texture_loader
-                                        .load_now_dir(update_state.filesystem, "Graphics/Characters", path).unwrap();
-                                    let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
-                                    let quad = Quad::new(rect, rect);
-                                    let viewport = Viewport::new(&update_state.graphics, glam::vec2(texture.width() as f32, texture.height() as f32));
-
-                                    let sprite = Sprite::new(&update_state.graphics, quad, self.hue, self.opacity, rpg::BlendMode::Normal, &texture, &viewport, Transform::unit(&update_state.graphics));
-                                    PreviewSprite {
-                                        sprite,
-                                        sprite_size: texture.size_vec2(),
-                                        viewport,
-                                    }
-                                });
-
+                            Selected::Graphic { direction, pattern, sprite, .. } => {
                                 let (canvas_rect, response) = ui.allocate_exact_size(
                                     sprite.sprite_size,
                                     egui::Sense::click(),
@@ -417,7 +484,7 @@ impl Modal {
         self.first_open = false;
 
         if needs_save {
-            match std::mem::take(&mut self.selected) {
+            match self.selected {
                 Selected::None => {
                     data.tile_id = None;
                     data.character_name = None;
@@ -427,12 +494,13 @@ impl Modal {
                     data.character_name = None;
                 }
                 Selected::Graphic {
-                    path,
+                    ref path,
                     direction,
                     pattern,
+                    ..
                 } => {
                     data.tile_id = None;
-                    data.character_name = Some(path);
+                    data.character_name = Some(path.clone());
                     data.direction = direction;
                     data.pattern = pattern;
                 }
