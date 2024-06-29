@@ -355,11 +355,10 @@ impl<'res> UpdateState<'res> {
                         self.toasts,
                         format!("Failed to find suitable path for the RTP {missing_rtp}")
                     );
-                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
                     #[cfg(not(target_arch = "wasm32"))]
                     info!(
                         self.toasts,
-                        format!("You may want to set an RTP path for {missing_rtp}")
+                        format!("You may want to set an RTP path for {missing_rtp} (you can place it in the RTP folder)")
                     );
                     #[cfg(target_arch = "wasm32")]
                     info!(self.toasts, format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));

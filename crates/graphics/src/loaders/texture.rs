@@ -269,3 +269,13 @@ impl Loader {
         &self.placeholder_image
     }
 }
+
+// can't use Arc because of orphan rule, must use &instead (this does allow for for &Texture to be used in Image::new tho)
+impl From<&Texture> for egui::load::SizedTexture {
+    fn from(val: &Texture) -> Self {
+        egui::load::SizedTexture {
+            id: val.texture_id,
+            size: val.size_vec2(),
+        }
+    }
+}

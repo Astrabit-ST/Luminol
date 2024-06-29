@@ -240,6 +240,7 @@ impl FileSystem {
 #[cfg(windows)]
 impl FileSystem {
     fn find_rtp_paths(
+        filesystem: &host::FileSystem,
         config: &luminol_config::project::Config,
         global_config: &luminol_config::global::Config,
     ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
@@ -293,6 +294,14 @@ impl FileSystem {
                     }
                 }
 
+                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                if let Ok(exists) = filesystem.exists(&path) {
+                    if exists {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
                 if let Some(path) = global_config.rtp_paths.get(rtp) {
                     let path = camino::Utf8PathBuf::from(path);
                     if path.exists() {
@@ -312,6 +321,7 @@ impl FileSystem {
 #[cfg(not(any(windows, target_arch = "wasm32")))]
 impl FileSystem {
     fn find_rtp_paths(
+        filesystem: &host::FileSystem,
         config: &luminol_config::project::Config,
         global_config: &luminol_config::global::Config,
     ) -> (Vec<camino::Utf8PathBuf>, Vec<String>) {
@@ -332,6 +342,14 @@ impl FileSystem {
                 if let Some(path) = global_config.rtp_paths.get(rtp) {
                     let path = camino::Utf8PathBuf::from(path);
                     if path.exists() {
+                        paths.push(path);
+                        continue;
+                    }
+                }
+
+                let path = camino::Utf8PathBuf::from("RTP").join(rtp);
+                if let Ok(exists) = filesystem.exists(&path) {
+                    if exists {
                         paths.push(path);
                         continue;
                     }
@@ -380,9 +398,11 @@ impl FileSystem {
             .map(archiver::FileSystem::new)
             .transpose()?;
 
-        list.push(host);
         // FIXME: handle missing rtps
-        let (found_rtps, missing_rtps) = Self::find_rtp_paths(project_config, global_config);
+        let (found_rtps, missing_rtps) = Self::find_rtp_paths(&host, project_config, global_config);
+
+        list.push(host);
+
         for path in found_rtps {
             list.push(host::FileSystem::new(path))
         }
