@@ -43,8 +43,6 @@ pub struct Modal {
 
     button_viewport: Viewport,
     button_sprite: Option<Event>,
-
-    sprite: Option<PreviewSprite>,
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
@@ -134,8 +132,6 @@ impl Modal {
 
             button_viewport,
             button_sprite,
-
-            sprite: None,
         }
     }
 }
@@ -208,7 +204,6 @@ impl luminol_core::Modal for Modal {
                 self.hue = data.character_hue;
                 self.opacity = data.opacity;
                 self.first_open = true;
-                self.sprite = None;
 
                 self.open = true;
             }
@@ -235,7 +230,6 @@ impl Modal {
             &self.tilepicker.atlas,
         )
         .unwrap();
-        self.sprite = None;
     }
 
     fn load_preview_sprite(
@@ -371,7 +365,6 @@ impl Modal {
                                             }
                                         };
                                         self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
-                                        self.sprite = None;
                                     }
                                     if self.first_open && checked {
                                         res.scroll_to_me(Some(egui::Align::Center));
@@ -387,14 +380,14 @@ impl Modal {
                         ui.label("Opacity");
                         if ui.add(egui::Slider::new(&mut self.opacity, 0..=255)).changed() {
                             self.tilepicker.tiles.display.set_opacity(&update_state.graphics.render_state, self.opacity as f32 / 255., 0);
-                            if let Some(sprite) = &mut self.sprite {
+                            if let Selected::Graphic { sprite,.. } = &mut self.selected {
                                 sprite.sprite.graphic.set_opacity(&update_state.graphics.render_state, self.opacity);
                             }
                         }
                         ui.label("Hue");
                         if ui.add(egui::Slider::new(&mut self.hue, 0..=360)).changed() {
                             self.tilepicker.tiles.display.set_hue(&update_state.graphics.render_state, self.hue as f32 / 360.0, 0);
-                            if let Some(sprite) = &mut self.sprite {
+                            if let Selected::Graphic { sprite,.. } = &mut self.selected {
                                 sprite.sprite.graphic.set_hue(&update_state.graphics.render_state, self.hue);
                             }
                         }
