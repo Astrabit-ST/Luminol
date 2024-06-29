@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use egui::Widget;
+use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 pub struct Modal {
@@ -214,40 +215,57 @@ impl Modal {
                 egui::SidePanel::left(self.id_source.with("sidebar")).show_inside(ui, |ui| {
                     // FIXME: Its better to use show_rows!
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        let res = ui.selectable_value(&mut self.selected, Selected::None, "(None)");
-                        if self.first_open && matches!(self.selected, Selected::None) {
-                            res.scroll_to_me(Some(egui::Align::Center));
-                        }
+                        ui.with_stripe(true, |ui| {
+                            ui.horizontal(|ui| {
+                                let res = ui.selectable_value(&mut self.selected, Selected::None, "(None)");
+                                ui.add_space(ui.available_width());
+    
+                                if self.first_open && matches!(self.selected, Selected::None) {
+                                    res.scroll_to_me(Some(egui::Align::Center));
+                                }
+                            });
+                        });
 
-                        let checked = matches!(self.selected, Selected::Tile(_));
-                        let res = ui.selectable_label(
-                            checked,
-                            "(Tileset)",
-                        );
+                        ui.with_stripe(false, |ui| {
+                            ui.horizontal(|ui| {
+                                let checked = matches!(self.selected, Selected::Tile(_));
+                                let res = ui.selectable_label(
+                                    checked,
+                                    "(Tileset)",
+                                );
+                                ui.add_space(ui.available_width());
+    
+                                if self.first_open && checked {
+                                    res.scroll_to_me(Some(egui::Align::Center));
+                                }
+        
+                                if res.clicked() && !checked {
+                                    self.selected = Selected::Tile(384);
+                                }
+                            });
+                        });
 
-                        if self.first_open && checked {
-                            res.scroll_to_me(Some(egui::Align::Center));
-                        }
-
-                        if res.clicked() && !checked {
-                            self.selected = Selected::Tile(384);
-                        }
-
-                        for entry in &self.entries {
-                            let checked =
-                                matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
-                            if ui.selectable_label(checked, entry.as_str()).clicked() {
-                                self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0 };
-                                self.sprite = None;
-                            }
-                            if self.first_open && checked {
-                                res.scroll_to_me(Some(egui::Align::Center));
-                            }
+                        for (i, entry) in self.entries.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.with_stripe(i % 2 == 0, |ui| {
+                                    let checked =
+                                        matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
+                                    let res = ui.selectable_label(checked, entry.as_str());
+                                    ui.add_space(ui.available_width());
+                                    if res.clicked() {
+                                        self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0 };
+                                        self.sprite = None;
+                                    }
+                                    if self.first_open && checked {
+                                        res.scroll_to_me(Some(egui::Align::Center));
+                                    }
+                                });
+                            });
                         }
                     });
                 });
 
-                egui::TopBottomPanel::top(self.id_source.with("bottom")).show_inside(ui, |ui| {
+                egui::TopBottomPanel::top(self.id_source.with("top")).show_inside(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Opacity");
                         if ui.add(egui::Slider::new(&mut self.opacity, 0..=255)).changed() {
@@ -268,6 +286,10 @@ impl Modal {
                         ui.label("Blend Mode");
                         luminol_components::EnumComboBox::new(self.id_source.with("blend_mode"), &mut self.blend_mode).ui(ui);
                     });
+                });
+                egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
+                    ui.add_space(ui.style().spacing.item_spacing.y);
+                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                 });
                 
                 egui::CentralPanel::default().show_inside(ui, |ui| {
