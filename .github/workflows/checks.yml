@@ -52,22 +52,23 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - run: cargo check  --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - run: |
-          sudo apt update
-          sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: nightly-2024-02-01
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace 
+  # we don't have (and realistically can't have) a test suite yet
+  # test:
+  #   name: Test Suite
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: true
+  #     - run: |
+  #         sudo apt update
+  #         sudo apt install libgtk-3-dev libatk1.0-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libasound2-dev clang mold -y
+  #     - uses: dtolnay/rust-toolchain@nightly
+  #       with:
+  #         toolchain: nightly-2024-02-01
+  #     - name: Rust Cache
+  #       uses: Swatinem/rust-cache@v2
+  #     - run: cargo test --workspace 
 
   fmt:
     name: Rustfmt
