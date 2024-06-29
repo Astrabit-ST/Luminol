@@ -90,10 +90,15 @@ impl luminol_core::Window for Window {
 
         egui::Window::new(self.name())
             .open(&mut win_open)
+            .id(self.id())
             .show(ctx, |ui| {
                 let id_source = self.id();
                 let previous_page = self.selected_page;
                 egui::TopBottomPanel::top(id_source.with("top_panel")).show_inside(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Name: ");
+                        ui.text_edit_singleline(&mut self.event.name);
+                    });
                     ui.horizontal(|ui| {
                         ui.label("Page: ");
                         for i in 0..self.event.pages.len() {

@@ -49,7 +49,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
 
     tex_sample.a *= graphic.opacity * graphic.opacity_multiplier;
-    if tex_sample.a <= 0. {
+    if tex_sample.a <= 0.001 {
         discard;
     }
 

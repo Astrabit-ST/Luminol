@@ -72,7 +72,7 @@ impl Modal {
         id_source: egui::Id,
     ) -> Self {
         // TODO error handling
-        let entries = update_state
+        let mut entries: Vec<_> = update_state
             .filesystem
             .read_dir("Graphics/Characters")
             .unwrap()
@@ -84,6 +84,7 @@ impl Modal {
                     .with_extension("")
             })
             .collect();
+        entries.sort_unstable();
 
         let mut tilepicker = Tilepicker::new(
             &update_state.graphics,
