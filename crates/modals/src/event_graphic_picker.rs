@@ -234,7 +234,7 @@ impl Modal {
                             let checked =
                                 matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
                             if ui.selectable_label(checked, entry.as_str()).clicked() {
-                                self.selected = Selected::Graphic { path: entry.clone(), direction: 0, pattern: 0 };
+                                self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0 };
                                 self.sprite = None;
                             }
                             if self.first_open && checked {
@@ -273,6 +273,17 @@ impl Modal {
                                 canvas_rect,
                                 painter,
                             ));
+
+                        let ch = sprite.sprite_size.y / 4.;
+                        let cw = sprite.sprite_size.x / 4.;
+                        let rect = egui::Rect::from_min_size(egui::pos2(cw ** pattern as f32, ch * (*direction as f32 - 2.) / 2.), egui::vec2(cw, ch)).translate(canvas_rect.min.to_vec2());
+                        ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+
+                        if response.clicked() {
+                            let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / egui::vec2(cw, ch);
+                            *direction = pos.y as i32 * 2 + 2;
+                            *pattern = pos.x as i32;
+                        }
                     }
                     Selected::Tile(id) => {
                         egui::ScrollArea::vertical().show_viewport(ui, |ui, viewport| {
