@@ -28,21 +28,36 @@ pub struct Modal {
     entries: Vec<camino::Utf8PathBuf>,
     open: bool,
     id_source: egui::Id,
+
     selected: Selected,
+    opacity: i32,
+    hue: i32,
+    blend_mode: rpg::BlendMode,
+    first_open: bool,
 
     tilepicker: Tilepicker,
 
     button_viewport: Viewport,
     button_sprite: Option<Event>,
 
-    sprite: Option<(Viewport, Sprite)>,
+    sprite: Option<PreviewSprite>,
+}
+
+struct PreviewSprite {
+    sprite: Sprite,
+    sprite_size: egui::Vec2,
+    viewport: Viewport
 }
 
 #[derive(PartialEq)]
 enum Selected {
     None,
     Tile(usize),
-    Graphic(camino::Utf8PathBuf),
+    Graphic {
+        path: camino::Utf8PathBuf,
+        direction: i32,
+        pattern: i32,
+    },
 }
 
 impl Modal {
@@ -84,19 +99,17 @@ impl Modal {
         )
         .unwrap();
 
-        let selected = if let Some(id) = graphic.tile_id {
-            Selected::Tile(id)
-        } else if let Some(path) = graphic.character_name.clone() {
-            Selected::Graphic(path)
-        } else {
-            Selected::None
-        };
 
         Self {
             entries,
             open: false,
             id_source,
-            selected,
+
+            selected: Selected::None,
+            opacity: graphic.opacity,
+            hue: graphic.character_hue,
+            blend_mode: graphic.blend_type,
+            first_open: false,
 
             tilepicker,
 
@@ -141,6 +154,20 @@ impl luminol_core::Modal for Modal {
             }
 
             if response.clicked() {
+
+                self.selected = if let Some(id) = data.tile_id {
+                    Selected::Tile(id)
+                } else if let Some(path) = data.character_name.clone() {
+                    Selected::Graphic { path, direction: data.direction, pattern: data.pattern }
+                } else {
+                    Selected::None
+                };
+                self.blend_mode = data.blend_type;
+                self.hue = data.character_hue;
+                self.opacity = data.opacity;
+                self.first_open = true;
+                self.sprite = None;
+
                 self.open = true;
             }
             self.show_window(update_state, ui.ctx(), data);
@@ -184,22 +211,34 @@ impl Modal {
                 egui::SidePanel::left(self.id_source.with("sidebar")).show_inside(ui, |ui| {
                     // FIXME: Its better to use show_rows!
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.selectable_value(&mut self.selected, Selected::None, "(None)");
+                        let res = ui.selectable_value(&mut self.selected, Selected::None, "(None)");
+                        if self.first_open && matches!(self.selected, Selected::None) {
+                            res.scroll_to_me(Some(egui::Align::Center));
+                        }
 
                         let checked = matches!(self.selected, Selected::Tile(_));
                         let res = ui.selectable_label(
                             checked,
                             "(Tileset)",
                         );
+
+                        if self.first_open && checked {
+                            res.scroll_to_me(Some(egui::Align::Center));
+                        }
+
                         if res.clicked() && !checked {
                             self.selected = Selected::Tile(384);
                         }
+
                         for entry in &self.entries {
                             let checked =
-                                matches!(self.selected, Selected::Graphic(ref path) if path == entry);
+                                matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
                             if ui.selectable_label(checked, entry.as_str()).clicked() {
-                                self.selected = Selected::Graphic(entry.clone());
+                                self.selected = Selected::Graphic { path: entry.clone(), direction: 0, pattern: 0 };
                                 self.sprite = None;
+                            }
+                            if self.first_open && checked {
+                                res.scroll_to_me(Some(egui::Align::Center));
                             }
                         }
                     });
@@ -207,7 +246,34 @@ impl Modal {
 
                 match &mut self.selected {
                     Selected::None => {}
-                    Selected::Graphic(_) => {}
+                    Selected::Graphic { path, direction, pattern } => {
+                        let sprite = self.sprite.get_or_insert_with(|| {
+                            let texture = update_state.graphics
+                                .texture_loader
+                                .load_now_dir(update_state.filesystem, "Graphics/Characters", path).unwrap();
+                            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
+                            let quad = Quad::new(rect, rect);
+                            let viewport = Viewport::new(&update_state.graphics, glam::vec2(texture.width() as f32, texture.height() as f32));
+                            
+                            let sprite = Sprite::new(&update_state.graphics, quad, 0, 255, rpg::BlendMode::Normal, &texture, &viewport, Transform::unit(&update_state.graphics));
+                            PreviewSprite {
+                                sprite,
+                                sprite_size: texture.size_vec2(),
+                                viewport,
+                            }
+                        });
+
+                        let (canvas_rect, response) = ui.allocate_exact_size(
+                            sprite.sprite_size,
+                            egui::Sense::click(),
+                        );
+                        let painter = Painter::new(sprite.sprite.prepare(&update_state.graphics));
+                        ui.painter()
+                            .add(luminol_egui_wgpu::Callback::new_paint_callback(
+                                canvas_rect,
+                                painter,
+                            ));
+                    }
                     Selected::Tile(id) => {
                         egui::ScrollArea::vertical().show_viewport(ui, |ui, viewport| {
                             let (canvas_rect, response) = ui.allocate_exact_size(
@@ -239,7 +305,7 @@ impl Modal {
 
                             self.tilepicker
                                 .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
-                
+
                             let painter = Painter::new(self.tilepicker.prepare(&update_state.graphics));
                             ui.painter()
                                 .add(luminol_egui_wgpu::Callback::new_paint_callback(
@@ -261,6 +327,8 @@ impl Modal {
                 }
 
             });
+
+        self.first_open = false;
 
         if !keep_open {
             self.open = false;
