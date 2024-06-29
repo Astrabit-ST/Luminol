@@ -1,5 +1,6 @@
 #import luminol::gamma as Gamma
 #import luminol::translation as Trans  // 🏳️‍⚧️
+#import luminol::hue as Hue  // 🏳️‍⚧️
 
 struct InstanceInput {
     @location(0) tile_id: u32,
@@ -25,6 +26,7 @@ var atlas_sampler: sampler;
 
 struct Display {
     opacity: f32,
+    hue: f32,
     map_size: vec2<u32>,
 }
 
@@ -128,8 +130,15 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
     color.a *= display.opacity;
 
-    if color.a <= 0.0 {
+    if color.a <= 0.001 {
         discard;
+    }
+
+    if display.hue > 0.0 {
+        var hsv = Hue::rgb_to_hsv(color.rgb);
+
+        hsv.x += display.hue;
+        color = vec4<f32>(Hue::hsv_to_rgb(hsv), color.a);
     }
 
     return Gamma::from_linear_rgba(color);

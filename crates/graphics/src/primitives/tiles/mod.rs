@@ -41,6 +41,7 @@ pub struct Tiles {
     pub transform: Transform,
     pub enabled_layers: Vec<bool>,
     pub selected_layer: Option<usize>,
+    pub auto_opacity: bool,
 
     instances: Arc<Instances>,
     bind_group: Arc<wgpu::BindGroup>,
@@ -85,6 +86,7 @@ impl Tiles {
             transform,
             enabled_layers: vec![true; tiles.zsize()],
             selected_layer: None,
+            auto_opacity: true,
 
             instances: Arc::new(instances),
             bind_group: Arc::new(bind_group),
@@ -118,14 +120,16 @@ impl Renderable for Tiles {
         let graphics_state = Arc::clone(graphics_state);
         let instances = Arc::clone(&self.instances);
 
-        for layer in 0..self.enabled_layers.len() {
-            let opacity = if self.selected_layer.is_some_and(|s| s != layer) {
-                0.5
-            } else {
-                1.0
-            };
-            self.display
-                .set_opacity(&graphics_state.render_state, opacity, layer);
+        if self.auto_opacity {
+            for layer in 0..self.enabled_layers.len() {
+                let opacity = if self.selected_layer.is_some_and(|s| s != layer) {
+                    0.5
+                } else {
+                    1.0
+                };
+                self.display
+                    .set_opacity(&graphics_state.render_state, opacity, layer);
+            }
         }
 
         Prepared {

@@ -35,6 +35,12 @@ pub fn create_render_pipeline(
         ..Default::default()
     })?;
 
+    composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+        source: include_str!("../shaders/hue.wgsl"),
+        file_path: "hue.wgsl",
+        ..Default::default()
+    })?;
+
     let module = composer.make_naga_module(naga_oil::compose::NagaModuleDescriptor {
         source: include_str!("../shaders/tilemap.wgsl"),
         file_path: "tilemap.wgsl",

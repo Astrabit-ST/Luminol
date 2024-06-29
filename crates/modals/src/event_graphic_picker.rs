@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use egui::Widget;
 use luminol_core::prelude::*;
 
 pub struct Modal {
@@ -81,13 +82,14 @@ impl Modal {
             })
             .collect();
 
-        let tilepicker = Tilepicker::new(
+        let mut tilepicker = Tilepicker::new(
             &update_state.graphics,
             tileset,
             update_state.filesystem,
             true,
         )
         .unwrap();
+        tilepicker.tiles.auto_opacity = false;
 
         let button_viewport = Viewport::new(&update_state.graphics, Default::default());
         let button_sprite = Event::new_standalone(
@@ -243,7 +245,25 @@ impl Modal {
                         }
                     });
                 });
-
+                egui::SidePanel::right(self.id_source.with("sidebar_right")).show_inside(ui, |ui| {
+                    ui.label("Opacity");
+                    if ui.add(egui::Slider::new(&mut self.opacity, 0..=255)).changed() {
+                        self.tilepicker.tiles.display.set_opacity(&update_state.graphics.render_state, self.opacity as f32 / 255., 0);
+                        if let Some(sprite) = &mut self.sprite {
+                            sprite.sprite.graphic.set_opacity(&update_state.graphics.render_state, self.opacity);
+                        }
+                    }
+                    ui.label("Hue");
+                    if ui.add(egui::Slider::new(&mut self.hue, 0..=360)).changed() {
+                        self.tilepicker.tiles.display.set_hue(&update_state.graphics.render_state, self.hue as f32 / 360.0, 0);
+                        if let Some(sprite) = &mut self.sprite {
+                            sprite.sprite.graphic.set_hue(&update_state.graphics.render_state, self.hue);
+                        }
+                    }
+                    ui.label("Blend Mode");
+                    luminol_components::EnumComboBox::new(self.id_source.with("blend_mode"), &mut self.blend_mode).ui(ui);
+                });
+                
                 match &mut self.selected {
                     Selected::None => {}
                     Selected::Graphic { path, direction, pattern } => {
@@ -336,7 +356,6 @@ impl Modal {
                         });
                     }
                 }
-
             });
 
         self.first_open = false;

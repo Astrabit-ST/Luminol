@@ -42,7 +42,7 @@ struct LayerData {
 #[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Data {
     opacity: f32,
-    _pad: [u8; 4],
+    hue: f32,
     map_size: [u32; 2],
 }
 
@@ -101,7 +101,7 @@ impl Display {
         for layer in 0..layers {
             *layer_data.read_data_at_mut(layer) = Data {
                 opacity: 1.0,
-                _pad: [0; 4],
+                hue: 0.0,
                 map_size: [map_width, map_height],
             };
         }
@@ -141,6 +141,23 @@ impl Display {
         let layer_data = self.data.read_data_at_mut(layer);
         if layer_data.opacity != opacity {
             layer_data.opacity = opacity;
+            self.regen_buffer(render_state, &self.data.data);
+        }
+    }
+
+    pub fn hue(&self, layer: usize) -> f32 {
+        self.data.read_data_at(layer).hue
+    }
+
+    pub fn set_hue(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        hue: f32,
+        layer: usize,
+    ) {
+        let layer_data = self.data.read_data_at_mut(layer);
+        if layer_data.hue != hue {
+            layer_data.hue = hue;
             self.regen_buffer(render_state, &self.data.data);
         }
     }
