@@ -52,3 +52,4 @@ fuzzy-matcher = "0.3.7"
 murmur3.workspace = true
 
 image.workspace = true
+camino.workspace = true

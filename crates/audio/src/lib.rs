@@ -180,3 +180,14 @@ impl Audio {
         }
     }
 }
+
+impl Source {
+    pub fn as_path(&self) -> &camino::Utf8Path {
+        camino::Utf8Path::new(match self {
+            Source::BGM => "BGM",
+            Source::BGS => "BGS",
+            Source::ME => "ME",
+            Source::SE => "SE",
+        })
+    }
+}

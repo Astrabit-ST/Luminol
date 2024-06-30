@@ -338,6 +338,7 @@ impl Modal {
                         });
 
                         let mut is_faint = false;
+                        // FIXME: CACHE THIS!
                         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
                         for Entry { path: entry ,invalid} in self.entries.iter_mut() {
                             if matcher.fuzzy(entry.as_str(), &self.search_text, false).is_none() {
