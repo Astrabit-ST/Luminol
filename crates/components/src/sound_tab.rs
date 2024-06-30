@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::UiExt;
+
 pub struct SoundTab {
     /// The source for this tab.
     pub source: luminol_audio::Source,
@@ -165,34 +167,39 @@ impl SoundTab {
                         row_height,
                         self.filtered_children.len() + 1, // +1 for (None)
                         |ui, mut row_range| {
-                            // we really want to only show (None) if it's in range, we can collapse this but itd rely on short circuiting
-                            #[allow(clippy::collapsible_if)]
-                            if row_range.contains(&0) {
-                                if ui
-                                    .selectable_value(&mut self.audio_file.name, None, "(None)")
-                                    .double_clicked()
-                                {
-                                    self.play(update_state);
+                            ui.with_cross_justify(|ui| {
+                                // we really want to only show (None) if it's in range, we can collapse this but itd rely on short circuiting
+                                #[allow(clippy::collapsible_if)]
+                                if row_range.contains(&0) {
+                                    if ui
+                                        .selectable_value(&mut self.audio_file.name, None, "(None)")
+                                        .double_clicked()
+                                    {
+                                        self.play(update_state);
+                                    }
                                 }
-                            }
-                            // subtract 1 to account for (None)
-                            row_range.start = row_range.start.saturating_sub(1);
-                            row_range.end = row_range.end.saturating_sub(1);
-                            // FIXME display stripes somehow
-                            for entry in &self.filtered_children[row_range] {
-                                // Did the user double click a sound?
-                                if ui
-                                    .selectable_value(
-                                        &mut self.audio_file.name,
-                                        Some(entry.file_name().into()),
-                                        entry.file_name(),
-                                    )
-                                    .double_clicked()
+                                // subtract 1 to account for (None)
+                                row_range.start = row_range.start.saturating_sub(1);
+                                row_range.end = row_range.end.saturating_sub(1);
+                                for (i, entry) in
+                                    self.filtered_children[row_range.clone()].iter().enumerate()
                                 {
-                                    // Play it if they did.
-                                    self.play(update_state);
-                                };
-                            }
+                                    let faint = (i + row_range.start) % 2 == 0;
+                                    let res = ui.with_stripe(faint, |ui| {
+                                        ui.selectable_value(
+                                            &mut self.audio_file.name,
+                                            Some(entry.file_name().into()),
+                                            entry.file_name(),
+                                        )
+                                    });
+                                    // need to move this out because the borrow checker isn't smart enough
+                                    // Did the user double click a sound?
+                                    if res.inner.double_clicked() {
+                                        // Play it if they did.
+                                        self.play(update_state);
+                                    };
+                                }
+                            });
                         },
                     );
             });

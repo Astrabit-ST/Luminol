@@ -24,6 +24,7 @@
 
 use color_eyre::eyre::Context;
 use egui::Widget;
+use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 pub struct Modal {
@@ -71,6 +72,7 @@ enum Selected {
     },
 }
 
+// FIXME DEAR GOD THE FORMATTING
 impl Modal {
     pub fn new(
         update_state: &UpdateState<'_>,
@@ -321,57 +323,61 @@ impl Modal {
 
                     // Get row height.
                     let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
-                    // FIXME show stripes!
                     // FIXME scroll to selected on first open
-                    egui::ScrollArea::vertical()
-                        .auto_shrink([false, true])
-                        .show_rows(
-                            ui,
-                            row_height,
-                            self.filtered_entries.len() + 2,
-                            |ui, mut rows| {
-                                if rows.contains(&0) {
-                                    let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
-                                    if res.clicked() && !matches!(self.selected, Selected::None) {
-                                        self.selected = Selected::None;
+                    ui.with_cross_justify(|ui| {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, true])
+                            .show_rows(
+                                ui,
+                                row_height,
+                                self.filtered_entries.len() + 2,
+                                |ui, mut rows| {
+                                    if rows.contains(&0) {
+                                        let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
+                                        if res.clicked() && !matches!(self.selected, Selected::None) {
+                                            self.selected = Selected::None;
+                                        }
                                     }
-                                }
 
-                                if rows.contains(&1) {
-                                    let checked = matches!(self.selected, Selected::Tile(_));
-                                    let res = ui.selectable_label(
-                                        checked,
-                                        "(Tileset)",
-                                    );
-                                    if res.clicked() && !checked {
-                                        self.selected = Selected::Tile(384);
-                                    }
-                                }
-
-                                // subtract 2 to account for (None) and (Tileset)
-                                rows.start = rows.start.saturating_sub(2);
-                                rows.end = rows.end.saturating_sub(2);
-
-                                for Entry { path: entry ,invalid} in self.filtered_entries[rows].iter_mut() {
-                                    let checked =
-                                        matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
-                                    let mut text = egui::RichText::new(entry.as_str());
-                                    if *invalid {
-                                        text = text.color(egui::Color32::LIGHT_RED);
-                                    }
-                                    let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
-                                    if res.clicked() {
-                                        let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
-                                            Ok(sprite) => sprite,
-                                            Err(e) => {
-                                                luminol_core::error!(update_state.toasts, e);
-                                                *invalid = true; // FIXME update non-filtered entry too
-                                                return;
+                                    if rows.contains(&1) {
+                                        let checked = matches!(self.selected, Selected::Tile(_));
+                                        ui.with_stripe(true, |ui| {
+                                            let res =  ui.selectable_label(checked, "(Tileset)");
+                                            if res.clicked() && !checked {
+                                                self.selected = Selected::Tile(384);
                                             }
-                                        };
-                                        self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
+                                        });
                                     }
-                                }
+
+                                    // subtract 2 to account for (None) and (Tileset)
+                                    rows.start = rows.start.saturating_sub(2);
+                                    rows.end = rows.end.saturating_sub(2);
+
+                                    for (i, Entry { path: entry ,invalid}) in self.filtered_entries[rows.clone()].iter_mut().enumerate() {
+                                        let checked =
+                                            matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
+                                        let mut text = egui::RichText::new(entry.as_str());
+                                        if *invalid {
+                                            text = text.color(egui::Color32::LIGHT_RED);
+                                        }
+                                        let faint = (i + rows.start) % 2 == 1;
+                                        ui.with_stripe(faint, |ui| {
+                                            let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
+
+                                            if res.clicked() {
+                                                let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
+                                                    Ok(sprite) => sprite,
+                                                    Err(e) => {
+                                                        luminol_core::error!(update_state.toasts, e);
+                                                        *invalid = true; // FIXME update non-filtered entry too
+                                                        return;
+                                                    }
+                                                };
+                                                self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
+                                            }
+                                        });
+                                    }
+                            });
                     });
                 });
 
