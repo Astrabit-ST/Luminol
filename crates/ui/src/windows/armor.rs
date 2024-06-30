@@ -24,8 +24,8 @@
 
 use luminol_components::UiExt;
 
-#[derive(Default)]
 pub struct Window {
+    armors: Vec<luminol_data::rpg::Armor>,
     selected_armor_name: Option<String>,
     previous_armor: Option<usize>,
 
@@ -33,8 +33,14 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let armors = update_state.data.armors();
+        Self {
+            armors: armors.data.clone(),
+            selected_armor_name: None,
+            previous_armor: None,
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 }
 
@@ -61,12 +67,6 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut armors = update_state.data.armors();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
-
-        let mut modified = false;
-
         self.selected_armor_name = None;
 
         let response = egui::Window::new(self.name())
@@ -78,33 +78,34 @@ impl luminol_core::Window for Window {
                     ui,
                     update_state,
                     "Armor",
-                    &mut armors.data,
+                    &mut self.armors,
                     |armor| format!("{:0>4}: {}", armor.id + 1, armor.name),
-                    |ui, armors, id| {
+                    |ui, armors, id, update_state| {
                         let armor = &mut armors[id];
                         self.selected_armor_name = Some(armor.name.clone());
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut armor.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                        let system = update_state.data.system();
+                        let states = update_state.data.states();
 
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Description",
-                                    egui::TextEdit::multiline(&mut armor.description)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.add(luminol_components::Field::new(
+                                "Name",
+                                egui::TextEdit::singleline(&mut armor.name)
+                                    .desired_width(f32::INFINITY),
+                            ))
+                            .changed();
+
+                            ui.add(luminol_components::Field::new(
+                                "Description",
+                                egui::TextEdit::multiline(&mut armor.description)
+                                    .desired_width(f32::INFINITY),
+                            ))
+                            .changed();
                         });
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                columns[0]
                                     .add(luminol_components::Field::new(
                                         "Kind",
                                         luminol_components::EnumComboBox::new(
@@ -114,7 +115,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                columns[1]
                                     .add(luminol_components::Field::new(
                                         "Auto State",
                                         luminol_components::OptionalIdComboBox::new(
@@ -136,7 +137,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
-                                modified |= columns[0]
+                                columns[0]
                                     .add(luminol_components::Field::new(
                                         "Price",
                                         egui::DragValue::new(&mut armor.price)
@@ -144,7 +145,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                columns[1]
                                     .add(luminol_components::Field::new(
                                         "EVA",
                                         egui::DragValue::new(&mut armor.eva)
@@ -152,7 +153,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[2]
+                                columns[2]
                                     .add(luminol_components::Field::new(
                                         "PDEF",
                                         egui::DragValue::new(&mut armor.pdef)
@@ -160,7 +161,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[3]
+                                columns[3]
                                     .add(luminol_components::Field::new(
                                         "MDEF",
                                         egui::DragValue::new(&mut armor.mdef)
@@ -172,28 +173,28 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(4, |columns| {
-                                modified |= columns[0]
+                                columns[0]
                                     .add(luminol_components::Field::new(
                                         "STR+",
                                         egui::DragValue::new(&mut armor.str_plus),
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                columns[1]
                                     .add(luminol_components::Field::new(
                                         "DEX+",
                                         egui::DragValue::new(&mut armor.dex_plus),
                                     ))
                                     .changed();
 
-                                modified |= columns[2]
+                                columns[2]
                                     .add(luminol_components::Field::new(
                                         "AGI+",
                                         egui::DragValue::new(&mut armor.agi_plus),
                                     ))
                                     .changed();
 
-                                modified |= columns[3]
+                                columns[3]
                                     .add(luminol_components::Field::new(
                                         "INT+",
                                         egui::DragValue::new(&mut armor.int_plus),
@@ -219,7 +220,7 @@ impl luminol_core::Window for Window {
                                 if self.previous_armor != Some(armor.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[0]
+                                columns[0]
                                     .add(luminol_components::Field::new(
                                         "Element Defense",
                                         selection,
@@ -241,7 +242,7 @@ impl luminol_core::Window for Window {
                                 if self.previous_armor != Some(armor.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[1]
+                                columns[1]
                                     .add(luminol_components::Field::new("States", selection))
                                     .changed();
                             });
@@ -252,13 +253,6 @@ impl luminol_core::Window for Window {
                 )
             });
 
-        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
-            modified = true;
-        }
-
-        if modified {
-            update_state.modified.set(true);
-            armors.modified = true;
-        }
+        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {}
     }
 }

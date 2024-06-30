@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::{id_alox, id_serde, id_vec_alox, id_vec_serde, optional_id_alox, optional_id_serde};
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::State")]
 pub struct State {

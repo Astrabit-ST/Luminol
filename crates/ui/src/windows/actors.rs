@@ -27,8 +27,8 @@ use luminol_components::UiExt;
 
 use luminol_data::rpg::armor::Kind;
 
-#[derive(Default)]
 pub struct Window {
+    actors: Vec<luminol_data::rpg::Actor>,
     selected_actor_name: Option<String>,
     previous_actor: Option<usize>,
 
@@ -39,8 +39,16 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let actors = update_state.data.actors();
+        Self {
+            actors: actors.data.clone(),
+            selected_actor_name: None,
+            previous_actor: None,
+            exp_view_is_total: false,
+            exp_view_is_depersisted: false,
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 }
 
@@ -222,13 +230,6 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut actors = update_state.data.actors();
-        let mut classes = update_state.data.classes();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
-
-        let mut modified = false;
-
         self.selected_actor_name = None;
 
         let response = egui::Window::new(self.name())
@@ -240,40 +241,42 @@ impl luminol_core::Window for Window {
                     ui,
                     update_state,
                     "Actors",
-                    &mut actors.data,
+                    &mut self.actors,
                     |actor| format!("{:0>4}: {}", actor.id + 1, actor.name),
-                    |ui, actors, id| {
+                    |ui, actors, id, update_state| {
                         let actor = &mut actors[id];
                         self.selected_actor_name = Some(actor.name.clone());
 
+                        let mut classes = update_state.data.classes();
+                        let weapons = update_state.data.weapons();
+                        let armors = update_state.data.armors();
+
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut actor.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.add(luminol_components::Field::new(
+                                "Name",
+                                egui::TextEdit::singleline(&mut actor.name)
+                                    .desired_width(f32::INFINITY),
+                            ))
+                            .changed();
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Class",
-                                    luminol_components::OptionalIdComboBox::new(
-                                        update_state,
-                                        (actor.id, "class"),
-                                        &mut actor.class_id,
-                                        0..classes.data.len(),
-                                        |id| {
-                                            classes.data.get(id).map_or_else(
-                                                || "".into(),
-                                                |c| format!("{:0>4}: {}", id + 1, c.name),
-                                            )
-                                        },
-                                    ),
-                                ))
-                                .changed();
+                            ui.add(luminol_components::Field::new(
+                                "Class",
+                                luminol_components::OptionalIdComboBox::new(
+                                    update_state,
+                                    (actor.id, "class"),
+                                    &mut actor.class_id,
+                                    0..classes.data.len(),
+                                    |id| {
+                                        classes.data.get(id).map_or_else(
+                                            || "".into(),
+                                            |c| format!("{:0>4}: {}", id + 1, c.name),
+                                        )
+                                    },
+                                ),
+                            ))
+                            .changed();
                         });
 
                         if let Some(class) = classes.data.get_mut(actor.class_id) {
@@ -293,7 +296,7 @@ impl luminol_core::Window for Window {
                                     egui::Frame::none()
                                         .show(ui, |ui| {
                                             ui.columns(2, |columns| {
-                                                modified |= columns[0]
+                                                columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             update_state,
@@ -325,7 +328,7 @@ impl luminol_core::Window for Window {
                                                         ),
                                                     )
                                                     .changed();
-                                                modified |= columns[1]
+                                                columns[1]
                                                     .checkbox(&mut actor.weapon_fix, "Fixed")
                                                     .changed();
                                             });
@@ -342,7 +345,7 @@ impl luminol_core::Window for Window {
                                     egui::Frame::none()
                                         .show(ui, |ui| {
                                             ui.columns(2, |columns| {
-                                                modified |= columns[0]
+                                                columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             update_state,
@@ -381,7 +384,7 @@ impl luminol_core::Window for Window {
                                                         ),
                                                     )
                                                     .changed();
-                                                modified |= columns[1]
+                                                columns[1]
                                                     .checkbox(&mut actor.armor1_fix, "Fixed")
                                                     .changed();
                                             });
@@ -398,7 +401,7 @@ impl luminol_core::Window for Window {
                                     egui::Frame::none()
                                         .show(ui, |ui| {
                                             ui.columns(2, |columns| {
-                                                modified |= columns[0]
+                                                columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             update_state,
@@ -437,7 +440,7 @@ impl luminol_core::Window for Window {
                                                         ),
                                                     )
                                                     .changed();
-                                                modified |= columns[1]
+                                                columns[1]
                                                     .checkbox(&mut actor.armor2_fix, "Fixed")
                                                     .changed();
                                             });
@@ -454,7 +457,7 @@ impl luminol_core::Window for Window {
                                     egui::Frame::none()
                                         .show(ui, |ui| {
                                             ui.columns(2, |columns| {
-                                                modified |= columns[0]
+                                                columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             update_state,
@@ -493,7 +496,7 @@ impl luminol_core::Window for Window {
                                                         ),
                                                     )
                                                     .changed();
-                                                modified |= columns[1]
+                                                columns[1]
                                                     .checkbox(&mut actor.armor3_fix, "Fixed")
                                                     .changed();
                                             });
@@ -510,7 +513,7 @@ impl luminol_core::Window for Window {
                                     egui::Frame::none()
                                         .show(ui, |ui| {
                                             ui.columns(2, |columns| {
-                                                modified |= columns[0]
+                                                columns[0]
                                                     .add(
                                                         luminol_components::OptionalIdComboBox::new(
                                                             update_state,
@@ -549,7 +552,7 @@ impl luminol_core::Window for Window {
                                                         ),
                                                     )
                                                     .changed();
-                                                modified |= columns[1]
+                                                columns[1]
                                                     .checkbox(&mut actor.armor4_fix, "Fixed")
                                                     .changed();
                                             });
@@ -561,14 +564,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                columns[0]
                                     .add(luminol_components::Field::new(
                                         "Initial Level",
                                         egui::Slider::new(&mut actor.initial_level, 1..=99),
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                columns[1]
                                     .add(luminol_components::Field::new(
                                         "Final Level",
                                         egui::Slider::new(
@@ -610,14 +613,14 @@ impl luminol_core::Window for Window {
                             });
 
                             ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                columns[0]
                                     .add(luminol_components::Field::new(
                                         "EXP Curve Basis",
                                         egui::Slider::new(&mut actor.exp_basis, 10..=50),
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                columns[1]
                                     .add(luminol_components::Field::new(
                                         "EXP Curve Inflation",
                                         egui::Slider::new(&mut actor.exp_inflation, 10..=50),
@@ -721,13 +724,6 @@ impl luminol_core::Window for Window {
                 )
             });
 
-        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
-            modified = true;
-        }
-
-        if modified {
-            update_state.modified.set(true);
-            actors.modified = true;
-        }
+        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {}
     }
 }

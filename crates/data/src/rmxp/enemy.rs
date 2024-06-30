@@ -19,7 +19,7 @@ pub use crate::{
     optional_path_serde, Path, Table1,
 };
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Enemy")]
 pub struct Enemy {
@@ -65,7 +65,7 @@ pub struct Enemy {
     pub treasure_prob: i32,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Enemy::Action")]
 pub struct Action {

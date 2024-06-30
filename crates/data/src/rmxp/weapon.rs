@@ -19,7 +19,7 @@ pub use crate::{
     optional_path_alox, optional_path_serde, rpg::AudioFile, Path,
 };
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Weapon")]
 pub struct Weapon {
