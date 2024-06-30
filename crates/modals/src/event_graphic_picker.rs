@@ -39,7 +39,6 @@ pub struct Modal {
     opacity: i32,
     hue: i32,
     blend_mode: rpg::BlendMode,
-    first_open: bool,
 
     tilepicker: Tilepicker,
 
@@ -131,7 +130,6 @@ impl Modal {
             opacity: graphic.opacity,
             hue: graphic.character_hue,
             blend_mode: graphic.blend_type,
-            first_open: false,
 
             tilepicker,
 
@@ -208,7 +206,6 @@ impl luminol_core::Modal for Modal {
                 self.blend_mode = data.blend_type;
                 self.hue = data.character_hue;
                 self.opacity = data.opacity;
-                self.first_open = true;
 
                 self.open = true;
             }
@@ -505,8 +502,6 @@ impl Modal {
                     });
                 });
             });
-
-        self.first_open = false;
 
         if needs_save {
             match self.selected {
