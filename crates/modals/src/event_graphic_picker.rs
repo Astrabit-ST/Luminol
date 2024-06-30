@@ -318,52 +318,60 @@ impl Modal {
                     }
 
                     ui.separator();
-                    // FIXME: Its better to use show_rows!
+
+                    // Get row height.
+                    let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
                     // FIXME show stripes!
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
-                        if self.first_open && matches!(self.selected, Selected::None) {
-                            res.scroll_to_me(Some(egui::Align::Center));
-                        }
-                        if res.clicked() && !matches!(self.selected, Selected::None) {
-                            self.selected = Selected::None;
-                        }
-
-                        let checked = matches!(self.selected, Selected::Tile(_));
-                        let res = ui.selectable_label(
-                            checked,
-                            "(Tileset)",
-                        );
-                        if self.first_open && checked {
-                            res.scroll_to_me(Some(egui::Align::Center));
-                        }
-                        if res.clicked() && !checked {
-                            self.selected = Selected::Tile(384);
-                        }
-
-                        for Entry { path: entry ,invalid} in self.filtered_entries.iter_mut() {
-                            let checked =
-                                matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
-                            let mut text = egui::RichText::new(entry.as_str());
-                            if *invalid {
-                                text = text.color(egui::Color32::LIGHT_RED);
-                            }
-                            let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
-                            if res.clicked() {
-                                let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
-                                    Ok(sprite) => sprite,
-                                    Err(e) => {
-                                        luminol_core::error!(update_state.toasts, e);
-                                        *invalid = true; // FIXME update non-filtered entry too
-                                        return;
+                    // FIXME scroll to selected on first open
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, true])
+                        .show_rows(
+                            ui,
+                            row_height,
+                            self.filtered_entries.len() + 2,
+                            |ui, mut rows| {
+                                if rows.contains(&0) {
+                                    let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
+                                    if res.clicked() && !matches!(self.selected, Selected::None) {
+                                        self.selected = Selected::None;
                                     }
-                                };
-                                self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
-                            }
-                            if self.first_open && checked {
-                                res.scroll_to_me(Some(egui::Align::Center));
-                            }
-                        }
+                                }
+
+                                if rows.contains(&1) {
+                                    let checked = matches!(self.selected, Selected::Tile(_));
+                                    let res = ui.selectable_label(
+                                        checked,
+                                        "(Tileset)",
+                                    );
+                                    if res.clicked() && !checked {
+                                        self.selected = Selected::Tile(384);
+                                    }
+                                }
+
+                                // subtract 2 to account for (None) and (Tileset)
+                                rows.start = rows.start.saturating_sub(2);
+                                rows.end = rows.end.saturating_sub(2);
+
+                                for Entry { path: entry ,invalid} in self.filtered_entries[rows].iter_mut() {
+                                    let checked =
+                                        matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
+                                    let mut text = egui::RichText::new(entry.as_str());
+                                    if *invalid {
+                                        text = text.color(egui::Color32::LIGHT_RED);
+                                    }
+                                    let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
+                                    if res.clicked() {
+                                        let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
+                                            Ok(sprite) => sprite,
+                                            Err(e) => {
+                                                luminol_core::error!(update_state.toasts, e);
+                                                *invalid = true; // FIXME update non-filtered entry too
+                                                return;
+                                            }
+                                        };
+                                        self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
+                                    }
+                                }
                     });
                 });
 
@@ -395,7 +403,7 @@ impl Modal {
                 });
 
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    egui::ScrollArea::both().show_viewport(ui, |ui, viewport| {
+                    egui::ScrollArea::both().auto_shrink([false,false]).show_viewport(ui, |ui, viewport| {
                         match &mut self.selected {
                             Selected::None => {}
                             Selected::Graphic { direction, pattern, sprite, .. } => {
