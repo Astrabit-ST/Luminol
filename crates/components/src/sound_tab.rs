@@ -26,8 +26,10 @@ pub struct SoundTab {
     /// The source for this tab.
     pub source: luminol_audio::Source,
     pub audio_file: luminol_data::rpg::AudioFile,
-    folder_children: Vec<luminol_filesystem::DirEntry>,
+
     search_text: String,
+    folder_children: Vec<luminol_filesystem::DirEntry>,
+    filtered_children: Vec<luminol_filesystem::DirEntry>,
 }
 
 impl SoundTab {
@@ -42,8 +44,10 @@ impl SoundTab {
         Self {
             source,
             audio_file,
-            folder_children,
+
+            filtered_children: folder_children.clone(),
             search_text: String::new(),
+            folder_children,
         }
     }
 
@@ -125,19 +129,6 @@ impl SoundTab {
             // Get row height.
             let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
 
-            // FIXME: CACHE THIS!
-            let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-            let filtered_childen = self
-                .folder_children
-                .iter()
-                .filter(|entry| {
-                    matcher
-                        .fuzzy(entry.file_name(), &self.search_text, false)
-                        .is_some()
-                })
-                .cloned() // i'd rather avoid the double clone but i'm not sure how
-                .collect::<Vec<_>>();
-
             let persistence_id = update_state
                 .project_config
                 .as_ref()
@@ -147,9 +138,23 @@ impl SoundTab {
 
             // Group together so it looks nicer.
             ui.group(|ui| {
-                egui::TextEdit::singleline(&mut self.search_text)
+                let out = egui::TextEdit::singleline(&mut self.search_text)
                     .hint_text("Search 🔎")
                     .show(ui);
+                if out.response.changed() {
+                    let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                    self.filtered_children = self
+                        .folder_children
+                        .iter()
+                        .filter(|entry| {
+                            matcher
+                                .fuzzy(entry.file_name(), &self.search_text, false)
+                                .is_some()
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    println!("redoing search");
+                }
                 ui.separator();
 
                 egui::ScrollArea::both()
@@ -159,7 +164,7 @@ impl SoundTab {
                     .show_rows(
                         ui,
                         row_height,
-                        filtered_childen.len() + 1, // +1 for (None)
+                        self.filtered_children.len() + 1, // +1 for (None)
                         |ui, mut row_range| {
                             // we really want to only show (None) if it's in range, we can collapse this but itd rely on short circuiting
                             #[allow(clippy::collapsible_if)]
@@ -175,7 +180,7 @@ impl SoundTab {
                             row_range.start = row_range.start.saturating_sub(1);
                             row_range.end = row_range.end.saturating_sub(1);
                             // FIXME display stripes somehow
-                            for entry in &filtered_childen[row_range] {
+                            for entry in &self.filtered_children[row_range] {
                                 // Did the user double click a sound?
                                 if ui
                                     .selectable_value(
