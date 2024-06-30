@@ -152,8 +152,7 @@ impl SoundTab {
                                 .is_some()
                         })
                         .cloned()
-                        .collect::<Vec<_>>();
-                    println!("redoing search");
+                        .collect();
                 }
                 ui.separator();
 

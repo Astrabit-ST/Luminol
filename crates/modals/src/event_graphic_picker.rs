@@ -24,15 +24,16 @@
 
 use color_eyre::eyre::Context;
 use egui::Widget;
-use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 pub struct Modal {
     entries: Vec<Entry>,
+    filtered_entries: Vec<Entry>,
+    search_text: String,
+
     open: bool,
     id_source: egui::Id,
 
-    search_text: String,
     selected: Selected,
     opacity: i32,
     hue: i32,
@@ -45,7 +46,7 @@ pub struct Modal {
     button_sprite: Option<Event>,
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
 struct Entry {
     path: camino::Utf8PathBuf,
     invalid: bool,
@@ -117,11 +118,13 @@ impl Modal {
         .unwrap();
 
         Self {
+            filtered_entries: entries.clone(),
+            search_text: String::new(),
             entries,
+
             open: false,
             id_source,
 
-            search_text: String::new(),
             selected: Selected::None,
             opacity: graphic.opacity,
             hue: graphic.character_hue,
@@ -297,81 +300,69 @@ impl Modal {
             .id(self.id_source.with("window"))
             .show(ctx, |ui| {
                 egui::SidePanel::left(self.id_source.with("sidebar")).show_inside(ui, |ui| {
-                    egui::TextEdit::singleline(&mut self.search_text)
+                    let out = egui::TextEdit::singleline(&mut self.search_text)
                         .hint_text("Search 🔎")
                         .show(ui);
+                    if out.response.changed() {
+                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                        self.filtered_entries = self
+                            .entries
+                            .iter()
+                            .filter(|entry| {
+                                matcher
+                                    .fuzzy(entry.path.as_str(), &self.search_text, false)
+                                    .is_some()
+                            })
+                            .cloned()
+                            .collect();
+                    }
+
                     ui.separator();
                     // FIXME: Its better to use show_rows!
+                    // FIXME show stripes!
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.with_stripe(true, |ui| {
-                            ui.horizontal(|ui| {
-                                let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
-                                ui.add_space(ui.available_width());
+                        let res = ui.selectable_label(matches!(self.selected, Selected::None), "(None)");
+                        if self.first_open && matches!(self.selected, Selected::None) {
+                            res.scroll_to_me(Some(egui::Align::Center));
+                        }
+                        if res.clicked() && !matches!(self.selected, Selected::None) {
+                            self.selected = Selected::None;
+                        }
 
-                                if self.first_open && matches!(self.selected, Selected::None) {
-                                    res.scroll_to_me(Some(egui::Align::Center));
-                                }
+                        let checked = matches!(self.selected, Selected::Tile(_));
+                        let res = ui.selectable_label(
+                            checked,
+                            "(Tileset)",
+                        );
+                        if self.first_open && checked {
+                            res.scroll_to_me(Some(egui::Align::Center));
+                        }
+                        if res.clicked() && !checked {
+                            self.selected = Selected::Tile(384);
+                        }
 
-                                if res.clicked() && !matches!(self.selected, Selected::None) {
-                                    self.selected = Selected::None;
-                                }
-                            });
-                        });
-
-                        ui.with_stripe(false, |ui| {
-                            ui.horizontal(|ui| {
-                                let checked = matches!(self.selected, Selected::Tile(_));
-                                let res = ui.selectable_label(
-                                    checked,
-                                    "(Tileset)",
-                                );
-                                ui.add_space(ui.available_width());
-
-                                if self.first_open && checked {
-                                    res.scroll_to_me(Some(egui::Align::Center));
-                                }
-
-                                if res.clicked() && !checked {
-                                    self.selected = Selected::Tile(384);
-                                }
-                            });
-                        });
-
-                        let mut is_faint = false;
-                        // FIXME: CACHE THIS!
-                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-                        for Entry { path: entry ,invalid} in self.entries.iter_mut() {
-                            if matcher.fuzzy(entry.as_str(), &self.search_text, false).is_none() {
-                                continue;
+                        for Entry { path: entry ,invalid} in self.filtered_entries.iter_mut() {
+                            let checked =
+                                matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
+                            let mut text = egui::RichText::new(entry.as_str());
+                            if *invalid {
+                                text = text.color(egui::Color32::LIGHT_RED);
                             }
-                            is_faint = !is_faint;
-
-                            ui.horizontal(|ui| {
-                                ui.with_stripe(is_faint, |ui| {
-                                    let checked =
-                                        matches!(self.selected, Selected::Graphic { ref path, .. } if path == entry);
-                                    let mut text = egui::RichText::new(entry.as_str());
-                                    if *invalid {
-                                        text = text.color(egui::Color32::LIGHT_RED);
+                            let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
+                            if res.clicked() {
+                                let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
+                                    Ok(sprite) => sprite,
+                                    Err(e) => {
+                                        luminol_core::error!(update_state.toasts, e);
+                                        *invalid = true; // FIXME update non-filtered entry too
+                                        return;
                                     }
-                                    let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
-                                    ui.add_space(ui.available_width());
-                                    if res.clicked() {
-                                        let sprite = match Self::load_preview_sprite(update_state, entry, self.hue, self.opacity) {
-                                            Ok(sprite) => sprite,
-                                            Err(e) => {
-                                                luminol_core::error!(update_state.toasts, e);
-                                                *invalid = true;
-                                                return;
-                                            }
-                                        };
-                                        self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
-                                    }
-                                    if self.first_open && checked {
-                                        res.scroll_to_me(Some(egui::Align::Center));
-                                    }
-                                });
-                            });
+                                };
+                                self.selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
+                            }
+                            if self.first_open && checked {
+                                res.scroll_to_me(Some(egui::Align::Center));
+                            }
                         }
                     });
                 });
