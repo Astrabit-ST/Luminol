@@ -97,13 +97,19 @@ impl Modal {
             return false;
         };
 
-        egui::Window::new("Graphic Picker")
+        egui::Window::new("Sound Picker")
             .open(&mut win_open)
+            .id(self.id_source.with("window"))
             .show(ctx, |ui| {
-                tab.ui(ui, update_state);
-                ui.separator();
+                egui::TopBottomPanel::bottom(self.id_source.with("bottom_panel")).show_inside(
+                    ui,
+                    |ui| {
+                        ui.add_space(1.0);
+                        luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                    },
+                );
 
-                luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                tab.ui(ui, update_state);
             });
 
         if needs_save {

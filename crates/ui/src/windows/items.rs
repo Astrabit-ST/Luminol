@@ -42,7 +42,7 @@ impl Window {
             selected_item_name: None,
             menu_se_picker: luminol_modals::sound_picker::Modal::new(
                 luminol_audio::Source::SE,
-                "Menu Use SE",
+                "item_menu_se_picker",
             ),
             previous_item: None,
             view: luminol_components::DatabaseView::new(),
@@ -195,6 +195,9 @@ impl luminol_core::Window for Window {
                                         self.menu_se_picker.button(&mut item.menu_se, update_state),
                                     ))
                                     .changed();
+                                if self.previous_item != Some(item.id) {
+                                    self.menu_se_picker.reset();
+                                }
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
