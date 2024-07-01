@@ -397,6 +397,7 @@ impl Modal {
                 });
 
                 egui::TopBottomPanel::top(self.id_source.with("top")).show_inside(ui, |ui| {
+                    ui.add_space(1.0); // pad out the top
                     ui.horizontal(|ui| {
                         ui.label("Opacity");
                         if ui.add(egui::Slider::new(opacity, 0..=255)).changed() {
@@ -417,6 +418,7 @@ impl Modal {
                         ui.label("Blend Mode");
                         luminol_components::EnumComboBox::new(self.id_source.with("blend_mode"), blend_mode).ui(ui);
                     });
+                    ui.add_space(1.0); // pad out the bottom
                 });
                 egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
                     ui.add_space(ui.style().spacing.item_spacing.y);

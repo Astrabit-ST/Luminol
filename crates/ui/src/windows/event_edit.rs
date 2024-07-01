@@ -95,6 +95,7 @@ impl luminol_core::Window for Window {
                 let id_source = self.id();
                 let previous_page = self.selected_page;
                 egui::TopBottomPanel::top(id_source.with("top_panel")).show_inside(ui, |ui| {
+                    ui.add_space(1.0); // pad the top of the window
                     ui.horizontal(|ui| {
                         ui.label("Name: ");
                         ui.text_edit_singleline(&mut self.event.name);
@@ -124,6 +125,7 @@ impl luminol_core::Window for Window {
                             self.event.pages[self.selected_page] = rpg::EventPage::default();
                         }
                     });
+                    ui.add_space(1.0); // pad the bottom of the window
                 });
 
                 let page = &mut self.event.pages[self.selected_page];
