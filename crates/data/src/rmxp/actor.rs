@@ -19,7 +19,7 @@ use crate::{
     optional_path_serde, Path, Table2,
 };
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Actor")]
 pub struct Actor {

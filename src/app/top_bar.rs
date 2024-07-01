@@ -211,31 +211,31 @@ impl TopBar {
                 if ui.button("Items").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new(update_state));
+                        .add_window(luminol_ui::windows::items::Window::new());
                 }
 
                 if ui.button("Skills").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::skills::Window::new(update_state));
+                        .add_window(luminol_ui::windows::skills::Window::new());
                 }
 
                 if ui.button("Weapons").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::weapons::Window::new(update_state));
+                        .add_window(luminol_ui::windows::weapons::Window::new());
                 }
 
                 if ui.button("Armor").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::armor::Window::new(update_state));
+                        .add_window(luminol_ui::windows::armor::Window::new());
                 }
 
                 if ui.button("States").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::states::Window::new(update_state));
+                        .add_window(luminol_ui::windows::states::Window::new());
                 }
 
                 ui.separator();
@@ -243,19 +243,19 @@ impl TopBar {
                 if ui.button("Actors").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::actors::Window::new(update_state));
+                        .add_window(luminol_ui::windows::actors::Window::new());
                 }
 
                 if ui.button("Classes").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::classes::Window::new(update_state));
+                        .add_window(luminol_ui::windows::classes::Window::new());
                 }
 
                 if ui.button("Enemies").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::enemies::Window::new(update_state));
+                        .add_window(luminol_ui::windows::enemies::Window::new());
                 }
 
                 ui.add_enabled_ui(false, |ui| {

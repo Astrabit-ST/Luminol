@@ -24,23 +24,18 @@
 use luminol_core::prelude::*;
 
 pub struct Modal {
-    state: State,
-    id_source: egui::Id,
-    source: Source,
-}
-
-enum State {
-    Closed,
-    Open { tab: luminol_components::SoundTab },
+    tab: luminol_components::SoundTab,
+    open: bool,
 }
 
 impl Modal {
-    pub fn new(source: Source, id_source: impl Into<egui::Id>) -> Self {
-        Self {
-            state: State::Closed,
-            id_source: id_source.into(),
-            source,
-        }
+    pub fn new(
+        filesystem: &impl FileSystem,
+        source: Source,
+        selected_track: luminol_data::rpg::AudioFile,
+    ) -> Self {
+        let tab = luminol_components::SoundTab::new(filesystem, source, selected_track);
+        Self { tab, open: false }
     }
 }
 
@@ -53,8 +48,8 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
-            let button_text = if let Some(track) = &data.name {
-                format!("Audio/{}/{}", self.source, track)
+            let button_text = if let Some(track) = &self.tab.audio_file.name {
+                format!("Audio/{}/{}", self.tab.source, track)
             } else {
                 "(None)".to_string()
             };
@@ -62,12 +57,7 @@ impl luminol_core::Modal for Modal {
             let mut button_response = ui.button(button_text);
 
             if button_response.clicked() {
-                let tab = luminol_components::SoundTab::new(
-                    update_state.filesystem,
-                    self.source,
-                    data.clone(),
-                );
-                self.state = State::Open { tab };
+                self.open = true;
             }
             if self.show_window(update_state, ui.ctx(), data) {
                 button_response.mark_changed()
@@ -78,7 +68,7 @@ impl luminol_core::Modal for Modal {
     }
 
     fn reset(&mut self) {
-        self.state = State::Closed;
+        self.open = false;
     }
 }
 
@@ -89,30 +79,24 @@ impl Modal {
         ctx: &egui::Context,
         data: &mut luminol_data::rpg::AudioFile,
     ) -> bool {
-        let mut win_open = true;
+        let mut win_open = self.open;
         let mut keep_open = true;
         let mut needs_save = false;
-
-        let State::Open { tab } = &mut self.state else {
-            return false;
-        };
 
         egui::Window::new("Graphic Picker")
             .open(&mut win_open)
             .show(ctx, |ui| {
-                tab.ui(ui, update_state);
+                self.tab.ui(ui, update_state);
                 ui.separator();
 
                 luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
             });
 
         if needs_save {
-            *data = tab.audio_file.clone();
+            *data = self.tab.audio_file.clone();
         }
 
-        if !(win_open && keep_open) {
-            self.state = State::Closed;
-        }
+        self.open = win_open && keep_open;
         needs_save
     }
 }

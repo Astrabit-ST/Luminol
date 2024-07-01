@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::{id_alox, id_serde, id_vec_alox, id_vec_serde, Table1};
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Class")]
 pub struct Class {
@@ -36,7 +36,7 @@ pub struct Class {
     pub learnings: Vec<Learning>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Class::Learning")]
 pub struct Learning {

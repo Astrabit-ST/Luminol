@@ -24,8 +24,8 @@
 
 use luminol_components::UiExt;
 
+#[derive(Default)]
 pub struct Window {
-    skills: Vec<luminol_data::rpg::Skill>,
     selected_skill_name: Option<String>,
     previous_skill: Option<usize>,
 
@@ -33,14 +33,8 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let skills = update_state.data.skills();
-        Self {
-            skills: skills.data.clone(),
-            selected_skill_name: None,
-            previous_skill: None,
-            view: luminol_components::DatabaseView::new(),
-        }
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
@@ -67,6 +61,14 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
+        let mut skills = update_state.data.skills();
+        let animations = update_state.data.animations();
+        let common_events = update_state.data.common_events();
+        let system = update_state.data.system();
+        let states = update_state.data.states();
+
+        let mut modified = false;
+
         self.selected_skill_name = None;
 
         let response = egui::Window::new(self.name())
@@ -78,36 +80,33 @@ impl luminol_core::Window for Window {
                     ui,
                     update_state,
                     "Skills",
-                    &mut self.skills,
+                    &mut skills.data,
                     |skill| format!("{:0>4}: {}", skill.id + 1, skill.name),
-                    |ui, skills, id, update_state| {
+                    |ui, skills, id| {
                         let skill = &mut skills[id];
                         self.selected_skill_name = Some(skill.name.clone());
 
-                        let animations = update_state.data.animations();
-                        let common_events = update_state.data.common_events();
-                        let system = update_state.data.system();
-                        let states = update_state.data.states();
-
                         ui.with_padded_stripe(false, |ui| {
-                            ui.add(luminol_components::Field::new(
-                                "Name",
-                                egui::TextEdit::singleline(&mut skill.name)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut skill.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
 
-                            ui.add(luminol_components::Field::new(
-                                "Description",
-                                egui::TextEdit::multiline(&mut skill.description)
-                                    .desired_width(f32::INFINITY),
-                            ))
-                            .changed();
+                            modified |= ui
+                                .add(luminol_components::Field::new(
+                                    "Description",
+                                    egui::TextEdit::multiline(&mut skill.description)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
                         });
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Scope",
                                         luminol_components::EnumComboBox::new(
@@ -117,7 +116,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Occasion",
                                         luminol_components::EnumComboBox::new(
@@ -131,7 +130,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "User Animation",
                                         luminol_components::OptionalIdComboBox::new(
@@ -149,7 +148,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Target Animation",
                                         luminol_components::OptionalIdComboBox::new(
@@ -171,14 +170,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Menu Use SE",
                                         egui::Label::new("TODO"),
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Common Event",
                                         luminol_components::OptionalIdComboBox::new(
@@ -200,7 +199,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "SP Cost",
                                         egui::DragValue::new(&mut skill.sp_cost)
@@ -208,7 +207,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Power",
                                         egui::DragValue::new(&mut skill.power),
@@ -219,14 +218,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "ATK-F",
                                         egui::Slider::new(&mut skill.atk_f, 0..=200).suffix("%"),
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "EVA-F",
                                         egui::Slider::new(&mut skill.eva_f, 0..=100).suffix("%"),
@@ -237,14 +236,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "STR-F",
                                         egui::Slider::new(&mut skill.str_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "DEX-F",
                                         egui::Slider::new(&mut skill.dex_f, 0..=100).suffix("%"),
@@ -255,14 +254,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "AGI-F",
                                         egui::Slider::new(&mut skill.agi_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "INT-F",
                                         egui::Slider::new(&mut skill.int_f, 0..=100).suffix("%"),
@@ -273,14 +272,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Hit Rate",
                                         egui::Slider::new(&mut skill.hit, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Variance",
                                         egui::Slider::new(&mut skill.variance, 0..=100).suffix("%"),
@@ -291,14 +290,14 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "PDEF-F",
                                         egui::Slider::new(&mut skill.pdef_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "MDEF-F",
                                         egui::Slider::new(&mut skill.mdef_f, 0..=100).suffix("%"),
@@ -324,7 +323,7 @@ impl luminol_core::Window for Window {
                                 if self.previous_skill != Some(skill.id) {
                                     selection.clear_search();
                                 }
-                                columns[0]
+                                modified |= columns[0]
                                     .add(luminol_components::Field::new("Elements", selection))
                                     .changed();
 
@@ -345,7 +344,7 @@ impl luminol_core::Window for Window {
                                 if self.previous_skill != Some(skill.id) {
                                     selection.clear_search();
                                 }
-                                columns[1]
+                                modified |= columns[1]
                                     .add(luminol_components::Field::new("State Change", selection))
                                     .changed();
                             });
@@ -356,6 +355,13 @@ impl luminol_core::Window for Window {
                 )
             });
 
-        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {}
+        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
+            modified = true;
+        }
+
+        if modified {
+            update_state.modified.set(true);
+            skills.modified = true;
+        }
     }
 }
