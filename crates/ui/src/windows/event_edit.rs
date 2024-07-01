@@ -183,7 +183,7 @@ impl luminol_core::Window for Window {
                             );
                             ui.label("is ON");
                             // ensure we expand to fit the side panel
-                            ui.add_space(ui.available_width());
+                            ui.add_space(ui.available_width()); // cross justify doesn't seem to be able to replace this?
                         });
                     });
 
@@ -257,7 +257,7 @@ impl luminol_core::Window for Window {
                 egui::TopBottomPanel::bottom(id_source.with("bottom_panel")).show_inside(
                     ui,
                     |ui| {
-                        ui.add_space(ui.style().spacing.item_spacing.y);
+                        ui.add_space(1.0); // it still looks a little squished, even with this. how can we fix this?
                         luminol_components::close_options_ui(ui, open, &mut needs_save)
                     },
                 );

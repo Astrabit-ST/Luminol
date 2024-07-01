@@ -98,12 +98,14 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
         let mut changed = false;
         let mut response = ui
             .vertical(|ui| {
-                for variant in T::iter() {
-                    let text = variant.to_string();
-                    if ui.radio_value(self.current_value, variant, text).changed() {
-                        changed = true;
+                ui.with_cross_justify(|ui| {
+                    for variant in T::iter() {
+                        let text = variant.to_string();
+                        if ui.radio_value(self.current_value, variant, text).changed() {
+                            changed = true;
+                        }
                     }
-                }
+                });
             })
             .response;
         if changed {
