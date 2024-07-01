@@ -249,14 +249,15 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut enemies = update_state.data.enemies();
-        let animations = update_state.data.animations();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
-        let skills = update_state.data.skills();
-        let items = update_state.data.items();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut enemies = data.enemies();
+        let animations = data.animations();
+        let system = data.system();
+        let states = data.states();
+        let skills = data.skills();
+        let items = data.items();
+        let weapons = data.weapons();
+        let armors = data.armors();
 
         let mut modified = false;
 
@@ -273,7 +274,7 @@ impl luminol_core::Window for Window {
                     "Enemies",
                     &mut enemies.data,
                     |enemy| format!("{:0>4}: {}", enemy.id + 1, enemy.name),
-                    |ui, enemies, id| {
+                    |ui, enemies, id, update_state| {
                         let enemy = &mut enemies[id];
                         self.selected_enemy_name = Some(enemy.name.clone());
 
@@ -643,5 +644,16 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             enemies.modified = true;
         }
+
+        drop(enemies);
+        drop(animations);
+        drop(system);
+        drop(states);
+        drop(skills);
+        drop(items);
+        drop(weapons);
+        drop(armors);
+
+        *update_state.data = data; // restore data
     }
 }

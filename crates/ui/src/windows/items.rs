@@ -70,11 +70,12 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut items = update_state.data.items();
-        let animations = update_state.data.animations();
-        let common_events = update_state.data.common_events();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut items = data.items();
+        let animations = data.animations();
+        let common_events = data.common_events();
+        let system = data.system();
+        let states = data.states();
 
         let mut modified = false;
 
@@ -91,7 +92,7 @@ impl luminol_core::Window for Window {
                     "Items",
                     &mut items.data,
                     |item| format!("{:0>4}: {}", item.id + 1, item.name),
-                    |ui, items, id| {
+                    |ui, items, id, update_state| {
                         let item = &mut items[id];
                         self.selected_item_name = Some(item.name.clone());
 
@@ -392,5 +393,13 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             items.modified = true;
         }
+
+        drop(items);
+        drop(animations);
+        drop(common_events);
+        drop(system);
+        drop(states);
+
+        *update_state.data = data; // restore data
     }
 }

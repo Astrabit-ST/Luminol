@@ -121,12 +121,13 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut classes = update_state.data.classes();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
-        let skills = update_state.data.skills();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut classes = data.classes();
+        let system = data.system();
+        let states = data.states();
+        let skills = data.skills();
+        let weapons = data.weapons();
+        let armors = data.armors();
 
         let mut modified = false;
 
@@ -143,7 +144,7 @@ impl luminol_core::Window for Window {
                     "Classes",
                     &mut classes.data,
                     |class| format!("{:0>3}: {}", class.id + 1, class.name),
-                    |ui, classes, id| {
+                    |ui, classes, id, update_state| {
                         let class = &mut classes[id];
                         self.selected_class_name = Some(class.name.clone());
 
@@ -306,5 +307,14 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             classes.modified = true;
         }
+
+        drop(classes);
+        drop(system);
+        drop(states);
+        drop(skills);
+        drop(weapons);
+        drop(armors);
+
+        *update_state.data = data; // restore data
     }
 }

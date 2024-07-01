@@ -222,10 +222,14 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut actors = update_state.data.actors();
-        let mut classes = update_state.data.classes();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
+        // we take data temporarily to avoid borrowing issues
+        // we could probably avoid this with Rc (Data already uses RefCell) but it'd be annoying to work into the existing code
+        // using Box<Data> might be a good idea as well, that's just a pointer copy rather than a full copy
+        let data = std::mem::take(update_state.data);
+        let mut actors = data.actors();
+        let mut classes = data.classes();
+        let weapons = data.weapons();
+        let armors = data.armors();
 
         let mut modified = false;
 
@@ -242,7 +246,7 @@ impl luminol_core::Window for Window {
                     "Actors",
                     &mut actors.data,
                     |actor| format!("{:0>4}: {}", actor.id + 1, actor.name),
-                    |ui, actors, id| {
+                    |ui, actors, id, update_state| {
                         let actor = &mut actors[id];
                         self.selected_actor_name = Some(actor.name.clone());
 
@@ -729,5 +733,13 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             actors.modified = true;
         }
+
+        // we have to drop things before we can restore data, because the compiler isn't smart enough to do that for us right now
+        drop(actors);
+        drop(classes);
+        drop(weapons);
+        drop(armors);
+
+        *update_state.data = data;
     }
 }
