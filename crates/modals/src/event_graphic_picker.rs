@@ -322,8 +322,7 @@ impl Modal {
                         .show(ui);
                     if out.response.changed() {
                         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-                        *filtered_entries = 
-                            entries
+                        *filtered_entries = entries
                             .iter()
                             .filter(|entry| {
                                 matcher
@@ -529,7 +528,7 @@ impl Modal {
                     data.tile_id = None;
                     data.character_name = None;
                 }
-                Selected::Tile( id) => {
+                Selected::Tile(id) => {
                     data.tile_id = Some(*id);
                     data.character_name = None;
                 }
