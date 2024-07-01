@@ -23,18 +23,13 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use luminol_core::Modal;
 
 /// Database - Items management window.
-#[derive(Default)]
 pub struct Window {
-    // ? Items ?
     selected_item_name: Option<String>,
 
-    // ? Icon Graphic Picker ?
-    _icon_picker: Option<luminol_modals::graphic_picker::Modal>,
-
-    // ? Menu Sound Effect Picker ?
-    _menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
+    menu_se_picker: luminol_modals::sound_picker::Modal,
 
     previous_item: Option<usize>,
 
@@ -43,7 +38,21 @@ pub struct Window {
 
 impl Window {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            selected_item_name: None,
+            menu_se_picker: luminol_modals::sound_picker::Modal::new(
+                luminol_audio::Source::SE,
+                "Menu Use SE",
+            ),
+            previous_item: None,
+            view: luminol_components::DatabaseView::new(),
+        }
+    }
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -183,7 +192,7 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Menu Use SE",
-                                        egui::Label::new("TODO"),
+                                        self.menu_se_picker.button(&mut item.menu_se, update_state),
                                     ))
                                     .changed();
 
