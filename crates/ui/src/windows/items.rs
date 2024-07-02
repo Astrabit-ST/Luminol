@@ -49,7 +49,7 @@ impl Window {
             menu_se_picker: SoundPicker::new(luminol_audio::Source::SE, "item_menu_se_picker"),
             graphic_picker: GraphicPicker::new(
                 update_state,
-                camino::Utf8PathBuf::from("Graphics/Icons"),
+                "Graphics/Icons".into(),
                 item.icon_name.as_deref(),
                 egui::vec2(32., 32.),
                 "item_icon_picker",

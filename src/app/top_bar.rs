@@ -255,7 +255,7 @@ impl TopBar {
                 if ui.button("Enemies").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::enemies::Window::new());
+                        .add_window(luminol_ui::windows::enemies::Window::new(update_state));
                 }
 
                 ui.add_enabled_ui(false, |ui| {

@@ -273,6 +273,25 @@ impl Modal {
                     });
                 });
 
+                egui::TopBottomPanel::top(self.id_source.with("top")).show_inside(ui, |ui| {
+                    ui.add_space(1.0); // pad out the top
+                    ui.horizontal(|ui| {
+                        ui.label("Hue");
+                        if ui.add(egui::Slider::new(hue, 0..=360)).changed() {
+                            match selected {
+                                Selected::Entry { sprite, .. } => {
+                                    sprite
+                                        .sprite
+                                        .graphic
+                                        .set_hue(&update_state.graphics.render_state, *hue);
+                                }
+                                Selected::None => {}
+                            }
+                        }
+                    });
+                    ui.add_space(1.0); // pad out the bottom
+                });
+
                 egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
                     ui.add_space(ui.style().spacing.item_spacing.y);
                     luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);

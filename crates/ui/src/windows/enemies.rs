@@ -23,6 +23,8 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use luminol_core::Modal;
+use luminol_modals::graphic_picker::hue::Modal as GraphicPicker;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 #[derive(strum::Display, strum::EnumIter)]
@@ -35,18 +37,36 @@ pub enum TreasureType {
     Armor,
 }
 
-#[derive(Default)]
 pub struct Window {
     selected_enemy_name: Option<String>,
     previous_enemy: Option<usize>,
+
+    graphic_picker: GraphicPicker,
 
     collapsing_view: luminol_components::CollapsingView,
     view: luminol_components::DatabaseView,
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let enemies = update_state.data.enemies();
+        let enemy = &enemies.data[0];
+        Self {
+            selected_enemy_name: None,
+            previous_enemy: None,
+
+            graphic_picker: GraphicPicker::new(
+                update_state,
+                "Graphics/Battlers".into(),
+                enemy.battler_name.as_deref(),
+                enemy.battler_hue,
+                egui::vec2(196., 256.),
+                "enemy_battler_picker",
+            ),
+
+            collapsing_view: luminol_components::CollapsingView::new(),
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 
     fn show_action_header(
@@ -279,13 +299,32 @@ impl luminol_core::Window for Window {
                         self.selected_enemy_name = Some(enemy.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut enemy.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.horizontal(|ui| {
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Graphic",
+                                        self.graphic_picker.button(
+                                            (&mut enemy.battler_name, &mut enemy.battler_hue),
+                                            update_state,
+                                        ),
+                                    ))
+                                    .changed();
+                                if self.previous_enemy != Some(enemy.id) {
+                                    // avoid desyncs by resetting the modal if the item has changed
+                                    self.graphic_picker.reset(
+                                        update_state,
+                                        (&mut enemy.battler_name, &mut enemy.battler_hue),
+                                    );
+                                }
+
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut enemy.name)
+                                            .desired_width(f32::INFINITY),
+                                    ))
+                                    .changed();
+                            });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
