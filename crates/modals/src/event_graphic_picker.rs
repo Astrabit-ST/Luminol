@@ -114,7 +114,6 @@ impl Modal {
 
 impl luminol_core::Modal for Modal {
     type Data<'m> = &'m mut luminol_data::rpg::Graphic;
-    type ResetData<'m> = &'m luminol_data::rpg::Graphic;
 
     fn button<'m>(
         &'m mut self,
@@ -222,7 +221,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, update_state: &mut UpdateState<'_>, data: Self::ResetData<'_>) {
+    fn reset(&mut self, update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
         self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
     }

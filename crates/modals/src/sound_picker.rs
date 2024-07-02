@@ -46,7 +46,6 @@ impl Modal {
 
 impl luminol_core::Modal for Modal {
     type Data<'m> = &'m mut luminol_data::rpg::AudioFile;
-    type ResetData<'m> = &'m luminol_data::rpg::AudioFile;
 
     fn button<'m>(
         &'m mut self,
@@ -78,7 +77,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, _: &mut luminol_core::UpdateState<'_>, _data: Self::ResetData<'_>) {
+    fn reset(&mut self, _: &mut luminol_core::UpdateState<'_>, _data: Self::Data<'_>) {
         // we don't need to do much here
         self.state = State::Closed;
     }

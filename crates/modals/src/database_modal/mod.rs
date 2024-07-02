@@ -81,10 +81,9 @@ where
 
 impl<M> luminol_core::Modal for Modal<M>
 where
-    M: DatabaseModalHandler + 'static,
+    M: DatabaseModalHandler,
 {
     type Data<'m> = &'m mut usize;
-    type ResetData<'m> = &'m usize;
 
     fn button<'m>(
         &'m mut self,
@@ -114,11 +113,7 @@ where
         }
     }
 
-    fn reset(
-        &mut self,
-        _update_state: &mut luminol_core::UpdateState<'_>,
-        _data: Self::ResetData<'_>,
-    ) {
+    fn reset(&mut self, _update_state: &mut luminol_core::UpdateState<'_>, _data: Self::Data<'_>) {
         // not much internal state, so we dont need to do much here
         self.state = State::Closed;
     }
