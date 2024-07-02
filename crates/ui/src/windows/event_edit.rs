@@ -44,7 +44,7 @@ impl Window {
         update_state: &UpdateState<'_>,
         event: rpg::Event,
         map_id: usize,
-        tileset: &rpg::Tileset,
+        tileset_id: usize,
     ) -> Self {
         let id_source = egui::Id::new("luminol_event_edit")
             .with(event.id)
@@ -52,7 +52,7 @@ impl Window {
         let graphic_modal = event_graphic_picker::Modal::new(
             update_state,
             &event.pages[0].graphic,
-            tileset,
+            tileset_id,
             id_source.with("graphic_modal"),
         );
         Self {

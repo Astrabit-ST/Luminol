@@ -48,6 +48,14 @@ impl Loader {
             .clone())
     }
 
+    pub fn get_atlas(&self, id: usize) -> Option<Atlas> {
+        self.atlases.get(&id).map(|atlas| atlas.clone())
+    }
+
+    pub fn get_expect(&self, id: usize) -> Atlas {
+        self.atlases.get(&id).expect("Atlas not loaded!").clone()
+    }
+
     pub fn clear(&self) {
         self.atlases.clear()
     }

@@ -22,7 +22,47 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct Modal {}
+use luminol_core::prelude::*;
+
+pub struct Modal {
+    state: State,
+    id_source: egui::Id,
+
+    button_viewport: Viewport,
+    button_sprite: Option<Sprite>,
+}
+
+enum State {
+    Closed,
+    Open {
+        entries: Vec<Entry>,
+        filtered_entries: Vec<Entry>,
+
+        search_text: String,
+    },
+}
+
+#[derive(Default)]
+enum Selected {
+    #[default]
+    None,
+    Entry {
+        path: camino::Utf8PathBuf,
+        sprite: PreviewSprite,
+    },
+}
+
+struct PreviewSprite {
+    sprite: Sprite,
+    sprite_size: egui::Vec2,
+    viewport: Viewport,
+}
+
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
+struct Entry {
+    path: camino::Utf8PathBuf,
+    invalid: bool,
+}
 
 impl luminol_core::Modal for Modal {
     type Data = camino::Utf8PathBuf;

@@ -31,7 +31,7 @@ pub struct Modal {
     state: State,
     id_source: egui::Id,
 
-    tilepicker: Tilepicker,
+    tileset_id: usize,
 
     button_viewport: Viewport,
     button_sprite: Option<Event>,
@@ -68,7 +68,10 @@ struct PreviewSprite {
 enum Selected {
     #[default]
     None,
-    Tile(usize),
+    Tile {
+        tile_id: usize,
+        tilepicker: Tilepicker,
+    },
     Graphic {
         path: camino::Utf8PathBuf,
         sprite: PreviewSprite,
@@ -82,18 +85,10 @@ impl Modal {
     pub fn new(
         update_state: &UpdateState<'_>,
         graphic: &rpg::Graphic,
-        tileset: &rpg::Tileset,
+        tileset_id: usize,
         id_source: egui::Id,
     ) -> Self {
-        // TODO error handling
-        let mut tilepicker = Tilepicker::new(
-            &update_state.graphics,
-            tileset,
-            update_state.filesystem,
-            true,
-        )
-        .unwrap();
-        tilepicker.tiles.auto_opacity = false;
+        let atlas = update_state.graphics.atlas_loader.get_expect(tileset_id); // atlas should be loaded by this point
 
         let button_viewport = Viewport::new(&update_state.graphics, Default::default());
         let button_sprite = Event::new_standalone(
@@ -101,7 +96,7 @@ impl Modal {
             update_state.filesystem,
             &button_viewport,
             graphic,
-            &tilepicker.atlas,
+            &atlas,
         )
         .unwrap();
 
@@ -109,7 +104,7 @@ impl Modal {
             state: State::Closed,
             id_source,
 
-            tilepicker,
+            tileset_id,
 
             button_viewport,
             button_sprite,
@@ -151,8 +146,13 @@ impl luminol_core::Modal for Modal {
             }
 
             if response.clicked() && !is_open {
-                let selected = if let Some(id) = data.tile_id {
-                    Selected::Tile(id)
+                let selected = if let Some(tile_id) = data.tile_id {
+                    let tilepicker = Self::load_tilepicker(update_state, self.tileset_id).unwrap(); // TODO handle
+
+                    Selected::Tile {
+                        tile_id,
+                        tilepicker,
+                    }
                 } else if let Some(path) = data.character_name.clone() {
                     let sprite = match Self::load_preview_sprite(
                         update_state,
@@ -228,14 +228,37 @@ impl luminol_core::Modal for Modal {
 
 impl Modal {
     pub fn update_graphic(&mut self, update_state: &UpdateState<'_>, graphic: &rpg::Graphic) {
+        let atlas = update_state
+            .graphics
+            .atlas_loader
+            .get_expect(self.tileset_id); // atlas should be loaded by this point
+
         self.button_sprite = Event::new_standalone(
             &update_state.graphics,
             update_state.filesystem,
             &self.button_viewport,
             graphic,
-            &self.tilepicker.atlas,
+            &atlas,
         )
         .unwrap();
+    }
+
+    fn load_tilepicker(
+        update_state: &UpdateState<'_>,
+        tileset_id: usize,
+    ) -> color_eyre::Result<Tilepicker> {
+        let tilesets = update_state.data.tilesets();
+        let tileset = &tilesets.data[tileset_id];
+
+        let mut tilepicker = Tilepicker::new(
+            &update_state.graphics,
+            tileset,
+            update_state.filesystem,
+            true,
+        )?;
+        tilepicker.tiles.auto_opacity = false;
+
+        Ok(tilepicker)
     }
 
     fn load_preview_sprite(
@@ -354,11 +377,12 @@ impl Modal {
                                     }
 
                                     if rows.contains(&1) {
-                                        let checked = matches!(selected, Selected::Tile(_));
+                                        let checked = matches!(selected, Selected::Tile {..});
                                         ui.with_stripe(true, |ui| {
                                             let res =  ui.selectable_label(checked, "(Tileset)");
                                             if res.clicked() && !checked {
-                                                *selected = Selected::Tile(384);
+                                                let tilepicker = Self::load_tilepicker(update_state, self.tileset_id).unwrap(); // TODO handle
+                                                *selected = Selected::Tile { tile_id: 384, tilepicker };
                                             }
                                         });
                                     }
@@ -400,16 +424,27 @@ impl Modal {
                     ui.horizontal(|ui| {
                         ui.label("Opacity");
                         if ui.add(egui::Slider::new(opacity, 0..=255)).changed() {
-                            self.tilepicker.tiles.display.set_opacity(&update_state.graphics.render_state, *opacity as f32 / 255., 0);
-                            if let Selected::Graphic { sprite,.. } = selected {
-                                sprite.sprite.graphic.set_opacity(&update_state.graphics.render_state, *opacity);
+                            match selected {
+                                Selected::Graphic { sprite,.. } => {
+                                    sprite.sprite.graphic.set_opacity(&update_state.graphics.render_state, *opacity)
+                                },
+                                Selected::Tile { tilepicker,.. } => {
+                                    tilepicker.tiles.display.set_opacity(&update_state.graphics.render_state, *opacity as f32 / 255., 0)
+                                }
+                                Selected::None => {}
                             }
+
                         }
                         ui.label("Hue");
                         if ui.add(egui::Slider::new(hue, 0..=360)).changed() {
-                            self.tilepicker.tiles.display.set_hue(&update_state.graphics.render_state, *hue as f32 / 360.0, 0);
-                            if let Selected::Graphic { sprite,.. } =selected {
-                                sprite.sprite.graphic.set_hue(&update_state.graphics.render_state,*hue);
+                            match selected {
+                                Selected::Graphic { sprite,.. } => {
+                                    sprite.sprite.graphic.set_hue(&update_state.graphics.render_state, *hue)
+                                },
+                                Selected::Tile { tilepicker,.. } => {
+                                    tilepicker.tiles.display.set_hue(&update_state.graphics.render_state, *hue as f32 / 360., 0)
+                                }
+                                Selected::None => {}
                             }
                         }
                     });
@@ -469,9 +504,9 @@ impl Modal {
                                     *pattern = pos.x as i32;
                                 }
                             }
-                            Selected::Tile(id) => {
+                            Selected::Tile { tile_id, tilepicker } => {
                                 let (canvas_rect, response) = ui.allocate_exact_size(
-                                    egui::vec2(256., self.tilepicker.atlas.tileset_height as f32),
+                                    egui::vec2(256., tilepicker.atlas.tileset_height as f32),
                                     egui::Sense::click(),
                                 );
 
@@ -481,40 +516,40 @@ impl Modal {
                                     .intersect(viewport.translate(canvas_rect.min.to_vec2()));
                                 let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
 
-                                self.tilepicker.grid.display.set_pixels_per_point(
+                                tilepicker.grid.display.set_pixels_per_point(
                                     &update_state.graphics.render_state,
                                     ui.ctx().pixels_per_point(),
                                 );
 
-                                self.tilepicker.set_position(
+                                tilepicker.set_position(
                                     &update_state.graphics.render_state,
                                     glam::vec2(-scroll_rect.left(), -scroll_rect.top()),
                                 );
-                                self.tilepicker.viewport.set(
+                                tilepicker.viewport.set(
                                     &update_state.graphics.render_state,
                                     glam::vec2(scroll_rect.width(), scroll_rect.height()),
                                     glam::Vec2::ZERO,
                                     glam::Vec2::ONE,
                                 );
 
-                                self.tilepicker
+                                tilepicker
                                     .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
 
-                                let painter = Painter::new(self.tilepicker.prepare(&update_state.graphics));
+                                let painter = Painter::new(tilepicker.prepare(&update_state.graphics));
                                 ui.painter()
                                     .add(luminol_egui_wgpu::Callback::new_paint_callback(
                                         absolute_scroll_rect,
                                         painter,
                                     ));
 
-                                let tile_x = (*id - 384) % 8;
-                                let tile_y = (*id - 384) / 8;
+                                let tile_x = (*tile_id - 384) % 8;
+                                let tile_y = (*tile_id - 384) / 8;
                                 let rect = egui::Rect::from_min_size(egui::Pos2::new(tile_x as f32, tile_y as f32) * 32., egui::Vec2::splat(32.)).translate(canvas_rect.min.to_vec2());
                                 ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
 
                                 if response.clicked() {
                                     let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / 32.;
-                                    *id = pos.x as usize + pos.y as usize * 8 + 384;
+                                    *tile_id = pos.x as usize + pos.y as usize * 8 + 384;
                                 }
                             }
                         }
@@ -528,8 +563,8 @@ impl Modal {
                     data.tile_id = None;
                     data.character_name = None;
                 }
-                Selected::Tile(id) => {
-                    data.tile_id = Some(*id);
+                Selected::Tile { tile_id, .. } => {
+                    data.tile_id = Some(*tile_id);
                     data.character_name = None;
                 }
                 Selected::Graphic {
