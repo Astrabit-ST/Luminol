@@ -22,11 +22,17 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use color_eyre::eyre::Context;
+use egui::Widget;
+use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 pub struct Modal {
     state: State,
     id_source: egui::Id,
+
+    button_size: egui::Vec2,
+    directory: camino::Utf8PathBuf, // do we make this &'static Utf8Path?
 
     button_viewport: Viewport,
     button_sprite: Option<Sprite>,
@@ -37,8 +43,9 @@ enum State {
     Open {
         entries: Vec<Entry>,
         filtered_entries: Vec<Entry>,
-
         search_text: String,
+
+        selected: Selected,
     },
 }
 
@@ -62,6 +69,36 @@ struct PreviewSprite {
 struct Entry {
     path: camino::Utf8PathBuf,
     invalid: bool,
+}
+
+impl Modal {
+    pub fn new(
+        update_state: &UpdateState<'_>,
+        directory: camino::Utf8PathBuf,
+        path: Option<&camino::Utf8Path>,
+        button_size: egui::Vec2,
+        id_source: egui::Id,
+    ) -> Self {
+        let button_viewport = Viewport::new(&update_state.graphics, Default::default());
+        let button_sprite = path.map(|path| {
+            let texture = update_state
+                .graphics
+                .texture_loader
+                .load_now_dir(update_state.filesystem, &directory, path)
+                .unwrap(); // FIXME
+
+            Sprite::basic(&update_state.graphics, &texture, &button_viewport)
+        });
+
+        Self {
+            state: State::Closed,
+            id_source,
+            button_size,
+            directory,
+            button_viewport,
+            button_sprite,
+        }
+    }
 }
 
 impl luminol_core::Modal for Modal {

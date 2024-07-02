@@ -98,7 +98,7 @@ impl Modal {
             graphic,
             &atlas,
         )
-        .unwrap();
+        .unwrap(); // FIXME
 
         Self {
             state: State::Closed,
