@@ -30,6 +30,7 @@ pub struct Window {
     selected_item_name: Option<String>,
 
     menu_se_picker: luminol_modals::sound_picker::Modal,
+    graphic_picker: luminol_modals::graphic_picker::Modal,
 
     previous_item: Option<usize>,
 
@@ -37,22 +38,25 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let items = update_state.data.items();
+        let item = &items.data[0];
         Self {
             selected_item_name: None,
             menu_se_picker: luminol_modals::sound_picker::Modal::new(
                 luminol_audio::Source::SE,
                 "item_menu_se_picker",
             ),
+            graphic_picker: luminol_modals::graphic_picker::Modal::new(
+                update_state,
+                camino::Utf8PathBuf::from("Graphics/Icons"),
+                item.icon_name.as_deref(),
+                egui::vec2(32., 32.),
+                "item_icon_picker",
+            ),
             previous_item: None,
             view: luminol_components::DatabaseView::new(),
         }
-    }
-}
-
-impl Default for Window {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -106,13 +110,27 @@ impl luminol_core::Window for Window {
                         self.selected_item_name = Some(item.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut item.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.horizontal(|ui| {
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Icon",
+                                        self.graphic_picker
+                                            .button(&mut item.icon_name, update_state),
+                                    ))
+                                    .changed();
+                                if self.previous_item != Some(item.id) {
+                                    // avoid desyncs by resetting the modal if the item has changed
+                                    self.graphic_picker.reset(update_state, &item.icon_name);
+                                }
+
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut item.name)
+                                            .desired_width(f32::INFINITY),
+                                    ))
+                                    .changed();
+                            });
 
                             modified |= ui
                                 .add(luminol_components::Field::new(

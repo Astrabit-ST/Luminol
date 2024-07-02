@@ -211,7 +211,7 @@ impl TopBar {
                 if ui.button("Items").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new());
+                        .add_window(luminol_ui::windows::items::Window::new(update_state));
                 }
 
                 if ui.button("Skills").clicked() {

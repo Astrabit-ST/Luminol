@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::{
     id_alox, id_serde, id_vec_alox, id_vec_serde, optional_id_alox, optional_id_serde,
-    optional_path_serde, rpg::AudioFile, Path,
+    optional_path_alox, optional_path_serde, rpg::AudioFile, Path,
 };
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -27,7 +27,9 @@ pub struct Item {
     #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    pub icon_name: String,
+    #[serde(with = "optional_path_serde")]
+    #[marshal(with = "optional_path_alox")]
+    pub icon_name: Option<camino::Utf8PathBuf>,
     pub description: String,
     pub scope: crate::rpg::Scope,
     pub occasion: crate::rpg::Occasion,
