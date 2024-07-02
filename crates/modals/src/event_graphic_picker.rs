@@ -221,13 +221,14 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self) {
+    fn reset(&mut self, update_state: &mut UpdateState<'_>, data: &Self::Data) {
+        self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
     }
 }
 
 impl Modal {
-    pub fn update_graphic(&mut self, update_state: &UpdateState<'_>, graphic: &rpg::Graphic) {
+    fn update_graphic(&mut self, update_state: &UpdateState<'_>, graphic: &rpg::Graphic) {
         let atlas = update_state
             .graphics
             .atlas_loader
@@ -240,7 +241,7 @@ impl Modal {
             graphic,
             &atlas,
         )
-        .unwrap();
+        .unwrap(); // FIXME
     }
 
     fn load_tilepicker(

@@ -130,9 +130,8 @@ impl luminol_core::Window for Window {
 
                 let page = &mut self.event.pages[self.selected_page];
                 if self.selected_page != previous_page {
-                    // we need to update the modal to prevent desyncs
-                    self.graphic_modal
-                        .update_graphic(update_state, &page.graphic);
+                    // reset the modal if we've changed pages
+                    self.graphic_modal.reset(update_state, &page.graphic);
                 }
 
                 egui::SidePanel::left(id_source.with("side_panel")).show_inside(ui, |ui| {

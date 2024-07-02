@@ -196,7 +196,8 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
                                 if self.previous_item != Some(item.id) {
-                                    self.menu_se_picker.reset();
+                                    // reset the modal if the item has changed (this is practically a no-op)
+                                    self.menu_se_picker.reset(update_state, &item.menu_se);
                                 }
 
                                 modified |= columns[1]

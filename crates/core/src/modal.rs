@@ -34,6 +34,5 @@ pub trait Modal: Sized {
         update_state: &'m mut crate::UpdateState<'_>,
     ) -> impl egui::Widget + 'm; // woah rpitit (so cool)
 
-    // FIXME is this used anywhere?
-    fn reset(&mut self);
+    fn reset(&mut self, update_state: &mut crate::UpdateState<'_>, data: &Self::Data);
 }

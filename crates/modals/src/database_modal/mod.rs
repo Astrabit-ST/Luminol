@@ -113,7 +113,8 @@ where
         }
     }
 
-    fn reset(&mut self) {
+    fn reset(&mut self, _update_state: &mut luminol_core::UpdateState<'_>, _data: &Self::Data) {
+        // not much internal state, so we dont need to do much here
         self.state = State::Closed;
     }
 }

@@ -112,7 +112,7 @@ impl luminol_core::Modal for Modal {
         |ui: &mut egui::Ui| todo!()
     }
 
-    fn reset(&mut self) {
+    fn reset(&mut self, update_state: &mut luminol_core::UpdateState<'_>, data: &Self::Data) {
         todo!()
     }
 }
