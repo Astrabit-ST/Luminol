@@ -243,7 +243,7 @@ impl TopBar {
                 if ui.button("Actors").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::actors::Window::new());
+                        .add_window(luminol_ui::windows::actors::Window::new(update_state));
                 }
 
                 if ui.button("Classes").clicked() {

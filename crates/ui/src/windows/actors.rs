@@ -25,12 +25,15 @@
 use itertools::Itertools;
 use luminol_components::UiExt;
 
+use luminol_core::Modal;
 use luminol_data::rpg::armor::Kind;
+use luminol_modals::graphic_picker::actor::Modal as GraphicPicker;
 
-#[derive(Default)]
 pub struct Window {
     selected_actor_name: Option<String>,
     previous_actor: Option<usize>,
+
+    graphic_picker: GraphicPicker,
 
     exp_view_is_total: bool,
     exp_view_is_depersisted: bool,
@@ -39,8 +42,27 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let actors = update_state.data.actors();
+        let actor = &actors.data[0];
+        Self {
+            selected_actor_name: None,
+            previous_actor: None,
+
+            graphic_picker: GraphicPicker::new(
+                update_state,
+                "Graphics/Characters".into(),
+                actor.character_name.as_deref(),
+                actor.character_hue,
+                egui::vec2(64., 96.),
+                "actor_graphic_picker",
+            ),
+
+            exp_view_is_depersisted: false,
+            exp_view_is_total: false,
+
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 }
 
@@ -251,13 +273,32 @@ impl luminol_core::Window for Window {
                         self.selected_actor_name = Some(actor.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut actor.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.horizontal(|ui| {
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Icon",
+                                        self.graphic_picker.button(
+                                            (&mut actor.character_name, &mut actor.character_hue),
+                                            update_state,
+                                        ),
+                                    ))
+                                    .changed();
+                                if self.previous_actor != Some(actor.id) {
+                                    // avoid desyncs by resetting the modal if the item has changed
+                                    self.graphic_picker.reset(
+                                        update_state,
+                                        (&mut actor.character_name, &mut actor.character_hue),
+                                    );
+                                }
+
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut actor.name)
+                                            .desired_width(f32::INFINITY),
+                                    ))
+                                    .changed();
+                            })
                         });
 
                         ui.with_padded_stripe(true, |ui| {

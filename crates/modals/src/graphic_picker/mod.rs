@@ -25,6 +25,7 @@
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
+pub mod actor;
 pub mod basic;
 pub mod event;
 pub mod hue;
