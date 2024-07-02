@@ -27,14 +27,15 @@ use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
+use super::{ButtonSprite, Entry, PreviewSprite};
+
 pub struct Modal {
     state: State,
     id_source: egui::Id,
 
     tileset_id: usize,
 
-    button_viewport: Viewport,
-    button_sprite: Option<Event>,
+    button_sprite: Option<ButtonSprite>,
 }
 
 enum State {
@@ -50,18 +51,6 @@ enum State {
         hue: i32,
         blend_mode: rpg::BlendMode,
     },
-}
-
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
-struct Entry {
-    path: camino::Utf8PathBuf,
-    invalid: bool,
-}
-
-struct PreviewSprite {
-    sprite: Sprite,
-    sprite_size: egui::Vec2,
-    viewport: Viewport,
 }
 
 #[derive(Default)]
@@ -90,15 +79,20 @@ impl Modal {
     ) -> Self {
         let atlas = update_state.graphics.atlas_loader.get_expect(tileset_id); // atlas should be loaded by this point
 
-        let button_viewport = Viewport::new(&update_state.graphics, Default::default());
+        let viewport = Viewport::new(&update_state.graphics, Default::default());
         let button_sprite = Event::new_standalone(
             &update_state.graphics,
             update_state.filesystem,
-            &button_viewport,
+            &viewport,
             graphic,
             &atlas,
         )
-        .unwrap(); // FIXME
+        .unwrap() // FIXME
+        .map(|sprite| ButtonSprite {
+            sprite: sprite.sprite,
+            sprite_size: sprite.sprite_size,
+            viewport,
+        });
 
         Self {
             state: State::Closed,
@@ -106,7 +100,6 @@ impl Modal {
 
             tileset_id,
 
-            button_viewport,
             button_sprite,
         }
     }
@@ -122,28 +115,14 @@ impl luminol_core::Modal for Modal {
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
             let desired_size = egui::vec2(64., 96.) + ui.spacing().button_padding * 2.;
-            let (rect, mut response) = ui.allocate_at_least(desired_size, egui::Sense::click());
-
             let is_open = matches!(self.state, State::Open { .. });
-            let visuals = ui.style().interact_selectable(&response, is_open);
-            let rect = rect.expand(visuals.expansion);
-            ui.painter()
-                .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
-
-            if let Some(sprite) = &mut self.button_sprite {
-                let translation = (desired_size - sprite.sprite_size) / 2.;
-                self.button_viewport.set(
-                    &update_state.graphics.render_state,
-                    glam::vec2(desired_size.x, desired_size.y),
-                    glam::vec2(translation.x, translation.y),
-                    glam::Vec2::ONE,
-                );
-                let callback = luminol_egui_wgpu::Callback::new_paint_callback(
-                    response.rect,
-                    Painter::new(sprite.prepare(&update_state.graphics)),
-                );
-                ui.painter().add(callback);
-            }
+            let mut response = ButtonSprite::ui(
+                self.button_sprite.as_mut(),
+                ui,
+                update_state,
+                is_open,
+                desired_size,
+            );
 
             if response.clicked() && !is_open {
                 let selected = if let Some(tile_id) = data.tile_id {
@@ -183,25 +162,7 @@ impl luminol_core::Modal for Modal {
                     Selected::None
                 };
 
-                // FIXME error handling
-                let mut entries: Vec<_> = update_state
-                    .filesystem
-                    .read_dir("Graphics/Characters")
-                    .unwrap()
-                    .into_iter()
-                    .map(|m| {
-                        let path = m
-                            .path
-                            .strip_prefix("Graphics/Characters")
-                            .unwrap_or(&m.path)
-                            .with_extension("");
-                        Entry {
-                            path,
-                            invalid: false,
-                        }
-                    })
-                    .collect();
-                entries.sort_unstable();
+                let entries = Entry::load(update_state, "Graphics/Characters".into());
 
                 self.state = State::Open {
                     filtered_entries: entries.clone(),
@@ -234,14 +195,20 @@ impl Modal {
             .atlas_loader
             .get_expect(self.tileset_id); // atlas should be loaded by this point
 
+        let viewport = Viewport::new(&update_state.graphics, Default::default());
         self.button_sprite = Event::new_standalone(
             &update_state.graphics,
             update_state.filesystem,
-            &self.button_viewport,
+            &viewport,
             graphic,
             &atlas,
         )
-        .unwrap(); // FIXME
+        .unwrap() // FIXME
+        .map(|sprite| ButtonSprite {
+            sprite: sprite.sprite,
+            sprite_size: sprite.sprite_size,
+            viewport,
+        });
     }
 
     fn load_tilepicker(
@@ -345,16 +312,7 @@ impl Modal {
                         .hint_text("Search 🔎")
                         .show(ui);
                     if out.response.changed() {
-                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-                        *filtered_entries = entries
-                            .iter()
-                            .filter(|entry| {
-                                matcher
-                                    .fuzzy(entry.path.as_str(), search_text, false)
-                                    .is_some()
-                            })
-                            .cloned()
-                            .collect();
+                        *filtered_entries = Entry::filter(entries, search_text);
                     }
 
                     ui.separator();
@@ -465,38 +423,14 @@ impl Modal {
                         match selected {
                             Selected::None => {}
                             Selected::Graphic { direction, pattern, sprite, .. } => {
-                                let (canvas_rect, response) = ui.allocate_exact_size(
-                                    sprite.sprite_size,
-                                    egui::Sense::click(),
-                                );
-
-                                let absolute_scroll_rect = ui
-                                    .ctx()
-                                    .screen_rect()
-                                    .intersect(viewport.translate(canvas_rect.min.to_vec2()));
-                                let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
-                                sprite.sprite.transform.set_position(
-                                    &update_state.graphics.render_state,
-                                    glam::vec2(-scroll_rect.left(), -scroll_rect.top()),
-                                );
-
-                                sprite.viewport.set(
-                                    &update_state.graphics.render_state,
-                                    glam::vec2(absolute_scroll_rect.width(), absolute_scroll_rect.height()),
-                                    glam::Vec2::ZERO,
-                                    glam::Vec2::ONE,
-                                );
-
-                                let painter = Painter::new(sprite.sprite.prepare(&update_state.graphics));
-                                ui.painter()
-                                    .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                                        absolute_scroll_rect,
-                                        painter,
-                                    ));
+                                let response = sprite.ui(ui, viewport, update_state);
 
                                 let ch = sprite.sprite_size.y / 4.;
                                 let cw = sprite.sprite_size.x / 4.;
-                                let rect = egui::Rect::from_min_size(egui::pos2(*pattern as f32 * cw, (*direction as f32 - 2.) * ch / 2.), egui::vec2(cw, ch)).translate(canvas_rect.min.to_vec2());
+
+                                let min = egui::pos2(*pattern as f32 * cw, (*direction as f32 - 2.) * ch / 2.);
+                                let size = egui::vec2(cw, ch);
+                                let rect = egui::Rect::from_min_size(min, size).translate(response.rect.min.to_vec2());
                                 ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
 
                                 if response.clicked() {

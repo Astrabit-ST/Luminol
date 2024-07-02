@@ -164,10 +164,8 @@ impl PreviewSprite {
         viewport: egui::Rect,
         update_state: &UpdateState<'_>,
     ) -> egui::Response {
-        let (canvas_rect, response) = ui.allocate_exact_size(
-            self.sprite_size,
-            egui::Sense::focusable_noninteractive(), // FIXME screen reader hints
-        );
+        let (canvas_rect, response) =
+            ui.allocate_exact_size(self.sprite_size, egui::Sense::click());
 
         let absolute_scroll_rect = ui
             .ctx()
