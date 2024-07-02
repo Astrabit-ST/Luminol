@@ -110,11 +110,12 @@ impl Modal {
 }
 
 impl luminol_core::Modal for Modal {
-    type Data = Option<camino::Utf8PathBuf>;
+    type Data<'m> = &'m mut Option<camino::Utf8PathBuf>;
+    type ResetData<'m> = &'m Option<camino::Utf8PathBuf>;
 
     fn button<'m>(
         &'m mut self,
-        data: &'m mut Self::Data,
+        data: Self::Data<'m>,
         update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
@@ -194,7 +195,11 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, update_state: &mut luminol_core::UpdateState<'_>, data: &Self::Data) {
+    fn reset(
+        &mut self,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        data: Self::ResetData<'_>,
+    ) {
         self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
     }

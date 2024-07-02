@@ -45,11 +45,12 @@ impl Modal {
 }
 
 impl luminol_core::Modal for Modal {
-    type Data = luminol_data::rpg::AudioFile;
+    type Data<'m> = &'m mut luminol_data::rpg::AudioFile;
+    type ResetData<'m> = &'m luminol_data::rpg::AudioFile;
 
     fn button<'m>(
         &'m mut self,
-        data: &'m mut Self::Data,
+        data: Self::Data<'m>,
         update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
@@ -77,7 +78,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, _: &mut luminol_core::UpdateState<'_>, _data: &Self::Data) {
+    fn reset(&mut self, _: &mut luminol_core::UpdateState<'_>, _data: Self::ResetData<'_>) {
         // we don't need to do much here
         self.state = State::Closed;
     }

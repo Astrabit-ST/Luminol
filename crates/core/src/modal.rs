@@ -25,14 +25,19 @@
 /// A basic trait describing a modal that edits some value.
 pub trait Modal: Sized {
     /// The output type for this modal.
-    type Data;
+    type Data<'m>
+    where
+        Self: 'm;
+    type ResetData<'m>
+    where
+        Self: 'm;
 
     /// Return a widget that displays a button for this modal.
     fn button<'m>(
         &'m mut self,
-        data: &'m mut Self::Data,
+        data: Self::Data<'m>,
         update_state: &'m mut crate::UpdateState<'_>,
     ) -> impl egui::Widget + 'm; // woah rpitit (so cool)
 
-    fn reset(&mut self, update_state: &mut crate::UpdateState<'_>, data: &Self::Data);
+    fn reset(&mut self, update_state: &mut crate::UpdateState<'_>, data: Self::ResetData<'_>);
 }

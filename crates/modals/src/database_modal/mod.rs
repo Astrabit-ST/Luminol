@@ -81,13 +81,14 @@ where
 
 impl<M> luminol_core::Modal for Modal<M>
 where
-    M: DatabaseModalHandler,
+    M: DatabaseModalHandler + 'static,
 {
-    type Data = usize;
+    type Data<'m> = &'m mut usize;
+    type ResetData<'m> = &'m usize;
 
     fn button<'m>(
         &'m mut self,
-        data: &'m mut Self::Data,
+        data: Self::Data<'m>,
         update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
@@ -113,7 +114,11 @@ where
         }
     }
 
-    fn reset(&mut self, _update_state: &mut luminol_core::UpdateState<'_>, _data: &Self::Data) {
+    fn reset(
+        &mut self,
+        _update_state: &mut luminol_core::UpdateState<'_>,
+        _data: Self::ResetData<'_>,
+    ) {
         // not much internal state, so we dont need to do much here
         self.state = State::Closed;
     }

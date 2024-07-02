@@ -120,7 +120,8 @@ impl luminol_core::Window for Window {
                                     .changed();
                                 if self.previous_item != Some(item.id) {
                                     // avoid desyncs by resetting the modal if the item has changed
-                                    self.graphic_picker.reset(update_state, &item.icon_name);
+                                    self.graphic_picker
+                                        .reset(update_state, &&mut item.icon_name);
                                 }
 
                                 modified |= ui

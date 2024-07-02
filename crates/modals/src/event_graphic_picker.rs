@@ -113,11 +113,12 @@ impl Modal {
 }
 
 impl luminol_core::Modal for Modal {
-    type Data = luminol_data::rpg::Graphic;
+    type Data<'m> = &'m mut luminol_data::rpg::Graphic;
+    type ResetData<'m> = &'m luminol_data::rpg::Graphic;
 
     fn button<'m>(
         &'m mut self,
-        data: &'m mut Self::Data,
+        data: Self::Data<'m>,
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
@@ -221,7 +222,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, update_state: &mut UpdateState<'_>, data: &Self::Data) {
+    fn reset(&mut self, update_state: &mut UpdateState<'_>, data: Self::ResetData<'_>) {
         self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
     }
