@@ -22,4 +22,35 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use luminol_core::prelude::*;
+
 pub mod basic;
+pub mod hue;
+
+#[derive(Default)]
+enum Selected {
+    #[default]
+    None,
+    Entry {
+        path: camino::Utf8PathBuf,
+        sprite: PreviewSprite,
+    },
+}
+
+struct ButtonSprite {
+    sprite: Sprite,
+    sprite_size: egui::Vec2,
+    viewport: Viewport,
+}
+
+struct PreviewSprite {
+    sprite: Sprite,
+    sprite_size: egui::Vec2,
+    viewport: Viewport,
+}
+
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
+struct Entry {
+    path: camino::Utf8PathBuf,
+    invalid: bool,
+}
