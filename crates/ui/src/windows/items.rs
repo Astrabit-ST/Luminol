@@ -25,12 +25,15 @@
 use luminol_components::UiExt;
 use luminol_core::Modal;
 
+use luminol_modals::graphic_picker::basic::Modal as GraphicPicker;
+use luminol_modals::sound_picker::Modal as SoundPicker;
+
 /// Database - Items management window.
 pub struct Window {
     selected_item_name: Option<String>,
 
-    menu_se_picker: luminol_modals::sound_picker::Modal,
-    graphic_picker: luminol_modals::graphic_picker::Modal,
+    menu_se_picker: SoundPicker,
+    graphic_picker: GraphicPicker,
 
     previous_item: Option<usize>,
 
@@ -43,11 +46,8 @@ impl Window {
         let item = &items.data[0];
         Self {
             selected_item_name: None,
-            menu_se_picker: luminol_modals::sound_picker::Modal::new(
-                luminol_audio::Source::SE,
-                "item_menu_se_picker",
-            ),
-            graphic_picker: luminol_modals::graphic_picker::Modal::new(
+            menu_se_picker: SoundPicker::new(luminol_audio::Source::SE, "item_menu_se_picker"),
+            graphic_picker: GraphicPicker::new(
                 update_state,
                 camino::Utf8PathBuf::from("Graphics/Icons"),
                 item.icon_name.as_deref(),
