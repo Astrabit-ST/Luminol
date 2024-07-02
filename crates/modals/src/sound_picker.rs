@@ -77,7 +77,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, update_state: &mut luminol_core::UpdateState<'_>, _data: &Self::Data) {
+    fn reset(&mut self, _: &mut luminol_core::UpdateState<'_>, _data: &Self::Data) {
         // we don't need to do much here
         self.state = State::Closed;
     }

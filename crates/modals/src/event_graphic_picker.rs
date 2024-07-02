@@ -392,10 +392,10 @@ impl Modal {
                                     rows.start = rows.start.saturating_sub(2);
                                     rows.end = rows.end.saturating_sub(2);
 
-                                    for (i, Entry { path: entry ,invalid}) in filtered_entries[rows.clone()].iter_mut().enumerate() {
+                                    for (i, Entry { path ,invalid}) in filtered_entries[rows.clone()].iter_mut().enumerate() {
                                         let checked =
-                                            matches!(selected, Selected::Graphic { ref path, .. } if path == entry);
-                                        let mut text = egui::RichText::new(entry.as_str());
+                                            matches!(selected, Selected::Graphic { path: p, .. } if p == path);
+                                        let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
                                         }
@@ -404,7 +404,7 @@ impl Modal {
                                             let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
 
                                             if res.clicked() {
-                                                let sprite = match Self::load_preview_sprite(update_state, entry, *hue, *opacity) {
+                                                let sprite = match Self::load_preview_sprite(update_state, path, *hue, *opacity) {
                                                     Ok(sprite) => sprite,
                                                     Err(e) => {
                                                         luminol_core::error!(update_state.toasts, e);
@@ -412,7 +412,7 @@ impl Modal {
                                                         return;
                                                     }
                                                 };
-                                                *selected = Selected::Graphic { path: entry.clone(), direction: 2, pattern: 0, sprite };
+                                                *selected = Selected::Graphic { path: path.clone(), direction: 2, pattern: 0, sprite };
                                             }
                                         });
                                     }

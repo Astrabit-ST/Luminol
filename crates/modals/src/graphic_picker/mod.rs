@@ -23,7 +23,6 @@
 // Program grant you additional permission to convey the resulting work.
 
 use color_eyre::eyre::Context;
-use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
@@ -150,7 +149,13 @@ impl luminol_core::Modal for Modal {
 
             if response.clicked() && !is_open {
                 let selected = match data.clone() {
-                    Some(path) => todo!(),
+                    Some(path) => {
+                        // FIXME error handling
+                        let sprite =
+                            Self::load_preview_sprite(update_state, &self.directory, &path)
+                                .unwrap();
+                        Selected::Entry { path, sprite }
+                    }
                     None => Selected::None,
                 };
 
@@ -196,6 +201,40 @@ impl luminol_core::Modal for Modal {
 }
 
 impl Modal {
+    fn load_preview_sprite(
+        update_state: &luminol_core::UpdateState<'_>,
+        directory: &camino::Utf8Path,
+        path: &camino::Utf8Path,
+    ) -> color_eyre::Result<PreviewSprite> {
+        let texture = update_state
+            .graphics
+            .texture_loader
+            .load_now_dir(update_state.filesystem, directory, path)
+            .wrap_err("While loading a preview sprite")?;
+
+        Ok(Self::create_preview_sprite_from_texture(
+            update_state,
+            &texture,
+        ))
+    }
+
+    fn create_preview_sprite_from_texture(
+        update_state: &luminol_core::UpdateState<'_>,
+        texture: &Texture,
+    ) -> PreviewSprite {
+        let viewport = Viewport::new(
+            &update_state.graphics,
+            glam::vec2(texture.width() as f32, texture.height() as f32),
+        );
+
+        let sprite = Sprite::basic(&update_state.graphics, texture, &viewport);
+        PreviewSprite {
+            sprite,
+            sprite_size: texture.size_vec2(),
+            viewport,
+        }
+    }
+
     fn update_graphic(
         &mut self,
         update_state: &UpdateState<'_>,
@@ -224,6 +263,148 @@ impl Modal {
         ctx: &egui::Context,
         data: &mut Option<camino::Utf8PathBuf>,
     ) -> bool {
-        false
+        let mut win_open = true;
+        let mut keep_open = true;
+        let mut needs_save = false;
+
+        let State::Open {
+            entries,
+            filtered_entries,
+            search_text,
+            selected,
+        } = &mut self.state
+        else {
+            return false;
+        };
+
+        egui::Window::new("Graphic Picker")
+            .resizable(true)
+            .open(&mut win_open)
+            .id(self.id_source.with("window"))
+            .show(ctx, |ui| {
+                egui::SidePanel::left(self.id_source.with("sidebar")).show_inside(ui, |ui| {
+                    let out = egui::TextEdit::singleline(search_text)
+                        .hint_text("Search 🔎")
+                        .show(ui);
+                    if out.response.changed() {
+                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
+                        *filtered_entries = entries
+                            .iter()
+                            .filter(|entry| {
+                                matcher
+                                    .fuzzy(entry.path.as_str(), search_text, false)
+                                    .is_some()
+                            })
+                            .cloned()
+                            .collect();
+                    }
+
+                    ui.separator();
+
+                    // Get row height.
+                    let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
+                                                                                   // FIXME scroll to selected on first open
+                    ui.with_cross_justify(|ui| {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, true])
+                            .show_rows(
+                                ui,
+                                row_height,
+                                filtered_entries.len() + 1,
+                                |ui, mut rows| {
+                                    if rows.contains(&0) {
+                                        let res = ui.selectable_label(
+                                            matches!(selected, Selected::None),
+                                            "(None)",
+                                        );
+                                        if res.clicked() && !matches!(selected, Selected::None) {
+                                            *selected = Selected::None;
+                                        }
+                                    }
+
+                                    // subtract 2 to account for (None)
+                                    rows.start = rows.start.saturating_sub(1);
+                                    rows.end = rows.end.saturating_sub(1);
+
+                                    for i in filtered_entries[rows.clone()].iter_mut().enumerate() {
+                                        let (i, Entry { path, invalid }) = i;
+                                        let checked = matches!(selected, Selected::Entry { path: p, .. } if p == path);
+                                        let mut text = egui::RichText::new(path.as_str());
+                                        if *invalid {
+                                            text = text.color(egui::Color32::LIGHT_RED);
+                                        }
+                                        let faint = (i + rows.start) % 2 == 1;
+                                        ui.with_stripe(faint, |ui| {
+                                            let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
+
+                                            if res.clicked() {
+                                                let sprite = Self::load_preview_sprite(update_state, &self.directory, path).unwrap();
+                                                *selected = Selected::Entry { path:path.clone(), sprite };
+                                            }
+                                        });
+                                    }
+                                },
+                            );
+                    });
+                });
+
+                egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
+                    ui.add_space(ui.style().spacing.item_spacing.y);
+                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                });
+
+                egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::ScrollArea::both().auto_shrink([false,false]).show_viewport(ui, |ui, viewport| {
+                        match selected {
+                            Selected::None => {}
+                            Selected::Entry {  sprite,.. } => {
+                                let (canvas_rect, _) = ui.allocate_exact_size(
+                                    sprite.sprite_size,
+                                    egui::Sense::focusable_noninteractive(), // FIXME screen reader hints
+                                );
+
+                                let absolute_scroll_rect = ui
+                                    .ctx()
+                                    .screen_rect()
+                                    .intersect(viewport.translate(canvas_rect.min.to_vec2()));
+                                let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
+                                sprite.sprite.transform.set_position(
+                                    &update_state.graphics.render_state,
+                                    glam::vec2(-scroll_rect.left(), -scroll_rect.top()),
+                                );
+
+                                sprite.viewport.set(
+                                    &update_state.graphics.render_state,
+                                    glam::vec2(absolute_scroll_rect.width(), absolute_scroll_rect.height()),
+                                    glam::Vec2::ZERO,
+                                    glam::Vec2::ONE,
+                                );
+
+                                let painter = Painter::new(sprite.sprite.prepare(&update_state.graphics));
+                                ui.painter()
+                                    .add(luminol_egui_wgpu::Callback::new_paint_callback(
+                                        absolute_scroll_rect,
+                                        painter,
+                                    ));
+                            }
+                        }
+                    });
+                });
+            });
+
+        if needs_save {
+            match selected {
+                Selected::None => *data = None,
+                Selected::Entry { path, .. } => *data = Some(path.clone()),
+            }
+
+            self.update_graphic(update_state, data);
+        }
+
+        if !(win_open && keep_open) {
+            self.state = State::Closed;
+        }
+
+        needs_save
     }
 }
