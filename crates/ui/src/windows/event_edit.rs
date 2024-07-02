@@ -24,7 +24,10 @@
 
 use egui::Widget;
 use luminol_core::prelude::*;
-use luminol_modals::{database_modal, event_graphic_picker};
+use luminol_modals::{
+    database_modal::{SwitchModal, VariableModal},
+    graphic_picker::event::Modal as GraphicPicker,
+};
 
 /// The event editor window.
 pub struct Window {
@@ -32,10 +35,10 @@ pub struct Window {
     event: rpg::Event,
     selected_page: usize,
 
-    switch_1_modal: database_modal::SwitchModal,
-    switch_2_modal: database_modal::SwitchModal,
-    variable_modal: database_modal::VariableModal,
-    graphic_modal: event_graphic_picker::Modal,
+    switch_1_modal: SwitchModal,
+    switch_2_modal: SwitchModal,
+    variable_modal: VariableModal,
+    graphic_modal: GraphicPicker,
 }
 
 impl Window {
@@ -49,7 +52,7 @@ impl Window {
         let id_source = egui::Id::new("luminol_event_edit")
             .with(event.id)
             .with(map_id);
-        let graphic_modal = event_graphic_picker::Modal::new(
+        let graphic_modal = GraphicPicker::new(
             update_state,
             &event.pages[0].graphic,
             tileset_id,
@@ -60,9 +63,9 @@ impl Window {
             event,
             selected_page: 0,
 
-            switch_1_modal: database_modal::Modal::new(id_source.with("switch_1_modal")),
-            switch_2_modal: database_modal::Modal::new(id_source.with("switch_2_modal")),
-            variable_modal: database_modal::Modal::new(id_source.with("variable_modal")),
+            switch_1_modal: SwitchModal::new(id_source.with("switch_1_modal")),
+            switch_2_modal: SwitchModal::new(id_source.with("switch_2_modal")),
+            variable_modal: VariableModal::new(id_source.with("variable_modal")),
             graphic_modal,
         }
     }
