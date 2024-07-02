@@ -26,6 +26,8 @@ use color_eyre::eyre::Context;
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
+use super::{ButtonSprite, Entry, PreviewSprite, Selected};
+
 pub struct Modal {
     state: State,
     id_source: egui::Id,
@@ -49,39 +51,12 @@ enum State {
     },
 }
 
-#[derive(Default)]
-enum Selected {
-    #[default]
-    None,
-    Entry {
-        path: camino::Utf8PathBuf,
-        sprite: PreviewSprite,
-    },
-}
-
-struct ButtonSprite {
-    sprite: Sprite,
-    sprite_size: egui::Vec2,
-    viewport: Viewport,
-}
-
-struct PreviewSprite {
-    sprite: Sprite,
-    sprite_size: egui::Vec2,
-    viewport: Viewport,
-}
-
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
-struct Entry {
-    path: camino::Utf8PathBuf,
-    invalid: bool,
-}
-
 impl Modal {
     pub fn new(
         update_state: &UpdateState<'_>,
         directory: camino::Utf8PathBuf,
         path: Option<&camino::Utf8Path>,
+        hue: i32,
         button_size: egui::Vec2,
         id_source: impl Into<egui::Id>,
     ) -> Self {
@@ -93,7 +68,7 @@ impl Modal {
                 .unwrap(); // FIXME
 
             let button_viewport = Viewport::new(&update_state.graphics, Default::default());
-            let sprite = Sprite::basic(&update_state.graphics, &texture, &button_viewport);
+            let sprite = Sprite::basic_hue(&update_state.graphics, hue, &texture, &button_viewport);
             ButtonSprite {
                 sprite,
                 sprite_size: texture.size_vec2(),
@@ -121,33 +96,14 @@ impl luminol_core::Modal for Modal {
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
             let desired_size = self.button_size + ui.spacing().button_padding * 2.0;
-            let (rect, mut response) = ui.allocate_at_least(desired_size, egui::Sense::click());
-
             let is_open = matches!(self.state, State::Open { .. });
-            let visuals = ui.style().interact_selectable(&response, is_open);
-            let rect = rect.expand(visuals.expansion);
-            ui.painter()
-                .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
-
-            if let Some(ButtonSprite {
-                sprite,
-                sprite_size,
-                viewport,
-            }) = &mut self.button_sprite
-            {
-                let translation = (desired_size - *sprite_size) / 2.;
-                viewport.set(
-                    &update_state.graphics.render_state,
-                    glam::vec2(desired_size.x, desired_size.y),
-                    glam::vec2(translation.x, translation.y),
-                    glam::Vec2::ONE,
-                );
-                let callback = luminol_egui_wgpu::Callback::new_paint_callback(
-                    response.rect,
-                    Painter::new(sprite.prepare(&update_state.graphics)),
-                );
-                ui.painter().add(callback);
-            }
+            let mut response = ButtonSprite::ui(
+                self.button_sprite.as_mut(),
+                ui,
+                update_state,
+                is_open,
+                desired_size,
+            );
 
             if response.clicked() && !is_open {
                 let selected = match data.0.clone() {
@@ -161,25 +117,7 @@ impl luminol_core::Modal for Modal {
                     None => Selected::None,
                 };
 
-                // FIXME error handling
-                let mut entries: Vec<_> = update_state
-                    .filesystem
-                    .read_dir(&self.directory)
-                    .unwrap()
-                    .into_iter()
-                    .map(|m| {
-                        let path = m
-                            .path
-                            .strip_prefix(&self.directory)
-                            .unwrap_or(&m.path)
-                            .with_extension("");
-                        Entry {
-                            path,
-                            invalid: false,
-                        }
-                    })
-                    .collect();
-                entries.sort_unstable();
+                let entries = Entry::load(update_state, &self.directory);
 
                 self.state = State::Open {
                     filtered_entries: entries.clone(),
@@ -292,16 +230,7 @@ impl Modal {
                         .hint_text("Search 🔎")
                         .show(ui);
                     if out.response.changed() {
-                        let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
-                        *filtered_entries = entries
-                            .iter()
-                            .filter(|entry| {
-                                matcher
-                                    .fuzzy(entry.path.as_str(), search_text, false)
-                                    .is_some()
-                            })
-                            .cloned()
-                            .collect();
+                        *filtered_entries = Entry::filter(entries, search_text);
                     }
 
                     ui.separator();
@@ -331,23 +260,14 @@ impl Modal {
                                     rows.start = rows.start.saturating_sub(1);
                                     rows.end = rows.end.saturating_sub(1);
 
-                                    for i in filtered_entries[rows.clone()].iter_mut().enumerate() {
-                                        let (i, Entry { path, invalid }) = i;
-                                        let checked = matches!(selected, Selected::Entry { path: p, .. } if p == path);
-                                        let mut text = egui::RichText::new(path.as_str());
-                                        if *invalid {
-                                            text = text.color(egui::Color32::LIGHT_RED);
-                                        }
-                                        let faint = (i + rows.start) % 2 == 1;
-                                        ui.with_stripe(faint, |ui| {
-                                            let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
-
-                                            if res.clicked() {
-                                                let sprite = Self::load_preview_sprite(update_state, &self.directory, path).unwrap();
-                                                *selected = Selected::Entry { path:path.clone(), sprite };
-                                            }
-                                        });
-                                    }
+                                    Entry::ui(filtered_entries, ui, rows, selected, |path| {
+                                        Self::load_preview_sprite(
+                                            update_state,
+                                            &self.directory,
+                                            path,
+                                        )
+                                        .unwrap()
+                                    })
                                 },
                             );
                     });
@@ -359,41 +279,14 @@ impl Modal {
                 });
 
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    egui::ScrollArea::both().auto_shrink([false,false]).show_viewport(ui, |ui, viewport| {
-                        match selected {
+                    egui::ScrollArea::both()
+                        .auto_shrink([false, false])
+                        .show_viewport(ui, |ui, viewport| match selected {
                             Selected::None => {}
-                            Selected::Entry {  sprite,.. } => {
-                                let (canvas_rect, _) = ui.allocate_exact_size(
-                                    sprite.sprite_size,
-                                    egui::Sense::focusable_noninteractive(), // FIXME screen reader hints
-                                );
-
-                                let absolute_scroll_rect = ui
-                                    .ctx()
-                                    .screen_rect()
-                                    .intersect(viewport.translate(canvas_rect.min.to_vec2()));
-                                let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
-                                sprite.sprite.transform.set_position(
-                                    &update_state.graphics.render_state,
-                                    glam::vec2(-scroll_rect.left(), -scroll_rect.top()),
-                                );
-
-                                sprite.viewport.set(
-                                    &update_state.graphics.render_state,
-                                    glam::vec2(absolute_scroll_rect.width(), absolute_scroll_rect.height()),
-                                    glam::Vec2::ZERO,
-                                    glam::Vec2::ONE,
-                                );
-
-                                let painter = Painter::new(sprite.sprite.prepare(&update_state.graphics));
-                                ui.painter()
-                                    .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                                        absolute_scroll_rect,
-                                        painter,
-                                    ));
+                            Selected::Entry { sprite, .. } => {
+                                sprite.ui(ui, viewport, update_state);
                             }
-                        }
-                    });
+                        });
                 });
             });
 
