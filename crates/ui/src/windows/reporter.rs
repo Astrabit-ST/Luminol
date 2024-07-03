@@ -63,10 +63,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        "Crash Reporter".into()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("reporter")
     }
@@ -94,7 +90,7 @@ impl luminol_core::Window for Window {
 
         let mut should_close = false;
 
-        egui::Window::new(self.name())
+        egui::Window::new("Crash Reporter")
             .id(egui::Id::new("reporter"))
             .default_width(500.)
             .open(open)

@@ -125,14 +125,6 @@ macro_rules! window_enum {
                 }
             }
 
-            fn name(&self) -> String {
-                match self {
-                    $(
-                        Self::$variant(v) => v.name(),
-                    )*
-                }
-            }
-
             fn id(&self) -> egui::Id {
                 match self {
                     $(

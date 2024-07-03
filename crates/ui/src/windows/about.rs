@@ -42,10 +42,6 @@ impl Default for Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        "About".to_string()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("About Luminol")
     }

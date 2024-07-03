@@ -30,10 +30,6 @@ pub struct Window {}
 impl Window {}
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        "Local Luminol Config".to_string()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Local Luminol Config")
     }
@@ -44,31 +40,33 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            let config = update_state
-                .project_config
-                .as_mut()
-                .expect("project not open");
+        egui::Window::new("Local Luminol Config")
+            .open(open)
+            .show(ctx, |ui| {
+                let config = update_state
+                    .project_config
+                    .as_mut()
+                    .expect("project not open");
 
-            ui.label("Project name");
-            ui.text_edit_singleline(&mut config.project.project_name);
-            ui.label("Scripts path");
-            ui.text_edit_singleline(&mut config.project.scripts_path);
-            ui.checkbox(
-                &mut config.project.use_ron,
-                "Use RON (Rusty Object Notation)",
-            );
-            egui::ComboBox::from_label("RGSS Version")
-                .selected_text(config.project.rgss_ver.to_string())
-                .show_ui(ui, |ui| {
-                    for ver in luminol_config::RGSSVer::iter() {
-                        ui.selectable_value(&mut config.project.rgss_ver, ver, ver.to_string());
-                    }
-                });
+                ui.label("Project name");
+                ui.text_edit_singleline(&mut config.project.project_name);
+                ui.label("Scripts path");
+                ui.text_edit_singleline(&mut config.project.scripts_path);
+                ui.checkbox(
+                    &mut config.project.use_ron,
+                    "Use RON (Rusty Object Notation)",
+                );
+                egui::ComboBox::from_label("RGSS Version")
+                    .selected_text(config.project.rgss_ver.to_string())
+                    .show_ui(ui, |ui| {
+                        for ver in luminol_config::RGSSVer::iter() {
+                            ui.selectable_value(&mut config.project.rgss_ver, ver, ver.to_string());
+                        }
+                    });
 
-            ui.label("Playtest Executable");
-            ui.text_edit_singleline(&mut config.project.playtest_exe);
-        });
+                ui.label("Playtest Executable");
+                ui.text_edit_singleline(&mut config.project.playtest_exe);
+            });
     }
 
     fn requires_filesystem(&self) -> bool {

@@ -41,14 +41,6 @@ impl Default for Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        self.tabs
-            .focused_name()
-            .map_or("Common Events".to_string(), |name| {
-                format!("Editing Common Event {name}")
-            })
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Common Events")
     }
@@ -59,7 +51,13 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        let name = self
+            .tabs
+            .focused_name()
+            .map_or("Common Events".to_string(), |name| {
+                format!("Editing Common Event {name}")
+            });
+        egui::Window::new(name)
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))
             .open(open)

@@ -72,10 +72,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        format!("Event 'TODO' ID {}", self.event_id)
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("luminol_event_edit")
             .with(self.map_id)
@@ -100,7 +96,7 @@ impl luminol_core::Window for Window {
         let mut modified = false;
         let mut graphic_modified = false;
 
-        egui::Window::new(self.name())
+        egui::Window::new(format!("Event '{}' ID {}", event.name, self.event_id))
             .open(open)
             .id(self.id())
             .show(ctx, |ui| {

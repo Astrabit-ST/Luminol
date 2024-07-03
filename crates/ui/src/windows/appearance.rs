@@ -35,35 +35,33 @@ impl luminol_core::Window for Window {
         egui::Id::new("luminol_appearance_window")
     }
 
-    fn name(&self) -> String {
-        "Luminol Appearance".to_string()
-    }
-
     fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            // Or these together so if one OR the other is true the window shows.
-            self.egui_settings_open =
-                ui.button("Egui Settings").clicked() || self.egui_settings_open;
+        egui::Window::new("Luminol Appearance")
+            .open(open)
+            .show(ctx, |ui| {
+                // Or these together so if one OR the other is true the window shows.
+                self.egui_settings_open =
+                    ui.button("Egui Settings").clicked() || self.egui_settings_open;
 
-            ui.menu_button("Code Theme", |ui| {
-                for t in luminol_config::SyntectTheme::iter() {
-                    ui.radio_value(
-                        &mut update_state.global_config.theme.syntect_theme,
-                        t,
-                        t.to_string(),
-                    );
-                }
+                ui.menu_button("Code Theme", |ui| {
+                    for t in luminol_config::SyntectTheme::iter() {
+                        ui.radio_value(
+                            &mut update_state.global_config.theme.syntect_theme,
+                            t,
+                            t.to_string(),
+                        );
+                    }
 
-                ui.label("Code sample");
-                ui.label(luminol_components::syntax_highlighting::highlight(
-                    ui.ctx(),
-                    update_state.global_config.theme,
-                    r#"
+                    ui.label("Code sample");
+                    ui.label(luminol_components::syntax_highlighting::highlight(
+                        ui.ctx(),
+                        update_state.global_config.theme,
+                        r#"
                         class Foo < Array 
                         end
                         def bar(baz) 
@@ -71,21 +69,21 @@ impl luminol_core::Window for Window {
                         print 1, 2.0
                         puts [0x3, :4, '5']
                         "#,
-                    "rb",
-                ));
-            });
+                        "rb",
+                    ));
+                });
 
-            if ui
-                .button("Clear Loaded Textures")
-                .on_hover_text(
-                    "You may need to reopen maps/windows for any changes to take effect.",
-                )
-                .clicked()
-            {
-                update_state.graphics.texture_loader.clear();
-                update_state.graphics.atlas_loader.clear();
-                update_state.bytes_loader.forget_all();
-            }
-        });
+                if ui
+                    .button("Clear Loaded Textures")
+                    .on_hover_text(
+                        "You may need to reopen maps/windows for any changes to take effect.",
+                    )
+                    .clicked()
+                {
+                    update_state.graphics.texture_loader.clear();
+                    update_state.graphics.atlas_loader.clear();
+                    update_state.bytes_loader.forget_all();
+                }
+            });
     }
 }

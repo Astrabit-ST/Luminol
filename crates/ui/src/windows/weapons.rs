@@ -39,14 +39,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_weapon_name {
-            format!("Editing weapon {:?}", name)
-        } else {
-            "Weapon Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("weapon_editor")
     }
@@ -71,7 +63,13 @@ impl luminol_core::Window for Window {
 
         self.selected_weapon_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_weapon_name {
+            format!("Editing weapon {:?}", name)
+        } else {
+            "Weapon Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)

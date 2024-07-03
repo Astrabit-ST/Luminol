@@ -154,11 +154,6 @@ pub trait Window {
         update_state: &mut crate::UpdateState<'_>,
     );
 
-    /// Optionally used as the title of the window.
-    fn name(&self) -> String {
-        "Untitled Window".to_string()
-    }
-
     /// Required to prevent duplication.
     fn id(&self) -> egui::Id;
 

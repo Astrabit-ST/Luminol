@@ -39,10 +39,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        self.term.title.clone()
-    }
-
     fn id(&self) -> egui::Id {
         self.term.id
     }
@@ -57,7 +53,7 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        egui::Window::new(&self.term.title)
             .id(self.term.id)
             .open(open)
             .show(ctx, |ui| {

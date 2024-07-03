@@ -27,10 +27,6 @@
 pub struct EguiInspection {}
 
 impl luminol_core::Window for EguiInspection {
-    fn name(&self) -> String {
-        "Egui Inspection".to_string()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Egui Inspection")
     }
@@ -41,7 +37,7 @@ impl luminol_core::Window for EguiInspection {
         open: &mut bool,
         _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        egui::Window::new("Egui Inspection")
             .open(open)
             .show(ctx, |ui| ctx.inspection_ui(ui));
     }
@@ -52,10 +48,6 @@ impl luminol_core::Window for EguiInspection {
 pub struct EguiMemory {}
 
 impl luminol_core::Window for EguiMemory {
-    fn name(&self) -> String {
-        "Egui Memory".to_string()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Egui Memory")
     }
@@ -66,7 +58,7 @@ impl luminol_core::Window for EguiMemory {
         open: &mut bool,
         _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        egui::Window::new("Egui Memory")
             .open(open)
             .show(ctx, |ui| ctx.memory_ui(ui));
     }
@@ -76,10 +68,6 @@ impl luminol_core::Window for EguiMemory {
 pub struct FilesystemDebug {}
 
 impl luminol_core::Window for FilesystemDebug {
-    fn name(&self) -> String {
-        "Filesystem Debug".to_string()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Filesystem Debug Window")
     }
@@ -90,7 +78,7 @@ impl luminol_core::Window for FilesystemDebug {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        egui::Window::new("Filesystem Debug")
             .open(open)
             .show(ctx, |ui| update_state.filesystem.debug_ui(ui));
     }
