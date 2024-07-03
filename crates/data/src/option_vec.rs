@@ -112,6 +112,15 @@ impl<T> OptionVec<T> {
         }
     }
 
+    pub fn option_remove(&mut self, index: usize) -> Option<T> {
+        if index >= self.len() {
+            None
+        } else {
+            self.num_values -= 1;
+            self.vec[index].take()
+        }
+    }
+
     /// Remove the element at the given index and return it.
     /// If the OptionVec is not big enough to contain this index, this will panic.
     /// If there isn't an element at that index, this will panic.

@@ -480,7 +480,7 @@ impl luminol_core::Tab for Tab {
                             let event = map.events[selected_event_id].clone();
                             self.event_windows.add_window(event_edit::Window::new(
                                 update_state,
-                                event,
+                                &event,
                                 self.id,
                                 map.tileset_id,
                             ));

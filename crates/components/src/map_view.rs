@@ -371,8 +371,8 @@ impl MapView {
             let mut selected_event_rect = None;
 
             for (_, event) in map.events.iter() {
-                if event.extra_data.modified.get() {
-                    event.extra_data.modified.set(false);
+                if event.extra_data.graphic_modified.get() {
+                    event.extra_data.graphic_modified.set(false);
                     let sprite = luminol_graphics::Event::new_map(
                         &update_state.graphics,
                         update_state.filesystem,

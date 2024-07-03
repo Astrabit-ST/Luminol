@@ -236,15 +236,16 @@ impl super::Tab {
             self.view.cursor_pos.y as i32,
             new_event_id,
         );
-        map.events.insert(new_event_id, event.clone());
 
         self.event_windows
             .add_window(crate::windows::event_edit::Window::new(
                 update_state,
-                event,
+                &event,
                 self.id,
                 map.tileset_id,
             ));
+
+        map.events.insert(new_event_id, event);
         Some(new_event_id)
     }
 

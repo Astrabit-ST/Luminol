@@ -40,7 +40,7 @@ pub struct Event {
 pub struct EventExtraData {
     /// Whether or not the event editor for this event is open
     pub is_editor_open: bool,
-    pub modified: std::cell::Cell<bool>,
+    pub graphic_modified: std::cell::Cell<bool>,
 }
 
 impl Event {
