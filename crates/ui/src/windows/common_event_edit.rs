@@ -28,14 +28,14 @@ use luminol_modals::database_modal;
 /// The common event editor.
 pub struct Window {
     tabs: luminol_core::Tabs,
-    selected_id: usize,
+    _selected_id: usize,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
             tabs: luminol_core::Tabs::new("common_event_tabs", false),
-            selected_id: 0,
+            _selected_id: 0,
         }
     }
 }
@@ -49,7 +49,7 @@ impl luminol_core::Window for Window {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let name = self
             .tabs
@@ -61,7 +61,7 @@ impl luminol_core::Window for Window {
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))
             .open(open)
-            .show(ctx, |ui| {
+            .show(ctx, |_| {
                 // TODO
             });
     }
