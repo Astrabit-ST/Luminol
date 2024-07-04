@@ -23,31 +23,24 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_core::Modal;
+use luminol_modals::database_modal;
 
 /// The common event editor.
 pub struct Window {
     tabs: luminol_core::Tabs,
-    selected_id: usize,
+    _selected_id: usize,
 }
 
 impl Default for Window {
     fn default() -> Self {
         Self {
             tabs: luminol_core::Tabs::new("common_event_tabs", false),
-            selected_id: 0,
+            _selected_id: 0,
         }
     }
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        self.tabs
-            .focused_name()
-            .map_or("Common Events".to_string(), |name| {
-                format!("Editing Common Event {name}")
-            })
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Common Events")
     }
@@ -56,50 +49,20 @@ impl luminol_core::Window for Window {
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
-        update_state: &mut luminol_core::UpdateState<'_>,
+        _update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        let name = self
+            .tabs
+            .focused_name()
+            .map_or("Common Events".to_string(), |name| {
+                format!("Editing Common Event {name}")
+            });
+        egui::Window::new(name)
             .default_width(500.)
             .id(egui::Id::new("common_events_edit"))
             .open(open)
-            .show(ctx, |ui| {
-                egui::SidePanel::left("common_events_side_panel").show_inside(ui, |ui| {
-                    let common_events = update_state.data.common_events();
-
-                    egui::ScrollArea::both().auto_shrink([false; 2]).show_rows(
-                        ui,
-                        ui.text_style_height(&egui::TextStyle::Body),
-                        common_events.data.len(),
-                        |ui, rows| {
-                            for (ele, event) in common_events
-                                .data
-                                .iter()
-                                .enumerate()
-                                .filter(|(ele, _)| rows.contains(ele))
-                            {
-                                if ui
-                                    .selectable_value(
-                                        &mut self.selected_id,
-                                        ele,
-                                        format!("{}: {}", event.id, event.name),
-                                    )
-                                    .double_clicked()
-                                {
-                                    self.tabs.add_tab(CommonEventTab {
-                                        event: event.clone(),
-                                        force_close: false,
-                                        switch_modal: None,
-                                        command_view: luminol_components::CommandView::new(
-                                            format!("common_event_{ele}"),
-                                        ),
-                                    });
-                                }
-                            }
-                        },
-                    );
-                });
-
-                self.tabs.ui(ui, update_state);
+            .show(ctx, |_| {
+                // TODO
             });
     }
 
@@ -111,7 +74,7 @@ impl luminol_core::Window for Window {
 struct CommonEventTab {
     event: luminol_data::rpg::CommonEvent,
     force_close: bool,
-    switch_modal: Option<luminol_modals::switch::Modal>,
+    switch_modal: database_modal::SwitchModal,
     command_view: luminol_components::CommandView,
 }
 
@@ -140,14 +103,11 @@ impl luminol_core::Tab for CommonEventTab {
                     }
                 });
 
-            ui.add_enabled_ui(self.event.trigger > 0, |ui| {
-                luminol_modals::switch::Modal::button(
-                    &mut self.switch_modal,
-                    ui,
-                    &mut self.event.switch_id,
-                    update_state,
-                );
-            });
+            ui.add_enabled(
+                self.event.trigger > 0,
+                self.switch_modal
+                    .button(&mut self.event.switch_id, update_state),
+            );
 
             let mut save_event = false;
 

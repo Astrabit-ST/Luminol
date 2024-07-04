@@ -199,7 +199,11 @@ impl super::Tab {
         }
     }
 
-    pub(super) fn add_event(&mut self, map: &mut luminol_data::rpg::Map) -> Option<usize> {
+    pub(super) fn add_event(
+        &mut self,
+        update_state: &luminol_core::UpdateState<'_>,
+        map: &mut luminol_data::rpg::Map,
+    ) -> Option<usize> {
         let mut first_vacant_id = 1;
         let mut max_event_id = 0;
 
@@ -227,20 +231,21 @@ impl super::Tab {
             return None;
         };
 
-        map.events.insert(
+        let event = luminol_data::rpg::Event::new(
+            self.view.cursor_pos.x as i32,
+            self.view.cursor_pos.y as i32,
             new_event_id,
-            luminol_data::rpg::Event::new(
-                self.view.cursor_pos.x as i32,
-                self.view.cursor_pos.y as i32,
-                new_event_id,
-            ),
         );
 
         self.event_windows
             .add_window(crate::windows::event_edit::Window::new(
-                new_event_id,
+                update_state,
+                &event,
                 self.id,
+                map.tileset_id,
             ));
+
+        map.events.insert(new_event_id, event);
         Some(new_event_id)
     }
 

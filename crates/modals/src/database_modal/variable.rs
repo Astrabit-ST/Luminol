@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Lily Lyons
+// Copyright (C) 2024 Lily Lyons
 //
 // This file is part of Luminol.
 //
@@ -22,47 +22,38 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub struct Window {
-    term: luminol_term::widget::ProcessTerminal,
-}
+pub struct Variable;
 
-impl Window {
-    pub fn new(
-        exec: luminol_term::widget::ExecOptions,
-        update_state: &luminol_core::UpdateState<'_>,
-    ) -> std::io::Result<Self> {
-        Ok(Self {
-            // TODO
-            term: luminol_term::widget::Terminal::process(exec, update_state)?,
-        })
-    }
-}
-
-impl luminol_core::Window for Window {
-    fn id(&self) -> egui::Id {
-        self.term.id
+impl super::DatabaseModalHandler for Variable {
+    fn button_format(id: &mut usize, update_state: &mut luminol_core::UpdateState<'_>) -> String {
+        let system = update_state.data.system();
+        *id = system.variables.len().min(*id);
+        format!("{:0>3}: {}", *id + 1, system.variables[*id])
     }
 
-    fn requires_filesystem(&self) -> bool {
-        true
+    fn window_title() -> &'static str {
+        "Variables"
     }
 
-    fn show(
-        &mut self,
-        ctx: &egui::Context,
-        open: &mut bool,
+    fn iter(
         update_state: &mut luminol_core::UpdateState<'_>,
+        f: impl FnOnce(&mut dyn Iterator<Item = (usize, String)>),
     ) {
-        egui::Window::new(&self.term.title)
-            .id(self.term.id)
-            .open(open)
-            .show(ctx, |ui| {
-                if let Err(e) = self.term.ui(update_state, ui) {
-                    luminol_core::error!(
-                        update_state.toasts,
-                        e.wrap_err("Error displaying terminal"),
-                    );
-                }
-            });
+        let system = update_state.data.system();
+        let mut iter = system
+            .variables
+            .iter()
+            .enumerate()
+            .map(|(id, name)| (id, format!("{:0>3}: {name}", id + 1)));
+        f(&mut iter);
+    }
+
+    fn current_size(update_state: &luminol_core::UpdateState<'_>) -> Option<usize> {
+        Some(update_state.data.system().variables.len())
+    }
+
+    fn resize(update_state: &mut luminol_core::UpdateState<'_>, new_size: usize) {
+        let system = &mut update_state.data.system();
+        system.variables.resize_with(new_size, String::new);
     }
 }

@@ -211,7 +211,7 @@ impl TopBar {
                 if ui.button("Items").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new());
+                        .add_window(luminol_ui::windows::items::Window::new(update_state));
                 }
 
                 if ui.button("Skills").clicked() {
@@ -243,7 +243,7 @@ impl TopBar {
                 if ui.button("Actors").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::actors::Window::new());
+                        .add_window(luminol_ui::windows::actors::Window::new(update_state));
                 }
 
                 if ui.button("Classes").clicked() {
@@ -255,7 +255,7 @@ impl TopBar {
                 if ui.button("Enemies").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::enemies::Window::new());
+                        .add_window(luminol_ui::windows::enemies::Window::new(update_state));
                 }
 
                 ui.add_enabled_ui(false, |ui| {

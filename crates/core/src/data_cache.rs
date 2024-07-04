@@ -155,7 +155,7 @@ macro_rules! from_defaults {
 
 macro_rules! save {
     ($fs:ident, $type:ident, $field:ident) => {{
-        let borrowed = $field.borrow();
+        let borrowed = $field.get_mut();
         if borrowed.modified {
             write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
                 .wrap_err_with(|| format!("While saving {}.rxdata", stringify!($type)))?;
@@ -332,7 +332,7 @@ impl Data {
         modified |= save!(filesystem, Weapons, weapons);
 
         {
-            let map_infos = map_infos.borrow();
+            let map_infos = map_infos.get_mut();
             if map_infos.modified {
                 modified = true;
                 write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
@@ -341,7 +341,7 @@ impl Data {
         }
 
         {
-            let scripts = scripts.borrow();
+            let scripts = scripts.get_mut();
             if scripts.modified {
                 modified = true;
                 write_data(
@@ -353,7 +353,7 @@ impl Data {
         }
 
         {
-            let maps = maps.borrow();
+            let maps = maps.get_mut();
             maps.iter().try_for_each(|(id, map)| {
                 if map.modified {
                     modified = true;

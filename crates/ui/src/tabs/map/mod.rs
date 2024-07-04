@@ -477,8 +477,13 @@ impl luminol_core::Tab for Tab {
                     {
                         // Double-click/press enter on events to edit them
                         if ui.input(|i| !i.modifiers.command) {
-                            self.event_windows
-                                .add_window(event_edit::Window::new(selected_event_id, self.id));
+                            let event = map.events[selected_event_id].clone();
+                            self.event_windows.add_window(event_edit::Window::new(
+                                update_state,
+                                &event,
+                                self.id,
+                                map.tileset_id,
+                            ));
                         }
                     }
 
@@ -550,7 +555,7 @@ impl luminol_core::Tab for Tab {
                     if response.double_clicked()
                         || (is_focused && ui.input(|i| i.key_pressed(egui::Key::Enter)))
                     {
-                        if let Some(id) = self.add_event(&mut map) {
+                        if let Some(id) = self.add_event(update_state, &mut map) {
                             self.push_to_history(
                                 update_state,
                                 &mut map,

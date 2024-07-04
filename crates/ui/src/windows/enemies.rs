@@ -23,6 +23,8 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use luminol_core::Modal;
+use luminol_modals::graphic_picker::hue::Modal as GraphicPicker;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 #[derive(strum::Display, strum::EnumIter)]
@@ -35,18 +37,36 @@ pub enum TreasureType {
     Armor,
 }
 
-#[derive(Default)]
 pub struct Window {
     selected_enemy_name: Option<String>,
     previous_enemy: Option<usize>,
+
+    graphic_picker: GraphicPicker,
 
     collapsing_view: luminol_components::CollapsingView,
     view: luminol_components::DatabaseView,
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let enemies = update_state.data.enemies();
+        let enemy = &enemies.data[0];
+        Self {
+            selected_enemy_name: None,
+            previous_enemy: None,
+
+            graphic_picker: GraphicPicker::new(
+                update_state,
+                "Graphics/Battlers".into(),
+                enemy.battler_name.as_deref(),
+                enemy.battler_hue,
+                egui::vec2(196., 256.),
+                "enemy_battler_picker",
+            ),
+
+            collapsing_view: luminol_components::CollapsingView::new(),
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 
     fn show_action_header(
@@ -227,14 +247,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_enemy_name {
-            format!("Editing enemy {:?}", name)
-        } else {
-            "Enemy Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("enemy_editor")
     }
@@ -249,20 +261,27 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut enemies = update_state.data.enemies();
-        let animations = update_state.data.animations();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
-        let skills = update_state.data.skills();
-        let items = update_state.data.items();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut enemies = data.enemies();
+        let animations = data.animations();
+        let system = data.system();
+        let states = data.states();
+        let skills = data.skills();
+        let items = data.items();
+        let weapons = data.weapons();
+        let armors = data.armors();
 
         let mut modified = false;
 
         self.selected_enemy_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_enemy_name {
+            format!("Editing enemy {:?}", name)
+        } else {
+            "Enemy Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -273,18 +292,37 @@ impl luminol_core::Window for Window {
                     "Enemies",
                     &mut enemies.data,
                     |enemy| format!("{:0>4}: {}", enemy.id + 1, enemy.name),
-                    |ui, enemies, id| {
+                    |ui, enemies, id, update_state| {
                         let enemy = &mut enemies[id];
                         self.selected_enemy_name = Some(enemy.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut enemy.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.horizontal(|ui| {
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Graphic",
+                                        self.graphic_picker.button(
+                                            (&mut enemy.battler_name, &mut enemy.battler_hue),
+                                            update_state,
+                                        ),
+                                    ))
+                                    .changed();
+                                if self.previous_enemy != Some(enemy.id) {
+                                    // avoid desyncs by resetting the modal if the item has changed
+                                    self.graphic_picker.reset(
+                                        update_state,
+                                        (&mut enemy.battler_name, &mut enemy.battler_hue),
+                                    );
+                                }
+
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut enemy.name)
+                                            .desired_width(f32::INFINITY),
+                                    ))
+                                    .changed();
+                            });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
@@ -643,5 +681,16 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             enemies.modified = true;
         }
+
+        drop(enemies);
+        drop(animations);
+        drop(system);
+        drop(states);
+        drop(skills);
+        drop(items);
+        drop(weapons);
+        drop(armors);
+
+        *update_state.data = data; // restore data
     }
 }

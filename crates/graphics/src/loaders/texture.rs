@@ -62,6 +62,14 @@ fn load_wgpu_texture_from_path(
     let file = filesystem.read(path)?;
     let texture_data = image::load_from_memory(&file)?.to_rgba8();
 
+    if device.limits().max_texture_dimension_2d < texture_data.width().max(texture_data.height()) {
+        return Err(color_eyre::eyre::eyre!(
+            "Texture is too large: {}x{}",
+            texture_data.width(),
+            texture_data.height()
+        ));
+    }
+
     Ok(load_wgpu_texture_from_image(
         &texture_data,
         device,
@@ -259,5 +267,15 @@ impl Loader {
 
     pub fn placeholder_image(&self) -> &image::RgbaImage {
         &self.placeholder_image
+    }
+}
+
+// can't use Arc because of orphan rule, must use &instead (this does allow for for &Texture to be used in Image::new tho)
+impl From<&Texture> for egui::load::SizedTexture {
+    fn from(val: &Texture) -> Self {
+        egui::load::SizedTexture {
+            id: val.texture_id,
+            size: val.size_vec2(),
+        }
     }
 }

@@ -24,3 +24,10 @@ camino.workspace = true
 luminol-core.workspace = true
 luminol-data.workspace = true
 luminol-components.workspace = true
+luminol-egui-wgpu.workspace = true
+glam.workspace = true
+color-eyre.workspace = true
+
+fuzzy-matcher = "0.3.7"
+
+ouroboros = "0.18.4"

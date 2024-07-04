@@ -23,18 +23,17 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use luminol_core::Modal;
+
+use luminol_modals::graphic_picker::basic::Modal as GraphicPicker;
+use luminol_modals::sound_picker::Modal as SoundPicker;
 
 /// Database - Items management window.
-#[derive(Default)]
 pub struct Window {
-    // ? Items ?
     selected_item_name: Option<String>,
 
-    // ? Icon Graphic Picker ?
-    _icon_picker: Option<luminol_modals::graphic_picker::Modal>,
-
-    // ? Menu Sound Effect Picker ?
-    _menu_se_picker: Option<luminol_modals::sound_picker::Modal>,
+    menu_se_picker: SoundPicker,
+    graphic_picker: GraphicPicker,
 
     previous_item: Option<usize>,
 
@@ -42,20 +41,26 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let items = update_state.data.items();
+        let item = &items.data[0];
+        Self {
+            selected_item_name: None,
+            menu_se_picker: SoundPicker::new(luminol_audio::Source::SE, "item_menu_se_picker"),
+            graphic_picker: GraphicPicker::new(
+                update_state,
+                "Graphics/Icons".into(),
+                item.icon_name.as_deref(),
+                egui::vec2(32., 32.),
+                "item_icon_picker",
+            ),
+            previous_item: None,
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_item_name {
-            format!("Editing item {:?}", name)
-        } else {
-            "Item Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("item_editor")
     }
@@ -70,17 +75,24 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut items = update_state.data.items();
-        let animations = update_state.data.animations();
-        let common_events = update_state.data.common_events();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut items = data.items();
+        let animations = data.animations();
+        let common_events = data.common_events();
+        let system = data.system();
+        let states = data.states();
 
         let mut modified = false;
 
         self.selected_item_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_item_name {
+            format!("Editing item {:?}", name)
+        } else {
+            "Item Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -91,18 +103,32 @@ impl luminol_core::Window for Window {
                     "Items",
                     &mut items.data,
                     |item| format!("{:0>4}: {}", item.id + 1, item.name),
-                    |ui, items, id| {
+                    |ui, items, id, update_state| {
                         let item = &mut items[id];
                         self.selected_item_name = Some(item.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut item.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.horizontal(|ui| {
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Icon",
+                                        self.graphic_picker
+                                            .button(&mut item.icon_name, update_state),
+                                    ))
+                                    .changed();
+                                if self.previous_item != Some(item.id) {
+                                    // avoid desyncs by resetting the modal if the item has changed
+                                    self.graphic_picker.reset(update_state, &mut item.icon_name);
+                                }
+
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut item.name)
+                                            .desired_width(f32::INFINITY),
+                                    ))
+                                    .changed();
+                            });
 
                             modified |= ui
                                 .add(luminol_components::Field::new(
@@ -182,9 +208,13 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Menu Use SE",
-                                        egui::Label::new("TODO"),
+                                        self.menu_se_picker.button(&mut item.menu_se, update_state),
                                     ))
                                     .changed();
+                                if self.previous_item != Some(item.id) {
+                                    // reset the modal if the item has changed (this is practically a no-op)
+                                    self.menu_se_picker.reset(update_state, &mut item.menu_se);
+                                }
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
@@ -392,5 +422,13 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             items.modified = true;
         }
+
+        drop(items);
+        drop(animations);
+        drop(common_events);
+        drop(system);
+        drop(states);
+
+        *update_state.data = data; // restore data
     }
 }

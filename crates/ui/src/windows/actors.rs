@@ -25,12 +25,15 @@
 use itertools::Itertools;
 use luminol_components::UiExt;
 
+use luminol_core::Modal;
 use luminol_data::rpg::armor::Kind;
+use luminol_modals::graphic_picker::actor::Modal as GraphicPicker;
 
-#[derive(Default)]
 pub struct Window {
     selected_actor_name: Option<String>,
     previous_actor: Option<usize>,
+
+    graphic_picker: GraphicPicker,
 
     exp_view_is_total: bool,
     exp_view_is_depersisted: bool,
@@ -39,8 +42,27 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
+        let actors = update_state.data.actors();
+        let actor = &actors.data[0];
+        Self {
+            selected_actor_name: None,
+            previous_actor: None,
+
+            graphic_picker: GraphicPicker::new(
+                update_state,
+                "Graphics/Characters".into(),
+                actor.character_name.as_deref(),
+                actor.character_hue,
+                egui::vec2(64., 96.),
+                "actor_graphic_picker",
+            ),
+
+            exp_view_is_depersisted: false,
+            exp_view_is_total: false,
+
+            view: luminol_components::DatabaseView::new(),
+        }
     }
 }
 
@@ -200,14 +222,6 @@ fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut boo
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_actor_name {
-            format!("Editing actor {:?}", name)
-        } else {
-            "Actor Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("actor_editor")
     }
@@ -222,16 +236,26 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut actors = update_state.data.actors();
-        let mut classes = update_state.data.classes();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
+        // we take data temporarily to avoid borrowing issues
+        // we could probably avoid this with Rc (Data already uses RefCell) but it'd be annoying to work into the existing code
+        // using Box<Data> might be a good idea as well, that's just a pointer copy rather than a full copy
+        let data = std::mem::take(update_state.data);
+        let mut actors = data.actors();
+        let mut classes = data.classes();
+        let weapons = data.weapons();
+        let armors = data.armors();
 
         let mut modified = false;
 
         self.selected_actor_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_actor_name {
+            format!("Editing actor {:?}", name)
+        } else {
+            "Actor Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -242,18 +266,37 @@ impl luminol_core::Window for Window {
                     "Actors",
                     &mut actors.data,
                     |actor| format!("{:0>4}: {}", actor.id + 1, actor.name),
-                    |ui, actors, id| {
+                    |ui, actors, id, update_state| {
                         let actor = &mut actors[id];
                         self.selected_actor_name = Some(actor.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Name",
-                                    egui::TextEdit::singleline(&mut actor.name)
-                                        .desired_width(f32::INFINITY),
-                                ))
-                                .changed();
+                            ui.horizontal(|ui| {
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Icon",
+                                        self.graphic_picker.button(
+                                            (&mut actor.character_name, &mut actor.character_hue),
+                                            update_state,
+                                        ),
+                                    ))
+                                    .changed();
+                                if self.previous_actor != Some(actor.id) {
+                                    // avoid desyncs by resetting the modal if the item has changed
+                                    self.graphic_picker.reset(
+                                        update_state,
+                                        (&mut actor.character_name, &mut actor.character_hue),
+                                    );
+                                }
+
+                                modified |= ui
+                                    .add(luminol_components::Field::new(
+                                        "Name",
+                                        egui::TextEdit::singleline(&mut actor.name)
+                                            .desired_width(f32::INFINITY),
+                                    ))
+                                    .changed();
+                            })
                         });
 
                         ui.with_padded_stripe(true, |ui| {
@@ -277,10 +320,10 @@ impl luminol_core::Window for Window {
                         });
 
                         if let Some(class) = classes.data.get_mut(actor.class_id) {
-                            if !class.weapon_set.is_sorted() {
+                            if !luminol_core::slice_is_sorted(&class.weapon_set) {
                                 class.weapon_set.sort_unstable();
                             }
-                            if !class.armor_set.is_sorted() {
+                            if !luminol_core::slice_is_sorted(&class.armor_set) {
                                 class.armor_set.sort_unstable();
                             }
                         }
@@ -729,5 +772,13 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             actors.modified = true;
         }
+
+        // we have to drop things before we can restore data, because the compiler isn't smart enough to do that for us right now
+        drop(actors);
+        drop(classes);
+        drop(weapons);
+        drop(armors);
+
+        *update_state.data = data;
     }
 }

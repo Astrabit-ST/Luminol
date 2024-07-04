@@ -41,9 +41,6 @@ pub struct Audio {
 }
 
 struct Inner {
-    // OutputStream is lazily evaluated specifically for wasm. web prevents autoplay without user interaction, this is a way of dealing with that.
-    // To actually play tracks the user will have needed to interact with the ui.
-    _output_stream: rodio::OutputStream,
     output_stream_handle: rodio::OutputStreamHandle,
     sinks: std::collections::HashMap<Source, rodio::Sink>,
 }
@@ -59,13 +56,6 @@ pub enum Source {
     SE,
 }
 
-#[cfg(not(target_arch = "wasm32"))] // Audio can't be shared between threads in wasm either
-/// # Safety
-/// cpal claims that Stream (which is why Inner is not send) is not thread safe on android, which is why it is not Send anywhere else.
-/// We don't support android. The only other solution would be to use thread_local and... no.
-#[allow(unsafe_code)]
-unsafe impl Send for Inner {}
-
 impl Default for Audio {
     fn default() -> Self {
         #[cfg(target_arch = "wasm32")]
@@ -74,9 +64,9 @@ impl Default for Audio {
         }
 
         let (output_stream, output_stream_handle) = rodio::OutputStream::try_default().unwrap();
+        std::mem::forget(output_stream); // Prevent the stream from being dropped
         Self {
             inner: parking_lot::Mutex::new(Inner {
-                _output_stream: output_stream,
                 output_stream_handle,
                 sinks: std::collections::HashMap::default(),
             }),
@@ -188,5 +178,16 @@ impl Audio {
         if let Some(s) = inner.sinks.get_mut(source) {
             s.stop();
         }
+    }
+}
+
+impl Source {
+    pub fn as_path(&self) -> &camino::Utf8Path {
+        camino::Utf8Path::new(match self {
+            Source::BGM => "BGM",
+            Source::BGS => "BGS",
+            Source::ME => "ME",
+            Source::SE => "SE",
+        })
     }
 }

@@ -371,6 +371,23 @@ impl MapView {
             let mut selected_event_rect = None;
 
             for (_, event) in map.events.iter() {
+                if event.extra_data.graphic_modified.get() {
+                    event.extra_data.graphic_modified.set(false);
+                    let sprite = luminol_graphics::Event::new_map(
+                        &update_state.graphics,
+                        update_state.filesystem,
+                        &self.map.viewport,
+                        event,
+                        &self.map.atlas,
+                    )
+                    .unwrap(); // FIXME handle
+                    if let Some(sprite) = sprite {
+                        self.map.events.insert(event.id, sprite);
+                    } else {
+                        self.map.events.remove(event.id);
+                    }
+                }
+
                 let sprite = self.map.events.get_mut(event.id);
                 let has_sprite = sprite.is_some();
                 let event_size = sprite
@@ -456,11 +473,12 @@ impl MapView {
                                             &update_state.graphics,
                                             glam::vec2(event_size.x, event_size.y),
                                         );
+                                        let graphic = &event.pages[0].graphic; // FIXME handle missing first page (should never happen though...)
                                         let sprite = luminol_graphics::Event::new_standalone(
                                             &update_state.graphics,
                                             update_state.filesystem,
                                             &viewport,
-                                            event,
+                                            graphic,
                                             &self.map.atlas,
                                         )
                                         .unwrap()

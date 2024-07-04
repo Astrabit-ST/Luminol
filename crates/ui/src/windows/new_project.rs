@@ -65,10 +65,6 @@ impl Default for Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        "New Project".to_string()
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("New Project")
     }
@@ -80,7 +76,7 @@ impl luminol_core::Window for Window {
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
         let mut win_open = true;
-        egui::Window::new(self.name())
+        egui::Window::new("New Project")
             .open(&mut win_open)
             .show(ctx, |ui| {
                 ui.add_enabled_ui(

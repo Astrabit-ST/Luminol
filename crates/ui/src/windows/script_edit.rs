@@ -36,14 +36,6 @@ impl Default for Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        self.tabs
-            .focused_name()
-            .map_or("Scripts".to_string(), |name| {
-                format!("Editing Script {name}")
-            })
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("Script Edit")
     }
@@ -54,7 +46,13 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new(self.name())
+        let name = self
+            .tabs
+            .focused_name()
+            .map_or("Scripts".to_string(), |name| {
+                format!("Editing Script {name}")
+            });
+        egui::Window::new(name)
             .open(open)
             .id(egui::Id::new("script_editor_window"))
             .show(ctx, |ui| {

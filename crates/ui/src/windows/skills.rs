@@ -39,14 +39,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_skill_name {
-            format!("Editing skill {:?}", name)
-        } else {
-            "Skill Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("skill_editor")
     }
@@ -61,17 +53,24 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut skills = update_state.data.skills();
-        let animations = update_state.data.animations();
-        let common_events = update_state.data.common_events();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut skills = data.skills();
+        let animations = data.animations();
+        let common_events = data.common_events();
+        let system = data.system();
+        let states = data.states();
 
         let mut modified = false;
 
         self.selected_skill_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_skill_name {
+            format!("Editing skill {:?}", name)
+        } else {
+            "Skill Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -82,7 +81,7 @@ impl luminol_core::Window for Window {
                     "Skills",
                     &mut skills.data,
                     |skill| format!("{:0>4}: {}", skill.id + 1, skill.name),
-                    |ui, skills, id| {
+                    |ui, skills, id, update_state| {
                         let skill = &mut skills[id];
                         self.selected_skill_name = Some(skill.name.clone());
 
@@ -363,5 +362,13 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             skills.modified = true;
         }
+
+        drop(skills);
+        drop(animations);
+        drop(common_events);
+        drop(system);
+        drop(states);
+
+        *update_state.data = data; // restore data
     }
 }

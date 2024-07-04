@@ -48,11 +48,11 @@ impl DatabaseView {
     pub fn show<T, R>(
         &mut self,
         ui: &mut egui::Ui,
-        update_state: &luminol_core::UpdateState<'_>,
+        update_state: &mut luminol_core::UpdateState<'_>,
         label: impl Into<egui::WidgetText>,
         vec: &mut Vec<T>,
         formatter: impl Fn(&T) -> String,
-        inner: impl FnOnce(&mut egui::Ui, &mut Vec<T>, usize) -> R,
+        inner: impl FnOnce(&mut egui::Ui, &mut Vec<T>, usize, &mut luminol_core::UpdateState<'_>) -> R,
     ) -> egui::InnerResponse<DatabaseViewResponse<R>>
     where
         T: luminol_data::rpg::DatabaseEntry,
@@ -262,7 +262,7 @@ impl DatabaseView {
 
                         DatabaseViewResponse {
                             inner: (self.selected_id < vec.len())
-                                .then(|| inner(ui, vec, self.selected_id)),
+                                .then(|| inner(ui, vec, self.selected_id, update_state)),
                             modified,
                         }
                     })

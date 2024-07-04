@@ -39,14 +39,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_armor_name {
-            format!("Editing armor {:?}", name)
-        } else {
-            "Armor Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("armor_editor")
     }
@@ -61,15 +53,22 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut armors = update_state.data.armors();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut armors = data.armors();
+        let system = data.system();
+        let states = data.states();
 
         let mut modified = false;
 
         self.selected_armor_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_armor_name {
+            format!("Editing armor {:?}", name)
+        } else {
+            "Armor Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -80,7 +79,7 @@ impl luminol_core::Window for Window {
                     "Armor",
                     &mut armors.data,
                     |armor| format!("{:0>4}: {}", armor.id + 1, armor.name),
-                    |ui, armors, id| {
+                    |ui, armors, id, update_state| {
                         let armor = &mut armors[id];
                         self.selected_armor_name = Some(armor.name.clone());
 
@@ -260,5 +259,11 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             armors.modified = true;
         }
+
+        drop(armors);
+        drop(system);
+        drop(states);
+
+        *update_state.data = data; // restore data
     }
 }

@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
-#![feature(is_sorted)]
 
 use itertools::Itertools;
 
@@ -81,6 +80,38 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
                 }
             })
             .response
+    }
+}
+
+pub struct EnumRadioList<'e, T> {
+    current_value: &'e mut T,
+}
+
+impl<'e, T> EnumRadioList<'e, T> {
+    pub fn new(current_value: &'e mut T) -> Self {
+        Self { current_value }
+    }
+}
+
+impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumRadioList<'e, T> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+        let mut response = ui
+            .vertical(|ui| {
+                ui.with_cross_justify(|ui| {
+                    for variant in T::iter() {
+                        let text = variant.to_string();
+                        if ui.radio_value(self.current_value, variant, text).changed() {
+                            changed = true;
+                        }
+                    }
+                });
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
     }
 }
 
@@ -475,4 +506,8 @@ pub fn close_options_ui(ui: &mut egui::Ui, open: &mut bool, save: &mut bool) {
             *save = true;
         }
     });
+}
+
+pub fn colored_text(text: impl Into<String>, color: egui::Color32) -> egui::RichText {
+    egui::RichText::new(text).color(color)
 }

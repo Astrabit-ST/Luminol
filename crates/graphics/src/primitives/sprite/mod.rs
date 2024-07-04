@@ -75,6 +75,42 @@ impl Sprite {
             bind_group: Arc::new(bind_group),
         }
     }
+
+    // like basic, but with a hue
+    pub fn basic_hue(
+        graphics_state: &GraphicsState,
+        hue: i32,
+        texture: &Texture,
+        viewport: &Viewport,
+    ) -> Self {
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
+        let quad = Quad::new(rect, rect);
+        Self::basic_hue_quad(graphics_state, hue, quad, texture, viewport)
+    }
+
+    pub fn basic_hue_quad(
+        graphics_state: &GraphicsState,
+        hue: i32,
+        quad: Quad,
+        texture: &Texture,
+        viewport: &Viewport,
+    ) -> Self {
+        Self::new(
+            graphics_state,
+            quad,
+            hue,
+            255,
+            luminol_data::BlendMode::Normal,
+            texture,
+            viewport,
+            Transform::unit(graphics_state),
+        )
+    }
+
+    // takes the full size of a texture, has no hue, opacity, or blend mode, and uses the identity transform
+    pub fn basic(graphics_state: &GraphicsState, texture: &Texture, viewport: &Viewport) -> Self {
+        Self::basic_hue(graphics_state, 0, texture, viewport)
+    }
 }
 
 pub struct Prepared {

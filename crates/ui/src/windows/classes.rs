@@ -99,14 +99,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_class_name {
-            format!("Editing class {:?}", name)
-        } else {
-            "Class Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("class_editor")
     }
@@ -121,18 +113,25 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut classes = update_state.data.classes();
-        let system = update_state.data.system();
-        let states = update_state.data.states();
-        let skills = update_state.data.skills();
-        let weapons = update_state.data.weapons();
-        let armors = update_state.data.armors();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut classes = data.classes();
+        let system = data.system();
+        let states = data.states();
+        let skills = data.skills();
+        let weapons = data.weapons();
+        let armors = data.armors();
 
         let mut modified = false;
 
         self.selected_class_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_class_name {
+            format!("Editing class {:?}", name)
+        } else {
+            "Class Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -143,7 +142,7 @@ impl luminol_core::Window for Window {
                     "Classes",
                     &mut classes.data,
                     |class| format!("{:0>3}: {}", class.id + 1, class.name),
-                    |ui, classes, id| {
+                    |ui, classes, id, update_state| {
                         let class = &mut classes[id];
                         self.selected_class_name = Some(class.name.clone());
 
@@ -306,5 +305,14 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             classes.modified = true;
         }
+
+        drop(classes);
+        drop(system);
+        drop(states);
+        drop(skills);
+        drop(weapons);
+        drop(armors);
+
+        *update_state.data = data; // restore data
     }
 }

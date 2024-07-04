@@ -38,7 +38,7 @@ impl Window {
         Self {
             // Create all sources.
             sources: luminol_audio::Source::iter()
-                .map(|s| luminol_components::SoundTab::new(filesystem, s))
+                .map(|s| luminol_components::SoundTab::new(filesystem, s, Default::default()))
                 .collect(),
             // By default, bgm is selected.
             selected_source: luminol_audio::Source::BGM,

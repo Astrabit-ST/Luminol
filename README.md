@@ -35,7 +35,7 @@ If you're on Linux at the moment for best performance you'll need Chrome canary 
 
 Native builds are the main focus at the moment, but no official releases will be made until Luminol is stable.
 If you want to test out Luminol anyway, you can grab a build from [our build workflow](https://github.com/Astrabit-ST/Luminol/actions/workflows/build.yml). 
-We're working on a website where you'll eventually be able to use the latest development build of Luminol!
+It's currently WIP, but there's [a website](https://luminol.dev) where you can try the latest development build of Luminol!
 
 If you'd like to compile luminol yourself, you can by grabbing your favorite nightly rust toolchain from [rustup](https://rustup.rs) and running `cargo build`.
 Additionally, to enable steamworks support pass `--features steamworks` to `cargo build`.
@@ -63,9 +63,9 @@ We've also turned on the unstable `-Z threads=8` compiler flag to speed up build
 This is a pretty unstable feature at the moment and may cause compiler deadlocks.
 Luckily cargo will detect when that happens and halt your build. Re-running `cargo build` continue your build without issue, though.
 
-Luminol has like a bajillion dependencies right now so it may take upwards of 15 minutes to compile.
+Luminol has like a bajillion dependencies right now so it may take upwards of 15 minutes to compile!
 
-**You can not use one of the stable release channels.**
+Luminol's native build currently can compile on stable Rust, however we pin the toolchain to nightly for wasm32 and the aforementioned `-Z threads=8` flag.
 
 ## Credits
 

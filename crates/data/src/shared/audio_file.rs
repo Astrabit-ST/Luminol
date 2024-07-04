@@ -16,7 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 use crate::{optional_path_alox, optional_path_serde, Path};
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[derive(serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::AudioFile")]
@@ -26,4 +26,14 @@ pub struct AudioFile {
     pub name: Path,
     pub volume: u8,
     pub pitch: u8,
+}
+
+impl Default for AudioFile {
+    fn default() -> Self {
+        Self {
+            name: None,
+            volume: 100,
+            pitch: 100,
+        }
+    }
 }

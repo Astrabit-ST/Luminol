@@ -39,14 +39,6 @@ impl Window {
 }
 
 impl luminol_core::Window for Window {
-    fn name(&self) -> String {
-        if let Some(name) = &self.selected_state_name {
-            format!("Editing state {:?}", name)
-        } else {
-            "State Editor".into()
-        }
-    }
-
     fn id(&self) -> egui::Id {
         egui::Id::new("state_editor")
     }
@@ -61,15 +53,22 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        let mut states = update_state.data.states();
-        let animations = update_state.data.animations();
-        let system = update_state.data.system();
+        let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
+        let mut states = data.states();
+        let animations = data.animations();
+        let system = data.system();
 
         let mut modified = false;
 
         self.selected_state_name = None;
 
-        let response = egui::Window::new(self.name())
+        let name = if let Some(name) = &self.selected_state_name {
+            format!("Editing state {:?}", name)
+        } else {
+            "State Editor".into()
+        };
+
+        let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
             .open(open)
@@ -80,7 +79,7 @@ impl luminol_core::Window for Window {
                     "States",
                     &mut states.data,
                     |state| format!("{:0>4}: {}", state.id + 1, state.name),
-                    |ui, states, id| {
+                    |ui, states, id, update_state| {
                         let state = &mut states[id];
                         self.selected_state_name = Some(state.name.clone());
 
@@ -386,5 +385,11 @@ impl luminol_core::Window for Window {
             update_state.modified.set(true);
             states.modified = true;
         }
+
+        drop(states);
+        drop(animations);
+        drop(system);
+
+        *update_state.data = data; // restore data
     }
 }

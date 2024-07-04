@@ -48,6 +48,14 @@ pub use project_manager::ProjectManager;
 pub use alox_48;
 pub use data_cache::format_traced_error;
 
+pub mod prelude {
+    pub use crate::{Modal, Tab, UpdateState, Window};
+    pub use luminol_audio::Source;
+    pub use luminol_data::rpg;
+    pub use luminol_filesystem::FileSystem;
+    pub use luminol_graphics::*;
+}
+
 static GIT_REVISION: once_cell::sync::OnceCell<&'static str> = once_cell::sync::OnceCell::new();
 
 pub fn set_git_revision(revision: &'static str) {
@@ -347,11 +355,10 @@ impl<'res> UpdateState<'res> {
                         self.toasts,
                         format!("Failed to find suitable path for the RTP {missing_rtp}")
                     );
-                    // FIXME we should probably load rtps from the RTP/<rtp> paths on non-wasm targets
                     #[cfg(not(target_arch = "wasm32"))]
                     info!(
                         self.toasts,
-                        format!("You may want to set an RTP path for {missing_rtp}")
+                        format!("You may want to set an RTP path for {missing_rtp} (you can place it in the RTP folder)")
                     );
                     #[cfg(target_arch = "wasm32")]
                     info!(self.toasts, format!("Please place the {missing_rtp} RTP in the 'RTP/{missing_rtp}' subdirectory in your project directory"));
@@ -428,4 +435,11 @@ impl<'res> UpdateState<'res> {
         self.data.unload();
         self.modified.set(false);
     }
+}
+
+pub fn slice_is_sorted<T: Ord>(s: &[T]) -> bool {
+    s.windows(2).all(|w| {
+        let [a, b] = w else { unreachable!() }; // could maybe do unreachable_unchecked
+        a <= b
+    })
 }

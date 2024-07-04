@@ -22,11 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-/// The switch picker.
-pub mod switch;
-/// The variable picker.
-pub mod variable;
-
 pub mod sound_picker;
 
 pub mod graphic_picker;
+
+pub mod database_modal;
