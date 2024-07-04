@@ -72,8 +72,8 @@ enum AudioWrapperCommandInner {
 }
 
 impl AudioWrapper {
-    pub fn new(audio: Audio) -> Self {
-        audio.into()
+    pub fn new() -> Self {
+        Default::default()
     }
 
     pub fn play(
@@ -155,14 +155,27 @@ impl AudioWrapper {
     }
 }
 
-impl From<Audio> for AudioWrapper {
-    fn from(audio: Audio) -> Self {
+impl Default for AudioWrapper {
+    fn default() -> Self {
+        #[cfg(target_arch = "wasm32")]
+        if web_sys::window().is_none() {
+            panic!("in web builds, `AudioWrapper` can only be created on the main thread");
+        }
+
         let (tx, rx) = flume::unbounded::<AudioWrapperCommand>();
+        let mut maybe_audio = None;
 
         let promise = poll_promise::Promise::spawn_local(async move {
             loop {
                 let Ok(command) = rx.recv_async().await else {
                     return;
+                };
+
+                let audio = if let Some(audio) = &maybe_audio {
+                    audio
+                } else {
+                    maybe_audio = Some(Audio::default());
+                    maybe_audio.as_ref().unwrap()
                 };
 
                 match command.0 {
