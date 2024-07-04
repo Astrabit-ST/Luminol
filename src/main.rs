@@ -397,7 +397,7 @@ pub fn luminol_main_start() {
 
     *WORKER_DATA.lock() = Some(WorkerData {
         report,
-        audio: luminol_audio::Audio::default().into(),
+        audio: luminol_audio::AudioWrapper::default(),
         modified: modified.clone(),
         prefers_color_scheme_dark,
         fs_worker_channels,
