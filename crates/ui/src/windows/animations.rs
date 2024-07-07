@@ -57,15 +57,15 @@ impl Window {
     fn show_timing_header(ui: &mut egui::Ui, timing: &luminol_data::rpg::animation::Timing) {
         let mut vec = Vec::with_capacity(3);
 
-        if let Some(path) = &timing.se.name {
-            vec.push(format!("play {:?}", path.file_name().unwrap_or_default()));
-        };
-
         match timing.condition {
             luminol_data::rpg::animation::Condition::None => {}
             luminol_data::rpg::animation::Condition::Hit => vec.push("on hit".into()),
             luminol_data::rpg::animation::Condition::Miss => vec.push("on miss".into()),
         }
+
+        if let Some(path) = &timing.se.name {
+            vec.push(format!("play {:?}", path.file_name().unwrap_or_default()));
+        };
 
         match timing.flash_scope {
             luminol_data::rpg::animation::Scope::None => {}
