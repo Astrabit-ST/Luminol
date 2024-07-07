@@ -270,13 +270,16 @@ impl luminol_core::Window for Window {
                                 .add(luminol_components::Field::new(
                                     "SE and Flash",
                                     |ui: &mut egui::Ui| {
+                                        if *update_state.modified_during_prev_frame {
+                                            self.collapsing_view.request_sort();
+                                        }
                                         if self.previous_animation != Some(animation.id) {
                                             self.collapsing_view.clear_animations();
                                             self.timing_se_picker.close_window();
                                         } else if self.collapsing_view.is_animating() {
                                             self.timing_se_picker.close_window();
                                         }
-                                        self.collapsing_view.show(
+                                        self.collapsing_view.show_with_sort(
                                             ui,
                                             animation.id,
                                             &mut animation.timings,
@@ -291,6 +294,7 @@ impl luminol_core::Window for Window {
                                                     (i, timing),
                                                 )
                                             },
+                                            |a, b| a.frame.cmp(&b.frame),
                                         )
                                     },
                                 ))

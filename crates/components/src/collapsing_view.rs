@@ -32,6 +32,7 @@ pub struct CollapsingView {
     expanded_entry: luminol_data::OptionVec<Option<usize>>,
     disable_animations: bool,
     is_animating: bool,
+    need_sort: bool,
 }
 
 impl CollapsingView {
@@ -46,6 +47,11 @@ impl CollapsingView {
         self.is_animating = false;
     }
 
+    /// Force the next invocation of `.show_with_sort` to sort `vec`.
+    pub fn request_sort(&mut self) {
+        self.need_sort = true;
+    }
+
     /// Determines if a collapsing header is currently transitioning from open to closed or
     /// vice-versa. If this is false, it's guaranteed at most one collapsing header body is
     /// currently visible, so there will be at most one call to `show_body`.
@@ -53,7 +59,7 @@ impl CollapsingView {
         self.is_animating
     }
 
-    /// Shows the widget.
+    /// Shows the widget with no sorting applied to `vec`.
     ///
     /// ui: `egui::Ui` where the widget should be shown.
     ///
@@ -75,8 +81,104 @@ impl CollapsingView {
         ui: &mut egui::Ui,
         state_id: usize,
         vec: &mut Vec<T>,
+        show_header: impl FnMut(&mut egui::Ui, usize, &T),
+        show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
+    ) -> egui::Response
+    where
+        T: Default,
+    {
+        self.show_impl(
+            ui,
+            state_id,
+            vec,
+            show_header,
+            show_body,
+            |_vec, _expanded_entry| false,
+        )
+    }
+
+    /// Shows the widget, also using a comparator function to sort `vec` when a new item is added
+    /// or when `.request_sort` is called.
+    ///
+    /// ui: `egui::Ui` where the widget should be shown.
+    ///
+    /// state_id: arbitrary integer that can be used to maintain more than one state for this
+    /// widget. This can be useful if you're showing this inside of a `DatabaseView` so that each
+    /// database item can get its own state for this widget. If you don't need more than one state,
+    /// set this to 0.
+    ///
+    /// vec: vector containing things that will be passed as argument to `show_header` and
+    /// `show_body`.
+    ///
+    /// cmp: comparator that will be used to sort the `vec` when a new item is added or when
+    /// `.request_sort` is called.
+    ///
+    /// show_header: this will be called exactly once for each item in `vec` to draw the headers of
+    /// the collapsing headers.
+    ///
+    /// show_body: this will be called at most once for each item in `vec` to draw the bodies of
+    /// the collapsing headers.
+    pub fn show_with_sort<T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        state_id: usize,
+        vec: &mut Vec<T>,
+        show_header: impl FnMut(&mut egui::Ui, usize, &T),
+        show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
+        mut cmp: impl FnMut(&T, &T) -> std::cmp::Ordering,
+    ) -> egui::Response
+    where
+        T: Default,
+    {
+        self.show_impl(
+            ui,
+            state_id,
+            vec,
+            show_header,
+            show_body,
+            |vec, expanded_entry| {
+                // Sort `vec` using the provided comparator function (if applicable) and
+                // update `expanded_entry` to account for the sort
+                if !luminol_core::slice_is_sorted_by(vec, &mut cmp) {
+                    if expanded_entry.is_some() {
+                        let (before, after) = vec.split_at(expanded_entry.unwrap());
+                        if let Some((cmp_item, after)) = after.split_first() {
+                            *expanded_entry = Some(
+                                before
+                                    .iter()
+                                    .filter(|item| {
+                                        cmp(item, cmp_item) != std::cmp::Ordering::Greater
+                                    })
+                                    .count()
+                                    + after
+                                        .iter()
+                                        .filter(|item| {
+                                            cmp(item, cmp_item) == std::cmp::Ordering::Less
+                                        })
+                                        .count(),
+                            );
+                        } else {
+                            *expanded_entry = None;
+                        }
+                    }
+
+                    vec.sort_by(&mut cmp);
+                    true
+                } else {
+                    false
+                }
+            },
+        )
+    }
+
+    fn show_impl<T>(
+        &mut self,
+        ui: &mut egui::Ui,
+        state_id: usize,
+        vec: &mut Vec<T>,
         mut show_header: impl FnMut(&mut egui::Ui, usize, &T),
         mut show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
+        mut sort_impl: impl FnMut(&mut Vec<T>, &mut Option<usize>) -> bool,
     ) -> egui::Response
     where
         T: Default,
@@ -93,6 +195,14 @@ impl CollapsingView {
                     self.expanded_entry.insert(state_id, None);
                 }
                 let expanded_entry = self.expanded_entry.get_mut(state_id).unwrap();
+
+                if self.need_sort {
+                    self.need_sort = false;
+                    if sort_impl(vec, expanded_entry) {
+                        modified = true;
+                        self.disable_animations = true;
+                    }
+                }
 
                 for (i, entry) in vec.iter_mut().enumerate() {
                     let ui_id = ui.make_persistent_id(i);
@@ -160,6 +270,8 @@ impl CollapsingView {
                     *expanded_entry = Some(vec.len());
                     vec.push(Default::default());
                     new_entry = true;
+
+                    sort_impl(vec, expanded_entry);
                 }
             });
 
