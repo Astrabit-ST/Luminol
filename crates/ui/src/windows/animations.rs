@@ -69,20 +69,20 @@ impl Window {
             luminol_data::rpg::animation::Scope::Target => {
                 vec.push(format!(
                     "flash target #{:0>2x}{:0>2x}{:0>2x}{:0>2x} for {} frames",
-                    timing.flash_color.red.round() as u8,
-                    timing.flash_color.green.round() as u8,
-                    timing.flash_color.blue.round() as u8,
-                    timing.flash_color.alpha.round() as u8,
+                    timing.flash_color.red.clamp(0., 255.).trunc() as u8,
+                    timing.flash_color.green.clamp(0., 255.).trunc() as u8,
+                    timing.flash_color.blue.clamp(0., 255.).trunc() as u8,
+                    timing.flash_color.alpha.clamp(0., 255.).trunc() as u8,
                     timing.flash_duration,
                 ));
             }
             luminol_data::rpg::animation::Scope::Screen => {
                 vec.push(format!(
                     "flash screen #{:0>2x}{:0>2x}{:0>2x}{:0>2x} for {} frames",
-                    timing.flash_color.red.round() as u8,
-                    timing.flash_color.green.round() as u8,
-                    timing.flash_color.blue.round() as u8,
-                    timing.flash_color.alpha.round() as u8,
+                    timing.flash_color.red.clamp(0., 255.).trunc() as u8,
+                    timing.flash_color.green.clamp(0., 255.).trunc() as u8,
+                    timing.flash_color.blue.clamp(0., 255.).trunc() as u8,
+                    timing.flash_color.alpha.clamp(0., 255.).trunc() as u8,
                     timing.flash_duration,
                 ));
             }
@@ -184,18 +184,18 @@ impl Window {
                             "Flash Color",
                             |ui: &mut egui::Ui| {
                                 let mut color = [
-                                    (timing.flash_color.red / 256.) as f32,
-                                    (timing.flash_color.green / 256.) as f32,
-                                    (timing.flash_color.blue / 256.) as f32,
-                                    (timing.flash_color.alpha / 256.) as f32,
+                                    timing.flash_color.red.clamp(0., 255.).trunc() as u8,
+                                    timing.flash_color.green.clamp(0., 255.).trunc() as u8,
+                                    timing.flash_color.blue.clamp(0., 255.).trunc() as u8,
+                                    timing.flash_color.alpha.clamp(0., 255.).trunc() as u8,
                                 ];
                                 ui.spacing_mut().interact_size.x = ui.available_width(); // make the color picker button as wide as possible
-                                let response = ui.color_edit_button_rgba_unmultiplied(&mut color);
+                                let response = ui.color_edit_button_srgba_unmultiplied(&mut color);
                                 if response.changed() {
-                                    timing.flash_color.red = color[0] as f64 * 256.;
-                                    timing.flash_color.green = color[1] as f64 * 256.;
-                                    timing.flash_color.blue = color[2] as f64 * 256.;
-                                    timing.flash_color.alpha = color[3] as f64 * 256.;
+                                    timing.flash_color.red = color[0] as f64;
+                                    timing.flash_color.green = color[1] as f64;
+                                    timing.flash_color.blue = color[2] as f64;
+                                    timing.flash_color.alpha = color[3] as f64;
                                 }
                                 response
                             },
