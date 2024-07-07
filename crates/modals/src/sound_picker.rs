@@ -79,11 +79,15 @@ impl luminol_core::Modal for Modal {
 
     fn reset(&mut self, _: &mut luminol_core::UpdateState<'_>, _data: Self::Data<'_>) {
         // we don't need to do much here
-        self.state = State::Closed;
+        self.close_window();
     }
 }
 
 impl Modal {
+    pub fn close_window(&mut self) {
+        self.state = State::Closed;
+    }
+
     pub fn show_window(
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,

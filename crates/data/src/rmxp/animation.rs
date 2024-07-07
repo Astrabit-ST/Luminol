@@ -42,10 +42,10 @@ pub struct Animation {
 pub struct Timing {
     pub frame: i32,
     pub se: AudioFile,
-    pub flash_scope: i32,
+    pub flash_scope: Scope,
     pub flash_color: Color,
     pub flash_duration: i32,
-    pub condition: i32,
+    pub condition: Condition,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
@@ -76,4 +76,48 @@ pub enum Position {
     Middle = 1,
     Bottom = 2,
     Screen = 3,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
+pub enum Scope {
+    #[default]
+    None = 0,
+    Target = 1,
+    Screen = 2,
+    #[strum(to_string = "Hide Target")]
+    HideTarget = 3,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(
+    num_enum::TryFromPrimitive,
+    num_enum::IntoPrimitive,
+    strum::Display,
+    strum::EnumIter
+)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(alox_48::Deserialize, alox_48::Serialize)]
+#[repr(u8)]
+#[serde(into = "u8")]
+#[serde(try_from = "u8")]
+#[marshal(into = "u8")]
+#[marshal(try_from = "u8")]
+pub enum Condition {
+    #[default]
+    None = 0,
+    Hit = 1,
+    Miss = 2,
 }

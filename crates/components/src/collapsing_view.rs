@@ -31,6 +31,7 @@ pub struct CollapsingView {
     depersisted_entries: usize,
     expanded_entry: luminol_data::OptionVec<Option<usize>>,
     disable_animations: bool,
+    is_animating: bool,
 }
 
 impl CollapsingView {
@@ -42,12 +43,37 @@ impl CollapsingView {
     /// them immediately this frame.
     pub fn clear_animations(&mut self) {
         self.disable_animations = true;
+        self.is_animating = false;
     }
 
+    /// Determines if a collapsing header is currently transitioning from open to closed or
+    /// vice-versa. If this is false, it's guaranteed at most one collapsing header body is
+    /// currently visible, so there will be at most one call to `show_body`.
+    pub fn is_animating(&self) -> bool {
+        self.is_animating
+    }
+
+    /// Shows the widget.
+    ///
+    /// ui: `egui::Ui` where the widget should be shown.
+    ///
+    /// state_id: arbitrary integer that can be used to maintain more than one state for this
+    /// widget. This can be useful if you're showing this inside of a `DatabaseView` so that each
+    /// database item can get its own state for this widget. If you don't need more than one state,
+    /// set this to 0.
+    ///
+    /// vec: vector containing things that will be passed as argument to `show_header` and
+    /// `show_body`.
+    ///
+    /// show_header: this will be called exactly once for each item in `vec` to draw the headers of
+    /// the collapsing headers.
+    ///
+    /// show_body: this will be called at most once for each item in `vec` to draw the bodies of
+    /// the collapsing headers.
     pub fn show<T>(
         &mut self,
         ui: &mut egui::Ui,
-        id: usize,
+        state_id: usize,
         vec: &mut Vec<T>,
         mut show_header: impl FnMut(&mut egui::Ui, usize, &T),
         mut show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
@@ -55,16 +81,18 @@ impl CollapsingView {
     where
         T: Default,
     {
+        self.is_animating = false;
+
         let mut inner_response = ui.with_cross_justify(|ui| {
             let mut modified = false;
             let mut deleted_entry = None;
             let mut new_entry = false;
 
             ui.group(|ui| {
-                if self.expanded_entry.get(id).is_none() {
-                    self.expanded_entry.insert(id, None);
+                if self.expanded_entry.get(state_id).is_none() {
+                    self.expanded_entry.insert(state_id, None);
                 }
-                let expanded_entry = self.expanded_entry.get_mut(id).unwrap();
+                let expanded_entry = self.expanded_entry.get_mut(state_id).unwrap();
 
                 for (i, entry) in vec.iter_mut().enumerate() {
                     let ui_id = ui.make_persistent_id(i);
@@ -93,6 +121,11 @@ impl CollapsingView {
                     header.set_open(expanded);
                     if self.disable_animations {
                         ui.ctx().animate_bool_with_time(ui_id, expanded, 0.);
+                    }
+
+                    let openness = header.openness(ui.ctx());
+                    if openness > 0. && openness < 1. {
+                        self.is_animating = true;
                     }
 
                     let layout = *ui.layout();
@@ -133,7 +166,7 @@ impl CollapsingView {
             self.disable_animations = false;
 
             if let Some(i) = deleted_entry {
-                if let Some(expanded_entry) = self.expanded_entry.get_mut(id) {
+                if let Some(expanded_entry) = self.expanded_entry.get_mut(state_id) {
                     if *expanded_entry == Some(i) {
                         self.disable_animations = true;
                         *expanded_entry = None;

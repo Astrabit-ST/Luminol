@@ -26,6 +26,8 @@
 pub mod about;
 /// The actor editor.
 pub mod actors;
+/// The animation editor.
+pub mod animations;
 pub mod appearance;
 /// The archive manager for creating and extracting RGSSAD archives.
 pub mod archive_manager;
