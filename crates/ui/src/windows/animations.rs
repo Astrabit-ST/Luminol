@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::Modal;
 
@@ -31,6 +32,7 @@ use luminol_modals::sound_picker::Modal as SoundPicker;
 pub struct Window {
     selected_animation_name: Option<String>,
     previous_animation: Option<usize>,
+    previous_timing_frame: Option<i32>,
 
     collapsing_view: luminol_components::CollapsingView,
     timing_se_picker: SoundPicker,
@@ -42,6 +44,7 @@ impl Window {
         Self {
             selected_animation_name: None,
             previous_animation: None,
+            previous_timing_frame: None,
             collapsing_view: luminol_components::CollapsingView::new(),
             timing_se_picker: SoundPicker::new(
                 luminol_audio::Source::SE,
@@ -104,6 +107,7 @@ impl Window {
         animation_id: usize,
         animation_frame_max: i32,
         timing_se_picker: &mut SoundPicker,
+        previous_timing_frame: &mut Option<i32>,
         timing: (usize, &mut luminol_data::rpg::animation::Timing),
     ) -> egui::Response {
         let (timing_index, timing) = timing;
@@ -123,15 +127,28 @@ impl Window {
                             ))
                             .changed();
 
-                        let mut frame = timing.frame + 1;
                         modified |= columns[0]
                             .add(luminol_components::Field::new(
                                 "Frame",
-                                egui::DragValue::new(&mut frame)
-                                    .clamp_range(1..=animation_frame_max),
+                                |ui: &mut egui::Ui| {
+                                    let mut frame =
+                                        previous_timing_frame.unwrap_or(timing.frame + 1);
+                                    let mut response = egui::DragValue::new(&mut frame)
+                                        .clamp_range(1..=animation_frame_max)
+                                        .update_while_editing(false)
+                                        .ui(ui);
+                                    response.changed = false;
+                                    if response.dragged() {
+                                        *previous_timing_frame = Some(frame);
+                                    } else {
+                                        timing.frame = frame - 1;
+                                        *previous_timing_frame = None;
+                                        response.changed = true;
+                                    }
+                                    response
+                                },
                             ))
                             .changed();
-                        timing.frame = frame - 1;
                     });
 
                     modified |= columns[1]
@@ -291,6 +308,7 @@ impl luminol_core::Window for Window {
                                                     animation.id,
                                                     animation.frame_max,
                                                     &mut self.timing_se_picker,
+                                                    &mut self.previous_timing_frame,
                                                     (i, timing),
                                                 )
                                             },

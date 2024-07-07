@@ -36,7 +36,7 @@ pub struct Animation {
     pub timings: Vec<Timing>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Animation::Timing")]
 pub struct Timing {
@@ -46,6 +46,19 @@ pub struct Timing {
     pub flash_color: Color,
     pub flash_duration: i32,
     pub condition: Condition,
+}
+
+impl Default for Timing {
+    fn default() -> Self {
+        Self {
+            frame: 0,
+            se: AudioFile::default(),
+            flash_scope: Scope::default(),
+            flash_color: Color::default(),
+            flash_duration: 1,
+            condition: Condition::default(),
+        }
+    }
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
