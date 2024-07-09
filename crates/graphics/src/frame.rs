@@ -15,12 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::primitives::cells::Atlas;
-use crate::{Drawable, GraphicsState, Renderable, Sprite, Viewport};
-use luminol_data::OptionVec;
+use crate::primitives::cells::{Atlas, CELL_SIZE};
+use crate::{Drawable, GraphicsState, Renderable, Sprite, Transform, Viewport};
+use luminol_data::{BlendMode, OptionVec};
 
 pub const FRAME_WIDTH: usize = 640;
 pub const FRAME_HEIGHT: usize = 320;
+
+const CELL_OFFSET: glam::Vec2 = glam::Vec2::splat(-(CELL_SIZE as f32) / 2.);
 
 pub struct Frame {
     pub atlas: Atlas,
@@ -37,7 +39,7 @@ impl Frame {
     ) -> Self {
         let viewport = Viewport::new(
             graphics_state,
-            glam::vec2(FRAME_WIDTH as f32 * 32., FRAME_HEIGHT as f32 * 32.),
+            glam::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32),
         );
 
         let frame = &animation.frames[frame_index];
@@ -49,12 +51,15 @@ impl Frame {
             .map(|(i, cell_id)| {
                 (
                     i,
-                    Sprite::basic_hue_quad(
+                    Sprite::new(
                         graphics_state,
-                        0,
                         atlas.calc_quad(cell_id),
+                        0,
+                        255,
+                        BlendMode::Normal,
                         &atlas.atlas_texture,
                         &viewport,
+                        Transform::new_position(graphics_state, CELL_OFFSET),
                     ),
                 )
             })
@@ -77,12 +82,15 @@ impl Frame {
         let cell_id = frame.cell_data[(cell_index, 0)];
         self.sprites.insert(
             cell_index,
-            Sprite::basic_hue_quad(
+            Sprite::new(
                 graphics_state,
-                0,
                 self.atlas.calc_quad(cell_id),
+                0,
+                255,
+                BlendMode::Normal,
                 &self.atlas.atlas_texture,
                 &self.viewport,
+                Transform::new_position(graphics_state, CELL_OFFSET),
             ),
         )
     }
@@ -102,12 +110,15 @@ impl Frame {
                 .map(|(i, cell_id)| {
                     (
                         i,
-                        Sprite::basic_hue_quad(
+                        Sprite::new(
                             graphics_state,
-                            0,
                             self.atlas.calc_quad(cell_id),
+                            0,
+                            255,
+                            BlendMode::Normal,
                             &self.atlas.atlas_texture,
                             &self.viewport,
+                            Transform::new_position(graphics_state, CELL_OFFSET),
                         ),
                     )
                 }),

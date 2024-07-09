@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 use luminol_graphics::Renderable;
 
 pub struct AnimationFrameView {
@@ -131,19 +130,9 @@ impl AnimationFrameView {
         // its a *long* story
         let scale = self.scale / (ui.ctx().pixels_per_point() * 100.);
 
-        let canvas_pos = canvas_center + self.pan;
-
-        let width2 = FRAME_WIDTH as f32 / 2.;
-        let height2 = FRAME_HEIGHT as f32 / 2.;
-        let frame_size2 = egui::Vec2::new(width2, height2);
-        let frame_rect = egui::Rect {
-            min: canvas_pos - frame_size2,
-            max: canvas_pos + frame_size2,
-        };
-
         // no idea why this math works (could probably be simplified)
-        let proj_center_x = width2 - (self.pan.x + clip_offset.x) / scale;
-        let proj_center_y = height2 - (self.pan.y + clip_offset.y) / scale;
+        let proj_center_x = -(self.pan.x + clip_offset.x) / scale;
+        let proj_center_y = -(self.pan.y + clip_offset.y) / scale;
         let proj_width2 = canvas_rect.width() / scale / 2.;
         let proj_height2 = canvas_rect.height() / scale / 2.;
         self.frame.viewport.set(
@@ -152,9 +141,6 @@ impl AnimationFrameView {
             glam::vec2(proj_width2 - proj_center_x, proj_height2 - proj_center_y) * scale,
             glam::Vec2::splat(scale),
         );
-
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_secs_f32(16. / 60.));
 
         let painter = luminol_graphics::Painter::new(self.frame.prepare(&update_state.graphics));
         ui.painter()
