@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+pub mod cells;
 pub mod collision;
 pub mod grid;
 pub mod sprite;
@@ -30,6 +31,7 @@ pub mod tiles;
 pub struct BindGroupLayouts {
     sprite: wgpu::BindGroupLayout,
     tiles: wgpu::BindGroupLayout,
+    cells: wgpu::BindGroupLayout,
     collision: wgpu::BindGroupLayout,
     grid: wgpu::BindGroupLayout,
 }
@@ -37,6 +39,7 @@ pub struct BindGroupLayouts {
 pub struct Pipelines {
     sprites: std::collections::HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>,
     tiles: wgpu::RenderPipeline,
+    cells: wgpu::RenderPipeline,
     collision: wgpu::RenderPipeline,
     grid: wgpu::RenderPipeline,
 }
@@ -46,6 +49,7 @@ impl BindGroupLayouts {
         Self {
             sprite: sprite::create_bind_group_layout(render_state),
             tiles: tiles::create_bind_group_layout(render_state),
+            cells: cells::create_bind_group_layout(render_state),
             collision: collision::create_bind_group_layout(render_state),
             grid: grid::create_bind_group_layout(render_state),
         }
@@ -82,6 +86,7 @@ impl Pipelines {
             render_state, bind_group_layouts,
             sprites: sprite::shader::create_sprite_shaders,
             tiles: tiles::shader::create_render_pipeline,
+            cells: cells::shader::create_render_pipeline,
             collision: collision::shader::create_render_pipeline,
             grid: grid::shader::create_render_pipeline
         }

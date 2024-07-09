@@ -14,11 +14,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+use crate::primitives::cells::Atlas as AnimationAtlas;
 use crate::{Atlas, GraphicsState};
 
 #[derive(Default)]
 pub struct Loader {
     atlases: dashmap::DashMap<usize, Atlas>,
+    animation_atlases: dashmap::DashMap<usize, AnimationAtlas>,
 }
 
 impl Loader {
@@ -35,6 +37,19 @@ impl Loader {
             .clone())
     }
 
+    pub fn load_animation_atlas(
+        &self,
+        graphics_state: &GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        animation: &luminol_data::rpg::Animation,
+    ) -> color_eyre::Result<AnimationAtlas> {
+        Ok(self
+            .animation_atlases
+            .entry(animation.id)
+            .or_insert_with(|| AnimationAtlas::new(graphics_state, filesystem, animation))
+            .clone())
+    }
+
     pub fn reload_atlas(
         &self,
         graphics_state: &GraphicsState,
@@ -48,15 +63,40 @@ impl Loader {
             .clone())
     }
 
+    pub fn reload_animation_atlas(
+        &self,
+        graphics_state: &GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        animation: &luminol_data::rpg::Animation,
+    ) -> color_eyre::Result<AnimationAtlas> {
+        Ok(self
+            .animation_atlases
+            .entry(animation.id)
+            .insert(AnimationAtlas::new(graphics_state, filesystem, animation))
+            .clone())
+    }
+
     pub fn get_atlas(&self, id: usize) -> Option<Atlas> {
         self.atlases.get(&id).map(|atlas| atlas.clone())
+    }
+
+    pub fn get_animation_atlas(&self, id: usize) -> Option<AnimationAtlas> {
+        self.animation_atlases.get(&id).map(|atlas| atlas.clone())
     }
 
     pub fn get_expect(&self, id: usize) -> Atlas {
         self.atlases.get(&id).expect("Atlas not loaded!").clone()
     }
 
+    pub fn get_animation_expect(&self, id: usize) -> AnimationAtlas {
+        self.animation_atlases
+            .get(&id)
+            .expect("Atlas not loaded!")
+            .clone()
+    }
+
     pub fn clear(&self) {
-        self.atlases.clear()
+        self.atlases.clear();
+        self.animation_atlases.clear();
     }
 }

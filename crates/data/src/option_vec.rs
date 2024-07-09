@@ -74,6 +74,10 @@ impl<T> OptionVec<T> {
         self.vec.reserve(additional);
     }
 
+    pub fn clear(&mut self) {
+        self.vec.clear();
+    }
+
     pub fn iter(&self) -> Iter<'_, T> {
         self.into_iter()
     }
@@ -151,6 +155,23 @@ impl<T> FromIterator<(usize, T)> for OptionVec<T> {
             vec[i] = Some(v);
         }
         Self { vec, num_values }
+    }
+}
+
+impl<T> Extend<(usize, T)> for OptionVec<T> {
+    fn extend<I: IntoIterator<Item = (usize, T)>>(&mut self, iterable: I) {
+        for (i, v) in iterable.into_iter() {
+            if i >= self.vec.len() {
+                let additional = i - self.vec.len() + 1;
+                self.vec.reserve(additional);
+                self.vec
+                    .extend(std::iter::repeat_with(|| None).take(additional));
+            }
+            if self.vec[i].is_none() {
+                self.num_values += 1;
+            }
+            self.vec[i] = Some(v);
+        }
     }
 }
 

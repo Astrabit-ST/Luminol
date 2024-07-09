@@ -34,6 +34,9 @@ pub struct Window {
     previous_animation: Option<usize>,
     previous_timing_frame: Option<i32>,
 
+    frame: i32,
+
+    frame_view: Option<luminol_components::AnimationFrameView>,
     collapsing_view: luminol_components::CollapsingView,
     timing_se_picker: SoundPicker,
     view: luminol_components::DatabaseView,
@@ -45,6 +48,8 @@ impl Window {
             selected_animation_name: None,
             previous_animation: None,
             previous_timing_frame: None,
+            frame: 0,
+            frame_view: None,
             collapsing_view: luminol_components::CollapsingView::new(),
             timing_se_picker: SoundPicker::new(
                 luminol_audio::Source::SE,
@@ -227,6 +232,38 @@ impl Window {
         }
         response
     }
+
+    fn show_frame_edit(
+        ui: &mut egui::Ui,
+        update_state: &mut luminol_core::UpdateState<'_>,
+        maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
+        animation: &mut luminol_data::rpg::Animation,
+        frame: &mut i32,
+    ) -> bool {
+        let mut modified = false;
+
+        let frame_view = if let Some(frame_view) = maybe_frame_view {
+            frame_view
+        } else {
+            *maybe_frame_view = Some(
+                luminol_components::AnimationFrameView::new(
+                    update_state,
+                    animation,
+                    *frame as usize,
+                )
+                .unwrap(), // TODO get rid of this unwrap
+            );
+            maybe_frame_view.as_mut().unwrap()
+        };
+
+        ui.group(|ui| {
+            egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                frame_view.ui(ui, update_state);
+            });
+        });
+
+        modified
+    }
 }
 
 impl luminol_core::Window for Window {
@@ -269,7 +306,7 @@ impl luminol_core::Window for Window {
                     &mut animations.data,
                     |animation| format!("{:0>4}: {}", animation.id + 1, animation.name),
                     |ui, animations, id, update_state| {
-                        let animation = &mut animations[id];
+                        let mut animation = &mut animations[id];
                         self.selected_animation_name = Some(animation.name.clone());
 
                         ui.with_padded_stripe(false, |ui| {
@@ -283,6 +320,35 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_padded_stripe(true, |ui| {
+                            if let Some(frame_view) = &mut self.frame_view {
+                                if *update_state.modified_during_prev_frame
+                                    || self.previous_animation != Some(animation.id)
+                                {
+                                    frame_view.frame.atlas = update_state
+                                        .graphics
+                                        .atlas_loader
+                                        .load_animation_atlas(
+                                            &update_state.graphics,
+                                            update_state.filesystem,
+                                            animation,
+                                        )
+                                        .unwrap(); // TODO get rid of this unwrap
+                                    frame_view.frame.update_all_cells(
+                                        &update_state.graphics,
+                                        &animation.frames[self.frame as usize],
+                                    );
+                                }
+                            }
+                            modified |= Self::show_frame_edit(
+                                ui,
+                                update_state,
+                                &mut self.frame_view,
+                                &mut animation,
+                                &mut self.frame,
+                            );
+                        });
+
+                        ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "SE and Flash",

@@ -49,6 +49,9 @@ pub use database_view::DatabaseView;
 mod collapsing_view;
 pub use collapsing_view::CollapsingView;
 
+mod animation_frame_view;
+pub use animation_frame_view::AnimationFrameView;
+
 mod id_vec;
 pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection, RankSelection};
 

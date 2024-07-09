@@ -120,7 +120,7 @@ impl Atlas {
 
         let mut encoder = graphics_state.render_state.device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor {
-                label: Some("atlas creation"),
+                label: Some("tilemap atlas creation"),
             },
         );
 

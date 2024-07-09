@@ -25,18 +25,20 @@ pub use loaders::texture::Texture;
 // Building blocks that make up more complex parts (i.e. the map view, or events)
 pub mod primitives;
 pub use primitives::{
-    collision::Collision, grid::Grid, sprite::Sprite, tiles::Atlas, tiles::Tiles,
+    cells::Cells, collision::Collision, grid::Grid, sprite::Sprite, tiles::Atlas, tiles::Tiles,
 };
 
 pub mod data;
 pub use data::*;
 
 pub mod event;
+pub mod frame;
 pub mod map;
 pub mod plane;
 pub mod tilepicker;
 
 pub use event::Event;
+pub use frame::Frame;
 pub use map::Map;
 pub use plane::Plane;
 pub use tilepicker::Tilepicker;
