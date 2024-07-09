@@ -31,18 +31,19 @@ struct Data {
     hue: f32,
     opacity: f32,
     opacity_multiplier: f32,
-    _padding: u32,
+    /// clockwise in radians
+    rotation: f32,
 }
 
 impl Graphic {
-    pub fn new(graphics_state: &GraphicsState, hue: i32, opacity: i32) -> Self {
+    pub fn new(graphics_state: &GraphicsState, hue: i32, opacity: i32, rotation: f32) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
         let opacity = opacity as f32 / 255.;
         let data = Data {
             hue,
             opacity,
             opacity_multiplier: 1.,
-            _padding: 0,
+            rotation,
         };
 
         let uniform = graphics_state.render_state.device.create_buffer_init(
@@ -93,6 +94,17 @@ impl Graphic {
     ) {
         if self.data.opacity_multiplier != opacity_multiplier {
             self.data.opacity_multiplier = opacity_multiplier;
+            self.regen_buffer(render_state);
+        }
+    }
+
+    pub fn rotation(&self) -> f32 {
+        self.data.rotation
+    }
+
+    pub fn set_rotation(&mut self, render_state: &luminol_egui_wgpu::RenderState, rotation: f32) {
+        if self.data.rotation != rotation {
+            self.data.rotation = rotation;
             self.regen_buffer(render_state);
         }
     }

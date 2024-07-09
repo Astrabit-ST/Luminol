@@ -48,9 +48,35 @@ impl Sprite {
         viewport: &Viewport,
         transform: Transform,
     ) -> Self {
+        Self::new_with_rotation(
+            graphics_state,
+            quad,
+            hue,
+            opacity,
+            blend_mode,
+            texture,
+            viewport,
+            transform,
+            0.,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_rotation(
+        graphics_state: &GraphicsState,
+        quad: Quad,
+        hue: i32,
+        opacity: i32,
+        blend_mode: luminol_data::BlendMode,
+        // arranged in order of use in bind group
+        texture: &Texture,
+        viewport: &Viewport,
+        transform: Transform,
+        rotation: f32,
+    ) -> Self {
         let vertices =
             vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
-        let graphic = graphic::Graphic::new(graphics_state, hue, opacity);
+        let graphic = graphic::Graphic::new(graphics_state, hue, opacity, rotation);
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder

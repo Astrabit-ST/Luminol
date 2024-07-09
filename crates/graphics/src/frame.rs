@@ -42,34 +42,13 @@ impl Frame {
             glam::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32),
         );
 
-        let frame = &animation.frames[frame_index];
-        let sprites = frame.cell_data.as_slice()
-            [0..frame.cell_data.xsize().min(frame.cell_max as usize)]
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(i, cell_id)| {
-                (
-                    i,
-                    Sprite::new(
-                        graphics_state,
-                        atlas.calc_quad(cell_id),
-                        0,
-                        255,
-                        BlendMode::Normal,
-                        &atlas.atlas_texture,
-                        &viewport,
-                        Transform::new_position(graphics_state, CELL_OFFSET),
-                    ),
-                )
-            })
-            .collect();
-
-        Self {
+        let mut frame = Self {
             atlas,
-            sprites,
+            sprites: Default::default(),
             viewport,
-        }
+        };
+        frame.update_all_cells(graphics_state, &animation.frames[frame_index]);
+        frame
     }
 
     /// Updates the sprite for one cell based on the given animation frame.
@@ -79,20 +58,11 @@ impl Frame {
         frame: &luminol_data::rpg::animation::Frame,
         cell_index: usize,
     ) {
-        let cell_id = frame.cell_data[(cell_index, 0)];
-        self.sprites.insert(
-            cell_index,
-            Sprite::new(
-                graphics_state,
-                self.atlas.calc_quad(cell_id),
-                0,
-                255,
-                BlendMode::Normal,
-                &self.atlas.atlas_texture,
-                &self.viewport,
-                Transform::new_position(graphics_state, CELL_OFFSET),
-            ),
-        )
+        if let Some(sprite) = self.sprite_from_cell_data(graphics_state, frame, cell_index) {
+            self.sprites.insert(cell_index, sprite);
+        } else {
+            let _ = self.sprites.try_remove(cell_index);
+        }
     }
 
     /// Updates the sprite for every cell based on the given animation frame.
@@ -101,28 +71,59 @@ impl Frame {
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
     ) {
-        self.sprites.clear();
-        self.sprites.extend(
-            frame.cell_data.as_slice()[0..frame.cell_data.xsize().min(frame.cell_max as usize)]
-                .iter()
-                .copied()
-                .enumerate()
-                .map(|(i, cell_id)| {
-                    (
-                        i,
-                        Sprite::new(
-                            graphics_state,
-                            self.atlas.calc_quad(cell_id),
-                            0,
-                            255,
-                            BlendMode::Normal,
-                            &self.atlas.atlas_texture,
-                            &self.viewport,
-                            Transform::new_position(graphics_state, CELL_OFFSET),
-                        ),
-                    )
-                }),
-        );
+        let mut sprites = std::mem::take(&mut self.sprites);
+        sprites.clear();
+        sprites.extend((0..frame.cell_data.xsize()).filter_map(|i| {
+            self.sprite_from_cell_data(graphics_state, frame, i)
+                .map(|s| (i, s))
+        }));
+        self.sprites = sprites;
+    }
+
+    pub fn sprite_from_cell_data(
+        &self,
+        graphics_state: &GraphicsState,
+        frame: &luminol_data::rpg::animation::Frame,
+        cell_index: usize,
+    ) -> Option<Sprite> {
+        (cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0).then(|| {
+            let id = frame.cell_data[(cell_index, 0)];
+            let offset_x = frame.cell_data[(cell_index, 1)] as f32;
+            let offset_y = frame.cell_data[(cell_index, 2)] as f32;
+            let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
+            let rotation = -(frame.cell_data[(cell_index, 4)] as f32).to_radians();
+            let flip = glam::vec2(
+                if frame.cell_data[(cell_index, 5)] == 1 {
+                    -1.
+                } else {
+                    1.
+                },
+                1.,
+            );
+            let opacity = frame.cell_data[(cell_index, 6)] as i32;
+            let blend_mode = match frame.cell_data[(cell_index, 7)] {
+                1 => BlendMode::Add,
+                2 => BlendMode::Subtract,
+                _ => BlendMode::Normal,
+            };
+
+            Sprite::new_with_rotation(
+                graphics_state,
+                self.atlas.calc_quad(id),
+                0,
+                opacity,
+                blend_mode,
+                &self.atlas.atlas_texture,
+                &self.viewport,
+                Transform::new(
+                    graphics_state,
+                    glam::Mat2::from_angle(rotation)
+                        * (glam::vec2(offset_x, offset_y) + CELL_OFFSET * scale * flip),
+                    scale * flip,
+                ),
+                rotation,
+            )
+        })
     }
 }
 

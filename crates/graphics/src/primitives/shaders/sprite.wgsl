@@ -17,7 +17,7 @@ struct Graphic {
     hue: f32,
     opacity: f32,
     opacity_multiplier: f32,
-    _padding: u32,
+    rotation: f32, // clockwise in radians
 }
 
 @group(0) @binding(0)
@@ -39,7 +39,16 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    out.clip_position = vec4<f32>(Trans::translate_vertex(model.position, viewport, transform), 0.0, 1.0);
+    var position_after_rotation: vec2<f32>;
+    if graphic.rotation == 0 {
+        position_after_rotation = model.position;
+    } else {
+        let c = cos(graphic.rotation);
+        let s = sin(graphic.rotation);
+        position_after_rotation = mat2x2<f32>(c, s, -s, c) * model.position;
+    }
+
+    out.clip_position = vec4<f32>(Trans::translate_vertex(position_after_rotation, viewport, transform), 0.0, 1.0);
 
     return out;
 }
