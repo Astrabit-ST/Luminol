@@ -136,7 +136,7 @@ impl Atlas {
         let atlas_cell_position = egui::pos2(
             ((cell_u32 % ANIMATION_COLUMNS + (cell_u32 / MAX_CELLS) * ANIMATION_COLUMNS)
                 * CELL_SIZE) as f32,
-            (cell_u32 / ANIMATION_COLUMNS % MAX_CELLS * CELL_SIZE) as f32,
+            (cell_u32 / ANIMATION_COLUMNS % MAX_ROWS * CELL_SIZE) as f32,
         );
 
         Quad::new(

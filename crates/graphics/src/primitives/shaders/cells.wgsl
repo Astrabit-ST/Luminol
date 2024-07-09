@@ -67,7 +67,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32, instance: InstanceInput) ->
 
     let atlas_tile_position = vec2<f32>(
         f32((instance.cell_id % #ANIMATION_COLUMNS + (instance.cell_id / #MAX_CELLS) * #ANIMATION_COLUMNS) * #CELL_SIZE),
-        f32(instance.cell_id / #ANIMATION_COLUMNS % #MAX_CELLS * #CELL_SIZE)
+        f32(instance.cell_id / #ANIMATION_COLUMNS % #MAX_ROWS * #CELL_SIZE)
     );
 
     let tex_size = vec2<f32>(textureDimensions(atlas));
