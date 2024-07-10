@@ -62,8 +62,8 @@ macro_rules! load {
     ($fs:ident, $type:ident, $format_handler:ident) => {
         RefCell::new(rpg::$type {
             data: $format_handler
-                .read_nil_padded($fs, format!("{}.rxdata", stringify!($type)))
-                .wrap_err_with(|| format!("While reading {}.rxdata", stringify!($type)))?,
+                .read_nil_padded($fs, format!("{}", stringify!($type)))
+                .wrap_err_with(|| format!("While reading {}", stringify!($type)))?,
             ..Default::default()
         })
     };
@@ -82,8 +82,8 @@ macro_rules! save {
         let borrowed = $field.get_mut();
         if borrowed.modified {
             $format_handler
-                .write_nil_padded(&borrowed.data, $fs, format!("{}.rxdata", stringify!($type)))
-                .wrap_err_with(|| format!("While saving {}.rxdata", stringify!($type)))?;
+                .write_nil_padded(&borrowed.data, $fs, format!("{}", stringify!($type)))
+                .wrap_err_with(|| format!("While saving {}", stringify!($type)))?;
         }
         borrowed.modified
     }};
@@ -101,14 +101,14 @@ impl Data {
 
         let map_infos = RefCell::new(rpg::MapInfos {
             data: handler
-                .read_data(filesystem, "MapInfos.rxdata")
-                .wrap_err("While reading MapInfos.rxdata")?,
+                .read_data(filesystem, "MapInfos")
+                .wrap_err("While reading MapInfos")?,
             ..Default::default()
         });
 
         let mut system = handler
-            .read_data::<rpg::System>(filesystem, "System.rxdata")
-            .wrap_err("While reading System.rxdata")?;
+            .read_data::<rpg::System>(filesystem, "System")
+            .wrap_err("While reading System")?;
         system.magic_number = rand::random();
 
         let system = RefCell::new(system);
@@ -121,7 +121,7 @@ impl Data {
         ];
 
         for script_path in scripts_paths {
-            match handler.read_data(filesystem, format!("{script_path}.rxdata")) {
+            match handler.read_data(filesystem, format!("{script_path}")) {
                 Ok(s) => {
                     config.project.scripts_path = script_path;
                     scripts = Some(rpg::Scripts {
@@ -268,8 +268,8 @@ impl Data {
             if map_infos.modified {
                 modified = true;
                 handler
-                    .write_data(&map_infos.data, filesystem, "MapInfos.rxdata")
-                    .wrap_err("While saving MapInfos.rxdata")?;
+                    .write_data(&map_infos.data, filesystem, "MapInfos")
+                    .wrap_err("While saving MapInfos")?;
             }
         }
 
@@ -280,7 +280,7 @@ impl Data {
                 handler.write_data(
                     &scripts.data,
                     filesystem,
-                    format!("{}.rxdata", config.project.scripts_path),
+                    format!("{}", config.project.scripts_path),
                 )?;
             }
         }
@@ -291,7 +291,7 @@ impl Data {
                 if map.modified {
                     modified = true;
                     handler
-                        .write_data(map, filesystem, format!("Map{id:0>3}.rxdata"))
+                        .write_data(map, filesystem, format!("Map{id:0>3}"))
                         .wrap_err_with(|| format!("While saving map {id:0>3}"))
                 } else {
                     Ok(())
@@ -304,8 +304,8 @@ impl Data {
             if system.modified || modified {
                 system.magic_number = rand::random();
                 handler
-                    .write_data(system, filesystem, "System.rxdata")
-                    .wrap_err("While saving System.rxdata")?;
+                    .write_data(system, filesystem, "System")
+                    .wrap_err("While saving System")?;
                 system.modified = false;
             }
         }
@@ -358,6 +358,39 @@ impl Data {
         for (_, map) in maps.borrow_mut().iter_mut() {
             map.modified = false;
         }
+        Ok(())
+    }
+
+    pub fn convert_project(
+        &mut self,
+        from: luminol_config::DataFormat,
+        to: luminol_config::DataFormat,
+    ) -> color_eyre::Result<()> {
+        let from_handler = data_formats::Handler::new(from);
+        let to_handler = data_formats::Handler::new(to);
+
+        let Self::Loaded {
+            actors,
+            animations,
+            armors,
+            classes,
+            common_events,
+            enemies,
+            items,
+            map_infos,
+            scripts,
+            skills,
+            states,
+            system,
+            tilesets,
+            troops,
+            weapons,
+            ..
+        } = self
+        else {
+            panic!("project not loaded")
+        };
+
         Ok(())
     }
 }
@@ -413,7 +446,7 @@ impl Data {
             maps.entry(id).or_insert_with(|| {
                 let handler = data_formats::Handler::new(config.project.data_format);
                 handler
-                    .read_data(filesystem, format!("Map{id:0>3}.rxdata"))
+                    .read_data(filesystem, format!("Map{id:0>3}"))
                     .expect("failed to load map")
             })
         })
