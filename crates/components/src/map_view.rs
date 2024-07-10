@@ -295,10 +295,10 @@ impl MapView {
         let width2 = map.width as f32 / 2.;
         let height2 = map.height as f32 / 2.;
 
-        let pos = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
+        let map_size2 = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
         let map_rect = egui::Rect {
-            min: canvas_pos - pos,
-            max: canvas_pos + pos,
+            min: canvas_pos - map_size2,
+            max: canvas_pos + map_size2,
         };
 
         self.map.tiles.selected_layer = match self.selected_layer {

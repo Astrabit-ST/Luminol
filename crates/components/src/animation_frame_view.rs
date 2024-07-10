@@ -150,6 +150,15 @@ impl AnimationFrameView {
                 painter,
             ));
 
+        // Draw a white rectangle on the border of every cell
+        for (_, (_, cell_rect)) in self.frame.sprites.iter() {
+            ui.painter().rect_stroke(
+                (*cell_rect * scale).translate(canvas_center.to_vec2() + self.pan),
+                5.,
+                egui::Stroke::new(1., egui::Color32::WHITE),
+            );
+        }
+
         ui.ctx().data_mut(|d| {
             d.insert_persisted(self.data_id, (self.pan, self.scale));
         });

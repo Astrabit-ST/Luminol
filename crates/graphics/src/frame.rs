@@ -26,7 +26,7 @@ const CELL_OFFSET: glam::Vec2 = glam::Vec2::splat(-(CELL_SIZE as f32) / 2.);
 
 pub struct Frame {
     pub atlas: Atlas,
-    pub sprites: OptionVec<Sprite>,
+    pub sprites: OptionVec<(Sprite, egui::Rect)>,
     pub viewport: Viewport,
 }
 
@@ -85,7 +85,7 @@ impl Frame {
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
         cell_index: usize,
-    ) -> Option<Sprite> {
+    ) -> Option<(Sprite, egui::Rect)> {
         (cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0).then(|| {
             let id = frame.cell_data[(cell_index, 0)];
             let offset_x = frame.cell_data[(cell_index, 1)] as f32;
@@ -106,22 +106,29 @@ impl Frame {
                 2 => BlendMode::Subtract,
                 _ => BlendMode::Normal,
             };
-
-            Sprite::new_with_rotation(
-                graphics_state,
-                self.atlas.calc_quad(id),
-                0,
-                opacity,
-                blend_mode,
-                &self.atlas.atlas_texture,
-                &self.viewport,
-                Transform::new(
+            let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
+            (
+                Sprite::new_with_rotation(
                     graphics_state,
-                    glam::vec2(offset_x, offset_y)
-                        + glam::Mat2::from_angle(rotation) * (scale * flip * CELL_OFFSET),
-                    scale * flip,
+                    self.atlas.calc_quad(id),
+                    0,
+                    opacity,
+                    blend_mode,
+                    &self.atlas.atlas_texture,
+                    &self.viewport,
+                    Transform::new(
+                        graphics_state,
+                        glam::vec2(offset_x, offset_y)
+                            + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
+                                * (scale * flip * CELL_OFFSET),
+                        scale * flip,
+                    ),
+                    rotation,
                 ),
-                rotation,
+                egui::Rect::from_center_size(
+                    egui::pos2(offset_x, offset_y),
+                    egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
+                ),
             )
         })
     }
@@ -139,7 +146,7 @@ impl Renderable for Frame {
             sprites: self
                 .sprites
                 .iter_mut()
-                .map(|(_, sprite)| sprite.prepare(graphics_state))
+                .map(|(_, (sprite, _))| sprite.prepare(graphics_state))
                 .collect(),
         }
     }
