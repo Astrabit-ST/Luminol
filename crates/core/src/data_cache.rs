@@ -375,6 +375,37 @@ impl Data {
             }
         }
 
+        let pretty_config = ron::ser::PrettyConfig::new()
+            .struct_names(true)
+            .enumerate_arrays(true);
+
+        let project_config = ron::ser::to_string_pretty(&config.project, pretty_config.clone())
+            .wrap_err("While serializing .luminol/config")?;
+        filesystem
+            .write(".luminol/config", project_config)
+            .wrap_err("While writing .luminol/config")?;
+
+        let command_db = ron::ser::to_string_pretty(&config.command_db, pretty_config.clone())
+            .wrap_err("While serializing .luminol/commands")?;
+        filesystem
+            .write(".luminol/commands", command_db)
+            .wrap_err("While writing .luminol/config")?;
+
+        // even though Ini uses fmt::write internally, it provides no easy way to write to a string.
+        // so we need to open a file instead
+        let mut ini_file = filesystem
+            .open_file(
+                "Game.ini",
+                luminol_filesystem::OpenFlags::Create
+                    | luminol_filesystem::OpenFlags::Write
+                    | luminol_filesystem::OpenFlags::Truncate,
+            )
+            .wrap_err("While opening Game.ini")?;
+        config
+            .game_ini
+            .write_to(&mut ini_file)
+            .wrap_err("While serializing Game.ini")?;
+
         actors.borrow_mut().modified = false;
         animations.borrow_mut().modified = false;
         armors.borrow_mut().modified = false;

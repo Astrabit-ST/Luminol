@@ -104,6 +104,36 @@ impl FileSystem {
         let c = "While loading project configuration";
         self.create_dir(".luminol").wrap_err(c)?;
 
+        let game_ini = match self
+            .read_to_string("Game.ini")
+            .ok()
+            .and_then(|i| ini::Ini::load_from_str_noescape(&i).ok())
+        {
+            Some(i) => i,
+            None => {
+                let mut ini = ini::Ini::new();
+                ini.with_section(Some("Game"))
+                    .set("Library", "RGSS104E.dll")
+                    .set("Scripts", "Data/Scripts.rxdata")
+                    .set("Title", "")
+                    .set("RTP1", "")
+                    .set("RTP2", "")
+                    .set("RTP3", "");
+
+                let mut file = self.open_file(
+                    "Game.ini",
+                    OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate,
+                )?;
+                ini.write_to(&mut file)?;
+
+                ini
+            }
+        };
+
+        let pretty_config = ron::ser::PrettyConfig::new()
+            .struct_names(true)
+            .enumerate_arrays(true);
+
         let project = match self
             .read_to_string(".luminol/config")
             .ok()
@@ -114,20 +144,32 @@ impl FileSystem {
                 while config.persistence_id == 0 {
                     config.persistence_id = rand::random();
                 }
-                self.write(".luminol/config", ron::to_string(&config).wrap_err(c)?)
-                    .wrap_err(c)?;
+                self.write(
+                    ".luminol/config",
+                    ron::ser::to_string_pretty(&config, pretty_config.clone()).wrap_err(c)?,
+                )
+                .wrap_err(c)?;
                 config
             }
             None => {
                 let Some(editor_ver) = self.detect_rm_ver() else {
                     return Err(Error::UnableToDetectRMVer).wrap_err(c);
                 };
+                let project_name = game_ini
+                    .general_section()
+                    .get("Title")
+                    .unwrap_or("Untitled Project")
+                    .to_string();
                 let config = luminol_config::project::Project {
                     editor_ver,
+                    project_name,
                     ..Default::default()
                 };
-                self.write(".luminol/config", ron::to_string(&config).wrap_err(c)?)
-                    .wrap_err(c)?;
+                self.write(
+                    ".luminol/config",
+                    ron::ser::to_string_pretty(&config, pretty_config.clone()).wrap_err(c)?,
+                )
+                .wrap_err(c)?;
                 config
             }
         };
@@ -142,30 +184,10 @@ impl FileSystem {
                 let command_db = luminol_config::command_db::CommandDB::new(project.editor_ver);
                 self.write(
                     ".luminol/commands",
-                    ron::to_string(&command_db).wrap_err(c)?,
+                    ron::ser::to_string_pretty(&command_db, pretty_config.clone()).wrap_err(c)?,
                 )
                 .wrap_err(c)?;
                 command_db
-            }
-        };
-
-        let game_ini = match self
-            .read_to_string("Game.ini")
-            .ok()
-            .and_then(|i| ini::Ini::load_from_str_noescape(&i).ok())
-        {
-            Some(i) => i,
-            None => {
-                let mut ini = ini::Ini::new();
-                ini.with_section(Some("Game"))
-                    .set("Library", "RGSS104E.dll")
-                    .set("Scripts", &project.scripts_path)
-                    .set("Title", &project.project_name)
-                    .set("RTP1", "")
-                    .set("RTP2", "")
-                    .set("RTP3", "");
-
-                ini
             }
         };
 

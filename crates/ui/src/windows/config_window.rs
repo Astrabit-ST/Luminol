@@ -24,14 +24,13 @@
 
 use strum::IntoEnumIterator;
 
-/// The confg window
 pub struct Window {}
 
 impl Window {}
 
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
-        egui::Id::new("Local Luminol Config")
+        egui::Id::new("project_config_window")
     }
 
     fn show(
@@ -40,32 +39,78 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new("Local Luminol Config")
+        let Some(config) = update_state.project_config.as_mut() else {
+            *open = false;
+
+            return;
+        };
+
+        egui::Window::new("Project Config")
             .open(open)
             .show(ctx, |ui| {
-                let config = update_state
-                    .project_config
-                    .as_mut()
-                    .expect("project not open");
+                ui.label("Editor Settings");
+                ui.group(|ui| {
+                    ui.label("Project name");
+                    ui.text_edit_singleline(&mut config.project.project_name);
+                    ui.label("Scripts path (editor)")
+                        .on_hover_text("Applies to Luminol (not your game!)");
+                    ui.text_edit_singleline(&mut config.project.scripts_path);
+                    ui.label("Playtest Executable");
+                    ui.text_edit_singleline(&mut config.project.playtest_exe);
 
-                ui.label("Project name");
-                ui.text_edit_singleline(&mut config.project.project_name);
-                ui.label("Scripts path");
-                ui.text_edit_singleline(&mut config.project.scripts_path);
-                ui.checkbox(
-                    &mut config.project.use_ron,
-                    "Use RON (Rusty Object Notation)",
-                );
-                egui::ComboBox::from_label("RGSS Version")
-                    .selected_text(config.project.rgss_ver.to_string())
-                    .show_ui(ui, |ui| {
-                        for ver in luminol_config::RGSSVer::iter() {
-                            ui.selectable_value(&mut config.project.rgss_ver, ver, ver.to_string());
-                        }
-                    });
+                    ui.separator();
 
-                ui.label("Playtest Executable");
-                ui.text_edit_singleline(&mut config.project.playtest_exe);
+                    ui.checkbox(
+                        &mut config.project.use_ron,
+                        "Use RON (Rusty Object Notation)",
+                    );
+                    ui.separator();
+
+                    egui::ComboBox::from_label("RGSS Version")
+                        .selected_text(config.project.rgss_ver.to_string())
+                        .show_ui(ui, |ui| {
+                            for ver in luminol_config::RGSSVer::iter() {
+                                ui.selectable_value(
+                                    &mut config.project.rgss_ver,
+                                    ver,
+                                    ver.to_string(),
+                                );
+                            }
+                        });
+                });
+
+                ui.label("Game.ini settings");
+
+                ui.group(|ui| {
+                    // rust-ini doesn't provide any kind of API for mutably accessing properties, so this is the best we can do.
+                    // we temporarily remove the properties from the game ini and then re-insert it after we're done editing it.
+                    let general_section = config.game_ini.general_section_mut();
+
+                    let mut game_title = general_section.remove("Title").unwrap_or_default();
+                    ui.label("Title");
+                    ui.text_edit_singleline(&mut game_title);
+                    general_section.insert("Title", game_title);
+
+                    ui.separator();
+
+                    for rtp in ["RTP1", "RTP2", "RTP3"] {
+                        let mut rtp_name = general_section.remove(rtp).unwrap_or_default();
+                        ui.label(rtp);
+                        ui.text_edit_singleline(&mut rtp_name).on_hover_text(
+                            "You may have to reload the project for changes to take effect",
+                        );
+                        general_section.insert(rtp, rtp_name);
+                    }
+
+                    ui.separator();
+
+                    let mut scripts_path = general_section.remove("Scripts").unwrap_or_default();
+
+                    ui.label("Scripts path (runtime)");
+                    ui.text_edit_singleline(&mut scripts_path)
+                        .on_hover_text("Applies only to your game (not Luminol!)");
+                    general_section.insert("Scripts", scripts_path);
+                });
             });
     }
 

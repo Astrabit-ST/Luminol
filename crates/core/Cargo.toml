@@ -36,6 +36,7 @@ itertools.workspace = true
 strum.workspace = true
 serde.workspace = true
 alox-48.workspace = true
+ron.workspace = true
 
 rand.workspace = true
 
