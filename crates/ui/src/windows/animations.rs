@@ -236,6 +236,7 @@ impl Window {
     fn show_frame_edit(
         ui: &mut egui::Ui,
         update_state: &mut luminol_core::UpdateState<'_>,
+        clip_rect: egui::Rect,
         maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
         animation: &mut luminol_data::rpg::Animation,
         frame: &mut i32,
@@ -257,9 +258,24 @@ impl Window {
         };
 
         ui.group(|ui| {
-            egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                frame_view.ui(ui, update_state);
-            });
+            egui::Resize::default()
+                .resizable([false, true])
+                .min_width(ui.available_width())
+                .max_width(ui.available_width())
+                .show(ui, |ui| {
+                    egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                        let response = frame_view.ui(ui, update_state, clip_rect);
+
+                        // If the pointer is hovering over the frame view, prevent parent widgets
+                        // from receiving scroll events so that scaling the frame view with the
+                        // scroll wheel doesn't also scroll the scroll area that the frame view is
+                        // in
+                        if response.hovered() {
+                            ui.ctx()
+                                .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
+                        }
+                    });
+                });
         });
 
         modified
@@ -309,6 +325,8 @@ impl luminol_core::Window for Window {
                         let mut animation = &mut animations[id];
                         self.selected_animation_name = Some(animation.name.clone());
 
+                        let clip_rect = ui.clip_rect();
+
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
@@ -342,6 +360,7 @@ impl luminol_core::Window for Window {
                             modified |= Self::show_frame_edit(
                                 ui,
                                 update_state,
+                                clip_rect,
                                 &mut self.frame_view,
                                 &mut animation,
                                 &mut self.frame,

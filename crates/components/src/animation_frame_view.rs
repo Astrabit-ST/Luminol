@@ -70,10 +70,11 @@ impl AnimationFrameView {
         &mut self,
         ui: &mut egui::Ui,
         update_state: &luminol_core::UpdateState<'_>,
+        clip_rect: egui::Rect,
     ) -> egui::Response {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
-        ui.set_clip_rect(canvas_rect);
+        ui.set_clip_rect(canvas_rect.intersect(clip_rect));
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
