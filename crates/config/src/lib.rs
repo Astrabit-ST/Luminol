@@ -34,6 +34,16 @@ pub enum DataFormat {
     Json,
 }
 
+impl DataFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Marshal => "rxdata",
+            Self::Ron => "ron",
+            Self::Json => "json",
+        }
+    }
+}
+
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(strum::EnumIter, strum::Display)]

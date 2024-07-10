@@ -67,9 +67,11 @@ impl Tilepicker {
         update_state: &luminol_core::UpdateState<'_>,
         map_id: usize, // FIXME
     ) -> color_eyre::Result<Tilepicker> {
-        let map = update_state
-            .data
-            .get_or_load_map(map_id, update_state.filesystem);
+        let map = update_state.data.get_or_load_map(
+            map_id,
+            update_state.filesystem,
+            update_state.project_config.as_ref().unwrap(),
+        );
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets.data[map.tileset_id];
 
