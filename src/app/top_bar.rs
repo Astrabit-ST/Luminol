@@ -130,9 +130,10 @@ impl TopBar {
 
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
                 if ui.button("Project Config").clicked() {
+                    let config = update_state.project_config.as_ref().unwrap();
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::config_window::Window {});
+                        .add_window(luminol_ui::windows::config_window::Window::new(config));
                 }
 
                 if ui.button("Event Commands").clicked() {

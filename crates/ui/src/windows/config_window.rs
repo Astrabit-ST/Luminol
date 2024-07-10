@@ -24,9 +24,19 @@
 
 use strum::IntoEnumIterator;
 
-pub struct Window {}
+pub struct Window {
+    selected_data_format: luminol_config::DataFormat,
+}
 
-impl Window {}
+impl Window {
+    pub fn new(config: &luminol_config::project::Config) -> Self {
+        Self {
+            selected_data_format: config.project.data_format,
+        }
+    }
+}
+
+const FORMAT_WARNING: &str = "Luminol will need to convert your project.\nThis is not 100% safe yet, make backups!\nPress OK to continue.";
 
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
@@ -60,10 +70,51 @@ impl luminol_core::Window for Window {
 
                     ui.separator();
 
-                    ui.checkbox(
-                        &mut config.project.use_ron,
-                        "Use RON (Rusty Object Notation)",
-                    );
+                    egui::ComboBox::from_label("Data Format")
+                        .selected_text(self.selected_data_format.to_string())
+                        .show_ui(ui, |ui| {
+                            for format in luminol_config::DataFormat::iter() {
+                                ui.selectable_value(
+                                    &mut self.selected_data_format,
+                                    format,
+                                    format.to_string(),
+                                );
+                            }
+                        });
+
+                    if self.selected_data_format != config.project.data_format {
+                        // add warning message about needing to edit every single data file
+                        egui::Frame::none().show(ui, |ui| {
+                            ui.style_mut()
+                                .visuals
+                                .widgets
+                                .noninteractive
+                                .bg_stroke
+                                .color = ui.style().visuals.warn_fg_color;
+
+                            egui::Frame::group(ui.style())
+                                .fill(ui.visuals().gray_out(ui.visuals().gray_out(
+                                    ui.visuals().gray_out(ui.style().visuals.warn_fg_color),
+                                )))
+                                .show(ui, |ui| {
+                                    ui.set_width(ui.available_width());
+                                    ui.label(
+                                        egui::RichText::new(FORMAT_WARNING)
+                                            .color(ui.style().visuals.warn_fg_color),
+                                    );
+                                });
+                        });
+
+                        let clicked = ui
+                            .button(
+                                egui::RichText::new("Ok").color(ui.style().visuals.error_fg_color),
+                            )
+                            .clicked();
+                        if clicked {
+                            config.project.data_format = self.selected_data_format;
+                        }
+                    }
+
                     ui.separator();
 
                     egui::ComboBox::from_label("RGSS Version")
