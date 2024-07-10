@@ -30,13 +30,13 @@ pub struct Window {
     edit_rtp_path_name: String,
     edit_rtp_path_path: String,
 
-    appearance_mode: AppearanceMode,
+    tab: Tab,
 }
 
 #[derive(Clone, Copy)]
 #[derive(Default, PartialEq, Eq)]
 #[derive(strum::EnumIter, strum::Display)]
-enum AppearanceMode {
+enum Tab {
     #[default]
     #[strum(to_string = "Editor Settings")]
     EditorSettings,
@@ -136,20 +136,20 @@ impl luminol_core::Window for Window {
     ) {
         egui::Window::new("Preferences").open(open).show(ctx, |ui| {
             ui.horizontal(|ui| {
-                for mode in AppearanceMode::iter() {
-                    ui.selectable_value(&mut self.appearance_mode, mode, mode.to_string());
+                for mode in Tab::iter() {
+                    ui.selectable_value(&mut self.tab, mode, mode.to_string());
                 }
             });
             ui.separator();
 
-            match self.appearance_mode {
-                AppearanceMode::EguiVisuals => {
+            match self.tab {
+                Tab::EguiVisuals => {
                     // TODO maybe make a custom visuals editor?
                     let mut visuals = ctx.style().visuals.clone();
                     visuals.ui(ui);
                     ctx.set_visuals(visuals);
                 }
-                AppearanceMode::PresetVisuals => ui.columns(2, |cols| {
+                Tab::PresetVisuals => ui.columns(2, |cols| {
                     let [left, right] = cols else { unreachable!() };
 
                     let mut hover_visual = None;
@@ -187,7 +187,7 @@ impl luminol_core::Window for Window {
                             .show(ui, gallery_grid_contents)
                     });
                 }),
-                AppearanceMode::CodeTheme => {
+                Tab::CodeTheme => {
                     ui.horizontal(|ui| {
                         ui.vertical(|ui| {
                             for t in luminol_config::SyntectTheme::iter() {
@@ -210,7 +210,7 @@ impl luminol_core::Window for Window {
                         });
                     });
                 }
-                AppearanceMode::EditorSettings => {
+                Tab::EditorSettings => {
                     ui.label("RTP Paths");
                     ui.separator();
 
@@ -254,7 +254,7 @@ impl luminol_core::Window for Window {
                     });
                 }
                 #[cfg(not(target_arch = "wasm32"))]
-                AppearanceMode::Terminal => {
+                Tab::Terminal => {
                     let config = &mut update_state.global_config.terminal;
                     ui.horizontal(|ui| {
                         ui.label("Initial terminal size:");

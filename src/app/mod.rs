@@ -66,6 +66,8 @@ pub struct App {
     #[cfg(not(target_arch = "wasm32"))]
     _runtime: tokio::runtime::Runtime,
 
+    egui_ctx: egui::Context,
+
     #[cfg(feature = "steamworks")]
     steamworks: Steamworks,
 }
@@ -216,9 +218,9 @@ impl App {
             }
         }
 
-        let style = luminol_eframe::get_value(storage, "EguiStyle")
-            .map_or_else(|| cc.egui_ctx.style(), |s| s);
-        cc.egui_ctx.set_style(style.clone());
+        if let Some(style) = luminol_eframe::get_value::<egui::Style>(storage, "EguiStyle") {
+            cc.egui_ctx.set_style(style);
+        }
 
         let bytes_loader = Arc::new(luminol_filesystem::egui_bytes_loader::Loader::new());
         cc.egui_ctx.add_bytes_loader(bytes_loader.clone());
@@ -273,6 +275,8 @@ impl App {
 
             #[cfg(not(target_arch = "wasm32"))]
             _runtime: runtime,
+
+            egui_ctx: cc.egui_ctx.clone(),
 
             #[cfg(feature = "steamworks")]
             steamworks,
@@ -427,6 +431,7 @@ impl luminol_eframe::App for App {
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn luminol_eframe::Storage) {
+        luminol_eframe::set_value(storage, "EguiStyle", &self.egui_ctx.style());
         luminol_eframe::set_value(storage, "SavedState", &self.global_config);
     }
 
