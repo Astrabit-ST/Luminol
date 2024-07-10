@@ -117,8 +117,8 @@ impl Frame {
                 &self.viewport,
                 Transform::new(
                     graphics_state,
-                    glam::Mat2::from_angle(rotation)
-                        * (glam::vec2(offset_x, offset_y) + CELL_OFFSET * scale * flip),
+                    glam::vec2(offset_x, offset_y)
+                        + glam::Mat2::from_angle(rotation) * (scale * flip * CELL_OFFSET),
                     scale * flip,
                 ),
                 rotation,
