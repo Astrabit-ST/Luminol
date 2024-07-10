@@ -118,7 +118,12 @@ Visuals(
         se: 6.0,
     ),
     window_shadow: Shadow(
-        extrusion: 32.0,
+        offset: Vec2(
+            x: 10.0,
+            y: 20.0,
+        ),
+        blur: 15.0,
+        spread: 0.0,
         color: Color32((48, 52, 70, 255)),
     ),
     window_fill: Color32((48, 52, 70, 255)),
@@ -126,6 +131,7 @@ Visuals(
         width: 1.0,
         color: Color32((131, 139, 167, 255)),
     ),
+    window_highlight_topmost: true,
     menu_rounding: Rounding(
         nw: 6.0,
         ne: 6.0,
@@ -134,7 +140,12 @@ Visuals(
     ),
     panel_fill: Color32((48, 52, 70, 255)),
     popup_shadow: Shadow(
-        extrusion: 16.0,
+        offset: Vec2(
+            x: 6.0,
+            y: 10.0,
+        ),
+        blur: 8.0,
+        spread: 0.0,
         color: Color32((48, 52, 70, 255)),
     ),
     resize_corner_size: 12.0,
@@ -149,6 +160,8 @@ Visuals(
     indent_has_left_vline: true,
     striped: false,
     slider_trailing_fill: false,
+    handle_shape: Circle,
     interact_cursor: None,
     image_loading_spinners: true,
+    numeric_color_space: GammaByte,
 )

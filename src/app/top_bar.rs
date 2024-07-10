@@ -37,8 +37,6 @@ impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
-        egui::widgets::global_dark_light_mode_switch(ui);
-
         #[cfg(not(target_arch = "wasm32"))]
         {
             let old_fullscreen = self.fullscreen;
