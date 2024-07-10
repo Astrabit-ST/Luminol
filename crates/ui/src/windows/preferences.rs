@@ -52,38 +52,76 @@ enum AppearanceMode {
 
 const CODE_SAMPLE: &str = luminol_macros::include_asset_str!("assets/ruby/code_sample.rb");
 
-static PRESET_VISUALS: once_cell::sync::Lazy<[(&str, egui::Visuals); 6]> =
-    once_cell::sync::Lazy::new(|| {
-        //
-        let catppuccin_frappe = ron::from_str(luminol_macros::include_asset_str!(
-            "assets/themes/catppuccin_frappe.ron"
-        ))
-        .expect("failed to load catpuccin frappe preset theme");
-        let catppuccin_latte = ron::from_str(luminol_macros::include_asset_str!(
-            "assets/themes/catppuccin_latte.ron"
-        ))
-        .expect("failed to load catpuccin frappe preset theme");
-        let catppuccin_macchiato = ron::from_str(luminol_macros::include_asset_str!(
-            "assets/themes/catppuccin_macchiato.ron"
-        ))
-        .expect("failed to load catpuccin frappe preset theme");
-        let catppuccin_mocha = ron::from_str(luminol_macros::include_asset_str!(
-            "assets/themes/catppuccin_mocha.ron"
-        ))
-        .expect("failed to load catpuccin frappe preset theme");
+#[derive(Clone)]
+struct PresetTheme {
+    name: &'static str,
+    visuals: egui::Visuals,
+    description: &'static str,
+}
 
-        let egui_dark = egui::Visuals::dark();
-        let egui_light = egui::Visuals::light();
+macro_rules! preset_theme {
+    ($name:literal, $path:literal, $description:literal) => {
+        PresetTheme {
+            name: $name,
+            visuals: ron::from_str(luminol_macros::include_asset_str!($path)).expect(concat!(
+                "failed to load ",
+                $name,
+                " preset theme"
+            )),
+            description: $description,
+        }
+    };
+}
 
-        [
-            ("Catppuccin Frappe", catppuccin_frappe),
-            ("Catppuccin Latte", catppuccin_latte),
-            ("Catppuccin Macchiato", catppuccin_macchiato),
-            ("Catppuccin Mocha", catppuccin_mocha),
-            ("Egui Dark", egui_dark),
-            ("Egui Light", egui_light),
-        ]
-    });
+static PRESET_VISUALS: once_cell::sync::Lazy<[PresetTheme; 7]> = once_cell::sync::Lazy::new(|| {
+    //
+    let catppuccin_frappe = preset_theme!(
+        "Catppuccin Frappe",
+        "themes/catppuccin_frappe.ron",
+        "A less vibrant alternative theme using subdued colors for a muted aesthetic"
+    );
+    let catppuccin_latte = preset_theme!(
+            "Catppuccin Latte",
+            "themes/catppuccin_latte.ron",
+            "Catppuccin's lightest theme harmoniously inverting the essence of Catppuccin's dark themes"
+        );
+    let catppuccin_macchiato = preset_theme!(
+        "Catppuccin Macchiato",
+        "themes/catppuccin_macchiato.ron",
+        "A theme with medium contrast and gentle colors creating a soothing atmosphere"
+    );
+    let catppuccin_mocha = preset_theme!(
+        "Catppuccin Mocha",
+        "themes/catppuccin_mocha.ron",
+        "Catppuccin's darkest variant offering a cozy feeling with color-rich accents"
+    );
+    let luminol = preset_theme!(
+        "Luminol",
+        "themes/luminol.ron",
+        "A high-contrast dark theme based on the Luminol website"
+    );
+
+    let egui_dark = PresetTheme {
+        name: "Egui Dark",
+        visuals: egui::Visuals::dark(),
+        description: "The default theme from Luminol's GUI framework",
+    };
+    let egui_light = PresetTheme {
+        name: "Egui Light",
+        visuals: egui::Visuals::light(),
+        description: "The default light theme from Luminol's GUI framework.",
+    };
+
+    [
+        catppuccin_latte,
+        catppuccin_frappe,
+        catppuccin_macchiato,
+        catppuccin_mocha,
+        luminol,
+        egui_dark,
+        egui_light,
+    ]
+});
 
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
@@ -117,13 +155,18 @@ impl luminol_core::Window for Window {
                     let mut hover_visual = None;
                     egui::ScrollArea::vertical().show(left, |ui| {
                         ui.visuals_mut().button_frame = false;
-                        for (name, visual) in PRESET_VISUALS.iter().cloned() {
-                            let response = ui.button(name);
+                        for PresetTheme {
+                            name,
+                            visuals,
+                            description,
+                        } in PRESET_VISUALS.iter()
+                        {
+                            let response = ui.button(*name).on_hover_text(*description);
                             if response.hovered() {
-                                hover_visual = Some(visual.clone());
+                                hover_visual = Some(visuals.clone());
                             }
                             if response.clicked() {
-                                ctx.set_visuals(visual)
+                                ctx.set_visuals(visuals.clone())
                             }
                         }
                     });
