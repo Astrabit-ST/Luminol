@@ -17,6 +17,8 @@
 
 use luminol_graphics::Renderable;
 
+use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
+
 pub struct AnimationFrameView {
     pub frame: luminol_graphics::Frame,
 
@@ -150,10 +152,36 @@ impl AnimationFrameView {
                 painter,
             ));
 
+        let offset = canvas_center.to_vec2() + self.pan;
+
+        // Draw the grid lines and the border of the animation frame
+        ui.painter().line_segment(
+            [
+                egui::pos2(-(FRAME_WIDTH as f32 / 2.), 0.) * scale + offset,
+                egui::pos2(FRAME_WIDTH as f32 / 2., 0.) * scale + offset,
+            ],
+            egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+        );
+        ui.painter().line_segment(
+            [
+                egui::pos2(0., -(FRAME_HEIGHT as f32 / 2.)) * scale + offset,
+                egui::pos2(0., FRAME_HEIGHT as f32 / 2.) * scale + offset,
+            ],
+            egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+        );
+        ui.painter().rect_stroke(
+            egui::Rect::from_center_size(
+                offset.to_pos2(),
+                egui::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32) * scale,
+            ),
+            5.,
+            egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+        );
+
         // Draw a white rectangle on the border of every cell
         for (_, (_, cell_rect)) in self.frame.sprites.iter() {
             ui.painter().rect_stroke(
-                (*cell_rect * scale).translate(canvas_center.to_vec2() + self.pan),
+                (*cell_rect * scale).translate(offset),
                 5.,
                 egui::Stroke::new(1., egui::Color32::WHITE),
             );
