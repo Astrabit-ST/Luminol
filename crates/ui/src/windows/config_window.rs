@@ -114,11 +114,12 @@ impl luminol_core::Window for Window {
                             update_state
                                 .data
                                 .convert_project(
-                                    update_state.filesystem,
-                                    config.project.data_format,
+                                    update_state.filesystem.raw_filesystem(),
+                                    config,
                                     self.selected_data_format,
                                 )
                                 .unwrap(); // TODO handle
+                            update_state.filesystem.rebuild_path_cache(); // I do not like this solution. A dedicated tool for this would be more appropriate.
                             config.project.data_format = self.selected_data_format;
                         }
                     }

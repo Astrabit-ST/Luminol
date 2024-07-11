@@ -364,10 +364,10 @@ impl Data {
     pub fn convert_project(
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
-        from: luminol_config::DataFormat,
+        config: &luminol_config::project::Config,
         to: luminol_config::DataFormat,
     ) -> color_eyre::Result<()> {
-        let from_handler = data_formats::Handler::new(from);
+        let from_handler = data_formats::Handler::new(config.project.data_format);
         let to_handler = data_formats::Handler::new(to);
 
         let Self::Loaded {
@@ -413,9 +413,6 @@ impl Data {
         to_handler.write_nil_padded(&items.get_mut().data, filesystem, "Items")?;
         from_handler.remove_file(filesystem, "Items")?;
 
-        to_handler.write_nil_padded(&scripts.get_mut().data, filesystem, "Scripts")?;
-        from_handler.remove_file(filesystem, "Scripts")?;
-
         to_handler.write_nil_padded(&skills.get_mut().data, filesystem, "Skills")?;
         from_handler.remove_file(filesystem, "Skills")?;
 
@@ -432,6 +429,13 @@ impl Data {
         from_handler.remove_file(filesystem, "Weapons")?;
 
         // special handling
+        to_handler.write_data(
+            &scripts.get_mut().data,
+            filesystem,
+            &config.project.scripts_path,
+        )?;
+        from_handler.remove_file(filesystem, &config.project.scripts_path)?;
+
         to_handler.write_data(&system.get_mut(), filesystem, "System")?;
         from_handler.remove_file(filesystem, "System")?;
 
