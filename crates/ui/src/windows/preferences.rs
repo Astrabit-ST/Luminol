@@ -21,12 +21,15 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#[cfg(not(target_arch = "wasm32"))]
 use egui::Widget;
 use strum::IntoEnumIterator;
 
 #[derive(Default)]
 pub struct Window {
+    #[cfg(not(target_arch = "wasm32"))]
     edit_rtp_path_name: String,
+    #[cfg(not(target_arch = "wasm32"))]
     edit_rtp_path_path: String,
 
     tab: Tab,
@@ -36,10 +39,13 @@ pub struct Window {
 #[derive(Default, PartialEq, Eq)]
 #[derive(strum::EnumIter, strum::Display)]
 enum Tab {
-    #[default]
+    #[cfg_attr(not(target_arch = "wasm32"), default)]
     #[strum(to_string = "Editor Settings")]
+    #[cfg(not(target_arch = "wasm32"))]
+    // only setting right now is editing rtp paths, which is not supported on wasm
     EditorSettings,
     #[strum(to_string = "Egui Visuals")]
+    #[cfg_attr(target_arch = "wasm32", default)]
     EguiVisuals,
     #[strum(to_string = "Preset Visuals")]
     PresetVisuals,
@@ -209,6 +215,7 @@ impl luminol_core::Window for Window {
                         });
                     });
                 }
+                #[cfg(not(target_arch = "wasm32"))]
                 Tab::EditorSettings => {
                     ui.label("RTP Paths");
                     ui.separator();
@@ -458,10 +465,12 @@ fn gallery_grid_contents(ui: &mut egui::Ui) {
     ui.end_row();
 }
 
+#[allow(dead_code)]
 fn color_to_rgb(color: egui::Color32) -> [u8; 3] {
     let [r, g, b, _] = color.to_array();
     [r, g, b]
 }
+#[allow(dead_code)]
 fn color_from_rgb([r, g, b]: [u8; 3]) -> egui::Color32 {
     egui::Color32::from_rgb(r, g, b)
 }

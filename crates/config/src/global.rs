@@ -25,8 +25,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::terminal;
 use crate::CodeTheme;
-
-use indexmap::IndexMap;
 use std::collections::VecDeque;
 
 /// The state saved by Luminol between sessions.
@@ -44,7 +42,8 @@ pub struct Config {
 
     /// The current code theme
     pub theme: CodeTheme,
-    pub rtp_paths: IndexMap<String, String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub rtp_paths: indexmap::IndexMap<String, String>,
 }
 
 impl Default for Config {
@@ -58,7 +57,8 @@ impl Config {
         Self {
             recent_projects: VecDeque::new(),
             theme: CodeTheme::dark(),
-            rtp_paths: IndexMap::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            rtp_paths: indexmap::IndexMap::new(),
             #[cfg(not(target_arch = "wasm32"))]
             terminal: terminal::Config::default(),
         }
