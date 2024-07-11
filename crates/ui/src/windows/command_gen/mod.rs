@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Melody Lyons
+// Copyright (C) 2024 Melody Madeline Lyons
 //
 // This file is part of Luminol
 //
