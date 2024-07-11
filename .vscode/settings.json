@@ -1,6 +1,6 @@
 {
 	"licenser.license": "Custom",
-	"licenser.author": "Lily Lyons",
+	"licenser.author": "Melody Madeline Lyons",
 	"licenser.projectName": "Luminol",
 	"licenser.customHeaderFile": "${workspaceFolder}/.vscode/header.txt",
 	"licenser.disableAutoHeaderInsertion": false,
