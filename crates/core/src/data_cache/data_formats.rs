@@ -202,7 +202,20 @@ impl Handler {
             }
         }
 
+        file.flush()?;
+
         Ok(())
+    }
+
+    pub fn remove_file(
+        self,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        filename: impl AsRef<camino::Utf8Path>,
+    ) -> color_eyre::Result<()> {
+        let path = camino::Utf8Path::new("Data")
+            .join(filename)
+            .with_extension(self.format.extension());
+        filesystem.remove_file(path)
     }
 }
 

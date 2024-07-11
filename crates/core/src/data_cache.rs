@@ -363,6 +363,7 @@ impl Data {
 
     pub fn convert_project(
         &mut self,
+        filesystem: &impl luminol_filesystem::FileSystem,
         from: luminol_config::DataFormat,
         to: luminol_config::DataFormat,
     ) -> color_eyre::Result<()> {
@@ -390,6 +391,58 @@ impl Data {
         else {
             panic!("project not loaded")
         };
+
+        to_handler.write_nil_padded(&actors.get_mut().data, filesystem, "Actors")?;
+        from_handler.remove_file(filesystem, "Actors")?;
+
+        to_handler.write_nil_padded(&animations.get_mut().data, filesystem, "Animations")?;
+        from_handler.remove_file(filesystem, "Animations")?;
+
+        to_handler.write_nil_padded(&armors.get_mut().data, filesystem, "Armors")?;
+        from_handler.remove_file(filesystem, "Armors")?;
+
+        to_handler.write_nil_padded(&classes.get_mut().data, filesystem, "Classes")?;
+        from_handler.remove_file(filesystem, "Classes")?;
+
+        to_handler.write_nil_padded(&common_events.get_mut().data, filesystem, "CommonEvents")?;
+        from_handler.remove_file(filesystem, "CommonEvents")?;
+
+        to_handler.write_nil_padded(&enemies.get_mut().data, filesystem, "Enemies")?;
+        from_handler.remove_file(filesystem, "Enemies")?;
+
+        to_handler.write_nil_padded(&items.get_mut().data, filesystem, "Items")?;
+        from_handler.remove_file(filesystem, "Items")?;
+
+        to_handler.write_nil_padded(&scripts.get_mut().data, filesystem, "Scripts")?;
+        from_handler.remove_file(filesystem, "Scripts")?;
+
+        to_handler.write_nil_padded(&skills.get_mut().data, filesystem, "Skills")?;
+        from_handler.remove_file(filesystem, "Skills")?;
+
+        to_handler.write_nil_padded(&states.get_mut().data, filesystem, "States")?;
+        from_handler.remove_file(filesystem, "States")?;
+
+        to_handler.write_nil_padded(&tilesets.get_mut().data, filesystem, "Tilesets")?;
+        from_handler.remove_file(filesystem, "Tilesets")?;
+
+        to_handler.write_nil_padded(&troops.get_mut().data, filesystem, "Troops")?;
+        from_handler.remove_file(filesystem, "Troops")?;
+
+        to_handler.write_nil_padded(&weapons.get_mut().data, filesystem, "Weapons")?;
+        from_handler.remove_file(filesystem, "Weapons")?;
+
+        // special handling
+        to_handler.write_data(&system.get_mut(), filesystem, "System")?;
+        from_handler.remove_file(filesystem, "System")?;
+
+        to_handler.write_data(&map_infos.get_mut().data, filesystem, "MapInfos")?;
+        from_handler.remove_file(filesystem, "MapInfos")?;
+
+        for id in map_infos.get_mut().data.keys() {
+            let map: rpg::Map = from_handler.read_data(filesystem, format!("Map{id:0>3}"))?;
+            to_handler.write_data(&map, filesystem, format!("Map{id:0>3}"))?;
+            from_handler.remove_file(filesystem, format!("Map{id:0>3}"))?;
+        }
 
         Ok(())
     }

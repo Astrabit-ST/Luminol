@@ -111,6 +111,14 @@ impl luminol_core::Window for Window {
                             )
                             .clicked();
                         if clicked {
+                            update_state
+                                .data
+                                .convert_project(
+                                    update_state.filesystem,
+                                    config.project.data_format,
+                                    self.selected_data_format,
+                                )
+                                .unwrap(); // TODO handle
                             config.project.data_format = self.selected_data_format;
                         }
                     }
