@@ -17,7 +17,7 @@ Luminol *may* use `Lua` for plugins in the future. It is something I am actively
 Luminol is compatible only with **RGSS1** for now. RGSS2 & 3 use different tileset formats which Luminol does not support (yet).
 There are plans to support them in the future, though.
 
-~~Melody (Luminol's main contributor) does not have a copy of VX or VX Ace yet, so until then Luminol is focused on RGSS1. If you want, [you can buy her a copy](https://steamcommunity.com/id/melody-panpan/).~~
+~~Melody (Luminol's main contributor) does not have a copy of VX or VX Ace yet, so until then Luminol is focused on RGSS1. If you want, [you can buy her a copy](https://steamcommunity.com/id/melody-rs/).~~
 
 Scratch that, thank you to [bobhostern?](https://steamcommunity.com/id/bobhostern/) for buying Melody VX Ace.
 
