@@ -106,6 +106,7 @@ impl Atlas {
 
         if let Some(animation_img) = animation_img {
             for i in 0..wrap_columns {
+                let region_width = ANIMATION_WIDTH.min(animation_img.width());
                 let region_height = if i == wrap_columns - 1 {
                     animation_height - MAX_HEIGHT * i
                 } else {
@@ -114,7 +115,7 @@ impl Atlas {
                 write_texture_region(
                     &graphics_state.render_state,
                     &atlas_texture,
-                    animation_img.view(0, MAX_HEIGHT * i, ANIMATION_WIDTH, region_height),
+                    animation_img.view(0, MAX_HEIGHT * i, region_width, region_height),
                     (ANIMATION_WIDTH * i, 0),
                 );
             }
