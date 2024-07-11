@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Lily Lyons
+// Copyright (C) 2024 Melody Lyons
 //
 // This file is part of Luminol.
 //
@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-window.restartLuminol = async function() {
+window.restartLuminol = async function () {
     // We need to reload luminol.js every time by invalidating the cache,
     // otherwise it'll just reload the same WebAssembly module every time
     // instead of reinstantiating it

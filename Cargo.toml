@@ -47,7 +47,7 @@ missing_safety_doc = "warn"
 [workspace.package]
 version = "0.4.0"
 authors = [
-    "Lily Lyons <lily@nowaffles.com>",
+    "Melody Lyons <melody@nowaffles.com>",
     "Egor Poleshko <somedevfox@gmail.com>",
 ]
 edition = "2021"

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Lily Lyons
+// Copyright (C) 2024 Melody Lyons
 //
 // This file is part of Luminol.
 //
