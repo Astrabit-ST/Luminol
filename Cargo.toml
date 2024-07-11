@@ -48,6 +48,7 @@ missing_safety_doc = "warn"
 version = "0.4.0"
 authors = [
     "Melody Madeline Lyons <melody@nowaffles.com>",
+    "Hao Liu <whiteaxe@tuta.io>",
     "Egor Poleshko <somedevfox@gmail.com>",
 ]
 edition = "2021"
