@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 use egui::Widget;
-use std::ops::Not;
 use strum::IntoEnumIterator;
 
 #[derive(Default)]
@@ -215,32 +214,32 @@ impl luminol_core::Window for Window {
                     ui.separator();
 
                     ui.columns(2, |columns| {
-                        let mut new_rtp_paths = update_state
+                        let mut new_rtp_paths: indexmap::IndexMap<_, _> = update_state
                             .global_config
                             .rtp_paths
-                            .drain()
+                            .drain(..)
                             .filter_map(|(mut rtp_name, mut rtp_path)| {
-                                columns[0].text_edit_singleline(&mut rtp_name);
-                                columns[1]
-                                    .horizontal(|ui| {
-                                        ui.text_edit_singleline(&mut rtp_path);
-                                        ui.button(
-                                            egui::RichText::new("-").color(egui::Color32::RED),
-                                        )
-                                        .clicked()
-                                        .not()
-                                        .then_some((rtp_name, rtp_path))
-                                    })
-                                    .inner
+                                let res = columns[0].horizontal(|ui| {
+                                    let res = ui.button(
+                                        egui::RichText::new("-")
+                                            .monospace()
+                                            .color(egui::Color32::RED),
+                                    );
+                                    ui.text_edit_singleline(&mut rtp_name);
+                                    res.clicked()
+                                });
+                                columns[1].text_edit_singleline(&mut rtp_path);
+                                (!res.inner).then_some((rtp_name, rtp_path))
                             })
-                            .collect::<std::collections::HashMap<_, _>>();
+                            .collect();
 
-                        columns[0].text_edit_singleline(&mut self.edit_rtp_path_name);
-                        columns[1].horizontal(|ui| {
-                            ui.text_edit_singleline(&mut self.edit_rtp_path_path);
-
+                        columns[0].horizontal(|ui| {
                             if ui
-                                .button(egui::RichText::new("+").color(egui::Color32::GREEN))
+                                .button(
+                                    egui::RichText::new("+")
+                                        .monospace()
+                                        .color(egui::Color32::GREEN),
+                                )
                                 .clicked()
                             {
                                 new_rtp_paths.insert(
@@ -248,7 +247,9 @@ impl luminol_core::Window for Window {
                                     std::mem::take(&mut self.edit_rtp_path_path),
                                 );
                             }
+                            ui.text_edit_singleline(&mut self.edit_rtp_path_name);
                         });
+                        columns[1].text_edit_singleline(&mut self.edit_rtp_path_path);
 
                         update_state.global_config.rtp_paths = new_rtp_paths;
                     });
