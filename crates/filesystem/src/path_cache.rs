@@ -48,7 +48,7 @@ struct Cache {
 
 #[derive(Debug)]
 pub struct FileSystem<F> {
-    pub(crate) fs: F,
+    fs: F,
     cache: parking_lot::RwLock<Cache>,
 }
 

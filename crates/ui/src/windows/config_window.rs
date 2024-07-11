@@ -36,7 +36,7 @@ impl Window {
     }
 }
 
-const FORMAT_WARNING: &str = "Luminol will need to convert your project.\nThis is not 100% safe yet, make backups!\nPress OK to continue.";
+const FORMAT_WARNING: &str = "While the option is provided,\nLuminol cannot convert between formats yet.\nIt can still read other formats, however."; // "Luminol will need to convert your project.\nThis is not 100% safe yet, make backups!\nPress OK to continue.";
 
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
@@ -111,16 +111,8 @@ impl luminol_core::Window for Window {
                             )
                             .clicked();
                         if clicked {
-                            update_state
-                                .data
-                                .convert_project(
-                                    update_state.filesystem.raw_filesystem(),
-                                    config,
-                                    self.selected_data_format,
-                                )
-                                .unwrap(); // TODO handle
-                            update_state.filesystem.rebuild_path_cache(); // I do not like this solution. A dedicated tool for this would be more appropriate.
                             config.project.data_format = self.selected_data_format;
+                            // TODO add conversion logic
                         }
                     }
 

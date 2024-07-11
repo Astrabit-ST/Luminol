@@ -65,21 +65,6 @@ impl FileSystem {
     pub fn unload_project(&mut self) {
         *self = FileSystem::Unloaded;
     }
-
-    // gives access to the non-path cache'd filesystem, for when you need to do direct manipulation of the filesystem
-    // the path cache should be rebuilt after this!
-    pub fn raw_filesystem(&self) -> &impl crate::FileSystem {
-        match self {
-            FileSystem::Unloaded | FileSystem::HostLoaded(_) => panic!("not loaded"),
-            FileSystem::Loaded { filesystem, .. } => &filesystem.fs,
-        }
-    }
-
-    pub fn rebuild_path_cache(&self) {
-        if let Self::Loaded { filesystem, .. } = self {
-            filesystem.rebuild();
-        }
-    }
 }
 
 // Not platform specific
