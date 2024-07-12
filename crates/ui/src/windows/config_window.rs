@@ -55,18 +55,26 @@ impl luminol_core::Window for Window {
             return;
         };
 
+        let mut modified = false;
+
         egui::Window::new("Project Config")
             .open(open)
             .show(ctx, |ui| {
                 ui.label("Editor Settings");
                 ui.group(|ui| {
                     ui.label("Project name");
-                    ui.text_edit_singleline(&mut config.project.project_name);
+                    modified |= ui
+                        .text_edit_singleline(&mut config.project.project_name)
+                        .changed();
                     ui.label("Scripts path (editor)")
                         .on_hover_text("Applies to Luminol (not your game!)");
-                    ui.text_edit_singleline(&mut config.project.scripts_path);
+                    modified |= ui
+                        .text_edit_singleline(&mut config.project.scripts_path)
+                        .changed();
                     ui.label("Playtest Executable");
-                    ui.text_edit_singleline(&mut config.project.playtest_exe);
+                    modified |= ui
+                        .text_edit_singleline(&mut config.project.playtest_exe)
+                        .changed();
 
                     ui.separator();
 
@@ -74,11 +82,13 @@ impl luminol_core::Window for Window {
                         .selected_text(self.selected_data_format.to_string())
                         .show_ui(ui, |ui| {
                             for format in luminol_config::DataFormat::iter() {
-                                ui.selectable_value(
-                                    &mut self.selected_data_format,
-                                    format,
-                                    format.to_string(),
-                                );
+                                modified |= ui
+                                    .selectable_value(
+                                        &mut self.selected_data_format,
+                                        format,
+                                        format.to_string(),
+                                    )
+                                    .changed();
                             }
                         });
 
@@ -122,11 +132,13 @@ impl luminol_core::Window for Window {
                         .selected_text(config.project.rgss_ver.to_string())
                         .show_ui(ui, |ui| {
                             for ver in luminol_config::RGSSVer::iter() {
-                                ui.selectable_value(
-                                    &mut config.project.rgss_ver,
-                                    ver,
-                                    ver.to_string(),
-                                );
+                                modified |= ui
+                                    .selectable_value(
+                                        &mut config.project.rgss_ver,
+                                        ver,
+                                        ver.to_string(),
+                                    )
+                                    .changed();
                             }
                         });
                 });
@@ -140,7 +152,7 @@ impl luminol_core::Window for Window {
 
                     let mut game_title = general_section.remove("Title").unwrap_or_default();
                     ui.label("Title");
-                    ui.text_edit_singleline(&mut game_title);
+                    modified |= ui.text_edit_singleline(&mut game_title).changed();
                     general_section.insert("Title", game_title);
 
                     ui.separator();
@@ -148,9 +160,12 @@ impl luminol_core::Window for Window {
                     for rtp in ["RTP1", "RTP2", "RTP3"] {
                         let mut rtp_name = general_section.remove(rtp).unwrap_or_default();
                         ui.label(rtp);
-                        ui.text_edit_singleline(&mut rtp_name).on_hover_text(
-                            "You may have to reload the project for changes to take effect",
-                        );
+                        modified |= ui
+                            .text_edit_singleline(&mut rtp_name)
+                            .on_hover_text(
+                                "You may have to reload the project for changes to take effect",
+                            )
+                            .changed();
                         general_section.insert(rtp, rtp_name);
                     }
 
@@ -159,11 +174,17 @@ impl luminol_core::Window for Window {
                     let mut scripts_path = general_section.remove("Scripts").unwrap_or_default();
 
                     ui.label("Scripts path (runtime)");
-                    ui.text_edit_singleline(&mut scripts_path)
-                        .on_hover_text("Applies only to your game (not Luminol!)");
+                    modified |= ui
+                        .text_edit_singleline(&mut scripts_path)
+                        .on_hover_text("Applies only to your game (not Luminol!)")
+                        .changed();
                     general_section.insert("Scripts", scripts_path);
                 });
             });
+
+        if modified {
+            update_state.modified.set(true);
+        }
     }
 
     fn requires_filesystem(&self) -> bool {
