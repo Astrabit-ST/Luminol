@@ -164,12 +164,11 @@ tab_enum! {
 window_enum! {
     pub enum Window {
         About(windows::about::Window),
-        Appearance(windows::appearance::Window),
         CommonEvent(windows::common_event_edit::Window),
         ProjectConfig(windows::config_window::Window),
         Console(windows::console::Window),
         EventEdit(windows::event_edit::Window),
-        GlobalConfig(windows::global_config_window::Window),
+        Preferences(windows::preferences::Window),
         Items(windows::items::Window),
         MapPicker(windows::map_picker::Window),
         EguiInspection(windows::misc::EguiInspection),
@@ -185,11 +184,10 @@ window_enum! {
 window_enum! {
     pub enum Window {
         About(windows::about::Window),
-        Appearance(windows::appearance::Window),
         CommonEvent(windows::common_event_edit::Window),
         ProjectConfig(windows::config_window::Window),
         EventEdit(windows::event_edit::Window),
-        GlobalConfig(windows::global_config_window::Window),
+        Preferences(windows::preferences::Window),
         Items(windows::items::Window),
         MapPicker(windows::map_picker::Window),
         EguiInspection(windows::misc::EguiInspection),

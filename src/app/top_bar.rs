@@ -37,8 +37,6 @@ impl TopBar {
     /// Display the top bar.
     #[allow(unused_variables)]
     pub fn ui(&mut self, ui: &mut egui::Ui, update_state: &mut luminol_core::UpdateState<'_>) {
-        egui::widgets::global_dark_light_mode_switch(ui);
-
         #[cfg(not(target_arch = "wasm32"))]
         {
             let old_fullscreen = self.fullscreen;
@@ -95,27 +93,11 @@ impl TopBar {
             ui.separator();
 
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
-                if ui.button("Project Config").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::config_window::Window {});
-                }
-
                 if ui.button("Close Project").clicked() {
                     update_state.project_manager.close_project();
                 }
 
                 save_project |= ui.button("Save Project").clicked();
-            });
-
-            ui.separator();
-
-            ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
-                if ui.button("Command Maker").clicked() {
-                    // update_state.windows.add_window(
-                    //     luminol_ui::windows::command_gen::CommandGeneratorWindow::default(),
-                    // );
-                }
             });
 
             #[cfg(not(target_arch = "wasm32"))]
@@ -143,14 +125,23 @@ impl TopBar {
             if ui.button("Preferences").clicked() {
                 update_state
                     .edit_windows
-                    .add_window(luminol_ui::windows::global_config_window::Window::default())
+                    .add_window(luminol_ui::windows::preferences::Window::default())
             }
 
-            if ui.button("Appearance").clicked() {
-                update_state
-                    .edit_windows
-                    .add_window(luminol_ui::windows::appearance::Window::default())
-            }
+            ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
+                if ui.button("Project Config").clicked() {
+                    let config = update_state.project_config.as_ref().unwrap();
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::config_window::Window::new(config));
+                }
+
+                if ui.button("Event Commands").clicked() {
+                    // update_state.windows.add_window(
+                    //     luminol_ui::windows::command_gen::CommandGeneratorWindow::default(),
+                    // );
+                }
+            });
         });
 
         ui.separator();

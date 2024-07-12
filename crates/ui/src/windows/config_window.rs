@@ -24,14 +24,23 @@
 
 use strum::IntoEnumIterator;
 
-/// The confg window
-pub struct Window {}
+pub struct Window {
+    selected_data_format: luminol_config::DataFormat,
+}
 
-impl Window {}
+impl Window {
+    pub fn new(config: &luminol_config::project::Config) -> Self {
+        Self {
+            selected_data_format: config.project.data_format,
+        }
+    }
+}
+
+const FORMAT_WARNING: &str = "While the option is provided,\nLuminol cannot convert between formats yet.\nIt can still read other formats, however."; // "Luminol will need to convert your project.\nThis is not 100% safe yet, make backups!\nPress OK to continue.";
 
 impl luminol_core::Window for Window {
     fn id(&self) -> egui::Id {
-        egui::Id::new("Local Luminol Config")
+        egui::Id::new("project_config_window")
     }
 
     fn show(
@@ -40,33 +49,147 @@ impl luminol_core::Window for Window {
         open: &mut bool,
         update_state: &mut luminol_core::UpdateState<'_>,
     ) {
-        egui::Window::new("Local Luminol Config")
+        let Some(config) = update_state.project_config.as_mut() else {
+            *open = false;
+
+            return;
+        };
+
+        let mut modified = false;
+
+        egui::Window::new("Project Config")
             .open(open)
             .show(ctx, |ui| {
-                let config = update_state
-                    .project_config
-                    .as_mut()
-                    .expect("project not open");
+                ui.label("Editor Settings");
+                ui.group(|ui| {
+                    ui.label("Project name");
+                    modified |= ui
+                        .text_edit_singleline(&mut config.project.project_name)
+                        .changed();
+                    ui.label("Scripts path (editor)")
+                        .on_hover_text("Applies to Luminol (not your game!)");
+                    let scripts_changed = ui
+                        .text_edit_singleline(&mut config.project.scripts_path)
+                        .changed();
+                    modified |= scripts_changed;
+                    if scripts_changed {
+                        update_state.data.scripts().modified = true; // TODO this should remove the old file
+                    }
 
-                ui.label("Project name");
-                ui.text_edit_singleline(&mut config.project.project_name);
-                ui.label("Scripts path");
-                ui.text_edit_singleline(&mut config.project.scripts_path);
-                ui.checkbox(
-                    &mut config.project.use_ron,
-                    "Use RON (Rusty Object Notation)",
-                );
-                egui::ComboBox::from_label("RGSS Version")
-                    .selected_text(config.project.rgss_ver.to_string())
-                    .show_ui(ui, |ui| {
-                        for ver in luminol_config::RGSSVer::iter() {
-                            ui.selectable_value(&mut config.project.rgss_ver, ver, ver.to_string());
+                    ui.label("Playtest Executable");
+                    modified |= ui
+                        .text_edit_singleline(&mut config.project.playtest_exe)
+                        .changed();
+
+                    ui.separator();
+
+                    egui::ComboBox::from_label("Data Format")
+                        .selected_text(self.selected_data_format.to_string())
+                        .show_ui(ui, |ui| {
+                            for format in luminol_config::DataFormat::iter() {
+                                modified |= ui
+                                    .selectable_value(
+                                        &mut self.selected_data_format,
+                                        format,
+                                        format.to_string(),
+                                    )
+                                    .changed();
+                            }
+                        });
+
+                    if self.selected_data_format != config.project.data_format {
+                        // add warning message about needing to edit every single data file
+                        egui::Frame::none().show(ui, |ui| {
+                            ui.style_mut()
+                                .visuals
+                                .widgets
+                                .noninteractive
+                                .bg_stroke
+                                .color = ui.style().visuals.warn_fg_color;
+
+                            egui::Frame::group(ui.style())
+                                .fill(ui.visuals().gray_out(ui.visuals().gray_out(
+                                    ui.visuals().gray_out(ui.style().visuals.warn_fg_color),
+                                )))
+                                .show(ui, |ui| {
+                                    ui.set_width(ui.available_width());
+                                    ui.label(
+                                        egui::RichText::new(FORMAT_WARNING)
+                                            .color(ui.style().visuals.warn_fg_color),
+                                    );
+                                });
+                        });
+
+                        let clicked = ui
+                            .button(
+                                egui::RichText::new("Ok").color(ui.style().visuals.error_fg_color),
+                            )
+                            .clicked();
+                        if clicked {
+                            config.project.data_format = self.selected_data_format;
+                            // TODO add conversion logic
                         }
-                    });
+                    }
 
-                ui.label("Playtest Executable");
-                ui.text_edit_singleline(&mut config.project.playtest_exe);
+                    ui.separator();
+
+                    egui::ComboBox::from_label("RGSS Version")
+                        .selected_text(config.project.rgss_ver.to_string())
+                        .show_ui(ui, |ui| {
+                            for ver in luminol_config::RGSSVer::iter() {
+                                modified |= ui
+                                    .selectable_value(
+                                        &mut config.project.rgss_ver,
+                                        ver,
+                                        ver.to_string(),
+                                    )
+                                    .changed();
+                            }
+                        });
+                });
+
+                ui.label("Game.ini settings");
+
+                ui.group(|ui| {
+                    // rust-ini doesn't provide any kind of API for mutably accessing properties, so this is the best we can do.
+                    // we temporarily remove the properties from the game ini and then re-insert it after we're done editing it.
+                    let general_section = config.game_ini.general_section_mut();
+
+                    let mut game_title = general_section.remove("Title").unwrap_or_default();
+                    ui.label("Title");
+                    modified |= ui.text_edit_singleline(&mut game_title).changed();
+                    general_section.insert("Title", game_title);
+
+                    ui.separator();
+
+                    for rtp in ["RTP1", "RTP2", "RTP3"] {
+                        let mut rtp_name = general_section.remove(rtp).unwrap_or_default();
+                        ui.label(rtp);
+                        modified |= ui
+                            .text_edit_singleline(&mut rtp_name)
+                            .on_hover_text(
+                                "You may have to reload the project for changes to take effect",
+                            )
+                            .changed();
+                        general_section.insert(rtp, rtp_name);
+                    }
+
+                    ui.separator();
+
+                    let mut scripts_path = general_section.remove("Scripts").unwrap_or_default();
+
+                    ui.label("Scripts path (runtime)");
+                    modified |= ui
+                        .text_edit_singleline(&mut scripts_path)
+                        .on_hover_text("Applies only to your game (not Luminol!)")
+                        .changed();
+                    general_section.insert("Scripts", scripts_path);
+                });
             });
+
+        if modified {
+            update_state.modified.set(true);
+        }
     }
 
     fn requires_filesystem(&self) -> bool {

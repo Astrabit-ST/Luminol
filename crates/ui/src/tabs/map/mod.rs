@@ -126,9 +126,11 @@ impl Tab {
         let view = luminol_components::MapView::new(update_state, id)?;
         let tilepicker = luminol_components::Tilepicker::new(update_state, id)?;
 
-        let map = update_state
-            .data
-            .get_or_load_map(id, update_state.filesystem);
+        let map = update_state.data.get_or_load_map(
+            id,
+            update_state.filesystem,
+            update_state.project_config.as_ref().unwrap(),
+        );
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets.data[map.tileset_id];
 
