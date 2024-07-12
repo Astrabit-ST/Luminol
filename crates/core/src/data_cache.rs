@@ -29,6 +29,8 @@ use std::{
     collections::HashMap,
 };
 
+use crate::error;
+
 pub mod data_formats;
 
 // TODO convert this to an option like project config?
@@ -95,6 +97,7 @@ impl Data {
     pub fn load(
         &mut self,
         filesystem: &impl luminol_filesystem::FileSystem,
+        toasts: &mut crate::Toasts,
         config: &mut luminol_config::project::Config,
     ) -> color_eyre::Result<()> {
         let handler = data_formats::Handler::new(config.project.data_format);
@@ -115,7 +118,7 @@ impl Data {
 
         let mut scripts = None;
         let scripts_paths = [
-            std::mem::take(&mut config.project.scripts_path),
+            config.project.scripts_path.clone(),
             "xScripts".to_string(),
             "Scripts".to_string(),
         ];
@@ -130,7 +133,14 @@ impl Data {
                     });
                     break;
                 }
-                Err(e) => eprintln!("error loading scripts from {script_path}: {e}"),
+                Err(e) => {
+                    error!(
+                        *toasts,
+                        e.wrap_err(format!(
+                            "While attempting to read scripts from {script_path}"
+                        ))
+                    )
+                }
             }
         }
         let Some(scripts) = scripts else {
@@ -277,11 +287,7 @@ impl Data {
             let scripts = scripts.get_mut();
             if scripts.modified {
                 modified = true;
-                handler.write_data(
-                    &scripts.data,
-                    filesystem,
-                    format!("{}", config.project.scripts_path),
-                )?;
+                handler.write_data(&scripts.data, filesystem, &config.project.scripts_path)?;
             }
         }
 

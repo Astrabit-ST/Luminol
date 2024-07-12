@@ -210,7 +210,9 @@ impl App {
 
             match filesystem.load_project_from_path(&mut project_config, &mut global_config, path) {
                 Ok(_) => {
-                    if let Err(e) = data.load(&filesystem, project_config.as_mut().unwrap()) {
+                    if let Err(e) =
+                        data.load(&filesystem, &mut toasts, project_config.as_mut().unwrap())
+                    {
                         luminol_core::error!(toasts, e)
                     }
                 }

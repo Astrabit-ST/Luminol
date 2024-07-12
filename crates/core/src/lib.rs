@@ -367,6 +367,7 @@ impl<'res> UpdateState<'res> {
                 if let Err(error) = self.data.load(
                     self.filesystem,
                     // TODO code jank
+                    self.toasts,
                     self.project_config.as_mut().unwrap(),
                 ) {
                     error!(

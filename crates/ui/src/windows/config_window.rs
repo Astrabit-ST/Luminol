@@ -68,9 +68,14 @@ impl luminol_core::Window for Window {
                         .changed();
                     ui.label("Scripts path (editor)")
                         .on_hover_text("Applies to Luminol (not your game!)");
-                    modified |= ui
+                    let scripts_changed = ui
                         .text_edit_singleline(&mut config.project.scripts_path)
                         .changed();
+                    modified |= scripts_changed;
+                    if scripts_changed {
+                        update_state.data.scripts().modified = true; // TODO this should remove the old file
+                    }
+
                     ui.label("Playtest Executable");
                     modified |= ui
                         .text_edit_singleline(&mut config.project.playtest_exe)
