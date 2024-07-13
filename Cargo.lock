@@ -3032,6 +3032,7 @@ version = "0.4.0"
 dependencies = [
  "alacritty_terminal",
  "egui",
+ "indexmap",
  "luminol-data",
  "once_cell",
  "ron",
@@ -3060,7 +3061,10 @@ dependencies = [
  "once_cell",
  "poll-promise",
  "rand",
+ "ron",
  "serde",
+ "serde_json",
+ "serde_path_to_error",
  "strum",
  "tracing",
 ]
@@ -3258,6 +3262,7 @@ dependencies = [
  "egui",
  "futures-lite 2.2.0",
  "futures-util",
+ "indexmap",
  "itertools 0.11.0",
  "luminol-audio",
  "luminol-components",
@@ -4758,12 +4763,22 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.117"
+version = "1.0.120"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "455182ea6142b14f93f4bc5320a2b31c1f266b66a4a5c858b013302a5d8cbfc3"
+checksum = "4e0d21c9a8cae1235ad58a00c11cb40d4b1e5c784f1ef2c537876ed6ffd8b7c5"
 dependencies = [
  "itoa",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_path_to_error"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af99884400da37c88f5e9146b7f1fd0fbcae8f6eec4e9da38b67d05486f814a6"
+dependencies = [
+ "itoa",
  "serde",
 ]
 

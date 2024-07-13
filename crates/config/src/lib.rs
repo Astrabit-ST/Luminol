@@ -21,6 +21,29 @@ pub mod project;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod terminal;
 
+#[derive(Clone, Copy, Hash, PartialEq, Debug, Default)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(strum::EnumIter, strum::Display)]
+pub enum DataFormat {
+    #[default]
+    #[strum(to_string = "Ruby Marshal")]
+    Marshal,
+    #[strum(to_string = "RON")]
+    Ron,
+    #[strum(to_string = "JSON")]
+    Json,
+}
+
+impl DataFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Marshal => "rxdata",
+            Self::Ron => "ron",
+            Self::Json => "json",
+        }
+    }
+}
+
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(strum::EnumIter, strum::Display)]

@@ -28,7 +28,6 @@ pub mod about;
 pub mod actors;
 /// The animation editor.
 pub mod animations;
-pub mod appearance;
 /// The archive manager for creating and extracting RGSSAD archives.
 pub mod archive_manager;
 /// The armor editor.
@@ -46,7 +45,6 @@ pub mod console;
 pub mod enemies;
 /// The event editor.
 pub mod event_edit;
-pub mod global_config_window;
 /// The item editor.
 pub mod items;
 /// The map picker.
@@ -55,6 +53,7 @@ pub mod map_picker;
 pub mod misc;
 /// New project window
 pub mod new_project;
+pub mod preferences;
 /// The crash reporter.
 pub mod reporter;
 /// The script editor

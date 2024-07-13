@@ -217,6 +217,11 @@ where
         &self.fs
     }
 
+    pub fn rebuild(&self) {
+        let mut cache = self.cache.write();
+        *cache = Default::default(); // FIXME we don't actually bother rebuilding anything, this is just a reset...
+    }
+
     pub fn debug_ui(&self, ui: &mut egui::Ui) {
         let cache = self.cache.read();
 

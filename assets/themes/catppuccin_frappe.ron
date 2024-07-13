@@ -1,0 +1,167 @@
+Visuals(
+    dark_mode: true,
+    override_text_color: Some(Color32((198, 208, 245, 255))),
+    widgets: Widgets(
+        noninteractive: WidgetVisuals(
+            bg_fill: Color32((48, 52, 70, 255)),
+            weak_bg_fill: Color32((48, 52, 70, 255)),
+            bg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((131, 139, 167, 255)),
+            ),
+            rounding: Rounding(
+                nw: 2.0,
+                ne: 2.0,
+                sw: 2.0,
+                se: 2.0,
+            ),
+            fg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((198, 208, 245, 255)),
+            ),
+            expansion: 0.0,
+        ),
+        inactive: WidgetVisuals(
+            bg_fill: Color32((65, 69, 89, 255)),
+            weak_bg_fill: Color32((65, 69, 89, 255)),
+            bg_stroke: Stroke(
+                width: 0.0,
+                color: Color32((131, 139, 167, 255)),
+            ),
+            rounding: Rounding(
+                nw: 2.0,
+                ne: 2.0,
+                sw: 2.0,
+                se: 2.0,
+            ),
+            fg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((198, 208, 245, 255)),
+            ),
+            expansion: 0.0,
+        ),
+        hovered: WidgetVisuals(
+            bg_fill: Color32((98, 104, 128, 255)),
+            weak_bg_fill: Color32((98, 104, 128, 255)),
+            bg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((131, 139, 167, 255)),
+            ),
+            rounding: Rounding(
+                nw: 3.0,
+                ne: 3.0,
+                sw: 3.0,
+                se: 3.0,
+            ),
+            fg_stroke: Stroke(
+                width: 1.5,
+                color: Color32((198, 208, 245, 255)),
+            ),
+            expansion: 1.0,
+        ),
+        active: WidgetVisuals(
+            bg_fill: Color32((81, 87, 109, 255)),
+            weak_bg_fill: Color32((81, 87, 109, 255)),
+            bg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((131, 139, 167, 255)),
+            ),
+            rounding: Rounding(
+                nw: 2.0,
+                ne: 2.0,
+                sw: 2.0,
+                se: 2.0,
+            ),
+            fg_stroke: Stroke(
+                width: 2.0,
+                color: Color32((198, 208, 245, 255)),
+            ),
+            expansion: 1.0,
+        ),
+        open: WidgetVisuals(
+            bg_fill: Color32((65, 69, 89, 255)),
+            weak_bg_fill: Color32((65, 69, 89, 255)),
+            bg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((131, 139, 167, 255)),
+            ),
+            rounding: Rounding(
+                nw: 2.0,
+                ne: 2.0,
+                sw: 2.0,
+                se: 2.0,
+            ),
+            fg_stroke: Stroke(
+                width: 1.0,
+                color: Color32((198, 208, 245, 255)),
+            ),
+            expansion: 0.0,
+        ),
+    ),
+    selection: Selection(
+        bg_fill: Color32((65, 80, 115, 51)),
+        stroke: Stroke(
+            width: 1.0,
+            color: Color32((131, 139, 167, 255)),
+        ),
+    ),
+    hyperlink_color: Color32((242, 213, 207, 255)),
+    faint_bg_color: Color32((65, 69, 89, 255)),
+    extreme_bg_color: Color32((35, 38, 52, 255)),
+    code_bg_color: Color32((41, 44, 60, 255)),
+    warn_fg_color: Color32((239, 159, 118, 255)),
+    error_fg_color: Color32((234, 153, 156, 255)),
+    window_rounding: Rounding(
+        nw: 6.0,
+        ne: 6.0,
+        sw: 6.0,
+        se: 6.0,
+    ),
+    window_shadow: Shadow(
+        offset: Vec2(
+            x: 10.0,
+            y: 20.0,
+        ),
+        blur: 15.0,
+        spread: 0.0,
+        color: Color32((48, 52, 70, 255)),
+    ),
+    window_fill: Color32((48, 52, 70, 255)),
+    window_stroke: Stroke(
+        width: 1.0,
+        color: Color32((131, 139, 167, 255)),
+    ),
+    window_highlight_topmost: true,
+    menu_rounding: Rounding(
+        nw: 6.0,
+        ne: 6.0,
+        sw: 6.0,
+        se: 6.0,
+    ),
+    panel_fill: Color32((48, 52, 70, 255)),
+    popup_shadow: Shadow(
+        offset: Vec2(
+            x: 6.0,
+            y: 10.0,
+        ),
+        blur: 8.0,
+        spread: 0.0,
+        color: Color32((48, 52, 70, 255)),
+    ),
+    resize_corner_size: 12.0,
+    text_cursor: Stroke(
+        width: 2.0,
+        color: Color32((192, 222, 255, 255)),
+    ),
+    text_cursor_preview: false,
+    clip_rect_margin: 3.0,
+    button_frame: true,
+    collapsing_header_frame: false,
+    indent_has_left_vline: true,
+    striped: false,
+    slider_trailing_fill: false,
+    handle_shape: Circle,
+    interact_cursor: None,
+    image_loading_spinners: true,
+    numeric_color_space: GammaByte,
+)
