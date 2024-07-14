@@ -239,7 +239,7 @@ impl Window {
         clip_rect: egui::Rect,
         maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
         animation: &mut luminol_data::rpg::Animation,
-        frame: &mut i32,
+        frame_index: &mut i32,
     ) -> bool {
         let mut modified = false;
 
@@ -250,33 +250,46 @@ impl Window {
                 luminol_components::AnimationFrameView::new(
                     update_state,
                     animation,
-                    *frame as usize,
+                    *frame_index as usize,
                 )
                 .unwrap(), // TODO get rid of this unwrap
             );
             maybe_frame_view.as_mut().unwrap()
         };
 
-        ui.group(|ui| {
-            egui::Resize::default()
-                .resizable([false, true])
-                .min_width(ui.available_width())
-                .max_width(ui.available_width())
-                .show(ui, |ui| {
-                    egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                        let response = frame_view.ui(ui, update_state, clip_rect);
+        let frame = &mut animation.frames[*frame_index as usize];
 
-                        // If the pointer is hovering over the frame view, prevent parent widgets
-                        // from receiving scroll events so that scaling the frame view with the
-                        // scroll wheel doesn't also scroll the scroll area that the frame view is
-                        // in
-                        if response.hovered() {
-                            ui.ctx()
-                                .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
-                        }
-                    });
+        if let (Some(i), Some(drag_pos)) = (
+            frame_view.hovered_cell_index,
+            frame_view.hovered_cell_drag_pos,
+        ) {
+            if (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) != drag_pos {
+                (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) = drag_pos;
+                frame_view
+                    .frame
+                    .update_cell_sprite(&update_state.graphics.render_state, frame, i);
+                modified = true;
+            }
+        }
+
+        egui::Resize::default()
+            .resizable([false, true])
+            .min_width(ui.available_width())
+            .max_width(ui.available_width())
+            .show(ui, |ui| {
+                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                    let response = frame_view.ui(ui, update_state, clip_rect);
+
+                    // If the pointer is hovering over the frame view, prevent parent widgets
+                    // from receiving scroll events so that scaling the frame view with the
+                    // scroll wheel doesn't also scroll the scroll area that the frame view is
+                    // in
+                    if response.hovered() {
+                        ui.ctx()
+                            .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
+                    }
                 });
-        });
+            });
 
         modified
     }

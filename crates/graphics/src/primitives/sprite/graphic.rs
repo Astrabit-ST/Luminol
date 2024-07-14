@@ -26,7 +26,7 @@ pub struct Graphic {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Data {
     hue: f32,
     opacity: f32,
@@ -105,6 +105,28 @@ impl Graphic {
     pub fn set_rotation(&mut self, render_state: &luminol_egui_wgpu::RenderState, rotation: f32) {
         if self.data.rotation != rotation {
             self.data.rotation = rotation;
+            self.regen_buffer(render_state);
+        }
+    }
+
+    pub fn set(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        hue: i32,
+        opacity: i32,
+        opacity_multiplier: f32,
+        rotation: f32,
+    ) {
+        let hue = (hue % 360) as f32 / 360.0;
+        let opacity = opacity as f32 / 255.0;
+        let data = Data {
+            hue,
+            opacity,
+            opacity_multiplier,
+            rotation,
+        };
+        if data != self.data {
+            self.data = data;
             self.regen_buffer(render_state);
         }
     }

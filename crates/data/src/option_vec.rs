@@ -27,10 +27,12 @@ pub struct OptionVec<T> {
     num_values: usize,
 }
 
+#[derive(Debug)]
 pub struct Iter<'a, T> {
     vec_iter: std::iter::Enumerate<std::slice::Iter<'a, Option<T>>>,
 }
 
+#[derive(Debug)]
 pub struct IterMut<'a, T> {
     vec_iter: std::iter::Enumerate<std::slice::IterMut<'a, Option<T>>>,
 }
@@ -220,6 +222,17 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+impl<T> DoubleEndedIterator for Iter<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some((index, element)) = self.vec_iter.next_back() {
+            if let Some(element) = element {
+                return Some((index, element));
+            }
+        }
+        None
+    }
+}
+
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = (usize, &'a mut T);
     fn next(&mut self) -> Option<Self::Item> {
@@ -229,6 +242,25 @@ impl<'a, T> Iterator for IterMut<'a, T> {
             }
         }
         None
+    }
+}
+
+impl<T> DoubleEndedIterator for IterMut<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some((index, element)) = self.vec_iter.next_back() {
+            if let Some(element) = element {
+                return Some((index, element));
+            }
+        }
+        None
+    }
+}
+
+impl<T> Clone for Iter<'_, T> {
+    fn clone(&self) -> Self {
+        Self {
+            vec_iter: self.vec_iter.clone(),
+        }
     }
 }
 

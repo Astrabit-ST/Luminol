@@ -22,6 +22,11 @@ use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 pub struct AnimationFrameView {
     pub frame: luminol_graphics::Frame,
 
+    pub selected_cell_index: Option<usize>,
+    pub hovered_cell_index: Option<usize>,
+    pub hovered_cell_drag_pos: Option<(i16, i16)>,
+    pub hovered_cell_drag_offset: Option<egui::Vec2>,
+
     pub pan: egui::Vec2,
 
     pub scale: f32,
@@ -61,6 +66,10 @@ impl AnimationFrameView {
 
         Ok(Self {
             frame,
+            selected_cell_index: None,
+            hovered_cell_index: None,
+            hovered_cell_drag_pos: None,
+            hovered_cell_drag_offset: None,
             pan,
             scale,
             previous_scale: scale,
@@ -178,12 +187,91 @@ impl AnimationFrameView {
             egui::Stroke::new(1., egui::Color32::DARK_GRAY),
         );
 
+        // Find the cell that the cursor is hovering over; if multiple cells are hovered we
+        // prioritize the one with the greatest index
+        let cell_rect_iter = self
+            .frame
+            .sprites
+            .iter()
+            .map(|(i, (_, cell_rect))| (i, (*cell_rect * scale).translate(offset)));
+        if ui.input(|i| i.pointer.primary_clicked()) {
+            self.selected_cell_index = None;
+        }
+        if self.hovered_cell_drag_offset.is_none() {
+            self.hovered_cell_index = ui
+                .input(|i| !i.modifiers.shift)
+                .then(|| {
+                    cell_rect_iter.clone().rev().find_map(|(i, cell_rect)| {
+                        (response.hovered() && ui.rect_contains_pointer(cell_rect)).then(|| {
+                            if ui.input(|i| i.pointer.primary_clicked()) {
+                                // If the hovered cell was clicked, make it the selected cell
+                                self.selected_cell_index = Some(i);
+                            }
+                            i
+                        })
+                    })
+                })
+                .flatten();
+        }
+
+        if !response.is_pointer_button_down_on()
+            || ui.input(|i| {
+                !i.pointer.button_down(egui::PointerButton::Primary) || i.modifiers.shift
+            })
+        {
+            self.hovered_cell_drag_offset = None;
+        } else if let (Some(i), None, true) = (
+            self.hovered_cell_index,
+            self.hovered_cell_drag_offset,
+            response.drag_started_by(egui::PointerButton::Primary),
+        ) {
+            let (_, cell_rect) = self.frame.sprites[i];
+            self.hovered_cell_drag_offset =
+                Some(cell_rect.center() - (response.hover_pos().unwrap() - offset) / scale);
+        }
+
+        if let Some(drag_offset) = self.hovered_cell_drag_offset {
+            let pos = (response.hover_pos().unwrap() - offset) / scale + drag_offset;
+            self.hovered_cell_drag_pos = Some((
+                pos.x.round_ties_even() as i16,
+                pos.y.round_ties_even() as i16,
+            ));
+        } else {
+            self.hovered_cell_drag_pos = None;
+        }
+
         // Draw a white rectangle on the border of every cell
-        for (_, (_, cell_rect)) in self.frame.sprites.iter() {
+        for (_, cell_rect) in cell_rect_iter {
             ui.painter().rect_stroke(
-                (*cell_rect * scale).translate(offset),
+                cell_rect,
                 5.,
-                egui::Stroke::new(1., egui::Color32::WHITE),
+                egui::Stroke::new(
+                    1.,
+                    if ui.input(|i| i.modifiers.shift) {
+                        egui::Color32::DARK_GRAY
+                    } else {
+                        egui::Color32::WHITE
+                    },
+                ),
+            );
+        }
+
+        // Draw a yellow rectangle on the border of the hovered cell
+        if let Some(i) = self.hovered_cell_index {
+            let (_, cell_rect) = self.frame.sprites[i];
+            let cell_rect = (cell_rect * scale).translate(offset);
+            ui.painter()
+                .rect_stroke(cell_rect, 5., egui::Stroke::new(3., egui::Color32::YELLOW));
+        }
+
+        // Draw a magenta rectangle on the border of the selected cell
+        if let Some(i) = self.selected_cell_index {
+            let (_, cell_rect) = self.frame.sprites[i];
+            let cell_rect = (cell_rect * scale).translate(offset);
+            ui.painter().rect_stroke(
+                cell_rect,
+                5.,
+                egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
             );
         }
 

@@ -18,6 +18,7 @@
 use crate::primitives::cells::{Atlas, CELL_SIZE};
 use crate::{Drawable, GraphicsState, Renderable, Sprite, Transform, Viewport};
 use luminol_data::{BlendMode, OptionVec};
+use luminol_egui_wgpu::RenderState;
 
 pub const FRAME_WIDTH: usize = 640;
 pub const FRAME_HEIGHT: usize = 320;
@@ -101,7 +102,6 @@ impl Frame {
             };
 
             let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
-
             let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
 
             (
@@ -128,6 +128,53 @@ impl Frame {
                 ),
             )
         })
+    }
+
+    pub fn update_cell_sprite(
+        &mut self,
+        render_state: &RenderState,
+        frame: &luminol_data::rpg::animation::Frame,
+        cell_index: usize,
+    ) {
+        if let Some((sprite, cell_rect)) = self.sprites.get_mut(cell_index) {
+            let offset_x = frame.cell_data[(cell_index, 1)] as f32;
+            let offset_y = frame.cell_data[(cell_index, 2)] as f32;
+            let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
+            let rotation = -(frame.cell_data[(cell_index, 4)] as f32).to_radians();
+            let flip = frame.cell_data[(cell_index, 5)] == 1;
+            let opacity = frame.cell_data[(cell_index, 6)] as i32;
+            let blend_mode = match frame.cell_data[(cell_index, 7)] {
+                1 => BlendMode::Add,
+                2 => BlendMode::Subtract,
+                _ => BlendMode::Normal,
+            };
+
+            let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
+            let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
+
+            sprite.transform.set(
+                render_state,
+                glam::vec2(offset_x, offset_y)
+                    + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
+                        * (scale * flip_vec * CELL_OFFSET),
+                scale * flip_vec,
+            );
+
+            sprite.graphic.set(
+                render_state,
+                0,
+                opacity,
+                1.,
+                if flip { -rotation } else { rotation },
+            );
+
+            sprite.blend_mode = blend_mode;
+
+            *cell_rect = egui::Rect::from_center_size(
+                egui::pos2(offset_x, offset_y),
+                egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
+            );
+        }
     }
 }
 
