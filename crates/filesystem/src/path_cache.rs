@@ -267,6 +267,22 @@ where
             },
         );
     }
+
+    /// Finds the correct letter casing and file extension for the given RPG Maker-style
+    /// case-insensitive path. Returns `Err(NotExist)` if no matching path is found.
+    ///
+    /// If the path you pass to this function has a file extension, this function will prioritize
+    /// files with that file extension (case-insensitive) and then fall back to ignoring the file
+    /// extension.
+    ///
+    /// If the path you pass to this function has no file extension, this function will prioritize
+    /// files with no file extension and then fall back to a wildcard file extension search.
+    pub fn desensitize(&self, path: impl AsRef<camino::Utf8Path>) -> Result<camino::Utf8PathBuf> {
+        let path = path.as_ref();
+        let mut cache = self.cache.write();
+        cache.regen(&self.fs, path)?;
+        cache.desensitize(path).ok_or(Error::NotExist.into())
+    }
 }
 
 pub fn to_lowercase(p: impl AsRef<camino::Utf8Path>) -> camino::Utf8PathBuf {
