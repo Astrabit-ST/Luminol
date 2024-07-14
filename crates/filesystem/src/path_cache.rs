@@ -303,7 +303,16 @@ where
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
 
         if flags.contains(OpenFlags::Create) && cache.desensitize(path).is_none() {
-            let path = cache
+            // If `OpenFlags::Create` was passed via `flags` and the given path doesn't exist in
+            // the cache, then it must be the case that the path doesn't exist because we just
+            // called `.regen` to attempt to insert the path into the cache a few lines ago. So we
+            // need to create the file.
+
+            // Use the path cache to get the desensitized version of the path to the parent
+            // directory of the new file we need to create. If the parent directory doesn't exist
+            // in the cache either then the parent directory doesn't exist yet, so error out with a
+            // "does not exist" error because we don't recursively create parent directories.
+            let parent_path = cache
                 .desensitize(
                     path.parent()
                         .ok_or(Error::NotExist)
@@ -311,11 +320,18 @@ where
                 )
                 .ok_or(Error::NotExist)
                 .wrap_err_with(|| c.clone())?;
+
+            // Create the file in the parent directory with the filename at the end of the original
+            // path.
+            let path = parent_path.join(path.file_name().unwrap());
             let file = self
                 .fs
                 .open_file(&path, flags)
                 .wrap_err_with(|| c.clone())?;
+
+            // Add the new file to the path cache.
             cache.regen(&self.fs, &path).wrap_err_with(|| c.clone())?;
+
             Ok(file)
         } else {
             self.fs
