@@ -79,12 +79,47 @@ impl Cache {
         fs: &impl FileSystemTrait,
         path: impl AsRef<camino::Utf8Path>,
     ) -> crate::Result<()> {
-        let mut path = to_lowercase(path);
-        let extension = path.extension().unwrap_or_default().to_string();
-        path.set_extension("");
-        if self.trie.contains_dir(&path) {
+        let path = path.as_ref();
+
+        // We don't need to do anything if there already is a path in the trie matching the given
+        // path
+        if self.desensitize(path).is_some() {
             return Ok(());
         }
+
+        let extension = path.extension().unwrap_or_default().to_string();
+        let mut path = to_lowercase(path);
+        path.set_extension("");
+
+        // If there is a matching path with a different file extension than this one, we may need
+        // to add this new path to the extension trie
+        if self.trie.contains_file(with_trie_suffix(&path)) {
+            if let Some(mut desensitized_path) = self
+                .trie
+                .get_file(with_trie_suffix(&path))
+                .unwrap()
+                .values()
+                .next()
+                .map(|&cactus_index| self.get_path_from_cactus_index(cactus_index))
+            {
+                desensitized_path.set_extension(&extension);
+                if fs.exists(&desensitized_path)? {
+                    let extension_trie = self.trie.get_file_mut(with_trie_suffix(&path)).unwrap();
+                    let sibling = self
+                        .cactus
+                        .get(*extension_trie.values().next().unwrap())
+                        .unwrap();
+                    let cactus_index = self.cactus.insert(CactusNode {
+                        value: desensitized_path.file_name().unwrap_or_default().into(),
+                        ..*sibling
+                    });
+                    extension_trie.insert_str(&extension, cactus_index);
+                    return Ok(());
+                }
+            }
+        }
+
+        let extension = extension.to_lowercase();
 
         let prefix = self.trie.get_dir_prefix(&path);
         let mut cactus_index = (!prefix.as_str().is_empty()).then(|| {
@@ -188,16 +223,32 @@ impl Cache {
         }
         let mut path = to_lowercase(path);
         let extension = path.extension().unwrap_or_default().to_string();
+        let path_clone = path.clone();
         path.set_extension("");
-        self.trie
-            .get_file(with_trie_suffix(&path))
-            .map(|extension_trie| {
-                self.get_path_from_cactus_index(
-                    *extension_trie
+
+        // Try to search for the given path exactly (case-insensitive)
+        let maybe_exact_match =
+            self.trie
+                .get_file(with_trie_suffix(&path))
+                .and_then(|extension_trie| {
+                    extension_trie
                         .get_str(&extension)
-                        .unwrap_or(extension_trie.values().next().unwrap()),
-                )
-            })
+                        .map(|&index| self.get_path_from_cactus_index(index))
+                });
+
+        maybe_exact_match.or_else(|| {
+            // If we didn't find anything the first time, try again using a '.*' glob pattern
+            // appended to the end (still case-insensitive)
+            let path = path_clone;
+            self.trie
+                .get_file(with_trie_suffix(path))
+                .and_then(|extension_trie| {
+                    extension_trie
+                        .values()
+                        .next()
+                        .map(|&index| self.get_path_from_cactus_index(index))
+                })
+        })
     }
 }
 
@@ -267,6 +318,23 @@ where
             },
         );
     }
+
+    /// Finds the correct letter casing and file extension for the given RPG Maker-style
+    /// case-insensitive path.
+    ///
+    /// First this function will perform a case-insensitive search for the given path.
+    ///
+    /// If no file or folder at that path is found, this function searches a second time with a
+    /// '.*' glob pattern appended to the end of the path (e.g. if you're looking for "my/path",
+    /// this will also find stuff like "my/path.txt" or "my/path.json").
+    ///
+    /// If no match was found either time, returns `Err(NotExist)`.
+    pub fn desensitize(&self, path: impl AsRef<camino::Utf8Path>) -> Result<camino::Utf8PathBuf> {
+        let path = path.as_ref();
+        let mut cache = self.cache.write();
+        cache.regen(&self.fs, path)?;
+        cache.desensitize(path).ok_or(Error::NotExist.into())
+    }
 }
 
 pub fn to_lowercase(p: impl AsRef<camino::Utf8Path>) -> camino::Utf8PathBuf {
@@ -303,7 +371,16 @@ where
         cache.regen(&self.fs, path).wrap_err_with(|| c.clone())?;
 
         if flags.contains(OpenFlags::Create) && cache.desensitize(path).is_none() {
-            let path = cache
+            // If `OpenFlags::Create` was passed via `flags` and the given path doesn't exist in
+            // the cache, then it must be the case that the path doesn't exist because we just
+            // called `.regen` to attempt to insert the path into the cache a few lines ago. So we
+            // need to create the file.
+
+            // Use the path cache to get the desensitized version of the path to the parent
+            // directory of the new file we need to create. If the parent directory doesn't exist
+            // in the cache either then the parent directory doesn't exist yet, so error out with a
+            // "does not exist" error because we don't recursively create parent directories.
+            let parent_path = cache
                 .desensitize(
                     path.parent()
                         .ok_or(Error::NotExist)
@@ -311,11 +388,18 @@ where
                 )
                 .ok_or(Error::NotExist)
                 .wrap_err_with(|| c.clone())?;
+
+            // Create the file in the parent directory with the filename at the end of the original
+            // path.
+            let path = parent_path.join(path.file_name().unwrap());
             let file = self
                 .fs
                 .open_file(&path, flags)
                 .wrap_err_with(|| c.clone())?;
+
+            // Add the new file to the path cache.
             cache.regen(&self.fs, &path).wrap_err_with(|| c.clone())?;
+
             Ok(file)
         } else {
             self.fs
@@ -433,14 +517,21 @@ where
 
         self.fs.remove_dir(&path).wrap_err_with(|| c.clone())?;
 
+        // Remove the directory and its contents from `cache.trie` and `cache.cactus`
         {
             let cache = &mut *cache;
-            for extension_trie in cache.trie.iter_prefix(&path).unwrap().map(|(_, t)| t) {
-                for index in extension_trie.values().copied() {
-                    cache.cactus.remove(index);
+
+            let mut path = to_lowercase(path);
+            path.set_extension("");
+
+            if let Some(iter) = cache.trie.iter_prefix(&path) {
+                for extension_trie in iter.map(|(_, t)| t) {
+                    for index in extension_trie.values().copied() {
+                        cache.cactus.remove(index);
+                    }
                 }
+                cache.trie.remove_dir(&path);
             }
-            cache.trie.remove_dir(&path);
         }
 
         Ok(())
@@ -458,14 +549,39 @@ where
 
         self.fs.remove_file(&path).wrap_err_with(|| c.clone())?;
 
+        // Remove the file from `cache.trie` and `cache.cactus`
         {
             let cache = &mut *cache;
-            for extension_trie in cache.trie.iter_prefix(&path).unwrap().map(|(_, t)| t) {
-                for index in extension_trie.values().copied() {
+
+            let mut path = to_lowercase(path);
+            let extension = path.extension().unwrap_or_default().to_string();
+            let path_clone = path.clone();
+            path.set_extension("");
+
+            // Remove by exact match
+            if let Some(extension_trie) = cache.trie.get_file_mut(with_trie_suffix(&path)) {
+                if let Some(&index) = extension_trie.get_str(&extension) {
                     cache.cactus.remove(index);
+                    extension_trie.remove_str(&extension);
+                    if extension_trie.is_empty() {
+                        cache.trie.remove_dir(&path);
+                    }
+                    return Ok(());
                 }
             }
-            cache.trie.remove_dir(&path);
+
+            // Remove with added '.*' glob pattern
+            let path = path_clone;
+            if let Some(extension_trie) = cache.trie.get_file_mut(with_trie_suffix(&path)) {
+                if let Some((key, &index)) = extension_trie.iter().next() {
+                    let key = key.to_owned();
+                    cache.cactus.remove(index);
+                    extension_trie.remove(&key);
+                }
+                if extension_trie.is_empty() {
+                    cache.trie.remove_dir(&path);
+                }
+            }
         }
 
         Ok(())
