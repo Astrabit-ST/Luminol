@@ -197,6 +197,43 @@ impl Handler {
         }
     }
 
+    pub fn read_nil_padded_from<T>(self, data: &[u8]) -> color_eyre::Result<Vec<T>>
+    where
+        T: for<'de> alox_48::Deserialize<'de>,
+        T: ::serde::de::DeserializeOwned,
+    {
+        match self.format {
+            DataFormat::Marshal => {
+                let mut de = alox_48::Deserializer::new(data)?;
+                let mut trace = alox_48::path_to_error::Trace::default();
+                let de = alox_48::path_to_error::Deserializer::new(&mut de, &mut trace);
+
+                luminol_data::helpers::nil_padded_alox::deserialize_with(de)
+                    .map_err(|error| format_traced_error(error, trace))
+            }
+            DataFormat::Ron => {
+                let mut de = ron::de::Deserializer::from_bytes(data)?;
+                let mut track = serde_path_to_error::Track::new();
+                let de = serde_path_to_error::Deserializer::new(&mut de, &mut track);
+
+                luminol_data::helpers::nil_padded_serde::deserialize(de).map_err(|inner| {
+                    let error = serde_path_to_error::Error::new(track.path(), inner);
+                    format_path_to_error(error)
+                })
+            }
+            DataFormat::Json => {
+                let mut de = serde_json::de::Deserializer::from_slice(data);
+                let mut track = serde_path_to_error::Track::new();
+                let de = serde_path_to_error::Deserializer::new(&mut de, &mut track);
+
+                luminol_data::helpers::nil_padded_serde::deserialize(de).map_err(|inner| {
+                    let error = serde_path_to_error::Error::new(track.path(), inner);
+                    format_path_to_error(error)
+                })
+            }
+        }
+    }
+
     pub fn write_nil_padded<T>(
         self,
         data: &[T],
@@ -245,6 +282,46 @@ impl Handler {
         }
 
         file.flush()?;
+
+        Ok(())
+    }
+
+    pub fn write_nil_padded_to<T>(self, data: &[T], buffer: &mut Vec<u8>) -> color_eyre::Result<()>
+    where
+        T: ::serde::Serialize,
+        T: alox_48::Serialize,
+    {
+        match self.format {
+            DataFormat::Marshal => {
+                let mut trace = alox_48::path_to_error::Trace::new();
+                let mut ser = alox_48::Serializer::new();
+                let trace_ser = alox_48::path_to_error::Serializer::new(&mut ser, &mut trace);
+
+                luminol_data::helpers::nil_padded_alox::serialize_with(data, trace_ser)
+                    .map_err(|error| format_traced_error(error, trace))?;
+                buffer.extend_from_slice(&ser.output);
+            }
+            DataFormat::Json => {
+                let mut track = serde_path_to_error::Track::new();
+                let mut ser = serde_json::Serializer::new(buffer);
+                let ser = serde_path_to_error::Serializer::new(&mut ser, &mut track);
+
+                luminol_data::helpers::nil_padded_serde::serialize(data, ser).map_err(|inner| {
+                    let error = serde_path_to_error::Error::new(track.path(), inner);
+                    format_path_to_error(error)
+                })?;
+            }
+            DataFormat::Ron => {
+                let mut track = serde_path_to_error::Track::new();
+                let mut ser = ron::Serializer::new(buffer, None)?;
+                let ser = serde_path_to_error::Serializer::new(&mut ser, &mut track);
+
+                luminol_data::helpers::nil_padded_serde::serialize(data, ser).map_err(|inner| {
+                    let error = serde_path_to_error::Error::new(track.path(), inner);
+                    format_path_to_error(error)
+                })?;
+            }
+        }
 
         Ok(())
     }

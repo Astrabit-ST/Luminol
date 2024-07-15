@@ -65,6 +65,13 @@ impl FileSystem {
     pub fn unload_project(&mut self) {
         *self = FileSystem::Unloaded;
     }
+
+    pub fn rebuild_path_cache(&mut self) {
+        let FileSystem::Loaded { filesystem, .. } = self else {
+            return;
+        };
+        filesystem.rebuild();
+    }
 }
 
 // Not platform specific

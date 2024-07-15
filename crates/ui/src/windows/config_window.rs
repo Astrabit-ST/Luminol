@@ -24,7 +24,8 @@
 
 use async_std::io::{ReadExt, WriteExt};
 use egui::Widget;
-use itertools::Itertools;
+use luminol_core::data_formats::Handler as FormatHandler;
+use luminol_data::rpg;
 use luminol_filesystem::{FileSystem, OpenFlags};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use strum::IntoEnumIterator;
@@ -36,9 +37,8 @@ pub struct Window {
 
 struct Convert {
     promise: poll_promise::Promise<color_eyre::Result<()>>,
-    progress: Progress,
+    converting: Converting,
 }
-type Progress = std::sync::Arc<(AtomicUsize, AtomicUsize)>;
 
 impl Window {
     pub fn new(config: &luminol_config::project::Config) -> Self {
@@ -49,110 +49,212 @@ impl Window {
     }
 }
 
+type Converting = std::sync::Arc<(AtomicUsize, AtomicUsize)>;
+
+const CONVERTING_ACTORS: usize = 0;
+const CONVERTING_ANIMATIONS: usize = 1;
+const CONVERTING_ARMORS: usize = 2;
+const CONVERTING_CLASSES: usize = 3;
+const CONVERTING_COMMON_EVENTS: usize = 4;
+const CONVERTING_ENEMIES: usize = 5;
+const CONVERTING_ITEMS: usize = 6;
+const CONVERTING_SKILLS: usize = 7;
+const CONVERTING_STATES: usize = 8;
+const CONVERTING_TILESETS: usize = 9;
+const CONVERTING_TROOPS: usize = 10;
+const CONVERTING_WEAPONS: usize = 11;
+const CONVERTING_SCRIPTS: usize = 12;
+const CONVERTING_SYSTEM: usize = 13;
+const CONVERTING_MAPINFOS: usize = 14;
+
+fn converting_to_string(
+    converting: usize,
+    map_id: usize,
+    selected_data_format: luminol_config::DataFormat,
+) -> String {
+    let text = match converting {
+        CONVERTING_ACTORS => "Actors",
+        CONVERTING_ANIMATIONS => "Animations",
+        CONVERTING_ARMORS => "Armors",
+        CONVERTING_CLASSES => "Classes",
+        CONVERTING_COMMON_EVENTS => "CommonEvents",
+        CONVERTING_ENEMIES => "Enemies",
+        CONVERTING_ITEMS => "Items",
+        CONVERTING_SKILLS => "Skills",
+        CONVERTING_STATES => "States",
+        CONVERTING_TILESETS => "Tilesets",
+        CONVERTING_TROOPS => "Troops",
+        CONVERTING_WEAPONS => "Weapons",
+
+        CONVERTING_SCRIPTS => "Scripts",
+        CONVERTING_SYSTEM => "System",
+        CONVERTING_MAPINFOS => "MapInfos",
+        _ => {
+            return format!("Map{map_id:0>3}.{}", selected_data_format.extension());
+        }
+    };
+    format!("{}.{}", text, selected_data_format.extension())
+}
+
 const FORMAT_WARNING: &str = "Luminol will need to convert your project.\nThis is not 100% safe yet, make backups!\nPress OK to continue.";
+
+// Mostly async, opening files is not however.
+// We should probably provide async fns for that
+async fn convert_nil_padded<T>(
+    from: FormatHandler,
+    to: FormatHandler,
+    read_buf: &mut Vec<u8>,
+    write_buf: &mut Vec<u8>,
+    filename: &str,
+    host: &luminol_filesystem::host::FileSystem,
+) -> color_eyre::Result<Vec<T>>
+where
+    T: ::serde::de::DeserializeOwned + serde::Serialize,
+    T: for<'de> alox_48::Deserialize<'de> + alox_48::Serialize,
+{
+    read_buf.clear();
+    write_buf.clear();
+
+    let mut file = host.open_file(from.path_for(filename), OpenFlags::Read)?;
+    file.read_to_end(read_buf).await?;
+
+    let data = from.read_nil_padded_from::<T>(read_buf)?;
+
+    to.write_nil_padded_to(&data, write_buf)?;
+
+    let mut file = host.open_file(
+        to.path_for(filename),
+        OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,
+    )?;
+    file.write_all(write_buf).await?;
+
+    from.remove_file(host, filename)?;
+
+    Ok(data)
+}
+
+async fn convert_regular<T>(
+    from: FormatHandler,
+    to: FormatHandler,
+    read_buf: &mut Vec<u8>,
+    write_buf: &mut Vec<u8>,
+    filename: &str,
+    host: &luminol_filesystem::host::FileSystem,
+) -> color_eyre::Result<T>
+where
+    T: ::serde::de::DeserializeOwned + serde::Serialize,
+    T: for<'de> alox_48::Deserialize<'de> + alox_48::Serialize,
+{
+    read_buf.clear();
+    write_buf.clear();
+
+    let mut file = host.open_file(from.path_for(filename), OpenFlags::Read)?;
+    file.read_to_end(read_buf).await?;
+
+    let data = from.read_data_from::<T>(read_buf)?;
+
+    to.write_data_to(&data, write_buf)?;
+
+    let mut map_file = host.open_file(
+        to.path_for(filename),
+        OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,
+    )?;
+    map_file.write_all(write_buf).await?;
+
+    from.remove_file(host, filename)?;
+
+    Ok(data)
+}
 
 fn convert_project(
     config: &mut luminol_config::project::Config,
     selected_data_format: luminol_config::DataFormat,
-    data_cache: &mut luminol_core::Data,
-    filesystem: &mut luminol_filesystem::project::FileSystem,
-    progress: Progress,
-) -> color_eyre::Result<impl std::future::Future<Output = color_eyre::Result<()>>> {
-    let from_handler = luminol_core::data_formats::Handler::new(config.project.data_format);
-    let to_handler = luminol_core::data_formats::Handler::new(selected_data_format);
+    filesystem: &luminol_filesystem::project::FileSystem,
+    converting: Converting,
+) -> impl std::future::Future<Output = color_eyre::Result<()>> {
+    let from = FormatHandler::new(config.project.data_format);
+    let to = FormatHandler::new(selected_data_format);
 
+    // TODO handle errors
     let pretty_config = ron::ser::PrettyConfig::new()
         .struct_names(true)
         .enumerate_arrays(true);
     config.project.data_format = selected_data_format;
-    let project_config = ron::ser::to_string_pretty(&config.project, pretty_config)?;
-    filesystem.write(".luminol/config", project_config)?;
+    let project_config = ron::ser::to_string_pretty(&config.project, pretty_config).unwrap();
+    filesystem.write(".luminol/config", project_config).unwrap();
 
-    to_handler.write_nil_padded(&data_cache.actors().data, filesystem, "Actors")?;
-    from_handler.remove_file(filesystem, "Actors")?;
+    let host = filesystem.host().unwrap(); // This bypasses the path cache (which is BAD!) so we will need to regen it later
+    let scripts_filename = config.project.scripts_path.clone();
 
-    to_handler.write_nil_padded(&data_cache.animations().data, filesystem, "Animations")?;
-    from_handler.remove_file(filesystem, "Animations")?;
-
-    to_handler.write_nil_padded(&data_cache.armors().data, filesystem, "Armors")?;
-    from_handler.remove_file(filesystem, "Armors")?;
-
-    to_handler.write_nil_padded(&data_cache.classes().data, filesystem, "Classes")?;
-    from_handler.remove_file(filesystem, "Classes")?;
-
-    to_handler.write_nil_padded(&data_cache.common_events().data, filesystem, "CommonEvents")?;
-    from_handler.remove_file(filesystem, "CommonEvents")?;
-
-    to_handler.write_nil_padded(&data_cache.enemies().data, filesystem, "Enemies")?;
-    from_handler.remove_file(filesystem, "Enemies")?;
-
-    to_handler.write_nil_padded(&data_cache.items().data, filesystem, "Items")?;
-    from_handler.remove_file(filesystem, "Items")?;
-
-    to_handler.write_nil_padded(&data_cache.skills().data, filesystem, "Skills")?;
-    from_handler.remove_file(filesystem, "Skills")?;
-
-    to_handler.write_nil_padded(&data_cache.states().data, filesystem, "States")?;
-    from_handler.remove_file(filesystem, "States")?;
-
-    to_handler.write_nil_padded(&data_cache.tilesets().data, filesystem, "Tilesets")?;
-    from_handler.remove_file(filesystem, "Tilesets")?;
-
-    to_handler.write_nil_padded(&data_cache.troops().data, filesystem, "Troops")?;
-    from_handler.remove_file(filesystem, "Troops")?;
-
-    to_handler.write_nil_padded(&data_cache.weapons().data, filesystem, "Weapons")?;
-    from_handler.remove_file(filesystem, "Weapons")?;
-
-    // special handling
-    to_handler.write_data(
-        &data_cache.scripts().data,
-        filesystem,
-        &config.project.scripts_path,
-    )?;
-    from_handler.remove_file(filesystem, &config.project.scripts_path)?;
-
-    to_handler.write_data(&*data_cache.system(), filesystem, "System")?;
-    from_handler.remove_file(filesystem, "System")?;
-
-    let mapinfos = data_cache.map_infos();
-    to_handler.write_data(&mapinfos.data, filesystem, "MapInfos")?;
-    from_handler.remove_file(filesystem, "MapInfos")?;
-
-    let map_ids = mapinfos.data.keys().copied().collect_vec();
-    let host = filesystem.host().unwrap();
-
-    let fut = async move {
+    async move {
         let mut read_buf = Vec::new();
         let mut write_buf = Vec::<u8>::new();
-        for (index, map_id) in map_ids.into_iter().enumerate() {
-            progress.0.store(index, Ordering::Relaxed);
-            progress.1.store(map_id, Ordering::Relaxed);
 
-            read_buf.clear();
-            write_buf.clear();
+        let host = &host;
+        let read_buf = &mut read_buf;
+        let write_buf = &mut write_buf;
+
+        let (converting_progress, converting_map_id) = &*converting;
+
+        // FIXME: have some kind of trait system to determine filenames rather than hardcoding them like this
+        converting_progress.store(CONVERTING_ACTORS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Actor>(from, to, read_buf, write_buf, "Actors", host).await?;
+
+        converting_progress.store(CONVERTING_ANIMATIONS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Animation>(from, to, read_buf, write_buf, "Animations", host)
+            .await?;
+
+        converting_progress.store(CONVERTING_ARMORS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Armor>(from, to, read_buf, write_buf, "Armors", host).await?;
+
+        converting_progress.store(CONVERTING_CLASSES, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Class>(from, to, read_buf, write_buf, "Classes", host).await?;
+
+        converting_progress.store(CONVERTING_COMMON_EVENTS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::CommonEvent>(from, to, read_buf, write_buf, "CommonEvents", host)
+            .await?;
+
+        converting_progress.store(CONVERTING_ENEMIES, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Enemy>(from, to, read_buf, write_buf, "Enemies", host).await?;
+
+        converting_progress.store(CONVERTING_ITEMS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Item>(from, to, read_buf, write_buf, "Items", host).await?;
+
+        converting_progress.store(CONVERTING_SKILLS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Skill>(from, to, read_buf, write_buf, "Skills", host).await?;
+
+        converting_progress.store(CONVERTING_STATES, Ordering::Relaxed);
+        convert_nil_padded::<rpg::State>(from, to, read_buf, write_buf, "States", host).await?;
+
+        converting_progress.store(CONVERTING_TILESETS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Tileset>(from, to, read_buf, write_buf, "Tilesets", host).await?;
+
+        converting_progress.store(CONVERTING_TROOPS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Troop>(from, to, read_buf, write_buf, "Troops", host).await?;
+
+        converting_progress.store(CONVERTING_WEAPONS, Ordering::Relaxed);
+        convert_nil_padded::<rpg::Weapon>(from, to, read_buf, write_buf, "Weapons", host).await?;
+
+        converting_progress.store(CONVERTING_SCRIPTS, Ordering::Relaxed);
+        convert_regular::<Vec<rpg::Script>>(from, to, read_buf, write_buf, &scripts_filename, host)
+            .await?;
+
+        converting_progress.store(CONVERTING_SYSTEM, Ordering::Relaxed);
+        convert_regular::<rpg::System>(from, to, read_buf, write_buf, "System", host).await?;
+
+        converting_progress.store(CONVERTING_MAPINFOS, Ordering::Relaxed);
+        let mapinfos: std::collections::HashMap<usize, rpg::MapInfo> =
+            convert_regular(from, to, read_buf, write_buf, "MapInfos", host).await?;
+
+        for (index, map_id) in mapinfos.keys().copied().enumerate() {
+            converting_progress.store(CONVERTING_MAPINFOS + index, Ordering::Relaxed);
+            converting_map_id.store(map_id, Ordering::Relaxed);
+
             let map_filename = format!("Map{map_id:0>3}");
-
-            let mut map_file =
-                host.open_file(from_handler.path_for(&map_filename), OpenFlags::Read)?;
-            map_file.read_to_end(&mut read_buf).await?;
-
-            let map: luminol_data::rpg::Map = from_handler.read_data_from(&read_buf)?;
-
-            to_handler.write_data_to(&map, &mut write_buf)?;
-
-            let mut map_file = host.open_file(
-                to_handler.path_for(&map_filename),
-                OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,
-            )?;
-            map_file.write_all(&write_buf).await?;
-
-            from_handler.remove_file(&host, &map_filename)?;
+            convert_regular::<rpg::Map>(from, to, read_buf, write_buf, &map_filename, host).await?;
         }
         Ok(())
-    };
-
-    Ok(fut)
+    }
 }
 
 impl luminol_core::Window for Window {
@@ -243,17 +345,18 @@ impl luminol_core::Window for Window {
                             )
                             .clicked();
                         if clicked {
-                            let progress = Progress::default();
+                            let converting = Converting::default();
                             let future = convert_project(
                                 config,
                                 self.selected_data_format,
-                                update_state.data,
                                 update_state.filesystem,
-                                progress.clone(),
-                            )
-                            .unwrap(); //TODO handle
+                                converting.clone(),
+                            );
                             let promise = poll_promise::Promise::spawn_async(future);
-                            self.convert = Some(Convert { promise, progress });
+                            self.convert = Some(Convert {
+                                promise,
+                                converting,
+                            });
                         }
                     }
 
@@ -321,29 +424,39 @@ impl luminol_core::Window for Window {
                 let map_infos = update_state.data.map_infos();
                 let map_count = map_infos.data.len();
 
-                let progress = convert.progress.0.load(Ordering::Relaxed);
-                let map_id = convert.progress.1.load(Ordering::Relaxed);
+                let current_progress = convert.converting.0.load(Ordering::Relaxed);
+                let current_map_id = convert.converting.1.load(Ordering::Relaxed);
 
-                let progress_percent = (progress as f32 + 1.0) / map_count as f32;
+                let total = CONVERTING_MAPINFOS + map_count + 1;
+                let progress = (current_progress + 2) as f32 / total as f32;
+
+                let current_text = converting_to_string(
+                    current_progress,
+                    current_map_id,
+                    self.selected_data_format,
+                );
+
                 ui.label(format!(
-                    "Converting Map{map_id:0>3}.{}",
-                    self.selected_data_format.extension()
+                    "Converting {current_text} {}/{total}",
+                    current_progress + 2
                 ));
-                egui::ProgressBar::new(progress_percent)
-                    .animate(true)
-                    .ui(ui);
+                egui::ProgressBar::new(progress).animate(true).ui(ui);
             });
             match convert.promise.try_take() {
-                Ok(Ok(())) => {}
+                Ok(Ok(())) => {
+                    // we've drastically edited the data folder, so the path cache needs to be rebuilt
+                    update_state.filesystem.rebuild_path_cache();
+                }
                 Ok(Err(err)) => {
-                    luminol_core::error!(update_state.toasts, err)
+                    luminol_core::error!(update_state.toasts, err);
+                    luminol_core::warn!(
+                        update_state.toasts,
+                        "WARNING: Your project may be corrupted!"
+                    );
                 }
                 Err(promise) => {
                     modal.open();
-                    self.convert = Some(Convert {
-                        promise,
-                        progress: convert.progress,
-                    });
+                    self.convert = Some(Convert { promise, ..convert });
                 }
             }
         }
