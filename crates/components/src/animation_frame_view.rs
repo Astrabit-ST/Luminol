@@ -233,8 +233,12 @@ impl AnimationFrameView {
         if let Some(drag_offset) = self.hovered_cell_drag_offset {
             let pos = (response.hover_pos().unwrap() - offset) / scale + drag_offset;
             self.hovered_cell_drag_pos = Some((
-                pos.x.round_ties_even() as i16,
-                pos.y.round_ties_even() as i16,
+                pos.x
+                    .clamp(-(FRAME_WIDTH as f32 / 2.), FRAME_WIDTH as f32 / 2.)
+                    .round_ties_even() as i16,
+                pos.y
+                    .clamp(-(FRAME_HEIGHT as f32 / 2.), FRAME_HEIGHT as f32 / 2.)
+                    .round_ties_even() as i16,
             ));
         } else {
             self.hovered_cell_drag_pos = None;
