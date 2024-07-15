@@ -188,16 +188,32 @@ impl Cache {
         }
         let mut path = to_lowercase(path);
         let extension = path.extension().unwrap_or_default().to_string();
+        let path_clone = path.clone();
         path.set_extension("");
-        self.trie
-            .get_file(with_trie_suffix(&path))
-            .map(|extension_trie| {
-                self.get_path_from_cactus_index(
-                    *extension_trie
+
+        // Try to search for the given path exactly (case-insensitive)
+        let maybe_exact_match =
+            self.trie
+                .get_file(with_trie_suffix(&path))
+                .and_then(|extension_trie| {
+                    extension_trie
                         .get_str(&extension)
-                        .unwrap_or(extension_trie.values().next().unwrap()),
-                )
-            })
+                        .map(|&index| self.get_path_from_cactus_index(index))
+                });
+
+        maybe_exact_match.or_else(|| {
+            // If we didn't find anything the first time, try again using a '.*' glob pattern
+            // appended to the end (still case-insensitive)
+            let path = path_clone;
+            self.trie
+                .get_file(with_trie_suffix(path))
+                .and_then(|extension_trie| {
+                    extension_trie
+                        .values()
+                        .next()
+                        .map(|&index| self.get_path_from_cactus_index(index))
+                })
+        })
     }
 }
 
@@ -269,14 +285,15 @@ where
     }
 
     /// Finds the correct letter casing and file extension for the given RPG Maker-style
-    /// case-insensitive path. Returns `Err(NotExist)` if no matching path is found.
+    /// case-insensitive path.
     ///
-    /// If the path you pass to this function has a file extension, this function will prioritize
-    /// files with that file extension (case-insensitive) and then fall back to ignoring the file
-    /// extension.
+    /// First this function will perform a case-insensitive search for the given path.
     ///
-    /// If the path you pass to this function has no file extension, this function will prioritize
-    /// files with no file extension and then fall back to a wildcard file extension search.
+    /// If no file or folder at that path is found, this function searches a second time with a
+    /// '.*' glob pattern appended to the end of the path (e.g. if you're looking for "my/path",
+    /// this will also find stuff like "my/path.txt" or "my/path.json").
+    ///
+    /// If no match was found either time, returns `Err(NotExist)`.
     pub fn desensitize(&self, path: impl AsRef<camino::Utf8Path>) -> Result<camino::Utf8PathBuf> {
         let path = path.as_ref();
         let mut cache = self.cache.write();
