@@ -463,9 +463,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             if let Some(frame_view) = &mut self.frame_view {
-                                if *update_state.modified_during_prev_frame
-                                    || self.previous_animation != Some(animation.id)
-                                {
+                                if self.previous_animation != Some(animation.id) {
                                     frame_view.frame.atlas = update_state
                                         .graphics
                                         .atlas_loader
