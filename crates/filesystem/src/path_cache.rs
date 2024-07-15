@@ -79,12 +79,47 @@ impl Cache {
         fs: &impl FileSystemTrait,
         path: impl AsRef<camino::Utf8Path>,
     ) -> crate::Result<()> {
-        let mut path = to_lowercase(path);
-        let extension = path.extension().unwrap_or_default().to_string();
-        path.set_extension("");
-        if self.trie.contains_dir(&path) {
+        let path = path.as_ref();
+
+        // We don't need to do anything if there already is a path in the trie matching the given
+        // path
+        if self.desensitize(path).is_some() {
             return Ok(());
         }
+
+        let extension = path.extension().unwrap_or_default().to_string();
+        let mut path = to_lowercase(path);
+        path.set_extension("");
+
+        // If there is a matching path with a different file extension than this one, we may need
+        // to add this new path to the extension trie
+        if self.trie.contains_file(with_trie_suffix(&path)) {
+            if let Some(mut desensitized_path) = self
+                .trie
+                .get_file(with_trie_suffix(&path))
+                .unwrap()
+                .values()
+                .next()
+                .map(|&cactus_index| self.get_path_from_cactus_index(cactus_index))
+            {
+                desensitized_path.set_extension(&extension);
+                if fs.exists(&desensitized_path)? {
+                    let extension_trie = self.trie.get_file_mut(with_trie_suffix(&path)).unwrap();
+                    let sibling = self
+                        .cactus
+                        .get(*extension_trie.values().next().unwrap())
+                        .unwrap();
+                    let cactus_index = self.cactus.insert(CactusNode {
+                        value: desensitized_path.file_name().unwrap_or_default().into(),
+                        ..*sibling
+                    });
+                    extension_trie.insert_str(&extension, cactus_index);
+                    return Ok(());
+                }
+            }
+        }
+
+        let extension = extension.to_lowercase();
 
         let prefix = self.trie.get_dir_prefix(&path);
         let mut cactus_index = (!prefix.as_str().is_empty()).then(|| {
@@ -497,14 +532,6 @@ where
                 }
                 cache.trie.remove_dir(&path);
             }
-
-            let path = with_trie_suffix(&path);
-            if let Some(extension_trie) = cache.trie.get_file(&path) {
-                for index in extension_trie.values().copied() {
-                    cache.cactus.remove(index);
-                }
-                cache.trie.remove_file(&path);
-            }
         }
 
         Ok(())
@@ -527,14 +554,33 @@ where
             let cache = &mut *cache;
 
             let mut path = to_lowercase(path);
+            let extension = path.extension().unwrap_or_default().to_string();
+            let path_clone = path.clone();
             path.set_extension("");
-            let path = with_trie_suffix(&path);
 
-            if let Some(extension_trie) = cache.trie.get_file(&path) {
-                for index in extension_trie.values().copied() {
+            // Remove by exact match
+            if let Some(extension_trie) = cache.trie.get_file_mut(with_trie_suffix(&path)) {
+                if let Some(&index) = extension_trie.get_str(&extension) {
                     cache.cactus.remove(index);
+                    extension_trie.remove_str(&extension);
+                    if extension_trie.is_empty() {
+                        cache.trie.remove_dir(&path);
+                    }
+                    return Ok(());
                 }
-                cache.trie.remove_file(&path);
+            }
+
+            // Remove with added '.*' glob pattern
+            let path = path_clone;
+            if let Some(extension_trie) = cache.trie.get_file_mut(with_trie_suffix(&path)) {
+                if let Some((key, &index)) = extension_trie.iter().next() {
+                    let key = key.to_owned();
+                    cache.cactus.remove(index);
+                    extension_trie.remove(&key);
+                }
+                if extension_trie.is_empty() {
+                    cache.trie.remove_dir(&path);
+                }
             }
         }
 
