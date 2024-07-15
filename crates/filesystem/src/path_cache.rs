@@ -472,19 +472,22 @@ where
             let mut path = to_lowercase(path);
             path.set_extension("");
 
-            for extension_trie in cache.trie.iter_prefix(&path).unwrap().map(|(_, t)| t) {
+            if let Some(iter) = cache.trie.iter_prefix(&path) {
+                for extension_trie in iter.map(|(_, t)| t) {
+                    for index in extension_trie.values().copied() {
+                        cache.cactus.remove(index);
+                    }
+                }
+                cache.trie.remove_dir(&path);
+            }
+
+            let path = with_trie_suffix(&path);
+            if let Some(extension_trie) = cache.trie.get_file(&path) {
                 for index in extension_trie.values().copied() {
                     cache.cactus.remove(index);
                 }
+                cache.trie.remove_file(&path);
             }
-            cache.trie.remove_dir(&path);
-
-            let path = with_trie_suffix(&path);
-            let extension_trie = cache.trie.get_file(&path).unwrap();
-            for index in extension_trie.values().copied() {
-                cache.cactus.remove(index);
-            }
-            cache.trie.remove_file(&path);
         }
 
         Ok(())
@@ -510,11 +513,12 @@ where
             path.set_extension("");
             let path = with_trie_suffix(&path);
 
-            let extension_trie = cache.trie.get_file(&path).unwrap();
-            for index in extension_trie.values().copied() {
-                cache.cactus.remove(index);
+            if let Some(extension_trie) = cache.trie.get_file(&path) {
+                for index in extension_trie.values().copied() {
+                    cache.cactus.remove(index);
+                }
+                cache.trie.remove_file(&path);
             }
-            cache.trie.remove_file(&path);
         }
 
         Ok(())
