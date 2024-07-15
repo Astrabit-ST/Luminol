@@ -352,7 +352,10 @@ impl luminol_core::Window for Window {
                                 update_state.filesystem,
                                 converting.clone(),
                             );
+                            #[cfg(not(target_arch = "wasm32"))]
                             let promise = poll_promise::Promise::spawn_async(future);
+                            #[cfg(target_arch = "wasm32")]
+                            let promise = poll_promise::Promise::spawn_local(future);
                             self.convert = Some(Convert {
                                 promise,
                                 converting,
