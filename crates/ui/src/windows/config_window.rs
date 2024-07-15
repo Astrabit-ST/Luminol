@@ -315,6 +315,11 @@ impl luminol_core::Window for Window {
                                     .changed();
                             }
                         });
+                    if let luminol_config::DataFormat::Json { pretty }
+                    | luminol_config::DataFormat::Ron { pretty } = &mut self.selected_data_format
+                    {
+                        ui.checkbox(pretty, "Pretty Print").on_hover_text("This will make the data files human-readable, but significantly larger!");
+                    }
 
                     if self.selected_data_format != config.project.data_format {
                         // add warning message about needing to edit every single data file
