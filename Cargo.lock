@@ -3260,6 +3260,7 @@ dependencies = [
  "camino",
  "color-eyre",
  "egui",
+ "egui-modal",
  "futures-lite 2.2.0",
  "futures-util",
  "indexmap",

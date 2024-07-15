@@ -28,6 +28,7 @@ luminol-modals.workspace = true
 luminol-macros.workspace = true
 
 egui.workspace = true
+egui-modal = "0.3.6"
 
 camino.workspace = true
 

@@ -36,6 +36,12 @@ impl Handler {
         Self { format }
     }
 
+    pub fn path_for(self, filename: impl AsRef<camino::Utf8Path>) -> camino::Utf8PathBuf {
+        camino::Utf8Path::new("Data")
+            .join(filename)
+            .with_extension(self.format.extension())
+    }
+
     pub fn read_data<T>(
         self,
         filesystem: &impl luminol_filesystem::FileSystem,
@@ -45,10 +51,7 @@ impl Handler {
         T: for<'de> alox_48::Deserialize<'de>,
         T: ::serde::de::DeserializeOwned,
     {
-        let path = camino::Utf8Path::new("Data")
-            .join(filename)
-            .with_extension(self.format.extension());
-        let data = filesystem.read(path)?;
+        let data = filesystem.read(self.path_for(filename))?;
 
         match self.format {
             DataFormat::Marshal => {
@@ -68,6 +71,29 @@ impl Handler {
         }
     }
 
+    pub fn read_data_from<T>(self, data: &[u8]) -> color_eyre::Result<T>
+    where
+        T: for<'de> alox_48::Deserialize<'de>,
+        T: ::serde::de::DeserializeOwned,
+    {
+        match self.format {
+            DataFormat::Marshal => {
+                let mut de = alox_48::Deserializer::new(data)?;
+                let result = alox_48::path_to_error::deserialize(&mut de);
+
+                result.map_err(|(error, trace)| format_traced_error(error, trace))
+            }
+            DataFormat::Ron => {
+                let mut de = ron::de::Deserializer::from_bytes(data)?;
+                serde_path_to_error::deserialize(&mut de).map_err(format_path_to_error)
+            }
+            DataFormat::Json => {
+                let mut de = serde_json::de::Deserializer::from_slice(data);
+                serde_path_to_error::deserialize(&mut de).map_err(format_path_to_error)
+            }
+        }
+    }
+
     pub fn write_data<T>(
         self,
         data: &T,
@@ -78,11 +104,8 @@ impl Handler {
         T: ::serde::Serialize,
         T: alox_48::Serialize,
     {
-        let path = camino::Utf8Path::new("Data")
-            .join(filename)
-            .with_extension(self.format.extension());
         let mut file = filesystem.open_file(
-            path,
+            self.path_for(filename),
             OpenFlags::Create | OpenFlags::Truncate | OpenFlags::Write,
         )?;
 
@@ -106,6 +129,31 @@ impl Handler {
         Ok(())
     }
 
+    pub fn write_data_to<T>(self, data: &T, buffer: &mut Vec<u8>) -> color_eyre::Result<()>
+    where
+        T: ::serde::Serialize,
+        T: alox_48::Serialize,
+    {
+        match self.format {
+            DataFormat::Marshal => {
+                let mut serializer = alox_48::Serializer::new();
+                alox_48::path_to_error::serialize(data, &mut serializer)
+                    .map_err(|(error, trace)| format_traced_error(error, trace))?;
+                buffer.extend_from_slice(&serializer.output);
+            }
+            DataFormat::Ron => {
+                let mut ser = ron::Serializer::new(buffer, None)?;
+                serde_path_to_error::serialize(data, &mut ser)?;
+            }
+            DataFormat::Json => {
+                let mut ser = serde_json::Serializer::new(buffer);
+                serde_path_to_error::serialize(data, &mut ser)?;
+            }
+        };
+
+        Ok(())
+    }
+
     pub fn read_nil_padded<T>(
         self,
         filesystem: &impl luminol_filesystem::FileSystem,
@@ -115,10 +163,7 @@ impl Handler {
         T: for<'de> alox_48::Deserialize<'de>,
         T: ::serde::de::DeserializeOwned,
     {
-        let path = camino::Utf8Path::new("Data")
-            .join(filename)
-            .with_extension(self.format.extension());
-        let data = filesystem.read(path)?;
+        let data = filesystem.read(self.path_for(filename))?;
 
         match self.format {
             DataFormat::Marshal => {
@@ -162,11 +207,8 @@ impl Handler {
         T: ::serde::Serialize,
         T: alox_48::Serialize,
     {
-        let path = camino::Utf8Path::new("Data")
-            .join(filename)
-            .with_extension(self.format.extension());
         let mut file = filesystem.open_file(
-            path,
+            self.path_for(filename),
             OpenFlags::Create | OpenFlags::Truncate | OpenFlags::Write,
         )?;
 
