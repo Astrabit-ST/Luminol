@@ -26,6 +26,9 @@ use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::Modal;
 
+use luminol_data::BlendMode;
+use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
+use luminol_graphics::primitives::cells::{ANIMATION_COLUMNS, CELL_SIZE};
 use luminol_modals::sound_picker::Modal as SoundPicker;
 
 /// Database - Animations management window.
@@ -290,6 +293,114 @@ impl Window {
                     }
                 });
             });
+
+        if let Some(i) = frame_view.selected_cell_index {
+            let mut properties_modified = false;
+
+            ui.label(format!("Cell {}", i + 1));
+
+            ui.columns(4, |columns| {
+                let mut pattern = frame.cell_data[(i, 0)] + 1;
+                let changed = columns[0]
+                    .add(luminol_components::Field::new(
+                        "Pattern",
+                        egui::DragValue::new(&mut pattern).clamp_range(
+                            1..=(frame_view.frame.atlas.animation_height / CELL_SIZE
+                                * ANIMATION_COLUMNS) as i16,
+                        ),
+                    ))
+                    .changed();
+                if changed {
+                    frame.cell_data[(i, 0)] = pattern - 1;
+                    properties_modified = true;
+                }
+
+                properties_modified |= columns[1]
+                    .add(luminol_components::Field::new(
+                        "X",
+                        egui::DragValue::new(&mut frame.cell_data[(i, 1)])
+                            .clamp_range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
+                    ))
+                    .changed();
+
+                properties_modified |= columns[2]
+                    .add(luminol_components::Field::new(
+                        "Y",
+                        egui::DragValue::new(&mut frame.cell_data[(i, 2)])
+                            .clamp_range(-(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2),
+                    ))
+                    .changed();
+
+                properties_modified |= columns[3]
+                    .add(luminol_components::Field::new(
+                        "Scale",
+                        egui::DragValue::new(&mut frame.cell_data[(i, 3)])
+                            .clamp_range(1..=i16::MAX)
+                            .suffix("%"),
+                    ))
+                    .changed();
+            });
+
+            ui.columns(4, |columns| {
+                properties_modified |= columns[0]
+                    .add(luminol_components::Field::new(
+                        "Rotation",
+                        egui::DragValue::new(&mut frame.cell_data[(i, 4)])
+                            .clamp_range(0..=360)
+                            .suffix("°"),
+                    ))
+                    .changed();
+
+                let mut flip = frame.cell_data[(i, 5)] == 1;
+                let changed = columns[1]
+                    .add(luminol_components::Field::new(
+                        "Flip",
+                        egui::Checkbox::without_text(&mut flip),
+                    ))
+                    .changed();
+                if changed {
+                    frame.cell_data[(i, 5)] = if flip { 1 } else { 0 };
+                    properties_modified = true;
+                }
+
+                properties_modified |= columns[2]
+                    .add(luminol_components::Field::new(
+                        "Opacity",
+                        egui::DragValue::new(&mut frame.cell_data[(i, 6)]).clamp_range(0..=255),
+                    ))
+                    .changed();
+
+                let mut blend_mode = match frame.cell_data[(i, 7)] {
+                    1 => BlendMode::Add,
+                    2 => BlendMode::Subtract,
+                    _ => BlendMode::Normal,
+                };
+                let changed = columns[3]
+                    .add(luminol_components::Field::new(
+                        "Blending",
+                        luminol_components::EnumComboBox::new(
+                            (animation.id, *frame_index, i, 7usize),
+                            &mut blend_mode,
+                        ),
+                    ))
+                    .changed();
+                if changed {
+                    frame.cell_data[(i, 7)] = match blend_mode {
+                        BlendMode::Normal => 0,
+                        BlendMode::Add => 1,
+                        BlendMode::Subtract => 2,
+                    };
+                    properties_modified = true;
+                }
+            });
+
+            if properties_modified {
+                frame_view
+                    .frame
+                    .update_cell_sprite(&update_state.graphics.render_state, frame, i);
+                modified = true;
+            }
+        }
 
         modified
     }

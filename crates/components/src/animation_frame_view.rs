@@ -194,7 +194,7 @@ impl AnimationFrameView {
             .sprites
             .iter()
             .map(|(i, (_, cell_rect))| (i, (*cell_rect * scale).translate(offset)));
-        if ui.input(|i| i.pointer.primary_clicked()) {
+        if response.clicked() {
             self.selected_cell_index = None;
         }
         if self.hovered_cell_drag_offset.is_none() {
@@ -203,7 +203,7 @@ impl AnimationFrameView {
                 .then(|| {
                     cell_rect_iter.clone().rev().find_map(|(i, cell_rect)| {
                         (response.hovered() && ui.rect_contains_pointer(cell_rect)).then(|| {
-                            if ui.input(|i| i.pointer.primary_clicked()) {
+                            if response.clicked() {
                                 // If the hovered cell was clicked, make it the selected cell
                                 self.selected_cell_index = Some(i);
                             }
