@@ -478,6 +478,13 @@ where
                 }
             }
             cache.trie.remove_dir(&path);
+
+            let path = with_trie_suffix(&path);
+            let extension_trie = cache.trie.get_file(&path).unwrap();
+            for index in extension_trie.values().copied() {
+                cache.cactus.remove(index);
+            }
+            cache.trie.remove_file(&path);
         }
 
         Ok(())
