@@ -142,15 +142,13 @@ impl AnimationFrameView {
         // its a *long* story
         let scale = self.scale / (ui.ctx().pixels_per_point() * 100.);
 
-        // no idea why this math works (could probably be simplified)
-        let proj_center_x = -(self.pan.x + clip_offset.x) / scale;
-        let proj_center_y = -(self.pan.y + clip_offset.y) / scale;
-        let proj_width2 = canvas_rect.width() / scale / 2.;
-        let proj_height2 = canvas_rect.height() / scale / 2.;
         self.frame.viewport.set(
             &update_state.graphics.render_state,
             glam::vec2(canvas_rect.width(), canvas_rect.height()),
-            glam::vec2(proj_width2 - proj_center_x, proj_height2 - proj_center_y) * scale,
+            glam::vec2(
+                canvas_rect.width() / 2. + self.pan.x + clip_offset.x,
+                canvas_rect.height() / 2. + self.pan.y + clip_offset.y,
+            ),
             glam::Vec2::splat(scale),
         );
 
