@@ -127,6 +127,7 @@ where
         OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,
     )?;
     file.write_all(write_buf).await?;
+    file.flush().await?;
 
     from.remove_file(host, filename)?;
 
@@ -155,11 +156,12 @@ where
 
     to.write_data_to(&data, write_buf)?;
 
-    let mut map_file = host.open_file(
+    let mut file = host.open_file(
         to.path_for(filename),
         OpenFlags::Write | OpenFlags::Truncate | OpenFlags::Create,
     )?;
-    map_file.write_all(write_buf).await?;
+    file.write_all(write_buf).await?;
+    file.flush().await?;
 
     from.remove_file(host, filename)?;
 
