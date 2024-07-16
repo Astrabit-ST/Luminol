@@ -246,6 +246,19 @@ impl Window {
     ) -> bool {
         let mut modified = false;
 
+        let canvas_rect = egui::Resize::default()
+            .resizable([false, true])
+            .min_width(ui.available_width())
+            .max_width(ui.available_width())
+            .show(ui, |ui| {
+                egui::Frame::dark_canvas(ui.style())
+                    .show(ui, |ui| {
+                        let (_, rect) = ui.allocate_space(ui.available_size());
+                        rect
+                    })
+                    .inner
+            });
+
         let frame_view = if let Some(frame_view) = maybe_frame_view {
             frame_view
         } else {
@@ -274,25 +287,6 @@ impl Window {
                 modified = true;
             }
         }
-
-        egui::Resize::default()
-            .resizable([false, true])
-            .min_width(ui.available_width())
-            .max_width(ui.available_width())
-            .show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                    let response = frame_view.ui(ui, update_state, clip_rect);
-
-                    // If the pointer is hovering over the frame view, prevent parent widgets
-                    // from receiving scroll events so that scaling the frame view with the
-                    // scroll wheel doesn't also scroll the scroll area that the frame view is
-                    // in
-                    if response.hovered() {
-                        ui.ctx()
-                            .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
-                    }
-                });
-            });
 
         if let Some(i) = frame_view.selected_cell_index {
             let mut properties_modified = false;
@@ -401,6 +395,19 @@ impl Window {
                 modified = true;
             }
         }
+
+        ui.allocate_ui_at_rect(canvas_rect, |ui| {
+            let response = frame_view.ui(ui, update_state, clip_rect);
+
+            // If the pointer is hovering over the frame view, prevent parent widgets
+            // from receiving scroll events so that scaling the frame view with the
+            // scroll wheel doesn't also scroll the scroll area that the frame view is
+            // in
+            if response.hovered() {
+                ui.ctx()
+                    .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
+            }
+        });
 
         modified
     }
