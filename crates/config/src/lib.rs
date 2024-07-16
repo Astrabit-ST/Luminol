@@ -29,17 +29,17 @@ pub enum DataFormat {
     #[strum(to_string = "Ruby Marshal")]
     Marshal,
     #[strum(to_string = "RON")]
-    Ron,
+    Ron { pretty: bool },
     #[strum(to_string = "JSON")]
-    Json,
+    Json { pretty: bool },
 }
 
 impl DataFormat {
     pub fn extension(self) -> &'static str {
         match self {
             Self::Marshal => "rxdata",
-            Self::Ron => "ron",
-            Self::Json => "json",
+            Self::Ron { .. } => "ron",
+            Self::Json { .. } => "json",
         }
     }
 }

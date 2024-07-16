@@ -46,7 +46,7 @@ pub use project_manager::spawn_future;
 pub use project_manager::ProjectManager;
 
 pub use alox_48;
-pub use data_cache::data_formats::format_traced_error;
+pub use data_cache::data_formats::{self, format_traced_error};
 
 pub mod prelude {
     pub use crate::{Modal, Tab, UpdateState, Window};

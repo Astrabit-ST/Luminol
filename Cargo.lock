@@ -3256,10 +3256,12 @@ dependencies = [
 name = "luminol-ui"
 version = "0.4.0"
 dependencies = [
+ "alox-48",
  "async-std",
  "camino",
  "color-eyre",
  "egui",
+ "egui-modal",
  "futures-lite 2.2.0",
  "futures-util",
  "indexmap",
