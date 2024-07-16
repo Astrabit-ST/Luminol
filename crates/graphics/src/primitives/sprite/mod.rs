@@ -29,6 +29,7 @@ pub struct Sprite {
     pub graphic: graphic::Graphic,
     pub transform: Transform,
     pub blend_mode: luminol_data::BlendMode,
+    pub quad: Quad,
 
     // stored in an Arc so we can use it in rendering
     vertices: Arc<vertices::Vertices>,
@@ -96,6 +97,7 @@ impl Sprite {
             graphic,
             blend_mode,
             transform,
+            quad,
 
             vertices: Arc::new(vertices),
             bind_group: Arc::new(bind_group),
@@ -136,6 +138,18 @@ impl Sprite {
     // takes the full size of a texture, has no hue, opacity, or blend mode, and uses the identity transform
     pub fn basic(graphics_state: &GraphicsState, texture: &Texture, viewport: &Viewport) -> Self {
         Self::basic_hue(graphics_state, 0, texture, viewport)
+    }
+
+    pub fn set_quad(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        quad: Quad,
+        extents: wgpu::Extent3d,
+    ) {
+        if quad != self.quad {
+            self.quad = quad;
+            self.vertices.set(render_state, &[quad], extents);
+        }
     }
 }
 

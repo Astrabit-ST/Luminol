@@ -137,6 +137,7 @@ impl Frame {
         cell_index: usize,
     ) {
         if let Some((sprite, cell_rect)) = self.sprites.get_mut(cell_index) {
+            let id = frame.cell_data[(cell_index, 0)];
             let offset_x = frame.cell_data[(cell_index, 1)] as f32;
             let offset_y = frame.cell_data[(cell_index, 2)] as f32;
             let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
@@ -166,6 +167,12 @@ impl Frame {
                 opacity,
                 1.,
                 if flip { -rotation } else { rotation },
+            );
+
+            sprite.set_quad(
+                render_state,
+                self.atlas.calc_quad(id),
+                self.atlas.atlas_texture.size(),
             );
 
             sprite.blend_mode = blend_mode;
