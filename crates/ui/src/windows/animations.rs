@@ -45,8 +45,8 @@ pub struct Window {
     view: luminol_components::DatabaseView,
 }
 
-impl Window {
-    pub fn new() -> Self {
+impl Default for Window {
+    fn default() -> Self {
         Self {
             selected_animation_name: None,
             previous_animation: None,
@@ -61,7 +61,9 @@ impl Window {
             view: luminol_components::DatabaseView::new(),
         }
     }
+}
 
+impl Window {
     fn show_timing_header(ui: &mut egui::Ui, timing: &luminol_data::rpg::animation::Timing) {
         let mut vec = Vec::with_capacity(3);
 
@@ -246,19 +248,6 @@ impl Window {
     ) -> bool {
         let mut modified = false;
 
-        let canvas_rect = egui::Resize::default()
-            .resizable([false, true])
-            .min_width(ui.available_width())
-            .max_width(ui.available_width())
-            .show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style())
-                    .show(ui, |ui| {
-                        let (_, rect) = ui.allocate_space(ui.available_size());
-                        rect
-                    })
-                    .inner
-            });
-
         let frame_view = if let Some(frame_view) = maybe_frame_view {
             frame_view
         } else {
@@ -273,6 +262,46 @@ impl Window {
             maybe_frame_view.as_mut().unwrap()
         };
 
+        ui.columns(2, |columns| {
+            columns[0].add(luminol_components::Field::new(
+                "Editor Scale",
+                egui::Slider::new(&mut frame_view.scale, 15.0..=300.0)
+                    .suffix("%")
+                    .logarithmic(true)
+                    .fixed_decimals(0),
+            ));
+
+            *frame_index += 1;
+            let changed = columns[1]
+                .add(luminol_components::Field::new(
+                    "Frame",
+                    egui::DragValue::new(frame_index)
+                        .clamp_range(1..=animation.frames.len() as i32),
+                ))
+                .changed();
+            *frame_index -= 1;
+            if changed {
+                frame_view.frame.update_all_cell_sprites(
+                    &update_state.graphics,
+                    &mut animation.frames[*frame_index as usize],
+                    animation.animation_hue,
+                );
+            }
+        });
+
+        let canvas_rect = egui::Resize::default()
+            .resizable([false, true])
+            .min_width(ui.available_width())
+            .max_width(ui.available_width())
+            .show(ui, |ui| {
+                egui::Frame::dark_canvas(ui.style())
+                    .show(ui, |ui| {
+                        let (_, rect) = ui.allocate_space(ui.available_size());
+                        rect
+                    })
+                    .inner
+            });
+
         let frame = &mut animation.frames[*frame_index as usize];
 
         if let (Some(i), Some(drag_pos)) = (
@@ -281,9 +310,12 @@ impl Window {
         ) {
             if (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) != drag_pos {
                 (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) = drag_pos;
-                frame_view
-                    .frame
-                    .update_cell_sprite(&update_state.graphics.render_state, frame, i);
+                frame_view.frame.update_cell_sprite(
+                    &update_state.graphics,
+                    frame,
+                    animation.animation_hue,
+                    i,
+                );
                 modified = true;
             }
         }
@@ -389,9 +421,12 @@ impl Window {
             });
 
             if properties_modified {
-                frame_view
-                    .frame
-                    .update_cell_sprite(&update_state.graphics.render_state, frame, i);
+                frame_view.frame.update_cell_sprite(
+                    &update_state.graphics,
+                    frame,
+                    animation.animation_hue,
+                    i,
+                );
                 modified = true;
             }
         }
@@ -453,7 +488,7 @@ impl luminol_core::Window for Window {
                     &mut animations.data,
                     |animation| format!("{:0>4}: {}", animation.id + 1, animation.name),
                     |ui, animations, id, update_state| {
-                        let mut animation = &mut animations[id];
+                        let animation = &mut animations[id];
                         self.selected_animation_name = Some(animation.name.clone());
 
                         let clip_rect = ui.clip_rect();
@@ -480,9 +515,10 @@ impl luminol_core::Window for Window {
                                             animation,
                                         )
                                         .unwrap(); // TODO get rid of this unwrap
-                                    frame_view.frame.update_all_cells(
+                                    frame_view.frame.rebuild_all_cells(
                                         &update_state.graphics,
                                         &animation.frames[self.frame as usize],
+                                        animation.animation_hue,
                                     );
                                 }
                             }
@@ -491,7 +527,7 @@ impl luminol_core::Window for Window {
                                 update_state,
                                 clip_rect,
                                 &mut self.frame_view,
-                                &mut animation,
+                                animation,
                                 &mut self.frame,
                             );
                         });

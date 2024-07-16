@@ -18,7 +18,6 @@
 use crate::primitives::cells::{Atlas, CELL_SIZE};
 use crate::{Drawable, GraphicsState, Renderable, Sprite, Transform, Viewport};
 use luminol_data::{BlendMode, OptionVec};
-use luminol_egui_wgpu::RenderState;
 
 pub const FRAME_WIDTH: usize = 640;
 pub const FRAME_HEIGHT: usize = 320;
@@ -48,36 +47,42 @@ impl Frame {
             sprites: Default::default(),
             viewport,
         };
-        frame.update_all_cells(graphics_state, &animation.frames[frame_index]);
+        frame.rebuild_all_cells(
+            graphics_state,
+            &animation.frames[frame_index],
+            animation.animation_hue,
+        );
         frame
     }
 
-    /// Updates the sprite for one cell based on the given animation frame.
-    pub fn update_cell(
+    pub fn rebuild_cell(
         &mut self,
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
+        hue: i32,
         cell_index: usize,
     ) {
-        if let Some(sprite) = self.sprite_from_cell_data(graphics_state, frame, cell_index) {
+        if let Some(sprite) = self.sprite_from_cell_data(graphics_state, frame, hue, cell_index) {
             self.sprites.insert(cell_index, sprite);
         } else {
             let _ = self.sprites.try_remove(cell_index);
         }
     }
 
-    /// Updates the sprite for every cell based on the given animation frame.
-    pub fn update_all_cells(
+    pub fn rebuild_all_cells(
         &mut self,
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
+        hue: i32,
     ) {
         let mut sprites = std::mem::take(&mut self.sprites);
         sprites.clear();
-        sprites.extend((0..frame.cell_data.xsize()).filter_map(|i| {
-            self.sprite_from_cell_data(graphics_state, frame, i)
-                .map(|s| (i, s))
-        }));
+        sprites.extend(
+            (0..frame.cell_data.xsize().max(self.sprites.len())).filter_map(|i| {
+                self.sprite_from_cell_data(graphics_state, frame, hue, i)
+                    .map(|s| (i, s))
+            }),
+        );
         self.sprites = sprites;
     }
 
@@ -85,6 +90,7 @@ impl Frame {
         &self,
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
+        hue: i32,
         cell_index: usize,
     ) -> Option<(Sprite, egui::Rect)> {
         (cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0).then(|| {
@@ -108,7 +114,7 @@ impl Frame {
                 Sprite::new_with_rotation(
                     graphics_state,
                     self.atlas.calc_quad(id),
-                    0,
+                    hue,
                     opacity,
                     blend_mode,
                     &self.atlas.atlas_texture,
@@ -132,55 +138,75 @@ impl Frame {
 
     pub fn update_cell_sprite(
         &mut self,
-        render_state: &RenderState,
+        graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
+        hue: i32,
         cell_index: usize,
     ) {
-        if let Some((sprite, cell_rect)) = self.sprites.get_mut(cell_index) {
-            let id = frame.cell_data[(cell_index, 0)];
-            let offset_x = frame.cell_data[(cell_index, 1)] as f32;
-            let offset_y = frame.cell_data[(cell_index, 2)] as f32;
-            let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
-            let rotation = -(frame.cell_data[(cell_index, 4)] as f32).to_radians();
-            let flip = frame.cell_data[(cell_index, 5)] == 1;
-            let opacity = frame.cell_data[(cell_index, 6)] as i32;
-            let blend_mode = match frame.cell_data[(cell_index, 7)] {
-                1 => BlendMode::Add,
-                2 => BlendMode::Subtract,
-                _ => BlendMode::Normal,
-            };
+        if cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0 {
+            if let Some((sprite, cell_rect)) = self.sprites.get_mut(cell_index) {
+                let id = frame.cell_data[(cell_index, 0)];
+                let offset_x = frame.cell_data[(cell_index, 1)] as f32;
+                let offset_y = frame.cell_data[(cell_index, 2)] as f32;
+                let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
+                let rotation = -(frame.cell_data[(cell_index, 4)] as f32).to_radians();
+                let flip = frame.cell_data[(cell_index, 5)] == 1;
+                let opacity = frame.cell_data[(cell_index, 6)] as i32;
+                let blend_mode = match frame.cell_data[(cell_index, 7)] {
+                    1 => BlendMode::Add,
+                    2 => BlendMode::Subtract,
+                    _ => BlendMode::Normal,
+                };
 
-            let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
-            let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
+                let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
+                let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
 
-            sprite.transform.set(
-                render_state,
-                glam::vec2(offset_x, offset_y)
-                    + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
-                        * (scale * flip_vec * CELL_OFFSET),
-                scale * flip_vec,
-            );
+                sprite.transform.set(
+                    &graphics_state.render_state,
+                    glam::vec2(offset_x, offset_y)
+                        + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
+                            * (scale * flip_vec * CELL_OFFSET),
+                    scale * flip_vec,
+                );
 
-            sprite.graphic.set(
-                render_state,
-                0,
-                opacity,
-                1.,
-                if flip { -rotation } else { rotation },
-            );
+                sprite.graphic.set(
+                    &graphics_state.render_state,
+                    hue,
+                    opacity,
+                    1.,
+                    if flip { -rotation } else { rotation },
+                );
 
-            sprite.set_quad(
-                render_state,
-                self.atlas.calc_quad(id),
-                self.atlas.atlas_texture.size(),
-            );
+                sprite.set_quad(
+                    &graphics_state.render_state,
+                    self.atlas.calc_quad(id),
+                    self.atlas.atlas_texture.size(),
+                );
 
-            sprite.blend_mode = blend_mode;
+                sprite.blend_mode = blend_mode;
 
-            *cell_rect = egui::Rect::from_center_size(
-                egui::pos2(offset_x, offset_y),
-                egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
-            );
+                *cell_rect = egui::Rect::from_center_size(
+                    egui::pos2(offset_x, offset_y),
+                    egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
+                );
+            } else if let Some((sprite, cell_rect)) =
+                self.sprite_from_cell_data(graphics_state, frame, hue, cell_index)
+            {
+                self.sprites.insert(cell_index, (sprite, cell_rect));
+            }
+        } else {
+            let _ = self.sprites.try_remove(cell_index);
+        }
+    }
+
+    pub fn update_all_cell_sprites(
+        &mut self,
+        graphics_state: &GraphicsState,
+        frame: &luminol_data::rpg::animation::Frame,
+        hue: i32,
+    ) {
+        for cell_index in 0..frame.cell_data.xsize().max(self.sprites.len()) {
+            self.update_cell_sprite(graphics_state, frame, hue, cell_index);
         }
     }
 }
