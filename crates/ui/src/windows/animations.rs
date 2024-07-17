@@ -271,6 +271,7 @@ impl Window {
                     .fixed_decimals(0),
             ));
 
+            *frame_index = (*frame_index).clamp(0, animation.frames.len().saturating_sub(1) as i32);
             *frame_index += 1;
             let changed = columns[1]
                 .add(luminol_components::Field::new(
@@ -303,6 +304,21 @@ impl Window {
             });
 
         let frame = &mut animation.frames[*frame_index as usize];
+
+        if frame_view
+            .selected_cell_index
+            .is_some_and(|i| i >= frame.cell_data.xsize())
+        {
+            frame_view.selected_cell_index = None;
+        }
+        if frame_view
+            .hovered_cell_index
+            .is_some_and(|i| i >= frame.cell_data.xsize())
+        {
+            frame_view.hovered_cell_index = None;
+            frame_view.hovered_cell_drag_pos = None;
+            frame_view.hovered_cell_drag_offset = None;
+        }
 
         if let (Some(i), Some(drag_pos)) = (
             frame_view.hovered_cell_index,
@@ -515,6 +531,9 @@ impl luminol_core::Window for Window {
                                             animation,
                                         )
                                         .unwrap(); // TODO get rid of this unwrap
+                                    self.frame = self
+                                        .frame
+                                        .clamp(0, animation.frames.len().saturating_sub(1) as i32);
                                     frame_view.frame.rebuild_all_cells(
                                         &update_state.graphics,
                                         &animation.frames[self.frame as usize],
