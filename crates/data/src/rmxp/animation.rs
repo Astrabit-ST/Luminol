@@ -61,7 +61,7 @@ impl Default for Timing {
     }
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Animation::Frame")]
 pub struct Frame {

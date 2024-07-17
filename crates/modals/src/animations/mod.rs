@@ -22,10 +22,4 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-pub mod sound_picker;
-
-pub mod graphic_picker;
-
-pub mod database_modal;
-
-pub mod animations;
+pub mod copy_frames_tool;

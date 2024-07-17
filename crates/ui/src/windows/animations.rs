@@ -42,7 +42,18 @@ pub struct Window {
     frame_view: Option<luminol_components::AnimationFrameView>,
     collapsing_view: luminol_components::CollapsingView,
     timing_se_picker: SoundPicker,
+    modals: Modals,
     view: luminol_components::DatabaseView,
+}
+
+struct Modals {
+    copy_frames: luminol_modals::animations::copy_frames_tool::Modal,
+}
+
+impl Modals {
+    fn close_all(&mut self) {
+        self.copy_frames.close_window();
+    }
 }
 
 impl Default for Window {
@@ -58,6 +69,11 @@ impl Default for Window {
                 luminol_audio::Source::SE,
                 "animations_timing_se_picker",
             ),
+            modals: Modals {
+                copy_frames: luminol_modals::animations::copy_frames_tool::Modal::new(
+                    "animations_copy_frames_tool",
+                ),
+            },
             view: luminol_components::DatabaseView::new(),
         }
     }
@@ -242,6 +258,7 @@ impl Window {
         ui: &mut egui::Ui,
         update_state: &mut luminol_core::UpdateState<'_>,
         clip_rect: egui::Rect,
+        modals: &mut Modals,
         maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
         animation: &mut luminol_data::rpg::Animation,
         frame_index: &mut i32,
@@ -262,7 +279,7 @@ impl Window {
             maybe_frame_view.as_mut().unwrap()
         };
 
-        ui.columns(2, |columns| {
+        ui.columns(3, |columns| {
             columns[0].add(luminol_components::Field::new(
                 "Editor Scale",
                 egui::Slider::new(&mut frame_view.scale, 15.0..=300.0)
@@ -284,11 +301,49 @@ impl Window {
             if changed {
                 frame_view.frame.update_all_cell_sprites(
                     &update_state.graphics,
-                    &mut animation.frames[*frame_index as usize],
+                    &animation.frames[*frame_index as usize],
                     animation.animation_hue,
                 );
             }
+
+            columns[2].menu_button("Tools ⏷", |ui| {
+                ui.add_enabled_ui(*frame_index != 0, |ui| {
+                    if ui.button("Copy previous frame").clicked() && *frame_index != 0 {
+                        animation.frames[*frame_index as usize] =
+                            animation.frames[*frame_index as usize - 1].clone();
+                        frame_view.frame.update_all_cell_sprites(
+                            &update_state.graphics,
+                            &animation.frames[*frame_index as usize],
+                            animation.animation_hue,
+                        );
+                        modified = true;
+                    }
+                });
+
+                ui.add(modals.copy_frames.button((), update_state));
+            });
         });
+
+        if modals
+            .copy_frames
+            .show_window(ui.ctx(), *frame_index as usize, animation.frames.len())
+        {
+            let mut iter = 0..modals.copy_frames.frame_count;
+            while let Some(i) = if modals.copy_frames.dst_frame <= modals.copy_frames.src_frame {
+                iter.next()
+            } else {
+                iter.next_back()
+            } {
+                animation.frames[modals.copy_frames.dst_frame + i] =
+                    animation.frames[modals.copy_frames.src_frame + i].clone();
+            }
+            frame_view.frame.update_all_cell_sprites(
+                &update_state.graphics,
+                &animation.frames[*frame_index as usize],
+                animation.animation_hue,
+            );
+            modified = true;
+        }
 
         let canvas_rect = egui::Resize::default()
             .resizable([false, true])
@@ -522,6 +577,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             if let Some(frame_view) = &mut self.frame_view {
                                 if self.previous_animation != Some(animation.id) {
+                                    self.modals.close_all();
                                     frame_view.frame.atlas = update_state
                                         .graphics
                                         .atlas_loader
@@ -545,6 +601,7 @@ impl luminol_core::Window for Window {
                                 ui,
                                 update_state,
                                 clip_rect,
+                                &mut self.modals,
                                 &mut self.frame_view,
                                 animation,
                                 &mut self.frame,
