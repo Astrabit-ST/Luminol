@@ -336,7 +336,13 @@ impl Window {
 
                 ui.separator();
 
-                ui.add(modals.tween.button((), update_state));
+                ui.add_enabled_ui(animation.frames.len() >= 3, |ui| {
+                    if animation.frames.len() >= 3 {
+                        ui.add(modals.tween.button((), update_state));
+                    } else {
+                        modals.tween.close_window();
+                    }
+                })
             });
         });
 
