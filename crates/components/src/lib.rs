@@ -165,6 +165,51 @@ where
     }
 }
 
+pub struct FieldWithCheckbox<'a, T> {
+    name: String,
+    checked: &'a mut bool,
+    widget: T,
+}
+impl<'a, T> FieldWithCheckbox<'a, T>
+where
+    T: egui::Widget,
+{
+    pub fn new(name: impl Into<String>, checked: &'a mut bool, widget: T) -> Self {
+        Self {
+            name: name.into(),
+            checked,
+            widget,
+        }
+    }
+}
+
+impl<T> egui::Widget for FieldWithCheckbox<'_, T>
+where
+    T: egui::Widget,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+        let mut response = ui
+            .vertical(|ui| {
+                let spacing = ui.spacing().item_spacing.y;
+                ui.add_space(spacing);
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new(format!("{}:", self.name)).truncate(true));
+                    ui.add(egui::Checkbox::without_text(self.checked));
+                });
+                if ui.add_enabled(*self.checked, self.widget).changed() {
+                    changed = true;
+                };
+                ui.add_space(spacing);
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
+    }
+}
+
 pub struct EnumComboBox<'a, H, T> {
     id_source: H,
     reference: &'a mut T,

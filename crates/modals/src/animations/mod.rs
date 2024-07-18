@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+pub mod batch_edit_tool;
 pub mod clear_frames_tool;
 pub mod copy_frames_tool;
 pub mod tween_tool;

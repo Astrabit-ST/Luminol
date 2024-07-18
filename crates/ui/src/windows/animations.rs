@@ -50,6 +50,7 @@ struct Modals {
     copy_frames: luminol_modals::animations::copy_frames_tool::Modal,
     clear_frames: luminol_modals::animations::clear_frames_tool::Modal,
     tween: luminol_modals::animations::tween_tool::Modal,
+    batch_edit: luminol_modals::animations::batch_edit_tool::Modal,
 }
 
 impl Modals {
@@ -57,6 +58,7 @@ impl Modals {
         self.copy_frames.close_window();
         self.clear_frames.close_window();
         self.tween.close_window();
+        self.batch_edit.close_window();
     }
 }
 
@@ -81,6 +83,9 @@ impl Default for Window {
                     "animations_clear_frames_tool",
                 ),
                 tween: luminol_modals::animations::tween_tool::Modal::new("animations_tween_tool"),
+                batch_edit: luminol_modals::animations::batch_edit_tool::Modal::new(
+                    "animations_batch_edit_tool",
+                ),
             },
             view: luminol_components::DatabaseView::new(),
         }
@@ -330,11 +335,7 @@ impl Window {
 
                 ui.add(modals.copy_frames.button((), update_state));
 
-                ui.separator();
-
                 ui.add(modals.clear_frames.button((), update_state));
-
-                ui.separator();
 
                 ui.add_enabled_ui(animation.frames.len() >= 3, |ui| {
                     if animation.frames.len() >= 3 {
@@ -342,7 +343,9 @@ impl Window {
                     } else {
                         modals.tween.close_window();
                     }
-                })
+                });
+
+                ui.add(modals.batch_edit.button((), update_state));
             });
         });
 
@@ -446,6 +449,118 @@ impl Window {
 
                         let (val, _) = lerp(&animation.frames, 7);
                         animation.frames[j].cell_data[(i, 7)] = val.floor() as i16;
+                    }
+                }
+            }
+            frame_view.frame.update_all_cell_sprites(
+                &update_state.graphics,
+                &animation.frames[*frame_index as usize],
+                animation.animation_hue,
+            );
+            modified = true;
+        }
+
+        let num_patterns = frame_view.frame.atlas.animation_height / CELL_SIZE * ANIMATION_COLUMNS;
+        if modals.batch_edit.show_window(
+            ui.ctx(),
+            *frame_index as usize,
+            animation.frames.len(),
+            num_patterns,
+        ) {
+            for i in modals.batch_edit.start_frame..=modals.batch_edit.end_frame {
+                let data = &mut animation.frames[i].cell_data;
+                for j in 0..data.xsize() {
+                    if data[(j, 0)] < 0 {
+                        continue;
+                    }
+                    match modals.batch_edit.mode {
+                        luminol_modals::animations::batch_edit_tool::Mode::Set => {
+                            if modals.batch_edit.set_pattern_enabled {
+                                data[(j, 0)] = modals.batch_edit.set_pattern;
+                            }
+                            if modals.batch_edit.set_x_enabled {
+                                data[(j, 1)] = modals.batch_edit.set_x;
+                            }
+                            if modals.batch_edit.set_y_enabled {
+                                data[(j, 2)] = modals.batch_edit.set_y;
+                            }
+                            if modals.batch_edit.set_scale_enabled {
+                                data[(j, 3)] = modals.batch_edit.set_scale;
+                            }
+                            if modals.batch_edit.set_rotation_enabled {
+                                data[(j, 4)] = modals.batch_edit.set_rotation;
+                            }
+                            if modals.batch_edit.set_flip_enabled {
+                                data[(j, 5)] = modals.batch_edit.set_flip;
+                            }
+                            if modals.batch_edit.set_opacity_enabled {
+                                data[(j, 6)] = modals.batch_edit.set_opacity;
+                            }
+                            if modals.batch_edit.set_blending_enabled {
+                                data[(j, 7)] = modals.batch_edit.set_blending;
+                            }
+                        }
+                        luminol_modals::animations::batch_edit_tool::Mode::Add => {
+                            data[(j, 0)] = data[(j, 0)]
+                                .saturating_add(modals.batch_edit.add_pattern)
+                                .clamp(0, num_patterns.saturating_sub(1) as i16);
+                            data[(j, 1)] = data[(j, 1)]
+                                .saturating_add(modals.batch_edit.add_x)
+                                .clamp(-(FRAME_WIDTH as i16 / 2), FRAME_WIDTH as i16 / 2);
+                            data[(j, 2)] = data[(j, 2)]
+                                .saturating_add(modals.batch_edit.add_y)
+                                .clamp(-(FRAME_HEIGHT as i16 / 2), FRAME_HEIGHT as i16 / 2);
+                            data[(j, 3)] = data[(j, 3)]
+                                .saturating_add(modals.batch_edit.add_scale)
+                                .max(1);
+                            data[(j, 4)] += modals.batch_edit.add_rotation;
+                            if !(0..=360).contains(&data[(j, 4)]) {
+                                data[(j, 4)] = data[(j, 4)].rem_euclid(360);
+                            }
+                            if modals.batch_edit.add_flip {
+                                if data[(j, 5)] == 1 {
+                                    data[(j, 5)] = 0;
+                                } else {
+                                    data[(j, 5)] = 1;
+                                }
+                            }
+                            data[(j, 6)] = data[(j, 6)]
+                                .saturating_add(modals.batch_edit.add_opacity)
+                                .clamp(0, 255);
+                            data[(j, 7)] += modals.batch_edit.add_blending;
+                            if !(0..3).contains(&data[(j, 7)]) {
+                                data[(j, 7)] = data[(j, 7)].rem_euclid(3);
+                            }
+                        }
+                        luminol_modals::animations::batch_edit_tool::Mode::Mul => {
+                            data[(j, 0)] =
+                                ((data[(j, 0)] + 1) as f64 * modals.batch_edit.mul_pattern)
+                                    .clamp(1., num_patterns as f64)
+                                    .round_ties_even() as i16
+                                    - 1;
+                            data[(j, 1)] = (data[(j, 1)] as f64 * modals.batch_edit.mul_x)
+                                .clamp(-(FRAME_WIDTH as f64 / 2.), FRAME_WIDTH as f64 / 2.)
+                                .round_ties_even()
+                                as i16;
+                            data[(j, 2)] = (data[(j, 2)] as f64 * modals.batch_edit.mul_y)
+                                .clamp(-(FRAME_HEIGHT as f64 / 2.), FRAME_HEIGHT as f64 / 2.)
+                                .round_ties_even()
+                                as i16;
+                            data[(j, 3)] = (data[(j, 3)] as f64 * modals.batch_edit.mul_scale)
+                                .clamp(1., i16::MAX as f64)
+                                .round_ties_even()
+                                as i16;
+                            data[(j, 4)] = (data[(j, 4)] as f64 * modals.batch_edit.mul_rotation)
+                                .round_ties_even()
+                                as i16;
+                            if !(0..=360).contains(&data[(j, 4)]) {
+                                data[(j, 4)] = data[(j, 4)].rem_euclid(360);
+                            }
+                            data[(j, 6)] = (data[(j, 6)] as f64 * modals.batch_edit.mul_opacity)
+                                .min(255.)
+                                .round_ties_even()
+                                as i16;
+                        }
                     }
                 }
             }
