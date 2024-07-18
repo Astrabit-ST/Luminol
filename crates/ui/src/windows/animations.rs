@@ -48,11 +48,15 @@ pub struct Window {
 
 struct Modals {
     copy_frames: luminol_modals::animations::copy_frames_tool::Modal,
+    clear_frames: luminol_modals::animations::clear_frames_tool::Modal,
+    tween: luminol_modals::animations::tween_tool::Modal,
 }
 
 impl Modals {
     fn close_all(&mut self) {
         self.copy_frames.close_window();
+        self.clear_frames.close_window();
+        self.tween.close_window();
     }
 }
 
@@ -73,6 +77,10 @@ impl Default for Window {
                 copy_frames: luminol_modals::animations::copy_frames_tool::Modal::new(
                     "animations_copy_frames_tool",
                 ),
+                clear_frames: luminol_modals::animations::clear_frames_tool::Modal::new(
+                    "animations_clear_frames_tool",
+                ),
+                tween: luminol_modals::animations::tween_tool::Modal::new("animations_tween_tool"),
             },
             view: luminol_components::DatabaseView::new(),
         }
@@ -321,6 +329,14 @@ impl Window {
                 });
 
                 ui.add(modals.copy_frames.button((), update_state));
+
+                ui.separator();
+
+                ui.add(modals.clear_frames.button((), update_state));
+
+                ui.separator();
+
+                ui.add(modals.tween.button((), update_state));
             });
         });
 
@@ -336,6 +352,96 @@ impl Window {
             } {
                 animation.frames[modals.copy_frames.dst_frame + i] =
                     animation.frames[modals.copy_frames.src_frame + i].clone();
+            }
+            frame_view.frame.update_all_cell_sprites(
+                &update_state.graphics,
+                &animation.frames[*frame_index as usize],
+                animation.animation_hue,
+            );
+            modified = true;
+        }
+
+        if modals
+            .clear_frames
+            .show_window(ui.ctx(), *frame_index as usize, animation.frames.len())
+        {
+            for i in modals.clear_frames.start_frame..=modals.clear_frames.end_frame {
+                animation.frames[i] = Default::default();
+            }
+            frame_view.frame.update_all_cell_sprites(
+                &update_state.graphics,
+                &animation.frames[*frame_index as usize],
+                animation.animation_hue,
+            );
+            modified = true;
+        }
+
+        if modals
+            .tween
+            .show_window(ui.ctx(), *frame_index as usize, animation.frames.len())
+        {
+            for i in modals.tween.start_cell..=modals.tween.end_cell {
+                let data = &animation.frames[modals.tween.start_frame].cell_data;
+                if i >= data.xsize() || data[(i, 0)] < 0 {
+                    continue;
+                }
+                let data = &animation.frames[modals.tween.end_frame].cell_data;
+                if i >= data.xsize() || data[(i, 0)] < 0 {
+                    continue;
+                }
+
+                for j in modals.tween.start_frame..=modals.tween.end_frame {
+                    let lerp = |frames: &Vec<luminol_data::rpg::animation::Frame>, property| {
+                        (
+                            egui::lerp(
+                                frames[modals.tween.start_frame].cell_data[(i, property)] as f64
+                                    ..=frames[modals.tween.end_frame].cell_data[(i, property)]
+                                        as f64,
+                                (j - modals.tween.start_frame) as f64
+                                    / (modals.tween.end_frame - modals.tween.start_frame) as f64,
+                            ),
+                            frames[modals.tween.start_frame].cell_data[(i, property)]
+                                <= frames[modals.tween.end_frame].cell_data[(i, property)],
+                        )
+                    };
+
+                    if animation.frames[j].cell_data.xsize() < i + 1 {
+                        animation.frames[j].cell_data.resize(i + 1, 8);
+                        animation.frames[j].cell_max = (i + 1) as i32;
+                    }
+
+                    if modals.tween.tween_pattern {
+                        let (val, orientation) = lerp(&animation.frames, 0);
+                        animation.frames[j].cell_data[(i, 0)] =
+                            if orientation { val.floor() } else { val.ceil() } as i16;
+                    } else if animation.frames[j].cell_data[(i, 0)] < 0 {
+                        animation.frames[j].cell_data[(i, 0)] = 0;
+                    }
+
+                    if modals.tween.tween_position {
+                        let (val, orientation) = lerp(&animation.frames, 1);
+                        animation.frames[j].cell_data[(i, 1)] =
+                            if orientation { val.floor() } else { val.ceil() } as i16;
+
+                        let (val, orientation) = lerp(&animation.frames, 2);
+                        animation.frames[j].cell_data[(i, 2)] =
+                            if orientation { val.floor() } else { val.ceil() } as i16;
+
+                        let (val, _) = lerp(&animation.frames, 3);
+                        animation.frames[j].cell_data[(i, 3)] = val.floor() as i16;
+
+                        let (val, _) = lerp(&animation.frames, 4);
+                        animation.frames[j].cell_data[(i, 4)] = val.floor() as i16;
+                    }
+
+                    if modals.tween.tween_shading {
+                        let (val, _) = lerp(&animation.frames, 6);
+                        animation.frames[j].cell_data[(i, 6)] = val.floor() as i16;
+
+                        let (val, _) = lerp(&animation.frames, 7);
+                        animation.frames[j].cell_data[(i, 7)] = val.floor() as i16;
+                    }
+                }
             }
             frame_view.frame.update_all_cell_sprites(
                 &update_state.graphics,
