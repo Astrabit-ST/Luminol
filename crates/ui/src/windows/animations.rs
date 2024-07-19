@@ -275,19 +275,32 @@ impl Window {
         maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
         animation: &mut luminol_data::rpg::Animation,
         frame_index: &mut i32,
-    ) -> bool {
+    ) -> (bool, bool) {
         let mut modified = false;
 
         let frame_view = if let Some(frame_view) = maybe_frame_view {
             frame_view
         } else {
             *maybe_frame_view = Some(
-                luminol_components::AnimationFrameView::new(
+                match luminol_components::AnimationFrameView::new(
                     update_state,
                     animation,
                     *frame_index as usize,
-                )
-                .unwrap(), // TODO get rid of this unwrap
+                ) {
+                    Ok(atlas) => atlas,
+                    Err(e) => {
+                        luminol_core::error!(
+                            update_state.toasts,
+                            e.wrap_err(format!(
+                                "While loading texture {:?} for animation {:0>4} {:?}",
+                                animation.animation_name,
+                                animation.id + 1,
+                                animation.name,
+                            )),
+                        );
+                        return (modified, true);
+                    }
+                },
             );
             maybe_frame_view.as_mut().unwrap()
         };
@@ -760,7 +773,7 @@ impl Window {
             }
         });
 
-        modified
+        (modified, false)
     }
 }
 
@@ -819,19 +832,32 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
+                        let abort = ui.with_padded_stripe(true, |ui| {
                             if let Some(frame_view) = &mut self.frame_view {
                                 if self.previous_animation != Some(animation.id) {
                                     self.modals.close_all();
-                                    frame_view.frame.atlas = update_state
+                                    frame_view.frame.atlas = match update_state
                                         .graphics
                                         .atlas_loader
                                         .load_animation_atlas(
                                             &update_state.graphics,
                                             update_state.filesystem,
                                             animation,
-                                        )
-                                        .unwrap(); // TODO get rid of this unwrap
+                                        ) {
+                                        Ok(atlas) => atlas,
+                                        Err(e) => {
+                                            luminol_core::error!(
+                                                update_state.toasts,
+                                                e.wrap_err(format!(
+                                                    "While loading texture {:?} for animation {:0>4} {:?}",
+                                                    animation.animation_name,
+                                                    animation.id + 1,
+                                                    animation.name,
+                                                )),
+                                            );
+                                            return true;
+                                        }
+                                    };
                                     self.frame = self
                                         .frame
                                         .clamp(0, animation.frames.len().saturating_sub(1) as i32);
@@ -842,7 +868,8 @@ impl luminol_core::Window for Window {
                                     );
                                 }
                             }
-                            modified |= Self::show_frame_edit(
+
+                            let (inner_modified, abort) = Self::show_frame_edit(
                                 ui,
                                 update_state,
                                 clip_rect,
@@ -851,7 +878,15 @@ impl luminol_core::Window for Window {
                                 animation,
                                 &mut self.frame,
                             );
-                        });
+
+                            modified |= inner_modified;
+
+                            abort
+                        }).inner;
+
+                        if abort {
+                            return true;
+                        }
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
@@ -891,11 +926,15 @@ impl luminol_core::Window for Window {
                         });
 
                         self.previous_animation = Some(animation.id);
+                        false
                     },
                 )
             });
 
-        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
+        if response
+            .as_ref()
+            .is_some_and(|ir| ir.inner.as_ref().is_some_and(|ir| ir.inner.modified))
+        {
             modified = true;
         }
 
@@ -907,5 +946,9 @@ impl luminol_core::Window for Window {
         drop(animations);
 
         *update_state.data = data; // restore data
+
+        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.inner == Some(true))) {
+            *open = false;
+        }
     }
 }
