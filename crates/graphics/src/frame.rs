@@ -105,7 +105,7 @@ impl Frame {
                     .map(|cell| (i, cell))
                 }),
         );
-        self.cells = cells;
+        self.onion_skin_cells = cells;
     }
 
     pub fn update_cell(
