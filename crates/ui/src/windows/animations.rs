@@ -292,8 +292,8 @@ impl Window {
             maybe_frame_view.as_mut().unwrap()
         };
 
-        ui.columns(3, |columns| {
-            columns[0].add(luminol_components::Field::new(
+        ui.horizontal(|ui| {
+            ui.add(luminol_components::Field::new(
                 "Editor Scale",
                 egui::Slider::new(&mut frame_view.scale, 15.0..=300.0)
                     .suffix("%")
@@ -303,7 +303,7 @@ impl Window {
 
             *frame_index = (*frame_index).clamp(0, animation.frames.len().saturating_sub(1) as i32);
             *frame_index += 1;
-            let changed = columns[1]
+            let changed = ui
                 .add(luminol_components::Field::new(
                     "Frame",
                     egui::DragValue::new(frame_index)
@@ -319,34 +319,52 @@ impl Window {
                 );
             }
 
-            columns[2].menu_button("Tools ⏷", |ui| {
-                ui.add_enabled_ui(*frame_index != 0, |ui| {
-                    if ui.button("Copy previous frame").clicked() && *frame_index != 0 {
-                        animation.frames[*frame_index as usize] =
-                            animation.frames[*frame_index as usize - 1].clone();
-                        frame_view.frame.update_all_cell_sprites(
-                            &update_state.graphics,
-                            &animation.frames[*frame_index as usize],
-                            animation.animation_hue,
-                        );
-                        modified = true;
-                    }
-                });
+            ui.with_layout(
+                egui::Layout {
+                    main_dir: egui::Direction::RightToLeft,
+                    cross_align: egui::Align::Max,
+                    ..*ui.layout()
+                },
+                |ui| {
+                    egui::Frame::none()
+                        .outer_margin(egui::Margin {
+                            bottom: 2. * ui.spacing().item_spacing.y,
+                            ..egui::Margin::ZERO
+                        })
+                        .show(ui, |ui| {
+                            ui.menu_button("Tools ⏷", |ui| {
+                                ui.add_enabled_ui(*frame_index != 0, |ui| {
+                                    if ui.button("Copy previous frame").clicked()
+                                        && *frame_index != 0
+                                    {
+                                        animation.frames[*frame_index as usize] =
+                                            animation.frames[*frame_index as usize - 1].clone();
+                                        frame_view.frame.update_all_cell_sprites(
+                                            &update_state.graphics,
+                                            &animation.frames[*frame_index as usize],
+                                            animation.animation_hue,
+                                        );
+                                        modified = true;
+                                    }
+                                });
 
-                ui.add(modals.copy_frames.button((), update_state));
+                                ui.add(modals.copy_frames.button((), update_state));
 
-                ui.add(modals.clear_frames.button((), update_state));
+                                ui.add(modals.clear_frames.button((), update_state));
 
-                ui.add_enabled_ui(animation.frames.len() >= 3, |ui| {
-                    if animation.frames.len() >= 3 {
-                        ui.add(modals.tween.button((), update_state));
-                    } else {
-                        modals.tween.close_window();
-                    }
-                });
+                                ui.add_enabled_ui(animation.frames.len() >= 3, |ui| {
+                                    if animation.frames.len() >= 3 {
+                                        ui.add(modals.tween.button((), update_state));
+                                    } else {
+                                        modals.tween.close_window();
+                                    }
+                                });
 
-                ui.add(modals.batch_edit.button((), update_state));
-            });
+                                ui.add(modals.batch_edit.button((), update_state));
+                            });
+                        });
+                },
+            );
         });
 
         if modals
