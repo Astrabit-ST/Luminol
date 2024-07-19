@@ -26,8 +26,16 @@ const CELL_OFFSET: glam::Vec2 = glam::Vec2::splat(-(CELL_SIZE as f32) / 2.);
 
 pub struct Frame {
     pub atlas: Atlas,
-    pub sprites: OptionVec<(Sprite, egui::Rect)>,
+    pub cells: OptionVec<Cell>,
+    pub onion_skin_cells: OptionVec<Cell>,
     pub viewport: Viewport,
+
+    pub enable_onion_skin: bool,
+}
+
+pub struct Cell {
+    pub sprite: Sprite,
+    pub rect: egui::Rect,
 }
 
 impl Frame {
@@ -44,55 +52,137 @@ impl Frame {
 
         let mut frame = Self {
             atlas,
-            sprites: Default::default(),
+            cells: Default::default(),
+            onion_skin_cells: Default::default(),
             viewport,
+            enable_onion_skin: false,
         };
-        frame.rebuild_all_cells(
-            graphics_state,
-            &animation.frames[frame_index],
-            animation.animation_hue,
-        );
+        frame.rebuild_all_cells(graphics_state, animation, frame_index);
         frame
-    }
-
-    pub fn rebuild_cell(
-        &mut self,
-        graphics_state: &GraphicsState,
-        frame: &luminol_data::rpg::animation::Frame,
-        hue: i32,
-        cell_index: usize,
-    ) {
-        if let Some(sprite) = self.sprite_from_cell_data(graphics_state, frame, hue, cell_index) {
-            self.sprites.insert(cell_index, sprite);
-        } else {
-            let _ = self.sprites.try_remove(cell_index);
-        }
     }
 
     pub fn rebuild_all_cells(
         &mut self,
         graphics_state: &GraphicsState,
-        frame: &luminol_data::rpg::animation::Frame,
-        hue: i32,
+        animation: &luminol_data::rpg::Animation,
+        frame_index: usize,
     ) {
-        let mut sprites = std::mem::take(&mut self.sprites);
-        sprites.clear();
-        sprites.extend(
-            (0..frame.cell_data.xsize().max(self.sprites.len())).filter_map(|i| {
-                self.sprite_from_cell_data(graphics_state, frame, hue, i)
-                    .map(|s| (i, s))
-            }),
+        let mut cells = std::mem::take(&mut self.cells);
+        cells.clear();
+        cells.extend(
+            (0..cells
+                .len()
+                .max(animation.frames[frame_index].cell_data.xsize()))
+                .filter_map(|i| {
+                    self.cell_from_cell_data(
+                        graphics_state,
+                        &animation.frames[frame_index],
+                        animation.animation_hue,
+                        i,
+                        1.,
+                    )
+                    .map(|cell| (i, cell))
+                }),
         );
-        self.sprites = sprites;
+        self.cells = cells;
+
+        let mut cells = std::mem::take(&mut self.onion_skin_cells);
+        cells.clear();
+        cells.extend(
+            (0..cells.len().max(
+                animation.frames[frame_index.saturating_sub(1)]
+                    .cell_data
+                    .xsize(),
+            ))
+                .filter_map(|i| {
+                    self.cell_from_cell_data(
+                        graphics_state,
+                        &animation.frames[frame_index.saturating_sub(1)],
+                        animation.animation_hue,
+                        i,
+                        0.5,
+                    )
+                    .map(|cell| (i, cell))
+                }),
+        );
+        self.cells = cells;
     }
 
-    pub fn sprite_from_cell_data(
+    pub fn update_cell(
+        &mut self,
+        graphics_state: &GraphicsState,
+        animation: &luminol_data::rpg::Animation,
+        frame_index: usize,
+        cell_index: usize,
+    ) {
+        let cells = std::mem::take(&mut self.cells);
+        self.cells = self.update_cell_inner(
+            cells,
+            graphics_state,
+            &animation.frames[frame_index],
+            animation.animation_hue,
+            cell_index,
+            1.,
+        );
+
+        let cells = std::mem::take(&mut self.onion_skin_cells);
+        self.onion_skin_cells = self.update_cell_inner(
+            cells,
+            graphics_state,
+            &animation.frames[frame_index.saturating_sub(1)],
+            animation.animation_hue,
+            cell_index,
+            0.5,
+        );
+    }
+
+    pub fn update_all_cells(
+        &mut self,
+        graphics_state: &GraphicsState,
+        animation: &luminol_data::rpg::Animation,
+        frame_index: usize,
+    ) {
+        for cell_index in 0..self
+            .cells
+            .len()
+            .max(animation.frames[frame_index].cell_data.xsize())
+        {
+            let cells = std::mem::take(&mut self.cells);
+            self.cells = self.update_cell_inner(
+                cells,
+                graphics_state,
+                &animation.frames[frame_index],
+                animation.animation_hue,
+                cell_index,
+                1.,
+            );
+        }
+
+        for cell_index in 0..self.onion_skin_cells.len().max(
+            animation.frames[frame_index.saturating_sub(1)]
+                .cell_data
+                .xsize(),
+        ) {
+            let cells = std::mem::take(&mut self.onion_skin_cells);
+            self.onion_skin_cells = self.update_cell_inner(
+                cells,
+                graphics_state,
+                &animation.frames[frame_index.saturating_sub(1)],
+                animation.animation_hue,
+                cell_index,
+                0.5,
+            );
+        }
+    }
+
+    fn cell_from_cell_data(
         &self,
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
         hue: i32,
         cell_index: usize,
-    ) -> Option<(Sprite, egui::Rect)> {
+        opacity_multiplier: f32,
+    ) -> Option<Cell> {
         (cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0).then(|| {
             let id = frame.cell_data[(cell_index, 0)];
             let offset_x = frame.cell_data[(cell_index, 1)] as f32;
@@ -110,12 +200,13 @@ impl Frame {
             let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
             let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
 
-            (
-                Sprite::new_with_rotation(
+            Cell {
+                sprite: Sprite::new_with_rotation(
                     graphics_state,
                     self.atlas.calc_quad(id),
                     hue,
                     opacity,
+                    opacity_multiplier,
                     blend_mode,
                     &self.atlas.atlas_texture,
                     &self.viewport,
@@ -128,23 +219,26 @@ impl Frame {
                     ),
                     if flip { -rotation } else { rotation },
                 ),
-                egui::Rect::from_center_size(
+
+                rect: egui::Rect::from_center_size(
                     egui::pos2(offset_x, offset_y),
                     egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
                 ),
-            )
+            }
         })
     }
 
-    pub fn update_cell_sprite(
-        &mut self,
+    fn update_cell_inner(
+        &self,
+        mut cells: OptionVec<Cell>,
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
         hue: i32,
         cell_index: usize,
-    ) {
+        opacity_multiplier: f32,
+    ) -> OptionVec<Cell> {
         if cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0 {
-            if let Some((sprite, cell_rect)) = self.sprites.get_mut(cell_index) {
+            if let Some(cell) = cells.get_mut(cell_index) {
                 let id = frame.cell_data[(cell_index, 0)];
                 let offset_x = frame.cell_data[(cell_index, 1)] as f32;
                 let offset_y = frame.cell_data[(cell_index, 2)] as f32;
@@ -161,7 +255,7 @@ impl Frame {
                 let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
                 let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
 
-                sprite.transform.set(
+                cell.sprite.transform.set(
                     &graphics_state.render_state,
                     glam::vec2(offset_x, offset_y)
                         + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
@@ -169,50 +263,42 @@ impl Frame {
                     scale * flip_vec,
                 );
 
-                sprite.graphic.set(
+                cell.sprite.graphic.set(
                     &graphics_state.render_state,
                     hue,
                     opacity,
-                    1.,
+                    opacity_multiplier,
                     if flip { -rotation } else { rotation },
                 );
 
-                sprite.set_quad(
+                cell.sprite.set_quad(
                     &graphics_state.render_state,
                     self.atlas.calc_quad(id),
                     self.atlas.atlas_texture.size(),
                 );
 
-                sprite.blend_mode = blend_mode;
+                cell.sprite.blend_mode = blend_mode;
 
-                *cell_rect = egui::Rect::from_center_size(
+                cell.rect = egui::Rect::from_center_size(
                     egui::pos2(offset_x, offset_y),
                     egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
                 );
-            } else if let Some((sprite, cell_rect)) =
-                self.sprite_from_cell_data(graphics_state, frame, hue, cell_index)
+            } else if let Some(cell) =
+                self.cell_from_cell_data(graphics_state, frame, hue, cell_index, opacity_multiplier)
             {
-                self.sprites.insert(cell_index, (sprite, cell_rect));
+                cells.insert(cell_index, cell);
             }
         } else {
-            let _ = self.sprites.try_remove(cell_index);
+            let _ = cells.try_remove(cell_index);
         }
-    }
 
-    pub fn update_all_cell_sprites(
-        &mut self,
-        graphics_state: &GraphicsState,
-        frame: &luminol_data::rpg::animation::Frame,
-        hue: i32,
-    ) {
-        for cell_index in 0..frame.cell_data.xsize().max(self.sprites.len()) {
-            self.update_cell_sprite(graphics_state, frame, hue, cell_index);
-        }
+        cells
     }
 }
 
 pub struct Prepared {
-    sprites: Vec<<Sprite as Renderable>::Prepared>,
+    cells: Vec<<Sprite as Renderable>::Prepared>,
+    onion_skin_cells: Vec<<Sprite as Renderable>::Prepared>,
 }
 
 impl Renderable for Frame {
@@ -220,18 +306,30 @@ impl Renderable for Frame {
 
     fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared {
         Self::Prepared {
-            sprites: self
-                .sprites
+            cells: self
+                .cells
                 .iter_mut()
-                .map(|(_, (sprite, _))| sprite.prepare(graphics_state))
+                .map(|(_, cell)| cell.sprite.prepare(graphics_state))
                 .collect(),
+
+            onion_skin_cells: if self.enable_onion_skin {
+                self.onion_skin_cells
+                    .iter_mut()
+                    .map(|(_, cell)| cell.sprite.prepare(graphics_state))
+                    .collect()
+            } else {
+                Default::default()
+            },
         }
     }
 }
 
 impl Drawable for Prepared {
     fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        for sprite in &self.sprites {
+        for sprite in &self.onion_skin_cells {
+            sprite.draw(render_pass);
+        }
+        for sprite in &self.cells {
             sprite.draw(render_pass);
         }
     }

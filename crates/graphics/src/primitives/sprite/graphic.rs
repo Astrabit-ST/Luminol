@@ -37,12 +37,22 @@ struct Data {
 
 impl Graphic {
     pub fn new(graphics_state: &GraphicsState, hue: i32, opacity: i32, rotation: f32) -> Self {
+        Self::new_with_opacity_multiplier(graphics_state, hue, opacity, 1., rotation)
+    }
+
+    pub fn new_with_opacity_multiplier(
+        graphics_state: &GraphicsState,
+        hue: i32,
+        opacity: i32,
+        opacity_multiplier: f32,
+        rotation: f32,
+    ) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
         let opacity = opacity as f32 / 255.;
         let data = Data {
             hue,
             opacity,
-            opacity_multiplier: 1.,
+            opacity_multiplier,
             rotation,
         };
 

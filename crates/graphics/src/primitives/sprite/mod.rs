@@ -54,6 +54,7 @@ impl Sprite {
             quad,
             hue,
             opacity,
+            1.,
             blend_mode,
             texture,
             viewport,
@@ -68,6 +69,7 @@ impl Sprite {
         quad: Quad,
         hue: i32,
         opacity: i32,
+        opacity_multiplier: f32,
         blend_mode: luminol_data::BlendMode,
         // arranged in order of use in bind group
         texture: &Texture,
@@ -77,7 +79,13 @@ impl Sprite {
     ) -> Self {
         let vertices =
             vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
-        let graphic = graphic::Graphic::new(graphics_state, hue, opacity, rotation);
+        let graphic = graphic::Graphic::new_with_opacity_multiplier(
+            graphics_state,
+            hue,
+            opacity,
+            opacity_multiplier,
+            rotation,
+        );
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder

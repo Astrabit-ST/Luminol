@@ -187,11 +187,6 @@ impl AnimationFrameView {
 
         // Find the cell that the cursor is hovering over; if multiple cells are hovered we
         // prioritize the one with the greatest index
-        let cell_rect_iter = self
-            .frame
-            .sprites
-            .iter()
-            .map(|(i, (_, cell_rect))| (i, (*cell_rect * scale).translate(offset)));
         if response.clicked() {
             self.selected_cell_index = None;
         }
@@ -199,15 +194,20 @@ impl AnimationFrameView {
             self.hovered_cell_index = ui
                 .input(|i| !i.modifiers.shift)
                 .then(|| {
-                    cell_rect_iter.clone().rev().find_map(|(i, cell_rect)| {
-                        (response.hovered() && ui.rect_contains_pointer(cell_rect)).then(|| {
-                            if response.clicked() {
-                                // If the hovered cell was clicked, make it the selected cell
-                                self.selected_cell_index = Some(i);
-                            }
-                            i
+                    self.frame
+                        .cells
+                        .iter()
+                        .map(|(i, cell)| (i, (cell.rect * scale).translate(offset)))
+                        .rev()
+                        .find_map(|(i, cell_rect)| {
+                            (response.hovered() && ui.rect_contains_pointer(cell_rect)).then(|| {
+                                if response.clicked() {
+                                    // If the hovered cell was clicked, make it the selected cell
+                                    self.selected_cell_index = Some(i);
+                                }
+                                i
+                            })
                         })
-                    })
                 })
                 .flatten();
         }
@@ -223,9 +223,10 @@ impl AnimationFrameView {
             self.hovered_cell_drag_offset,
             response.drag_started_by(egui::PointerButton::Primary),
         ) {
-            let (_, cell_rect) = self.frame.sprites[i];
-            self.hovered_cell_drag_offset =
-                Some(cell_rect.center() - (response.hover_pos().unwrap() - offset) / scale);
+            self.hovered_cell_drag_offset = Some(
+                self.frame.cells[i].rect.center()
+                    - (response.hover_pos().unwrap() - offset) / scale,
+            );
         }
 
         if let Some(drag_offset) = self.hovered_cell_drag_offset {
@@ -242,8 +243,29 @@ impl AnimationFrameView {
             self.hovered_cell_drag_pos = None;
         }
 
+        // Draw a gray rectangle on the border of every onion-skinned cell
+        if self.frame.enable_onion_skin {
+            for cell_rect in self
+                .frame
+                .onion_skin_cells
+                .iter()
+                .map(|(_, cell)| (cell.rect * scale).translate(offset))
+            {
+                ui.painter().rect_stroke(
+                    cell_rect,
+                    5.,
+                    egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                );
+            }
+        }
+
         // Draw a white rectangle on the border of every cell
-        for (_, cell_rect) in cell_rect_iter {
+        for cell_rect in self
+            .frame
+            .cells
+            .iter()
+            .map(|(_, cell)| (cell.rect * scale).translate(offset))
+        {
             ui.painter().rect_stroke(
                 cell_rect,
                 5.,
@@ -260,16 +282,14 @@ impl AnimationFrameView {
 
         // Draw a yellow rectangle on the border of the hovered cell
         if let Some(i) = self.hovered_cell_index {
-            let (_, cell_rect) = self.frame.sprites[i];
-            let cell_rect = (cell_rect * scale).translate(offset);
+            let cell_rect = (self.frame.cells[i].rect * scale).translate(offset);
             ui.painter()
                 .rect_stroke(cell_rect, 5., egui::Stroke::new(3., egui::Color32::YELLOW));
         }
 
         // Draw a magenta rectangle on the border of the selected cell
         if let Some(i) = self.selected_cell_index {
-            let (_, cell_rect) = self.frame.sprites[i];
-            let cell_rect = (cell_rect * scale).translate(offset);
+            let cell_rect = (self.frame.cells[i].rect * scale).translate(offset);
             ui.painter().rect_stroke(
                 cell_rect,
                 5.,

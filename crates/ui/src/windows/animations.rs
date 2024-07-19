@@ -36,14 +36,18 @@ pub struct Window {
     selected_animation_name: Option<String>,
     previous_animation: Option<usize>,
     previous_timing_frame: Option<i32>,
-
-    frame: i32,
+    frame_edit_state: FrameEditState,
 
     frame_view: Option<luminol_components::AnimationFrameView>,
     collapsing_view: luminol_components::CollapsingView,
     timing_se_picker: SoundPicker,
     modals: Modals,
     view: luminol_components::DatabaseView,
+}
+
+struct FrameEditState {
+    frame_index: usize,
+    enable_onion_skin: bool,
 }
 
 struct Modals {
@@ -68,7 +72,10 @@ impl Default for Window {
             selected_animation_name: None,
             previous_animation: None,
             previous_timing_frame: None,
-            frame: 0,
+            frame_edit_state: FrameEditState {
+                frame_index: 0,
+                enable_onion_skin: false,
+            },
             frame_view: None,
             collapsing_view: luminol_components::CollapsingView::new(),
             timing_se_picker: SoundPicker::new(
@@ -274,7 +281,7 @@ impl Window {
         modals: &mut Modals,
         maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
         animation: &mut luminol_data::rpg::Animation,
-        frame_index: &mut i32,
+        state: &mut FrameEditState,
     ) -> (bool, bool) {
         let mut modified = false;
 
@@ -285,7 +292,7 @@ impl Window {
                 match luminol_components::AnimationFrameView::new(
                     update_state,
                     animation,
-                    *frame_index as usize,
+                    state.frame_index,
                 ) {
                     Ok(atlas) => atlas,
                     Err(e) => {
@@ -314,23 +321,30 @@ impl Window {
                     .fixed_decimals(0),
             ));
 
-            *frame_index = (*frame_index).clamp(0, animation.frames.len().saturating_sub(1) as i32);
-            *frame_index += 1;
+            state.frame_index = state
+                .frame_index
+                .min(animation.frames.len().saturating_sub(1));
+            state.frame_index += 1;
             let changed = ui
                 .add(luminol_components::Field::new(
                     "Frame",
-                    egui::DragValue::new(frame_index)
-                        .clamp_range(1..=animation.frames.len() as i32),
+                    egui::DragValue::new(&mut state.frame_index)
+                        .clamp_range(1..=animation.frames.len()),
                 ))
                 .changed();
-            *frame_index -= 1;
+            state.frame_index -= 1;
             if changed {
-                frame_view.frame.update_all_cell_sprites(
+                frame_view.frame.update_all_cells(
                     &update_state.graphics,
-                    &animation.frames[*frame_index as usize],
-                    animation.animation_hue,
+                    animation,
+                    state.frame_index,
                 );
             }
+
+            ui.add(luminol_components::Field::new(
+                "Onion Skinning",
+                egui::Checkbox::without_text(&mut state.enable_onion_skin),
+            ));
 
             ui.with_layout(
                 egui::Layout {
@@ -346,16 +360,16 @@ impl Window {
                         })
                         .show(ui, |ui| {
                             ui.menu_button("Tools ⏷", |ui| {
-                                ui.add_enabled_ui(*frame_index != 0, |ui| {
+                                ui.add_enabled_ui(state.frame_index != 0, |ui| {
                                     if ui.button("Copy previous frame").clicked()
-                                        && *frame_index != 0
+                                        && state.frame_index != 0
                                     {
-                                        animation.frames[*frame_index as usize] =
-                                            animation.frames[*frame_index as usize - 1].clone();
-                                        frame_view.frame.update_all_cell_sprites(
+                                        animation.frames[state.frame_index] =
+                                            animation.frames[state.frame_index - 1].clone();
+                                        frame_view.frame.update_all_cells(
                                             &update_state.graphics,
-                                            &animation.frames[*frame_index as usize],
-                                            animation.animation_hue,
+                                            animation,
+                                            state.frame_index,
                                         );
                                         modified = true;
                                     }
@@ -382,7 +396,7 @@ impl Window {
 
         if modals
             .copy_frames
-            .show_window(ui.ctx(), *frame_index as usize, animation.frames.len())
+            .show_window(ui.ctx(), state.frame_index, animation.frames.len())
         {
             let mut iter = 0..modals.copy_frames.frame_count;
             while let Some(i) = if modals.copy_frames.dst_frame <= modals.copy_frames.src_frame {
@@ -393,32 +407,28 @@ impl Window {
                 animation.frames[modals.copy_frames.dst_frame + i] =
                     animation.frames[modals.copy_frames.src_frame + i].clone();
             }
-            frame_view.frame.update_all_cell_sprites(
-                &update_state.graphics,
-                &animation.frames[*frame_index as usize],
-                animation.animation_hue,
-            );
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
             modified = true;
         }
 
         if modals
             .clear_frames
-            .show_window(ui.ctx(), *frame_index as usize, animation.frames.len())
+            .show_window(ui.ctx(), state.frame_index, animation.frames.len())
         {
             for i in modals.clear_frames.start_frame..=modals.clear_frames.end_frame {
                 animation.frames[i] = Default::default();
             }
-            frame_view.frame.update_all_cell_sprites(
-                &update_state.graphics,
-                &animation.frames[*frame_index as usize],
-                animation.animation_hue,
-            );
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
             modified = true;
         }
 
         if modals
             .tween
-            .show_window(ui.ctx(), *frame_index as usize, animation.frames.len())
+            .show_window(ui.ctx(), state.frame_index, animation.frames.len())
         {
             for i in modals.tween.start_cell..=modals.tween.end_cell {
                 let data = &animation.frames[modals.tween.start_frame].cell_data;
@@ -483,18 +493,16 @@ impl Window {
                     }
                 }
             }
-            frame_view.frame.update_all_cell_sprites(
-                &update_state.graphics,
-                &animation.frames[*frame_index as usize],
-                animation.animation_hue,
-            );
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
             modified = true;
         }
 
         let num_patterns = frame_view.frame.atlas.animation_height / CELL_SIZE * ANIMATION_COLUMNS;
         if modals.batch_edit.show_window(
             ui.ctx(),
-            *frame_index as usize,
+            state.frame_index,
             animation.frames.len(),
             num_patterns,
         ) {
@@ -595,11 +603,9 @@ impl Window {
                     }
                 }
             }
-            frame_view.frame.update_all_cell_sprites(
-                &update_state.graphics,
-                &animation.frames[*frame_index as usize],
-                animation.animation_hue,
-            );
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
             modified = true;
         }
 
@@ -616,7 +622,7 @@ impl Window {
                     .inner
             });
 
-        let frame = &mut animation.frames[*frame_index as usize];
+        let frame = &mut animation.frames[state.frame_index];
 
         if frame_view
             .selected_cell_index
@@ -639,15 +645,17 @@ impl Window {
         ) {
             if (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) != drag_pos {
                 (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) = drag_pos;
-                frame_view.frame.update_cell_sprite(
+                frame_view.frame.update_cell(
                     &update_state.graphics,
-                    frame,
-                    animation.animation_hue,
+                    animation,
+                    state.frame_index,
                     i,
                 );
                 modified = true;
             }
         }
+
+        let frame = &mut animation.frames[state.frame_index];
 
         if let Some(i) = frame_view.selected_cell_index {
             let mut properties_modified = false;
@@ -734,7 +742,7 @@ impl Window {
                     .add(luminol_components::Field::new(
                         "Blending",
                         luminol_components::EnumComboBox::new(
-                            (animation.id, *frame_index, i, 7usize),
+                            (animation.id, state.frame_index, i, 7usize),
                             &mut blend_mode,
                         ),
                     ))
@@ -750,10 +758,10 @@ impl Window {
             });
 
             if properties_modified {
-                frame_view.frame.update_cell_sprite(
+                frame_view.frame.update_cell(
                     &update_state.graphics,
-                    frame,
-                    animation.animation_hue,
+                    animation,
+                    state.frame_index,
                     i,
                 );
                 modified = true;
@@ -761,6 +769,7 @@ impl Window {
         }
 
         ui.allocate_ui_at_rect(canvas_rect, |ui| {
+            frame_view.frame.enable_onion_skin = state.enable_onion_skin && state.frame_index != 0;
             let response = frame_view.ui(ui, update_state, clip_rect);
 
             // If the pointer is hovering over the frame view, prevent parent widgets
@@ -832,57 +841,62 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
-                        let abort = ui.with_padded_stripe(true, |ui| {
-                            if let Some(frame_view) = &mut self.frame_view {
-                                if self.previous_animation != Some(animation.id) {
-                                    self.modals.close_all();
-                                    frame_view.frame.atlas = match update_state
-                                        .graphics
-                                        .atlas_loader
-                                        .load_animation_atlas(
+                        let abort = ui
+                            .with_padded_stripe(true, |ui| {
+                                if let Some(frame_view) = &mut self.frame_view {
+                                    if self.previous_animation != Some(animation.id) {
+                                        self.modals.close_all();
+                                        frame_view.frame.atlas = match update_state
+                                            .graphics
+                                            .atlas_loader
+                                            .load_animation_atlas(
+                                                &update_state.graphics,
+                                                update_state.filesystem,
+                                                animation,
+                                            ) {
+                                            Ok(atlas) => atlas,
+                                            Err(e) => {
+                                                luminol_core::error!(
+                                                    update_state.toasts,
+                                                    e.wrap_err(
+                                                        format!(
+                                                            "While loading texture {:?} for animation {:0>4} {:?}",
+                                                            animation.animation_name,
+                                                            animation.id + 1,
+                                                            animation.name,
+                                                        ),
+                                                    ),
+                                                );
+                                                return true;
+                                            }
+                                        };
+                                        self.frame_edit_state.frame_index = self
+                                            .frame_edit_state
+                                            .frame_index
+                                            .min(animation.frames.len().saturating_sub(1));
+                                        frame_view.frame.rebuild_all_cells(
                                             &update_state.graphics,
-                                            update_state.filesystem,
                                             animation,
-                                        ) {
-                                        Ok(atlas) => atlas,
-                                        Err(e) => {
-                                            luminol_core::error!(
-                                                update_state.toasts,
-                                                e.wrap_err(format!(
-                                                    "While loading texture {:?} for animation {:0>4} {:?}",
-                                                    animation.animation_name,
-                                                    animation.id + 1,
-                                                    animation.name,
-                                                )),
-                                            );
-                                            return true;
-                                        }
-                                    };
-                                    self.frame = self
-                                        .frame
-                                        .clamp(0, animation.frames.len().saturating_sub(1) as i32);
-                                    frame_view.frame.rebuild_all_cells(
-                                        &update_state.graphics,
-                                        &animation.frames[self.frame as usize],
-                                        animation.animation_hue,
-                                    );
+                                            self.frame_edit_state.frame_index,
+                                        );
+                                    }
                                 }
-                            }
 
-                            let (inner_modified, abort) = Self::show_frame_edit(
-                                ui,
-                                update_state,
-                                clip_rect,
-                                &mut self.modals,
-                                &mut self.frame_view,
-                                animation,
-                                &mut self.frame,
-                            );
+                                let (inner_modified, abort) = Self::show_frame_edit(
+                                    ui,
+                                    update_state,
+                                    clip_rect,
+                                    &mut self.modals,
+                                    &mut self.frame_view,
+                                    animation,
+                                    &mut self.frame_edit_state,
+                                );
 
-                            modified |= inner_modified;
+                                modified |= inner_modified;
 
-                            abort
-                        }).inner;
+                                abort
+                            })
+                            .inner;
 
                         if abort {
                             return true;
