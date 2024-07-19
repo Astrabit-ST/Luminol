@@ -39,26 +39,19 @@ pub struct Cell {
 }
 
 impl Frame {
-    pub fn new(
-        graphics_state: &GraphicsState,
-        atlas: Atlas,
-        animation: &luminol_data::rpg::Animation,
-        frame_index: usize,
-    ) -> Self {
+    pub fn new(graphics_state: &GraphicsState, atlas: Atlas) -> Self {
         let viewport = Viewport::new(
             graphics_state,
             glam::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32),
         );
 
-        let mut frame = Self {
+        Self {
             atlas,
             cells: Default::default(),
             onion_skin_cells: Default::default(),
             viewport,
             enable_onion_skin: false,
-        };
-        frame.rebuild_all_cells(graphics_state, animation, frame_index);
-        frame
+        }
     }
 
     pub fn rebuild_all_cells(

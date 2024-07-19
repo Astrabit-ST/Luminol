@@ -39,7 +39,6 @@ impl AnimationFrameView {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
         animation: &luminol_data::rpg::Animation,
-        frame_index: usize,
     ) -> color_eyre::Result<AnimationFrameView> {
         let data_id = egui::Id::new("luminol_animation_frame_view").with(
             update_state
@@ -60,8 +59,6 @@ impl AnimationFrameView {
                 update_state.filesystem,
                 animation,
             )?,
-            animation,
-            frame_index,
         );
 
         Ok(Self {

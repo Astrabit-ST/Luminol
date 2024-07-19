@@ -288,12 +288,8 @@ impl Window {
         let frame_view = if let Some(frame_view) = maybe_frame_view {
             frame_view
         } else {
-            *maybe_frame_view = Some(
-                match luminol_components::AnimationFrameView::new(
-                    update_state,
-                    animation,
-                    state.frame_index,
-                ) {
+            let mut frame_view =
+                match luminol_components::AnimationFrameView::new(update_state, animation) {
                     Ok(atlas) => atlas,
                     Err(e) => {
                         luminol_core::error!(
@@ -307,8 +303,11 @@ impl Window {
                         );
                         return (modified, true);
                     }
-                },
-            );
+                };
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
+            *maybe_frame_view = Some(frame_view);
             maybe_frame_view.as_mut().unwrap()
         };
 
