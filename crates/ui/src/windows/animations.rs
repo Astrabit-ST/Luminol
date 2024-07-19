@@ -342,7 +342,7 @@ impl Window {
             }
 
             ui.add(luminol_components::Field::new(
-                "Onion Skinning",
+                "Onion Skin",
                 egui::Checkbox::without_text(&mut state.enable_onion_skin),
             ));
 
