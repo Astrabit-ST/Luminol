@@ -441,7 +441,7 @@ impl Modal {
                             }
                             Selected::Tile { tile_id, tilepicker } => {
                                 let (canvas_rect, response) = ui.allocate_exact_size(
-                                    egui::vec2(256., tilepicker.atlas.tileset_height as f32),
+                                    egui::vec2(256., tilepicker.atlas.tileset_height() as f32),
                                     egui::Sense::click(),
                                 );
 

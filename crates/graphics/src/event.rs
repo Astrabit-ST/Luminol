@@ -52,7 +52,7 @@ impl Event {
                 }
             }
         } else if page.graphic.tile_id.is_some() {
-            atlas.atlas_texture.clone()
+            atlas.texture().clone()
         } else {
             return Ok(None);
         };
@@ -134,7 +134,7 @@ impl Event {
                 }
             }
         } else if graphic.tile_id.is_some() {
-            atlas.atlas_texture.clone()
+            atlas.texture().clone()
         } else {
             return Ok(None);
         };

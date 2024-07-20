@@ -55,7 +55,7 @@ pub struct MapView {
     pub display_tile_ids: bool,
 
     pub scale: f32,
-    pub previous_scale: f32,
+    previous_scale: f32,
 
     /// Used to store the bounding boxes of event graphics in order to render them on top of the
     /// fog and collision layers

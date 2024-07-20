@@ -30,7 +30,7 @@ pub struct AnimationFrameView {
     pub pan: egui::Vec2,
 
     pub scale: f32,
-    pub previous_scale: f32,
+    previous_scale: f32,
 
     pub data_id: egui::Id,
 }
@@ -185,7 +185,7 @@ impl AnimationFrameView {
                 .input(|i| !i.modifiers.shift)
                 .then(|| {
                     self.frame
-                        .cells
+                        .cells()
                         .iter()
                         .map(|(i, cell)| (i, (cell.rect * scale).translate(offset)))
                         .rev()
@@ -214,7 +214,7 @@ impl AnimationFrameView {
             response.drag_started_by(egui::PointerButton::Primary),
         ) {
             self.hovered_cell_drag_offset = Some(
-                self.frame.cells[i].rect.center()
+                self.frame.cells()[i].rect.center()
                     - (response.hover_pos().unwrap() - offset) / scale,
             );
         }
@@ -237,7 +237,7 @@ impl AnimationFrameView {
         if self.frame.enable_onion_skin {
             for cell_rect in self
                 .frame
-                .onion_skin_cells
+                .onion_skin_cells()
                 .iter()
                 .map(|(_, cell)| (cell.rect * scale).translate(offset))
             {
@@ -252,7 +252,7 @@ impl AnimationFrameView {
         // Draw a white rectangle on the border of every cell
         for cell_rect in self
             .frame
-            .cells
+            .cells()
             .iter()
             .map(|(_, cell)| (cell.rect * scale).translate(offset))
         {
@@ -272,14 +272,14 @@ impl AnimationFrameView {
 
         // Draw a yellow rectangle on the border of the hovered cell
         if let Some(i) = self.hovered_cell_index {
-            let cell_rect = (self.frame.cells[i].rect * scale).translate(offset);
+            let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
             ui.painter()
                 .rect_stroke(cell_rect, 5., egui::Stroke::new(3., egui::Color32::YELLOW));
         }
 
         // Draw a magenta rectangle on the border of the selected cell
         if let Some(i) = self.selected_cell_index {
-            let cell_rect = (self.frame.cells[i].rect * scale).translate(offset);
+            let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
             ui.painter().rect_stroke(
                 cell_rect,
                 5.,

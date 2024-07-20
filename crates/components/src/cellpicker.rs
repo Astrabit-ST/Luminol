@@ -17,7 +17,7 @@
 
 use luminol_graphics::Renderable;
 
-use luminol_graphics::primitives::cells::{Atlas, ANIMATION_COLUMNS, CELL_SIZE};
+use luminol_graphics::primitives::cells::{Atlas, CELL_SIZE};
 use luminol_graphics::{Cells, Transform, Viewport};
 
 pub struct Cellpicker {
@@ -28,17 +28,15 @@ pub struct Cellpicker {
 
 impl Cellpicker {
     pub fn new(graphics_state: &luminol_graphics::GraphicsState, atlas: Atlas) -> Self {
-        let num_patterns = atlas.animation_height / CELL_SIZE * ANIMATION_COLUMNS;
-
         let cells = luminol_data::Table2::new_data(
-            num_patterns as usize,
+            atlas.num_patterns() as usize,
             1,
-            (0..num_patterns as i16).collect(),
+            (0..atlas.num_patterns() as i16).collect(),
         );
 
         let viewport = Viewport::new(
             graphics_state,
-            glam::vec2((num_patterns * CELL_SIZE) as f32, CELL_SIZE as f32) / 2.,
+            glam::vec2((atlas.num_patterns() * CELL_SIZE) as f32, CELL_SIZE as f32) / 2.,
         );
 
         let view = Cells::new(
@@ -62,10 +60,11 @@ impl Cellpicker {
         ui: &mut egui::Ui,
         scroll_rect: egui::Rect,
     ) -> egui::Response {
-        let num_patterns = self.view.atlas.animation_height / CELL_SIZE * ANIMATION_COLUMNS;
-
         let (canvas_rect, response) = ui.allocate_exact_size(
-            egui::vec2((num_patterns * CELL_SIZE) as f32, CELL_SIZE as f32) / 2.,
+            egui::vec2(
+                (self.view.atlas.num_patterns() * CELL_SIZE) as f32,
+                CELL_SIZE as f32,
+            ) / 2.,
             egui::Sense::click_and_drag(),
         );
 
@@ -108,7 +107,9 @@ impl Cellpicker {
             }
         }
 
-        self.selected_cell = self.selected_cell.min(num_patterns.saturating_sub(1));
+        self.selected_cell = self
+            .selected_cell
+            .min(self.view.atlas.num_patterns().saturating_sub(1));
 
         response
     }

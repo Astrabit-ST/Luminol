@@ -35,8 +35,8 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Atlas {
-    pub atlas_texture: Arc<Texture>,
-    pub animation_height: u32,
+    atlas_texture: Arc<Texture>,
+    animation_height: u32,
 }
 
 impl Atlas {
@@ -151,6 +151,24 @@ impl Atlas {
                 egui::vec2(CELL_SIZE as f32 - 0.02, CELL_SIZE as f32 - 0.02),
             ),
         )
+    }
+
+    /// Returns this atlas's texture
+    #[inline]
+    pub fn texture(&self) -> &Arc<Texture> {
+        &self.atlas_texture
+    }
+
+    /// Returns the height of the original animation texture in pixels
+    #[inline]
+    pub fn animation_height(&self) -> u32 {
+        self.animation_height
+    }
+
+    /// Calculates the total number of cells in the atlas based on the size of the texture
+    #[inline]
+    pub fn num_patterns(&self) -> u32 {
+        self.animation_height / CELL_SIZE * ANIMATION_COLUMNS
     }
 }
 

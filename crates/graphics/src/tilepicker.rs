@@ -55,23 +55,23 @@ impl Tilepicker {
             .load_atlas(graphics_state, filesystem, tileset)?;
 
         let tilepicker_data = if exclude_autotiles {
-            (384..(atlas.tileset_height as i16 / 32 * 8 + 384)).collect_vec()
+            (384..(atlas.tileset_height() as i16 / 32 * 8 + 384)).collect_vec()
         } else {
             (47..(384 + 47))
                 .step_by(48)
-                .chain(384..(atlas.tileset_height as i16 / 32 * 8 + 384))
+                .chain(384..(atlas.tileset_height() as i16 / 32 * 8 + 384))
                 .collect_vec()
         };
         let tilepicker_data = luminol_data::Table3::new_data(
             8,
-            !exclude_autotiles as usize + (atlas.tileset_height / 32) as usize,
+            !exclude_autotiles as usize + (atlas.tileset_height() / 32) as usize,
             1,
             tilepicker_data,
         );
 
         let viewport = Viewport::new(
             graphics_state,
-            glam::vec2(256., atlas.tileset_height as f32 + 32.),
+            glam::vec2(256., atlas.tileset_height() as f32 + 32.),
         );
 
         let tiles = Tiles::new(

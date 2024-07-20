@@ -28,7 +28,6 @@ use luminol_core::Modal;
 
 use luminol_data::BlendMode;
 use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
-use luminol_graphics::primitives::cells::{ANIMATION_COLUMNS, CELL_SIZE};
 use luminol_modals::sound_picker::Modal as SoundPicker;
 
 /// Database - Animations management window.
@@ -512,12 +511,11 @@ impl Window {
             modified = true;
         }
 
-        let num_patterns = frame_view.frame.atlas.animation_height / CELL_SIZE * ANIMATION_COLUMNS;
         if modals.batch_edit.show_window(
             ui.ctx(),
             state.frame_index,
             animation.frames.len(),
-            num_patterns,
+            frame_view.frame.atlas.num_patterns(),
         ) {
             for i in modals.batch_edit.start_frame..=modals.batch_edit.end_frame {
                 let data = &mut animation.frames[i].cell_data;
@@ -555,7 +553,10 @@ impl Window {
                         luminol_modals::animations::batch_edit_tool::Mode::Add => {
                             data[(j, 0)] = data[(j, 0)]
                                 .saturating_add(modals.batch_edit.add_pattern)
-                                .clamp(0, num_patterns.saturating_sub(1) as i16);
+                                .clamp(
+                                    0,
+                                    frame_view.frame.atlas.num_patterns().saturating_sub(1) as i16,
+                                );
                             data[(j, 1)] = data[(j, 1)]
                                 .saturating_add(modals.batch_edit.add_x)
                                 .clamp(-(FRAME_WIDTH as i16 / 2), FRAME_WIDTH as i16 / 2);
@@ -587,7 +588,7 @@ impl Window {
                         luminol_modals::animations::batch_edit_tool::Mode::Mul => {
                             data[(j, 0)] =
                                 ((data[(j, 0)] + 1) as f64 * modals.batch_edit.mul_pattern)
-                                    .clamp(1., num_patterns as f64)
+                                    .clamp(1., frame_view.frame.atlas.num_patterns() as f64)
                                     .round_ties_even() as i16
                                     - 1;
                             data[(j, 1)] = (data[(j, 1)] as f64 * modals.batch_edit.mul_x)
@@ -680,10 +681,8 @@ impl Window {
                 let changed = columns[0]
                     .add(luminol_components::Field::new(
                         "Pattern",
-                        egui::DragValue::new(&mut pattern).clamp_range(
-                            1..=(frame_view.frame.atlas.animation_height / CELL_SIZE
-                                * ANIMATION_COLUMNS) as i16,
-                        ),
+                        egui::DragValue::new(&mut pattern)
+                            .clamp_range(1..=frame_view.frame.atlas.num_patterns() as i16),
                     ))
                     .changed();
                 if changed {

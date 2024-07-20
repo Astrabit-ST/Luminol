@@ -26,9 +26,9 @@ const CELL_OFFSET: glam::Vec2 = glam::Vec2::splat(-(CELL_SIZE as f32) / 2.);
 
 pub struct Frame {
     pub atlas: Atlas,
-    pub cells: OptionVec<Cell>,
-    pub onion_skin_cells: OptionVec<Cell>,
     pub viewport: Viewport,
+    cells: OptionVec<Cell>,
+    onion_skin_cells: OptionVec<Cell>,
 
     pub enable_onion_skin: bool,
 }
@@ -47,11 +47,21 @@ impl Frame {
 
         Self {
             atlas,
+            viewport,
             cells: Default::default(),
             onion_skin_cells: Default::default(),
-            viewport,
             enable_onion_skin: false,
         }
+    }
+
+    #[inline]
+    pub fn cells(&self) -> &OptionVec<Cell> {
+        &self.cells
+    }
+
+    #[inline]
+    pub fn onion_skin_cells(&self) -> &OptionVec<Cell> {
+        &self.onion_skin_cells
     }
 
     pub fn rebuild_all_cells(
@@ -201,7 +211,7 @@ impl Frame {
                     opacity,
                     opacity_multiplier,
                     blend_mode,
-                    &self.atlas.atlas_texture,
+                    self.atlas.texture(),
                     &self.viewport,
                     Transform::new(
                         graphics_state,
@@ -267,7 +277,7 @@ impl Frame {
                 cell.sprite.set_quad(
                     &graphics_state.render_state,
                     self.atlas.calc_quad(id),
-                    self.atlas.atlas_texture.size(),
+                    self.atlas.texture().size(),
                 );
 
                 cell.sprite.blend_mode = blend_mode;
