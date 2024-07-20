@@ -34,6 +34,7 @@ pub(crate) mod shader;
 
 pub struct Cells {
     pub display: Display,
+    pub atlas: Atlas,
     pub transform: Transform,
 
     instances: Arc<Instances>,
@@ -45,7 +46,7 @@ impl Cells {
         graphics_state: &GraphicsState,
         cells: &luminol_data::Table2,
         // in order of use in bind group
-        atlas: &Atlas,
+        atlas: Atlas,
         viewport: &Viewport,
         transform: Transform,
     ) -> Self {
@@ -68,6 +69,7 @@ impl Cells {
 
         Self {
             display,
+            atlas,
             transform,
 
             instances: Arc::new(instances),

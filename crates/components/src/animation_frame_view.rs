@@ -38,8 +38,8 @@ pub struct AnimationFrameView {
 impl AnimationFrameView {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
-        animation: &luminol_data::rpg::Animation,
-    ) -> color_eyre::Result<AnimationFrameView> {
+        atlas: luminol_graphics::primitives::cells::Atlas,
+    ) -> Self {
         let data_id = egui::Id::new("luminol_animation_frame_view").with(
             update_state
                 .project_config
@@ -52,16 +52,9 @@ impl AnimationFrameView {
             .ctx
             .data_mut(|d| *d.get_persisted_mut_or_insert_with(data_id, || (egui::Vec2::ZERO, 50.)));
 
-        let frame = luminol_graphics::Frame::new(
-            &update_state.graphics,
-            update_state.graphics.atlas_loader.load_animation_atlas(
-                &update_state.graphics,
-                update_state.filesystem,
-                animation,
-            )?,
-        );
+        let frame = luminol_graphics::Frame::new(&update_state.graphics, atlas);
 
-        Ok(Self {
+        Self {
             frame,
             selected_cell_index: None,
             hovered_cell_index: None,
@@ -71,7 +64,7 @@ impl AnimationFrameView {
             scale,
             previous_scale: scale,
             data_id,
-        })
+        }
     }
 
     pub fn ui(

@@ -38,7 +38,6 @@ pub struct Window {
     previous_timing_frame: Option<i32>,
     frame_edit_state: FrameEditState,
 
-    frame_view: Option<luminol_components::AnimationFrameView>,
     collapsing_view: luminol_components::CollapsingView,
     timing_se_picker: SoundPicker,
     modals: Modals,
@@ -48,6 +47,8 @@ pub struct Window {
 struct FrameEditState {
     frame_index: usize,
     enable_onion_skin: bool,
+    frame_view: Option<luminol_components::AnimationFrameView>,
+    cellpicker: Option<luminol_components::Cellpicker>,
 }
 
 struct Modals {
@@ -75,8 +76,9 @@ impl Default for Window {
             frame_edit_state: FrameEditState {
                 frame_index: 0,
                 enable_onion_skin: false,
+                frame_view: None,
+                cellpicker: None,
             },
-            frame_view: None,
             collapsing_view: luminol_components::CollapsingView::new(),
             timing_se_picker: SoundPicker::new(
                 luminol_audio::Source::SE,
@@ -279,36 +281,48 @@ impl Window {
         update_state: &mut luminol_core::UpdateState<'_>,
         clip_rect: egui::Rect,
         modals: &mut Modals,
-        maybe_frame_view: &mut Option<luminol_components::AnimationFrameView>,
         animation: &mut luminol_data::rpg::Animation,
         state: &mut FrameEditState,
     ) -> (bool, bool) {
         let mut modified = false;
 
-        let frame_view = if let Some(frame_view) = maybe_frame_view {
+        let frame_view = if let Some(frame_view) = &mut state.frame_view {
             frame_view
         } else {
-            let mut frame_view =
-                match luminol_components::AnimationFrameView::new(update_state, animation) {
-                    Ok(atlas) => atlas,
-                    Err(e) => {
-                        luminol_core::error!(
-                            update_state.toasts,
-                            e.wrap_err(format!(
-                                "While loading texture {:?} for animation {:0>4} {:?}",
-                                animation.animation_name,
-                                animation.id + 1,
-                                animation.name,
-                            )),
-                        );
-                        return (modified, true);
-                    }
-                };
+            let atlas = match update_state.graphics.atlas_loader.load_animation_atlas(
+                &update_state.graphics,
+                update_state.filesystem,
+                animation,
+            ) {
+                Ok(atlas) => atlas,
+                Err(e) => {
+                    luminol_core::error!(
+                        update_state.toasts,
+                        e.wrap_err(format!(
+                            "While loading texture {:?} for animation {:0>4} {:?}",
+                            animation.animation_name,
+                            animation.id + 1,
+                            animation.name,
+                        )),
+                    );
+                    return (modified, true);
+                }
+            };
+            let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
             frame_view
                 .frame
                 .update_all_cells(&update_state.graphics, animation, state.frame_index);
-            *maybe_frame_view = Some(frame_view);
-            maybe_frame_view.as_mut().unwrap()
+            state.frame_view = Some(frame_view);
+            state.frame_view.as_mut().unwrap()
+        };
+
+        let cellpicker = if let Some(cellpicker) = &mut state.cellpicker {
+            cellpicker
+        } else {
+            let atlas = frame_view.frame.atlas.clone();
+            let cellpicker = luminol_components::Cellpicker::new(&update_state.graphics, atlas);
+            state.cellpicker = Some(cellpicker);
+            state.cellpicker.as_mut().unwrap()
         };
 
         ui.horizontal(|ui| {
@@ -767,6 +781,10 @@ impl Window {
             }
         }
 
+        egui::ScrollArea::horizontal().show_viewport(ui, |ui, scroll_rect| {
+            cellpicker.ui(update_state, ui, scroll_rect);
+        });
+
         ui.allocate_ui_at_rect(canvas_rect, |ui| {
             frame_view.frame.enable_onion_skin = state.enable_onion_skin && state.frame_index != 0;
             let response = frame_view.ui(ui, update_state, clip_rect);
@@ -842,43 +860,51 @@ impl luminol_core::Window for Window {
 
                         let abort = ui
                             .with_padded_stripe(true, |ui| {
-                                if let Some(frame_view) = &mut self.frame_view {
-                                    if self.previous_animation != Some(animation.id) {
-                                        self.modals.close_all();
-                                        frame_view.frame.atlas = match update_state
-                                            .graphics
-                                            .atlas_loader
-                                            .load_animation_atlas(
-                                                &update_state.graphics,
-                                                update_state.filesystem,
-                                                animation,
-                                            ) {
-                                            Ok(atlas) => atlas,
-                                            Err(e) => {
-                                                luminol_core::error!(
-                                                    update_state.toasts,
-                                                    e.wrap_err(
-                                                        format!(
-                                                            "While loading texture {:?} for animation {:0>4} {:?}",
-                                                            animation.animation_name,
-                                                            animation.id + 1,
-                                                            animation.name,
-                                                        ),
-                                                    ),
-                                                );
-                                                return true;
-                                            }
-                                        };
-                                        self.frame_edit_state.frame_index = self
-                                            .frame_edit_state
-                                            .frame_index
-                                            .min(animation.frames.len().saturating_sub(1));
+                                if self.previous_animation != Some(animation.id) {
+                                    self.modals.close_all();
+                                    self.frame_edit_state.frame_index = self
+                                        .frame_edit_state
+                                        .frame_index
+                                        .min(animation.frames.len().saturating_sub(1));
+
+                                    let atlas = match update_state
+                                        .graphics
+                                        .atlas_loader
+                                        .load_animation_atlas(
+                                            &update_state.graphics,
+                                            update_state.filesystem,
+                                            animation,
+                                        ) {
+                                        Ok(atlas) => atlas,
+                                        Err(e) => {
+                                            luminol_core::error!(
+                                                update_state.toasts,
+                                                e.wrap_err(format!(
+                                                    "While loading texture {:?} for animation {:0>4} {:?}",
+                                                    animation.animation_name,
+                                                    animation.id + 1,
+                                                    animation.name,
+                                                ),),
+                                            );
+                                            return true;
+                                        }
+                                    };
+
+                                    if let Some(frame_view) = &mut self.frame_edit_state.frame_view
+                                    {
+                                        frame_view.frame.atlas = atlas.clone();
                                         frame_view.frame.rebuild_all_cells(
                                             &update_state.graphics,
                                             animation,
                                             self.frame_edit_state.frame_index,
                                         );
                                     }
+
+                                    self.frame_edit_state.cellpicker =
+                                        Some(luminol_components::Cellpicker::new(
+                                            &update_state.graphics,
+                                            atlas,
+                                        ));
                                 }
 
                                 let (inner_modified, abort) = Self::show_frame_edit(
@@ -886,7 +912,6 @@ impl luminol_core::Window for Window {
                                     update_state,
                                     clip_rect,
                                     &mut self.modals,
-                                    &mut self.frame_view,
                                     animation,
                                     &mut self.frame_edit_state,
                                 );

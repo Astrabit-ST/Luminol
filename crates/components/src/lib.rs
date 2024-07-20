@@ -51,6 +51,8 @@ pub use collapsing_view::CollapsingView;
 
 mod animation_frame_view;
 pub use animation_frame_view::AnimationFrameView;
+mod cellpicker;
+pub use cellpicker::Cellpicker;
 
 mod id_vec;
 pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection, RankSelection};
