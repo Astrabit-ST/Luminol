@@ -65,7 +65,7 @@ impl Default for Timing {
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Animation::Frame")]
 pub struct Frame {
-    pub cell_max: i32,
+    pub cell_max: usize,
     pub cell_data: Table2,
 }
 

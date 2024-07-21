@@ -101,6 +101,22 @@ impl Default for Window {
 }
 
 impl Window {
+    fn log_atlas_error(
+        update_state: &mut luminol_core::UpdateState<'_>,
+        animation: &luminol_data::rpg::Animation,
+        e: color_eyre::Report,
+    ) {
+        luminol_core::error!(
+            update_state.toasts,
+            e.wrap_err(format!(
+                "While loading texture {:?} for animation {:0>4} {:?}",
+                animation.animation_name,
+                animation.id + 1,
+                animation.name,
+            ),),
+        );
+    }
+
     fn show_timing_header(ui: &mut egui::Ui, timing: &luminol_data::rpg::animation::Timing) {
         let mut vec = Vec::with_capacity(3);
 
@@ -146,6 +162,36 @@ impl Window {
             timing.frame + 1,
             vec.join(", ")
         ));
+    }
+
+    fn resize_frame(frame: &mut luminol_data::rpg::animation::Frame, new_cell_max: usize) {
+        let old_capacity = frame.cell_data.xsize();
+        let new_capacity = new_cell_max.next_power_of_two();
+
+        // Instead of resizing `frame.cell_data` every time we call this function, we increase the
+        // size of `frame.cell_data` only it's too small and we decrease the size of
+        // `frame.cell_data` only if it's at <= 50% capacity for better efficiency
+        let capacity_too_low = old_capacity < new_capacity;
+        let capacity_too_high = old_capacity >= new_capacity * 2;
+
+        if capacity_too_low || capacity_too_high {
+            frame.cell_data.resize(new_capacity, 8);
+        }
+
+        if capacity_too_low {
+            for i in old_capacity..new_capacity {
+                frame.cell_data[(i, 0)] = -1;
+                frame.cell_data[(i, 1)] = 0;
+                frame.cell_data[(i, 2)] = 0;
+                frame.cell_data[(i, 3)] = 100;
+                frame.cell_data[(i, 4)] = 0;
+                frame.cell_data[(i, 5)] = 0;
+                frame.cell_data[(i, 6)] = 255;
+                frame.cell_data[(i, 7)] = 1;
+            }
+        }
+
+        frame.cell_max = new_cell_max;
     }
 
     fn show_timing_body(
@@ -295,15 +341,7 @@ impl Window {
             ) {
                 Ok(atlas) => atlas,
                 Err(e) => {
-                    luminol_core::error!(
-                        update_state.toasts,
-                        e.wrap_err(format!(
-                            "While loading texture {:?} for animation {:0>4} {:?}",
-                            animation.animation_name,
-                            animation.id + 1,
-                            animation.name,
-                        )),
-                    );
+                    Self::log_atlas_error(update_state, animation, e);
                     return (modified, true);
                 }
             };
@@ -468,8 +506,9 @@ impl Window {
                     };
 
                     if animation.frames[j].cell_data.xsize() < i + 1 {
-                        animation.frames[j].cell_data.resize(i + 1, 8);
-                        animation.frames[j].cell_max = (i + 1) as i32;
+                        Self::resize_frame(&mut animation.frames[j], i + 1);
+                    } else if animation.frames[j].cell_max < i + 1 {
+                        animation.frames[j].cell_max = i + 1;
                     }
 
                     if modals.tween.tween_pattern {
@@ -786,7 +825,10 @@ impl Window {
 
         ui.allocate_ui_at_rect(canvas_rect, |ui| {
             frame_view.frame.enable_onion_skin = state.enable_onion_skin && state.frame_index != 0;
-            let response = frame_view.ui(ui, update_state, clip_rect);
+            let egui::InnerResponse {
+                inner: hover_pos,
+                response,
+            } = frame_view.ui(ui, update_state, clip_rect);
 
             // If the pointer is hovering over the frame view, prevent parent widgets
             // from receiving scroll events so that scaling the frame view with the
@@ -795,6 +837,38 @@ impl Window {
             if response.hovered() {
                 ui.ctx()
                     .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
+            }
+
+            // Create new cell on double click
+            if response.double_clicked() {
+                if let Some((x, y)) = hover_pos {
+                    let frame = &mut animation.frames[state.frame_index];
+
+                    let next_cell_index = (frame.cell_max..frame.cell_data.xsize())
+                        .find(|i| frame.cell_data[(*i, 0)] < 0)
+                        .unwrap_or(frame.cell_data.xsize());
+
+                    Self::resize_frame(frame, next_cell_index + 1);
+
+                    frame.cell_data[(next_cell_index, 0)] = cellpicker.selected_cell as i16;
+                    frame.cell_data[(next_cell_index, 1)] = x;
+                    frame.cell_data[(next_cell_index, 2)] = y;
+                    frame.cell_data[(next_cell_index, 3)] = 100;
+                    frame.cell_data[(next_cell_index, 4)] = 0;
+                    frame.cell_data[(next_cell_index, 5)] = 0;
+                    frame.cell_data[(next_cell_index, 6)] = 255;
+                    frame.cell_data[(next_cell_index, 7)] = 1;
+
+                    frame_view.frame.update_cell(
+                        &update_state.graphics,
+                        animation,
+                        state.frame_index,
+                        next_cell_index,
+                    );
+                    frame_view.selected_cell_index = Some(next_cell_index);
+
+                    modified = true;
+                }
             }
         });
 
@@ -876,15 +950,7 @@ impl luminol_core::Window for Window {
                                         ) {
                                         Ok(atlas) => atlas,
                                         Err(e) => {
-                                            luminol_core::error!(
-                                                update_state.toasts,
-                                                e.wrap_err(format!(
-                                                    "While loading texture {:?} for animation {:0>4} {:?}",
-                                                    animation.animation_name,
-                                                    animation.id + 1,
-                                                    animation.name,
-                                                ),),
-                                            );
+                                            Self::log_atlas_error(update_state, animation, e);
                                             return true;
                                         }
                                     };
@@ -899,11 +965,19 @@ impl luminol_core::Window for Window {
                                         );
                                     }
 
-                                    self.frame_edit_state.cellpicker =
-                                        Some(luminol_components::Cellpicker::new(
-                                            &update_state.graphics,
-                                            atlas,
-                                        ));
+                                    let selected_cell = self
+                                        .frame_edit_state
+                                        .cellpicker
+                                        .as_ref()
+                                        .map(|cellpicker| cellpicker.selected_cell)
+                                        .unwrap_or_default()
+                                        .min(atlas.num_patterns().saturating_sub(1));
+                                    let mut cellpicker = luminol_components::Cellpicker::new(
+                                        &update_state.graphics,
+                                        atlas,
+                                    );
+                                    cellpicker.selected_cell = selected_cell;
+                                    self.frame_edit_state.cellpicker = Some(cellpicker);
                                 }
 
                                 let (inner_modified, abort) = Self::show_frame_edit(

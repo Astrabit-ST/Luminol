@@ -72,7 +72,7 @@ impl AnimationFrameView {
         ui: &mut egui::Ui,
         update_state: &luminol_core::UpdateState<'_>,
         clip_rect: egui::Rect,
-    ) -> egui::Response {
+    ) -> egui::InnerResponse<Option<(i16, i16)>> {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
         ui.set_clip_rect(canvas_rect.intersect(clip_rect));
@@ -202,6 +202,8 @@ impl AnimationFrameView {
                 .flatten();
         }
 
+        let hover_pos_in_frame_coords = response.hover_pos().map(|pos| (pos - offset) / scale);
+
         if !response.is_pointer_button_down_on()
             || ui.input(|i| {
                 !i.pointer.button_down(egui::PointerButton::Primary) || i.modifiers.shift
@@ -213,14 +215,12 @@ impl AnimationFrameView {
             self.hovered_cell_drag_offset,
             response.drag_started_by(egui::PointerButton::Primary),
         ) {
-            self.hovered_cell_drag_offset = Some(
-                self.frame.cells()[i].rect.center()
-                    - (response.hover_pos().unwrap() - offset) / scale,
-            );
+            self.hovered_cell_drag_offset =
+                Some(self.frame.cells()[i].rect.center() - hover_pos_in_frame_coords.unwrap());
         }
 
         if let Some(drag_offset) = self.hovered_cell_drag_offset {
-            let pos = (response.hover_pos().unwrap() - offset) / scale + drag_offset;
+            let pos = hover_pos_in_frame_coords.unwrap() + drag_offset;
             self.hovered_cell_drag_pos = Some((
                 pos.x
                     .clamp(-(FRAME_WIDTH as f32 / 2.), FRAME_WIDTH as f32 / 2.)
@@ -291,6 +291,18 @@ impl AnimationFrameView {
             d.insert_persisted(self.data_id, (self.pan, self.scale));
         });
 
-        response
+        egui::InnerResponse::new(
+            hover_pos_in_frame_coords.map(|pos| {
+                (
+                    pos.x
+                        .clamp(-(FRAME_WIDTH as f32 / 2.), FRAME_WIDTH as f32 / 2.)
+                        .round_ties_even() as i16,
+                    pos.y
+                        .clamp(-(FRAME_HEIGHT as f32 / 2.), FRAME_HEIGHT as f32 / 2.)
+                        .round_ties_even() as i16,
+                )
+            }),
+            response,
+        )
     }
 }
