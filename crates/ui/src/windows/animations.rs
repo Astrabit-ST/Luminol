@@ -166,19 +166,20 @@ impl Window {
 
     fn resize_frame(frame: &mut luminol_data::rpg::animation::Frame, new_cell_max: usize) {
         let old_capacity = frame.cell_data.xsize();
-        let new_capacity = new_cell_max.next_power_of_two();
+        let new_capacity = if new_cell_max == 0 {
+            0
+        } else {
+            new_cell_max.next_power_of_two()
+        };
 
         // Instead of resizing `frame.cell_data` every time we call this function, we increase the
         // size of `frame.cell_data` only it's too small and we decrease the size of
-        // `frame.cell_data` only if it's at <= 50% capacity for better efficiency
+        // `frame.cell_data` only if it's at <= 25% capacity for better efficiency
         let capacity_too_low = old_capacity < new_capacity;
-        let capacity_too_high = old_capacity >= new_capacity * 2;
-
-        if capacity_too_low || capacity_too_high {
-            frame.cell_data.resize(new_capacity, 8);
-        }
+        let capacity_too_high = old_capacity >= new_capacity * 4;
 
         if capacity_too_low {
+            frame.cell_data.resize(new_capacity, 8);
             for i in old_capacity..new_capacity {
                 frame.cell_data[(i, 0)] = -1;
                 frame.cell_data[(i, 1)] = 0;
@@ -189,6 +190,8 @@ impl Window {
                 frame.cell_data[(i, 6)] = 255;
                 frame.cell_data[(i, 7)] = 1;
             }
+        } else if capacity_too_high {
+            frame.cell_data.resize(new_capacity * 2, 8);
         }
 
         frame.cell_max = new_cell_max;
@@ -679,19 +682,20 @@ impl Window {
 
         if frame_view
             .selected_cell_index
-            .is_some_and(|i| i >= frame.cell_data.xsize())
+            .is_some_and(|i| i >= frame.cell_data.xsize() || frame.cell_data[(i, 0)] < 0)
         {
             frame_view.selected_cell_index = None;
         }
         if frame_view
             .hovered_cell_index
-            .is_some_and(|i| i >= frame.cell_data.xsize())
+            .is_some_and(|i| i >= frame.cell_data.xsize() || frame.cell_data[(i, 0)] < 0)
         {
             frame_view.hovered_cell_index = None;
             frame_view.hovered_cell_drag_pos = None;
             frame_view.hovered_cell_drag_offset = None;
         }
 
+        // Handle dragging of cells to move them
         if let (Some(i), Some(drag_pos)) = (
             frame_view.hovered_cell_index,
             frame_view.hovered_cell_drag_pos,
@@ -708,116 +712,117 @@ impl Window {
             }
         }
 
-        let frame = &mut animation.frames[state.frame_index];
+        egui::Frame::none().show(ui, |ui| {
+            let frame = &mut animation.frames[state.frame_index];
+            if let Some(i) = frame_view.selected_cell_index {
+                let mut properties_modified = false;
 
-        if let Some(i) = frame_view.selected_cell_index {
-            let mut properties_modified = false;
+                ui.label(format!("Cell {}", i + 1));
 
-            ui.label(format!("Cell {}", i + 1));
+                ui.columns(4, |columns| {
+                    let mut pattern = frame.cell_data[(i, 0)] + 1;
+                    let changed = columns[0]
+                        .add(luminol_components::Field::new(
+                            "Pattern",
+                            egui::DragValue::new(&mut pattern)
+                                .clamp_range(1..=frame_view.frame.atlas.num_patterns() as i16),
+                        ))
+                        .changed();
+                    if changed {
+                        frame.cell_data[(i, 0)] = pattern - 1;
+                        properties_modified = true;
+                    }
 
-            ui.columns(4, |columns| {
-                let mut pattern = frame.cell_data[(i, 0)] + 1;
-                let changed = columns[0]
-                    .add(luminol_components::Field::new(
-                        "Pattern",
-                        egui::DragValue::new(&mut pattern)
-                            .clamp_range(1..=frame_view.frame.atlas.num_patterns() as i16),
-                    ))
-                    .changed();
-                if changed {
-                    frame.cell_data[(i, 0)] = pattern - 1;
-                    properties_modified = true;
-                }
+                    properties_modified |= columns[1]
+                        .add(luminol_components::Field::new(
+                            "X",
+                            egui::DragValue::new(&mut frame.cell_data[(i, 1)])
+                                .clamp_range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
+                        ))
+                        .changed();
 
-                properties_modified |= columns[1]
-                    .add(luminol_components::Field::new(
-                        "X",
-                        egui::DragValue::new(&mut frame.cell_data[(i, 1)])
-                            .clamp_range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
-                    ))
-                    .changed();
+                    properties_modified |= columns[2]
+                        .add(luminol_components::Field::new(
+                            "Y",
+                            egui::DragValue::new(&mut frame.cell_data[(i, 2)])
+                                .clamp_range(-(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2),
+                        ))
+                        .changed();
 
-                properties_modified |= columns[2]
-                    .add(luminol_components::Field::new(
-                        "Y",
-                        egui::DragValue::new(&mut frame.cell_data[(i, 2)])
-                            .clamp_range(-(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2),
-                    ))
-                    .changed();
+                    properties_modified |= columns[3]
+                        .add(luminol_components::Field::new(
+                            "Scale",
+                            egui::DragValue::new(&mut frame.cell_data[(i, 3)])
+                                .clamp_range(1..=i16::MAX)
+                                .suffix("%"),
+                        ))
+                        .changed();
+                });
 
-                properties_modified |= columns[3]
-                    .add(luminol_components::Field::new(
-                        "Scale",
-                        egui::DragValue::new(&mut frame.cell_data[(i, 3)])
-                            .clamp_range(1..=i16::MAX)
-                            .suffix("%"),
-                    ))
-                    .changed();
-            });
+                ui.columns(4, |columns| {
+                    properties_modified |= columns[0]
+                        .add(luminol_components::Field::new(
+                            "Rotation",
+                            egui::DragValue::new(&mut frame.cell_data[(i, 4)])
+                                .clamp_range(0..=360)
+                                .suffix("°"),
+                        ))
+                        .changed();
 
-            ui.columns(4, |columns| {
-                properties_modified |= columns[0]
-                    .add(luminol_components::Field::new(
-                        "Rotation",
-                        egui::DragValue::new(&mut frame.cell_data[(i, 4)])
-                            .clamp_range(0..=360)
-                            .suffix("°"),
-                    ))
-                    .changed();
+                    let mut flip = frame.cell_data[(i, 5)] == 1;
+                    let changed = columns[1]
+                        .add(luminol_components::Field::new(
+                            "Flip",
+                            egui::Checkbox::without_text(&mut flip),
+                        ))
+                        .changed();
+                    if changed {
+                        frame.cell_data[(i, 5)] = if flip { 1 } else { 0 };
+                        properties_modified = true;
+                    }
 
-                let mut flip = frame.cell_data[(i, 5)] == 1;
-                let changed = columns[1]
-                    .add(luminol_components::Field::new(
-                        "Flip",
-                        egui::Checkbox::without_text(&mut flip),
-                    ))
-                    .changed();
-                if changed {
-                    frame.cell_data[(i, 5)] = if flip { 1 } else { 0 };
-                    properties_modified = true;
-                }
+                    properties_modified |= columns[2]
+                        .add(luminol_components::Field::new(
+                            "Opacity",
+                            egui::DragValue::new(&mut frame.cell_data[(i, 6)]).clamp_range(0..=255),
+                        ))
+                        .changed();
 
-                properties_modified |= columns[2]
-                    .add(luminol_components::Field::new(
-                        "Opacity",
-                        egui::DragValue::new(&mut frame.cell_data[(i, 6)]).clamp_range(0..=255),
-                    ))
-                    .changed();
-
-                let mut blend_mode = match frame.cell_data[(i, 7)] {
-                    1 => BlendMode::Add,
-                    2 => BlendMode::Subtract,
-                    _ => BlendMode::Normal,
-                };
-                let changed = columns[3]
-                    .add(luminol_components::Field::new(
-                        "Blending",
-                        luminol_components::EnumComboBox::new(
-                            (animation.id, state.frame_index, i, 7usize),
-                            &mut blend_mode,
-                        ),
-                    ))
-                    .changed();
-                if changed {
-                    frame.cell_data[(i, 7)] = match blend_mode {
-                        BlendMode::Normal => 0,
-                        BlendMode::Add => 1,
-                        BlendMode::Subtract => 2,
+                    let mut blend_mode = match frame.cell_data[(i, 7)] {
+                        1 => BlendMode::Add,
+                        2 => BlendMode::Subtract,
+                        _ => BlendMode::Normal,
                     };
-                    properties_modified = true;
-                }
-            });
+                    let changed = columns[3]
+                        .add(luminol_components::Field::new(
+                            "Blending",
+                            luminol_components::EnumComboBox::new(
+                                (animation.id, state.frame_index, i, 7usize),
+                                &mut blend_mode,
+                            ),
+                        ))
+                        .changed();
+                    if changed {
+                        frame.cell_data[(i, 7)] = match blend_mode {
+                            BlendMode::Normal => 0,
+                            BlendMode::Add => 1,
+                            BlendMode::Subtract => 2,
+                        };
+                        properties_modified = true;
+                    }
+                });
 
-            if properties_modified {
-                frame_view.frame.update_cell(
-                    &update_state.graphics,
-                    animation,
-                    state.frame_index,
-                    i,
-                );
-                modified = true;
+                if properties_modified {
+                    frame_view.frame.update_cell(
+                        &update_state.graphics,
+                        animation,
+                        state.frame_index,
+                        i,
+                    );
+                    modified = true;
+                }
             }
-        }
+        });
 
         egui::ScrollArea::horizontal().show_viewport(ui, |ui, scroll_rect| {
             cellpicker.ui(update_state, ui, scroll_rect);
@@ -839,11 +844,11 @@ impl Window {
                     .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
             }
 
-            // Create new cell on double click
-            if response.double_clicked() {
-                if let Some((x, y)) = hover_pos {
-                    let frame = &mut animation.frames[state.frame_index];
+            let frame = &mut animation.frames[state.frame_index];
 
+            // Create new cell on double click
+            if let Some((x, y)) = hover_pos {
+                if response.double_clicked() {
                     let next_cell_index = (frame.cell_max..frame.cell_data.xsize())
                         .find(|i| frame.cell_data[(*i, 0)] < 0)
                         .unwrap_or(frame.cell_data.xsize());
@@ -867,6 +872,43 @@ impl Window {
                     );
                     frame_view.selected_cell_index = Some(next_cell_index);
 
+                    modified = true;
+                }
+            }
+
+            let frame = &mut animation.frames[state.frame_index];
+
+            // Handle pressing delete or backspace to delete cells
+            if let Some(i) = frame_view.selected_cell_index {
+                if i < frame.cell_data.xsize()
+                    && frame.cell_data[(i, 0)] >= 0
+                    && response.has_focus()
+                    && ui.input(|i| {
+                        i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
+                    })
+                {
+                    frame.cell_data[(i, 0)] = -1;
+
+                    if i + 1 >= frame.cell_max {
+                        Self::resize_frame(
+                            frame,
+                            (0..frame
+                                .cell_data
+                                .xsize()
+                                .min(frame.cell_max.saturating_sub(1)))
+                                .rev()
+                                .find_map(|i| (frame.cell_data[(i, 0)] >= 0).then_some(i + 1))
+                                .unwrap_or(0),
+                        );
+                    }
+
+                    frame_view.frame.update_cell(
+                        &update_state.graphics,
+                        animation,
+                        state.frame_index,
+                        i,
+                    );
+                    frame_view.selected_cell_index = None;
                     modified = true;
                 }
             }

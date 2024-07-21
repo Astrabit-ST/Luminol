@@ -79,6 +79,12 @@ impl AnimationFrameView {
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
+        // Take focus when this view is interacted with so the map editor doesn't receive
+        // keypresses if it's also open at the same time
+        if response.clicked() || response.double_clicked() || response.dragged() {
+            response.request_focus();
+        }
+
         let min_clip = (ui.ctx().screen_rect().min - canvas_rect.min).max(Default::default());
         let max_clip = (canvas_rect.max - ui.ctx().screen_rect().max).max(Default::default());
         let clip_offset = (max_clip - min_clip) / 2.;
