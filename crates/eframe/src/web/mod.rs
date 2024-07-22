@@ -40,7 +40,6 @@ pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
-use egui::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::MediaQueryList;
 
@@ -52,6 +51,29 @@ use crate::Theme;
 
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
+}
+
+/// Returns the `Element` with active focus.
+///
+/// Elements can only be focused if they are:
+/// - `<a>`/`<area>` with an `href` attribute
+/// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
+/// - any other element with a `tabindex` attribute
+pub(crate) fn focused_element() -> Option<web_sys::Element> {
+    web_sys::window()?
+        .document()?
+        .active_element()?
+        .dyn_into()
+        .ok()
+}
+
+pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
+    fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
+        let element = element.dyn_ref::<web_sys::Element>()?;
+        let focused_element = focused_element()?;
+        Some(element == &focused_element)
+    }
+    try_has_focus(element).unwrap_or(false)
 }
 
 /// Current time in seconds (since undefined point in time).
@@ -111,9 +133,31 @@ fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElemen
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
-fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
-    let rect = canvas.get_bounding_client_rect();
-    egui::pos2(rect.left() as f32, rect.top() as f32)
+/// Returns the canvas in client coordinates.
+fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
+    let bounding_rect = canvas.get_bounding_client_rect();
+
+    let mut rect = egui::Rect::from_min_max(
+        egui::pos2(bounding_rect.left() as f32, bounding_rect.top() as f32),
+        egui::pos2(bounding_rect.right() as f32, bounding_rect.bottom() as f32),
+    );
+
+    // We need to subtract padding and border:
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(style)) = window.get_computed_style(canvas) {
+            let get_property = |name: &str| -> Option<f32> {
+                let property = style.get_property_value(name).ok()?;
+                property.trim_end_matches("px").parse::<f32>().ok()
+            };
+
+            rect.min.x += get_property("padding-left").unwrap_or_default();
+            rect.min.y += get_property("padding-top").unwrap_or_default();
+            rect.max.x -= get_property("padding-right").unwrap_or_default();
+            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
+        }
+    }
+
+    rect
 }
 
 fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, zoom_factor: f32) -> egui::Vec2 {
@@ -122,56 +166,6 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, zoom_factor: f32) 
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
     )
-}
-
-fn resize_canvas_to_screen_size(
-    canvas: &web_sys::HtmlCanvasElement,
-    max_size_points: egui::Vec2,
-) -> Option<()> {
-    let parent = canvas.parent_element()?;
-
-    // In this function we use "pixel" to mean physical pixel,
-    // and "point" to mean "logical CSS pixel".
-    let pixels_per_point = native_pixels_per_point();
-
-    // Prefer the client width and height so that if the parent
-    // element is resized that the egui canvas resizes appropriately.
-    let parent_size_points = Vec2 {
-        x: parent.client_width() as f32,
-        y: parent.client_height() as f32,
-    };
-
-    if parent_size_points.x <= 0.0 || parent_size_points.y <= 0.0 {
-        log::error!("The parent element of the egui canvas is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", parent_size_points.x, parent_size_points.y);
-    }
-
-    // We take great care here to ensure the rendered canvas aligns
-    // perfectly to the physical pixel grid, lest we get blurry text.
-    // At the time of writing, we get pixel perfection on Chromium and Firefox on Mac,
-    // but Desktop Safari will be blurry on most zoom levels.
-    // See https://github.com/emilk/egui/issues/4241 for more.
-
-    let canvas_size_pixels = pixels_per_point * parent_size_points.min(max_size_points);
-
-    // Make sure that the size is always an even number of pixels,
-    // otherwise, the page renders blurry on some platforms.
-    // See https://github.com/emilk/egui/issues/103
-    let canvas_size_pixels = (canvas_size_pixels / 2.0).round() * 2.0;
-
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
-
-    canvas
-        .style()
-        .set_property("width", &format!("{}px", canvas_size_points.x))
-        .ok()?;
-    canvas
-        .style()
-        .set_property("height", &format!("{}px", canvas_size_points.y))
-        .ok()?;
-    canvas.set_width(canvas_size_pixels.x as u32);
-    canvas.set_height(canvas_size_pixels.y as u32);
-
-    Some(())
 }
 
 // ----------------------------------------------------------------------------
@@ -187,7 +181,7 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 }
 
 /// Set the clipboard text.
-#[cfg(web_sys_unstable_apis)]
+//#[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         if let Some(clipboard) = window.navigator().clipboard() {
@@ -199,6 +193,13 @@ fn set_clipboard_text(s: &str) {
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
+        } else {
+            let is_secure_context = window.is_secure_context();
+            if is_secure_context {
+                log::warn!("window.navigator.clipboard is null; can't copy text");
+            } else {
+                log::warn!("window.navigator.clipboard is null; can't copy text, probably because we're not in a secure context. See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts");
+            }
         }
     }
 }
@@ -305,6 +306,9 @@ pub struct WorkerChannels {
     output_tx: flume::Sender<WebRunnerOutput>,
     /// This should be set to the app's current zoom factor every frame.
     zoom_tx: std::sync::Arc<portable_atomic::AtomicF32>,
+    /// This should be set to whether or not any mouse button is down or any touchscreen touches
+    /// are occurring on every frame.
+    pointer_down_tx: std::sync::Arc<portable_atomic::AtomicBool>,
 }
 
 impl WorkerChannels {
@@ -337,10 +341,16 @@ pub struct MainStateInner {
     /// If the user is typing something, the position of the text cursor (for IME) in screen
     /// coordinates.
     ime: Option<egui::output::IMEOutput>,
+    /// The text agent that eframe uses to handle IME. This will always be `Some` after
+    /// the web runner's initialization.
+    text_agent: Option<text_agent::TextAgent>,
     /// Whether or not the user is editing a mutable egui text box.
     mutable_text_under_cursor: bool,
     /// Whether or not egui is trying to receive text input.
     wants_keyboard_input: bool,
+    /// This should be set to `true` (HTML canvas is focused) or `false` (HTML canvas is blurred)
+    /// every frame.
+    has_focus: bool,
 }
 
 /// The halves of the web runner channels that are used in the main thread.
@@ -352,6 +362,9 @@ pub struct MainChannels {
     output_rx: flume::Receiver<WebRunnerOutput>,
     /// This is set to the app's current zoom factor every frame.
     zoom_rx: std::sync::Arc<portable_atomic::AtomicF32>,
+    /// This is set to whether or not any mouse button is down or any touchscreen touches are
+    /// occurring on every frame.
+    pointer_down_rx: std::sync::Arc<portable_atomic::AtomicBool>,
 }
 
 impl MainState {
@@ -390,6 +403,23 @@ impl MainState {
 
         Ok(())
     }
+
+    /// You need to call this every frame to poll for changes to the app's HTML canvas focus/blur
+    /// state.
+    fn update_focus(&self) {
+        let has_focus =
+            has_focus(&self.canvas) || self.inner.borrow().text_agent.as_ref().unwrap().has_focus();
+        let mut inner = self.inner.borrow_mut();
+        if inner.has_focus != has_focus {
+            log::trace!("{} Focus changed to {has_focus}", self.canvas.id());
+            inner.has_focus = has_focus;
+
+            if !has_focus {
+                // We lost focus - good idea to save
+                self.channels.send_custom(WebRunnerEvent::Save);
+            }
+        }
+    }
 }
 
 impl MainChannels {
@@ -407,6 +437,12 @@ impl MainChannels {
     fn zoom_factor(&self) -> f32 {
         self.zoom_rx.load(portable_atomic::Ordering::Relaxed)
     }
+
+    /// Ask the worker thread if any mouse button is down or any touchscreen touches are occurring.
+    fn is_pointer_down(&self) -> bool {
+        self.pointer_down_rx
+            .load(portable_atomic::Ordering::Relaxed)
+    }
 }
 
 /// Create a new connected `(WorkerChannels, MainChannels)` pair for initializing a web runner.
@@ -414,16 +450,19 @@ pub fn channels() -> (WorkerChannels, MainChannels) {
     let (event_tx, event_rx) = flume::unbounded();
     let (output_tx, output_rx) = flume::unbounded();
     let zoom_arc = std::sync::Arc::new(portable_atomic::AtomicF32::new(1.));
+    let pointer_down_arc = std::sync::Arc::new(portable_atomic::AtomicBool::new(false));
     (
         WorkerChannels {
             event_rx,
             output_tx,
             zoom_tx: zoom_arc.clone(),
+            pointer_down_tx: pointer_down_arc.clone(),
         },
         MainChannels {
             event_tx,
             output_rx,
             zoom_rx: zoom_arc,
+            pointer_down_rx: pointer_down_arc,
         },
     )
 }
@@ -432,17 +471,29 @@ pub fn channels() -> (WorkerChannels, MainChannels) {
 enum WebRunnerEvent {
     /// Misc egui events
     EguiEvent(egui::Event),
+    /// This should be sent whenever a repaint is desired without anything else (all the other
+    /// `WebRunnerEvent` types will also request a repaint)
+    Repaint,
     /// (window.innerWidth, window.innerHeight, window.devicePixelRatio)
     ScreenResize(u32, u32, f32),
     /// This should be sent whenever the modifiers change
     Modifiers(egui::Modifiers),
     /// This should be sent whenever the app needs to save immediately
     Save,
-    /// The browser detected a touchstart or touchmove event with this ID and position in canvas coordinates
-    Touch(Option<egui::TouchId>, egui::Pos2),
+    /// The browser detected a touchstart or touchmove event with this ID
+    Touch(Option<egui::TouchId>),
     /// This should be sent whenever the web page gains or loses focus (true when focus is gained,
     /// false when focus is lost)
     Focus(bool),
+    /// This should be sent whenever the app detects scrolling; please use this instead of
+    /// `egui::Event::MouseWheel`
+    Wheel(egui::MouseWheelUnit, egui::Vec2, egui::Modifiers),
+    /// This should be sent whenever the control key or meta key is released after being pressed
+    CommandKeyReleased,
+    /// The browser detected that the hash in the URL changed to this value
+    Hash(String),
+    /// The browser detected that the color scheme changed
+    Theme(Theme),
 }
 
 /// A custom output that can be sent from the worker thread to the main thread.
@@ -458,5 +509,5 @@ enum WebRunnerOutput {
 static PANIC_LOCK: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
 
 thread_local! {
-    static EVENTS_TO_UNSUBSCRIBE: std::cell::RefCell<Vec<web_runner::EventToUnsubscribe>> = const { std::cell::RefCell::new(Vec::new()) };
+    static EVENTS_TO_UNSUBSCRIBE: std::cell::RefCell<Vec<web_runner::EventToUnsubscribe>> = std::cell::RefCell::new(Vec::new());
 }

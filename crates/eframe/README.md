@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> luminol-eframe is currently based on emilk/egui@0.27.2
+> luminol-eframe is currently based on emilk/egui@0.28.1
 
 > [!NOTE]
 > This is Luminol's modified version of eframe. The original version is dual-licensed under MIT and Apache 2.0.
