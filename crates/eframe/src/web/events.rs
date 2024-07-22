@@ -292,9 +292,9 @@ fn install_keydown(state: &MainState, target: &EventTarget) -> Result<(), JsValu
 
         let modifiers = modifiers_from_kb_event(&event);
         if !modifiers.ctrl
-                && !modifiers.command
-                // When text agent is focused, it is responsible for handling input events
-                && !state.inner.borrow().text_agent.as_ref().unwrap().has_focus()
+            && !modifiers.command
+            // When text agent is focused, it is responsible for handling input events
+            && !state.text_agent.get().expect("text agent should be initialized at this point").has_focus()
         {
             if let Some(text) = text_from_keyboard_event(&event) {
                 state.channels.send(egui::Event::Text(text));
@@ -382,11 +382,9 @@ fn should_prevent_default_for_key(
 
     if egui_key == egui::Key::Space
         && !state
-            .inner
-            .borrow()
             .text_agent
-            .as_ref()
-            .unwrap()
+            .get()
+            .expect("text agent should be initialized at this point")
             .has_focus()
     {
         // Space scrolls the web page, but we don't want that while canvas has focus

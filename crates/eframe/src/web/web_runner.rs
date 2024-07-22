@@ -56,7 +56,9 @@ impl WebRunner {
     pub fn setup_main_thread_hooks(
         state: super::MainState,
     ) -> Result<std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>, JsValue> {
-        state.inner.borrow_mut().text_agent = Some(TextAgent::attach(&state)?);
+        if state.text_agent.set(TextAgent::attach(&state)?).is_err() {
+            panic!("failed to set text agent");
+        }
 
         let (panic_tx, panic_rx) = oneshot::channel();
 

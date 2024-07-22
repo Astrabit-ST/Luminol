@@ -388,6 +388,7 @@ pub fn luminol_main_start() {
     let runner_panic_tx =
         luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
             inner: Default::default(),
+            text_agent: Default::default(),
             canvas: canvas.clone(),
             channels: runner_main_channels,
         })

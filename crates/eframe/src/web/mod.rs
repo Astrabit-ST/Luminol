@@ -327,6 +327,9 @@ pub struct MainState {
     pub canvas: web_sys::HtmlCanvasElement,
     /// The halves of the web runner channels that are used in the main thread.
     pub channels: MainChannels,
+    /// The text agent that eframe uses to handle IME. This will always be set after
+    /// the web runner's initialization.
+    pub text_agent: std::rc::Rc<once_cell::unsync::OnceCell<text_agent::TextAgent>>,
 }
 
 /// The state of the web runner that is accessible to the main thread.
@@ -341,9 +344,6 @@ pub struct MainStateInner {
     /// If the user is typing something, the position of the text cursor (for IME) in screen
     /// coordinates.
     ime: Option<egui::output::IMEOutput>,
-    /// The text agent that eframe uses to handle IME. This will always be `Some` after
-    /// the web runner's initialization.
-    text_agent: Option<text_agent::TextAgent>,
     /// Whether or not the user is editing a mutable egui text box.
     mutable_text_under_cursor: bool,
     /// Whether or not egui is trying to receive text input.
@@ -407,8 +407,12 @@ impl MainState {
     /// You need to call this every frame to poll for changes to the app's HTML canvas focus/blur
     /// state.
     fn update_focus(&self) {
-        let has_focus =
-            has_focus(&self.canvas) || self.inner.borrow().text_agent.as_ref().unwrap().has_focus();
+        let has_focus = has_focus(&self.canvas)
+            || self
+                .text_agent
+                .get()
+                .expect("text agent should be initialized at this point")
+                .has_focus();
         let mut inner = self.inner.borrow_mut();
         if inner.has_focus != has_focus {
             log::trace!("{} Focus changed to {has_focus}", self.canvas.id());

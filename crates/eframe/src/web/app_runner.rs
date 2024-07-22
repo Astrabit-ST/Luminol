@@ -334,11 +334,21 @@ impl AppRunner {
         inner.mutable_text_under_cursor = mutable_text_under_cursor;
         inner.wants_keyboard_input = wants_keyboard_input;
 
-        let text_agent = inner.text_agent.as_ref().unwrap();
+        let has_focus = inner.has_focus;
+        let is_ime_active = inner.ime.is_some();
 
-        if inner.has_focus {
+        // Can't have `inner` borrowed for the `text_agent` operations because apparently they
+        // yield to the asynchronous runtime
+        drop(inner);
+
+        let text_agent = state
+            .text_agent
+            .get()
+            .expect("text agent should be initialized at this point");
+
+        if has_focus {
             // The eframe app has focus.
-            if inner.ime.is_some() {
+            if is_ime_active {
                 // We are editing text: give the focus to the text agent.
                 text_agent.focus();
             } else {
