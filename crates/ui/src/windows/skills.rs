@@ -202,7 +202,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "SP Cost",
                                         egui::DragValue::new(&mut skill.sp_cost)
-                                            .clamp_range(0..=i32::MAX),
+                                            .range(0..=i32::MAX),
                                     ))
                                     .changed();
 

@@ -24,8 +24,8 @@ luminol-egui-wgpu.workspace = true
 wgpu.workspace = true
 glam.workspace = true
 
-naga_oil = "0.12.0"
-naga = "0.19.0"
+naga.workspace = true
+naga_oil.workspace = true
 
 crossbeam.workspace = true
 dashmap.workspace = true

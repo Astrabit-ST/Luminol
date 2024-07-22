@@ -148,7 +148,7 @@ where
             .vertical(|ui| {
                 let spacing = ui.spacing().item_spacing.y;
                 ui.add_space(spacing);
-                ui.add(egui::Label::new(format!("{}:", self.name)).truncate(true));
+                ui.add(egui::Label::new(format!("{}:", self.name)).truncate());
                 if ui.add(self.widget).changed() {
                     changed = true;
                 };
@@ -198,11 +198,11 @@ where
         let available_width = ui.available_width() - ui.spacing().item_spacing.x;
         let width = self.max_width.min(available_width);
         let mut response = egui::ComboBox::from_id_source(&self.id_source)
-            .wrap(true)
+            .wrap()
             .width(width)
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
-                ui.style_mut().wrap = Some(true);
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
 
                 for (i, variant) in T::iter().enumerate() {
                     ui.with_stripe(i % 2 != 0, |ui| {
@@ -275,7 +275,7 @@ where
 
         let mut changed = false;
         let inner_response = egui::ComboBox::from_id_source(&self.id_source)
-            .wrap(true)
+            .wrap()
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(formatter(&self))
             .show_ui(ui, |ui| {
@@ -409,7 +409,7 @@ where
                 }
             },
             |this, ui, ids, first_row_is_faint, show_none| {
-                ui.style_mut().wrap = Some(true);
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
 
                 if show_none
                     && ui
@@ -465,7 +465,7 @@ where
             ui,
             |this| (this.formatter)(*this.reference),
             |this, ui, ids, first_row_is_faint, _| {
-                ui.style_mut().wrap = Some(true);
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
 
                 let mut is_faint = first_row_is_faint;
 

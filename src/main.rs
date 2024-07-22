@@ -240,7 +240,7 @@ fn main() {
                 .set(cc.egui_ctx.clone())
                 .expect("egui context cell already set (this shouldn't happen!)");
 
-            Box::new(app::App::new(
+            Ok(Box::new(app::App::new(
                 cc,
                 report,
                 Default::default(),
@@ -248,7 +248,7 @@ fn main() {
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
-            ))
+            )))
         }),
     )
     .expect("failed to start luminol");
@@ -388,6 +388,7 @@ pub fn luminol_main_start() {
     let runner_panic_tx =
         luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
             inner: Default::default(),
+            text_agent: Default::default(),
             canvas: canvas.clone(),
             channels: runner_main_channels,
         })
@@ -421,6 +422,8 @@ pub fn luminol_main_start() {
             .expect("failed to add beforeunload listener");
         *before_unload_cell.borrow_mut() = Some(closure);
     }
+
+    canvas.focus().expect("could not focus the canvas");
 
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
@@ -461,7 +464,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         .start(
             canvas,
             web_options,
-            Box::new(|cc| Box::new(app::App::new(cc, report, modified, audio))),
+            Box::new(|cc| Ok(Box::new(app::App::new(cc, report, modified, audio)))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: runner_worker_channels,

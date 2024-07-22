@@ -267,11 +267,11 @@ impl luminol_core::Window for Window {
                     ui.horizontal(|ui| {
                         ui.label("Initial terminal size:");
                         egui::DragValue::new(&mut config.initial_size.0)
-                            .clamp_range(1..=999)
+                            .range(1..=999)
                             .ui(ui);
                         ui.label("column(s)");
                         egui::DragValue::new(&mut config.initial_size.1)
-                            .clamp_range(1..=999)
+                            .range(1..=999)
                             .ui(ui);
                         ui.label("rows(s)");
                     });
@@ -407,7 +407,7 @@ fn gallery_grid_contents(ui: &mut egui::Ui) {
     egui::ComboBox::from_label("Take your pick")
         .selected_text("First")
         .show_ui(ui, |ui| {
-            ui.style_mut().wrap = Some(false);
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
             ui.set_min_width(60.0);
             ui.selectable_value(&mut 0, 0, "First");
             ui.selectable_value(&mut 0, 1, "Second");
