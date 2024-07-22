@@ -341,13 +341,6 @@ pub struct MainStateInner {
     /// The position relative to the canvas of the last received touch event. If no touch event has
     /// been received yet, this will be (0, 0).
     touch_pos: egui::Pos2,
-    /// If the user is typing something, the position of the text cursor (for IME) in screen
-    /// coordinates.
-    ime: Option<egui::output::IMEOutput>,
-    /// Whether or not the user is editing a mutable egui text box.
-    mutable_text_under_cursor: bool,
-    /// Whether or not egui is trying to receive text input.
-    wants_keyboard_input: bool,
     /// This should be set to `true` (HTML canvas is focused) or `false` (HTML canvas is blurred)
     /// every frame.
     has_focus: bool,

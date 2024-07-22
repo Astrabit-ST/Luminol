@@ -330,16 +330,9 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        let mut inner = state.inner.borrow_mut();
-        inner.mutable_text_under_cursor = mutable_text_under_cursor;
-        inner.wants_keyboard_input = wants_keyboard_input;
-
-        let has_focus = inner.has_focus;
-        let is_ime_active = inner.ime.is_some();
-
         // Can't have `inner` borrowed for the `text_agent` operations because apparently they
         // yield to the asynchronous runtime
-        drop(inner);
+        let has_focus = state.inner.borrow().has_focus;
 
         let text_agent = state
             .text_agent
@@ -348,7 +341,7 @@ impl AppRunner {
 
         if has_focus {
             // The eframe app has focus.
-            if is_ime_active {
+            if ime.is_some() {
                 // We are editing text: give the focus to the text agent.
                 text_agent.focus();
             } else {
