@@ -169,6 +169,19 @@ impl App {
                     writeln!(message_description, "---------").unwrap();
                     message_description.push_str(&description);
                 }
+                wgpu::Error::Internal {
+                    source,
+                    description,
+                } => {
+                    message_description.push_str("wgpu error: Internal error\n");
+                    writeln!(message_description, "{source}").unwrap();
+                    writeln!(message_description, "---------").unwrap();
+                    writeln!(message_description, "{}", source.source().unwrap()).unwrap();
+                    writeln!(message_description, "---------").unwrap();
+                    writeln!(message_description, "{source:#?}").unwrap();
+                    writeln!(message_description, "---------").unwrap();
+                    message_description.push_str(&description);
+                }
             }
             rfd::MessageDialog::new()
                 .set_title("Luminol has crashed!")
