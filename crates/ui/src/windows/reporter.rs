@@ -150,7 +150,7 @@ impl luminol_core::Window for Window {
                                                 )
                                                 .into_galley(
                                                     ui,
-                                                    Some(false),
+                                                    Some(egui::TextWrapMode::Extend),
                                                     wrap_width,
                                                     egui::TextStyle::Monospace,
                                                 )

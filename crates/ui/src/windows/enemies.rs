@@ -137,16 +137,14 @@ impl Window {
                     modified |= columns[0]
                         .add(luminol_components::Field::new(
                             "Turn Offset",
-                            egui::DragValue::new(&mut action.condition_turn_a)
-                                .clamp_range(0..=i32::MAX),
+                            egui::DragValue::new(&mut action.condition_turn_a).range(0..=i32::MAX),
                         ))
                         .changed();
 
                     modified |= columns[1]
                         .add(luminol_components::Field::new(
                             "Turn Interval",
-                            egui::DragValue::new(&mut action.condition_turn_b)
-                                .clamp_range(0..=i32::MAX),
+                            egui::DragValue::new(&mut action.condition_turn_b).range(0..=i32::MAX),
                         ))
                         .changed();
                 });
@@ -370,32 +368,28 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "EXP",
-                                        egui::DragValue::new(&mut enemy.exp)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.exp).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "Gold",
-                                        egui::DragValue::new(&mut enemy.gold)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.gold).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
                                     .add(luminol_components::Field::new(
                                         "Max HP",
-                                        egui::DragValue::new(&mut enemy.maxhp)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.maxhp).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
                                     .add(luminol_components::Field::new(
                                         "Max SP",
-                                        egui::DragValue::new(&mut enemy.maxsp)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.maxsp).range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });
@@ -406,32 +400,28 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "STR",
-                                        egui::DragValue::new(&mut enemy.str)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.str).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "DEX",
-                                        egui::DragValue::new(&mut enemy.dex)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.dex).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
                                     .add(luminol_components::Field::new(
                                         "AGI",
-                                        egui::DragValue::new(&mut enemy.agi)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.agi).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
                                     .add(luminol_components::Field::new(
                                         "INT",
-                                        egui::DragValue::new(&mut enemy.int)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.int).range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });
@@ -442,32 +432,28 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "ATK",
-                                        egui::DragValue::new(&mut enemy.atk)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.atk).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "EVA",
-                                        egui::DragValue::new(&mut enemy.eva)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.eva).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
                                     .add(luminol_components::Field::new(
                                         "PDEF",
-                                        egui::DragValue::new(&mut enemy.pdef)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.pdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
                                     .add(luminol_components::Field::new(
                                         "MDEF",
-                                        egui::DragValue::new(&mut enemy.mdef)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut enemy.mdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });

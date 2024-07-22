@@ -241,8 +241,7 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Price",
-                                        egui::DragValue::new(&mut item.price)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut item.price).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
@@ -282,7 +281,7 @@ impl luminol_core::Window for Window {
                                         .add(luminol_components::Field::new(
                                             "Parameter Increment",
                                             egui::DragValue::new(&mut item.parameter_points)
-                                                .clamp_range(0..=i32::MAX),
+                                                .range(0..=i32::MAX),
                                         ))
                                         .changed();
                                 });
@@ -303,7 +302,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Recover HP Points",
                                         egui::DragValue::new(&mut item.recover_hp)
-                                            .clamp_range(0..=i32::MAX),
+                                            .range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });
@@ -323,7 +322,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Recover SP Points",
                                         egui::DragValue::new(&mut item.recover_sp)
-                                            .clamp_range(0..=i32::MAX),
+                                            .range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });

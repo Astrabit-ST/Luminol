@@ -240,7 +240,7 @@ fn main() {
                 .set(cc.egui_ctx.clone())
                 .expect("egui context cell already set (this shouldn't happen!)");
 
-            Box::new(app::App::new(
+            Ok(Box::new(app::App::new(
                 cc,
                 report,
                 Default::default(),
@@ -248,7 +248,7 @@ fn main() {
                 std::env::args_os().nth(1),
                 #[cfg(feature = "steamworks")]
                 steamworks,
-            ))
+            )))
         }),
     )
     .expect("failed to start luminol");
@@ -461,7 +461,7 @@ pub async fn luminol_worker_start(canvas: web_sys::OffscreenCanvas) {
         .start(
             canvas,
             web_options,
-            Box::new(|cc| Box::new(app::App::new(cc, report, modified, audio))),
+            Box::new(|cc| Ok(Box::new(app::App::new(cc, report, modified, audio)))),
             luminol_eframe::web::WorkerOptions {
                 prefers_color_scheme_dark,
                 channels: runner_worker_channels,

@@ -67,11 +67,13 @@ pub fn create_render_pipeline(
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
                 entry_point: "fs_main",
+                compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     ..render_state.target_format.into()

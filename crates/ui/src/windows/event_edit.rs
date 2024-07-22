@@ -260,7 +260,7 @@ impl luminol_core::Window for Window {
 
                         left.label("Options");
                         left.group(|ui| {
-                            ui.style_mut().wrap = Some(false);
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                             modified |= ui
                                 .checkbox(&mut page.walk_anime, "Move Animation")
                                 .changed();

@@ -201,7 +201,7 @@ where
                     luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
 
                     if let Some(size) = new_size {
-                        ui.add(egui::DragValue::new(size).clamp_range(1..=usize::MAX));
+                        ui.add(egui::DragValue::new(size).range(1..=usize::MAX));
                         if ui.button("Set Maximum").clicked() {
                             M::resize(update_state, *size);
                         }

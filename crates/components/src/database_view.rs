@@ -81,7 +81,7 @@ impl DatabaseView {
                         egui::Layout::bottom_up(ui.layout().horizontal_align()),
                         |ui| {
                             ui.horizontal(|ui| {
-                                ui.style_mut().wrap = Some(true);
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
 
                                 ui.add(egui::DragValue::new(self.maximum.as_mut().unwrap()));
 

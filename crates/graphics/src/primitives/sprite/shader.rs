@@ -77,11 +77,13 @@ fn create_shader(
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
                 entry_point: "fs_main",
+                compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     blend: Some(target),
                     ..render_state.target_format.into()
