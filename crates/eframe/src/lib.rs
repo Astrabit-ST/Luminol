@@ -200,7 +200,7 @@ pub mod icon_data;
 /// ``` no_run
 /// use luminol_eframe::egui;
 ///
-/// fn main() -> eframe::Result {
+/// fn main() -> luminol_eframe::Result {
 ///     let native_options = luminol_eframe::NativeOptions::default();
 ///     luminol_eframe::run_native("MyApp", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))))
 /// }
