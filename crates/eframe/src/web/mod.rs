@@ -408,7 +408,7 @@ impl MainState {
                 .has_focus();
         let mut inner = self.inner.borrow_mut();
         if inner.has_focus != has_focus {
-            log::trace!("{} Focus changed to {has_focus}", self.canvas.id());
+            log::trace!("Focus changed to {has_focus}");
             inner.has_focus = has_focus;
 
             if !has_focus {

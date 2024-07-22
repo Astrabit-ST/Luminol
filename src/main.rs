@@ -423,6 +423,8 @@ pub fn luminol_main_start() {
         *before_unload_cell.borrow_mut() = Some(closure);
     }
 
+    canvas.focus().expect("could not focus the canvas");
+
     let mut worker_options = web_sys::WorkerOptions::new();
     worker_options.name("luminol-primary");
     worker_options.type_(web_sys::WorkerType::Module);
