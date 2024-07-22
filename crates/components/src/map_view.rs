@@ -901,7 +901,7 @@ impl MapView {
             screenshot
                 .write_to(
                     &mut std::io::BufWriter::new(&mut file),
-                    image::ImageOutputFormat::Png,
+                    image::ImageFormat::Png,
                 )
                 .wrap_err(c)?;
             file.flush().wrap_err(c)?;
