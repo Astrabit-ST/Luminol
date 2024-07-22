@@ -507,8 +507,8 @@ where
                 self.scroll_pt += scroll_delta.y * 16.;
             }
             egui::MouseWheelUnit::Page => {
-                let (width, _height) = self.backend.size();
-                self.scroll_pt += scroll_delta.y * 16. * width as f32;
+                let (_width, height) = self.backend.size();
+                self.scroll_pt += scroll_delta.y * 16. * height as f32;
             }
         }
         let delta = (self.scroll_pt / 16.).trunc() as i32;
