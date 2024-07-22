@@ -7,6 +7,8 @@ use wasm_bindgen::prelude::*;
 
 use super::{AppRunner, MainState, WebRunner};
 
+const AGENT_ID: &str = "luminol-text-agent";
+
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
     prev_ime_output: Cell<Option<egui::output::IMEOutput>>,
@@ -17,10 +19,15 @@ impl TextAgent {
     pub fn attach(state: &super::MainState) -> Result<Self, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
 
+        if let Some(input) = document.get_element_by_id(AGENT_ID) {
+            input.remove();
+        }
+
         // create an `<input>` element
         let input = document
             .create_element("input")?
             .dyn_into::<web_sys::HtmlInputElement>()?;
+        input.set_id(AGENT_ID);
         input.set_type("text");
 
         // append it to `<body>` and hide it outside of the viewport
