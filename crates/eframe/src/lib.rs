@@ -137,6 +137,7 @@
 #![allow(clippy::needless_doctest_main)]
 // Luminol doesn't need everything from eframe, but we're leaving everything here to reduce merge conflicts
 #![allow(dead_code, unused_imports)]
+#![allow(clippy::thread_local_initializer_can_be_made_const)]
 
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint};

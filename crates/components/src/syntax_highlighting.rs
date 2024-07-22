@@ -26,6 +26,17 @@
 
 use egui::text::LayoutJob;
 
+impl egui::util::cache::ComputerMut<(luminol_config::CodeTheme, &str, &str), LayoutJob>
+    for Highlighter
+{
+    fn compute(
+        &mut self,
+        (theme, code, lang): (luminol_config::CodeTheme, &str, &str),
+    ) -> LayoutJob {
+        self.highlight(theme, code, lang)
+    }
+}
+
 /// View some code with syntax highlighting and selection.
 pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str, theme: luminol_config::CodeTheme) {
     let language = "rb";
@@ -54,17 +65,6 @@ pub fn highlight(
     code: &str,
     language: &str,
 ) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(luminol_config::CodeTheme, &str, &str), LayoutJob>
-        for Highlighter
-    {
-        fn compute(
-            &mut self,
-            (theme, code, lang): (luminol_config::CodeTheme, &str, &str),
-        ) -> LayoutJob {
-            self.highlight(theme, code, lang)
-        }
-    }
-
     type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
     ctx.memory_mut(|m| {

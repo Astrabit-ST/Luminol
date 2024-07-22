@@ -204,7 +204,7 @@ impl MapView {
 
             // Apply scroll and cap max zoom to 15%
             self.scale *= (delta / 9.0f32.exp2()).exp2();
-            self.scale = self.scale.max(15.).min(300.);
+            self.scale = self.scale.clamp(15., 300.);
 
             // Get the normalized cursor position relative to pan
             let pos_norm = (pos - self.pan - canvas_center) / old_scale;

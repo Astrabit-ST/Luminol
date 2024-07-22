@@ -172,7 +172,9 @@ impl luminol_core::Tab for ScriptTab {
                 let mut scripts = update_state.data.scripts();
                 scripts.modified = true;
 
-                scripts.data[self.index].script_text = self.script_text.clone();
+                scripts.data[self.index]
+                    .script_text
+                    .clone_from(&self.script_text);
             }
         });
 

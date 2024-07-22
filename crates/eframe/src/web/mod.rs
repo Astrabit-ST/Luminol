@@ -181,7 +181,7 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 }
 
 /// Set the clipboard text.
-//#[cfg(web_sys_unstable_apis)]
+#[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         if let Some(clipboard) = window.navigator().clipboard() {
@@ -496,7 +496,7 @@ enum WebRunnerEvent {
 /// A custom output that can be sent from the worker thread to the main thread.
 enum WebRunnerOutput {
     /// Miscellaneous egui output events
-    PlatformOutput(egui::PlatformOutput, bool, bool),
+    PlatformOutput(egui::PlatformOutput, bool),
     /// The runner wants to read a key from storage
     StorageGet(String, oneshot::Sender<Option<String>>),
     /// The runner wants to write a key to storage

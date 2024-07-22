@@ -71,7 +71,7 @@ impl luminol_core::Window for Window {
     }
 }
 
-struct CommonEventTab {
+pub struct CommonEventTab {
     event: luminol_data::rpg::CommonEvent,
     force_close: bool,
     switch_modal: database_modal::SwitchModal,

@@ -541,7 +541,7 @@ fn install_window_events(state: &MainState, window: &web_sys::Window) -> Result<
         }
     };
     closure(web_sys::Event::new("")?, state);
-    state.add_event_listener(&window, "resize", closure)?;
+    state.add_event_listener(window, "resize", closure)?;
 
     {
         let window = window.clone();

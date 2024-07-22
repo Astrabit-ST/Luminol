@@ -41,6 +41,9 @@ default = [
   "x11",
 ]
 
+# Dummy features so we don't run into compiler warnings
+glow = []
+
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 

@@ -263,7 +263,6 @@ impl AppRunner {
             .send(super::WebRunnerOutput::PlatformOutput(
                 platform_output,
                 self.egui_ctx.options(|o| o.screen_reader),
-                self.egui_ctx.wants_keyboard_input(),
             ));
         self.textures_delta.append(textures_delta);
         self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
@@ -294,7 +293,6 @@ impl AppRunner {
         state: &super::MainState,
         platform_output: egui::PlatformOutput,
         screen_reader_enabled: bool,
-        wants_keyboard_input: bool,
     ) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         state.update_focus();
@@ -310,8 +308,8 @@ impl AppRunner {
             cursor_icon,
             open_url,
             copied_text,
-            events: _,                 // already handled
-            mutable_text_under_cursor, // TODO(#4569): https://github.com/emilk/egui/issues/4569
+            events: _,                    // already handled
+            mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
