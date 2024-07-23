@@ -173,7 +173,7 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Rating",
-                                        egui::DragValue::new(&mut state.rating).clamp_range(0..=10),
+                                        egui::DragValue::new(&mut state.rating).range(0..=10),
                                     ))
                                     .changed();
 
@@ -294,7 +294,7 @@ impl luminol_core::Window for Window {
                                     .add(luminol_components::Field::new(
                                         "Auto Release Interval",
                                         egui::DragValue::new(&mut state.hold_turn)
-                                            .clamp_range(0..=i32::MAX),
+                                            .range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });

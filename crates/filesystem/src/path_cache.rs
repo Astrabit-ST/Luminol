@@ -310,7 +310,7 @@ where
                                         "{key} ➡ {}",
                                         cache.get_path_from_cactus_index(cactus_index),
                                     ))
-                                    .truncate(true),
+                                    .truncate(),
                                 );
                             }
                         },

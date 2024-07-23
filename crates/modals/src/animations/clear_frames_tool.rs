@@ -99,8 +99,7 @@ impl Modal {
                     self.start_frame += 1;
                     columns[0].add(luminol_components::Field::new(
                         "Starting Frame",
-                        egui::DragValue::new(&mut self.start_frame)
-                            .clamp_range(1..=self.frames_len),
+                        egui::DragValue::new(&mut self.start_frame).range(1..=self.frames_len),
                     ));
                     self.start_frame -= 1;
 
@@ -111,7 +110,7 @@ impl Modal {
                     self.end_frame += 1;
                     columns[1].add(luminol_components::Field::new(
                         "Ending Frame",
-                        egui::DragValue::new(&mut self.end_frame).clamp_range(1..=self.frames_len),
+                        egui::DragValue::new(&mut self.end_frame).range(1..=self.frames_len),
                     ));
                     self.end_frame -= 1;
 

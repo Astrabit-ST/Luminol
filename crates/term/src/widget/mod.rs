@@ -493,8 +493,24 @@ where
         Ok(())
     }
 
-    fn handle_scroll(&mut self, cursor_pos: Option<RCursor>, scroll_delta: egui::Vec2) {
-        self.scroll_pt += scroll_delta.y;
+    fn handle_scroll(
+        &mut self,
+        cursor_pos: Option<RCursor>,
+        unit: egui::MouseWheelUnit,
+        scroll_delta: egui::Vec2,
+    ) {
+        match unit {
+            egui::MouseWheelUnit::Point => {
+                self.scroll_pt += scroll_delta.y;
+            }
+            egui::MouseWheelUnit::Line => {
+                self.scroll_pt += scroll_delta.y * 16.;
+            }
+            egui::MouseWheelUnit::Page => {
+                let (_width, height) = self.backend.size();
+                self.scroll_pt += scroll_delta.y * 16. * height as f32;
+            }
+        }
         let delta = (self.scroll_pt / 16.).trunc() as i32;
         self.scroll_pt %= 16.;
 
@@ -612,12 +628,13 @@ where
                     }
                     term_modified = true;
                 }
-                egui::Event::Scroll(scroll_delta) => self.handle_scroll(
+                egui::Event::MouseWheel { unit, delta, .. } => self.handle_scroll(
                     hover_pos.map(|pos| galley.cursor_from_pos(pos.to_vec2()).rcursor),
-                    scroll_delta,
+                    unit,
+                    delta,
                 ),
-                egui::Event::CompositionUpdate(text) => self.ime_text = Some(text),
-                egui::Event::CompositionEnd(text) => {
+                egui::Event::Ime(egui::ImeEvent::Preedit(text)) => self.ime_text = Some(text),
+                egui::Event::Ime(egui::ImeEvent::Commit(text)) => {
                     self.ime_text = None;
                     self.backend.send(text.into_bytes());
                     term_modified = true;

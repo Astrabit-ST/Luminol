@@ -147,32 +147,28 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Price",
-                                        egui::DragValue::new(&mut weapon.price)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut weapon.price).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "ATK",
-                                        egui::DragValue::new(&mut weapon.atk)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut weapon.atk).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
                                     .add(luminol_components::Field::new(
                                         "PDEF",
-                                        egui::DragValue::new(&mut weapon.pdef)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut weapon.pdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
                                     .add(luminol_components::Field::new(
                                         "MDEF",
-                                        egui::DragValue::new(&mut weapon.mdef)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut weapon.mdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });

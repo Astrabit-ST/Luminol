@@ -176,7 +176,7 @@ fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut boo
                             let i = i + actor.initial_level.max(1) as usize - 1;
 
                             ui.horizontal(|ui| {
-                                ui.style_mut().wrap = Some(true);
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
 
                                 ui.with_layout(
                                     egui::Layout {
@@ -196,7 +196,7 @@ fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut boo
                                             } else {
                                                 (exp[i + 1] - exp[i]).to_string()
                                             })
-                                            .truncate(true),
+                                            .truncate(),
                                         );
 
                                         ui.with_layout(
@@ -207,7 +207,7 @@ fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut boo
                                             |ui| {
                                                 ui.add(
                                                     egui::Label::new(format!("Level {}", i + 1))
-                                                        .truncate(true),
+                                                        .truncate(),
                                                 );
                                             },
                                         );

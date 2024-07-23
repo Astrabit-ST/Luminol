@@ -41,10 +41,12 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
+type DynError = Box<dyn std::error::Error + Send + Sync>;
+
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App>>;
+pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Result<Box<dyn App>, DynError>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {
@@ -150,6 +152,7 @@ pub trait App {
     /// On web the state is stored to "Local Storage".
     ///
     /// On native the path is picked using [`crate::storage_dir`].
+    /// The path can be customized via [`NativeOptions::persistence_path`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown, after [`Self::save`].
@@ -232,7 +235,7 @@ pub enum HardwareAcceleration {
 
     /// Do NOT use graphics acceleration.
     ///
-    /// On some platforms (MacOS) this is ignored and treated the same as [`Self::Preferred`].
+    /// On some platforms (macOS) this is ignored and treated the same as [`Self::Preferred`].
     Off,
 }
 
@@ -362,6 +365,10 @@ pub struct NativeOptions {
     /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
+
+    /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
+    /// from [directories].
+    pub persistence_path: Option<std::path::PathBuf>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -378,6 +385,8 @@ impl Clone for NativeOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
+
+            persistence_path: self.persistence_path.clone(),
 
             ..*self
         }
@@ -418,6 +427,8 @@ impl Default for NativeOptions {
             wgpu_options: luminol_egui_wgpu::WgpuConfiguration::default(),
 
             persist_window: true,
+
+            persistence_path: None,
         }
     }
 }
@@ -455,11 +466,6 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: luminol_egui_wgpu::WgpuConfiguration,
-
-    /// The size limit of the web app canvas.
-    ///
-    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
-    pub max_size_points: egui::Vec2,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -475,8 +481,6 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: luminol_egui_wgpu::WgpuConfiguration::default(),
-
-            max_size_points: egui::Vec2::INFINITY,
         }
     }
 }
@@ -518,10 +522,10 @@ pub enum WebGlContextOption {
     /// Force use WebGL2.
     WebGl2,
 
-    /// Use WebGl2 first.
+    /// Use WebGL2 first.
     BestFirst,
 
-    /// Use WebGl1 first
+    /// Use WebGL1 first
     CompatibilityFirst,
 }
 
@@ -614,6 +618,11 @@ pub struct Frame {
     #[cfg(feature = "glow")]
     pub(crate) gl: Option<std::sync::Arc<glow::Context>>,
 
+    /// Used to convert user custom [`glow::Texture`] to [`egui::TextureId`]
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    pub(crate) glow_register_native_texture:
+        Option<Box<dyn FnMut(glow::Texture) -> egui::TextureId>>,
+
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<luminol_egui_wgpu::RenderState>,
@@ -688,6 +697,15 @@ impl Frame {
     #[cfg(feature = "glow")]
     pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
+    }
+
+    /// Register your own [`glow::Texture`],
+    /// and then you can use the returned [`egui::TextureId`] to render your texture with [`egui`].
+    ///
+    /// This function will take the ownership of your [`glow::Texture`], so please do not delete your [`glow::Texture`] after registering.
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    pub fn register_native_glow_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        self.glow_register_native_texture.as_mut().unwrap()(native)
     }
 
     /// The underlying WGPU render state.

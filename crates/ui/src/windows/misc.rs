@@ -124,7 +124,7 @@ impl luminol_core::Window for WgpuDebugInfo {
     ) {
         egui::Window::new("WGPU Debug Info")
             .open(open)
-            .scroll2([false, true])
+            .scroll([false, true])
             .show(ctx, |ui| {
                 if !self.downlevel_caps.is_webgpu_compliant() {
                     ui.label(

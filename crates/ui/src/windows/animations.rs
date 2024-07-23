@@ -230,7 +230,7 @@ impl Window {
                                     let mut frame =
                                         previous_timing_frame.unwrap_or(timing.frame + 1);
                                     let mut response = egui::DragValue::new(&mut frame)
-                                        .clamp_range(1..=animation_frame_max)
+                                        .range(1..=animation_frame_max)
                                         .update_while_editing(false)
                                         .ui(ui);
                                     response.changed = false;
@@ -281,7 +281,7 @@ impl Window {
                             .add(luminol_components::Field::new(
                                 "Flash Duration",
                                 egui::DragValue::new(&mut timing.flash_duration)
-                                    .clamp_range(1..=animation_frame_max),
+                                    .range(1..=animation_frame_max),
                             ))
                             .changed();
                     });
@@ -381,8 +381,7 @@ impl Window {
             let changed = ui
                 .add(luminol_components::Field::new(
                     "Frame",
-                    egui::DragValue::new(&mut state.frame_index)
-                        .clamp_range(1..=animation.frames.len()),
+                    egui::DragValue::new(&mut state.frame_index).range(1..=animation.frames.len()),
                 ))
                 .changed();
             state.frame_index -= 1;
@@ -725,7 +724,7 @@ impl Window {
                         .add(luminol_components::Field::new(
                             "Pattern",
                             egui::DragValue::new(&mut pattern)
-                                .clamp_range(1..=frame_view.frame.atlas.num_patterns() as i16),
+                                .range(1..=frame_view.frame.atlas.num_patterns() as i16),
                         ))
                         .changed();
                     if changed {
@@ -737,7 +736,7 @@ impl Window {
                         .add(luminol_components::Field::new(
                             "X",
                             egui::DragValue::new(&mut frame.cell_data[(i, 1)])
-                                .clamp_range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
+                                .range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
                         ))
                         .changed();
 
@@ -745,7 +744,7 @@ impl Window {
                         .add(luminol_components::Field::new(
                             "Y",
                             egui::DragValue::new(&mut frame.cell_data[(i, 2)])
-                                .clamp_range(-(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2),
+                                .range(-(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2),
                         ))
                         .changed();
 
@@ -753,7 +752,7 @@ impl Window {
                         .add(luminol_components::Field::new(
                             "Scale",
                             egui::DragValue::new(&mut frame.cell_data[(i, 3)])
-                                .clamp_range(1..=i16::MAX)
+                                .range(1..=i16::MAX)
                                 .suffix("%"),
                         ))
                         .changed();
@@ -764,7 +763,7 @@ impl Window {
                         .add(luminol_components::Field::new(
                             "Rotation",
                             egui::DragValue::new(&mut frame.cell_data[(i, 4)])
-                                .clamp_range(0..=360)
+                                .range(0..=360)
                                 .suffix("°"),
                         ))
                         .changed();
@@ -784,7 +783,7 @@ impl Window {
                     properties_modified |= columns[2]
                         .add(luminol_components::Field::new(
                             "Opacity",
-                            egui::DragValue::new(&mut frame.cell_data[(i, 6)]).clamp_range(0..=255),
+                            egui::DragValue::new(&mut frame.cell_data[(i, 6)]).range(0..=255),
                         ))
                         .changed();
 

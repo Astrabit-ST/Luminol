@@ -193,8 +193,7 @@ impl Modal {
                         self.start_frame += 1;
                         columns[0].add(luminol_components::Field::new(
                             "Starting Frame",
-                            egui::DragValue::new(&mut self.start_frame)
-                                .clamp_range(1..=self.frames_len),
+                            egui::DragValue::new(&mut self.start_frame).range(1..=self.frames_len),
                         ));
                         self.start_frame -= 1;
 
@@ -205,8 +204,7 @@ impl Modal {
                         self.end_frame += 1;
                         columns[1].add(luminol_components::Field::new(
                             "Ending Frame",
-                            egui::DragValue::new(&mut self.end_frame)
-                                .clamp_range(1..=self.frames_len),
+                            egui::DragValue::new(&mut self.end_frame).range(1..=self.frames_len),
                         ));
                         self.end_frame -= 1;
 
@@ -225,22 +223,21 @@ impl Modal {
                                     "Pattern",
                                     &mut self.set_pattern_enabled,
                                     egui::DragValue::new(&mut self.set_pattern)
-                                        .clamp_range(1..=num_patterns as i16),
+                                        .range(1..=num_patterns as i16),
                                 ));
                                 self.set_pattern -= 1;
 
                                 columns[1].add(luminol_components::FieldWithCheckbox::new(
                                     "X",
                                     &mut self.set_x_enabled,
-                                    egui::DragValue::new(&mut self.set_x).clamp_range(
-                                        -(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2,
-                                    ),
+                                    egui::DragValue::new(&mut self.set_x)
+                                        .range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
                                 ));
 
                                 columns[2].add(luminol_components::FieldWithCheckbox::new(
                                     "Y",
                                     &mut self.set_y_enabled,
-                                    egui::DragValue::new(&mut self.set_y).clamp_range(
+                                    egui::DragValue::new(&mut self.set_y).range(
                                         -(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2,
                                     ),
                                 ));
@@ -249,7 +246,7 @@ impl Modal {
                                     "Scale",
                                     &mut self.set_scale_enabled,
                                     egui::DragValue::new(&mut self.set_scale)
-                                        .clamp_range(1..=i16::MAX)
+                                        .range(1..=i16::MAX)
                                         .suffix("%"),
                                 ));
                             });
@@ -261,7 +258,7 @@ impl Modal {
                                     "Rotation",
                                     &mut self.set_rotation_enabled,
                                     egui::DragValue::new(&mut self.set_rotation)
-                                        .clamp_range(0..=360)
+                                        .range(0..=360)
                                         .suffix("°"),
                                 ));
 
@@ -276,8 +273,7 @@ impl Modal {
                                 columns[2].add(luminol_components::FieldWithCheckbox::new(
                                     "Opacity",
                                     &mut self.set_opacity_enabled,
-                                    egui::DragValue::new(&mut self.set_opacity)
-                                        .clamp_range(0..=255),
+                                    egui::DragValue::new(&mut self.set_opacity).range(0..=255),
                                 ));
 
                                 let mut blend_mode = match self.set_blending {
@@ -331,19 +327,19 @@ impl Modal {
                                 columns[0].add(luminol_components::Field::new(
                                     "Pattern",
                                     egui::DragValue::new(&mut self.add_pattern)
-                                        .clamp_range(-limit..=limit),
+                                        .range(-limit..=limit),
                                 ));
 
                                 columns[1].add(luminol_components::Field::new(
                                     "X",
                                     egui::DragValue::new(&mut self.add_x)
-                                        .clamp_range(-(FRAME_WIDTH as i16)..=FRAME_WIDTH as i16),
+                                        .range(-(FRAME_WIDTH as i16)..=FRAME_WIDTH as i16),
                                 ));
 
                                 columns[2].add(luminol_components::Field::new(
                                     "Y",
                                     egui::DragValue::new(&mut self.add_y)
-                                        .clamp_range(-(FRAME_HEIGHT as i16)..=FRAME_HEIGHT as i16),
+                                        .range(-(FRAME_HEIGHT as i16)..=FRAME_HEIGHT as i16),
                                 ));
 
                                 columns[3].add(luminol_components::Field::new(
@@ -358,7 +354,7 @@ impl Modal {
                                 columns[0].add(luminol_components::Field::new(
                                     "Rotation",
                                     egui::DragValue::new(&mut self.add_rotation)
-                                        .clamp_range(-360..=360)
+                                        .range(-360..=360)
                                         .suffix("°"),
                                 ));
 
@@ -369,14 +365,12 @@ impl Modal {
 
                                 columns[2].add(luminol_components::Field::new(
                                     "Opacity",
-                                    egui::DragValue::new(&mut self.add_opacity)
-                                        .clamp_range(-255..=255),
+                                    egui::DragValue::new(&mut self.add_opacity).range(-255..=255),
                                 ));
 
                                 columns[3].add(luminol_components::Field::new(
                                     "Blending",
-                                    egui::DragValue::new(&mut self.add_blending)
-                                        .clamp_range(-2..=2),
+                                    egui::DragValue::new(&mut self.add_blending).range(-2..=2),
                                 ));
                             });
                         });
@@ -402,7 +396,7 @@ impl Modal {
                                 columns[0].add(luminol_components::Field::new(
                                     "Pattern",
                                     egui::DragValue::new(&mut self.mul_pattern)
-                                        .clamp_range(
+                                        .range(
                                             (num_patterns as f64).recip() * 100.0
                                                 ..=num_patterns as f64 * 100.0,
                                         )
@@ -414,7 +408,7 @@ impl Modal {
                                 columns[1].add(luminol_components::Field::new(
                                     "X",
                                     egui::DragValue::new(&mut self.mul_x)
-                                        .clamp_range(
+                                        .range(
                                             -(FRAME_WIDTH as f64 / 2.) * 100.0
                                                 ..=FRAME_WIDTH as f64 / 2. * 100.0,
                                         )
@@ -426,7 +420,7 @@ impl Modal {
                                 columns[2].add(luminol_components::Field::new(
                                     "Y",
                                     egui::DragValue::new(&mut self.mul_y)
-                                        .clamp_range(
+                                        .range(
                                             -(FRAME_HEIGHT as f64 / 2.) * 100.0
                                                 ..=FRAME_HEIGHT as f64 / 2. * 100.0,
                                         )
@@ -438,7 +432,7 @@ impl Modal {
                                 columns[3].add(luminol_components::Field::new(
                                     "Scale",
                                     egui::DragValue::new(&mut self.mul_scale)
-                                        .clamp_range(0.0..=i16::MAX as f64 * 100.0)
+                                        .range(0.0..=i16::MAX as f64 * 100.0)
                                         .suffix("%"),
                                 ));
                                 self.mul_scale /= 100.;
@@ -451,7 +445,7 @@ impl Modal {
                                 columns[0].add(luminol_components::Field::new(
                                     "Rotation",
                                     egui::DragValue::new(&mut self.mul_rotation)
-                                        .clamp_range(-360. * 100.0..=360.0 * 100.0)
+                                        .range(-360. * 100.0..=360.0 * 100.0)
                                         .suffix("%"),
                                 ));
                                 self.mul_rotation /= 100.;
@@ -460,7 +454,7 @@ impl Modal {
                                 columns[1].add(luminol_components::Field::new(
                                     "Opacity",
                                     egui::DragValue::new(&mut self.mul_opacity)
-                                        .clamp_range(0.0..=255. * 100.0)
+                                        .range(0.0..=255. * 100.0)
                                         .suffix("%"),
                                 ));
                                 self.mul_opacity /= 100.;

@@ -102,21 +102,21 @@ impl Modal {
                     self.src_frame += 1;
                     columns[0].add(luminol_components::Field::new(
                         "Source Frame",
-                        egui::DragValue::new(&mut self.src_frame).clamp_range(1..=self.frames_len),
+                        egui::DragValue::new(&mut self.src_frame).range(1..=self.frames_len),
                     ));
                     self.src_frame -= 1;
 
                     self.dst_frame += 1;
                     columns[1].add(luminol_components::Field::new(
                         "Destination Frame",
-                        egui::DragValue::new(&mut self.dst_frame).clamp_range(1..=self.frames_len),
+                        egui::DragValue::new(&mut self.dst_frame).range(1..=self.frames_len),
                     ));
                     self.dst_frame -= 1;
 
                     columns[2].add(luminol_components::Field::new(
                         "Frame Count",
                         egui::DragValue::new(&mut self.frame_count)
-                            .clamp_range(1..=self.frames_len - self.src_frame.max(self.dst_frame)),
+                            .range(1..=self.frames_len - self.src_frame.max(self.dst_frame)),
                     ));
                 });
 

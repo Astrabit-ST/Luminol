@@ -138,32 +138,28 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Price",
-                                        egui::DragValue::new(&mut armor.price)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut armor.price).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
                                         "EVA",
-                                        egui::DragValue::new(&mut armor.eva)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut armor.eva).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
                                     .add(luminol_components::Field::new(
                                         "PDEF",
-                                        egui::DragValue::new(&mut armor.pdef)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut armor.pdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
                                     .add(luminol_components::Field::new(
                                         "MDEF",
-                                        egui::DragValue::new(&mut armor.mdef)
-                                            .clamp_range(0..=i32::MAX),
+                                        egui::DragValue::new(&mut armor.mdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
                             });

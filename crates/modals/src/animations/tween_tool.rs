@@ -112,7 +112,7 @@ impl Modal {
                     columns[0].add(luminol_components::Field::new(
                         "Starting Frame",
                         egui::DragValue::new(&mut self.start_frame)
-                            .clamp_range(1..=self.frames_len.saturating_sub(2)),
+                            .range(1..=self.frames_len.saturating_sub(2)),
                     ));
                     self.start_frame -= 1;
 
@@ -123,7 +123,7 @@ impl Modal {
                     self.end_frame += 1;
                     columns[1].add(luminol_components::Field::new(
                         "Ending Frame",
-                        egui::DragValue::new(&mut self.end_frame).clamp_range(3..=self.frames_len),
+                        egui::DragValue::new(&mut self.end_frame).range(3..=self.frames_len),
                     ));
                     self.end_frame -= 1;
 
@@ -136,8 +136,7 @@ impl Modal {
                     self.start_cell += 1;
                     columns[0].add(luminol_components::Field::new(
                         "Starting Cell",
-                        egui::DragValue::new(&mut self.start_cell)
-                            .clamp_range(1..=i16::MAX as usize + 1),
+                        egui::DragValue::new(&mut self.start_cell).range(1..=i16::MAX as usize + 1),
                     ));
                     self.start_cell -= 1;
 
@@ -148,8 +147,7 @@ impl Modal {
                     self.end_cell += 1;
                     columns[1].add(luminol_components::Field::new(
                         "Ending Cell",
-                        egui::DragValue::new(&mut self.end_cell)
-                            .clamp_range(1..=i16::MAX as usize + 1),
+                        egui::DragValue::new(&mut self.end_cell).range(1..=i16::MAX as usize + 1),
                     ));
                     self.end_cell -= 1;
 

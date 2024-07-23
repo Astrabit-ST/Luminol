@@ -23,7 +23,6 @@
 // Program grant you additional permission to convey the resulting work.
 
 use itertools::Itertools;
-use std::usize;
 
 impl super::Tab {
     pub(super) fn handle_brush(
