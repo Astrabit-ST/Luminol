@@ -116,6 +116,9 @@ impl Frame {
                         },
                     ),
                 );
+                sprite
+                    .graphic
+                    .set_hue(&graphics_state.render_state, system.battler_hue);
             } else {
                 self.battler_sprite = self.create_battler_sprite(
                     graphics_state,
