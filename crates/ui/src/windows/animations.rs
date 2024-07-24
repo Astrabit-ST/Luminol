@@ -34,6 +34,7 @@ use luminol_modals::sound_picker::Modal as SoundPicker;
 pub struct Window {
     selected_animation_name: Option<String>,
     previous_animation: Option<usize>,
+    previous_battler_name: Option<camino::Utf8PathBuf>,
     previous_timing_frame: Option<i32>,
     frame_edit_state: FrameEditState,
 
@@ -71,6 +72,7 @@ impl Default for Window {
         Self {
             selected_animation_name: None,
             previous_animation: None,
+            previous_battler_name: None,
             previous_timing_frame: None,
             frame_edit_state: FrameEditState {
                 frame_index: 0,
@@ -101,6 +103,23 @@ impl Default for Window {
 }
 
 impl Window {
+    fn log_battler_error(
+        update_state: &mut luminol_core::UpdateState<'_>,
+        system: &luminol_data::rpg::System,
+        animation: &luminol_data::rpg::Animation,
+        e: color_eyre::Report,
+    ) {
+        luminol_core::error!(
+            update_state.toasts,
+            e.wrap_err(format!(
+                "While loading texture {:?} for animation {:0>4} {:?}",
+                system.battler_name,
+                animation.id + 1,
+                animation.name,
+            ),),
+        );
+    }
+
     fn log_atlas_error(
         update_state: &mut luminol_core::UpdateState<'_>,
         animation: &luminol_data::rpg::Animation,
@@ -329,6 +348,7 @@ impl Window {
         update_state: &mut luminol_core::UpdateState<'_>,
         clip_rect: egui::Rect,
         modals: &mut Modals,
+        system: &luminol_data::rpg::System,
         animation: &mut luminol_data::rpg::Animation,
         state: &mut FrameEditState,
     ) -> (bool, bool) {
@@ -337,6 +357,20 @@ impl Window {
         let frame_view = if let Some(frame_view) = &mut state.frame_view {
             frame_view
         } else {
+            let battler_texture = if let Some(battler_name) = &system.battler_name {
+                match update_state.graphics.texture_loader.load_now(
+                    update_state.filesystem,
+                    format!("Graphics/Battlers/{battler_name}"),
+                ) {
+                    Ok(texture) => Some(texture),
+                    Err(e) => {
+                        Self::log_battler_error(update_state, system, animation, e);
+                        return (modified, true);
+                    }
+                }
+            } else {
+                None
+            };
             let atlas = match update_state.graphics.atlas_loader.load_animation_atlas(
                 &update_state.graphics,
                 update_state.filesystem,
@@ -349,6 +383,10 @@ impl Window {
                 }
             };
             let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
+            frame_view.frame.battler_texture = battler_texture;
+            frame_view
+                .frame
+                .update_battler(&update_state.graphics, system, animation);
             frame_view
                 .frame
                 .update_all_cells(&update_state.graphics, animation, state.frame_index);
@@ -934,6 +972,7 @@ impl luminol_core::Window for Window {
     ) {
         let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
         let mut animations = data.animations();
+        let system = data.system();
 
         let mut modified = false;
 
@@ -972,8 +1011,65 @@ impl luminol_core::Window for Window {
                                 .changed();
                         });
 
+                        ui.with_padded_stripe(true, |ui| {
+                            let changed = ui
+                                .add(luminol_components::Field::new(
+                                    "Battler Position",
+                                    luminol_components::EnumComboBox::new(
+                                        (animation.id, "position"),
+                                        &mut animation.position,
+                                    ),
+                                ))
+                                .changed();
+                            if changed {
+                                if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
+                                    frame_view.frame.update_battler(
+                                        &update_state.graphics,
+                                        &system,
+                                        animation,
+                                    );
+                                }
+                                modified = true;
+                            }
+                        });
+
                         let abort = ui
-                            .with_padded_stripe(true, |ui| {
+                            .with_padded_stripe(false, |ui| {
+                                if self.previous_battler_name != system.battler_name {
+                                    let battler_texture =
+                                        if let Some(battler_name) = &system.battler_name {
+                                            match update_state.graphics.texture_loader.load_now(
+                                                update_state.filesystem,
+                                                format!("Graphics/Battlers/{battler_name}"),
+                                            ) {
+                                                Ok(texture) => Some(texture),
+                                                Err(e) => {
+                                                    Self::log_battler_error(
+                                                        update_state,
+                                                        &system,
+                                                        animation,
+                                                        e,
+                                                    );
+                                                    return true;
+                                                }
+                                            }
+                                        } else {
+                                            None
+                                        };
+
+                                    if let Some(frame_view) = &mut self.frame_edit_state.frame_view
+                                    {
+                                        frame_view.frame.battler_texture = battler_texture;
+                                        frame_view.frame.rebuild_battler(
+                                            &update_state.graphics,
+                                            &system,
+                                            animation,
+                                        );
+                                    }
+
+                                    self.previous_battler_name.clone_from(&system.battler_name);
+                                }
+
                                 if self.previous_animation != Some(animation.id) {
                                     self.modals.close_all();
                                     self.frame_edit_state.frame_index = self
@@ -999,6 +1095,11 @@ impl luminol_core::Window for Window {
                                     if let Some(frame_view) = &mut self.frame_edit_state.frame_view
                                     {
                                         frame_view.frame.atlas = atlas.clone();
+                                        frame_view.frame.update_battler(
+                                            &update_state.graphics,
+                                            &system,
+                                            animation,
+                                        );
                                         frame_view.frame.rebuild_all_cells(
                                             &update_state.graphics,
                                             animation,
@@ -1026,6 +1127,7 @@ impl luminol_core::Window for Window {
                                     update_state,
                                     clip_rect,
                                     &mut self.modals,
+                                    &system,
                                     animation,
                                     &mut self.frame_edit_state,
                                 );
@@ -1040,7 +1142,7 @@ impl luminol_core::Window for Window {
                             return true;
                         }
 
-                        ui.with_padded_stripe(false, |ui| {
+                        ui.with_padded_stripe(true, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
                                     "SE and Flash",
@@ -1096,6 +1198,7 @@ impl luminol_core::Window for Window {
         }
 
         drop(animations);
+        drop(system);
 
         *update_state.data = data; // restore data
 

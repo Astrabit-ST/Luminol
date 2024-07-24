@@ -16,17 +16,22 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::primitives::cells::{Atlas, CELL_SIZE};
-use crate::{Drawable, GraphicsState, Renderable, Sprite, Transform, Viewport};
+use crate::{Drawable, GraphicsState, Quad, Renderable, Sprite, Texture, Transform, Viewport};
 use luminol_data::{BlendMode, OptionVec};
 
 pub const FRAME_WIDTH: usize = 640;
 pub const FRAME_HEIGHT: usize = 320;
+pub const BATTLER_BOTTOM_SPACING: usize = 16;
 
 const CELL_OFFSET: glam::Vec2 = glam::Vec2::splat(-(CELL_SIZE as f32) / 2.);
 
 pub struct Frame {
     pub atlas: Atlas,
+    pub battler_texture: Option<std::sync::Arc<Texture>>,
     pub viewport: Viewport,
+
+    battler_sprite: Option<Sprite>,
+
     cells: OptionVec<Cell>,
     onion_skin_cells: OptionVec<Cell>,
 
@@ -47,11 +52,18 @@ impl Frame {
 
         Self {
             atlas,
+            battler_texture: None,
             viewport,
+            battler_sprite: None,
             cells: Default::default(),
             onion_skin_cells: Default::default(),
             enable_onion_skin: false,
         }
+    }
+
+    #[inline]
+    pub fn battler_sprite(&self) -> Option<&Sprite> {
+        self.battler_sprite.as_ref()
     }
 
     #[inline]
@@ -62,6 +74,101 @@ impl Frame {
     #[inline]
     pub fn onion_skin_cells(&self) -> &OptionVec<Cell> {
         &self.onion_skin_cells
+    }
+
+    pub fn rebuild_battler(
+        &mut self,
+        graphics_state: &GraphicsState,
+        system: &luminol_data::rpg::System,
+        animation: &luminol_data::rpg::Animation,
+    ) {
+        self.battler_sprite =
+            self.create_battler_sprite(graphics_state, animation.position, system.battler_hue);
+    }
+
+    pub fn update_battler(
+        &mut self,
+        graphics_state: &GraphicsState,
+        system: &luminol_data::rpg::System,
+        animation: &luminol_data::rpg::Animation,
+    ) {
+        if let Some(texture) = &self.battler_texture {
+            if let Some(sprite) = &mut self.battler_sprite {
+                sprite.transform.set_position(
+                    &graphics_state.render_state,
+                    glam::vec2(
+                        -(texture.texture.width() as f32 / 2.),
+                        match animation.position {
+                            luminol_data::rpg::animation::Position::Top => {
+                                FRAME_HEIGHT as f32 / 4. - texture.texture.height() as f32 / 2.
+                            }
+                            luminol_data::rpg::animation::Position::Middle => {
+                                -(texture.texture.height() as f32 / 2.)
+                            }
+                            luminol_data::rpg::animation::Position::Bottom => {
+                                -(FRAME_HEIGHT as f32 / 4.) - texture.texture.height() as f32 / 2.
+                            }
+                            luminol_data::rpg::animation::Position::Screen => {
+                                FRAME_HEIGHT as f32 / 2.
+                                    - texture.texture.height() as f32
+                                    - BATTLER_BOTTOM_SPACING as f32
+                            }
+                        },
+                    ),
+                );
+            } else {
+                self.battler_sprite = self.create_battler_sprite(
+                    graphics_state,
+                    animation.position,
+                    system.battler_hue,
+                );
+            }
+        } else {
+            self.battler_sprite = None;
+        }
+    }
+
+    fn create_battler_sprite(
+        &self,
+        graphics_state: &GraphicsState,
+        position: luminol_data::rpg::animation::Position,
+        hue: i32,
+    ) -> Option<Sprite> {
+        self.battler_texture.as_ref().map(|texture| {
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
+            let quad = Quad::new(rect, rect);
+            Sprite::new(
+                graphics_state,
+                quad,
+                hue,
+                255,
+                BlendMode::Normal,
+                texture,
+                &self.viewport,
+                Transform::new_position(
+                    graphics_state,
+                    glam::vec2(
+                        -(texture.texture.width() as f32 / 2.),
+                        match position {
+                            luminol_data::rpg::animation::Position::Top => {
+                                FRAME_HEIGHT as f32 / 4. - texture.texture.height() as f32 / 2.
+                            }
+                            luminol_data::rpg::animation::Position::Middle => {
+                                -(texture.texture.height() as f32 / 2.)
+                            }
+                            luminol_data::rpg::animation::Position::Bottom => {
+                                -(FRAME_HEIGHT as f32 / 4.) - texture.texture.height() as f32 / 2.
+                            }
+                            luminol_data::rpg::animation::Position::Screen => {
+                                FRAME_HEIGHT as f32 / 2.
+                                    - texture.texture.height() as f32
+                                    - BATTLER_BOTTOM_SPACING as f32
+                            }
+                        },
+                    ),
+                ),
+            )
+        })
     }
 
     pub fn rebuild_all_cells(
@@ -77,7 +184,7 @@ impl Frame {
                 .len()
                 .max(animation.frames[frame_index].cell_data.xsize()))
                 .filter_map(|i| {
-                    self.cell_from_cell_data(
+                    self.create_cell(
                         graphics_state,
                         &animation.frames[frame_index],
                         animation.animation_hue,
@@ -98,7 +205,7 @@ impl Frame {
                     .xsize(),
             ))
                 .filter_map(|i| {
-                    self.cell_from_cell_data(
+                    self.create_cell(
                         graphics_state,
                         &animation.frames[frame_index.saturating_sub(1)],
                         animation.animation_hue,
@@ -178,7 +285,7 @@ impl Frame {
         }
     }
 
-    fn cell_from_cell_data(
+    fn create_cell(
         &self,
         graphics_state: &GraphicsState,
         frame: &luminol_data::rpg::animation::Frame,
@@ -287,7 +394,7 @@ impl Frame {
                     egui::Vec2::splat(CELL_SIZE as f32 * (cos.abs() + sin.abs()) * scale),
                 );
             } else if let Some(cell) =
-                self.cell_from_cell_data(graphics_state, frame, hue, cell_index, opacity_multiplier)
+                self.create_cell(graphics_state, frame, hue, cell_index, opacity_multiplier)
             {
                 cells.insert(cell_index, cell);
             }
@@ -300,6 +407,7 @@ impl Frame {
 }
 
 pub struct Prepared {
+    battler_sprite: Option<<Sprite as Renderable>::Prepared>,
     cells: Vec<<Sprite as Renderable>::Prepared>,
     onion_skin_cells: Vec<<Sprite as Renderable>::Prepared>,
 }
@@ -309,6 +417,11 @@ impl Renderable for Frame {
 
     fn prepare(&mut self, graphics_state: &std::sync::Arc<GraphicsState>) -> Self::Prepared {
         Self::Prepared {
+            battler_sprite: self
+                .battler_sprite
+                .as_mut()
+                .map(|sprite| sprite.prepare(graphics_state)),
+
             cells: self
                 .cells
                 .iter_mut()
@@ -329,6 +442,9 @@ impl Renderable for Frame {
 
 impl Drawable for Prepared {
     fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        if let Some(sprite) = &self.battler_sprite {
+            sprite.draw(render_pass);
+        }
         for sprite in &self.onion_skin_cells {
             sprite.draw(render_pass);
         }
