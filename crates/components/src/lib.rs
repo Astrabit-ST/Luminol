@@ -167,6 +167,7 @@ pub struct EnumComboBox<'a, H, T> {
     reference: &'a mut T,
 
     max_width: f32,
+    wrap_mode: egui::TextWrapMode,
 }
 
 impl<'a, H, T> EnumComboBox<'a, H, T>
@@ -180,11 +181,18 @@ where
             id_source,
             reference,
             max_width: f32::INFINITY,
+            wrap_mode: egui::TextWrapMode::Wrap,
         }
     }
 
-    pub fn max_width(self, max_width: f32) -> Self {
-        Self { max_width, ..self }
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.max_width = max_width;
+        self
+    }
+
+    pub fn wrap_mode(mut self, wrap_mode: egui::TextWrapMode) -> Self {
+        self.wrap_mode = wrap_mode;
+        self
     }
 }
 
@@ -202,7 +210,7 @@ where
             .width(width)
             .selected_text(self.reference.to_string())
             .show_ui(ui, |ui| {
-                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                ui.style_mut().wrap_mode = Some(self.wrap_mode);
 
                 for (i, variant) in T::iter().enumerate() {
                     ui.with_stripe(i % 2 != 0, |ui| {
@@ -409,7 +417,7 @@ where
                 }
             },
             |this, ui, ids, first_row_is_faint, show_none| {
-                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                 if show_none
                     && ui
@@ -465,7 +473,7 @@ where
             ui,
             |this| (this.formatter)(*this.reference),
             |this, ui, ids, first_row_is_faint, _| {
-                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                 let mut is_faint = first_row_is_faint;
 

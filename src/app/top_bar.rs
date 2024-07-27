@@ -61,6 +61,8 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("File", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
             // Hide this menu if the unsaved changes modal or a file/folder picker is open
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
@@ -115,6 +117,8 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Edit", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
             // Hide this menu if the unsaved changes modal or a file/folder picker is open
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
@@ -147,6 +151,8 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Data", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
             // Hide this menu if the unsaved changes modal or a file/folder picker is open
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
@@ -260,6 +266,8 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Tools", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
             // Hide this menu if the unsaved changes modal or a file/folder picker is open
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
@@ -283,6 +291,8 @@ impl TopBar {
         ui.separator();
 
         ui.menu_button("Help", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
             // Hide this menu if the unsaved changes modal or a file/folder picker is open
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
@@ -300,6 +310,8 @@ impl TopBar {
         });
 
         ui.menu_button("Debug", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
             // Hide this menu if the unsaved changes modal or a file/folder picker is open
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
