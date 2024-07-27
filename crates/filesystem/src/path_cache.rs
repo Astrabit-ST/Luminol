@@ -171,25 +171,34 @@ impl Cache {
                     .file_stem()
                     .unwrap_or(entry.file_name())
                     .to_lowercase();
+
                 let entry_extension = camino::Utf8Path::new(entry.file_name())
                     .extension()
                     .unwrap_or_default()
                     .to_lowercase();
-                let index = self.cactus.insert(CactusNode {
-                    value: entry.file_name().to_string(),
-                    next: cactus_index,
-                    len,
-                });
-                self.trie
-                    .get_or_create_file_with_mut(
-                        if lower_string.is_empty() {
-                            with_trie_suffix(&entry_name)
-                        } else {
-                            format!("{lower_string}/{entry_name}/{TRIE_SUFFIX}").into()
-                        },
-                        Default::default,
-                    )
-                    .insert_str(&entry_extension, index);
+
+                let extension_trie = self.trie.get_or_create_file_with_mut(
+                    if lower_string.is_empty() {
+                        with_trie_suffix(&entry_name)
+                    } else {
+                        format!("{lower_string}/{entry_name}/{TRIE_SUFFIX}").into()
+                    },
+                    Default::default,
+                );
+
+                let index = extension_trie
+                    .get_str(&entry_extension)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        let index = self.cactus.insert(CactusNode {
+                            value: entry.file_name().to_string(),
+                            next: cactus_index,
+                            len,
+                        });
+                        extension_trie.insert_str(&entry_extension, index);
+                        index
+                    });
+
                 if entry_name == name {
                     original_name = Some(entry.file_name().to_string());
                     new_cactus_index = index;

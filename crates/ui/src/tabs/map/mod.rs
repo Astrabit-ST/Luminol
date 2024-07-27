@@ -248,6 +248,8 @@ impl luminol_core::Tab for Tab {
                                 }
                             },
                             |ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                                 // TODO: Add layer enable button
                                 // Display all layers.
                                 egui::Grid::new(self.id().with("layer_select"))
@@ -305,6 +307,8 @@ impl luminol_core::Tab for Tab {
                         ui.separator();
 
                         ui.menu_button("Display options ⏷", |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                             ui.checkbox(&mut self.view.visible_display, "Display visible area")
                                 .on_hover_text("Display the visible area in-game (640x480)");
                             ui.checkbox(&mut self.view.move_preview, "Preview event move routes")

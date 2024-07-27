@@ -120,6 +120,8 @@ impl UiExample {
                     ParameterKind::Enum { ref variants } => {
                         let (first_name, mut first_id) = variants.first().unwrap();
                         ui.menu_button(format!("{first_name} ⏷"), |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                             for (name, id) in variants.iter() {
                                 ui.selectable_value(&mut first_id, *id, name);
                             }
@@ -127,6 +129,8 @@ impl UiExample {
                     }
                     ParameterKind::SelfSwitch => {
                         ui.menu_button("A ⏷", |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                             for char in ['A', 'B', 'C', 'D'] {
                                 ui.selectable_value(&mut 'A', char, char.to_string());
                             }

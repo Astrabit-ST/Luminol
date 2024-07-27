@@ -124,6 +124,8 @@ impl luminol_core::window::Window for CommandGeneratorWindow {
                                     ui.menu_button(
                                         format!("{} ⏷", <&str>::from(&command.kind)),
                                         |ui| {
+                                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                                             for kind in CommandKind::iter() {
                                                 let text =<&str>::from(&kind);
                                                 ui.selectable_value(
