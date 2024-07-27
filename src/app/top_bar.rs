@@ -46,6 +46,8 @@ impl TopBar {
                     .ctx
                     .send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
             }
+
+            ui.separator();
         }
 
         let mut open_project = ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::O))
@@ -57,8 +59,6 @@ impl TopBar {
                 .edit_windows
                 .add_window(luminol_ui::windows::new_project::Window::default());
         }
-
-        ui.separator();
 
         ui.menu_button("File", |ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
