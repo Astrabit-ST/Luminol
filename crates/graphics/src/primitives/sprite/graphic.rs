@@ -27,13 +27,14 @@ pub struct Graphic {
     opacity_multiplier: f32,
 }
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Data {
     hue: f32,
     opacity: f32,
     /// clockwise in radians
     rotation: f32,
+    _padding: u32,
 }
 
 impl Graphic {
@@ -54,6 +55,7 @@ impl Graphic {
             hue,
             opacity: computed_opacity,
             rotation,
+            _padding: 0,
         };
 
         let uniform = graphics_state.render_state.device.create_buffer_init(
@@ -142,6 +144,7 @@ impl Graphic {
             hue,
             opacity: computed_opacity,
             rotation,
+            _padding: 0,
         };
         if data != self.data {
             self.opacity = opacity;

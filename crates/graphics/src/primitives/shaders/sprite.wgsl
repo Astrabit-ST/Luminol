@@ -17,6 +17,7 @@ struct Graphic {
     hue: f32,
     opacity: f32,
     rotation: f32, // clockwise in radians
+    _padding: u32,
 }
 
 @group(0) @binding(0)
