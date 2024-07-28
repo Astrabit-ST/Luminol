@@ -23,6 +23,8 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 pub struct Graphic {
     data: Data,
     uniform: wgpu::Buffer,
+    opacity: i32,
+    opacity_multiplier: f32,
 }
 
 #[repr(C)]
@@ -30,7 +32,6 @@ pub struct Graphic {
 struct Data {
     hue: f32,
     opacity: f32,
-    opacity_multiplier: f32,
     /// clockwise in radians
     rotation: f32,
 }
@@ -48,11 +49,10 @@ impl Graphic {
         rotation: f32,
     ) -> Self {
         let hue = (hue % 360) as f32 / 360.0;
-        let opacity = opacity as f32 / 255.;
+        let computed_opacity = opacity as f32 / 255.0 * opacity_multiplier;
         let data = Data {
             hue,
-            opacity,
-            opacity_multiplier,
+            opacity: computed_opacity,
             rotation,
         };
 
@@ -64,7 +64,12 @@ impl Graphic {
             },
         );
 
-        Self { data, uniform }
+        Self {
+            data,
+            uniform,
+            opacity,
+            opacity_multiplier,
+        }
     }
 
     pub fn hue(&self) -> i32 {
@@ -85,16 +90,17 @@ impl Graphic {
     }
 
     pub fn set_opacity(&mut self, render_state: &luminol_egui_wgpu::RenderState, opacity: i32) {
-        let opacity = opacity as f32 / 255.0;
+        let computed_opacity = opacity as f32 / 255.0 * self.opacity_multiplier;
 
-        if self.data.opacity != opacity {
-            self.data.opacity = opacity;
+        if computed_opacity != self.data.opacity {
+            self.opacity = opacity;
+            self.data.opacity = computed_opacity;
             self.regen_buffer(render_state);
         }
     }
 
     pub fn opacity_multiplier(&self) -> f32 {
-        self.data.opacity_multiplier
+        self.opacity_multiplier
     }
 
     pub fn set_opacity_multiplier(
@@ -102,8 +108,11 @@ impl Graphic {
         render_state: &luminol_egui_wgpu::RenderState,
         opacity_multiplier: f32,
     ) {
-        if self.data.opacity_multiplier != opacity_multiplier {
-            self.data.opacity_multiplier = opacity_multiplier;
+        let computed_opacity = self.opacity as f32 / 255.0 * opacity_multiplier;
+
+        if computed_opacity != self.data.opacity {
+            self.opacity_multiplier = opacity_multiplier;
+            self.data.opacity = computed_opacity;
             self.regen_buffer(render_state);
         }
     }
@@ -128,14 +137,15 @@ impl Graphic {
         rotation: f32,
     ) {
         let hue = (hue % 360) as f32 / 360.0;
-        let opacity = opacity as f32 / 255.0;
+        let computed_opacity = opacity as f32 / 255.0 * opacity_multiplier;
         let data = Data {
             hue,
-            opacity,
-            opacity_multiplier,
+            opacity: computed_opacity,
             rotation,
         };
         if data != self.data {
+            self.opacity = opacity;
+            self.opacity_multiplier = opacity_multiplier;
             self.data = data;
             self.regen_buffer(render_state);
         }
