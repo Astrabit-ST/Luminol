@@ -313,7 +313,8 @@ impl luminol_core::Window for Window {
                             "luminol_term_config_ui_cursor_blinking",
                             &mut config.cursor_blinking,
                         )
-                        .max_width(12.),
+                        .max_width(12.)
+                        .wrap_mode(egui::TextWrapMode::Extend),
                     )
                     .ui(ui);
                     ui.add_space(6.);

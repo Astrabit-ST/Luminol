@@ -450,6 +450,8 @@ impl Window {
                         })
                         .show(ui, |ui| {
                             ui.menu_button("Tools ⏷", |ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                                 ui.add_enabled_ui(state.frame_index != 0, |ui| {
                                     if ui.button("Copy previous frame").clicked()
                                         && state.frame_index != 0

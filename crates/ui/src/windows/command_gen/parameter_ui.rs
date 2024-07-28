@@ -33,6 +33,8 @@ pub fn parameter_ui(
 ) {
     ui.horizontal(|ui| {
             ui.menu_button(format!("{} ⏷", <&str>::from(&*parameter)), |ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                 for iter_kind in Parameter::iter() {
                     if let Parameter::Group {ref mut guid , ..}
                     | Parameter::Selection { ref mut  guid, .. } = parameter {
@@ -164,6 +166,8 @@ pub fn parameter_ui(
             ui.horizontal(|ui| {
                 ui.label("Type: ");
                 ui.menu_button(format!("{} ⏷", <&str>::from(&*kind)), |ui| {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
                     for iter_kind in ParameterKind::iter() {
                         let text: &str = (&iter_kind).into();
                         ui.selectable_value(kind, iter_kind, text);

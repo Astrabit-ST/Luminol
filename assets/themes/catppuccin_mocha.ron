@@ -149,9 +149,15 @@ Visuals(
         color: Color32((30, 30, 46, 255)),
     ),
     resize_corner_size: 12.0,
-    text_cursor: Stroke(
-        width: 2.0,
-        color: Color32((192, 222, 255, 255)),
+    text_cursor: TextCursorStyle(
+        stroke: Stroke(
+            width: 2.0,
+            color: Color32((192, 222, 255, 255)),
+        ),
+        preview: false,
+        blink: true,
+        on_duration: 0.5,
+        off_duration: 0.5,
     ),
     text_cursor_preview: false,
     clip_rect_margin: 3.0,
