@@ -62,15 +62,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
+    tex_sample = Gamma::from_linear_rgba(tex_sample);
+
     let hue = graphic.packed_rotation_and_hue >> 16;
-    if hue > 0 {
+    if hue != 0 {
         var hsv = Hue::rgb_to_hsv(tex_sample.rgb);
 
         hsv.x += f32(hue) / 360.;
         tex_sample = vec4<f32>(Hue::hsv_to_rgb(hsv), tex_sample.a);
     }
-
-    tex_sample = Gamma::from_linear_rgba(tex_sample);
 
     if graphic.flash_alpha > 0.001 {
         let flash_color = vec3<f32>(vec3<u32>(
