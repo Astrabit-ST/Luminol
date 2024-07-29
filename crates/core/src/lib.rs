@@ -451,3 +451,10 @@ pub fn slice_is_sorted_by<T, F: FnMut(&T, &T) -> std::cmp::Ordering>(s: &[T], mu
         f(a, b) != std::cmp::Ordering::Greater
     })
 }
+
+pub fn slice_is_sorted_by_key<T, K: Ord, F: FnMut(&T) -> K>(s: &[T], mut f: F) -> bool {
+    s.windows(2).all(|w| {
+        let [a, b] = w else { unreachable!() }; // could maybe do unreachable_unchecked
+        f(a) <= f(b)
+    })
+}

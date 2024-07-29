@@ -14,10 +14,10 @@ struct VertexOutput {
 }
 
 struct Graphic {
-    hue: f32,
     opacity: f32,
-    rotation: f32, // clockwise in radians
-    _padding: u32,
+    packed_hue_and_rotation: i32,
+    flash_alpha: f32,
+    packed_flash_color: u32,
 }
 
 @group(0) @binding(0)
@@ -33,22 +33,22 @@ var<uniform> transform: Trans::Transform;
 var<uniform> graphic: Graphic;
 
 @vertex
-fn vs_main(
-    model: VertexInput,
-) -> VertexOutput {
+fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
+    let rotation = extractBits(graphic.packed_hue_and_rotation, 16u, 16u);
     var position_after_rotation: vec2<f32>;
-    if graphic.rotation == 0 {
+    if rotation == 0 {
         position_after_rotation = model.position;
     } else {
-        let c = cos(graphic.rotation);
-        let s = sin(graphic.rotation);
-        position_after_rotation = mat2x2<f32>(c, s, -s, c) * model.position;
+        let r = radians(f32(rotation));
+        let c = cos(r);
+        let s = sin(r);
+        position_after_rotation = mat2x2<f32>(c, -s, s, c) * model.position;
     }
 
-    out.clip_position = vec4<f32>(Trans::translate_vertex(position_after_rotation, viewport, transform), 0.0, 1.0);
+    out.clip_position = vec4<f32>(Trans::translate_vertex(position_after_rotation, viewport, transform), 0., 1.);
 
     return out;
 }
@@ -62,10 +62,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
-    if graphic.hue > 0.0 {
+    if graphic.flash_alpha > 0.001 {
+        let flash_color = vec3<f32>(vec3<u32>(
+            extractBits(graphic.packed_flash_color, 0u, 8u),
+            extractBits(graphic.packed_flash_color, 8u, 8u),
+            extractBits(graphic.packed_flash_color, 16u, 8u),
+        )) / 255.;
+        tex_sample = vec4<f32>(mix(tex_sample.rgb, flash_color, graphic.flash_alpha / 255.), tex_sample.a);
+    }
+
+    let hue = extractBits(graphic.packed_hue_and_rotation, 0u, 16u);
+    if hue > 0 {
         var hsv = Hue::rgb_to_hsv(tex_sample.rgb);
 
-        hsv.x += graphic.hue;
+        hsv.x += f32(hue) / 360.;
         tex_sample = vec4<f32>(Hue::hsv_to_rgb(hsv), tex_sample.a);
     }
 

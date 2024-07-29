@@ -81,9 +81,16 @@ impl Frame {
         graphics_state: &GraphicsState,
         system: &luminol_data::rpg::System,
         animation: &luminol_data::rpg::Animation,
+        flash: luminol_data::Color,
+        hidden: bool,
     ) {
-        self.battler_sprite =
-            self.create_battler_sprite(graphics_state, animation.position, system.battler_hue);
+        self.battler_sprite = self.create_battler_sprite(
+            graphics_state,
+            animation.position,
+            system.battler_hue,
+            flash,
+            hidden,
+        );
     }
 
     pub fn update_battler(
@@ -91,6 +98,8 @@ impl Frame {
         graphics_state: &GraphicsState,
         system: &luminol_data::rpg::System,
         animation: &luminol_data::rpg::Animation,
+        flash: Option<luminol_data::Color>,
+        hidden: Option<bool>,
     ) {
         if let Some(texture) = &self.battler_texture {
             if let Some(sprite) = &mut self.battler_sprite {
@@ -116,14 +125,43 @@ impl Frame {
                         },
                     ),
                 );
-                sprite
-                    .graphic
-                    .set_hue(&graphics_state.render_state, system.battler_hue);
+                sprite.graphic.set(
+                    &graphics_state.render_state,
+                    if let Some(hidden) = hidden {
+                        if hidden {
+                            0
+                        } else {
+                            255
+                        }
+                    } else {
+                        sprite.graphic.opacity()
+                    },
+                    1.,
+                    0,
+                    system.battler_hue,
+                    if let Some(flash) = flash {
+                        (
+                            flash.red.clamp(0., 255.).trunc() as u8,
+                            flash.green.clamp(0., 255.).trunc() as u8,
+                            flash.blue.clamp(0., 255.).trunc() as u8,
+                            flash.alpha as f32,
+                        )
+                    } else {
+                        sprite.graphic.flash()
+                    },
+                );
             } else {
                 self.battler_sprite = self.create_battler_sprite(
                     graphics_state,
                     animation.position,
                     system.battler_hue,
+                    flash.unwrap_or(luminol_data::Color {
+                        red: 255.,
+                        green: 255.,
+                        blue: 255.,
+                        alpha: 0.,
+                    }),
+                    hidden.unwrap_or_default(),
                 );
             }
         } else {
@@ -136,15 +174,18 @@ impl Frame {
         graphics_state: &GraphicsState,
         position: luminol_data::rpg::animation::Position,
         hue: i32,
+        flash: luminol_data::Color,
+        hidden: bool,
     ) -> Option<Sprite> {
         self.battler_texture.as_ref().map(|texture| {
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
             let quad = Quad::new(rect, rect);
-            Sprite::new(
+            Sprite::new_full(
                 graphics_state,
                 quad,
                 hue,
-                255,
+                if hidden { 0 } else { 255 },
+                1.,
                 BlendMode::Normal,
                 texture,
                 &self.viewport,
@@ -169,6 +210,13 @@ impl Frame {
                             }
                         },
                     ),
+                ),
+                0,
+                (
+                    flash.red.clamp(0., 255.).trunc() as u8,
+                    flash.green.clamp(0., 255.).trunc() as u8,
+                    flash.blue.clamp(0., 255.).trunc() as u8,
+                    flash.alpha as f32,
                 ),
             )
         })
@@ -301,7 +349,7 @@ impl Frame {
             let offset_x = frame.cell_data[(cell_index, 1)] as f32;
             let offset_y = frame.cell_data[(cell_index, 2)] as f32;
             let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
-            let rotation = -(frame.cell_data[(cell_index, 4)] as f32).to_radians();
+            let rotation = frame.cell_data[(cell_index, 4)];
             let flip = frame.cell_data[(cell_index, 5)] == 1;
             let opacity = frame.cell_data[(cell_index, 6)] as i32;
             let blend_mode = match frame.cell_data[(cell_index, 7)] {
@@ -311,10 +359,11 @@ impl Frame {
             };
 
             let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
-            let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
+            let glam::Vec2 { x: cos, y: sin } =
+                glam::Vec2::from_angle((rotation as f32).to_radians());
 
             Cell {
-                sprite: Sprite::new_with_rotation(
+                sprite: Sprite::new_full(
                     graphics_state,
                     self.atlas.calc_quad(id),
                     hue,
@@ -326,11 +375,12 @@ impl Frame {
                     Transform::new(
                         graphics_state,
                         glam::vec2(offset_x, offset_y)
-                            + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
+                            + glam::Mat2::from_cols_array(&[cos, -sin, sin, cos])
                                 * (scale * flip_vec * CELL_OFFSET),
                         scale * flip_vec,
                     ),
                     if flip { -rotation } else { rotation },
+                    (255, 255, 255, 0.),
                 ),
 
                 rect: egui::Rect::from_center_size(
@@ -356,7 +406,7 @@ impl Frame {
                 let offset_x = frame.cell_data[(cell_index, 1)] as f32;
                 let offset_y = frame.cell_data[(cell_index, 2)] as f32;
                 let scale = frame.cell_data[(cell_index, 3)] as f32 / 100.;
-                let rotation = -(frame.cell_data[(cell_index, 4)] as f32).to_radians();
+                let rotation = frame.cell_data[(cell_index, 4)];
                 let flip = frame.cell_data[(cell_index, 5)] == 1;
                 let opacity = frame.cell_data[(cell_index, 6)] as i32;
                 let blend_mode = match frame.cell_data[(cell_index, 7)] {
@@ -366,22 +416,24 @@ impl Frame {
                 };
 
                 let flip_vec = glam::vec2(if flip { -1. } else { 1. }, 1.);
-                let glam::Vec2 { x: cos, y: sin } = glam::Vec2::from_angle(rotation);
+                let glam::Vec2 { x: cos, y: sin } =
+                    glam::Vec2::from_angle((rotation as f32).to_radians());
 
                 cell.sprite.transform.set(
                     &graphics_state.render_state,
                     glam::vec2(offset_x, offset_y)
-                        + glam::Mat2::from_cols_array(&[cos, sin, -sin, cos])
+                        + glam::Mat2::from_cols_array(&[cos, -sin, sin, cos])
                             * (scale * flip_vec * CELL_OFFSET),
                     scale * flip_vec,
                 );
 
                 cell.sprite.graphic.set(
                     &graphics_state.render_state,
-                    hue,
                     opacity,
                     opacity_multiplier,
                     if flip { -rotation } else { rotation },
+                    hue,
+                    (255, 255, 255, 0.),
                 );
 
                 cell.sprite.set_quad(

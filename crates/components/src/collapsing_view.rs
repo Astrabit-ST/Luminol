@@ -82,7 +82,7 @@ impl CollapsingView {
         state_id: usize,
         vec: &mut Vec<T>,
         show_header: impl FnMut(&mut egui::Ui, usize, &T),
-        show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
+        mut show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
     ) -> egui::Response
     where
         T: Default,
@@ -92,7 +92,7 @@ impl CollapsingView {
             state_id,
             vec,
             show_header,
-            show_body,
+            |ui, index, _before, item| show_body(ui, index, item),
             |_vec, _expanded_entry| false,
         )
     }
@@ -124,7 +124,7 @@ impl CollapsingView {
         state_id: usize,
         vec: &mut Vec<T>,
         show_header: impl FnMut(&mut egui::Ui, usize, &T),
-        show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
+        show_body: impl FnMut(&mut egui::Ui, usize, &[T], &mut T) -> egui::Response,
         mut cmp: impl FnMut(&T, &T) -> std::cmp::Ordering,
     ) -> egui::Response
     where
@@ -177,7 +177,7 @@ impl CollapsingView {
         state_id: usize,
         vec: &mut Vec<T>,
         mut show_header: impl FnMut(&mut egui::Ui, usize, &T),
-        mut show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
+        mut show_body: impl FnMut(&mut egui::Ui, usize, &[T], &mut T) -> egui::Response,
         mut sort_impl: impl FnMut(&mut Vec<T>, &mut Option<usize>) -> bool,
     ) -> egui::Response
     where
@@ -204,7 +204,9 @@ impl CollapsingView {
                     }
                 }
 
-                for (i, entry) in vec.iter_mut().enumerate() {
+                for i in 0..vec.len() {
+                    let (before, entry_and_after) = vec.split_at_mut(i);
+                    let entry = &mut entry_and_after[0];
                     let ui_id = ui.make_persistent_id(i);
 
                     // Forget whether the collapsing header was open from the last time
@@ -247,7 +249,7 @@ impl CollapsingView {
                         })
                         .body(|ui| {
                             ui.with_layout(layout, |ui| {
-                                modified |= show_body(ui, i, entry).changed();
+                                modified |= show_body(ui, i, before, entry).changed();
 
                                 if ui.button("Delete").clicked() {
                                     modified = true;

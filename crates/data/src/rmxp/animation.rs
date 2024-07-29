@@ -40,11 +40,11 @@ pub struct Animation {
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Animation::Timing")]
 pub struct Timing {
-    pub frame: i32,
+    pub frame: usize,
     pub se: AudioFile,
     pub flash_scope: Scope,
     pub flash_color: Color,
-    pub flash_duration: i32,
+    pub flash_duration: usize,
     pub condition: Condition,
 }
 

@@ -49,7 +49,7 @@ impl Sprite {
         viewport: &Viewport,
         transform: Transform,
     ) -> Self {
-        Self::new_with_rotation(
+        Self::new_full(
             graphics_state,
             quad,
             hue,
@@ -59,12 +59,13 @@ impl Sprite {
             texture,
             viewport,
             transform,
-            0.,
+            0,
+            (255, 255, 255, 0.),
         )
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn new_with_rotation(
+    pub fn new_full(
         graphics_state: &GraphicsState,
         quad: Quad,
         hue: i32,
@@ -75,16 +76,18 @@ impl Sprite {
         texture: &Texture,
         viewport: &Viewport,
         transform: Transform,
-        rotation: f32,
+        rotation: i16,
+        flash: (u8, u8, u8, f32),
     ) -> Self {
         let vertices =
             vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
-        let graphic = graphic::Graphic::new_with_opacity_multiplier(
+        let graphic = graphic::Graphic::new(
             graphics_state,
-            hue,
             opacity,
             opacity_multiplier,
+            hue,
             rotation,
+            flash,
         );
 
         let mut bind_group_builder = BindGroupBuilder::new();

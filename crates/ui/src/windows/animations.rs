@@ -26,7 +26,7 @@ use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::Modal;
 
-use luminol_data::BlendMode;
+use luminol_data::{rpg::animation::Scope, BlendMode};
 use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 use luminol_modals::sound_picker::Modal as SoundPicker;
 
@@ -35,11 +35,10 @@ pub struct Window {
     selected_animation_name: Option<String>,
     previous_animation: Option<usize>,
     previous_battler_name: Option<camino::Utf8PathBuf>,
-    previous_timing_frame: Option<i32>,
     frame_edit_state: FrameEditState,
+    timing_edit_state: TimingEditState,
 
     collapsing_view: luminol_components::CollapsingView,
-    timing_se_picker: SoundPicker,
     modals: Modals,
     view: luminol_components::DatabaseView,
 }
@@ -49,6 +48,19 @@ struct FrameEditState {
     enable_onion_skin: bool,
     frame_view: Option<luminol_components::AnimationFrameView>,
     cellpicker: Option<luminol_components::Cellpicker>,
+    flash_maps: luminol_data::OptionVec<FlashMaps>,
+}
+
+struct TimingEditState {
+    previous_frame: Option<usize>,
+    se_picker: SoundPicker,
+}
+
+#[derive(Debug, Default)]
+struct FlashMaps {
+    hide: FlashMap<HideFlash>,
+    target: FlashMap<ColorFlash>,
+    screen: FlashMap<ColorFlash>,
 }
 
 struct Modals {
@@ -67,24 +79,152 @@ impl Modals {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ColorFlash {
+    color: luminol_data::Color,
+    duration: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct HideFlash {
+    duration: usize,
+}
+
+#[derive(Debug)]
+struct FlashMap<T>(std::collections::BTreeMap<usize, std::collections::VecDeque<T>>);
+
+impl<T> Default for FlashMap<T> {
+    fn default() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+}
+
+impl<T> FromIterator<(usize, T)> for FlashMap<T>
+where
+    T: Copy,
+{
+    fn from_iter<I: IntoIterator<Item = (usize, T)>>(iterable: I) -> Self {
+        let mut map = Self(Default::default());
+        for (frame, flash) in iterable.into_iter() {
+            map.insert(frame, flash);
+        }
+        map
+    }
+}
+
+impl<T> FlashMap<T>
+where
+    T: Copy,
+{
+    /// Adds a new flash into the map.
+    fn insert(&mut self, frame: usize, flash: T) {
+        self.0
+            .entry(frame)
+            .and_modify(|e| e.push_back(flash))
+            .or_insert_with(|| [flash].into());
+    }
+
+    /// Removes a flash from the map.
+    fn remove(&mut self, frame: usize, rank: usize) -> T {
+        let deque = self
+            .0
+            .get_mut(&frame)
+            .expect("no flashes found for the given frame");
+        let flash = deque.remove(rank).expect("rank out of bounds");
+        if deque.is_empty() {
+            self.0.remove(&frame).unwrap();
+        }
+        flash
+    }
+
+    /// Modifies the frame number for a flash.
+    fn set_frame(&mut self, frame: usize, rank: usize, new_frame: usize) {
+        if frame == new_frame {
+            return;
+        }
+        let flash = self.remove(frame, rank);
+        self.0
+            .entry(new_frame)
+            .and_modify(|e| {
+                if new_frame > frame {
+                    e.push_front(flash)
+                } else {
+                    e.push_back(flash)
+                }
+            })
+            .or_insert_with(|| [flash].into());
+    }
+
+    fn get_mut(&mut self, frame: usize, rank: usize) -> Option<&mut T> {
+        self.0.get_mut(&frame).and_then(|deque| deque.get_mut(rank))
+    }
+}
+
+impl FlashMap<ColorFlash> {
+    /// Determines what color the flash should be for a given frame number.
+    fn compute(&self, frame: usize) -> luminol_data::Color {
+        let Some((&start_frame, deque)) = self.0.range(..=frame).next_back() else {
+            return luminol_data::Color {
+                red: 255.,
+                green: 255.,
+                blue: 255.,
+                alpha: 0.,
+            };
+        };
+        let flash = deque.back().unwrap();
+
+        let diff = frame - start_frame;
+        if diff < flash.duration {
+            let progression = diff as f64 / flash.duration as f64;
+            luminol_data::Color {
+                alpha: flash.color.alpha * (1. - progression),
+                ..flash.color
+            }
+        } else {
+            luminol_data::Color {
+                red: 255.,
+                green: 255.,
+                blue: 255.,
+                alpha: 0.,
+            }
+        }
+    }
+}
+
+impl FlashMap<HideFlash> {
+    /// Determines if the hide flash is active for a given frame number.
+    fn compute(&self, frame: usize) -> bool {
+        let Some((&start_frame, deque)) = self.0.range(..=frame).next_back() else {
+            return false;
+        };
+        let flash = deque.back().unwrap();
+
+        let diff = frame - start_frame;
+        diff < flash.duration
+    }
+}
+
 impl Default for Window {
     fn default() -> Self {
         Self {
             selected_animation_name: None,
             previous_animation: None,
             previous_battler_name: None,
-            previous_timing_frame: None,
             frame_edit_state: FrameEditState {
                 frame_index: 0,
                 enable_onion_skin: false,
                 frame_view: None,
                 cellpicker: None,
+                flash_maps: Default::default(),
+            },
+            timing_edit_state: TimingEditState {
+                previous_frame: None,
+                se_picker: SoundPicker::new(
+                    luminol_audio::Source::SE,
+                    "animations_timing_se_picker",
+                ),
             },
             collapsing_view: luminol_components::CollapsingView::new(),
-            timing_se_picker: SoundPicker::new(
-                luminol_audio::Source::SE,
-                "animations_timing_se_picker",
-            ),
             modals: Modals {
                 copy_frames: luminol_modals::animations::copy_frames_tool::Modal::new(
                     "animations_copy_frames_tool",
@@ -116,7 +256,7 @@ impl Window {
                 system.battler_name,
                 animation.id + 1,
                 animation.name,
-            ),),
+            )),
         );
     }
 
@@ -132,7 +272,7 @@ impl Window {
                 animation.animation_name,
                 animation.id + 1,
                 animation.name,
-            ),),
+            )),
         );
     }
 
@@ -150,8 +290,8 @@ impl Window {
         };
 
         match timing.flash_scope {
-            luminol_data::rpg::animation::Scope::None => {}
-            luminol_data::rpg::animation::Scope::Target => {
+            Scope::None => {}
+            Scope::Target => {
                 vec.push(format!(
                     "flash target #{:0>2x}{:0>2x}{:0>2x}{:0>2x} for {} frames",
                     timing.flash_color.red.clamp(0., 255.).trunc() as u8,
@@ -161,7 +301,7 @@ impl Window {
                     timing.flash_duration,
                 ));
             }
-            luminol_data::rpg::animation::Scope::Screen => {
+            Scope::Screen => {
                 vec.push(format!(
                     "flash screen #{:0>2x}{:0>2x}{:0>2x}{:0>2x} for {} frames",
                     timing.flash_color.red.clamp(0., 255.).trunc() as u8,
@@ -171,7 +311,7 @@ impl Window {
                     timing.flash_duration,
                 ));
             }
-            luminol_data::rpg::animation::Scope::HideTarget => {
+            Scope::HideTarget => {
                 vec.push(format!("hide target for {} frames", timing.flash_duration));
             }
         }
@@ -219,14 +359,26 @@ impl Window {
     fn show_timing_body(
         ui: &mut egui::Ui,
         update_state: &mut luminol_core::UpdateState<'_>,
-        animation_id: usize,
-        animation_frame_max: i32,
-        timing_se_picker: &mut SoundPicker,
-        previous_timing_frame: &mut Option<i32>,
-        timing: (usize, &mut luminol_data::rpg::animation::Timing),
+        animation: &luminol_data::rpg::Animation,
+        flash_maps: &mut FlashMaps,
+        state: &mut TimingEditState,
+        timing: (
+            usize,
+            &[luminol_data::rpg::animation::Timing],
+            &mut luminol_data::rpg::animation::Timing,
+        ),
     ) -> egui::Response {
-        let (timing_index, timing) = timing;
+        let (timing_index, previous_timings, timing) = timing;
         let mut modified = false;
+
+        let rank = |frame, scope| {
+            previous_timings
+                .iter()
+                .rev()
+                .take_while(|t| t.frame == frame)
+                .filter(|t| t.flash_scope == scope)
+                .count()
+        };
 
         let mut response = egui::Frame::none()
             .show(ui, |ui| {
@@ -236,82 +388,189 @@ impl Window {
                             .add(luminol_components::Field::new(
                                 "Condition",
                                 luminol_components::EnumComboBox::new(
-                                    (animation_id, timing_index, "condition"),
+                                    (animation.id, timing_index, "condition"),
                                     &mut timing.condition,
                                 ),
                             ))
                             .changed();
 
-                        modified |= columns[0]
+                        let old_frame = timing.frame;
+                        let changed = columns[0]
                             .add(luminol_components::Field::new(
                                 "Frame",
                                 |ui: &mut egui::Ui| {
                                     let mut frame =
-                                        previous_timing_frame.unwrap_or(timing.frame + 1);
+                                        state.previous_frame.unwrap_or(timing.frame + 1);
                                     let mut response = egui::DragValue::new(&mut frame)
-                                        .range(1..=animation_frame_max)
+                                        .range(1..=animation.frame_max)
                                         .update_while_editing(false)
                                         .ui(ui);
                                     response.changed = false;
                                     if response.dragged() {
-                                        *previous_timing_frame = Some(frame);
+                                        state.previous_frame = Some(frame);
                                     } else {
                                         timing.frame = frame - 1;
-                                        *previous_timing_frame = None;
+                                        state.previous_frame = None;
                                         response.changed = true;
                                     }
                                     response
                                 },
                             ))
                             .changed();
+                        if changed {
+                            match timing.flash_scope {
+                                Scope::Target => {
+                                    flash_maps.target.set_frame(
+                                        old_frame,
+                                        rank(old_frame, Scope::Target),
+                                        timing.frame,
+                                    );
+                                }
+                                Scope::Screen => {
+                                    flash_maps.screen.set_frame(
+                                        old_frame,
+                                        rank(old_frame, Scope::Screen),
+                                        timing.frame,
+                                    );
+                                }
+                                Scope::HideTarget => {
+                                    flash_maps.hide.set_frame(
+                                        old_frame,
+                                        rank(old_frame, Scope::HideTarget),
+                                        timing.frame,
+                                    );
+                                }
+                                Scope::None => {}
+                            }
+                            modified = true;
+                        }
                     });
 
                     modified |= columns[1]
                         .add(luminol_components::Field::new(
                             "SE",
-                            timing_se_picker.button(&mut timing.se, update_state),
+                            state.se_picker.button(&mut timing.se, update_state),
                         ))
                         .changed();
                 });
 
-                if timing.flash_scope == luminol_data::rpg::animation::Scope::None {
-                    modified |= ui
-                        .add(luminol_components::Field::new(
+                let old_scope = timing.flash_scope;
+                let (scope_changed, duration_changed) = if timing.flash_scope == Scope::None {
+                    (
+                        ui.add(luminol_components::Field::new(
                             "Flash",
                             luminol_components::EnumComboBox::new(
-                                (animation_id, timing_index, "flash_scope"),
+                                (animation.id, timing_index, "flash_scope"),
                                 &mut timing.flash_scope,
                             ),
                         ))
-                        .changed();
+                        .changed(),
+                        false,
+                    )
                 } else {
                     ui.columns(2, |columns| {
-                        modified |= columns[0]
-                            .add(luminol_components::Field::new(
-                                "Flash",
-                                luminol_components::EnumComboBox::new(
-                                    (animation_id, timing_index, "flash_scope"),
-                                    &mut timing.flash_scope,
-                                ),
-                            ))
-                            .changed();
+                        (
+                            columns[0]
+                                .add(luminol_components::Field::new(
+                                    "Flash",
+                                    luminol_components::EnumComboBox::new(
+                                        (animation.id, timing_index, "flash_scope"),
+                                        &mut timing.flash_scope,
+                                    ),
+                                ))
+                                .changed(),
+                            columns[1]
+                                .add(luminol_components::Field::new(
+                                    "Flash Duration",
+                                    egui::DragValue::new(&mut timing.flash_duration)
+                                        .range(1..=animation.frame_max),
+                                ))
+                                .changed(),
+                        )
+                    })
+                };
 
-                        modified |= columns[1]
-                            .add(luminol_components::Field::new(
-                                "Flash Duration",
-                                egui::DragValue::new(&mut timing.flash_duration)
-                                    .range(1..=animation_frame_max),
-                            ))
-                            .changed();
-                    });
+                if scope_changed {
+                    match old_scope {
+                        Scope::Target => {
+                            flash_maps
+                                .target
+                                .remove(timing.frame, rank(timing.frame, Scope::Target));
+                        }
+                        Scope::Screen => {
+                            flash_maps
+                                .screen
+                                .remove(timing.frame, rank(timing.frame, Scope::Screen));
+                        }
+                        Scope::HideTarget => {
+                            flash_maps
+                                .hide
+                                .remove(timing.frame, rank(timing.frame, Scope::HideTarget));
+                        }
+                        Scope::None => {}
+                    }
+                    match timing.flash_scope {
+                        Scope::Target => {
+                            flash_maps.target.insert(
+                                timing.frame,
+                                ColorFlash {
+                                    color: timing.flash_color,
+                                    duration: timing.flash_duration,
+                                },
+                            );
+                        }
+                        Scope::Screen => {
+                            flash_maps.screen.insert(
+                                timing.frame,
+                                ColorFlash {
+                                    color: timing.flash_color,
+                                    duration: timing.flash_duration,
+                                },
+                            );
+                        }
+                        Scope::HideTarget => {
+                            flash_maps.hide.insert(
+                                timing.frame,
+                                HideFlash {
+                                    duration: timing.flash_duration,
+                                },
+                            );
+                        }
+                        Scope::None => {}
+                    }
+                    modified = true;
                 }
 
-                if matches!(
-                    timing.flash_scope,
-                    luminol_data::rpg::animation::Scope::Target
-                        | luminol_data::rpg::animation::Scope::Screen
-                ) {
-                    modified |= ui
+                if duration_changed {
+                    match timing.flash_scope {
+                        Scope::Target => {
+                            flash_maps
+                                .target
+                                .get_mut(timing.frame, rank(timing.frame, Scope::Target))
+                                .unwrap()
+                                .duration = timing.flash_duration;
+                        }
+                        Scope::Screen => {
+                            flash_maps
+                                .screen
+                                .get_mut(timing.frame, rank(timing.frame, Scope::Screen))
+                                .unwrap()
+                                .duration = timing.flash_duration;
+                        }
+                        Scope::HideTarget => {
+                            flash_maps
+                                .target
+                                .get_mut(timing.frame, rank(timing.frame, Scope::HideTarget))
+                                .unwrap()
+                                .duration = timing.flash_duration;
+                        }
+                        Scope::None => unreachable!(),
+                    }
+                    modified = true;
+                }
+
+                if matches!(timing.flash_scope, Scope::Target | Scope::Screen) {
+                    let changed = ui
                         .add(luminol_components::Field::new(
                             "Flash Color",
                             |ui: &mut egui::Ui| {
@@ -333,6 +592,26 @@ impl Window {
                             },
                         ))
                         .changed();
+                    if changed {
+                        match timing.flash_scope {
+                            Scope::Target => {
+                                flash_maps
+                                    .target
+                                    .get_mut(timing.frame, rank(timing.frame, Scope::Target))
+                                    .unwrap()
+                                    .color = timing.flash_color;
+                            }
+                            Scope::Screen => {
+                                flash_maps
+                                    .screen
+                                    .get_mut(timing.frame, rank(timing.frame, Scope::Screen))
+                                    .unwrap()
+                                    .color = timing.flash_color;
+                            }
+                            Scope::None | Scope::HideTarget => unreachable!(),
+                        }
+                        modified = true;
+                    }
                 }
             })
             .response;
@@ -353,6 +632,8 @@ impl Window {
         state: &mut FrameEditState,
     ) -> (bool, bool) {
         let mut modified = false;
+
+        let flash_maps = state.flash_maps.get_mut(animation.id).unwrap();
 
         let frame_view = if let Some(frame_view) = &mut state.frame_view {
             frame_view
@@ -384,9 +665,13 @@ impl Window {
             };
             let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
             frame_view.frame.battler_texture = battler_texture;
-            frame_view
-                .frame
-                .update_battler(&update_state.graphics, system, animation);
+            frame_view.frame.update_battler(
+                &update_state.graphics,
+                system,
+                animation,
+                Some(flash_maps.target.compute(state.frame_index)),
+                Some(flash_maps.hide.compute(state.frame_index)),
+            );
             frame_view
                 .frame
                 .update_all_cells(&update_state.graphics, animation, state.frame_index);
@@ -423,7 +708,16 @@ impl Window {
                 ))
                 .changed();
             state.frame_index -= 1;
+            let battler_color = flash_maps.target.compute(state.frame_index);
+            let battler_hidden = flash_maps.hide.compute(state.frame_index);
             if changed {
+                frame_view.frame.update_battler(
+                    &update_state.graphics,
+                    system,
+                    animation,
+                    Some(battler_color),
+                    Some(battler_hidden),
+                );
                 frame_view.frame.update_all_cells(
                     &update_state.graphics,
                     animation,
@@ -872,7 +1166,12 @@ impl Window {
             let egui::InnerResponse {
                 inner: hover_pos,
                 response,
-            } = frame_view.ui(ui, update_state, clip_rect);
+            } = frame_view.ui(
+                ui,
+                update_state,
+                clip_rect,
+                flash_maps.screen.compute(state.frame_index),
+            );
 
             // If the pointer is hovering over the frame view, prevent parent widgets
             // from receiving scroll events so that scaling the frame view with the
@@ -1003,6 +1302,60 @@ impl luminol_core::Window for Window {
 
                         let clip_rect = ui.clip_rect();
 
+                        if !self.frame_edit_state.flash_maps.contains(id) {
+                            if !luminol_core::slice_is_sorted_by_key(&animation.timings, |timing| {
+                                timing.frame
+                            }) {
+                                animation.timings.sort_by_key(|timing| timing.frame);
+                            }
+                            self.frame_edit_state.flash_maps.insert(
+                                id,
+                                FlashMaps {
+                                    hide: animation
+                                        .timings
+                                        .iter()
+                                        .filter(|timing| timing.flash_scope == Scope::HideTarget)
+                                        .map(|timing| {
+                                            (
+                                                timing.frame,
+                                                HideFlash {
+                                                    duration: timing.flash_duration,
+                                                },
+                                            )
+                                        })
+                                        .collect(),
+                                    target: animation
+                                        .timings
+                                        .iter()
+                                        .filter(|timing| timing.flash_scope == Scope::Target)
+                                        .map(|timing| {
+                                            (
+                                                timing.frame,
+                                                ColorFlash {
+                                                    color: timing.flash_color,
+                                                    duration: timing.flash_duration,
+                                                },
+                                            )
+                                        })
+                                        .collect(),
+                                    screen: animation
+                                        .timings
+                                        .iter()
+                                        .filter(|timing| timing.flash_scope == Scope::Screen)
+                                        .map(|timing| {
+                                            (
+                                                timing.frame,
+                                                ColorFlash {
+                                                    color: timing.flash_color,
+                                                    duration: timing.flash_duration,
+                                                },
+                                            )
+                                        })
+                                        .collect(),
+                                },
+                            );
+                        }
+
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
                                 .add(luminol_components::Field::new(
@@ -1029,6 +1382,8 @@ impl luminol_core::Window for Window {
                                         &update_state.graphics,
                                         &system,
                                         animation,
+                                        None,
+                                        None,
                                     );
                                 }
                                 modified = true;
@@ -1066,6 +1421,13 @@ impl luminol_core::Window for Window {
                                             &update_state.graphics,
                                             &system,
                                             animation,
+                                            luminol_data::Color {
+                                                red: 255.,
+                                                green: 255.,
+                                                blue: 255.,
+                                                alpha: 0.,
+                                            },
+                                            true,
                                         );
                                     }
 
@@ -1096,11 +1458,23 @@ impl luminol_core::Window for Window {
 
                                     if let Some(frame_view) = &mut self.frame_edit_state.frame_view
                                     {
+                                        let flash_maps =
+                                            self.frame_edit_state.flash_maps.get(id).unwrap();
                                         frame_view.frame.atlas = atlas.clone();
                                         frame_view.frame.update_battler(
                                             &update_state.graphics,
                                             &system,
                                             animation,
+                                            Some(
+                                                flash_maps
+                                                    .target
+                                                    .compute(self.frame_edit_state.frame_index),
+                                            ),
+                                            Some(
+                                                flash_maps
+                                                    .hide
+                                                    .compute(self.frame_edit_state.frame_index),
+                                            ),
                                         );
                                         frame_view.frame.rebuild_all_cells(
                                             &update_state.graphics,
@@ -1145,7 +1519,9 @@ impl luminol_core::Window for Window {
                         }
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                            let flash_maps = self.frame_edit_state.flash_maps.get_mut(id).unwrap();
+
+                            let changed = ui
                                 .add(luminol_components::Field::new(
                                     "SE and Flash",
                                     |ui: &mut egui::Ui| {
@@ -1154,31 +1530,54 @@ impl luminol_core::Window for Window {
                                         }
                                         if self.previous_animation != Some(animation.id) {
                                             self.collapsing_view.clear_animations();
-                                            self.timing_se_picker.close_window();
+                                            self.timing_edit_state.se_picker.close_window();
                                         } else if self.collapsing_view.is_animating() {
-                                            self.timing_se_picker.close_window();
+                                            self.timing_edit_state.se_picker.close_window();
                                         }
-                                        self.collapsing_view.show_with_sort(
+
+                                        let mut timings = std::mem::take(&mut animation.timings);
+                                        let response = self.collapsing_view.show_with_sort(
                                             ui,
                                             animation.id,
-                                            &mut animation.timings,
+                                            &mut timings,
                                             |ui, _i, timing| Self::show_timing_header(ui, timing),
-                                            |ui, i, timing| {
+                                            |ui, i, previous_timings, timing| {
                                                 Self::show_timing_body(
                                                     ui,
                                                     update_state,
-                                                    animation.id,
-                                                    animation.frame_max,
-                                                    &mut self.timing_se_picker,
-                                                    &mut self.previous_timing_frame,
-                                                    (i, timing),
+                                                    animation,
+                                                    flash_maps,
+                                                    &mut self.timing_edit_state,
+                                                    (i, previous_timings, timing),
                                                 )
                                             },
                                             |a, b| a.frame.cmp(&b.frame),
-                                        )
+                                        );
+                                        animation.timings = timings;
+                                        response
                                     },
                                 ))
                                 .changed();
+                            if changed {
+                                if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
+                                    frame_view.frame.update_battler(
+                                        &update_state.graphics,
+                                        &system,
+                                        animation,
+                                        Some(
+                                            flash_maps
+                                                .target
+                                                .compute(self.frame_edit_state.frame_index),
+                                        ),
+                                        Some(
+                                            flash_maps
+                                                .hide
+                                                .compute(self.frame_edit_state.frame_index),
+                                        ),
+                                    );
+                                }
+                                modified = true;
+                            }
                         });
 
                         self.previous_animation = Some(animation.id);
