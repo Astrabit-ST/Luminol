@@ -158,15 +158,15 @@ impl AnimationFrameView {
 
         let screen_alpha = (egui::ecolor::linear_from_gamma(screen_color.alpha as f32 / 255.)
             * 255.)
-            .trunc() as u8;
+            .round() as u8;
         if screen_alpha > 0 {
             ui.painter().rect_filled(
                 egui::Rect::EVERYTHING,
                 egui::Rounding::ZERO,
                 egui::Color32::from_rgba_unmultiplied(
-                    screen_color.red.clamp(0., 255.).trunc() as u8,
-                    screen_color.green.clamp(0., 255.).trunc() as u8,
-                    screen_color.blue.clamp(0., 255.).trunc() as u8,
+                    screen_color.red.clamp(0., 255.).round() as u8,
+                    screen_color.green.clamp(0., 255.).round() as u8,
+                    screen_color.blue.clamp(0., 255.).round() as u8,
                     screen_alpha,
                 ),
             );

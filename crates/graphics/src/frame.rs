@@ -141,9 +141,9 @@ impl Frame {
                     system.battler_hue,
                     if let Some(flash) = flash {
                         (
-                            flash.red.clamp(0., 255.).trunc() as u8,
-                            flash.green.clamp(0., 255.).trunc() as u8,
-                            flash.blue.clamp(0., 255.).trunc() as u8,
+                            flash.red.clamp(0., 255.).round() as u8,
+                            flash.green.clamp(0., 255.).round() as u8,
+                            flash.blue.clamp(0., 255.).round() as u8,
                             flash.alpha as f32,
                         )
                     } else {
@@ -213,9 +213,9 @@ impl Frame {
                 ),
                 0,
                 (
-                    flash.red.clamp(0., 255.).trunc() as u8,
-                    flash.green.clamp(0., 255.).trunc() as u8,
-                    flash.blue.clamp(0., 255.).trunc() as u8,
+                    flash.red.clamp(0., 255.).round() as u8,
+                    flash.green.clamp(0., 255.).round() as u8,
+                    flash.blue.clamp(0., 255.).round() as u8,
                     flash.alpha as f32,
                 ),
             )
