@@ -31,9 +31,9 @@ pub struct Graphic {
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Data {
     opacity: f32,
-    hue: i16,
     /// counterclockwise in degrees
     rotation: i16,
+    hue: i16,
     flash_alpha: f32,
     flash_red: u8,
     flash_green: u8,

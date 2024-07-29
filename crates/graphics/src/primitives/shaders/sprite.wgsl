@@ -15,7 +15,7 @@ struct VertexOutput {
 
 struct Graphic {
     opacity: f32,
-    packed_hue_and_rotation: i32,
+    packed_rotation_and_hue: i32,
     flash_alpha: f32,
     packed_flash_color: u32,
 }
@@ -37,7 +37,7 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
 
-    let rotation = extractBits(graphic.packed_hue_and_rotation, 16u, 16u);
+    let rotation = (graphic.packed_rotation_and_hue << 16) >> 16;
     var position_after_rotation: vec2<f32>;
     if rotation == 0 {
         position_after_rotation = model.position;
@@ -64,14 +64,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     if graphic.flash_alpha > 0.001 {
         let flash_color = vec3<f32>(vec3<u32>(
-            extractBits(graphic.packed_flash_color, 0u, 8u),
-            extractBits(graphic.packed_flash_color, 8u, 8u),
-            extractBits(graphic.packed_flash_color, 16u, 8u),
+            graphic.packed_flash_color & 0xff,
+            (graphic.packed_flash_color >> 8) & 0xff,
+            (graphic.packed_flash_color >> 16) & 0xff,
         )) / 255.;
         tex_sample = vec4<f32>(mix(tex_sample.rgb, flash_color, graphic.flash_alpha / 255.), tex_sample.a);
     }
 
-    let hue = extractBits(graphic.packed_hue_and_rotation, 0u, 16u);
+    let hue = graphic.packed_rotation_and_hue >> 16;
     if hue > 0 {
         var hsv = Hue::rgb_to_hsv(tex_sample.rgb);
 
