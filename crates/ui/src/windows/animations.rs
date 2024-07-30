@@ -1518,9 +1518,10 @@ impl luminol_core::Window for Window {
                             return true;
                         }
 
-                        ui.with_padded_stripe(true, |ui| {
-                            let flash_maps = self.frame_edit_state.flash_maps.get_mut(id).unwrap();
+                        let mut collapsing_view_inner = Default::default();
+                        let flash_maps = self.frame_edit_state.flash_maps.get_mut(id).unwrap();
 
+                        ui.with_padded_stripe(true, |ui| {
                             let changed = ui
                                 .add(luminol_components::Field::new(
                                     "SE and Flash",
@@ -1536,23 +1537,27 @@ impl luminol_core::Window for Window {
                                         }
 
                                         let mut timings = std::mem::take(&mut animation.timings);
-                                        let response = self.collapsing_view.show_with_sort(
-                                            ui,
-                                            animation.id,
-                                            &mut timings,
-                                            |ui, _i, timing| Self::show_timing_header(ui, timing),
-                                            |ui, i, previous_timings, timing| {
-                                                Self::show_timing_body(
-                                                    ui,
-                                                    update_state,
-                                                    animation,
-                                                    flash_maps,
-                                                    &mut self.timing_edit_state,
-                                                    (i, previous_timings, timing),
-                                                )
-                                            },
-                                            |a, b| a.frame.cmp(&b.frame),
-                                        );
+                                        let egui::InnerResponse { inner, response } =
+                                            self.collapsing_view.show_with_sort(
+                                                ui,
+                                                animation.id,
+                                                &mut timings,
+                                                |ui, _i, timing| {
+                                                    Self::show_timing_header(ui, timing)
+                                                },
+                                                |ui, i, previous_timings, timing| {
+                                                    Self::show_timing_body(
+                                                        ui,
+                                                        update_state,
+                                                        animation,
+                                                        flash_maps,
+                                                        &mut self.timing_edit_state,
+                                                        (i, previous_timings, timing),
+                                                    )
+                                                },
+                                                |a, b| a.frame.cmp(&b.frame),
+                                            );
+                                        collapsing_view_inner = inner;
                                         animation.timings = timings;
                                         response
                                     },
@@ -1579,6 +1584,105 @@ impl luminol_core::Window for Window {
                                 modified = true;
                             }
                         });
+
+                        if let Some(i) = collapsing_view_inner.created_entry {
+                            let timing = &animation.timings[i];
+                            match timing.flash_scope {
+                                Scope::Target => {
+                                    flash_maps.target.insert(
+                                        timing.frame,
+                                        ColorFlash {
+                                            color: timing.flash_color,
+                                            duration: timing.flash_duration,
+                                        },
+                                    );
+                                }
+                                Scope::Screen => {
+                                    flash_maps.screen.insert(
+                                        timing.frame,
+                                        ColorFlash {
+                                            color: timing.flash_color,
+                                            duration: timing.flash_duration,
+                                        },
+                                    );
+                                }
+                                Scope::HideTarget => {
+                                    flash_maps.hide.insert(
+                                        timing.frame,
+                                        HideFlash {
+                                            duration: timing.flash_duration,
+                                        },
+                                    );
+                                }
+                                Scope::None => {}
+                            }
+                            self.frame_edit_state
+                                .frame_view
+                                .as_mut()
+                                .unwrap()
+                                .frame
+                                .update_battler(
+                                    &update_state.graphics,
+                                    &system,
+                                    animation,
+                                    Some(
+                                        flash_maps
+                                            .target
+                                            .compute(self.frame_edit_state.frame_index),
+                                    ),
+                                    Some(
+                                        flash_maps.hide.compute(self.frame_edit_state.frame_index),
+                                    ),
+                                );
+                        }
+
+                        if let Some((i, timing)) = collapsing_view_inner.deleted_entry {
+                            let rank = |frame, scope| {
+                                animation.timings[..i]
+                                    .iter()
+                                    .rev()
+                                    .take_while(|t| t.frame == frame)
+                                    .filter(|t| t.flash_scope == scope)
+                                    .count()
+                            };
+                            match timing.flash_scope {
+                                Scope::Target => {
+                                    flash_maps
+                                        .target
+                                        .remove(timing.frame, rank(timing.frame, Scope::Target));
+                                }
+                                Scope::Screen => {
+                                    flash_maps
+                                        .screen
+                                        .remove(timing.frame, rank(timing.frame, Scope::Screen));
+                                }
+                                Scope::HideTarget => {
+                                    flash_maps.hide.remove(
+                                        timing.frame,
+                                        rank(timing.frame, Scope::HideTarget),
+                                    );
+                                }
+                                Scope::None => {}
+                            }
+                            self.frame_edit_state
+                                .frame_view
+                                .as_mut()
+                                .unwrap()
+                                .frame
+                                .update_battler(
+                                    &update_state.graphics,
+                                    &system,
+                                    animation,
+                                    Some(
+                                        flash_maps
+                                            .target
+                                            .compute(self.frame_edit_state.frame_index),
+                                    ),
+                                    Some(
+                                        flash_maps.hide.compute(self.frame_edit_state.frame_index),
+                                    ),
+                                );
+                        }
 
                         self.previous_animation = Some(animation.id);
                         false

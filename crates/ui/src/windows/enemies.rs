@@ -585,24 +585,26 @@ impl luminol_core::Window for Window {
                                         if self.previous_enemy != Some(enemy.id) {
                                             self.collapsing_view.clear_animations();
                                         }
-                                        self.collapsing_view.show(
-                                            ui,
-                                            enemy.id,
-                                            &mut enemy.actions,
-                                            |ui, _i, action| {
-                                                Self::show_action_header(ui, &skills, action)
-                                            },
-                                            |ui, i, action| {
-                                                Self::show_action_body(
-                                                    ui,
-                                                    update_state,
-                                                    &system,
-                                                    &skills,
-                                                    enemy.id,
-                                                    (i, action),
-                                                )
-                                            },
-                                        )
+                                        self.collapsing_view
+                                            .show(
+                                                ui,
+                                                enemy.id,
+                                                &mut enemy.actions,
+                                                |ui, _i, action| {
+                                                    Self::show_action_header(ui, &skills, action)
+                                                },
+                                                |ui, i, action| {
+                                                    Self::show_action_body(
+                                                        ui,
+                                                        update_state,
+                                                        &system,
+                                                        &skills,
+                                                        enemy.id,
+                                                        (i, action),
+                                                    )
+                                                },
+                                            )
+                                            .response
                                     },
                                 ))
                                 .changed();

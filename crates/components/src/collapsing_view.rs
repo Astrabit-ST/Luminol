@@ -35,6 +35,21 @@ pub struct CollapsingView {
     need_sort: bool,
 }
 
+#[derive(Clone, Copy)]
+pub struct CollapsingViewInner<T> {
+    pub created_entry: Option<usize>,
+    pub deleted_entry: Option<(usize, T)>,
+}
+
+impl<T> Default for CollapsingViewInner<T> {
+    fn default() -> Self {
+        Self {
+            created_entry: None,
+            deleted_entry: None,
+        }
+    }
+}
+
 impl CollapsingView {
     pub fn new() -> Self {
         Default::default()
@@ -83,7 +98,7 @@ impl CollapsingView {
         vec: &mut Vec<T>,
         show_header: impl FnMut(&mut egui::Ui, usize, &T),
         mut show_body: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
-    ) -> egui::Response
+    ) -> egui::InnerResponse<CollapsingViewInner<T>>
     where
         T: Default,
     {
@@ -126,7 +141,7 @@ impl CollapsingView {
         show_header: impl FnMut(&mut egui::Ui, usize, &T),
         show_body: impl FnMut(&mut egui::Ui, usize, &[T], &mut T) -> egui::Response,
         mut cmp: impl FnMut(&T, &T) -> std::cmp::Ordering,
-    ) -> egui::Response
+    ) -> egui::InnerResponse<CollapsingViewInner<T>>
     where
         T: Default,
     {
@@ -179,15 +194,18 @@ impl CollapsingView {
         mut show_header: impl FnMut(&mut egui::Ui, usize, &T),
         mut show_body: impl FnMut(&mut egui::Ui, usize, &[T], &mut T) -> egui::Response,
         mut sort_impl: impl FnMut(&mut Vec<T>, &mut Option<usize>) -> bool,
-    ) -> egui::Response
+    ) -> egui::InnerResponse<CollapsingViewInner<T>>
     where
         T: Default,
     {
         self.is_animating = false;
 
+        let mut created_entry_index = None;
+        let mut deleted_entry_index = None;
+        let mut deleted_entry = None;
+
         let mut inner_response = ui.with_cross_justify(|ui| {
             let mut modified = false;
-            let mut deleted_entry = None;
             let mut new_entry = false;
 
             ui.group(|ui| {
@@ -253,7 +271,7 @@ impl CollapsingView {
 
                                 if ui.button("Delete").clicked() {
                                     modified = true;
-                                    deleted_entry = Some(i);
+                                    deleted_entry_index = Some(i);
                                 }
 
                                 ui.add_space(ui.spacing().item_spacing.y);
@@ -274,12 +292,14 @@ impl CollapsingView {
                     new_entry = true;
 
                     sort_impl(vec, expanded_entry);
+
+                    created_entry_index = *expanded_entry;
                 }
             });
 
             self.disable_animations = false;
 
-            if let Some(i) = deleted_entry {
+            if let Some(i) = deleted_entry_index {
                 if let Some(expanded_entry) = self.expanded_entry.get_mut(state_id) {
                     if *expanded_entry == Some(i) {
                         self.disable_animations = true;
@@ -290,7 +310,7 @@ impl CollapsingView {
                     }
                 }
 
-                vec.remove(i);
+                deleted_entry = Some(vec.remove(i));
             }
 
             self.depersisted_entries = vec.len();
@@ -304,6 +324,16 @@ impl CollapsingView {
         if inner_response.inner {
             inner_response.response.mark_changed();
         }
-        inner_response.response
+        egui::InnerResponse {
+            inner: CollapsingViewInner {
+                created_entry: created_entry_index,
+                deleted_entry: if let (Some(i), Some(e)) = (deleted_entry_index, deleted_entry) {
+                    Some((i, e))
+                } else {
+                    None
+                },
+            },
+            response: inner_response.response,
+        }
     }
 }
