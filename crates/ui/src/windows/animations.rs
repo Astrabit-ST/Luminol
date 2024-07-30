@@ -559,7 +559,7 @@ impl Window {
                         }
                         Scope::HideTarget => {
                             flash_maps
-                                .target
+                                .hide
                                 .get_mut(timing.frame, rank(timing.frame, Scope::HideTarget))
                                 .unwrap()
                                 .duration = timing.flash_duration;
