@@ -84,7 +84,7 @@ if (typeof window === 'undefined') {
         event.respondWith(
             self.caches
                 .match(url)
-                .then((cached) => cached || fetch(request)) // Respond with cached response if one exists for this request
+                .then((cached) => cached || fetch(request, { cache: "no-store" })) // Respond with cached response if one exists for this request
                 .then((response) => {
                     if (response.status === 0) {
                         return new Response();
