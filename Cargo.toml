@@ -140,7 +140,7 @@ qp-trie = "0.8.2"
 
 itertools = "0.11.0"
 
-rfd = "0.12.0"
+rfd = "0.14.1"
 tempfile = "3.8.1"
 
 rand = "0.8.5"
