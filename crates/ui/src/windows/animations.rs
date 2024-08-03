@@ -1151,6 +1151,30 @@ impl Window {
             state.cellpicker.as_mut().unwrap()
         };
 
+        // Handle playing of animations
+        if let Some(animation_state) = &mut state.animation_state {
+            // Determine what frame in the animation we're at by using the egui time and the
+            // framerate
+            let previous_frame_index = state.frame_index;
+            let time_diff = ui.input(|i| i.time) - animation_state.start_time;
+            state.frame_index = (time_diff * 15.) as usize;
+
+            if state.frame_index != previous_frame_index {
+                recompute_flash = true;
+            }
+
+            // Request a repaint every few frames
+            let frame_delay = 1. / 15.; // 15 FPS
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_secs_f64(
+                    frame_delay - time_diff.rem_euclid(frame_delay),
+                ));
+        }
+        if state.frame_index >= animation.frames.len() {
+            let animation_state = state.animation_state.take().unwrap();
+            state.frame_index = animation_state.saved_frame_index;
+        }
+
         ui.horizontal(|ui| {
             ui.add(luminol_components::Field::new(
                 "Editor Scale",
@@ -1251,29 +1275,6 @@ impl Window {
                 },
             );
         });
-
-        if let Some(animation_state) = &mut state.animation_state {
-            let previous_frame_index = state.frame_index;
-            let time = ui.input(|i| i.time);
-            state.frame_index = ((time - animation_state.start_time) * 15.) as usize;
-
-            if state.frame_index != previous_frame_index {
-                recompute_flash = true;
-            }
-
-            let frame_delay = 1. / 15.; // 15 FPS
-            let time_rem = time.rem_euclid(frame_delay);
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_secs_f64(if time_rem == 0. {
-                    frame_delay
-                } else {
-                    time_rem
-                }));
-        }
-        if state.frame_index >= animation.frames.len() {
-            let animation_state = state.animation_state.take().unwrap();
-            state.frame_index = animation_state.saved_frame_index;
-        }
 
         if modals
             .copy_frames
