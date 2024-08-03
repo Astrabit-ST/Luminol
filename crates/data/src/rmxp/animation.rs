@@ -31,7 +31,7 @@ pub struct Animation {
     pub animation_name: Path,
     pub animation_hue: i32,
     pub position: Position,
-    pub frame_max: i32,
+    pub frame_max: usize,
     pub frames: Vec<Frame>,
     pub timings: Vec<Timing>,
 }

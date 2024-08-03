@@ -50,6 +50,13 @@ struct FrameEditState {
     frame_view: Option<luminol_components::AnimationFrameView>,
     cellpicker: Option<luminol_components::Cellpicker>,
     flash_maps: luminol_data::OptionVec<FlashMaps>,
+    animation_state: Option<AnimationState>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AnimationState {
+    saved_frame_index: usize,
+    start_time: f64,
 }
 
 struct TimingEditState {
@@ -261,6 +268,7 @@ impl Default for Window {
                 frame_view: None,
                 cellpicker: None,
                 flash_maps: Default::default(),
+                animation_state: None,
             },
             timing_edit_state: TimingEditState {
                 previous_frame: None,
@@ -587,7 +595,7 @@ impl Window {
                                     let mut frame =
                                         state.previous_frame.unwrap_or(timing.frame + 1);
                                     let mut response = egui::DragValue::new(&mut frame)
-                                        .range(1..=animation.frame_max)
+                                        .range(1..=animation.frames.len())
                                         .update_while_editing(false)
                                         .ui(ui);
                                     response.changed = false;
@@ -720,7 +728,7 @@ impl Window {
                                 .add(luminol_components::Field::new(
                                     "Flash Duration",
                                     egui::DragValue::new(&mut timing.flash_duration)
-                                        .range(1..=animation.frame_max),
+                                        .range(1..=animation.frames.len()),
                                 ))
                                 .changed(),
                         )
@@ -1086,6 +1094,7 @@ impl Window {
         state: &mut FrameEditState,
     ) -> (bool, bool) {
         let mut modified = false;
+        let mut recompute_flash = false;
 
         let flash_maps = state.flash_maps.get_mut(animation.id).unwrap();
 
@@ -1143,8 +1152,6 @@ impl Window {
         };
 
         ui.horizontal(|ui| {
-            let mut recompute_flash = false;
-
             ui.add(luminol_components::Field::new(
                 "Editor Scale",
                 egui::Slider::new(&mut frame_view.scale, 15.0..=300.0)
@@ -1158,10 +1165,14 @@ impl Window {
                 .min(animation.frames.len().saturating_sub(1));
             state.frame_index += 1;
             recompute_flash |= ui
-                .add(luminol_components::Field::new(
-                    "Frame",
-                    egui::DragValue::new(&mut state.frame_index).range(1..=animation.frames.len()),
-                ))
+                .add_enabled(
+                    state.animation_state.is_none(),
+                    luminol_components::Field::new(
+                        "Frame",
+                        egui::DragValue::new(&mut state.frame_index)
+                            .range(1..=animation.frames.len()),
+                    ),
+                )
                 .changed();
             state.frame_index -= 1;
 
@@ -1178,21 +1189,6 @@ impl Window {
                 "Onion Skin",
                 egui::Checkbox::without_text(&mut state.enable_onion_skin),
             ));
-
-            if recompute_flash {
-                frame_view.frame.update_battler(
-                    &update_state.graphics,
-                    system,
-                    animation,
-                    Some(flash_maps.compute_target(state.frame_index, state.condition)),
-                    Some(flash_maps.compute_hide(state.frame_index, state.condition)),
-                );
-                frame_view.frame.update_all_cells(
-                    &update_state.graphics,
-                    animation,
-                    state.frame_index,
-                );
-            }
 
             ui.with_layout(
                 egui::Layout {
@@ -1239,10 +1235,39 @@ impl Window {
 
                                 ui.add(modals.batch_edit.button((), update_state));
                             });
+
+                            if ui.button("Play").clicked() {
+                                if let Some(animation_state) = state.animation_state.take() {
+                                    state.frame_index = animation_state.saved_frame_index;
+                                } else {
+                                    state.animation_state = Some(AnimationState {
+                                        saved_frame_index: state.frame_index,
+                                        start_time: ui.input(|i| i.time),
+                                    });
+                                    state.frame_index = 0;
+                                }
+                            }
                         });
                 },
             );
         });
+
+        if let Some(animation_state) = &mut state.animation_state {
+            let previous_frame_index = state.frame_index;
+            state.frame_index =
+                ((ui.input(|i| i.time) - animation_state.start_time) * 15.) as usize;
+
+            if state.frame_index != previous_frame_index {
+                recompute_flash = true;
+            }
+
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_secs_f64(1. / 15.));
+        }
+        if state.frame_index >= animation.frames.len() {
+            let animation_state = state.animation_state.take().unwrap();
+            state.frame_index = animation_state.saved_frame_index;
+        }
 
         if modals
             .copy_frames
@@ -1716,6 +1741,19 @@ impl Window {
             }
         });
 
+        if recompute_flash {
+            frame_view.frame.update_battler(
+                &update_state.graphics,
+                system,
+                animation,
+                Some(flash_maps.compute_target(state.frame_index, state.condition)),
+                Some(flash_maps.compute_hide(state.frame_index, state.condition)),
+            );
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
+        }
+
         (modified, false)
     }
 }
@@ -1763,6 +1801,10 @@ impl luminol_core::Window for Window {
                     |ui, animations, id, update_state| {
                         let animation = &mut animations[id];
                         self.selected_animation_name = Some(animation.name.clone());
+                        if animation.frames.is_empty() {
+                            animation.frames.push(Default::default());
+                            animation.frame_max = 1;
+                        }
 
                         let clip_rect = ui.clip_rect();
 
