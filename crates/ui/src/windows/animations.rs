@@ -263,7 +263,7 @@ impl Default for Window {
             previous_battler_name: None,
             frame_edit_state: FrameEditState {
                 frame_index: 0,
-                condition: Condition::None,
+                condition: Condition::Hit,
                 enable_onion_skin: false,
                 frame_view: None,
                 cellpicker: None,
@@ -1254,15 +1254,21 @@ impl Window {
 
         if let Some(animation_state) = &mut state.animation_state {
             let previous_frame_index = state.frame_index;
-            state.frame_index =
-                ((ui.input(|i| i.time) - animation_state.start_time) * 15.) as usize;
+            let time = ui.input(|i| i.time);
+            state.frame_index = ((time - animation_state.start_time) * 15.) as usize;
 
             if state.frame_index != previous_frame_index {
                 recompute_flash = true;
             }
 
+            let frame_delay = 1. / 15.; // 15 FPS
+            let time_rem = time.rem_euclid(frame_delay);
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_secs_f64(1. / 15.));
+                .request_repaint_after(std::time::Duration::from_secs_f64(if time_rem == 0. {
+                    frame_delay
+                } else {
+                    time_rem
+                }));
         }
         if state.frame_index >= animation.frames.len() {
             let animation_state = state.animation_state.take().unwrap();
@@ -1646,12 +1652,27 @@ impl Window {
             }
         });
 
+        if recompute_flash {
+            frame_view.frame.update_battler(
+                &update_state.graphics,
+                system,
+                animation,
+                Some(flash_maps.compute_target(state.frame_index, state.condition)),
+                Some(flash_maps.compute_hide(state.frame_index, state.condition)),
+            );
+            frame_view
+                .frame
+                .update_all_cells(&update_state.graphics, animation, state.frame_index);
+        }
+
         egui::ScrollArea::horizontal().show_viewport(ui, |ui, scroll_rect| {
             cellpicker.ui(update_state, ui, scroll_rect);
         });
 
         ui.allocate_ui_at_rect(canvas_rect, |ui| {
-            frame_view.frame.enable_onion_skin = state.enable_onion_skin && state.frame_index != 0;
+            frame_view.frame.enable_onion_skin = state.enable_onion_skin
+                && state.frame_index != 0
+                && state.animation_state.is_none();
             let egui::InnerResponse {
                 inner: hover_pos,
                 response,
@@ -1660,6 +1681,7 @@ impl Window {
                 update_state,
                 clip_rect,
                 flash_maps.compute_screen(state.frame_index, state.condition),
+                state.animation_state.is_none(),
             );
 
             // If the pointer is hovering over the frame view, prevent parent widgets
@@ -1740,19 +1762,6 @@ impl Window {
                 }
             }
         });
-
-        if recompute_flash {
-            frame_view.frame.update_battler(
-                &update_state.graphics,
-                system,
-                animation,
-                Some(flash_maps.compute_target(state.frame_index, state.condition)),
-                Some(flash_maps.compute_hide(state.frame_index, state.condition)),
-            );
-            frame_view
-                .frame
-                .update_all_cells(&update_state.graphics, animation, state.frame_index);
-        }
 
         (modified, false)
     }

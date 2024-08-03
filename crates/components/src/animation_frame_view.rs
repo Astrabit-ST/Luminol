@@ -73,6 +73,7 @@ impl AnimationFrameView {
         update_state: &luminol_core::UpdateState<'_>,
         clip_rect: egui::Rect,
         screen_color: luminol_data::Color,
+        draw_rects: bool,
     ) -> egui::InnerResponse<Option<(i16, i16)>> {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
@@ -175,28 +176,30 @@ impl AnimationFrameView {
         let offset = canvas_center.to_vec2() + self.pan;
 
         // Draw the grid lines and the border of the animation frame
-        ui.painter().line_segment(
-            [
-                egui::pos2(-(FRAME_WIDTH as f32 / 2.), 0.) * scale + offset,
-                egui::pos2(FRAME_WIDTH as f32 / 2., 0.) * scale + offset,
-            ],
-            egui::Stroke::new(1., egui::Color32::DARK_GRAY),
-        );
-        ui.painter().line_segment(
-            [
-                egui::pos2(0., -(FRAME_HEIGHT as f32 / 2.)) * scale + offset,
-                egui::pos2(0., FRAME_HEIGHT as f32 / 2.) * scale + offset,
-            ],
-            egui::Stroke::new(1., egui::Color32::DARK_GRAY),
-        );
-        ui.painter().rect_stroke(
-            egui::Rect::from_center_size(
-                offset.to_pos2(),
-                egui::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32) * scale,
-            ),
-            5.,
-            egui::Stroke::new(1., egui::Color32::DARK_GRAY),
-        );
+        if draw_rects {
+            ui.painter().line_segment(
+                [
+                    egui::pos2(-(FRAME_WIDTH as f32 / 2.), 0.) * scale + offset,
+                    egui::pos2(FRAME_WIDTH as f32 / 2., 0.) * scale + offset,
+                ],
+                egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+            );
+            ui.painter().line_segment(
+                [
+                    egui::pos2(0., -(FRAME_HEIGHT as f32 / 2.)) * scale + offset,
+                    egui::pos2(0., FRAME_HEIGHT as f32 / 2.) * scale + offset,
+                ],
+                egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+            );
+            ui.painter().rect_stroke(
+                egui::Rect::from_center_size(
+                    offset.to_pos2(),
+                    egui::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32) * scale,
+                ),
+                5.,
+                egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+            );
+        }
 
         // Find the cell that the cursor is hovering over; if multiple cells are hovered we
         // prioritize the one with the greatest index
@@ -256,58 +259,63 @@ impl AnimationFrameView {
             self.hovered_cell_drag_pos = None;
         }
 
-        // Draw a gray rectangle on the border of every onion-skinned cell
-        if self.frame.enable_onion_skin {
+        if draw_rects {
+            // Draw a gray rectangle on the border of every onion-skinned cell
+            if draw_rects && self.frame.enable_onion_skin {
+                for cell_rect in self
+                    .frame
+                    .onion_skin_cells()
+                    .iter()
+                    .map(|(_, cell)| (cell.rect * scale).translate(offset))
+                {
+                    ui.painter().rect_stroke(
+                        cell_rect,
+                        5.,
+                        egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                    );
+                }
+            }
+
+            // Draw a white rectangle on the border of every cell
             for cell_rect in self
                 .frame
-                .onion_skin_cells()
+                .cells()
                 .iter()
                 .map(|(_, cell)| (cell.rect * scale).translate(offset))
             {
                 ui.painter().rect_stroke(
                     cell_rect,
                     5.,
-                    egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                    egui::Stroke::new(
+                        1.,
+                        if ui.input(|i| i.modifiers.shift) {
+                            egui::Color32::DARK_GRAY
+                        } else {
+                            egui::Color32::WHITE
+                        },
+                    ),
                 );
             }
-        }
 
-        // Draw a white rectangle on the border of every cell
-        for cell_rect in self
-            .frame
-            .cells()
-            .iter()
-            .map(|(_, cell)| (cell.rect * scale).translate(offset))
-        {
-            ui.painter().rect_stroke(
-                cell_rect,
-                5.,
-                egui::Stroke::new(
-                    1.,
-                    if ui.input(|i| i.modifiers.shift) {
-                        egui::Color32::DARK_GRAY
-                    } else {
-                        egui::Color32::WHITE
-                    },
-                ),
-            );
-        }
+            // Draw a yellow rectangle on the border of the hovered cell
+            if let Some(i) = self.hovered_cell_index {
+                let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
+                ui.painter().rect_stroke(
+                    cell_rect,
+                    5.,
+                    egui::Stroke::new(3., egui::Color32::YELLOW),
+                );
+            }
 
-        // Draw a yellow rectangle on the border of the hovered cell
-        if let Some(i) = self.hovered_cell_index {
-            let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
-            ui.painter()
-                .rect_stroke(cell_rect, 5., egui::Stroke::new(3., egui::Color32::YELLOW));
-        }
-
-        // Draw a magenta rectangle on the border of the selected cell
-        if let Some(i) = self.selected_cell_index {
-            let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
-            ui.painter().rect_stroke(
-                cell_rect,
-                5.,
-                egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
-            );
+            // Draw a magenta rectangle on the border of the selected cell
+            if let Some(i) = self.selected_cell_index {
+                let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
+                ui.painter().rect_stroke(
+                    cell_rect,
+                    5.,
+                    egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
+                );
+            }
         }
 
         ui.ctx().data_mut(|d| {
