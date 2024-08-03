@@ -142,7 +142,7 @@ where
     fn from_iter<I: IntoIterator<Item = (usize, T)>>(iterable: I) -> Self {
         let mut map = Self(Default::default());
         for (frame, flash) in iterable.into_iter() {
-            map.insert(frame, flash);
+            map.append(frame, flash);
         }
         map
     }
@@ -152,11 +152,19 @@ impl<T> FlashMap<T>
 where
     T: Copy,
 {
-    /// Adds a new flash into the map.
-    fn insert(&mut self, frame: usize, flash: T) {
+    /// Adds a new flash into the map at the maximum rank.
+    fn append(&mut self, frame: usize, flash: T) {
         self.0
             .entry(frame)
             .and_modify(|e| e.push_back(flash))
+            .or_insert_with(|| [flash].into());
+    }
+
+    /// Adds a new flash into the map at the given rank.
+    fn insert(&mut self, frame: usize, rank: usize, flash: T) {
+        self.0
+            .entry(frame)
+            .and_modify(|e| e.insert(rank, flash))
             .or_insert_with(|| [flash].into());
     }
 
@@ -448,7 +456,9 @@ impl Window {
                             ))
                             .changed();
                         if changed {
-                            if old_condition != Condition::Miss {
+                            if old_condition != Condition::Miss
+                                && timing.condition == Condition::Miss
+                            {
                                 match timing.flash_scope {
                                     Scope::Target => {
                                         flash_maps.hit_target.remove(
@@ -470,8 +480,9 @@ impl Window {
                                     }
                                     Scope::None => {}
                                 }
-                            }
-                            if old_condition != Condition::Hit {
+                            } else if old_condition != Condition::Hit
+                                && timing.condition == Condition::Hit
+                            {
                                 match timing.flash_scope {
                                     Scope::Target => {
                                         flash_maps.miss_target.remove(
@@ -494,11 +505,14 @@ impl Window {
                                     Scope::None => {}
                                 }
                             }
-                            if timing.condition != Condition::Miss {
+                            if old_condition == Condition::Miss
+                                && timing.condition != Condition::Miss
+                            {
                                 match timing.flash_scope {
                                     Scope::Target => {
                                         flash_maps.hit_target.insert(
                                             timing.frame,
+                                            hit_rank(timing.frame, Scope::Target),
                                             ColorFlash {
                                                 color: timing.flash_color,
                                                 duration: timing.flash_duration,
@@ -508,6 +522,7 @@ impl Window {
                                     Scope::Screen => {
                                         flash_maps.hit_screen.insert(
                                             timing.frame,
+                                            hit_rank(timing.frame, Scope::Screen),
                                             ColorFlash {
                                                 color: timing.flash_color,
                                                 duration: timing.flash_duration,
@@ -517,6 +532,7 @@ impl Window {
                                     Scope::HideTarget => {
                                         flash_maps.hit_hide.insert(
                                             timing.frame,
+                                            hit_rank(timing.frame, Scope::HideTarget),
                                             HideFlash {
                                                 duration: timing.flash_duration,
                                             },
@@ -524,12 +540,14 @@ impl Window {
                                     }
                                     Scope::None => {}
                                 }
-                            }
-                            if timing.condition != Condition::Hit {
+                            } else if old_condition == Condition::Hit
+                                && timing.condition != Condition::Hit
+                            {
                                 match timing.flash_scope {
                                     Scope::Target => {
                                         flash_maps.miss_target.insert(
                                             timing.frame,
+                                            miss_rank(timing.frame, Scope::Target),
                                             ColorFlash {
                                                 color: timing.flash_color,
                                                 duration: timing.flash_duration,
@@ -539,6 +557,7 @@ impl Window {
                                     Scope::Screen => {
                                         flash_maps.miss_screen.insert(
                                             timing.frame,
+                                            miss_rank(timing.frame, Scope::Screen),
                                             ColorFlash {
                                                 color: timing.flash_color,
                                                 duration: timing.flash_duration,
@@ -548,6 +567,7 @@ impl Window {
                                     Scope::HideTarget => {
                                         flash_maps.miss_hide.insert(
                                             timing.frame,
+                                            miss_rank(timing.frame, Scope::HideTarget),
                                             HideFlash {
                                                 duration: timing.flash_duration,
                                             },
@@ -730,6 +750,7 @@ impl Window {
                         Scope::Target => {
                             flash_maps.none_target.insert(
                                 timing.frame,
+                                none_rank(timing.frame, Scope::Target),
                                 ColorFlash {
                                     color: timing.flash_color,
                                     duration: timing.flash_duration,
@@ -739,6 +760,7 @@ impl Window {
                         Scope::Screen => {
                             flash_maps.none_screen.insert(
                                 timing.frame,
+                                none_rank(timing.frame, Scope::Screen),
                                 ColorFlash {
                                     color: timing.flash_color,
                                     duration: timing.flash_duration,
@@ -748,6 +770,7 @@ impl Window {
                         Scope::HideTarget => {
                             flash_maps.none_hide.insert(
                                 timing.frame,
+                                none_rank(timing.frame, Scope::HideTarget),
                                 HideFlash {
                                     duration: timing.flash_duration,
                                 },
@@ -779,6 +802,7 @@ impl Window {
                             Scope::Target => {
                                 flash_maps.hit_target.insert(
                                     timing.frame,
+                                    hit_rank(timing.frame, Scope::Target),
                                     ColorFlash {
                                         color: timing.flash_color,
                                         duration: timing.flash_duration,
@@ -788,6 +812,7 @@ impl Window {
                             Scope::Screen => {
                                 flash_maps.hit_screen.insert(
                                     timing.frame,
+                                    hit_rank(timing.frame, Scope::Screen),
                                     ColorFlash {
                                         color: timing.flash_color,
                                         duration: timing.flash_duration,
@@ -797,6 +822,7 @@ impl Window {
                             Scope::HideTarget => {
                                 flash_maps.hit_hide.insert(
                                     timing.frame,
+                                    hit_rank(timing.frame, Scope::HideTarget),
                                     HideFlash {
                                         duration: timing.flash_duration,
                                     },
@@ -829,6 +855,7 @@ impl Window {
                             Scope::Target => {
                                 flash_maps.miss_target.insert(
                                     timing.frame,
+                                    miss_rank(timing.frame, Scope::Target),
                                     ColorFlash {
                                         color: timing.flash_color,
                                         duration: timing.flash_duration,
@@ -838,6 +865,7 @@ impl Window {
                             Scope::Screen => {
                                 flash_maps.miss_screen.insert(
                                     timing.frame,
+                                    miss_rank(timing.frame, Scope::Screen),
                                     ColorFlash {
                                         color: timing.flash_color,
                                         duration: timing.flash_duration,
@@ -847,6 +875,7 @@ impl Window {
                             Scope::HideTarget => {
                                 flash_maps.miss_hide.insert(
                                     timing.frame,
+                                    miss_rank(timing.frame, Scope::HideTarget),
                                     HideFlash {
                                         duration: timing.flash_duration,
                                     },
@@ -2120,7 +2149,7 @@ impl luminol_core::Window for Window {
                             let timing = &animation.timings[i];
                             match timing.flash_scope {
                                 Scope::Target => {
-                                    flash_maps.none_target.insert(
+                                    flash_maps.none_target.append(
                                         timing.frame,
                                         ColorFlash {
                                             color: timing.flash_color,
@@ -2129,7 +2158,7 @@ impl luminol_core::Window for Window {
                                     );
                                 }
                                 Scope::Screen => {
-                                    flash_maps.none_screen.insert(
+                                    flash_maps.none_screen.append(
                                         timing.frame,
                                         ColorFlash {
                                             color: timing.flash_color,
@@ -2138,7 +2167,7 @@ impl luminol_core::Window for Window {
                                     );
                                 }
                                 Scope::HideTarget => {
-                                    flash_maps.none_hide.insert(
+                                    flash_maps.none_hide.append(
                                         timing.frame,
                                         HideFlash {
                                             duration: timing.flash_duration,
@@ -2150,7 +2179,7 @@ impl luminol_core::Window for Window {
                             if timing.condition != Condition::Miss {
                                 match timing.flash_scope {
                                     Scope::Target => {
-                                        flash_maps.hit_target.insert(
+                                        flash_maps.hit_target.append(
                                             timing.frame,
                                             ColorFlash {
                                                 color: timing.flash_color,
@@ -2159,7 +2188,7 @@ impl luminol_core::Window for Window {
                                         );
                                     }
                                     Scope::Screen => {
-                                        flash_maps.hit_screen.insert(
+                                        flash_maps.hit_screen.append(
                                             timing.frame,
                                             ColorFlash {
                                                 color: timing.flash_color,
@@ -2168,7 +2197,7 @@ impl luminol_core::Window for Window {
                                         );
                                     }
                                     Scope::HideTarget => {
-                                        flash_maps.hit_hide.insert(
+                                        flash_maps.hit_hide.append(
                                             timing.frame,
                                             HideFlash {
                                                 duration: timing.flash_duration,
@@ -2181,7 +2210,7 @@ impl luminol_core::Window for Window {
                             if timing.condition != Condition::Hit {
                                 match timing.flash_scope {
                                     Scope::Target => {
-                                        flash_maps.miss_target.insert(
+                                        flash_maps.miss_target.append(
                                             timing.frame,
                                             ColorFlash {
                                                 color: timing.flash_color,
@@ -2190,7 +2219,7 @@ impl luminol_core::Window for Window {
                                         );
                                     }
                                     Scope::Screen => {
-                                        flash_maps.miss_screen.insert(
+                                        flash_maps.miss_screen.append(
                                             timing.frame,
                                             ColorFlash {
                                                 color: timing.flash_color,
@@ -2199,7 +2228,7 @@ impl luminol_core::Window for Window {
                                         );
                                     }
                                     Scope::HideTarget => {
-                                        flash_maps.miss_hide.insert(
+                                        flash_maps.miss_hide.append(
                                             timing.frame,
                                             HideFlash {
                                                 duration: timing.flash_duration,
