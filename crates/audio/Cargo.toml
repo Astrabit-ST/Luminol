@@ -35,11 +35,12 @@ rodio = "0.19.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rodio = { version = "0.19.0", features = ["wasm-bindgen"] }
-web-sys = { version = "0.3", features = ["Window"] }
+
+web-sys.workspace = true
+wasm-bindgen-futures.workspace = true
 
 flume.workspace = true
 oneshot.workspace = true
 
 once_cell.workspace = true
-poll-promise.workspace = true
 slab.workspace = true

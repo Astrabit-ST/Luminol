@@ -3067,12 +3067,12 @@ dependencies = [
  "once_cell",
  "oneshot",
  "parking_lot",
- "poll-promise",
  "rodio",
  "rustysynth",
  "slab",
  "strum",
  "thiserror",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 

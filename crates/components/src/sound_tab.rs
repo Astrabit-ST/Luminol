@@ -73,7 +73,7 @@ impl SoundTab {
                 );
             }
         } else {
-            update_state.audio.stop(&self.source);
+            update_state.audio.stop(self.source);
         }
     }
 
@@ -90,7 +90,7 @@ impl SoundTab {
 
                         if ui.button("Stop").clicked() {
                             // Stop sound.
-                            update_state.audio.stop(&self.source);
+                            update_state.audio.stop(self.source);
                         }
                     });
 
@@ -109,7 +109,7 @@ impl SoundTab {
                         if ui.add(slider).changed() {
                             update_state
                                 .audio
-                                .set_volume(self.audio_file.volume, &self.source);
+                                .set_volume(self.audio_file.volume, self.source);
                         };
 
                         let slider = egui::Slider::new(&mut self.audio_file.pitch, 50..=150)
@@ -121,7 +121,7 @@ impl SoundTab {
                         if ui.add(slider).changed() {
                             update_state
                                 .audio
-                                .set_pitch(self.audio_file.pitch, &self.source);
+                                .set_pitch(self.audio_file.pitch, self.source);
                         };
                     });
                 });

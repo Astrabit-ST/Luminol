@@ -65,10 +65,7 @@ pub fn set_git_revision(revision: &'static str) {
 pub struct UpdateState<'res> {
     pub ctx: &'res egui::Context,
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub audio: &'res mut luminol_audio::Audio,
-    #[cfg(target_arch = "wasm32")]
-    pub audio: &'res mut luminol_audio::AudioWrapper,
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
