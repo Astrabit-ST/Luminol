@@ -75,8 +75,12 @@ pub fn show_frame_edit(
             &update_state.graphics,
             system,
             animation,
-            Some(flash_maps.compute_target(state.frame_index, state.condition)),
-            Some(flash_maps.compute_hide(state.frame_index, state.condition)),
+            Some(
+                flash_maps
+                    .target(state.condition)
+                    .compute(state.frame_index),
+            ),
+            Some(flash_maps.hide(state.condition).compute(state.frame_index)),
         );
         frame_view
             .frame
@@ -646,8 +650,12 @@ pub fn show_frame_edit(
             &update_state.graphics,
             system,
             animation,
-            Some(flash_maps.compute_target(state.frame_index, state.condition)),
-            Some(flash_maps.compute_hide(state.frame_index, state.condition)),
+            Some(
+                flash_maps
+                    .target(state.condition)
+                    .compute(state.frame_index),
+            ),
+            Some(flash_maps.hide(state.condition).compute(state.frame_index)),
         );
         frame_view
             .frame
@@ -668,7 +676,9 @@ pub fn show_frame_edit(
             ui,
             update_state,
             clip_rect,
-            flash_maps.compute_screen(state.frame_index, state.condition),
+            flash_maps
+                .screen(state.condition)
+                .compute(state.frame_index),
             state.animation_state.is_none(),
         );
 

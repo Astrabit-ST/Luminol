@@ -344,14 +344,16 @@ impl luminol_core::Window for super::Window {
                                             &update_state.graphics,
                                             &system,
                                             animation,
-                                            Some(flash_maps.compute_target(
-                                                self.frame_edit_state.frame_index,
-                                                self.frame_edit_state.condition,
-                                            )),
-                                            Some(flash_maps.compute_hide(
-                                                self.frame_edit_state.frame_index,
-                                                self.frame_edit_state.condition,
-                                            )),
+                                            Some(
+                                                flash_maps
+                                                    .target(self.frame_edit_state.condition)
+                                                    .compute(self.frame_edit_state.frame_index),
+                                            ),
+                                            Some(
+                                                flash_maps
+                                                    .hide(self.frame_edit_state.condition)
+                                                    .compute(self.frame_edit_state.frame_index),
+                                            ),
                                         );
                                         frame_view.frame.rebuild_all_cells(
                                             &update_state.graphics,
@@ -446,14 +448,16 @@ impl luminol_core::Window for super::Window {
                                         &update_state.graphics,
                                         &system,
                                         animation,
-                                        Some(flash_maps.compute_target(
-                                            self.frame_edit_state.frame_index,
-                                            self.frame_edit_state.condition,
-                                        )),
-                                        Some(flash_maps.compute_hide(
-                                            self.frame_edit_state.frame_index,
-                                            self.frame_edit_state.condition,
-                                        )),
+                                        Some(
+                                            flash_maps
+                                                .target(self.frame_edit_state.condition)
+                                                .compute(self.frame_edit_state.frame_index),
+                                        ),
+                                        Some(
+                                            flash_maps
+                                                .hide(self.frame_edit_state.condition)
+                                                .compute(self.frame_edit_state.frame_index),
+                                        ),
                                     );
                                 }
                                 modified = true;
@@ -562,14 +566,16 @@ impl luminol_core::Window for super::Window {
                                     &update_state.graphics,
                                     &system,
                                     animation,
-                                    Some(flash_maps.compute_target(
-                                        self.frame_edit_state.frame_index,
-                                        self.frame_edit_state.condition,
-                                    )),
-                                    Some(flash_maps.compute_hide(
-                                        self.frame_edit_state.frame_index,
-                                        self.frame_edit_state.condition,
-                                    )),
+                                    Some(
+                                        flash_maps
+                                            .target(self.frame_edit_state.condition)
+                                            .compute(self.frame_edit_state.frame_index),
+                                    ),
+                                    Some(
+                                        flash_maps
+                                            .hide(self.frame_edit_state.condition)
+                                            .compute(self.frame_edit_state.frame_index),
+                                    ),
                                 );
                         }
 
@@ -677,14 +683,16 @@ impl luminol_core::Window for super::Window {
                                     &update_state.graphics,
                                     &system,
                                     animation,
-                                    Some(flash_maps.compute_target(
-                                        self.frame_edit_state.frame_index,
-                                        self.frame_edit_state.condition,
-                                    )),
-                                    Some(flash_maps.compute_hide(
-                                        self.frame_edit_state.frame_index,
-                                        self.frame_edit_state.condition,
-                                    )),
+                                    Some(
+                                        flash_maps
+                                            .target(self.frame_edit_state.condition)
+                                            .compute(self.frame_edit_state.frame_index),
+                                    ),
+                                    Some(
+                                        flash_maps
+                                            .hide(self.frame_edit_state.condition)
+                                            .compute(self.frame_edit_state.frame_index),
+                                    ),
                                 );
                         }
 

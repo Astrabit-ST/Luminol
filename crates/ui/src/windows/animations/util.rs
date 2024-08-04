@@ -40,30 +40,51 @@ pub struct FlashMaps {
 }
 
 impl FlashMaps {
-    /// Determines what color the target flash should be for a given frame number and condition.
-    pub fn compute_target(&self, frame: usize, condition: Condition) -> luminol_data::Color {
+    pub fn target(&self, condition: Condition) -> &FlashMap<ColorFlash> {
         match condition {
-            Condition::None => self.none_target.compute(frame),
-            Condition::Hit => self.hit_target.compute(frame),
-            Condition::Miss => self.miss_target.compute(frame),
+            Condition::None => &self.none_target,
+            Condition::Hit => &self.hit_target,
+            Condition::Miss => &self.miss_target,
         }
     }
 
-    /// Determines what color the screen flash should be for a given frame number and condition.
-    pub fn compute_screen(&self, frame: usize, condition: Condition) -> luminol_data::Color {
+    pub fn target_mut(&mut self, condition: Condition) -> &mut FlashMap<ColorFlash> {
         match condition {
-            Condition::None => self.none_screen.compute(frame),
-            Condition::Hit => self.hit_screen.compute(frame),
-            Condition::Miss => self.miss_screen.compute(frame),
+            Condition::None => &mut self.none_target,
+            Condition::Hit => &mut self.hit_target,
+            Condition::Miss => &mut self.miss_target,
         }
     }
 
-    /// Determines if the hide target flash is active for a given frame number and condition.
-    pub fn compute_hide(&self, frame: usize, condition: Condition) -> bool {
+    pub fn screen(&self, condition: Condition) -> &FlashMap<ColorFlash> {
         match condition {
-            Condition::None => self.none_hide.compute(frame),
-            Condition::Hit => self.hit_hide.compute(frame),
-            Condition::Miss => self.miss_hide.compute(frame),
+            Condition::None => &self.none_screen,
+            Condition::Hit => &self.hit_screen,
+            Condition::Miss => &self.miss_screen,
+        }
+    }
+
+    pub fn screen_mut(&mut self, condition: Condition) -> &mut FlashMap<ColorFlash> {
+        match condition {
+            Condition::None => &mut self.none_screen,
+            Condition::Hit => &mut self.hit_screen,
+            Condition::Miss => &mut self.miss_screen,
+        }
+    }
+
+    pub fn hide(&self, condition: Condition) -> &FlashMap<HideFlash> {
+        match condition {
+            Condition::None => &self.none_hide,
+            Condition::Hit => &self.hit_hide,
+            Condition::Miss => &self.miss_hide,
+        }
+    }
+
+    pub fn hide_mut(&mut self, condition: Condition) -> &mut FlashMap<HideFlash> {
+        match condition {
+            Condition::None => &mut self.none_hide,
+            Condition::Hit => &mut self.hit_hide,
+            Condition::Miss => &mut self.miss_hide,
         }
     }
 }
@@ -165,7 +186,7 @@ where
 
 impl FlashMap<ColorFlash> {
     /// Determines what color the flash should be for a given frame number.
-    fn compute(&self, frame: usize) -> luminol_data::Color {
+    pub fn compute(&self, frame: usize) -> luminol_data::Color {
         let Some((&start_frame, deque)) = self.map.range(..=frame).next_back() else {
             return luminol_data::Color {
                 red: 255.,
@@ -196,7 +217,7 @@ impl FlashMap<ColorFlash> {
 
 impl FlashMap<HideFlash> {
     /// Determines if the hide flash is active for a given frame number.
-    fn compute(&self, frame: usize) -> bool {
+    pub fn compute(&self, frame: usize) -> bool {
         let Some((&start_frame, deque)) = self.map.range(..=frame).next_back() else {
             return false;
         };
