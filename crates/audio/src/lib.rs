@@ -35,11 +35,6 @@ pub use native::Audio;
 #[cfg(target_arch = "wasm32")]
 pub use wrapper::Audio;
 
-#[cfg(target_arch = "wasm32")]
-trait ReadSeek: std::io::Read + std::io::Seek {}
-#[cfg(target_arch = "wasm32")]
-impl<T> ReadSeek for T where T: std::io::Read + std::io::Seek {}
-
 /// Different sound sources.
 #[derive(strum::EnumIter, strum::Display, PartialEq, Eq, Clone, Copy, Hash)]
 #[allow(clippy::upper_case_acronyms)]

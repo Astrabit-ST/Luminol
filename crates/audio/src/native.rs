@@ -53,20 +53,19 @@ impl Audio {
         self.play_from_file(file, is_midi, volume, pitch, source)
     }
 
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn play_from_file_dyn(
+    /// Play a sound on a source from audio file data.
+    pub fn play_from_slice(
         &self,
-        file: Box<dyn crate::ReadSeek + Send + Sync + 'static>,
+        slice: impl AsRef<[u8]> + Send + Sync + 'static,
         is_midi: bool,
         volume: u8,
         pitch: u8,
         source: Option<Source>,
     ) -> Result<()> {
-        self.play_from_file(file, is_midi, volume, pitch, source)
+        self.play_from_file(std::io::Cursor::new(slice), is_midi, volume, pitch, source)
     }
 
-    /// Play a sound from a file on a source.
-    pub fn play_from_file(
+    fn play_from_file(
         &self,
         file: impl std::io::Read + std::io::Seek + Send + Sync + 'static,
         is_midi: bool,

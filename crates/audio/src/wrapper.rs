@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::{native::Audio as NativeAudio, ReadSeek, Result, Source};
+use crate::{native::Audio as NativeAudio, Result, Source};
 
 /// A struct for playing Audio.
 pub struct Audio {
@@ -31,15 +31,7 @@ pub struct Audio {
 
 enum Command {
     Play {
-        cursor: std::io::Cursor<Vec<u8>>,
-        is_midi: bool,
-        volume: u8,
-        pitch: u8,
-        source: Option<Source>,
-        oneshot_tx: oneshot::Sender<Result<()>>,
-    },
-    PlayFromFile {
-        file: Box<dyn ReadSeek + Send + Sync + 'static>,
+        slice: std::sync::Arc<[u8]>,
         is_midi: bool,
         volume: u8,
         pitch: u8,
@@ -84,31 +76,19 @@ impl Audio {
         // otherwise if we read the file in the main thread of a web browser
         // we will block the main thread
         let path = path.as_ref();
-        let file = filesystem.read(path)?;
-        let cursor = std::io::Cursor::new(file);
+        let slice: std::sync::Arc<[u8]> = filesystem.read(path)?.into();
 
         let is_midi = path
             .extension()
             .is_some_and(|e| matches!(e, "mid" | "midi"));
 
-        let (oneshot_tx, oneshot_rx) = oneshot::channel();
-        self.tx
-            .send(Command::Play {
-                cursor,
-                is_midi,
-                volume,
-                pitch,
-                source,
-                oneshot_tx,
-            })
-            .unwrap();
-        oneshot_rx.recv().unwrap()
+        self.play_from_slice(slice, is_midi, volume, pitch, source)
     }
 
-    /// Play a sound from a file on a source.
-    pub fn play_from_file(
+    /// Play a sound on a source from audio file data.
+    pub fn play_from_slice(
         &self,
-        file: impl std::io::Read + std::io::Seek + Send + Sync + 'static,
+        slice: impl AsRef<[u8]> + Send + Sync + 'static,
         is_midi: bool,
         volume: u8,
         pitch: u8,
@@ -116,8 +96,8 @@ impl Audio {
     ) -> Result<()> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
-            .send(Command::PlayFromFile {
-                file: Box::new(file),
+            .send(Command::Play {
+                slice: slice.as_ref().into(),
                 is_midi,
                 volume,
                 pitch,
@@ -193,7 +173,7 @@ impl Default for Audio {
 
                 match command {
                     Command::Play {
-                        cursor,
+                        slice,
                         is_midi,
                         volume,
                         pitch,
@@ -201,20 +181,7 @@ impl Default for Audio {
                         oneshot_tx,
                     } => {
                         oneshot_tx
-                            .send(audio.play_from_file(cursor, is_midi, volume, pitch, source))
-                            .unwrap();
-                    }
-
-                    Command::PlayFromFile {
-                        file,
-                        is_midi,
-                        volume,
-                        pitch,
-                        source,
-                        oneshot_tx,
-                    } => {
-                        oneshot_tx
-                            .send(audio.play_from_file_dyn(file, is_midi, volume, pitch, source))
+                            .send(audio.play_from_slice(slice, is_midi, volume, pitch, source))
                             .unwrap();
                     }
 
