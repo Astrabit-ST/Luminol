@@ -45,7 +45,7 @@ enum AudioWrapperCommandInner {
         is_midi: bool,
         volume: u8,
         pitch: u8,
-        source: Source,
+        source: Option<Source>,
         oneshot_tx: oneshot::Sender<Result<()>>,
     },
     SetPitch {
@@ -82,7 +82,7 @@ impl AudioWrapper {
         filesystem: &impl luminol_filesystem::FileSystem,
         volume: u8,
         pitch: u8,
-        source: Source,
+        source: Option<Source>,
     ) -> Result<()> {
         // We have to load the file on the current thread,
         // otherwise if we read the file in the main thread of a web browser
