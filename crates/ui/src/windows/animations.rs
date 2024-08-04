@@ -335,32 +335,36 @@ impl Window {
         );
     }
 
-    fn log_se_load_error(
+    fn load_se(
         update_state: &mut luminol_core::UpdateState<'_>,
+        animation_state: &mut AnimationState,
+        condition: Condition,
         timing: &Timing,
-        e: color_eyre::Report,
     ) {
-        luminol_core::error!(
-            update_state.toasts,
-            e.wrap_err(format!(
-                "Error loading animation sound effect {:?}",
-                timing.se.name
-            ))
-        );
-    }
-
-    fn log_se_play_error(
-        update_state: &mut luminol_core::UpdateState<'_>,
-        timing: &Timing,
-        e: color_eyre::Report,
-    ) {
-        luminol_core::error!(
-            update_state.toasts,
-            e.wrap_err(format!(
-                "Error playing animation sound effect {:?}",
-                timing.se.name
-            ))
-        );
+        let Some(se_name) = &timing.se.name else {
+            return;
+        };
+        if (condition != timing.condition
+            && condition != Condition::None
+            && timing.condition != Condition::None)
+            || animation_state.audio_data.contains_key(se_name.as_str())
+        {
+            return;
+        }
+        match update_state.filesystem.read(format!("Audio/SE/{se_name}")) {
+            Ok(data) => {
+                animation_state
+                    .audio_data
+                    .insert(se_name.to_string(), Some(data.into()));
+            }
+            Err(e) => {
+                luminol_core::error!(
+                    update_state.toasts,
+                    e.wrap_err(format!("Error loading animation sound effect {se_name}"))
+                );
+                animation_state.audio_data.insert(se_name.to_string(), None);
+            }
+        }
     }
 
     fn show_timing_header(ui: &mut egui::Ui, timing: &Timing) {
@@ -1209,6 +1213,7 @@ impl Window {
                     continue;
                 }
                 if let Some(se_name) = &timing.se.name {
+                    Self::load_se(update_state, animation_state, state.condition, timing);
                     let Some(Some(audio_data)) = animation_state.audio_data.get(se_name.as_str())
                     else {
                         continue;
@@ -1220,7 +1225,10 @@ impl Window {
                         timing.se.pitch,
                         None,
                     ) {
-                        Self::log_se_play_error(update_state, timing, e);
+                        luminol_core::error!(
+                            update_state.toasts,
+                            e.wrap_err(format!("Error playing animation sound effect {se_name}"))
+                        );
                     }
                 }
             }
@@ -1333,38 +1341,24 @@ impl Window {
                                 if let Some(animation_state) = state.animation_state.take() {
                                     state.frame_index = animation_state.saved_frame_index;
                                 } else {
-                                    // Preload the audio files used by the animation for
-                                    // performance reasons
-                                    let mut audio_data = std::collections::HashMap::new();
-                                    for timing in &animation.timings {
-                                        let Some(se_name) = &timing.se.name else {
-                                            continue;
-                                        };
-                                        if audio_data.contains_key(se_name.as_str()) {
-                                            continue;
-                                        }
-                                        match update_state
-                                            .filesystem
-                                            .read(format!("Audio/SE/{se_name}"))
-                                        {
-                                            Ok(data) => {
-                                                audio_data
-                                                    .insert(se_name.to_string(), Some(data.into()));
-                                            }
-                                            Err(e) => {
-                                                Self::log_se_load_error(update_state, timing, e);
-                                                audio_data.insert(se_name.to_string(), None);
-                                            }
-                                        }
-                                    }
-
                                     state.animation_state = Some(AnimationState {
                                         saved_frame_index: state.frame_index,
                                         start_time: ui.input(|i| i.time),
                                         timing_index: 0,
-                                        audio_data,
+                                        audio_data: Default::default(),
                                     });
                                     state.frame_index = 0;
+
+                                    // Preload the audio files used by the animation for
+                                    // performance reasons
+                                    for timing in &animation.timings {
+                                        Self::load_se(
+                                            update_state,
+                                            state.animation_state.as_mut().unwrap(),
+                                            state.condition,
+                                            timing,
+                                        );
+                                    }
                                 }
                             }
                         });
