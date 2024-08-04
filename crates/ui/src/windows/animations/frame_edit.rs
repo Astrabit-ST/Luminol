@@ -100,10 +100,16 @@ pub fn show_frame_edit(
 
     // Handle playing of animations
     if let Some(animation_state) = &mut state.animation_state {
+        let time = ui.input(|i| i.time);
+
+        if animation_state.start_time.is_nan() {
+            animation_state.start_time = time;
+        }
+
         // Determine what frame in the animation we're at by using the egui time and the
         // framerate
         let previous_frame_index = state.frame_index;
-        let time_diff = ui.input(|i| i.time) - animation_state.start_time;
+        let time_diff = time - animation_state.start_time;
         state.frame_index = (time_diff * 20.) as usize;
 
         if state.frame_index != previous_frame_index {
@@ -255,7 +261,7 @@ pub fn show_frame_edit(
                             } else {
                                 state.animation_state = Some(super::AnimationState {
                                     saved_frame_index: state.frame_index,
-                                    start_time: ui.input(|i| i.time),
+                                    start_time: f64::NAN,
                                     timing_index: 0,
                                     audio_data: Default::default(),
                                 });
