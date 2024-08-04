@@ -1173,6 +1173,12 @@ impl Window {
                     animation_state.timing_index += i;
                     break;
                 }
+                if state.condition != timing.condition
+                    && state.condition != Condition::None
+                    && timing.condition != Condition::None
+                {
+                    continue;
+                }
                 if let Some(se_name) = &timing.se.name {
                     if let Err(e) = update_state.audio.play(
                         format!("Audio/SE/{se_name}"),
