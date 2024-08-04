@@ -24,22 +24,36 @@
 
 use luminol_filesystem::FileSystem;
 
-use luminol_data::rpg::animation::Condition;
+use luminol_data::rpg::animation::{Condition, Scope, Timing};
 
 #[derive(Debug, Default)]
 pub struct FlashMaps {
-    pub none_hide: FlashMap<HideFlash>,
-    pub hit_hide: FlashMap<HideFlash>,
-    pub miss_hide: FlashMap<HideFlash>,
-    pub none_target: FlashMap<ColorFlash>,
-    pub hit_target: FlashMap<ColorFlash>,
-    pub miss_target: FlashMap<ColorFlash>,
-    pub none_screen: FlashMap<ColorFlash>,
-    pub hit_screen: FlashMap<ColorFlash>,
-    pub miss_screen: FlashMap<ColorFlash>,
+    none_hide: FlashMap<HideFlash>,
+    hit_hide: FlashMap<HideFlash>,
+    miss_hide: FlashMap<HideFlash>,
+    none_target: FlashMap<ColorFlash>,
+    hit_target: FlashMap<ColorFlash>,
+    miss_target: FlashMap<ColorFlash>,
+    none_screen: FlashMap<ColorFlash>,
+    hit_screen: FlashMap<ColorFlash>,
+    miss_screen: FlashMap<ColorFlash>,
 }
 
 impl FlashMaps {
+    pub fn new(timings: &[Timing]) -> Self {
+        Self {
+            none_hide: <FlashMap<HideFlash>>::new(timings, Condition::None, Scope::HideTarget),
+            hit_hide: <FlashMap<HideFlash>>::new(timings, Condition::Hit, Scope::HideTarget),
+            miss_hide: <FlashMap<HideFlash>>::new(timings, Condition::Miss, Scope::HideTarget),
+            none_target: <FlashMap<ColorFlash>>::new(timings, Condition::None, Scope::Target),
+            hit_target: <FlashMap<ColorFlash>>::new(timings, Condition::Hit, Scope::Target),
+            miss_target: <FlashMap<ColorFlash>>::new(timings, Condition::Miss, Scope::Target),
+            none_screen: <FlashMap<ColorFlash>>::new(timings, Condition::None, Scope::Screen),
+            hit_screen: <FlashMap<ColorFlash>>::new(timings, Condition::Hit, Scope::Screen),
+            miss_screen: <FlashMap<ColorFlash>>::new(timings, Condition::Miss, Scope::Screen),
+        }
+    }
+
     pub fn target(&self, condition: Condition) -> &FlashMap<ColorFlash> {
         match condition {
             Condition::None => &self.none_target,
@@ -98,6 +112,47 @@ pub struct ColorFlash {
 #[derive(Debug, Clone, Copy)]
 pub struct HideFlash {
     pub duration: usize,
+}
+
+impl<'a> From<&'a Timing> for ColorFlash {
+    fn from(timing: &'a Timing) -> Self {
+        Self {
+            color: timing.flash_color,
+            duration: timing.flash_duration,
+        }
+    }
+}
+
+impl<'a> From<&'a mut Timing> for ColorFlash {
+    fn from(timing: &'a mut Timing) -> Self {
+        (&*timing).into()
+    }
+}
+
+impl From<Timing> for ColorFlash {
+    fn from(timing: Timing) -> Self {
+        (&timing).into()
+    }
+}
+
+impl<'a> From<&'a Timing> for HideFlash {
+    fn from(timing: &'a Timing) -> Self {
+        Self {
+            duration: timing.flash_duration,
+        }
+    }
+}
+
+impl<'a> From<&'a mut Timing> for HideFlash {
+    fn from(timing: &'a mut Timing) -> Self {
+        (&*timing).into()
+    }
+}
+
+impl From<Timing> for HideFlash {
+    fn from(timing: Timing) -> Self {
+        (&timing).into()
+    }
 }
 
 #[derive(Debug)]
@@ -185,6 +240,14 @@ where
 }
 
 impl FlashMap<ColorFlash> {
+    fn new(timings: &[Timing], condition: Condition, scope: Scope) -> Self {
+        timings
+            .iter()
+            .filter(|timing| timing.flash_scope == scope && filter_timing(timing, condition))
+            .map(|timing| (timing.frame, timing.into()))
+            .collect()
+    }
+
     /// Determines what color the flash should be for a given frame number.
     pub fn compute(&self, frame: usize) -> luminol_data::Color {
         let Some((&start_frame, deque)) = self.map.range(..=frame).next_back() else {
@@ -216,6 +279,14 @@ impl FlashMap<ColorFlash> {
 }
 
 impl FlashMap<HideFlash> {
+    fn new(timings: &[Timing], condition: Condition, scope: Scope) -> Self {
+        timings
+            .iter()
+            .filter(|timing| timing.flash_scope == scope && filter_timing(timing, condition))
+            .map(|timing| (timing.frame, timing.into()))
+            .collect()
+    }
+
     /// Determines if the hide flash is active for a given frame number.
     pub fn compute(&self, frame: usize) -> bool {
         let Some((&start_frame, deque)) = self.map.range(..=frame).next_back() else {
@@ -261,22 +332,27 @@ pub fn log_atlas_error(
     );
 }
 
+/// If the given timing has a sound effect and the given timing should be shown based on the given
+/// condition, caches the audio data for that sound effect into `animation_state.audio_data`.
 pub fn load_se(
     update_state: &mut luminol_core::UpdateState<'_>,
     animation_state: &mut super::AnimationState,
     condition: Condition,
     timing: &luminol_data::rpg::animation::Timing,
 ) {
+    // Do nothing if this timing has no sound effect
     let Some(se_name) = &timing.se.name else {
         return;
     };
-    if (condition != timing.condition
-        && condition != Condition::None
-        && timing.condition != Condition::None)
+
+    // Do nothing if the timing shouldn't be shown based on the condition currently selected in the
+    // UI or if the timing's sound effect has already been loaded
+    if !filter_timing(timing, condition)
         || animation_state.audio_data.contains_key(se_name.as_str())
     {
         return;
     }
+
     match update_state.filesystem.read(format!("Audio/SE/{se_name}")) {
         Ok(data) => {
             animation_state
@@ -324,4 +400,26 @@ pub fn resize_frame(frame: &mut luminol_data::rpg::animation::Frame, new_cell_ma
     }
 
     frame.cell_max = new_cell_max;
+}
+
+/// Determines whether or not a timing should be used based on the given condition.
+pub fn filter_timing(timing: &Timing, condition: Condition) -> bool {
+    match condition {
+        Condition::None => true,
+        Condition::Hit => timing.condition != Condition::Miss,
+        Condition::Miss => timing.condition != Condition::Hit,
+    }
+}
+
+/// Helper function for updating `FlashMaps` when a flash is updated. Given the condition of a
+/// flash, this calls the given closure once for the condition of each flash map that must be
+/// updated.
+pub fn update_flash_maps(condition: Condition, mut closure: impl FnMut(Condition)) {
+    closure(Condition::None);
+    if condition != Condition::Miss {
+        closure(Condition::Hit);
+    }
+    if condition != Condition::Hit {
+        closure(Condition::Miss);
+    }
 }

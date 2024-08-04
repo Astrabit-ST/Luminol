@@ -36,7 +36,7 @@ pub struct Animation {
     pub timings: Vec<Timing>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Animation::Timing")]
 pub struct Timing {

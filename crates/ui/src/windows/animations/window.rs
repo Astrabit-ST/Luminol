@@ -24,8 +24,8 @@
 
 use luminol_components::UiExt;
 
-use super::util::{ColorFlash, HideFlash};
-use luminol_data::rpg::animation::{Condition, Scope};
+use super::util::update_flash_maps;
+use luminol_data::rpg::animation::Scope;
 
 impl luminol_core::Window for super::Window {
     fn id(&self) -> egui::Id {
@@ -83,152 +83,9 @@ impl luminol_core::Window for super::Window {
                             }) {
                                 animation.timings.sort_by_key(|timing| timing.frame);
                             }
-                            self.frame_edit_state.flash_maps.insert(
-                                id,
-                                super::util::FlashMaps {
-                                    none_hide: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| timing.flash_scope == Scope::HideTarget)
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                HideFlash {
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    hit_hide: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| {
-                                            timing.condition != Condition::Miss
-                                                && timing.flash_scope == Scope::HideTarget
-                                        })
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                HideFlash {
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    miss_hide: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| {
-                                            timing.condition != Condition::Hit
-                                                && timing.flash_scope == Scope::HideTarget
-                                        })
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                HideFlash {
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    none_target: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| timing.flash_scope == Scope::Target)
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                ColorFlash {
-                                                    color: timing.flash_color,
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    hit_target: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| {
-                                            timing.condition != Condition::Miss
-                                                && timing.flash_scope == Scope::Target
-                                        })
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                ColorFlash {
-                                                    color: timing.flash_color,
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    miss_target: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| {
-                                            timing.condition != Condition::Hit
-                                                && timing.flash_scope == Scope::Target
-                                        })
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                ColorFlash {
-                                                    color: timing.flash_color,
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    none_screen: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| timing.flash_scope == Scope::Screen)
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                ColorFlash {
-                                                    color: timing.flash_color,
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    hit_screen: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| {
-                                            timing.condition != Condition::Miss
-                                                && timing.flash_scope == Scope::Screen
-                                        })
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                ColorFlash {
-                                                    color: timing.flash_color,
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                    miss_screen: animation
-                                        .timings
-                                        .iter()
-                                        .filter(|timing| {
-                                            timing.condition != Condition::Hit
-                                                && timing.flash_scope == Scope::Screen
-                                        })
-                                        .map(|timing| {
-                                            (
-                                                timing.frame,
-                                                ColorFlash {
-                                                    color: timing.flash_color,
-                                                    duration: timing.flash_duration,
-                                                },
-                                            )
-                                        })
-                                        .collect(),
-                                },
-                            );
+                            self.frame_edit_state
+                                .flash_maps
+                                .insert(id, super::util::FlashMaps::new(&animation.timings));
                         }
 
                         ui.with_padded_stripe(false, |ui| {
@@ -466,97 +323,26 @@ impl luminol_core::Window for super::Window {
 
                         if let Some(i) = collapsing_view_inner.created_entry {
                             let timing = &animation.timings[i];
-                            match timing.flash_scope {
-                                Scope::Target => {
-                                    flash_maps.none_target.append(
-                                        timing.frame,
-                                        ColorFlash {
-                                            color: timing.flash_color,
-                                            duration: timing.flash_duration,
-                                        },
-                                    );
-                                }
-                                Scope::Screen => {
-                                    flash_maps.none_screen.append(
-                                        timing.frame,
-                                        ColorFlash {
-                                            color: timing.flash_color,
-                                            duration: timing.flash_duration,
-                                        },
-                                    );
-                                }
-                                Scope::HideTarget => {
-                                    flash_maps.none_hide.append(
-                                        timing.frame,
-                                        HideFlash {
-                                            duration: timing.flash_duration,
-                                        },
-                                    );
-                                }
-                                Scope::None => {}
-                            }
-                            if timing.condition != Condition::Miss {
+                            update_flash_maps(timing.condition, |condition| {
                                 match timing.flash_scope {
                                     Scope::Target => {
-                                        flash_maps.hit_target.append(
-                                            timing.frame,
-                                            ColorFlash {
-                                                color: timing.flash_color,
-                                                duration: timing.flash_duration,
-                                            },
-                                        );
+                                        flash_maps
+                                            .target_mut(condition)
+                                            .append(timing.frame, timing.into());
                                     }
                                     Scope::Screen => {
-                                        flash_maps.hit_screen.append(
-                                            timing.frame,
-                                            ColorFlash {
-                                                color: timing.flash_color,
-                                                duration: timing.flash_duration,
-                                            },
-                                        );
+                                        flash_maps
+                                            .screen_mut(condition)
+                                            .append(timing.frame, timing.into());
                                     }
                                     Scope::HideTarget => {
-                                        flash_maps.hit_hide.append(
-                                            timing.frame,
-                                            HideFlash {
-                                                duration: timing.flash_duration,
-                                            },
-                                        );
+                                        flash_maps
+                                            .hide_mut(condition)
+                                            .append(timing.frame, timing.into());
                                     }
                                     Scope::None => {}
                                 }
-                            }
-                            if timing.condition != Condition::Hit {
-                                match timing.flash_scope {
-                                    Scope::Target => {
-                                        flash_maps.miss_target.append(
-                                            timing.frame,
-                                            ColorFlash {
-                                                color: timing.flash_color,
-                                                duration: timing.flash_duration,
-                                            },
-                                        );
-                                    }
-                                    Scope::Screen => {
-                                        flash_maps.miss_screen.append(
-                                            timing.frame,
-                                            ColorFlash {
-                                                color: timing.flash_color,
-                                                duration: timing.flash_duration,
-                                            },
-                                        );
-                                    }
-                                    Scope::HideTarget => {
-                                        flash_maps.miss_hide.append(
-                                            timing.frame,
-                                            HideFlash {
-                                                duration: timing.flash_duration,
-                                            },
-                                        );
-                                    }
-                                    Scope::None => {}
-                                }
-                            }
+                            });
                             self.frame_edit_state
                                 .frame_view
                                 .as_mut()
@@ -580,99 +366,40 @@ impl luminol_core::Window for super::Window {
                         }
 
                         if let Some((i, timing)) = collapsing_view_inner.deleted_entry {
-                            let rank = |frame, scope| {
-                                animation.timings[..i]
-                                    .iter()
-                                    .rev()
-                                    .take_while(|t| t.frame == frame)
-                                    .filter(|t| t.flash_scope == scope)
-                                    .count()
-                            };
-                            match timing.flash_scope {
-                                Scope::Target => {
-                                    flash_maps
-                                        .none_target
-                                        .remove(timing.frame, rank(timing.frame, Scope::Target));
-                                }
-                                Scope::Screen => {
-                                    flash_maps
-                                        .none_screen
-                                        .remove(timing.frame, rank(timing.frame, Scope::Screen));
-                                }
-                                Scope::HideTarget => {
-                                    flash_maps.none_hide.remove(
-                                        timing.frame,
-                                        rank(timing.frame, Scope::HideTarget),
-                                    );
-                                }
-                                Scope::None => {}
-                            }
-                            if timing.condition != Condition::Miss {
+                            update_flash_maps(timing.condition, |condition| {
                                 let rank = |frame, scope| {
                                     animation.timings[..i]
                                         .iter()
                                         .rev()
                                         .take_while(|t| t.frame == frame)
                                         .filter(|t| {
-                                            t.condition != Condition::Miss && t.flash_scope == scope
+                                            t.flash_scope == scope
+                                                && super::util::filter_timing(t, condition)
                                         })
                                         .count()
                                 };
                                 match timing.flash_scope {
                                     Scope::Target => {
-                                        flash_maps.hit_target.remove(
+                                        flash_maps.target_mut(condition).remove(
                                             timing.frame,
                                             rank(timing.frame, Scope::Target),
                                         );
                                     }
                                     Scope::Screen => {
-                                        flash_maps.hit_screen.remove(
+                                        flash_maps.screen_mut(condition).remove(
                                             timing.frame,
                                             rank(timing.frame, Scope::Screen),
                                         );
                                     }
                                     Scope::HideTarget => {
-                                        flash_maps.hit_hide.remove(
+                                        flash_maps.hide_mut(condition).remove(
                                             timing.frame,
                                             rank(timing.frame, Scope::HideTarget),
                                         );
                                     }
                                     Scope::None => {}
                                 }
-                            }
-                            if timing.condition != Condition::Hit {
-                                let rank = |frame, scope| {
-                                    animation.timings[..i]
-                                        .iter()
-                                        .rev()
-                                        .take_while(|t| t.frame == frame)
-                                        .filter(|t| {
-                                            t.condition != Condition::Hit && t.flash_scope == scope
-                                        })
-                                        .count()
-                                };
-                                match timing.flash_scope {
-                                    Scope::Target => {
-                                        flash_maps.miss_target.remove(
-                                            timing.frame,
-                                            rank(timing.frame, Scope::Target),
-                                        );
-                                    }
-                                    Scope::Screen => {
-                                        flash_maps.miss_screen.remove(
-                                            timing.frame,
-                                            rank(timing.frame, Scope::Screen),
-                                        );
-                                    }
-                                    Scope::HideTarget => {
-                                        flash_maps.miss_hide.remove(
-                                            timing.frame,
-                                            rank(timing.frame, Scope::HideTarget),
-                                        );
-                                    }
-                                    Scope::None => {}
-                                }
-                            }
+                            });
 
                             self.frame_edit_state
                                 .frame_view
