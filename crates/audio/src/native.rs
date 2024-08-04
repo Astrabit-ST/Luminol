@@ -29,6 +29,7 @@ impl Default for Audio {
 }
 
 impl Audio {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         Default::default()
     }
