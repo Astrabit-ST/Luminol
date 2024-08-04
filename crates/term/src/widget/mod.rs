@@ -270,7 +270,7 @@ where
                         let cursor = std::io::Cursor::new(bell);
                         update_state
                             .audio
-                            .play_from_file(cursor, false, 25, 100, luminol_audio::Source::SE)
+                            .play_from_file(cursor, false, 25, 100, Some(luminol_audio::Source::SE))
                             .unwrap();
                     }
                     _ => {}

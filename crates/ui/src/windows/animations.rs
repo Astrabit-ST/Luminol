@@ -57,6 +57,7 @@ struct FrameEditState {
 struct AnimationState {
     saved_frame_index: usize,
     start_time: f64,
+    timing_index: usize,
 }
 
 struct TimingEditState {
@@ -1157,14 +1158,46 @@ impl Window {
             // framerate
             let previous_frame_index = state.frame_index;
             let time_diff = ui.input(|i| i.time) - animation_state.start_time;
-            state.frame_index = (time_diff * 15.) as usize;
+            state.frame_index = (time_diff * 20.) as usize;
 
             if state.frame_index != previous_frame_index {
                 recompute_flash = true;
             }
 
+            // Play sound effects
+            for (i, timing) in animation.timings[animation_state.timing_index..]
+                .iter()
+                .enumerate()
+            {
+                if timing.frame > state.frame_index {
+                    animation_state.timing_index += i;
+                    break;
+                }
+                if let Some(se_name) = &timing.se.name {
+                    if let Err(e) = update_state.audio.play(
+                        format!("Audio/SE/{se_name}"),
+                        update_state.filesystem,
+                        timing.se.volume,
+                        timing.se.pitch,
+                        None,
+                    ) {
+                        luminol_core::error!(
+                            update_state.toasts,
+                            e.wrap_err(format!("Error playing animation sound effect {se_name}"))
+                        );
+                    }
+                }
+            }
+            if animation
+                .timings
+                .last()
+                .is_some_and(|timing| state.frame_index >= timing.frame)
+            {
+                animation_state.timing_index = animation.timings.len();
+            }
+
             // Request a repaint every few frames
-            let frame_delay = 1. / 15.; // 15 FPS
+            let frame_delay = 1. / 20.; // 20 FPS
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_secs_f64(
                     frame_delay - time_diff.rem_euclid(frame_delay),
@@ -1267,6 +1300,7 @@ impl Window {
                                     state.animation_state = Some(AnimationState {
                                         saved_frame_index: state.frame_index,
                                         start_time: ui.input(|i| i.time),
+                                        timing_index: 0,
                                     });
                                     state.frame_index = 0;
                                 }

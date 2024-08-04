@@ -82,7 +82,7 @@ impl Audio {
         filesystem: &T,
         volume: u8,
         pitch: u8,
-        source: Source,
+        source: Option<Source>,
     ) -> Result<()>
     where
         T: luminol_filesystem::FileSystem,
@@ -104,7 +104,7 @@ impl Audio {
         is_midi: bool,
         volume: u8,
         pitch: u8,
-        source: Source,
+        source: Option<Source>,
     ) -> Result<()> {
         let mut inner = self.inner.lock();
         // Create a sink
@@ -112,7 +112,7 @@ impl Audio {
 
         // Select decoder type based on sound source
         match source {
-            Source::SE | Source::ME => {
+            None | Some(Source::SE | Source::ME) => {
                 // Non looping
                 if is_midi {
                     sink.append(midi::MidiSource::new(file, false)?);
@@ -135,12 +135,17 @@ impl Audio {
         sink.set_volume(f32::from(volume) / 100.);
         // Play sound.
         sink.play();
-        // Add sink to hash, stop the current one if it's there.
-        if let Some(s) = inner.sinks.insert(source, sink) {
-            s.stop();
-            #[cfg(not(target_arch = "wasm32"))]
-            s.sleep_until_end(); // wait for the sink to stop, there is a ~5ms delay where it will not
-        };
+
+        if let Some(source) = source {
+            // Add sink to hash, stop the current one if it's there.
+            if let Some(s) = inner.sinks.insert(source, sink) {
+                s.stop();
+                #[cfg(not(target_arch = "wasm32"))]
+                s.sleep_until_end(); // wait for the sink to stop, there is a ~5ms delay where it will not
+            };
+        } else {
+            sink.detach();
+        }
 
         Ok(())
     }

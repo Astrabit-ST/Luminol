@@ -65,7 +65,7 @@ impl SoundTab {
             if let Err(e) =
                 update_state
                     .audio
-                    .play(path, update_state.filesystem, volume, pitch, source)
+                    .play(path, update_state.filesystem, volume, pitch, Some(source))
             {
                 luminol_core::error!(
                     update_state.toasts,
