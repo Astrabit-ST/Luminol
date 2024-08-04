@@ -29,6 +29,10 @@ impl Default for Audio {
 }
 
 impl Audio {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     /// Play a sound on a source.
     pub fn play<T>(
