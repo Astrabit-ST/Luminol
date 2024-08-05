@@ -159,14 +159,11 @@ pub fn show_frame_edit(
             animation_state.timing_index = animation.timings.len();
         }
 
-        // Request a repaint every few frames (a small fudge factor is added because otherwise,
-        // rounding errors may cause egui to request a repaint after too little time, and that
-        // would lead to the app being unnecessarily repainted multiple times per animation frame)
+        // Request a repaint every few frames
         let frame_delay = state.animation_fps.recip();
-        let fudge_factor = ui.input(|i| i.predicted_dt) as f64;
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_secs_f64(
-                frame_delay - time_diff.rem_euclid(frame_delay) + fudge_factor,
+                frame_delay - time_diff.rem_euclid(frame_delay),
             ));
     }
     if state.frame_index >= animation.frames.len() {
