@@ -104,7 +104,8 @@ impl Audio {
 
         // Set pitch and volume
         sink.set_speed(f32::from(pitch) / 100.);
-        sink.set_volume(f32::from(volume) / 100.);
+        let raw_volume = f32::from(volume) / 100.;
+        sink.set_volume(raw_volume * raw_volume);
         // Play sound.
         sink.play();
 
@@ -134,7 +135,8 @@ impl Audio {
     pub fn set_volume(&self, volume: u8, source: Source) {
         let mut inner = self.inner.lock();
         if let Some(s) = inner.sinks.get_mut(&source) {
-            s.set_volume(f32::from(volume) / 100.);
+            let raw_volume = f32::from(volume) / 100.;
+            s.set_volume(raw_volume * raw_volume);
         }
     }
 
