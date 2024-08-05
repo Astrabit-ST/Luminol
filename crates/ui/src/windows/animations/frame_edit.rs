@@ -110,7 +110,7 @@ pub fn show_frame_edit(
         // framerate
         let previous_frame_index = state.frame_index;
         let time_diff = time - animation_state.start_time;
-        state.frame_index = (time_diff * 20.) as usize;
+        state.frame_index = (time_diff * state.animation_fps) as usize;
 
         if state.frame_index != previous_frame_index {
             recompute_flash = true;
@@ -160,7 +160,7 @@ pub fn show_frame_edit(
         }
 
         // Request a repaint every few frames
-        let frame_delay = 1. / 20.; // 20 FPS
+        let frame_delay = state.animation_fps.recip();
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_secs_f64(
                 frame_delay - time_diff.rem_euclid(frame_delay),
@@ -208,6 +208,25 @@ pub fn show_frame_edit(
             "Onion Skin",
             egui::Checkbox::without_text(&mut state.enable_onion_skin),
         ));
+
+        let old_fps = state.animation_fps;
+        let changed = ui
+            .add(luminol_components::Field::new(
+                "FPS",
+                egui::DragValue::new(&mut state.animation_fps).range(0.1..=f64::MAX),
+            ))
+            .changed();
+        if changed {
+            // If the animation is playing, recalculate the start time so that the
+            // animation playback progress stays the same with the new FPS
+            if let Some(animation_state) = &mut state.animation_state {
+                if animation_state.start_time.is_finite() {
+                    let time = ui.input(|i| i.time);
+                    let diff = animation_state.start_time - time;
+                    animation_state.start_time = time + diff * (old_fps / state.animation_fps);
+                }
+            }
+        }
 
         ui.with_layout(
             egui::Layout {

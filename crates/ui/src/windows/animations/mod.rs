@@ -41,6 +41,7 @@ pub struct Window {
 }
 
 struct FrameEditState {
+    animation_fps: f64,
     frame_index: usize,
     condition: luminol_data::rpg::animation::Condition,
     enable_onion_skin: bool,
@@ -86,6 +87,7 @@ impl Default for Window {
             previous_animation: None,
             previous_battler_name: None,
             frame_edit_state: FrameEditState {
+                animation_fps: 20.,
                 frame_index: 0,
                 condition: luminol_data::rpg::animation::Condition::Hit,
                 enable_onion_skin: false,
