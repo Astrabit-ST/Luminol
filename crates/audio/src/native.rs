@@ -103,9 +103,13 @@ impl Audio {
         }
 
         // Set pitch and volume
-        sink.set_speed(f32::from(pitch) / 100.);
-        let raw_volume = f32::from(volume) / 100.;
-        sink.set_volume(raw_volume * raw_volume);
+        sink.set_speed(pitch as f32 / 100.);
+        sink.set_volume(if volume == 0 {
+            0.
+        } else {
+            // -0.35 dB per percent below 100% volume
+            10f32.powf(-(0.35 / 20.) * (100 - volume.min(100)) as f32)
+        });
         // Play sound.
         sink.play();
 
@@ -135,8 +139,12 @@ impl Audio {
     pub fn set_volume(&self, volume: u8, source: Source) {
         let mut inner = self.inner.lock();
         if let Some(s) = inner.sinks.get_mut(&source) {
-            let raw_volume = f32::from(volume) / 100.;
-            s.set_volume(raw_volume * raw_volume);
+            s.set_volume(if volume == 0 {
+                0.
+            } else {
+                // -0.35 dB per percent below 100% volume
+                10f32.powf(-(0.35 / 20.) * (100 - volume.min(100)) as f32)
+            });
         }
     }
 
