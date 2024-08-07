@@ -524,6 +524,7 @@ pub fn show_frame_edit(
         .resizable([false, true])
         .min_width(ui.available_width())
         .max_width(ui.available_width())
+        .default_height(240.)
         .show(ui, |ui| {
             egui::Frame::dark_canvas(ui.style())
                 .show(ui, |ui| {

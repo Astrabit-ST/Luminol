@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use strum::IntoEnumIterator;
 
 use super::util::update_flash_maps;
 use luminol_data::rpg::animation::Scope;
@@ -58,7 +59,7 @@ impl luminol_core::Window for super::Window {
 
         let response = egui::Window::new(name)
             .id(self.id())
-            .default_width(500.)
+            .default_width(720.)
             .open(open)
             .show(ctx, |ui| {
                 self.view.show(
@@ -102,10 +103,22 @@ impl luminol_core::Window for super::Window {
                             let changed = ui
                                 .add(luminol_components::Field::new(
                                     "Battler Position",
-                                    luminol_components::EnumComboBox::new(
-                                        (animation.id, "position"),
-                                        &mut animation.position,
-                                    ),
+                                    |ui: &mut egui::Ui| {
+                                        let mut modified = false;
+                                        let mut response = egui::Frame::none().show(ui, |ui| {
+                                            ui.columns(luminol_data::rpg::animation::Position::iter().count(), |columns| {
+                                                for (i, position) in luminol_data::rpg::animation::Position::iter().enumerate() {
+                                                    if columns[i].radio_value(&mut animation.position, position, position.to_string()).changed() {
+                                                        modified = true;
+                                                    }
+                                                }
+                                            });
+                                        }).response;
+                                        if modified {
+                                            response.mark_changed();
+                                        }
+                                        response
+                                    }
                                 ))
                                 .changed();
                             if changed {
