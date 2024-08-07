@@ -26,6 +26,8 @@ mod error;
 mod midi;
 pub use error::{Error, Result};
 
+pub use luminol_config::VolumeScale;
+
 mod native;
 #[cfg(target_arch = "wasm32")]
 mod wrapper;

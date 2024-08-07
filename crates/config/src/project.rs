@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 use serde::{Deserialize, Serialize};
 
-use super::{command_db, DataFormat, RGSSVer, RMVer};
+use super::{command_db, DataFormat, RGSSVer, RMVer, VolumeScale};
 
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -43,6 +43,7 @@ pub struct Project {
     pub data_format: DataFormat,
     pub rgss_ver: RGSSVer,
     pub editor_ver: RMVer,
+    pub volume_scale: VolumeScale,
     pub playtest_exe: String,
     pub prefer_rgssad: bool,
     pub persistence_id: u64,
@@ -56,6 +57,7 @@ impl Default for Project {
             data_format: DataFormat::Marshal,
             rgss_ver: RGSSVer::RGSS1,
             editor_ver: RMVer::XP,
+            volume_scale: VolumeScale::Db35,
             playtest_exe: "game".to_string(),
             prefer_rgssad: false,
             persistence_id: 0,

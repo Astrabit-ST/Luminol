@@ -3063,6 +3063,7 @@ dependencies = [
  "color-eyre",
  "flume",
  "fragile",
+ "luminol-config",
  "luminol-filesystem",
  "once_cell",
  "oneshot",

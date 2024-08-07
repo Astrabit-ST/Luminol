@@ -27,6 +27,7 @@ once_cell.workspace = true
 color-eyre.workspace = true
 thiserror.workspace = true
 
+luminol-config.workspace = true
 luminol-filesystem.workspace = true
 fragile.workspace = true
 

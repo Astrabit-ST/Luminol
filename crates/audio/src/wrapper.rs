@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::{native::Audio as NativeAudio, Result, Source};
+use crate::{native::Audio as NativeAudio, Result, Source, VolumeScale};
 
 /// A struct for playing Audio.
 pub struct Audio {
@@ -36,6 +36,7 @@ enum Command {
         volume: u8,
         pitch: u8,
         source: Option<Source>,
+        scale: VolumeScale,
         oneshot_tx: oneshot::Sender<Result<()>>,
     },
     SetPitch {
@@ -46,6 +47,7 @@ enum Command {
     SetVolume {
         volume: u8,
         source: Source,
+        scale: VolumeScale,
         oneshot_tx: oneshot::Sender<()>,
     },
     ClearSinks {
@@ -71,6 +73,7 @@ impl Audio {
         volume: u8,
         pitch: u8,
         source: Option<Source>,
+        scale: VolumeScale,
     ) -> Result<()> {
         // We have to load the file on the current thread,
         // otherwise if we read the file in the main thread of a web browser
@@ -82,7 +85,7 @@ impl Audio {
             .extension()
             .is_some_and(|e| matches!(e, "mid" | "midi"));
 
-        self.play_from_slice(slice, is_midi, volume, pitch, source)
+        self.play_from_slice(slice, is_midi, volume, pitch, source, scale)
     }
 
     /// Play a sound on a source from audio file data.
@@ -93,6 +96,7 @@ impl Audio {
         volume: u8,
         pitch: u8,
         source: Option<Source>,
+        scale: VolumeScale,
     ) -> Result<()> {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
@@ -102,6 +106,7 @@ impl Audio {
                 volume,
                 pitch,
                 source,
+                scale,
                 oneshot_tx,
             })
             .unwrap();
@@ -122,12 +127,13 @@ impl Audio {
     }
 
     /// Set the volume of a source.
-    pub fn set_volume(&self, volume: u8, source: Source) {
+    pub fn set_volume(&self, volume: u8, source: Source, scale: VolumeScale) {
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
         self.tx
             .send(Command::SetVolume {
                 volume,
                 source,
+                scale,
                 oneshot_tx,
             })
             .unwrap();
@@ -178,10 +184,13 @@ impl Default for Audio {
                         volume,
                         pitch,
                         source,
+                        scale,
                         oneshot_tx,
                     } => {
                         oneshot_tx
-                            .send(audio.play_from_slice(slice, is_midi, volume, pitch, source))
+                            .send(
+                                audio.play_from_slice(slice, is_midi, volume, pitch, source, scale),
+                            )
                             .unwrap();
                     }
 
@@ -197,9 +206,10 @@ impl Default for Audio {
                     Command::SetVolume {
                         volume,
                         source,
+                        scale,
                         oneshot_tx,
                     } => {
-                        audio.set_volume(volume, source);
+                        audio.set_volume(volume, source, scale);
                         oneshot_tx.send(()).unwrap();
                     }
 

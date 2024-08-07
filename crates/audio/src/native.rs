@@ -1,4 +1,4 @@
-use crate::{midi, Result, Source};
+use crate::{midi, Result, Source, VolumeScale};
 
 /// A struct for playing Audio.
 pub struct Audio {
@@ -28,6 +28,21 @@ impl Default for Audio {
     }
 }
 
+fn apply_scale(volume: u8, scale: VolumeScale) -> f32 {
+    let volume = volume.min(100);
+    match scale {
+        VolumeScale::Linear => volume as f32 / 100.,
+        VolumeScale::Db35 => {
+            if volume == 0 {
+                0.
+            } else {
+                // -0.35 dB per percent below 100% volume
+                10f32.powf(-(0.35 / 20.) * (100 - volume) as f32)
+            }
+        }
+    }
+}
+
 impl Audio {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
@@ -43,6 +58,7 @@ impl Audio {
         volume: u8,
         pitch: u8,
         source: Option<Source>,
+        scale: VolumeScale,
     ) -> Result<()>
     where
         T: luminol_filesystem::FileSystem,
@@ -55,7 +71,7 @@ impl Audio {
             .extension()
             .is_some_and(|e| matches!(e, "mid" | "midi"));
 
-        self.play_from_file(file, is_midi, volume, pitch, source)
+        self.play_from_file(file, is_midi, volume, pitch, source, scale)
     }
 
     /// Play a sound on a source from audio file data.
@@ -66,8 +82,16 @@ impl Audio {
         volume: u8,
         pitch: u8,
         source: Option<Source>,
+        scale: VolumeScale,
     ) -> Result<()> {
-        self.play_from_file(std::io::Cursor::new(slice), is_midi, volume, pitch, source)
+        self.play_from_file(
+            std::io::Cursor::new(slice),
+            is_midi,
+            volume,
+            pitch,
+            source,
+            scale,
+        )
     }
 
     fn play_from_file(
@@ -77,6 +101,7 @@ impl Audio {
         volume: u8,
         pitch: u8,
         source: Option<Source>,
+        scale: VolumeScale,
     ) -> Result<()> {
         let mut inner = self.inner.lock();
         // Create a sink
@@ -104,12 +129,7 @@ impl Audio {
 
         // Set pitch and volume
         sink.set_speed(pitch as f32 / 100.);
-        sink.set_volume(if volume == 0 {
-            0.
-        } else {
-            // -0.35 dB per percent below 100% volume
-            10f32.powf(-(0.35 / 20.) * (100 - volume.min(100)) as f32)
-        });
+        sink.set_volume(apply_scale(volume, scale));
         // Play sound.
         sink.play();
 
@@ -136,15 +156,10 @@ impl Audio {
     }
 
     /// Set the volume of a source.
-    pub fn set_volume(&self, volume: u8, source: Source) {
+    pub fn set_volume(&self, volume: u8, source: Source, scale: VolumeScale) {
         let mut inner = self.inner.lock();
         if let Some(s) = inner.sinks.get_mut(&source) {
-            s.set_volume(if volume == 0 {
-                0.
-            } else {
-                // -0.35 dB per percent below 100% volume
-                10f32.powf(-(0.35 / 20.) * (100 - volume.min(100)) as f32)
-            });
+            s.set_volume(apply_scale(volume, scale));
         }
     }
 

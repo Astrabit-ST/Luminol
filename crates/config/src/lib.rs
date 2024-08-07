@@ -80,6 +80,18 @@ pub enum RMVer {
     Ace = 3,
 }
 
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(strum::EnumIter, strum::Display)]
+#[allow(missing_docs)]
+pub enum VolumeScale {
+    #[default]
+    #[strum(to_string = "-35 dB")]
+    Db35,
+    #[strum(to_string = "Linear")]
+    Linear,
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct CodeTheme {

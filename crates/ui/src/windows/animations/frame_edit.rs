@@ -143,6 +143,12 @@ pub fn show_frame_edit(
                     timing.se.volume,
                     timing.se.pitch,
                     None,
+                    update_state
+                        .project_config
+                        .as_ref()
+                        .expect("project not loaded")
+                        .project
+                        .volume_scale,
                 ) {
                     luminol_core::error!(
                         update_state.toasts,

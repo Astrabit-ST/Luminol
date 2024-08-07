@@ -62,11 +62,19 @@ impl SoundTab {
             let volume = self.audio_file.volume;
             let source = self.source;
 
-            if let Err(e) =
+            if let Err(e) = update_state.audio.play(
+                path,
+                update_state.filesystem,
+                volume,
+                pitch,
+                Some(source),
                 update_state
-                    .audio
-                    .play(path, update_state.filesystem, volume, pitch, Some(source))
-            {
+                    .project_config
+                    .as_ref()
+                    .expect("project not loaded")
+                    .project
+                    .volume_scale,
+            ) {
                 luminol_core::error!(
                     update_state.toasts,
                     e.wrap_err("Error playing from audio file")
@@ -107,9 +115,16 @@ impl SoundTab {
                         // Add a slider.
                         // If it's changed, update the volume.
                         if ui.add(slider).changed() {
-                            update_state
-                                .audio
-                                .set_volume(self.audio_file.volume, self.source);
+                            update_state.audio.set_volume(
+                                self.audio_file.volume,
+                                self.source,
+                                update_state
+                                    .project_config
+                                    .as_ref()
+                                    .expect("project not loaded")
+                                    .project
+                                    .volume_scale,
+                            );
                         };
 
                         let slider = egui::Slider::new(&mut self.audio_file.pitch, 50..=150)

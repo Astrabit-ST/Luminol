@@ -269,7 +269,14 @@ where
                         let bell = luminol_macros::include_asset!("assets/sounds/bell.wav");
                         update_state
                             .audio
-                            .play_from_slice(bell, false, 25, 100, Some(luminol_audio::Source::SE))
+                            .play_from_slice(
+                                bell,
+                                false,
+                                25,
+                                100,
+                                Some(luminol_audio::Source::SE),
+                                luminol_audio::VolumeScale::Linear,
+                            )
                             .unwrap();
                     }
                     _ => {}
