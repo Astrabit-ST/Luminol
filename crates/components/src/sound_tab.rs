@@ -41,7 +41,9 @@ impl SoundTab {
         source: luminol_audio::Source,
         audio_file: luminol_data::rpg::AudioFile,
     ) -> Self {
-        let mut folder_children = filesystem.read_dir(format!("Audio/{source}")).unwrap();
+        let mut folder_children = filesystem
+            .read_dir(format!("Audio/{source}"))
+            .unwrap_or_default();
         folder_children.sort_unstable_by(|a, b| a.file_name().cmp(b.file_name()));
         Self {
             source,
