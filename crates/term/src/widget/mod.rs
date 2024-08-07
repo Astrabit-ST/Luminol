@@ -274,7 +274,7 @@ where
                                 false,
                                 25,
                                 100,
-                                Some(luminol_audio::Source::SE),
+                                None,
                                 luminol_audio::VolumeScale::Linear,
                             )
                             .unwrap();
