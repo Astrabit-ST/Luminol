@@ -35,7 +35,7 @@ pub fn show_frame_edit(
     system: &luminol_data::rpg::System,
     animation: &mut luminol_data::rpg::Animation,
     state: &mut super::FrameEditState,
-) -> (bool, bool) {
+) -> bool {
     let mut modified = false;
     let mut recompute_flash = false;
 
@@ -44,27 +44,26 @@ pub fn show_frame_edit(
     let frame_view = if let Some(frame_view) = &mut state.frame_view {
         frame_view
     } else {
-        let battler_texture = if let Some(battler_name) = &system.battler_name {
-            match update_state.graphics.texture_loader.load_now(
-                update_state.filesystem,
-                format!("Graphics/Battlers/{battler_name}"),
-            ) {
-                Ok(texture) => Some(texture),
-                Err(e) => {
-                    super::util::log_battler_error(update_state, system, animation, e);
-                    return (modified, true);
-                }
-            }
-        } else {
-            None
-        };
         let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
             &update_state.graphics,
             update_state.filesystem,
             animation,
         );
         let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
-        frame_view.frame.battler_texture = battler_texture;
+        if let Some(battler_name) = &system.battler_name {
+            match update_state.graphics.texture_loader.load_now(
+                update_state.filesystem,
+                format!("Graphics/Battlers/{battler_name}"),
+            ) {
+                Ok(texture) => {
+                    frame_view.frame.battler_texture = Some(texture);
+                }
+                Err(e) => {
+                    frame_view.frame.battler_texture = None;
+                    super::util::log_battler_error(update_state, system, animation, e);
+                }
+            }
+        }
         frame_view.frame.update_battler(
             &update_state.graphics,
             system,
@@ -787,5 +786,5 @@ pub fn show_frame_edit(
         }
     });
 
-    (modified, false)
+    modified
 }

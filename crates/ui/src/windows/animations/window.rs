@@ -146,125 +146,112 @@ impl luminol_core::Window for super::Window {
                             }
                         });
 
-                        let abort = ui
-                            .with_padded_stripe(false, |ui| {
-                                if self.previous_battler_name != system.battler_name {
-                                    let battler_texture =
-                                        if let Some(battler_name) = &system.battler_name {
-                                            match update_state.graphics.texture_loader.load_now(
-                                                update_state.filesystem,
-                                                format!("Graphics/Battlers/{battler_name}"),
-                                            ) {
-                                                Ok(texture) => Some(texture),
-                                                Err(e) => {
-                                                    super::util::log_battler_error(
-                                                        update_state,
-                                                        &system,
-                                                        animation,
-                                                        e,
-                                                    );
-                                                    return true;
-                                                }
-                                            }
-                                        } else {
-                                            None
-                                        };
-
-                                    if let Some(frame_view) = &mut self.frame_edit_state.frame_view
-                                    {
-                                        frame_view.frame.battler_texture = battler_texture;
-                                        frame_view.frame.rebuild_battler(
-                                            &update_state.graphics,
-                                            &system,
-                                            animation,
-                                            luminol_data::Color {
-                                                red: 255.,
-                                                green: 255.,
-                                                blue: 255.,
-                                                alpha: 0.,
-                                            },
-                                            true,
-                                        );
-                                    }
-
-                                    self.previous_battler_name.clone_from(&system.battler_name);
-                                }
-
-                                if self.previous_animation != Some(animation.id) {
-                                    self.modals.close_all();
-                                    self.frame_edit_state.frame_index = self
-                                        .frame_edit_state
-                                        .frame_index
-                                        .min(animation.frames.len().saturating_sub(1));
-
-                                    let atlas =
-                                        update_state.graphics.atlas_loader.load_animation_atlas(
-                                            &update_state.graphics,
+                        ui.with_padded_stripe(false, |ui| {
+                            if self.previous_battler_name != system.battler_name {
+                                if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
+                                    if let Some(battler_name) = &system.battler_name {
+                                        match update_state.graphics.texture_loader.load_now(
                                             update_state.filesystem,
-                                            animation,
-                                        );
-
-                                    if let Some(frame_view) = &mut self.frame_edit_state.frame_view
-                                    {
-                                        let flash_maps =
-                                            self.frame_edit_state.flash_maps.get(id).unwrap();
-                                        frame_view.frame.atlas = atlas.clone();
-                                        frame_view.frame.update_battler(
-                                            &update_state.graphics,
-                                            &system,
-                                            animation,
-                                            Some(
-                                                flash_maps
-                                                    .target(self.frame_edit_state.condition)
-                                                    .compute(self.frame_edit_state.frame_index),
-                                            ),
-                                            Some(
-                                                flash_maps
-                                                    .hide(self.frame_edit_state.condition)
-                                                    .compute(self.frame_edit_state.frame_index),
-                                            ),
-                                        );
-                                        frame_view.frame.rebuild_all_cells(
-                                            &update_state.graphics,
-                                            animation,
-                                            self.frame_edit_state.frame_index,
-                                        );
+                                            format!("Graphics/Battlers/{battler_name}"),
+                                        ) {
+                                            Ok(texture) => {
+                                                frame_view.frame.battler_texture = Some(texture);
+                                            }
+                                            Err(e) => {
+                                                frame_view.frame.battler_texture = None;
+                                                super::util::log_battler_error(
+                                                    update_state,
+                                                    &system,
+                                                    animation,
+                                                    e,
+                                                );
+                                            }
+                                        }
                                     }
-
-                                    let selected_cell = self
-                                        .frame_edit_state
-                                        .cellpicker
-                                        .as_ref()
-                                        .map(|cellpicker| cellpicker.selected_cell)
-                                        .unwrap_or_default()
-                                        .min(atlas.num_patterns().saturating_sub(1));
-                                    let mut cellpicker = luminol_components::Cellpicker::new(
+                                    frame_view.frame.rebuild_battler(
                                         &update_state.graphics,
-                                        atlas,
+                                        &system,
+                                        animation,
+                                        luminol_data::Color {
+                                            red: 255.,
+                                            green: 255.,
+                                            blue: 255.,
+                                            alpha: 0.,
+                                        },
+                                        true,
                                     );
-                                    cellpicker.selected_cell = selected_cell;
-                                    self.frame_edit_state.cellpicker = Some(cellpicker);
                                 }
 
-                                let (inner_modified, abort) = super::frame_edit::show_frame_edit(
-                                    ui,
-                                    update_state,
-                                    clip_rect,
-                                    &mut self.modals,
-                                    &system,
-                                    animation,
-                                    &mut self.frame_edit_state,
+                                self.previous_battler_name.clone_from(&system.battler_name);
+                            }
+
+                            if self.previous_animation != Some(animation.id) {
+                                self.modals.close_all();
+                                self.frame_edit_state.frame_index = self
+                                    .frame_edit_state
+                                    .frame_index
+                                    .min(animation.frames.len().saturating_sub(1));
+
+                                let atlas =
+                                    update_state.graphics.atlas_loader.load_animation_atlas(
+                                        &update_state.graphics,
+                                        update_state.filesystem,
+                                        animation,
+                                    );
+
+                                if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
+                                    let flash_maps =
+                                        self.frame_edit_state.flash_maps.get(id).unwrap();
+                                    frame_view.frame.atlas = atlas.clone();
+                                    frame_view.frame.update_battler(
+                                        &update_state.graphics,
+                                        &system,
+                                        animation,
+                                        Some(
+                                            flash_maps
+                                                .target(self.frame_edit_state.condition)
+                                                .compute(self.frame_edit_state.frame_index),
+                                        ),
+                                        Some(
+                                            flash_maps
+                                                .hide(self.frame_edit_state.condition)
+                                                .compute(self.frame_edit_state.frame_index),
+                                        ),
+                                    );
+                                    frame_view.frame.rebuild_all_cells(
+                                        &update_state.graphics,
+                                        animation,
+                                        self.frame_edit_state.frame_index,
+                                    );
+                                }
+
+                                let selected_cell = self
+                                    .frame_edit_state
+                                    .cellpicker
+                                    .as_ref()
+                                    .map(|cellpicker| cellpicker.selected_cell)
+                                    .unwrap_or_default()
+                                    .min(atlas.num_patterns().saturating_sub(1));
+                                let mut cellpicker = luminol_components::Cellpicker::new(
+                                    &update_state.graphics,
+                                    atlas,
                                 );
+                                cellpicker.selected_cell = selected_cell;
+                                self.frame_edit_state.cellpicker = Some(cellpicker);
+                            }
 
-                                modified |= inner_modified;
+                            let inner_modified = super::frame_edit::show_frame_edit(
+                                ui,
+                                update_state,
+                                clip_rect,
+                                &mut self.modals,
+                                &system,
+                                animation,
+                                &mut self.frame_edit_state,
+                            );
 
-                                abort
-                            })
-                            .inner;
-
-                        if abort {
-                            return true;
-                        }
+                            modified |= inner_modified;
+                        });
 
                         let mut collapsing_view_inner = Default::default();
                         let flash_maps = self.frame_edit_state.flash_maps.get_mut(id).unwrap();
@@ -436,15 +423,11 @@ impl luminol_core::Window for super::Window {
                         }
 
                         self.previous_animation = Some(animation.id);
-                        false
                     },
                 )
             });
 
-        if response
-            .as_ref()
-            .is_some_and(|ir| ir.inner.as_ref().is_some_and(|ir| ir.inner.modified))
-        {
+        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
             modified = true;
         }
 
@@ -457,9 +440,5 @@ impl luminol_core::Window for super::Window {
         drop(system);
 
         *update_state.data = data; // restore data
-
-        if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.inner == Some(true))) {
-            *open = false;
-        }
     }
 }
