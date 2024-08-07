@@ -226,7 +226,7 @@ pub fn show_timing_body(
                                 response.changed = false;
                                 if response.dragged() {
                                     state.previous_frame = Some(frame);
-                                } else {
+                                } else if state.previous_frame.is_some() {
                                     timing.frame = frame - 1;
                                     state.previous_frame = None;
                                     response.changed = true;
