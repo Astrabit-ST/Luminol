@@ -545,9 +545,10 @@ pub fn show_frame_edit(
     }
 
     // Handle dragging of cells to move them
-    if let (Some(i), Some(drag_pos)) = (
+    if let (Some(i), Some(drag_pos), true) = (
         frame_view.hovered_cell_index,
         frame_view.hovered_cell_drag_pos,
+        state.animation_state.is_none(),
     ) {
         if (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) != drag_pos {
             (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) = drag_pos;
@@ -560,7 +561,10 @@ pub fn show_frame_edit(
 
     egui::Frame::none().show(ui, |ui| {
         let frame = &mut animation.frames[state.frame_index];
-        if let Some(i) = frame_view.selected_cell_index {
+        if let (Some(i), true) = (
+            frame_view.selected_cell_index,
+            state.animation_state.is_none(),
+        ) {
             let mut properties_modified = false;
 
             ui.label(format!("Cell {}", i + 1));
@@ -751,7 +755,10 @@ pub fn show_frame_edit(
         let frame = &mut animation.frames[state.frame_index];
 
         // Handle pressing delete or backspace to delete cells
-        if let Some(i) = frame_view.selected_cell_index {
+        if let (Some(i), true) = (
+            frame_view.selected_cell_index,
+            state.animation_state.is_none(),
+        ) {
             if i < frame.cell_data.xsize()
                 && frame.cell_data[(i, 0)] >= 0
                 && response.has_focus()

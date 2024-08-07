@@ -192,6 +192,14 @@ impl luminol_core::Window for super::Window {
                                     .frame_index
                                     .min(animation.frames.len().saturating_sub(1));
 
+                                // Stop the currently playing animation
+                                if self.frame_edit_state.animation_state.is_some() {
+                                    let animation_state =
+                                        self.frame_edit_state.animation_state.take().unwrap();
+                                    self.frame_edit_state.frame_index =
+                                        animation_state.saved_frame_index;
+                                }
+
                                 let atlas =
                                     update_state.graphics.atlas_loader.load_animation_atlas(
                                         &update_state.graphics,
