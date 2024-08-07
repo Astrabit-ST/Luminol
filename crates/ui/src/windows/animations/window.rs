@@ -26,7 +26,7 @@ use luminol_components::UiExt;
 use strum::IntoEnumIterator;
 
 use super::util::update_flash_maps;
-use luminol_data::rpg::animation::Scope;
+use luminol_data::rpg::animation::{Position, Scope};
 
 impl luminol_core::Window for super::Window {
     fn id(&self) -> egui::Id {
@@ -105,20 +105,31 @@ impl luminol_core::Window for super::Window {
                                     "Battler Position",
                                     |ui: &mut egui::Ui| {
                                         let mut modified = false;
-                                        let mut response = egui::Frame::none().show(ui, |ui| {
-                                            ui.columns(luminol_data::rpg::animation::Position::iter().count(), |columns| {
-                                                for (i, position) in luminol_data::rpg::animation::Position::iter().enumerate() {
-                                                    if columns[i].radio_value(&mut animation.position, position, position.to_string()).changed() {
-                                                        modified = true;
+                                        let mut response = egui::Frame::none()
+                                            .show(ui, |ui| {
+                                                ui.columns(Position::iter().count(), |columns| {
+                                                    for (i, position) in
+                                                        Position::iter().enumerate()
+                                                    {
+                                                        if columns[i]
+                                                            .radio_value(
+                                                                &mut animation.position,
+                                                                position,
+                                                                position.to_string(),
+                                                            )
+                                                            .changed()
+                                                        {
+                                                            modified = true;
+                                                        }
                                                     }
-                                                }
-                                            });
-                                        }).response;
+                                                });
+                                            })
+                                            .response;
                                         if modified {
                                             response.mark_changed();
                                         }
                                         response
-                                    }
+                                    },
                                 ))
                                 .changed();
                             if changed {
