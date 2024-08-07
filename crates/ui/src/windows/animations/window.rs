@@ -197,24 +197,12 @@ impl luminol_core::Window for super::Window {
                                         .frame_index
                                         .min(animation.frames.len().saturating_sub(1));
 
-                                    let atlas = match update_state
-                                        .graphics
-                                        .atlas_loader
-                                        .load_animation_atlas(
+                                    let atlas =
+                                        update_state.graphics.atlas_loader.load_animation_atlas(
                                             &update_state.graphics,
                                             update_state.filesystem,
                                             animation,
-                                        ) {
-                                        Ok(atlas) => atlas,
-                                        Err(e) => {
-                                            super::util::log_atlas_error(
-                                                update_state,
-                                                animation,
-                                                e,
-                                            );
-                                            return true;
-                                        }
-                                    };
+                                        );
 
                                     if let Some(frame_view) = &mut self.frame_edit_state.frame_view
                                     {

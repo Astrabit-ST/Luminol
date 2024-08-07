@@ -58,17 +58,11 @@ pub fn show_frame_edit(
         } else {
             None
         };
-        let atlas = match update_state.graphics.atlas_loader.load_animation_atlas(
+        let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
             &update_state.graphics,
             update_state.filesystem,
             animation,
-        ) {
-            Ok(atlas) => atlas,
-            Err(e) => {
-                super::util::log_atlas_error(update_state, animation, e);
-                return (modified, true);
-            }
-        };
+        );
         let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
         frame_view.frame.battler_texture = battler_texture;
         frame_view.frame.update_battler(

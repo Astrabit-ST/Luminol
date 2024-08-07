@@ -29,12 +29,11 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> color_eyre::Result<Atlas> {
-        Ok(self
-            .atlases
+    ) -> Atlas {
+        self.atlases
             .entry(tileset.id)
             .or_insert_with(|| Atlas::new(graphics_state, filesystem, tileset))
-            .clone())
+            .clone()
     }
 
     pub fn load_animation_atlas(
@@ -42,12 +41,11 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         animation: &luminol_data::rpg::Animation,
-    ) -> color_eyre::Result<AnimationAtlas> {
-        Ok(self
-            .animation_atlases
+    ) -> AnimationAtlas {
+        self.animation_atlases
             .entry(animation.id)
             .or_insert_with(|| AnimationAtlas::new(graphics_state, filesystem, animation))
-            .clone())
+            .clone()
     }
 
     pub fn reload_atlas(
@@ -55,12 +53,11 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset: &luminol_data::rpg::Tileset,
-    ) -> color_eyre::Result<Atlas> {
-        Ok(self
-            .atlases
+    ) -> Atlas {
+        self.atlases
             .entry(tileset.id)
             .insert(Atlas::new(graphics_state, filesystem, tileset))
-            .clone())
+            .clone()
     }
 
     pub fn reload_animation_atlas(
@@ -68,12 +65,11 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         animation: &luminol_data::rpg::Animation,
-    ) -> color_eyre::Result<AnimationAtlas> {
-        Ok(self
-            .animation_atlases
+    ) -> AnimationAtlas {
+        self.animation_atlases
             .entry(animation.id)
             .insert(AnimationAtlas::new(graphics_state, filesystem, animation))
-            .clone())
+            .clone()
     }
 
     pub fn get_atlas(&self, id: usize) -> Option<Atlas> {

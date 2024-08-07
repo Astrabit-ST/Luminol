@@ -52,7 +52,7 @@ impl Map {
     ) -> color_eyre::Result<Self> {
         let atlas = graphics_state
             .atlas_loader
-            .load_atlas(graphics_state, filesystem, tileset)?;
+            .load_atlas(graphics_state, filesystem, tileset);
 
         let viewport = Viewport::new(
             graphics_state,

@@ -126,7 +126,7 @@ impl luminol_core::Modal for Modal {
 
             if response.clicked() && !is_open {
                 let selected = if let Some(tile_id) = data.tile_id {
-                    let tilepicker = Self::load_tilepicker(update_state, self.tileset_id).unwrap(); // TODO handle
+                    let tilepicker = Self::load_tilepicker(update_state, self.tileset_id);
 
                     Selected::Tile {
                         tile_id,
@@ -211,10 +211,7 @@ impl Modal {
         });
     }
 
-    fn load_tilepicker(
-        update_state: &UpdateState<'_>,
-        tileset_id: usize,
-    ) -> color_eyre::Result<Tilepicker> {
+    fn load_tilepicker(update_state: &UpdateState<'_>, tileset_id: usize) -> Tilepicker {
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets.data[tileset_id];
 
@@ -223,10 +220,10 @@ impl Modal {
             tileset,
             update_state.filesystem,
             true,
-        )?;
+        );
         tilepicker.tiles.auto_opacity = false;
 
-        Ok(tilepicker)
+        tilepicker
     }
 
     fn load_preview_sprite(
@@ -340,7 +337,7 @@ impl Modal {
                                         ui.with_stripe(true, |ui| {
                                             let res =  ui.selectable_label(checked, "(Tileset)");
                                             if res.clicked() && !checked {
-                                                let tilepicker = Self::load_tilepicker(update_state, self.tileset_id).unwrap(); // TODO handle
+                                                let tilepicker = Self::load_tilepicker(update_state, self.tileset_id);
                                                 *selected = Selected::Tile { tile_id: 384, tilepicker };
                                             }
                                         });

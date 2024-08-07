@@ -66,7 +66,7 @@ impl Tilepicker {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
         map_id: usize, // FIXME
-    ) -> color_eyre::Result<Tilepicker> {
+    ) -> Tilepicker {
         let map = update_state.data.get_or_load_map(
             map_id,
             update_state.filesystem,
@@ -80,7 +80,7 @@ impl Tilepicker {
             tileset,
             update_state.filesystem,
             false,
-        )?;
+        );
 
         let mut brush_seed = [0u8; 16];
         brush_seed[0..8].copy_from_slice(
@@ -94,7 +94,7 @@ impl Tilepicker {
         );
         brush_seed[8..16].copy_from_slice(&(map_id as u64).to_le_bytes());
 
-        Ok(Self {
+        Self {
             view,
 
             selected_tiles_left: 0,
@@ -105,7 +105,7 @@ impl Tilepicker {
             drag_origin: None,
             brush_seed,
             brush_random: false,
-        })
+        }
     }
 
     pub fn get_tile_from_offset(

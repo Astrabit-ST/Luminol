@@ -316,22 +316,6 @@ pub fn log_battler_error(
     );
 }
 
-pub fn log_atlas_error(
-    update_state: &mut luminol_core::UpdateState<'_>,
-    animation: &luminol_data::rpg::Animation,
-    e: color_eyre::Report,
-) {
-    luminol_core::error!(
-        update_state.toasts,
-        e.wrap_err(format!(
-            "While loading texture {:?} for animation {:0>4} {:?}",
-            animation.animation_name,
-            animation.id + 1,
-            animation.name,
-        )),
-    );
-}
-
 /// If the given timing has a sound effect and the given timing should be shown based on the given
 /// condition, caches the audio data for that sound effect into `animation_state.audio_data`.
 pub fn load_se(
