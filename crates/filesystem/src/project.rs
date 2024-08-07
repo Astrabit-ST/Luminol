@@ -263,6 +263,13 @@ impl FileSystem {
             } => Some(host_filesystem.clone()),
         }
     }
+
+    pub fn desensitize(&self, path: impl AsRef<camino::Utf8Path>) -> Result<camino::Utf8PathBuf> {
+        match self {
+            FileSystem::Unloaded | FileSystem::HostLoaded(_) => Err(Error::NotExist.into()),
+            FileSystem::Loaded { filesystem, .. } => filesystem.desensitize(path),
+        }
+    }
 }
 
 // Specific to windows

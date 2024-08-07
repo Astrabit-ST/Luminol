@@ -44,7 +44,9 @@ impl SoundTab {
         let mut folder_children = filesystem
             .read_dir(format!("Audio/{source}"))
             .unwrap_or_default();
-        folder_children.sort_unstable_by(|a, b| a.file_name().cmp(b.file_name()));
+        folder_children.sort_unstable_by(|a, b| {
+            lexical_sort::natural_lexical_cmp(a.file_name(), b.file_name())
+        });
         Self {
             source,
             audio_file,
@@ -175,6 +177,18 @@ impl SoundTab {
                 }
                 ui.separator();
 
+                let audio_file_name = self.audio_file.name.as_ref().and_then(|name| {
+                    update_state
+                        .filesystem
+                        .desensitize(
+                            camino::Utf8Path::new("Audio")
+                                .join(self.source.as_path())
+                                .join(name),
+                        )
+                        .ok()
+                        .map(|path| path.file_name().unwrap().to_string())
+                });
+
                 egui::ScrollArea::both()
                     .id_source((persistence_id, self.source))
                     .auto_shrink([false, false])
@@ -203,11 +217,23 @@ impl SoundTab {
                                 {
                                     let faint = (i + row_range.start) % 2 == 0;
                                     let res = ui.with_stripe(faint, |ui| {
-                                        ui.selectable_value(
-                                            &mut self.audio_file.name,
-                                            Some(entry.file_name().into()),
-                                            entry.file_name(),
-                                        )
+                                        let entry_name = entry.file_name();
+                                        let res = ui.add(egui::SelectableLabel::new(
+                                            audio_file_name.as_deref() == Some(entry_name),
+                                            entry_name,
+                                        ));
+                                        if res.clicked() {
+                                            self.audio_file.name = if let Some((file_stem, _)) =
+                                                entry_name.rsplit_once('.')
+                                            {
+                                                Some(file_stem.into())
+                                            } else {
+                                                audio_file_name
+                                                    .as_ref()
+                                                    .map(|name| name.clone().into())
+                                            };
+                                        }
+                                        res
                                     });
                                     // need to move this out because the borrow checker isn't smart enough
                                     // Did the user double click a sound?

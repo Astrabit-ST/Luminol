@@ -260,14 +260,22 @@ impl Modal {
                                     rows.start = rows.start.saturating_sub(1);
                                     rows.end = rows.end.saturating_sub(1);
 
-                                    Entry::ui(filtered_entries, ui, rows, selected, |path| {
-                                        Self::load_preview_sprite(
-                                            update_state,
-                                            &self.directory,
-                                            path,
-                                        )
-                                        .unwrap()
-                                    })
+                                    Entry::ui(
+                                        filtered_entries,
+                                        &self.directory,
+                                        update_state,
+                                        ui,
+                                        rows,
+                                        selected,
+                                        |path| {
+                                            Self::load_preview_sprite(
+                                                update_state,
+                                                &self.directory,
+                                                path,
+                                            )
+                                            .unwrap()
+                                        },
+                                    )
                                 },
                             );
                     });

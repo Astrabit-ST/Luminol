@@ -104,19 +104,14 @@ impl Entry {
             .read_dir(directory)
             .unwrap()
             .into_iter()
-            .map(|m| {
-                let path = m
-                    .path
-                    .strip_prefix(directory)
-                    .unwrap_or(&m.path)
-                    .with_extension("");
-                Entry {
-                    path,
-                    invalid: false,
-                }
+            .map(|m| Entry {
+                path: m.path.file_name().unwrap_or_default().into(),
+                invalid: false,
             })
             .collect();
-        entries.sort_unstable();
+        entries.sort_unstable_by(|a, b| {
+            lexical_sort::natural_lexical_cmp(a.path.as_str(), b.path.as_str())
+        });
         entries
     }
 
@@ -131,15 +126,25 @@ impl Entry {
 
     fn ui(
         entries: &mut [Self],
+        directory: &camino::Utf8Path,
+        update_state: &UpdateState<'_>,
         ui: &mut egui::Ui,
         rows: std::ops::Range<usize>,
         selected: &mut Selected,
         load_preview_sprite: impl Fn(&camino::Utf8Path) -> PreviewSprite,
     ) {
+        let selected_name = match &selected {
+            Selected::Entry { path, .. } => update_state
+                .filesystem
+                .desensitize(directory.join(path))
+                .ok()
+                .map(|path| path.file_name().unwrap_or_default().to_string()),
+            Selected::None => None,
+        };
         for i in entries[rows.clone()].iter_mut().enumerate() {
             let (i, Self { path, invalid }) = i;
-            let checked = matches!(selected, Selected::Entry { path: p, .. } if p == path);
-            let mut text = egui::RichText::new(path.as_str());
+            let checked = selected_name.as_deref() == Some(path.as_str());
+            let mut text = egui::RichText::new(path.file_name().unwrap_or_default());
             if *invalid {
                 text = text.color(egui::Color32::LIGHT_RED);
             }
@@ -149,8 +154,8 @@ impl Entry {
 
                 if res.clicked() {
                     *selected = Selected::Entry {
-                        path: path.clone(),
-                        sprite: load_preview_sprite(path),
+                        sprite: load_preview_sprite(path.file_name().unwrap_or_default().into()),
+                        path: path.file_stem().unwrap_or_default().into(),
                     };
                 }
             });

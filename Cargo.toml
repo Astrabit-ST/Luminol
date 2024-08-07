@@ -153,6 +153,8 @@ wasm-bindgen-futures = "0.4.42"
 web-sys = "0.3.67"
 js-sys = "0.3"
 
+lexical-sort = "0.3.1"
+
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
 luminol-components = { version = "0.4.0", path = "crates/components/" }
 luminol-config = { version = "0.4.0", path = "crates/config/" }

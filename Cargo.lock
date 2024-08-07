@@ -3304,6 +3304,7 @@ dependencies = [
  "egui",
  "fuzzy-matcher",
  "glam",
+ "lexical-sort",
  "luminol-components",
  "luminol-core",
  "luminol-data",
