@@ -77,7 +77,9 @@ impl AnimationFrameView {
     ) -> egui::InnerResponse<Option<(i16, i16)>> {
         let canvas_rect = ui.max_rect();
         let canvas_center = canvas_rect.center();
-        ui.set_clip_rect(canvas_rect.intersect(clip_rect));
+        let egui_painter = ui
+            .painter()
+            .with_clip_rect(canvas_rect.intersect(clip_rect));
 
         let mut response = ui.allocate_rect(canvas_rect, egui::Sense::click_and_drag());
 
@@ -151,17 +153,16 @@ impl AnimationFrameView {
         );
 
         let painter = luminol_graphics::Painter::new(self.frame.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                canvas_rect,
-                painter,
-            ));
+        egui_painter.add(luminol_egui_wgpu::Callback::new_paint_callback(
+            canvas_rect,
+            painter,
+        ));
 
         let screen_alpha = (egui::ecolor::linear_from_gamma(screen_color.alpha as f32 / 255.)
             * 255.)
             .round() as u8;
         if screen_alpha > 0 {
-            ui.painter().rect_filled(
+            egui_painter.rect_filled(
                 egui::Rect::EVERYTHING,
                 egui::Rounding::ZERO,
                 egui::Color32::from_rgba_unmultiplied(
@@ -177,21 +178,21 @@ impl AnimationFrameView {
 
         // Draw the grid lines and the border of the animation frame
         if draw_rects {
-            ui.painter().line_segment(
+            egui_painter.line_segment(
                 [
                     egui::pos2(-(FRAME_WIDTH as f32 / 2.), 0.) * scale + offset,
                     egui::pos2(FRAME_WIDTH as f32 / 2., 0.) * scale + offset,
                 ],
                 egui::Stroke::new(1., egui::Color32::DARK_GRAY),
             );
-            ui.painter().line_segment(
+            egui_painter.line_segment(
                 [
                     egui::pos2(0., -(FRAME_HEIGHT as f32 / 2.)) * scale + offset,
                     egui::pos2(0., FRAME_HEIGHT as f32 / 2.) * scale + offset,
                 ],
                 egui::Stroke::new(1., egui::Color32::DARK_GRAY),
             );
-            ui.painter().rect_stroke(
+            egui_painter.rect_stroke(
                 egui::Rect::from_center_size(
                     offset.to_pos2(),
                     egui::vec2(FRAME_WIDTH as f32, FRAME_HEIGHT as f32) * scale,
@@ -268,7 +269,7 @@ impl AnimationFrameView {
                     .iter()
                     .map(|(_, cell)| (cell.rect * scale).translate(offset))
                 {
-                    ui.painter().rect_stroke(
+                    egui_painter.rect_stroke(
                         cell_rect,
                         5.,
                         egui::Stroke::new(1., egui::Color32::DARK_GRAY),
@@ -283,7 +284,7 @@ impl AnimationFrameView {
                 .iter()
                 .map(|(_, cell)| (cell.rect * scale).translate(offset))
             {
-                ui.painter().rect_stroke(
+                egui_painter.rect_stroke(
                     cell_rect,
                     5.,
                     egui::Stroke::new(
@@ -300,7 +301,7 @@ impl AnimationFrameView {
             // Draw a yellow rectangle on the border of the hovered cell
             if let Some(i) = self.hovered_cell_index {
                 let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
-                ui.painter().rect_stroke(
+                egui_painter.rect_stroke(
                     cell_rect,
                     5.,
                     egui::Stroke::new(3., egui::Color32::YELLOW),
@@ -310,7 +311,7 @@ impl AnimationFrameView {
             // Draw a magenta rectangle on the border of the selected cell
             if let Some(i) = self.selected_cell_index {
                 let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
-                ui.painter().rect_stroke(
+                egui_painter.rect_stroke(
                     cell_rect,
                     5.,
                     egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
