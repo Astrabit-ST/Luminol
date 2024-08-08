@@ -23,13 +23,29 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use luminol_core::Modal;
 
-#[derive(Default)]
+use luminol_modals::sound_picker::Modal as SoundPicker;
+
 pub struct Window {
     selected_skill_name: Option<String>,
+
+    menu_se_picker: SoundPicker,
+
     previous_skill: Option<usize>,
 
     view: luminol_components::DatabaseView,
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        Self {
+            selected_skill_name: None,
+            menu_se_picker: SoundPicker::new(luminol_audio::Source::SE, "skill_menu_se_picker"),
+            previous_skill: None,
+            view: luminol_components::DatabaseView::default(),
+        }
+    }
 }
 
 impl Window {
@@ -172,9 +188,14 @@ impl luminol_core::Window for Window {
                                 modified |= columns[0]
                                     .add(luminol_components::Field::new(
                                         "Menu Use SE",
-                                        egui::Label::new("TODO"),
+                                        self.menu_se_picker
+                                            .button(&mut skill.menu_se, update_state),
                                     ))
                                     .changed();
+                                if self.previous_skill != Some(skill.id) {
+                                    // reset the modal if the skill has changed (this is practically a no-op)
+                                    self.menu_se_picker.reset(update_state, &mut skill.menu_se);
+                                }
 
                                 modified |= columns[1]
                                     .add(luminol_components::Field::new(
