@@ -148,7 +148,9 @@ impl SoundTab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Get row height.
-            let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
+            let row_height = ui.spacing().interact_size.y.max(
+                ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
+            );
 
             let persistence_id = update_state
                 .project_config

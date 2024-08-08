@@ -236,8 +236,11 @@ impl Modal {
                     ui.separator();
 
                     // Get row height.
-                    let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
-                                                                                   // FIXME scroll to selected on first open
+                    let row_height = ui.spacing().interact_size.y.max(
+                        ui.text_style_height(&egui::TextStyle::Button)
+                            + 2. * ui.spacing().button_padding.y,
+                    );
+                    // FIXME scroll to selected on first open
                     ui.with_cross_justify(|ui| {
                         egui::ScrollArea::vertical()
                             .auto_shrink([false, true])
@@ -256,7 +259,7 @@ impl Modal {
                                         }
                                     }
 
-                                    // subtract 2 to account for (None)
+                                    // subtract 1 to account for (None)
                                     rows.start = rows.start.saturating_sub(1);
                                     rows.end = rows.end.saturating_sub(1);
 
