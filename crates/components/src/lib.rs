@@ -79,6 +79,8 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
         egui::ComboBox::from_id_source(self.id)
             .selected_text(self.current_value.to_string())
             .show_ui(ui, |ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                 for variant in T::iter() {
                     let text = variant.to_string();
                     ui.selectable_value(self.current_value, variant, text);
@@ -104,6 +106,8 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
         let mut response = ui
             .vertical(|ui| {
                 ui.with_cross_justify(|ui| {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                     for variant in T::iter() {
                         let text = variant.to_string();
                         if ui.radio_value(self.current_value, variant, text).changed() {
@@ -268,7 +272,7 @@ where
                             .selectable_label(
                                 std::mem::discriminant(self.reference)
                                     == std::mem::discriminant(&variant),
-                                ui.truncate_text(variant.to_string()),
+                                variant.to_string(),
                             )
                             .clicked()
                         {
@@ -472,10 +476,7 @@ where
                 if show_none
                     && ui
                         .with_stripe(false, |ui| {
-                            ui.selectable_label(
-                                this.reference.is_none(),
-                                ui.truncate_text("(None)"),
-                            )
+                            ui.selectable_label(this.reference.is_none(), "(None)")
                         })
                         .inner
                         .clicked()
@@ -488,11 +489,10 @@ where
 
                 for id in ids {
                     ui.with_stripe(is_faint, |ui| {
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                         if ui
-                            .selectable_label(
-                                *this.reference == Some(id),
-                                ui.truncate_text((this.formatter)(id)),
-                            )
+                            .selectable_label(*this.reference == Some(id), (this.formatter)(id))
                             .clicked()
                         {
                             *this.reference = Some(id);
@@ -529,11 +529,10 @@ where
 
                 for id in ids {
                     ui.with_stripe(is_faint, |ui| {
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                         if ui
-                            .selectable_label(
-                                *this.reference == id,
-                                ui.truncate_text((this.formatter)(id)),
-                            )
+                            .selectable_label(*this.reference == id, (this.formatter)(id))
                             .clicked()
                         {
                             *this.reference = id;
