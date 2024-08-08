@@ -32,6 +32,7 @@ pub struct Modal {
     id_source: egui::Id,
     animation_name: Option<camino::Utf8PathBuf>,
     animation_hue: i32,
+    scrolled_on_first_open: bool,
 }
 
 enum State {
@@ -51,6 +52,7 @@ impl Modal {
             id_source,
             animation_name: animation.animation_name.clone(),
             animation_hue: animation.animation_hue,
+            scrolled_on_first_open: false,
         }
     }
 }
@@ -99,6 +101,7 @@ impl luminol_core::Modal for Modal {
         self.animation_name.clone_from(&data.animation_name);
         self.animation_hue = data.animation_hue;
         self.state = State::Closed;
+        self.scrolled_on_first_open = false;
     }
 }
 
@@ -143,6 +146,7 @@ impl Modal {
             cellpicker,
         } = &mut self.state
         else {
+            self.scrolled_on_first_open = false;
             return false;
         };
 
@@ -174,9 +178,8 @@ impl Modal {
                         ui.text_style_height(&egui::TextStyle::Button)
                             + 2. * ui.spacing().button_padding.y,
                     );
-                    // FIXME scroll to selected on first open
                     ui.with_cross_justify(|ui| {
-                        egui::ScrollArea::vertical()
+                        let mut scroll_area_output = egui::ScrollArea::vertical()
                             .auto_shrink([false, true])
                             .show_rows(
                                 ui,
@@ -184,10 +187,8 @@ impl Modal {
                                 filtered_entries.len() + 1,
                                 |ui, mut rows| {
                                     if rows.contains(&0) {
-                                        let res = ui.selectable_label(
-                                            self.animation_name.is_none(),
-                                            "(None)",
-                                        );
+                                        let checked = self.animation_name.is_none();
+                                        let res = ui.selectable_label(checked, "(None)");
                                         if res.clicked() && self.animation_name.is_some() {
                                             self.animation_name = None;
                                             *cellpicker =
@@ -207,7 +208,7 @@ impl Modal {
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
                                         }
-                                        let faint = (i + rows.start) % 2 == 1;
+                                        let faint = (i + rows.start) % 2 == 0;
                                         ui.with_stripe(faint, |ui| {
                                             let res = ui.add_enabled(
                                                 !*invalid,
@@ -230,6 +231,36 @@ impl Modal {
                                     }
                                 },
                             );
+
+                        // Scroll the selected item into view
+                        if !self.scrolled_on_first_open {
+                            let row = if self.animation_name.is_none() {
+                                Some(0)
+                            } else {
+                                filtered_entries.iter().enumerate().find_map(|(i, entry)| {
+                                    (animation_name.as_ref() == Some(&entry.path)).then_some(i + 1)
+                                })
+                            };
+                            if let Some(row) = row {
+                                let spacing = ui.spacing().item_spacing.y;
+                                let max = row as f32 * (row_height + spacing) + spacing;
+                                let min = row as f32 * (row_height + spacing) + row_height
+                                    - spacing
+                                    - scroll_area_output.inner_rect.height();
+                                if scroll_area_output.state.offset.y > max {
+                                    scroll_area_output.state.offset.y = max;
+                                    scroll_area_output
+                                        .state
+                                        .store(ui.ctx(), scroll_area_output.id);
+                                } else if scroll_area_output.state.offset.y < min {
+                                    scroll_area_output.state.offset.y = min;
+                                    scroll_area_output
+                                        .state
+                                        .store(ui.ctx(), scroll_area_output.id);
+                                }
+                            }
+                            self.scrolled_on_first_open = true;
+                        }
                     });
                 });
 
@@ -270,6 +301,7 @@ impl Modal {
 
         if !(win_open && keep_open) {
             self.state = State::Closed;
+            self.scrolled_on_first_open = false;
         }
 
         needs_save

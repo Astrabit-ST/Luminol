@@ -36,6 +36,8 @@ pub struct Modal {
     tileset_id: usize,
 
     button_sprite: Option<ButtonSprite>,
+
+    scrolled_on_first_open: bool,
 }
 
 enum State {
@@ -100,6 +102,8 @@ impl Modal {
             tileset_id,
 
             button_sprite,
+
+            scrolled_on_first_open: false,
         }
     }
 }
@@ -184,6 +188,7 @@ impl luminol_core::Modal for Modal {
     fn reset(&mut self, update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
         self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
+        self.scrolled_on_first_open = false;
     }
 }
 
@@ -295,6 +300,7 @@ impl Modal {
             blend_mode,
         } = &mut self.state
         else {
+            self.scrolled_on_first_open = false;
             return false;
         };
 
@@ -327,9 +333,8 @@ impl Modal {
                         ui.text_style_height(&egui::TextStyle::Button)
                             + 2. * ui.spacing().button_padding.y,
                     );
-                    // FIXME scroll to selected on first open
                     ui.with_cross_justify(|ui| {
-                        egui::ScrollArea::vertical()
+                        let mut scroll_area_output = egui::ScrollArea::vertical()
                             .auto_shrink([false, true])
                             .show_rows(
                                 ui,
@@ -337,18 +342,16 @@ impl Modal {
                                 filtered_entries.len() + 2,
                                 |ui, mut rows| {
                                     if rows.contains(&0) {
-                                        let res = ui.selectable_label(
-                                            matches!(selected, Selected::None),
-                                            "(None)",
-                                        );
+                                        let checked = matches!(selected, Selected::None);
+                                        let res = ui.selectable_label(checked, "(None)");
                                         if res.clicked() && !matches!(selected, Selected::None) {
                                             *selected = Selected::None;
                                         }
                                     }
 
                                     if rows.contains(&1) {
-                                        let checked = matches!(selected, Selected::Tile { .. });
                                         ui.with_stripe(true, |ui| {
+                                            let checked = matches!(selected, Selected::Tile { .. });
                                             let res = ui.selectable_label(checked, "(Tileset)");
                                             if res.clicked() && !checked {
                                                 let tilepicker = Self::load_tilepicker(
@@ -413,6 +416,38 @@ impl Modal {
                                     }
                                 },
                             );
+
+                        // Scroll the selected item into view
+                        if !self.scrolled_on_first_open {
+                            let row = match selected {
+                                Selected::None => Some(0),
+                                Selected::Tile { .. } => Some(1),
+                                Selected::Graphic { .. } => {
+                                    filtered_entries.iter().enumerate().find_map(|(i, entry)| {
+                                        (event_name.as_ref() == Some(&entry.path)).then_some(i + 2)
+                                    })
+                                }
+                            };
+                            if let Some(row) = row {
+                                let spacing = ui.spacing().item_spacing.y;
+                                let max = row as f32 * (row_height + spacing) + spacing;
+                                let min = row as f32 * (row_height + spacing) + row_height
+                                    - spacing
+                                    - scroll_area_output.inner_rect.height();
+                                if scroll_area_output.state.offset.y > max {
+                                    scroll_area_output.state.offset.y = max;
+                                    scroll_area_output
+                                        .state
+                                        .store(ui.ctx(), scroll_area_output.id);
+                                } else if scroll_area_output.state.offset.y < min {
+                                    scroll_area_output.state.offset.y = min;
+                                    scroll_area_output
+                                        .state
+                                        .store(ui.ctx(), scroll_area_output.id);
+                                }
+                            }
+                            self.scrolled_on_first_open = true;
+                        }
                     });
                 });
 
@@ -605,6 +640,7 @@ impl Modal {
 
         if !(win_open && keep_open) {
             self.state = State::Closed;
+            self.scrolled_on_first_open = false;
         }
 
         needs_save

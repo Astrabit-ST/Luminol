@@ -149,7 +149,7 @@ impl Entry {
             if *invalid {
                 text = text.color(egui::Color32::LIGHT_RED);
             }
-            let faint = (i + rows.start) % 2 == 1;
+            let faint = (i + rows.start) % 2 == 0;
             ui.with_stripe(faint, |ui| {
                 let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
 
@@ -161,6 +161,30 @@ impl Entry {
                 }
             });
         }
+    }
+
+    fn find_matching_entry(
+        entries: &[Self],
+        directory: &camino::Utf8Path,
+        update_state: &UpdateState<'_>,
+        selected: &Selected,
+    ) -> Option<usize> {
+        let selected_name = match &selected {
+            Selected::Entry { path, .. } => update_state
+                .filesystem
+                .desensitize(directory.join(path))
+                .ok()
+                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())),
+            Selected::None => None,
+        };
+        for i in entries.iter().enumerate() {
+            let (i, Self { path, .. }) = i;
+            let checked = selected_name.as_deref() == Some(path);
+            if checked {
+                return Some(i);
+            }
+        }
+        None
     }
 }
 
