@@ -49,6 +49,8 @@ struct FrameEditState {
     cellpicker: Option<luminol_components::Cellpicker>,
     flash_maps: luminol_data::OptionVec<util::FlashMaps>,
     animation_state: Option<AnimationState>,
+    saved_frame_index: Option<usize>,
+    saved_selected_cell_index: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -95,6 +97,8 @@ impl Default for Window {
                 cellpicker: None,
                 flash_maps: Default::default(),
                 animation_state: None,
+                saved_frame_index: None,
+                saved_selected_cell_index: None,
             },
             timing_edit_state: TimingEditState {
                 previous_frame: None,

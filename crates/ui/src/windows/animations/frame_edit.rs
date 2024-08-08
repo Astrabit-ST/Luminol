@@ -24,7 +24,7 @@
 
 use luminol_core::Modal;
 
-use luminol_data::{rpg::animation::Condition, BlendMode};
+use luminol_data::BlendMode;
 use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 
 pub fn show_frame_edit(
@@ -118,10 +118,7 @@ pub fn show_frame_edit(
                 animation_state.timing_index += i;
                 break;
             }
-            if state.condition != timing.condition
-                && state.condition != Condition::None
-                && timing.condition != Condition::None
-            {
+            if !super::util::filter_timing(timing, state.condition) {
                 continue;
             }
             if let Some(se_name) = &timing.se.name {
@@ -179,11 +176,14 @@ pub fn show_frame_edit(
                 .fixed_decimals(0),
         ));
 
-        state.frame_index = state
-            .frame_index
-            .min(animation.frames.len().saturating_sub(1));
+        let max_frame_index = animation.frames.len().saturating_sub(1);
+        if let Some(saved_frame_index) = state.saved_frame_index {
+            state.frame_index = saved_frame_index.min(max_frame_index);
+        } else if state.frame_index > max_frame_index {
+            state.frame_index = max_frame_index;
+        }
         state.frame_index += 1;
-        recompute_flash |= ui
+        let changed = ui
             .add_enabled(
                 state.animation_state.is_none(),
                 luminol_components::Field::new(
@@ -193,6 +193,10 @@ pub fn show_frame_edit(
             )
             .changed();
         state.frame_index -= 1;
+        if changed {
+            recompute_flash = true;
+            state.saved_frame_index = Some(state.frame_index);
+        }
 
         recompute_flash |= ui
             .add(luminol_components::Field::new(
@@ -535,6 +539,15 @@ pub fn show_frame_edit(
     {
         frame_view.selected_cell_index = None;
     }
+
+    if frame_view.selected_cell_index.is_none()
+        && state
+            .saved_selected_cell_index
+            .is_some_and(|i| i < frame.cell_data.xsize() && frame.cell_data[(i, 0)] >= 0)
+    {
+        frame_view.selected_cell_index = state.saved_selected_cell_index;
+    }
+
     if frame_view
         .hovered_cell_index
         .is_some_and(|i| i >= frame.cell_data.xsize() || frame.cell_data[(i, 0)] < 0)
@@ -710,6 +723,9 @@ pub fn show_frame_edit(
                 .compute(state.frame_index),
             state.animation_state.is_none(),
         );
+        if response.clicked() {
+            state.saved_selected_cell_index = frame_view.selected_cell_index;
+        }
 
         // If the pointer is hovering over the frame view, prevent parent widgets
         // from receiving scroll events so that scaling the frame view with the
