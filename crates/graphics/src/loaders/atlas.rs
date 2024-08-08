@@ -20,7 +20,7 @@ use crate::{Atlas, GraphicsState};
 #[derive(Default)]
 pub struct Loader {
     atlases: dashmap::DashMap<usize, Atlas>,
-    animation_atlases: dashmap::DashMap<usize, AnimationAtlas>,
+    animation_atlases: dashmap::DashMap<camino::Utf8PathBuf, AnimationAtlas>,
 }
 
 impl Loader {
@@ -40,11 +40,15 @@ impl Loader {
         &self,
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
-        animation: &luminol_data::rpg::Animation,
+        animation_name: Option<&camino::Utf8Path>,
     ) -> AnimationAtlas {
         self.animation_atlases
-            .entry(animation.id)
-            .or_insert_with(|| AnimationAtlas::new(graphics_state, filesystem, animation))
+            .entry(
+                animation_name
+                    .unwrap_or(&camino::Utf8PathBuf::default())
+                    .into(),
+            )
+            .or_insert_with(|| AnimationAtlas::new(graphics_state, filesystem, animation_name))
             .clone()
     }
 
@@ -64,11 +68,19 @@ impl Loader {
         &self,
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
-        animation: &luminol_data::rpg::Animation,
+        animation_name: Option<&camino::Utf8Path>,
     ) -> AnimationAtlas {
         self.animation_atlases
-            .entry(animation.id)
-            .insert(AnimationAtlas::new(graphics_state, filesystem, animation))
+            .entry(
+                animation_name
+                    .unwrap_or(&camino::Utf8PathBuf::default())
+                    .into(),
+            )
+            .insert(AnimationAtlas::new(
+                graphics_state,
+                filesystem,
+                animation_name,
+            ))
             .clone()
     }
 
@@ -76,17 +88,25 @@ impl Loader {
         self.atlases.get(&id).map(|atlas| atlas.clone())
     }
 
-    pub fn get_animation_atlas(&self, id: usize) -> Option<AnimationAtlas> {
-        self.animation_atlases.get(&id).map(|atlas| atlas.clone())
+    pub fn get_animation_atlas(
+        &self,
+        animation_name: Option<&camino::Utf8Path>,
+    ) -> Option<AnimationAtlas> {
+        self.animation_atlases
+            .get(animation_name.unwrap_or(&camino::Utf8PathBuf::default()))
+            .map(|atlas| atlas.clone())
     }
 
     pub fn get_expect(&self, id: usize) -> Atlas {
         self.atlases.get(&id).expect("Atlas not loaded!").clone()
     }
 
-    pub fn get_animation_expect(&self, id: usize) -> AnimationAtlas {
+    pub fn get_animation_expect(
+        &self,
+        animation_name: Option<&camino::Utf8Path>,
+    ) -> AnimationAtlas {
         self.animation_atlases
-            .get(&id)
+            .get(animation_name.unwrap_or(&camino::Utf8PathBuf::default()))
             .expect("Atlas not loaded!")
             .clone()
     }

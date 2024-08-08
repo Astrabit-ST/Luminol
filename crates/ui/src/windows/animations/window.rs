@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 use luminol_components::UiExt;
+use luminol_core::Modal;
 use strum::IntoEnumIterator;
 
 use super::util::update_flash_maps;
@@ -192,8 +193,15 @@ impl luminol_core::Window for super::Window {
                                     .frame_index
                                     .min(animation.frames.len().saturating_sub(1));
 
-                                // Stop the currently playing animation
+                                if let Some(modal) =
+                                    &mut self.frame_edit_state.animation_graphic_picker
+                                {
+                                    // reset the modal if the animation has changed (this is practically a no-op)
+                                    modal.reset(update_state, animation);
+                                }
+
                                 if self.frame_edit_state.animation_state.is_some() {
+                                    // Stop the currently playing animation
                                     let animation_state =
                                         self.frame_edit_state.animation_state.take().unwrap();
                                     self.frame_edit_state.frame_index =
@@ -204,7 +212,7 @@ impl luminol_core::Window for super::Window {
                                     update_state.graphics.atlas_loader.load_animation_atlas(
                                         &update_state.graphics,
                                         update_state.filesystem,
-                                        animation,
+                                        animation.animation_name.as_deref(),
                                     );
 
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
@@ -243,6 +251,12 @@ impl luminol_core::Window for super::Window {
                                 let mut cellpicker = luminol_components::Cellpicker::new(
                                     &update_state.graphics,
                                     atlas,
+                                    None,
+                                    0.5,
+                                );
+                                cellpicker.view.display.set_hue(
+                                    &update_state.graphics.render_state,
+                                    animation.animation_hue as f32 / 360.,
                                 );
                                 cellpicker.selected_cell = selected_cell;
                                 self.frame_edit_state.cellpicker = Some(cellpicker);

@@ -43,25 +43,22 @@ impl Atlas {
     pub fn new(
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
-        animation: &luminol_data::rpg::Animation,
+        animation_name: Option<&camino::Utf8Path>,
     ) -> Atlas {
-        let animation_img = animation
-            .animation_name
-            .as_ref()
-            .and_then(|animation_name| {
-                let result = filesystem
-                    .read(camino::Utf8Path::new("Graphics/Animations").join(animation_name))
-                    .and_then(|file| image::load_from_memory(&file).map_err(|e| e.into()))
-                    .wrap_err_with(|| format!("Error loading atlas animation {animation_name:?}"));
-                // we don't actually need to unwrap this to a placeholder image because we fill in the atlas texture with the placeholder image.
-                match result {
-                    Ok(img) => Some(img.into_rgba8()),
-                    Err(e) => {
-                        graphics_state.send_texture_error(e);
-                        None
-                    }
+        let animation_img = animation_name.as_ref().and_then(|animation_name| {
+            let result = filesystem
+                .read(camino::Utf8Path::new("Graphics/Animations").join(animation_name))
+                .and_then(|file| image::load_from_memory(&file).map_err(|e| e.into()))
+                .wrap_err_with(|| format!("Error loading atlas animation {animation_name:?}"));
+            // we don't actually need to unwrap this to a placeholder image because we fill in the atlas texture with the placeholder image.
+            match result {
+                Ok(img) => Some(img.into_rgba8()),
+                Err(e) => {
+                    graphics_state.send_texture_error(e);
+                    None
                 }
-            });
+            }
+        });
 
         let animation_height = animation_img
             .as_ref()
@@ -121,9 +118,13 @@ impl Atlas {
             }
         }
 
-        let atlas_texture = graphics_state
-            .texture_loader
-            .register_texture(format!("animation_atlases/{}", animation.id), atlas_texture);
+        let atlas_texture = graphics_state.texture_loader.register_texture(
+            format!(
+                "animation_atlases/{}",
+                animation_name.unwrap_or(&camino::Utf8PathBuf::default())
+            ),
+            atlas_texture,
+        );
 
         Atlas {
             atlas_texture,

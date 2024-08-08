@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use color_eyre::eyre::Context;
+use color_eyre::eyre::WrapErr;
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
 

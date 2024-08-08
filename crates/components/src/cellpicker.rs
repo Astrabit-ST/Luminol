@@ -24,14 +24,23 @@ pub struct Cellpicker {
     pub selected_cell: u32,
     pub viewport: Viewport,
     pub view: Cells,
+    pub cols: u32,
+    pub scale: f32,
 }
 
 impl Cellpicker {
-    pub fn new(graphics_state: &luminol_graphics::GraphicsState, atlas: Atlas) -> Self {
+    pub fn new(
+        graphics_state: &luminol_graphics::GraphicsState,
+        atlas: Atlas,
+        cols: Option<u32>,
+        scale: f32,
+    ) -> Self {
+        let cols = cols.unwrap_or(atlas.num_patterns());
+        let rows = (atlas.num_patterns()).div_ceil(cols);
         let cells = luminol_data::Table2::new_data(
-            atlas.num_patterns() as usize,
-            1,
-            (0..atlas.num_patterns() as i16).collect(),
+            cols as usize,
+            rows as usize,
+            (0..(rows * cols) as i16).collect(),
         );
 
         let viewport = Viewport::new(
@@ -51,7 +60,14 @@ impl Cellpicker {
             selected_cell: 0,
             viewport,
             view,
+            cols,
+            scale,
         }
+    }
+
+    #[inline]
+    pub fn rows(&self) -> u32 {
+        self.view.atlas.num_patterns().div_ceil(self.cols)
     }
 
     pub fn ui(
@@ -62,9 +78,9 @@ impl Cellpicker {
     ) -> egui::Response {
         let (canvas_rect, response) = ui.allocate_exact_size(
             egui::vec2(
-                (self.view.atlas.num_patterns() * CELL_SIZE) as f32,
-                CELL_SIZE as f32,
-            ) / 2.,
+                (self.cols * CELL_SIZE) as f32,
+                (self.rows() * CELL_SIZE) as f32,
+            ) * self.scale,
             egui::Sense::click_and_drag(),
         );
 
@@ -76,13 +92,13 @@ impl Cellpicker {
 
         self.view.transform.set_position(
             &update_state.graphics.render_state,
-            glam::vec2(-scroll_rect.left() * 2., 0.),
+            glam::vec2(-scroll_rect.left(), -scroll_rect.top()) / self.scale,
         );
         self.viewport.set(
             &update_state.graphics.render_state,
             glam::vec2(scroll_rect.width(), scroll_rect.height()),
             glam::Vec2::ZERO,
-            glam::Vec2::splat(0.5),
+            glam::Vec2::splat(self.scale),
         );
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
@@ -93,17 +109,20 @@ impl Cellpicker {
             ));
 
         let rect = (egui::Rect::from_min_size(
-            egui::pos2((self.selected_cell * CELL_SIZE) as f32, 0.),
+            egui::pos2(
+                ((self.selected_cell % self.cols) * CELL_SIZE) as f32,
+                ((self.selected_cell / self.cols) * CELL_SIZE) as f32,
+            ),
             egui::Vec2::splat(CELL_SIZE as f32),
-        ) / 2.)
+        ) * self.scale)
             .translate(canvas_rect.min.to_vec2());
         ui.painter()
             .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
 
         if response.clicked() {
             if let Some(pos) = response.interact_pointer_pos() {
-                self.selected_cell =
-                    ((pos - canvas_rect.min) / CELL_SIZE as f32 * 2.).x.floor() as u32;
+                let mapped_pos = (pos - canvas_rect.min) / (CELL_SIZE as f32 * self.scale);
+                self.selected_cell = mapped_pos.x as u32 + mapped_pos.y as u32 * self.cols;
             }
         }
 

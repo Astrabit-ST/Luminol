@@ -78,7 +78,7 @@ pub fn show_frame_edit(
         let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
             &update_state.graphics,
             update_state.filesystem,
-            animation,
+            animation.animation_name.as_deref(),
         );
         let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
         if let Some(battler_name) = &system.battler_name {
@@ -117,9 +117,25 @@ pub fn show_frame_edit(
         cellpicker
     } else {
         let atlas = frame_view.frame.atlas.clone();
-        let cellpicker = luminol_components::Cellpicker::new(&update_state.graphics, atlas);
+        let mut cellpicker =
+            luminol_components::Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
+        cellpicker.view.display.set_hue(
+            &update_state.graphics.render_state,
+            animation.animation_hue as f32 / 360.,
+        );
         state.cellpicker = Some(cellpicker);
         state.cellpicker.as_mut().unwrap()
+    };
+
+    let animation_graphic_picker = if let Some(modal) = &mut state.animation_graphic_picker {
+        modal
+    } else {
+        state.animation_graphic_picker =
+            Some(luminol_modals::graphic_picker::animation::Modal::new(
+                animation,
+                "animation_graphic_picker".into(),
+            ));
+        state.animation_graphic_picker.as_mut().unwrap()
     };
 
     // Handle playing of animations
@@ -723,6 +739,10 @@ pub fn show_frame_edit(
         cellpicker.ui(update_state, ui, scroll_rect);
     });
 
+    let animation_graphic_changed = ui
+        .add(animation_graphic_picker.button(animation, update_state))
+        .changed();
+
     ui.allocate_ui_at_rect(canvas_rect, |ui| {
         frame_view.frame.enable_onion_skin =
             state.enable_onion_skin && state.frame_index != 0 && state.animation_state.is_none();
@@ -861,6 +881,26 @@ pub fn show_frame_edit(
             }
         }
     });
+
+    if animation_graphic_changed {
+        let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
+            &update_state.graphics,
+            update_state.filesystem,
+            animation.animation_name.as_deref(),
+        );
+        frame_view.frame.atlas = atlas.clone();
+        frame_view
+            .frame
+            .rebuild_all_cells(&update_state.graphics, animation, state.frame_index);
+        let mut cellpicker =
+            luminol_components::Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
+        cellpicker.view.display.set_hue(
+            &update_state.graphics.render_state,
+            animation.animation_hue as f32 / 360.,
+        );
+        state.cellpicker = Some(cellpicker);
+        modified = true;
+    }
 
     modified
 }
