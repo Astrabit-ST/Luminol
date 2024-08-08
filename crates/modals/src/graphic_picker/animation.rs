@@ -66,8 +66,8 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(track) = &data.animation_name {
-                format!("Graphics/Animations/{}", track)
+            let button_text = if let Some(name) = &data.animation_name {
+                format!("Graphics/Animations/{name}")
             } else {
                 "(None)".to_string()
             };
@@ -146,6 +146,14 @@ impl Modal {
             return false;
         };
 
+        let animation_name = self.animation_name.as_ref().and_then(|name| {
+            update_state
+                .filesystem
+                .desensitize(format!("Graphics/Animations/{name}"))
+                .ok()
+                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
+        });
+
         egui::Window::new("Animation Graphic Picker")
             .resizable(true)
             .open(&mut win_open)
@@ -191,7 +199,7 @@ impl Modal {
                                     for (i, Entry { path, invalid }) in
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
-                                        let checked = self.animation_name.as_ref() == Some(path);
+                                        let checked = animation_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -204,13 +212,11 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                if let Some(animation_name) =
-                                                    &mut self.animation_name
-                                                {
-                                                    animation_name.clone_from(path);
-                                                } else {
-                                                    self.animation_name = Some(path.clone());
-                                                }
+                                                self.animation_name = Some(
+                                                    path.file_stem()
+                                                        .unwrap_or(path.as_str())
+                                                        .into(),
+                                                );
                                                 *cellpicker = Self::load_cellpicker(
                                                     update_state,
                                                     &self.animation_name,

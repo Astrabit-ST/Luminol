@@ -186,7 +186,7 @@ impl SoundTab {
                                 .join(name),
                         )
                         .ok()
-                        .map(|path| path.file_name().unwrap().to_string())
+                        .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap()))
                 });
 
                 egui::ScrollArea::both()
@@ -217,21 +217,18 @@ impl SoundTab {
                                 {
                                     let faint = (i + row_range.start) % 2 == 0;
                                     let res = ui.with_stripe(faint, |ui| {
-                                        let entry_name = entry.file_name();
+                                        let entry_name = camino::Utf8Path::new(entry.file_name());
                                         let res = ui.add(egui::SelectableLabel::new(
                                             audio_file_name.as_deref() == Some(entry_name),
-                                            entry_name,
+                                            entry_name.as_str(),
                                         ));
                                         if res.clicked() {
-                                            self.audio_file.name = if let Some((file_stem, _)) =
-                                                entry_name.rsplit_once('.')
-                                            {
-                                                Some(file_stem.into())
-                                            } else {
-                                                audio_file_name
-                                                    .as_ref()
-                                                    .map(|name| name.clone().into())
-                                            };
+                                            self.audio_file.name = Some(
+                                                entry_name
+                                                    .file_stem()
+                                                    .unwrap_or(entry_name.as_str())
+                                                    .into(),
+                                            );
                                         }
                                         res
                                     });

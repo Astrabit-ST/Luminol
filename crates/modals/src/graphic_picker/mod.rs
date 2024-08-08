@@ -139,12 +139,12 @@ impl Entry {
                 .filesystem
                 .desensitize(directory.join(path))
                 .ok()
-                .map(|path| path.file_name().unwrap_or_default().to_string()),
+                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())),
             Selected::None => None,
         };
         for i in entries[rows.clone()].iter_mut().enumerate() {
             let (i, Self { path, invalid }) = i;
-            let checked = selected_name.as_deref() == Some(path.as_str());
+            let checked = selected_name.as_deref() == Some(path);
             let mut text = egui::RichText::new(path.file_name().unwrap_or_default());
             if *invalid {
                 text = text.color(egui::Color32::LIGHT_RED);
