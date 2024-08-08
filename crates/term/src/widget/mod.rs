@@ -271,7 +271,6 @@ where
                             .audio
                             .play_from_slice(
                                 bell,
-                                false,
                                 25,
                                 100,
                                 None,

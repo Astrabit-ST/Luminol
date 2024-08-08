@@ -129,7 +129,6 @@ pub fn show_frame_edit(
                 };
                 if let Err(e) = update_state.audio.play_from_slice(
                     audio_data.clone(),
-                    false,
                     timing.se.volume,
                     timing.se.pitch,
                     None,

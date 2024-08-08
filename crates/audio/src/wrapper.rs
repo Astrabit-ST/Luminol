@@ -32,7 +32,6 @@ pub struct Audio {
 enum Command {
     Play {
         slice: std::sync::Arc<[u8]>,
-        is_midi: bool,
         volume: u8,
         pitch: u8,
         source: Option<Source>,
@@ -81,18 +80,13 @@ impl Audio {
         let path = path.as_ref();
         let slice: std::sync::Arc<[u8]> = filesystem.read(path)?.into();
 
-        let is_midi = path
-            .extension()
-            .is_some_and(|e| matches!(e, "mid" | "midi"));
-
-        self.play_from_slice(slice, is_midi, volume, pitch, source, scale)
+        self.play_from_slice(slice, volume, pitch, source, scale)
     }
 
     /// Play a sound on a source from audio file data.
     pub fn play_from_slice(
         &self,
         slice: impl AsRef<[u8]> + Send + Sync + 'static,
-        is_midi: bool,
         volume: u8,
         pitch: u8,
         source: Option<Source>,
@@ -102,7 +96,6 @@ impl Audio {
         self.tx
             .send(Command::Play {
                 slice: slice.as_ref().into(),
-                is_midi,
                 volume,
                 pitch,
                 source,
@@ -180,7 +173,6 @@ impl Default for Audio {
                 match command {
                     Command::Play {
                         slice,
-                        is_midi,
                         volume,
                         pitch,
                         source,
@@ -188,9 +180,7 @@ impl Default for Audio {
                         oneshot_tx,
                     } => {
                         oneshot_tx
-                            .send(
-                                audio.play_from_slice(slice, is_midi, volume, pitch, source, scale),
-                            )
+                            .send(audio.play_from_slice(slice, volume, pitch, source, scale))
                             .unwrap();
                     }
 

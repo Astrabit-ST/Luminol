@@ -1,3 +1,29 @@
+// Copyright (C) 2024 Melody Madeline Lyons
+//
+// This file is part of Luminol.
+//
+// Luminol is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Luminol is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
+//
+//     Additional permission under GNU GPL version 3 section 7
+//
+// If you modify this Program, or any covered work, by linking or combining
+// it with Steamworks API by Valve Corporation, containing parts covered by
+// terms of the Steamworks API by Valve Corporation, the licensors of this
+// Program grant you additional permission to convey the resulting work.
+
+use std::io::{Read, Seek};
+
 use crate::{midi, Result, Source, VolumeScale};
 
 /// A struct for playing Audio.
@@ -67,42 +93,34 @@ impl Audio {
         let path = path.as_ref();
         let file = filesystem.open_file(path, luminol_filesystem::OpenFlags::Read)?;
 
-        let is_midi = path
-            .extension()
-            .is_some_and(|e| matches!(e, "mid" | "midi"));
-
-        self.play_from_file(file, is_midi, volume, pitch, source, scale)
+        self.play_from_file(file, volume, pitch, source, scale)
     }
 
     /// Play a sound on a source from audio file data.
     pub fn play_from_slice(
         &self,
         slice: impl AsRef<[u8]> + Send + Sync + 'static,
-        is_midi: bool,
         volume: u8,
         pitch: u8,
         source: Option<Source>,
         scale: VolumeScale,
     ) -> Result<()> {
-        self.play_from_file(
-            std::io::Cursor::new(slice),
-            is_midi,
-            volume,
-            pitch,
-            source,
-            scale,
-        )
+        self.play_from_file(std::io::Cursor::new(slice), volume, pitch, source, scale)
     }
 
     fn play_from_file(
         &self,
-        file: impl std::io::Read + std::io::Seek + Send + Sync + 'static,
-        is_midi: bool,
+        mut file: impl Read + Seek + Send + Sync + 'static,
         volume: u8,
         pitch: u8,
         source: Option<Source>,
         scale: VolumeScale,
     ) -> Result<()> {
+        let mut magic_header_buf = [0u8; 4];
+        file.read_exact(&mut magic_header_buf)?;
+        file.seek(std::io::SeekFrom::Current(-4))?;
+        let is_midi = &magic_header_buf == b"MThd";
+
         let mut inner = self.inner.lock();
         // Create a sink
         let sink = rodio::Sink::try_new(&inner.output_stream_handle)?;
