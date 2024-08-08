@@ -27,6 +27,37 @@ use luminol_core::Modal;
 use luminol_data::BlendMode;
 use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 
+fn start_animation_playback(
+    update_state: &mut luminol_core::UpdateState<'_>,
+    animation: &luminol_data::rpg::Animation,
+    animation_state: &mut Option<super::AnimationState>,
+    frame_index: &mut usize,
+    condition: luminol_data::rpg::animation::Condition,
+) {
+    if let Some(animation_state) = animation_state.take() {
+        *frame_index = animation_state.saved_frame_index;
+    } else {
+        *animation_state = Some(super::AnimationState {
+            saved_frame_index: *frame_index,
+            start_time: f64::NAN,
+            timing_index: 0,
+            audio_data: Default::default(),
+        });
+        *frame_index = 0;
+
+        // Preload the audio files used by the animation for
+        // performance reasons
+        for timing in &animation.timings {
+            super::util::load_se(
+                update_state,
+                animation_state.as_mut().unwrap(),
+                condition,
+                timing,
+            );
+        }
+    }
+}
+
 pub fn show_frame_edit(
     ui: &mut egui::Ui,
     update_state: &mut luminol_core::UpdateState<'_>,
@@ -277,28 +308,13 @@ pub fn show_frame_edit(
                         });
 
                         if ui.button("Play").clicked() {
-                            if let Some(animation_state) = state.animation_state.take() {
-                                state.frame_index = animation_state.saved_frame_index;
-                            } else {
-                                state.animation_state = Some(super::AnimationState {
-                                    saved_frame_index: state.frame_index,
-                                    start_time: f64::NAN,
-                                    timing_index: 0,
-                                    audio_data: Default::default(),
-                                });
-                                state.frame_index = 0;
-
-                                // Preload the audio files used by the animation for
-                                // performance reasons
-                                for timing in &animation.timings {
-                                    super::util::load_se(
-                                        update_state,
-                                        state.animation_state.as_mut().unwrap(),
-                                        state.condition,
-                                        timing,
-                                    );
-                                }
-                            }
+                            start_animation_playback(
+                                update_state,
+                                animation,
+                                &mut state.animation_state,
+                                &mut state.frame_index,
+                                state.condition,
+                            );
                         }
                     });
             },
@@ -804,6 +820,44 @@ pub fn show_frame_edit(
                 );
                 frame_view.selected_cell_index = None;
                 modified = true;
+            }
+        }
+
+        if response.has_focus() {
+            ui.memory_mut(|m| {
+                m.set_focus_lock_filter(
+                    response.id,
+                    egui::EventFilter {
+                        tab: false,
+                        horizontal_arrows: true,
+                        vertical_arrows: false,
+                        escape: false,
+                    },
+                )
+            });
+
+            // Press left/right arrow keys to change frame
+            if ui.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+                state.frame_index = state.frame_index.saturating_sub(1);
+                state.saved_frame_index = None;
+            }
+            if ui.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+                state.frame_index = state
+                    .frame_index
+                    .saturating_add(1)
+                    .min(animation.frames.len().saturating_sub(1));
+                state.saved_frame_index = None;
+            }
+
+            // Press space or enter to start/stop animation playback
+            if ui.input(|i| i.key_pressed(egui::Key::Space) || i.key_pressed(egui::Key::Enter)) {
+                start_animation_playback(
+                    update_state,
+                    animation,
+                    &mut state.animation_state,
+                    &mut state.frame_index,
+                    state.condition,
+                );
             }
         }
     });
