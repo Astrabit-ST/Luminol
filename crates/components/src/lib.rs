@@ -354,7 +354,7 @@ where
                 let mut search_matched_ids = search_matched_ids_lock.lock();
 
                 let search_box_response =
-                    ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
+                    ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search 🔎"));
 
                 ui.add_space(ui.spacing().item_spacing.y);
 

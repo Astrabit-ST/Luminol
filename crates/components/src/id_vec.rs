@@ -188,7 +188,7 @@ where
                     ui.set_width(ui.available_width());
 
                     let search_box_response = ui.add(
-                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search 🔎"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
@@ -345,7 +345,7 @@ where
                     ui.set_width(ui.available_width());
 
                     let search_box_response = ui.add(
-                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search 🔎"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
@@ -529,7 +529,7 @@ where
                     ui.set_width(ui.available_width());
 
                     let search_box_response = ui.add(
-                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search 🔎"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
