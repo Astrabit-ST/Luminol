@@ -23,6 +23,8 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub mod batch_edit_tool;
+pub mod change_cell_number_tool;
+pub mod change_frame_count_tool;
 pub mod clear_frames_tool;
 pub mod copy_frames_tool;
 pub mod tween_tool;

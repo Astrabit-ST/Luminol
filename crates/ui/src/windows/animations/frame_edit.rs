@@ -321,6 +321,10 @@ pub fn show_frame_edit(
                             });
 
                             ui.add(modals.batch_edit.button((), update_state));
+
+                            ui.add(modals.change_frame_count.button((), update_state));
+
+                            ui.add(modals.change_cell_number.button((), update_state));
                         });
 
                         if ui.button("Play").clicked() {
@@ -542,6 +546,86 @@ pub fn show_frame_edit(
                 }
             }
         }
+        frame_view
+            .frame
+            .update_all_cells(&update_state.graphics, animation, state.frame_index);
+        modified = true;
+    }
+
+    if modals
+        .change_frame_count
+        .show_window(ui.ctx(), animation.frames.len())
+    {
+        modals.close_all_except_frame_count();
+        animation
+            .frames
+            .resize_with(modals.change_frame_count.new_frames_len, Default::default);
+        animation.frame_max = modals.change_frame_count.new_frames_len;
+        state.frame_index = state
+            .frame_index
+            .min(animation.frames.len().saturating_sub(1));
+        frame_view
+            .frame
+            .update_all_cells(&update_state.graphics, animation, state.frame_index);
+        modified = true;
+    }
+
+    if modals
+        .change_cell_number
+        .show_window(ui.ctx(), state.frame_index, animation.frames.len())
+        && modals.change_cell_number.first_cell != modals.change_cell_number.second_cell
+    {
+        let max_cell = modals
+            .change_cell_number
+            .first_cell
+            .max(modals.change_cell_number.second_cell);
+        let min_cell = modals
+            .change_cell_number
+            .first_cell
+            .min(modals.change_cell_number.second_cell);
+
+        for i in modals.change_cell_number.start_frame..=modals.change_cell_number.end_frame {
+            let frame = &mut animation.frames[i];
+
+            if max_cell + 1 >= frame.cell_max
+                && max_cell < frame.cell_data.xsize()
+                && frame.cell_data[(max_cell, 0)] >= 0
+                && frame.cell_data[(min_cell, 0)] < 0
+            {
+                for j in 0..frame.cell_data.ysize() {
+                    frame.cell_data[(min_cell, j)] = frame.cell_data[(max_cell, j)];
+                }
+                super::util::resize_frame(
+                    frame,
+                    (0..frame
+                        .cell_data
+                        .xsize()
+                        .min(frame.cell_max.saturating_sub(1)))
+                        .rev()
+                        .find_map(|j| (frame.cell_data[(j, 0)] >= 0).then_some(j + 1))
+                        .unwrap_or(0)
+                        .max(min_cell + 1),
+                );
+                continue;
+            }
+
+            if max_cell >= frame.cell_data.xsize() {
+                if min_cell >= frame.cell_data.xsize() || frame.cell_data[(min_cell, 0)] < 0 {
+                    continue;
+                }
+                super::util::resize_frame(frame, max_cell + 1);
+            }
+
+            for j in 0..frame.cell_data.ysize() {
+                let xsize = frame.cell_data.xsize();
+                let slice = frame.cell_data.as_mut_slice();
+                slice.swap(
+                    modals.change_cell_number.first_cell + j * xsize,
+                    modals.change_cell_number.second_cell + j * xsize,
+                );
+            }
+        }
+
         frame_view
             .frame
             .update_all_cells(&update_state.graphics, animation, state.frame_index);

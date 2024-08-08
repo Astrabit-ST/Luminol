@@ -368,7 +368,9 @@ pub fn resize_frame(frame: &mut luminol_data::rpg::animation::Frame, new_cell_ma
     let capacity_too_high = old_capacity >= new_capacity * 4;
 
     if capacity_too_low {
-        frame.cell_data.resize(new_capacity, 8);
+        frame
+            .cell_data
+            .resize(new_capacity, frame.cell_data.ysize().max(8));
         for i in old_capacity..new_capacity {
             frame.cell_data[(i, 0)] = -1;
             frame.cell_data[(i, 1)] = 0;
@@ -380,7 +382,9 @@ pub fn resize_frame(frame: &mut luminol_data::rpg::animation::Frame, new_cell_ma
             frame.cell_data[(i, 7)] = 1;
         }
     } else if capacity_too_high {
-        frame.cell_data.resize(new_capacity * 2, 8);
+        frame
+            .cell_data
+            .resize(new_capacity * 2, frame.cell_data.ysize().max(8));
     }
 
     frame.cell_max = new_cell_max;

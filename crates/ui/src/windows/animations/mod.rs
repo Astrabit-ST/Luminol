@@ -72,14 +72,22 @@ struct Modals {
     clear_frames: luminol_modals::animations::clear_frames_tool::Modal,
     tween: luminol_modals::animations::tween_tool::Modal,
     batch_edit: luminol_modals::animations::batch_edit_tool::Modal,
+    change_frame_count: luminol_modals::animations::change_frame_count_tool::Modal,
+    change_cell_number: luminol_modals::animations::change_cell_number_tool::Modal,
 }
 
 impl Modals {
     fn close_all(&mut self) {
+        self.close_all_except_frame_count();
+        self.change_frame_count.close_window();
+    }
+
+    fn close_all_except_frame_count(&mut self) {
         self.copy_frames.close_window();
         self.clear_frames.close_window();
         self.tween.close_window();
         self.batch_edit.close_window();
+        self.change_cell_number.close_window();
     }
 }
 
@@ -120,6 +128,12 @@ impl Default for Window {
                 tween: luminol_modals::animations::tween_tool::Modal::new("animations_tween_tool"),
                 batch_edit: luminol_modals::animations::batch_edit_tool::Modal::new(
                     "animations_batch_edit_tool",
+                ),
+                change_frame_count: luminol_modals::animations::change_frame_count_tool::Modal::new(
+                    "change_frame_count_tool",
+                ),
+                change_cell_number: luminol_modals::animations::change_cell_number_tool::Modal::new(
+                    "change_cell_number_tool",
                 ),
             },
             view: luminol_components::DatabaseView::new(),
