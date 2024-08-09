@@ -201,6 +201,8 @@ impl SoundTab {
                         self.filtered_children.len() + 1, // +1 for (None)
                         |ui, mut row_range| {
                             ui.with_cross_justify(|ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                 // we really want to only show (None) if it's in range, we can collapse this but itd rely on short circuiting
                                 #[allow(clippy::collapsible_if)]
                                 if row_range.contains(&0) {

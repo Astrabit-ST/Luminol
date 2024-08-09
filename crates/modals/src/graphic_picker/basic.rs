@@ -247,6 +247,8 @@ impl Modal {
                                 row_height,
                                 filtered_entries.len() + 1,
                                 |ui, mut rows| {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                     if rows.contains(&0) {
                                         let checked = matches!(selected, Selected::None);
                                         let res = ui.selectable_label(checked, "(None)");
