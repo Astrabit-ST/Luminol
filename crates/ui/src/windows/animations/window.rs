@@ -206,6 +206,8 @@ impl luminol_core::Window for super::Window {
                                         self.frame_edit_state.animation_state.take().unwrap();
                                     self.frame_edit_state.frame_index =
                                         animation_state.saved_frame_index;
+                                    self.frame_edit_state.saved_frame_index =
+                                        Some(animation_state.saved_frame_index);
                                 }
 
                                 let atlas =

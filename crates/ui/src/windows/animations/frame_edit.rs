@@ -32,10 +32,12 @@ fn start_animation_playback(
     animation: &luminol_data::rpg::Animation,
     animation_state: &mut Option<super::AnimationState>,
     frame_index: &mut usize,
+    saved_frame_index: &mut Option<usize>,
     condition: luminol_data::rpg::animation::Condition,
 ) {
     if let Some(animation_state) = animation_state.take() {
         *frame_index = animation_state.saved_frame_index;
+        *saved_frame_index = Some(animation_state.saved_frame_index);
     } else {
         *animation_state = Some(super::AnimationState {
             saved_frame_index: *frame_index,
@@ -44,6 +46,7 @@ fn start_animation_playback(
             audio_data: Default::default(),
         });
         *frame_index = 0;
+        *saved_frame_index = None;
 
         // Preload the audio files used by the animation for
         // performance reasons
@@ -211,6 +214,7 @@ pub fn show_frame_edit(
     if state.frame_index >= animation.frames.len() {
         let animation_state = state.animation_state.take().unwrap();
         state.frame_index = animation_state.saved_frame_index;
+        state.saved_frame_index = Some(animation_state.saved_frame_index);
     }
 
     ui.horizontal(|ui| {
@@ -333,6 +337,7 @@ pub fn show_frame_edit(
                                 animation,
                                 &mut state.animation_state,
                                 &mut state.frame_index,
+                                &mut state.saved_frame_index,
                                 state.condition,
                             );
                         }
@@ -940,17 +945,19 @@ pub fn show_frame_edit(
                 )
             });
 
-            // Press left/right arrow keys to change frame
-            if ui.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
-                state.frame_index = state.frame_index.saturating_sub(1);
-                state.saved_frame_index = None;
-            }
-            if ui.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
-                state.frame_index = state
-                    .frame_index
-                    .saturating_add(1)
-                    .min(animation.frames.len().saturating_sub(1));
-                state.saved_frame_index = None;
+            if state.animation_state.is_none() {
+                // Press left/right arrow keys to change frame
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+                    state.frame_index = state.frame_index.saturating_sub(1);
+                    state.saved_frame_index = Some(state.frame_index);
+                }
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+                    state.frame_index = state
+                        .frame_index
+                        .saturating_add(1)
+                        .min(animation.frames.len().saturating_sub(1));
+                    state.saved_frame_index = Some(state.frame_index);
+                }
             }
 
             // Press space or enter to start/stop animation playback
@@ -960,6 +967,7 @@ pub fn show_frame_edit(
                     animation,
                     &mut state.animation_state,
                     &mut state.frame_index,
+                    &mut state.saved_frame_index,
                     state.condition,
                 );
             }
