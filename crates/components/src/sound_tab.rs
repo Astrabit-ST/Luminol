@@ -32,6 +32,8 @@ pub struct SoundTab {
     search_text: String,
     folder_children: Vec<luminol_filesystem::DirEntry>,
     filtered_children: Vec<luminol_filesystem::DirEntry>,
+
+    scrolled_on_first_open: bool,
 }
 
 impl SoundTab {
@@ -54,6 +56,8 @@ impl SoundTab {
             filtered_children: folder_children.clone(),
             search_text: String::new(),
             folder_children,
+
+            scrolled_on_first_open: false,
         }
     }
 
@@ -191,9 +195,9 @@ impl SoundTab {
                         .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap()))
                 });
 
-                egui::ScrollArea::both()
+                let mut scroll_area_output = egui::ScrollArea::vertical()
                     .id_source((persistence_id, self.source))
-                    .auto_shrink([false, false])
+                    .auto_shrink([false, true])
                     // Show only visible rows.
                     .show_rows(
                         ui,
@@ -246,6 +250,40 @@ impl SoundTab {
                             });
                         },
                     );
+
+                // Scroll the selected item into view
+                if !self.scrolled_on_first_open {
+                    let row = if self.audio_file.name.is_none() {
+                        Some(0)
+                    } else {
+                        self.filtered_children
+                            .iter()
+                            .enumerate()
+                            .find_map(|(i, entry)| {
+                                (audio_file_name.as_deref() == Some(entry.file_name().into()))
+                                    .then_some(i + 1)
+                            })
+                    };
+                    if let Some(row) = row {
+                        let spacing = ui.spacing().item_spacing.y;
+                        let max = row as f32 * (row_height + spacing) + spacing;
+                        let min = row as f32 * (row_height + spacing) + row_height
+                            - spacing
+                            - scroll_area_output.inner_rect.height();
+                        if scroll_area_output.state.offset.y > max {
+                            scroll_area_output.state.offset.y = max;
+                            scroll_area_output
+                                .state
+                                .store(ui.ctx(), scroll_area_output.id);
+                        } else if scroll_area_output.state.offset.y < min {
+                            scroll_area_output.state.offset.y = min;
+                            scroll_area_output
+                                .state
+                                .store(ui.ctx(), scroll_area_output.id);
+                        }
+                    }
+                    self.scrolled_on_first_open = true;
+                }
             });
         });
     }
