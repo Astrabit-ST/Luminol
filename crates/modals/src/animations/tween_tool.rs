@@ -170,7 +170,9 @@ impl Modal {
                 if self.tween_shading {
                     vec.push("opacity, blending");
                 }
-                ui.label(if self.start_cell == self.end_cell {
+                ui.label(if vec.is_empty() {
+                    "Do nothing".to_string()
+                } else if self.start_cell == self.end_cell {
                     format!(
                         "Linearly interpolate cell {} for cell {} from frame {} to frame {}",
                         vec.join(", "),
