@@ -33,11 +33,13 @@ fn start_animation_playback(
     animation_state: &mut Option<super::AnimationState>,
     frame_index: &mut usize,
     saved_frame_index: &mut Option<usize>,
+    frame_needs_update: &mut bool,
     condition: luminol_data::rpg::animation::Condition,
 ) {
     if let Some(animation_state) = animation_state.take() {
         *frame_index = animation_state.saved_frame_index;
         *saved_frame_index = Some(animation_state.saved_frame_index);
+        *frame_needs_update = true;
     } else {
         *animation_state = Some(super::AnimationState {
             saved_frame_index: *frame_index,
@@ -71,7 +73,6 @@ pub fn show_frame_edit(
     state: &mut super::FrameEditState,
 ) -> bool {
     let mut modified = false;
-    let mut recompute_flash = false;
 
     let flash_maps = state.flash_maps.get_mut(animation.id).unwrap();
 
@@ -156,7 +157,7 @@ pub fn show_frame_edit(
         state.frame_index = (time_diff * state.animation_fps) as usize;
 
         if state.frame_index != previous_frame_index {
-            recompute_flash = true;
+            state.frame_needs_update = true;
         }
 
         // Play sound effects
@@ -244,11 +245,11 @@ pub fn show_frame_edit(
             .changed();
         state.frame_index -= 1;
         if changed {
-            recompute_flash = true;
+            state.frame_needs_update = true;
             state.saved_frame_index = Some(state.frame_index);
         }
 
-        recompute_flash |= ui
+        state.frame_needs_update |= ui
             .add(luminol_components::Field::new(
                 "Condition",
                 luminol_components::EnumComboBox::new("condition", &mut state.condition)
@@ -338,6 +339,7 @@ pub fn show_frame_edit(
                                 &mut state.animation_state,
                                 &mut state.frame_index,
                                 &mut state.saved_frame_index,
+                                &mut state.frame_needs_update,
                                 state.condition,
                             );
                         }
@@ -807,7 +809,7 @@ pub fn show_frame_edit(
         }
     });
 
-    if recompute_flash {
+    if state.frame_needs_update {
         frame_view.frame.update_battler(
             &update_state.graphics,
             system,
@@ -822,6 +824,7 @@ pub fn show_frame_edit(
         frame_view
             .frame
             .update_all_cells(&update_state.graphics, animation, state.frame_index);
+        state.frame_needs_update = false;
     }
 
     egui::ScrollArea::horizontal().show_viewport(ui, |ui, scroll_rect| {
@@ -950,6 +953,7 @@ pub fn show_frame_edit(
                 if ui.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
                     state.frame_index = state.frame_index.saturating_sub(1);
                     state.saved_frame_index = Some(state.frame_index);
+                    state.frame_needs_update = true;
                 }
                 if ui.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
                     state.frame_index = state
@@ -957,6 +961,7 @@ pub fn show_frame_edit(
                         .saturating_add(1)
                         .min(animation.frames.len().saturating_sub(1));
                     state.saved_frame_index = Some(state.frame_index);
+                    state.frame_needs_update = true;
                 }
             }
 
@@ -968,6 +973,7 @@ pub fn show_frame_edit(
                     &mut state.animation_state,
                     &mut state.frame_index,
                     &mut state.saved_frame_index,
+                    &mut state.frame_needs_update,
                     state.condition,
                 );
             }

@@ -52,6 +52,7 @@ struct FrameEditState {
     animation_state: Option<AnimationState>,
     saved_frame_index: Option<usize>,
     saved_selected_cell_index: Option<usize>,
+    frame_needs_update: bool,
 }
 
 #[derive(Debug)]
@@ -109,6 +110,7 @@ impl Default for Window {
                 animation_state: None,
                 saved_frame_index: None,
                 saved_selected_cell_index: None,
+                frame_needs_update: false,
             },
             timing_edit_state: TimingEditState {
                 previous_frame: None,
