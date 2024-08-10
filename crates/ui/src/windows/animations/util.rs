@@ -411,3 +411,54 @@ pub fn update_flash_maps(condition: Condition, mut closure: impl FnMut(Condition
         closure(Condition::Miss);
     }
 }
+
+/// Gets mutable references at two different indices of a slice. Panics if the two indices are the
+/// same.
+pub fn get_two_mut<T>(slice: &mut [T], index1: usize, index2: usize) -> (&mut T, &mut T) {
+    if index1 >= slice.len() {
+        panic!("index1 out of range");
+    }
+    if index2 >= slice.len() {
+        panic!("index2 out of range");
+    }
+    if index1 == index2 {
+        panic!("index1 and index2 are the same");
+    }
+    let slice = &mut slice[if index1 < index2 {
+        index1..=index2
+    } else {
+        index2..=index1
+    }];
+    let (min, slice) = slice.split_first_mut().unwrap();
+    let (max, _) = slice.split_last_mut().unwrap();
+    if index1 < index2 {
+        (min, max)
+    } else {
+        (max, min)
+    }
+}
+
+/// Computes the list of history entries necessary to undo the transformation from `src_data` to
+/// `dst_data`.
+pub fn history_entries_from_two_tables(
+    dst_data: &luminol_data::Table2,
+    src_data: &luminol_data::Table2,
+) -> Vec<super::HistoryEntry> {
+    let cell_iter = (0..dst_data.xsize())
+        .filter(|&i| (0..8).any(|j| i >= src_data.xsize() || src_data[(i, j)] != dst_data[(i, j)]))
+        .map(|i| super::HistoryEntry::new_cell(dst_data, i));
+    let resize_iter = std::iter::once(super::HistoryEntry::new_resize_cells(dst_data));
+    match src_data.xsize().cmp(&dst_data.xsize()) {
+        std::cmp::Ordering::Equal => cell_iter.collect(),
+        std::cmp::Ordering::Less => cell_iter.chain(resize_iter).collect(),
+        std::cmp::Ordering::Greater => resize_iter
+            .chain(cell_iter)
+            .chain(
+                (dst_data.xsize()..src_data.xsize()).map(|i| super::HistoryEntry::Cell {
+                    index: i,
+                    data: [-1, 0, 0, 0, 0, 0, 0, 0],
+                }),
+            )
+            .collect(),
+    }
+}

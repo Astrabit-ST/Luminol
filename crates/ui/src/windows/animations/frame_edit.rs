@@ -24,6 +24,7 @@
 
 use luminol_core::Modal;
 
+use super::HistoryEntry;
 use luminol_data::BlendMode;
 use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 
@@ -302,8 +303,20 @@ pub fn show_frame_edit(
                                 if ui.button("Copy previous frame").clicked()
                                     && state.frame_index != 0
                                 {
-                                    animation.frames[state.frame_index] =
-                                        animation.frames[state.frame_index - 1].clone();
+                                    let (prev_frame, curr_frame) = super::util::get_two_mut(
+                                        &mut animation.frames,
+                                        state.frame_index - 1,
+                                        state.frame_index,
+                                    );
+                                    state.history.push(
+                                        animation.id,
+                                        state.frame_index,
+                                        super::util::history_entries_from_two_tables(
+                                            &curr_frame.cell_data,
+                                            &prev_frame.cell_data,
+                                        ),
+                                    );
+                                    *curr_frame = prev_frame.clone();
                                     frame_view.frame.update_all_cells(
                                         &update_state.graphics,
                                         animation,
@@ -351,15 +364,28 @@ pub fn show_frame_edit(
     if modals
         .copy_frames
         .show_window(ui.ctx(), state.frame_index, animation.frames.len())
+        && modals.copy_frames.dst_frame != modals.copy_frames.src_frame
     {
         let mut iter = 0..modals.copy_frames.frame_count;
-        while let Some(i) = if modals.copy_frames.dst_frame <= modals.copy_frames.src_frame {
+        while let Some(i) = if modals.copy_frames.dst_frame < modals.copy_frames.src_frame {
             iter.next()
         } else {
             iter.next_back()
         } {
-            animation.frames[modals.copy_frames.dst_frame + i] =
-                animation.frames[modals.copy_frames.src_frame + i].clone();
+            let (dst_frame, src_frame) = super::util::get_two_mut(
+                &mut animation.frames,
+                modals.copy_frames.dst_frame + i,
+                modals.copy_frames.src_frame + i,
+            );
+            state.history.push(
+                animation.id,
+                modals.copy_frames.dst_frame + i,
+                super::util::history_entries_from_two_tables(
+                    &dst_frame.cell_data,
+                    &src_frame.cell_data,
+                ),
+            );
+            *dst_frame = src_frame.clone();
         }
         frame_view
             .frame
@@ -372,6 +398,14 @@ pub fn show_frame_edit(
         .show_window(ui.ctx(), state.frame_index, animation.frames.len())
     {
         for i in modals.clear_frames.start_frame..=modals.clear_frames.end_frame {
+            state.history.push(
+                animation.id,
+                i,
+                super::util::history_entries_from_two_tables(
+                    &animation.frames[i].cell_data,
+                    &Default::default(),
+                ),
+            );
             animation.frames[i] = Default::default();
         }
         frame_view
@@ -408,11 +442,19 @@ pub fn show_frame_edit(
                     )
                 };
 
+                let mut entries = Vec::with_capacity(2);
+
                 if animation.frames[j].cell_data.xsize() < i + 1 {
+                    entries.push(HistoryEntry::new_resize_cells(
+                        &animation.frames[j].cell_data,
+                    ));
                     super::util::resize_frame(&mut animation.frames[j], i + 1);
                 } else if animation.frames[j].cell_max < i + 1 {
                     animation.frames[j].cell_max = i + 1;
                 }
+
+                entries.push(HistoryEntry::new_cell(&animation.frames[j].cell_data, i));
+                state.history.push(animation.id, j, entries);
 
                 if modals.tween.tween_pattern {
                     let (val, orientation) = lerp(&animation.frames, 0);
@@ -465,6 +507,9 @@ pub fn show_frame_edit(
                 if data[(j, 0)] < 0 {
                     continue;
                 }
+                state
+                    .history
+                    .push(animation.id, i, vec![HistoryEntry::new_cell(data, j)]);
                 match modals.batch_edit.mode {
                     luminol_modals::animations::batch_edit_tool::Mode::Set => {
                         if modals.batch_edit.set_pattern_enabled {
@@ -564,6 +609,9 @@ pub fn show_frame_edit(
         .show_window(ui.ctx(), animation.frames.len())
     {
         modals.close_all_except_frame_count();
+        for i in modals.change_frame_count.new_frames_len..animation.frames.len() {
+            state.history.remove_frame(animation.id, i);
+        }
         animation
             .frames
             .resize_with(modals.change_frame_count.new_frames_len, Default::default);
@@ -599,6 +647,14 @@ pub fn show_frame_edit(
                 && frame.cell_data[(max_cell, 0)] >= 0
                 && frame.cell_data[(min_cell, 0)] < 0
             {
+                state.history.push(
+                    animation.id,
+                    i,
+                    vec![
+                        HistoryEntry::new_resize_cells(&frame.cell_data),
+                        HistoryEntry::new_cell(&frame.cell_data, min_cell),
+                    ],
+                );
                 for j in 0..frame.cell_data.ysize() {
                     frame.cell_data[(min_cell, j)] = frame.cell_data[(max_cell, j)];
                 }
@@ -616,14 +672,25 @@ pub fn show_frame_edit(
                 continue;
             }
 
+            let mut entries = Vec::with_capacity(3);
+
             if max_cell >= frame.cell_data.xsize() {
                 if min_cell >= frame.cell_data.xsize() || frame.cell_data[(min_cell, 0)] < 0 {
                     continue;
                 }
+                entries.push(HistoryEntry::new_resize_cells(&frame.cell_data));
                 super::util::resize_frame(frame, max_cell + 1);
             }
 
             for j in 0..frame.cell_data.ysize() {
+                entries.push(HistoryEntry::new_cell(
+                    &frame.cell_data,
+                    modals.change_cell_number.first_cell,
+                ));
+                entries.push(HistoryEntry::new_cell(
+                    &frame.cell_data,
+                    modals.change_cell_number.second_cell,
+                ));
                 let xsize = frame.cell_data.xsize();
                 let slice = frame.cell_data.as_mut_slice();
                 slice.swap(
@@ -631,6 +698,8 @@ pub fn show_frame_edit(
                     modals.change_cell_number.second_cell + j * xsize,
                 );
             }
+
+            state.history.push(animation.id, i, entries);
         }
 
         frame_view
@@ -686,12 +755,38 @@ pub fn show_frame_edit(
         state.animation_state.is_none(),
     ) {
         if (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) != drag_pos {
+            if !state
+                .drag_state
+                .as_ref()
+                .is_some_and(|drag_state| drag_state.cell_index == i)
+            {
+                state.drag_state = Some(super::DragState {
+                    cell_index: i,
+                    original_x: frame.cell_data[(i, 1)],
+                    original_y: frame.cell_data[(i, 2)],
+                });
+            }
             (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) = drag_pos;
             frame_view
                 .frame
                 .update_cell(&update_state.graphics, animation, state.frame_index, i);
             modified = true;
         }
+    } else if let Some(drag_state) = state.drag_state.take() {
+        let x = frame.cell_data[(drag_state.cell_index, 1)];
+        let y = frame.cell_data[(drag_state.cell_index, 2)];
+        frame.cell_data[(drag_state.cell_index, 1)] = drag_state.original_x;
+        frame.cell_data[(drag_state.cell_index, 2)] = drag_state.original_y;
+        state.history.push(
+            animation.id,
+            state.frame_index,
+            vec![HistoryEntry::new_cell(
+                &frame.cell_data,
+                drag_state.cell_index,
+            )],
+        );
+        frame.cell_data[(drag_state.cell_index, 1)] = x;
+        frame.cell_data[(drag_state.cell_index, 2)] = y;
     }
 
     egui::Frame::none().show(ui, |ui| {
@@ -872,8 +967,12 @@ pub fn show_frame_edit(
                     .find(|i| frame.cell_data[(*i, 0)] < 0)
                     .unwrap_or(frame.cell_data.xsize());
 
+                let mut entries = Vec::with_capacity(2);
+
+                entries.push(HistoryEntry::new_resize_cells(&frame.cell_data));
                 super::util::resize_frame(frame, next_cell_index + 1);
 
+                entries.push(HistoryEntry::new_cell(&frame.cell_data, next_cell_index));
                 frame.cell_data[(next_cell_index, 0)] = cellpicker.selected_cell as i16;
                 frame.cell_data[(next_cell_index, 1)] = x;
                 frame.cell_data[(next_cell_index, 2)] = y;
@@ -882,6 +981,8 @@ pub fn show_frame_edit(
                 frame.cell_data[(next_cell_index, 5)] = 0;
                 frame.cell_data[(next_cell_index, 6)] = 255;
                 frame.cell_data[(next_cell_index, 7)] = 1;
+
+                state.history.push(animation.id, state.frame_index, entries);
 
                 frame_view.frame.update_cell(
                     &update_state.graphics,
@@ -909,9 +1010,13 @@ pub fn show_frame_edit(
                     i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
                 })
             {
+                let mut entries = Vec::with_capacity(2);
+
+                entries.push(HistoryEntry::new_cell(&frame.cell_data, i));
                 frame.cell_data[(i, 0)] = -1;
 
                 if i + 1 >= frame.cell_max {
+                    entries.push(HistoryEntry::new_resize_cells(&frame.cell_data));
                     super::util::resize_frame(
                         frame,
                         (0..frame
@@ -923,6 +1028,8 @@ pub fn show_frame_edit(
                             .unwrap_or(0),
                     );
                 }
+
+                state.history.push(animation.id, state.frame_index, entries);
 
                 frame_view.frame.update_cell(
                     &update_state.graphics,
@@ -961,6 +1068,26 @@ pub fn show_frame_edit(
                         .saturating_add(1)
                         .min(animation.frames.len().saturating_sub(1));
                     state.saved_frame_index = Some(state.frame_index);
+                    state.frame_needs_update = true;
+                }
+
+                let frame = &mut animation.frames[state.frame_index];
+
+                // Ctrl+Z for undo
+                if ui.input(|i| {
+                    i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
+                }) {
+                    state.history.undo(animation.id, state.frame_index, frame);
+                    state.frame_needs_update = true;
+                }
+
+                // Ctrl+Y or Ctrl+Shift+Z for redo
+                if ui.input(|i| {
+                    i.modifiers.command
+                        && (i.key_pressed(egui::Key::Y)
+                            || (i.modifiers.shift && i.key_pressed(egui::Key::Z)))
+                }) {
+                    state.history.redo(animation.id, state.frame_index, frame);
                     state.frame_needs_update = true;
                 }
             }

@@ -46,6 +46,7 @@ impl luminol_core::Window for super::Window {
     ) {
         let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
         let mut animations = data.animations();
+        let animations_len = animations.data.len();
         let system = data.system();
 
         let mut modified = false;
@@ -70,6 +71,10 @@ impl luminol_core::Window for super::Window {
                     &mut animations.data,
                     |animation| format!("{:0>4}: {}", animation.id + 1, animation.name),
                     |ui, animations, id, update_state| {
+                        for i in animations.len()..animations_len {
+                            self.frame_edit_state.history.remove_animation(i);
+                        }
+
                         let animation = &mut animations[id];
                         self.selected_animation_name = Some(animation.name.clone());
                         if animation.frames.is_empty() {

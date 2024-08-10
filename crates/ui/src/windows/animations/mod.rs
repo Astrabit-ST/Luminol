@@ -27,6 +27,8 @@ mod timing;
 mod util;
 mod window;
 
+const HISTORY_SIZE: usize = 50;
+
 /// Database - Animations management window.
 pub struct Window {
     selected_animation_name: Option<String>,
@@ -53,6 +55,15 @@ struct FrameEditState {
     saved_frame_index: Option<usize>,
     saved_selected_cell_index: Option<usize>,
     frame_needs_update: bool,
+    history: History,
+    drag_state: Option<DragState>,
+}
+
+#[derive(Debug)]
+struct DragState {
+    cell_index: usize,
+    original_x: i16,
+    original_y: i16,
 }
 
 #[derive(Debug)]
@@ -66,6 +77,120 @@ struct AnimationState {
 struct TimingEditState {
     previous_frame: Option<usize>,
     se_picker: luminol_modals::sound_picker::Modal,
+}
+
+#[derive(Debug, Default)]
+struct History(luminol_data::OptionVec<luminol_data::OptionVec<HistoryInner>>);
+
+#[derive(Debug, Default)]
+struct HistoryInner {
+    undo: std::collections::VecDeque<Vec<HistoryEntry>>,
+    redo: Vec<Vec<HistoryEntry>>,
+}
+
+impl History {
+    fn inner(&mut self, animation_index: usize, frame_index: usize) -> &mut HistoryInner {
+        if !self.0.contains(animation_index) {
+            self.0.insert(animation_index, Default::default());
+        }
+        let map = self.0.get_mut(animation_index).unwrap();
+        if !map.contains(frame_index) {
+            map.insert(frame_index, Default::default());
+        }
+        map.get_mut(frame_index).unwrap()
+    }
+
+    fn remove_animation(&mut self, animation_index: usize) {
+        let _ = self.0.try_remove(animation_index);
+    }
+
+    fn remove_frame(&mut self, animation_index: usize, frame_index: usize) {
+        if let Some(map) = self.0.get_mut(animation_index) {
+            let _ = map.try_remove(frame_index);
+        }
+    }
+
+    fn push(&mut self, animation_index: usize, frame_index: usize, mut entries: Vec<HistoryEntry>) {
+        entries.shrink_to_fit();
+        let inner = self.inner(animation_index, frame_index);
+        inner.redo.clear();
+        while inner.undo.len() >= HISTORY_SIZE {
+            inner.undo.pop_front();
+        }
+        inner.undo.push_back(entries);
+    }
+
+    fn undo(
+        &mut self,
+        animation_index: usize,
+        frame_index: usize,
+        frame: &mut luminol_data::rpg::animation::Frame,
+    ) {
+        let inner = self.inner(animation_index, frame_index);
+        let Some(mut vec) = inner.undo.pop_back() else {
+            return;
+        };
+        vec.reverse();
+        for entry in vec.iter_mut() {
+            entry.apply(frame);
+        }
+        inner.redo.push(vec);
+    }
+
+    fn redo(
+        &mut self,
+        animation_index: usize,
+        frame_index: usize,
+        frame: &mut luminol_data::rpg::animation::Frame,
+    ) {
+        let inner = self.inner(animation_index, frame_index);
+        let Some(mut vec) = inner.redo.pop() else {
+            return;
+        };
+        vec.reverse();
+        for entry in vec.iter_mut() {
+            entry.apply(frame);
+        }
+        inner.undo.push_back(vec);
+    }
+}
+
+#[derive(Debug)]
+enum HistoryEntry {
+    Cell { index: usize, data: [i16; 8] },
+    ResizeCells(usize),
+}
+
+impl HistoryEntry {
+    fn new_cell(cell_data: &luminol_data::Table2, cell_index: usize) -> Self {
+        let mut data = [0i16; 8];
+        for i in 0..8 {
+            data[i] = cell_data[(cell_index, i)];
+        }
+        Self::Cell {
+            index: cell_index,
+            data,
+        }
+    }
+
+    fn new_resize_cells(cell_data: &luminol_data::Table2) -> Self {
+        Self::ResizeCells(cell_data.xsize())
+    }
+
+    fn apply(&mut self, frame: &mut luminol_data::rpg::animation::Frame) {
+        match self {
+            HistoryEntry::Cell { index, data } => {
+                for (i, item) in data.iter_mut().enumerate() {
+                    std::mem::swap(item, &mut frame.cell_data[(*index, i)]);
+                }
+            }
+            HistoryEntry::ResizeCells(size) => {
+                let old_size = frame.cell_data.xsize();
+                util::resize_frame(frame, *size);
+                *size = old_size;
+            }
+        }
+    }
 }
 
 struct Modals {
@@ -111,6 +236,8 @@ impl Default for Window {
                 saved_frame_index: None,
                 saved_selected_cell_index: None,
                 frame_needs_update: false,
+                drag_state: None,
+                history: Default::default(),
             },
             timing_edit_state: TimingEditState {
                 previous_frame: None,
