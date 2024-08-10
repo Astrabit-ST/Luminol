@@ -438,23 +438,23 @@ pub fn get_two_mut<T>(slice: &mut [T], index1: usize, index2: usize) -> (&mut T,
     }
 }
 
-/// Computes the list of history entries necessary to undo the transformation from `src_data` to
-/// `dst_data`.
+/// Computes the list of history entries necessary to undo the transformation from `old_data` to
+/// `new_data`.
 pub fn history_entries_from_two_tables(
-    dst_data: &luminol_data::Table2,
-    src_data: &luminol_data::Table2,
+    old_data: &luminol_data::Table2,
+    new_data: &luminol_data::Table2,
 ) -> Vec<super::HistoryEntry> {
-    let cell_iter = (0..dst_data.xsize())
-        .filter(|&i| (0..8).any(|j| i >= src_data.xsize() || src_data[(i, j)] != dst_data[(i, j)]))
-        .map(|i| super::HistoryEntry::new_cell(dst_data, i));
-    let resize_iter = std::iter::once(super::HistoryEntry::new_resize_cells(dst_data));
-    match src_data.xsize().cmp(&dst_data.xsize()) {
+    let cell_iter = (0..old_data.xsize())
+        .filter(|&i| (0..8).any(|j| i >= new_data.xsize() || new_data[(i, j)] != old_data[(i, j)]))
+        .map(|i| super::HistoryEntry::new_cell(old_data, i));
+    let resize_iter = std::iter::once(super::HistoryEntry::new_resize_cells(old_data));
+    match new_data.xsize().cmp(&old_data.xsize()) {
         std::cmp::Ordering::Equal => cell_iter.collect(),
         std::cmp::Ordering::Less => cell_iter.chain(resize_iter).collect(),
         std::cmp::Ordering::Greater => resize_iter
             .chain(cell_iter)
             .chain(
-                (dst_data.xsize()..src_data.xsize()).map(|i| super::HistoryEntry::Cell {
+                (old_data.xsize()..new_data.xsize()).map(|i| super::HistoryEntry::Cell {
                     index: i,
                     data: [-1, 0, 0, 0, 0, 0, 0, 0],
                 }),
