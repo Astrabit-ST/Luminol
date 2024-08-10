@@ -682,15 +682,16 @@ pub fn show_frame_edit(
                 super::util::resize_frame(frame, max_cell + 1);
             }
 
+            entries.push(HistoryEntry::new_cell(
+                &frame.cell_data,
+                modals.change_cell_number.first_cell,
+            ));
+            entries.push(HistoryEntry::new_cell(
+                &frame.cell_data,
+                modals.change_cell_number.second_cell,
+            ));
+
             for j in 0..frame.cell_data.ysize() {
-                entries.push(HistoryEntry::new_cell(
-                    &frame.cell_data,
-                    modals.change_cell_number.first_cell,
-                ));
-                entries.push(HistoryEntry::new_cell(
-                    &frame.cell_data,
-                    modals.change_cell_number.second_cell,
-                ));
                 let xsize = frame.cell_data.xsize();
                 let slice = frame.cell_data.as_mut_slice();
                 slice.swap(
