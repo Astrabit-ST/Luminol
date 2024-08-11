@@ -69,6 +69,20 @@ pub struct Frame {
     pub cell_data: Table2,
 }
 
+impl Frame {
+    /// Returns one more than the maximum cell number in this frame.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.cell_max.min(self.cell_data.xsize())
+    }
+
+    /// Returns true if there are no cells in this frame, otherwise false.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.cell_max == 0 || self.cell_data.is_empty()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 #[derive(
     num_enum::TryFromPrimitive,

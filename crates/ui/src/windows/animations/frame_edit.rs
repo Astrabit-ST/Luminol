@@ -312,8 +312,7 @@ pub fn show_frame_edit(
                                         animation.id,
                                         state.frame_index,
                                         super::util::history_entries_from_two_tables(
-                                            &curr_frame.cell_data,
-                                            &prev_frame.cell_data,
+                                            curr_frame, prev_frame,
                                         ),
                                     );
                                     *curr_frame = prev_frame.clone();
@@ -380,10 +379,7 @@ pub fn show_frame_edit(
             state.history.push(
                 animation.id,
                 modals.copy_frames.dst_frame + i,
-                super::util::history_entries_from_two_tables(
-                    &dst_frame.cell_data,
-                    &src_frame.cell_data,
-                ),
+                super::util::history_entries_from_two_tables(dst_frame, src_frame),
             );
             *dst_frame = src_frame.clone();
         }
@@ -402,7 +398,7 @@ pub fn show_frame_edit(
                 animation.id,
                 i,
                 super::util::history_entries_from_two_tables(
-                    &animation.frames[i].cell_data,
+                    &animation.frames[i],
                     &Default::default(),
                 ),
             );
@@ -419,12 +415,14 @@ pub fn show_frame_edit(
         .show_window(ui.ctx(), state.frame_index, animation.frames.len())
     {
         for i in modals.tween.start_cell..=modals.tween.end_cell {
+            let len = animation.frames[modals.tween.start_frame].len();
             let data = &animation.frames[modals.tween.start_frame].cell_data;
-            if i >= data.xsize() || data[(i, 0)] < 0 {
+            if i >= len || data[(i, 0)] < 0 {
                 continue;
             }
+            let len = animation.frames[modals.tween.end_frame].len();
             let data = &animation.frames[modals.tween.end_frame].cell_data;
-            if i >= data.xsize() || data[(i, 0)] < 0 {
+            if i >= len || data[(i, 0)] < 0 {
                 continue;
             }
 
@@ -444,13 +442,9 @@ pub fn show_frame_edit(
 
                 let mut entries = Vec::with_capacity(2);
 
-                if animation.frames[j].cell_data.xsize() < i + 1 {
-                    entries.push(HistoryEntry::new_resize_cells(
-                        &animation.frames[j].cell_data,
-                    ));
+                if animation.frames[j].len() < i + 1 {
+                    entries.push(HistoryEntry::ResizeCells(animation.frames[j].len()));
                     super::util::resize_frame(&mut animation.frames[j], i + 1);
-                } else if animation.frames[j].cell_max < i + 1 {
-                    animation.frames[j].cell_max = i + 1;
                 }
 
                 entries.push(HistoryEntry::new_cell(&animation.frames[j].cell_data, i));
@@ -502,8 +496,9 @@ pub fn show_frame_edit(
         frame_view.frame.atlas.num_patterns(),
     ) {
         for i in modals.batch_edit.start_frame..=modals.batch_edit.end_frame {
+            let len = animation.frames[i].len();
             let data = &mut animation.frames[i].cell_data;
-            for j in 0..data.xsize() {
+            for j in 0..len {
                 if data[(j, 0)] < 0 {
                     continue;
                 }
@@ -642,8 +637,7 @@ pub fn show_frame_edit(
         for i in modals.change_cell_number.start_frame..=modals.change_cell_number.end_frame {
             let frame = &mut animation.frames[i];
 
-            if max_cell + 1 >= frame.cell_max
-                && max_cell < frame.cell_data.xsize()
+            if max_cell + 1 == frame.len()
                 && frame.cell_data[(max_cell, 0)] >= 0
                 && frame.cell_data[(min_cell, 0)] < 0
             {
@@ -651,8 +645,8 @@ pub fn show_frame_edit(
                     animation.id,
                     i,
                     vec![
-                        HistoryEntry::new_resize_cells(&frame.cell_data),
                         HistoryEntry::new_cell(&frame.cell_data, min_cell),
+                        HistoryEntry::ResizeCells(frame.len()),
                     ],
                 );
                 for j in 0..frame.cell_data.ysize() {
@@ -660,10 +654,7 @@ pub fn show_frame_edit(
                 }
                 super::util::resize_frame(
                     frame,
-                    (0..frame
-                        .cell_data
-                        .xsize()
-                        .min(frame.cell_max.saturating_sub(1)))
+                    (0..frame.len().saturating_sub(1))
                         .rev()
                         .find_map(|j| (frame.cell_data[(j, 0)] >= 0).then_some(j + 1))
                         .unwrap_or(0)
@@ -674,11 +665,11 @@ pub fn show_frame_edit(
 
             let mut entries = Vec::with_capacity(3);
 
-            if max_cell >= frame.cell_data.xsize() {
-                if min_cell >= frame.cell_data.xsize() || frame.cell_data[(min_cell, 0)] < 0 {
+            if max_cell >= frame.len() {
+                if min_cell >= frame.len() || frame.cell_data[(min_cell, 0)] < 0 {
                     continue;
                 }
-                entries.push(HistoryEntry::new_resize_cells(&frame.cell_data));
+                entries.push(HistoryEntry::ResizeCells(frame.len()));
                 super::util::resize_frame(frame, max_cell + 1);
             }
 
@@ -691,8 +682,8 @@ pub fn show_frame_edit(
                 modals.change_cell_number.second_cell,
             ));
 
+            let xsize = frame.cell_data.xsize();
             for j in 0..frame.cell_data.ysize() {
-                let xsize = frame.cell_data.xsize();
                 let slice = frame.cell_data.as_mut_slice();
                 slice.swap(
                     modals.change_cell_number.first_cell + j * xsize,
@@ -727,7 +718,7 @@ pub fn show_frame_edit(
 
     if frame_view
         .selected_cell_index
-        .is_some_and(|i| i >= frame.cell_data.xsize() || frame.cell_data[(i, 0)] < 0)
+        .is_some_and(|i| i >= frame.len() || frame.cell_data[(i, 0)] < 0)
     {
         frame_view.selected_cell_index = None;
     }
@@ -735,14 +726,14 @@ pub fn show_frame_edit(
     if frame_view.selected_cell_index.is_none()
         && state
             .saved_selected_cell_index
-            .is_some_and(|i| i < frame.cell_data.xsize() && frame.cell_data[(i, 0)] >= 0)
+            .is_some_and(|i| i < frame.len() && frame.cell_data[(i, 0)] >= 0)
     {
         frame_view.selected_cell_index = state.saved_selected_cell_index;
     }
 
     if frame_view
         .hovered_cell_index
-        .is_some_and(|i| i >= frame.cell_data.xsize() || frame.cell_data[(i, 0)] < 0)
+        .is_some_and(|i| i >= frame.len() || frame.cell_data[(i, 0)] < 0)
     {
         frame_view.hovered_cell_index = None;
         frame_view.hovered_cell_drag_pos = None;
@@ -964,13 +955,11 @@ pub fn show_frame_edit(
         // Create new cell on double click
         if let Some((x, y)) = hover_pos {
             if response.double_clicked() {
-                let next_cell_index = (frame.cell_max..frame.cell_data.xsize())
-                    .find(|i| frame.cell_data[(*i, 0)] < 0)
-                    .unwrap_or(frame.cell_data.xsize());
+                let next_cell_index = frame.len();
 
                 let mut entries = Vec::with_capacity(2);
 
-                entries.push(HistoryEntry::new_resize_cells(&frame.cell_data));
+                entries.push(HistoryEntry::ResizeCells(frame.len()));
                 super::util::resize_frame(frame, next_cell_index + 1);
 
                 entries.push(HistoryEntry::new_cell(&frame.cell_data, next_cell_index));
@@ -1004,7 +993,7 @@ pub fn show_frame_edit(
             frame_view.selected_cell_index,
             state.animation_state.is_none(),
         ) {
-            if i < frame.cell_data.xsize()
+            if i < frame.len()
                 && frame.cell_data[(i, 0)] >= 0
                 && response.has_focus()
                 && ui.input(|i| {
@@ -1016,14 +1005,11 @@ pub fn show_frame_edit(
                 entries.push(HistoryEntry::new_cell(&frame.cell_data, i));
                 frame.cell_data[(i, 0)] = -1;
 
-                if i + 1 >= frame.cell_max {
-                    entries.push(HistoryEntry::new_resize_cells(&frame.cell_data));
+                if i + 1 == frame.len() {
+                    entries.push(HistoryEntry::ResizeCells(frame.len()));
                     super::util::resize_frame(
                         frame,
-                        (0..frame
-                            .cell_data
-                            .xsize()
-                            .min(frame.cell_max.saturating_sub(1)))
+                        (0..frame.len().saturating_sub(1))
                             .rev()
                             .find_map(|i| (frame.cell_data[(i, 0)] >= 0).then_some(i + 1))
                             .unwrap_or(0),

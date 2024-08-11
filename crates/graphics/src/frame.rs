@@ -231,30 +231,25 @@ impl Frame {
         let mut cells = std::mem::take(&mut self.cells);
         cells.clear();
         cells.extend(
-            (0..cells
-                .len()
-                .max(animation.frames[frame_index].cell_data.xsize()))
-                .filter_map(|i| {
-                    self.create_cell(
-                        graphics_state,
-                        &animation.frames[frame_index],
-                        animation.animation_hue,
-                        i,
-                        1.,
-                    )
-                    .map(|cell| (i, cell))
-                }),
+            (0..cells.len().max(animation.frames[frame_index].len())).filter_map(|i| {
+                self.create_cell(
+                    graphics_state,
+                    &animation.frames[frame_index],
+                    animation.animation_hue,
+                    i,
+                    1.,
+                )
+                .map(|cell| (i, cell))
+            }),
         );
         self.cells = cells;
 
         let mut cells = std::mem::take(&mut self.onion_skin_cells);
         cells.clear();
         cells.extend(
-            (0..cells.len().max(
-                animation.frames[frame_index.saturating_sub(1)]
-                    .cell_data
-                    .xsize(),
-            ))
+            (0..cells
+                .len()
+                .max(animation.frames[frame_index.saturating_sub(1)].len()))
                 .filter_map(|i| {
                     self.create_cell(
                         graphics_state,
@@ -303,11 +298,7 @@ impl Frame {
         animation: &luminol_data::rpg::Animation,
         frame_index: usize,
     ) {
-        for cell_index in 0..self
-            .cells
-            .len()
-            .max(animation.frames[frame_index].cell_data.xsize())
-        {
+        for cell_index in 0..self.cells.len().max(animation.frames[frame_index].len()) {
             let cells = std::mem::take(&mut self.cells);
             self.cells = self.update_cell_inner(
                 cells,
@@ -319,11 +310,11 @@ impl Frame {
             );
         }
 
-        for cell_index in 0..self.onion_skin_cells.len().max(
-            animation.frames[frame_index.saturating_sub(1)]
-                .cell_data
-                .xsize(),
-        ) {
+        for cell_index in 0..self
+            .onion_skin_cells
+            .len()
+            .max(animation.frames[frame_index.saturating_sub(1)].len())
+        {
             let cells = std::mem::take(&mut self.onion_skin_cells);
             self.onion_skin_cells = self.update_cell_inner(
                 cells,
@@ -344,7 +335,7 @@ impl Frame {
         cell_index: usize,
         opacity_multiplier: f32,
     ) -> Option<Cell> {
-        (cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0).then(|| {
+        (cell_index < frame.len() && frame.cell_data[(cell_index, 0)] >= 0).then(|| {
             let id = frame.cell_data[(cell_index, 0)];
             let offset_x = frame.cell_data[(cell_index, 1)] as f32;
             let offset_y = frame.cell_data[(cell_index, 2)] as f32;
@@ -400,7 +391,7 @@ impl Frame {
         cell_index: usize,
         opacity_multiplier: f32,
     ) -> OptionVec<Cell> {
-        if cell_index < frame.cell_data.xsize() && frame.cell_data[(cell_index, 0)] >= 0 {
+        if cell_index < frame.len() && frame.cell_data[(cell_index, 0)] >= 0 {
             if let Some(cell) = cells.get_mut(cell_index) {
                 let id = frame.cell_data[(cell_index, 0)];
                 let offset_x = frame.cell_data[(cell_index, 1)] as f32;

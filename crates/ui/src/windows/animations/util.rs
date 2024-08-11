@@ -430,7 +430,7 @@ pub fn get_two_mut<T>(slice: &mut [T], index1: usize, index2: usize) -> (&mut T,
         index2..=index1
     }];
     let (min, slice) = slice.split_first_mut().unwrap();
-    let (max, _) = slice.split_last_mut().unwrap();
+    let max = slice.last_mut().unwrap();
     if index1 < index2 {
         (min, max)
     } else {
@@ -438,23 +438,27 @@ pub fn get_two_mut<T>(slice: &mut [T], index1: usize, index2: usize) -> (&mut T,
     }
 }
 
-/// Computes the list of history entries necessary to undo the transformation from `old_data` to
-/// `new_data`.
+/// Computes the list of history entries necessary to undo the transformation from `old_frame` to
+/// `new_frame`.
 pub fn history_entries_from_two_tables(
-    old_data: &luminol_data::Table2,
-    new_data: &luminol_data::Table2,
+    old_frame: &luminol_data::rpg::animation::Frame,
+    new_frame: &luminol_data::rpg::animation::Frame,
 ) -> Vec<super::HistoryEntry> {
-    let cell_iter = (0..old_data.xsize())
-        .filter(|&i| (0..8).any(|j| i >= new_data.xsize() || new_data[(i, j)] != old_data[(i, j)]))
-        .map(|i| super::HistoryEntry::new_cell(old_data, i));
-    let resize_iter = std::iter::once(super::HistoryEntry::new_resize_cells(old_data));
-    match new_data.xsize().cmp(&old_data.xsize()) {
+    let cell_iter = (0..old_frame.len())
+        .filter(|&i| {
+            (0..8).any(|j| {
+                i >= new_frame.len() || new_frame.cell_data[(i, j)] != old_frame.cell_data[(i, j)]
+            })
+        })
+        .map(|i| super::HistoryEntry::new_cell(&old_frame.cell_data, i));
+    let resize_iter = std::iter::once_with(|| super::HistoryEntry::ResizeCells(old_frame.len()));
+    match new_frame.len().cmp(&old_frame.len()) {
         std::cmp::Ordering::Equal => cell_iter.collect(),
         std::cmp::Ordering::Less => cell_iter.chain(resize_iter).collect(),
         std::cmp::Ordering::Greater => resize_iter
             .chain(cell_iter)
             .chain(
-                (old_data.xsize()..new_data.xsize()).map(|i| super::HistoryEntry::Cell {
+                (old_frame.len()..new_frame.len()).map(|i| super::HistoryEntry::Cell {
                     index: i,
                     data: [-1, 0, 0, 0, 0, 0, 0, 0],
                 }),

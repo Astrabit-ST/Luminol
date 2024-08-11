@@ -173,10 +173,6 @@ impl HistoryEntry {
         }
     }
 
-    fn new_resize_cells(cell_data: &luminol_data::Table2) -> Self {
-        Self::ResizeCells(cell_data.xsize())
-    }
-
     fn apply(&mut self, frame: &mut luminol_data::rpg::animation::Frame) {
         match self {
             HistoryEntry::Cell { index, data } => {
@@ -184,10 +180,10 @@ impl HistoryEntry {
                     std::mem::swap(item, &mut frame.cell_data[(*index, i)]);
                 }
             }
-            HistoryEntry::ResizeCells(size) => {
-                let old_size = frame.cell_data.xsize();
-                util::resize_frame(frame, *size);
-                *size = old_size;
+            HistoryEntry::ResizeCells(len) => {
+                let old_len = frame.len();
+                util::resize_frame(frame, *len);
+                *len = old_len;
             }
         }
     }
