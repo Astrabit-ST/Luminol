@@ -26,6 +26,7 @@ use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 pub mod actor;
+pub mod animation;
 pub mod basic;
 pub mod event;
 pub mod hue;
@@ -104,19 +105,14 @@ impl Entry {
             .read_dir(directory)
             .unwrap()
             .into_iter()
-            .map(|m| {
-                let path = m
-                    .path
-                    .strip_prefix(directory)
-                    .unwrap_or(&m.path)
-                    .with_extension("");
-                Entry {
-                    path,
-                    invalid: false,
-                }
+            .map(|m| Entry {
+                path: m.path.file_name().unwrap_or_default().into(),
+                invalid: false,
             })
             .collect();
-        entries.sort_unstable();
+        entries.sort_unstable_by(|a, b| {
+            lexical_sort::natural_lexical_cmp(a.path.as_str(), b.path.as_str())
+        });
         entries
     }
 
@@ -131,30 +127,64 @@ impl Entry {
 
     fn ui(
         entries: &mut [Self],
+        directory: &camino::Utf8Path,
+        update_state: &UpdateState<'_>,
         ui: &mut egui::Ui,
         rows: std::ops::Range<usize>,
         selected: &mut Selected,
         load_preview_sprite: impl Fn(&camino::Utf8Path) -> PreviewSprite,
     ) {
+        let selected_name = match &selected {
+            Selected::Entry { path, .. } => update_state
+                .filesystem
+                .desensitize(directory.join(path))
+                .ok()
+                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())),
+            Selected::None => None,
+        };
         for i in entries[rows.clone()].iter_mut().enumerate() {
             let (i, Self { path, invalid }) = i;
-            let checked = matches!(selected, Selected::Entry { path: p, .. } if p == path);
-            let mut text = egui::RichText::new(path.as_str());
+            let checked = selected_name.as_deref() == Some(path);
+            let mut text = egui::RichText::new(path.file_name().unwrap_or_default());
             if *invalid {
                 text = text.color(egui::Color32::LIGHT_RED);
             }
-            let faint = (i + rows.start) % 2 == 1;
+            let faint = (i + rows.start) % 2 == 0;
             ui.with_stripe(faint, |ui| {
                 let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
 
                 if res.clicked() {
                     *selected = Selected::Entry {
-                        path: path.clone(),
-                        sprite: load_preview_sprite(path),
+                        sprite: load_preview_sprite(path.file_name().unwrap_or_default().into()),
+                        path: path.file_stem().unwrap_or_default().into(),
                     };
                 }
             });
         }
+    }
+
+    fn find_matching_entry(
+        entries: &[Self],
+        directory: &camino::Utf8Path,
+        update_state: &UpdateState<'_>,
+        selected: &Selected,
+    ) -> Option<usize> {
+        let selected_name = match &selected {
+            Selected::Entry { path, .. } => update_state
+                .filesystem
+                .desensitize(directory.join(path))
+                .ok()
+                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())),
+            Selected::None => None,
+        };
+        for i in entries.iter().enumerate() {
+            let (i, Self { path, .. }) = i;
+            let checked = selected_name.as_deref() == Some(path);
+            if checked {
+                return Some(i);
+            }
+        }
+        None
     }
 }
 

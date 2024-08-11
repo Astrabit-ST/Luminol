@@ -55,8 +55,10 @@ impl Viewport {
     }
 
     pub fn set_size(&mut self, render_state: &luminol_egui_wgpu::RenderState, size: glam::Vec2) {
-        self.data.viewport_size = size;
-        self.regen_buffer(render_state);
+        if self.data.viewport_size != size {
+            self.data.viewport_size = size;
+            self.regen_buffer(render_state);
+        }
     }
 
     pub fn set(
@@ -66,10 +68,15 @@ impl Viewport {
         translation: glam::Vec2,
         scale: glam::Vec2,
     ) {
-        self.data.viewport_size = size;
-        self.data.viewport_translation = translation;
-        self.data.viewport_scale = scale;
-        self.regen_buffer(render_state);
+        if self.data.viewport_size != size
+            || self.data.viewport_translation != translation
+            || self.data.viewport_scale != scale
+        {
+            self.data.viewport_size = size;
+            self.data.viewport_translation = translation;
+            self.data.viewport_scale = scale;
+            self.regen_buffer(render_state);
+        }
     }
 
     pub fn as_buffer(&self) -> &wgpu::Buffer {

@@ -65,10 +65,7 @@ pub fn set_git_revision(revision: &'static str) {
 pub struct UpdateState<'res> {
     pub ctx: &'res egui::Context,
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub audio: &'res mut luminol_audio::Audio,
-    #[cfg(target_arch = "wasm32")]
-    pub audio: &'res mut luminol_audio::AudioWrapper,
 
     pub graphics: Arc<luminol_graphics::GraphicsState>,
     pub filesystem: &'res mut luminol_filesystem::project::FileSystem, // FIXME: this is probably wrong
@@ -442,5 +439,19 @@ pub fn slice_is_sorted<T: Ord>(s: &[T]) -> bool {
     s.windows(2).all(|w| {
         let [a, b] = w else { unreachable!() }; // could maybe do unreachable_unchecked
         a <= b
+    })
+}
+
+pub fn slice_is_sorted_by<T, F: FnMut(&T, &T) -> std::cmp::Ordering>(s: &[T], mut f: F) -> bool {
+    s.windows(2).all(|w| {
+        let [a, b] = w else { unreachable!() }; // could maybe do unreachable_unchecked
+        f(a, b) != std::cmp::Ordering::Greater
+    })
+}
+
+pub fn slice_is_sorted_by_key<T, K: Ord, F: FnMut(&T) -> K>(s: &[T], mut f: F) -> bool {
+    s.windows(2).all(|w| {
+        let [a, b] = w else { unreachable!() }; // could maybe do unreachable_unchecked
+        f(a) <= f(b)
     })
 }

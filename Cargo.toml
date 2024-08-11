@@ -121,7 +121,6 @@ parking_lot = { version = "0.12.3", features = [
     "nightly",            # This is required for parking_lot to work properly in WebAssembly builds with atomics support
     "deadlock_detection",
 ] }
-parking_lot_core = "0.9.10"
 once_cell = "1.18.0"
 crossbeam = "0.8.2"
 dashmap = "5.5.3"
@@ -153,6 +152,8 @@ wasm-bindgen = "0.2.91"
 wasm-bindgen-futures = "0.4.42"
 web-sys = "0.3.67"
 js-sys = "0.3"
+
+lexical-sort = "0.3.1"
 
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
 luminol-components = { version = "0.4.0", path = "crates/components/" }

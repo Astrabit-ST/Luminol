@@ -55,7 +55,7 @@ pub struct MapView {
     pub display_tile_ids: bool,
 
     pub scale: f32,
-    pub previous_scale: f32,
+    previous_scale: f32,
 
     /// Used to store the bounding boxes of event graphics in order to render them on top of the
     /// fog and collision layers
@@ -297,10 +297,10 @@ impl MapView {
         let width2 = map.width as f32 / 2.;
         let height2 = map.height as f32 / 2.;
 
-        let pos = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
+        let map_size2 = egui::Vec2::new(width2 * tile_size, height2 * tile_size);
         let map_rect = egui::Rect {
-            min: canvas_pos - pos,
-            max: canvas_pos + pos,
+            min: canvas_pos - map_size2,
+            max: canvas_pos + map_size2,
         };
 
         self.map.tiles.selected_layer = match self.selected_layer {
@@ -311,15 +311,13 @@ impl MapView {
             SelectedLayer::Tiles(_) => None,
         };
 
-        // no idea why this math works (could probably be simplified)
-        let proj_center_x = width2 * 32. - (self.pan.x + clip_offset.x) / scale;
-        let proj_center_y = height2 * 32. - (self.pan.y + clip_offset.y) / scale;
-        let proj_width2 = canvas_rect.width() / scale / 2.;
-        let proj_height2 = canvas_rect.height() / scale / 2.;
         self.map.viewport.set(
             &update_state.graphics.render_state,
             glam::vec2(canvas_rect.width(), canvas_rect.height()),
-            glam::vec2(proj_width2 - proj_center_x, proj_height2 - proj_center_y) * scale,
+            glam::vec2(
+                canvas_rect.width() / 2. + self.pan.x + clip_offset.x - width2 * 32. * scale,
+                canvas_rect.height() / 2. + self.pan.y + clip_offset.y - height2 * 32. * scale,
+            ),
             glam::Vec2::splat(scale),
         );
 

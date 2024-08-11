@@ -32,6 +32,8 @@ pub struct SoundTab {
     search_text: String,
     folder_children: Vec<luminol_filesystem::DirEntry>,
     filtered_children: Vec<luminol_filesystem::DirEntry>,
+
+    scrolled_on_first_open: bool,
 }
 
 impl SoundTab {
@@ -41,8 +43,12 @@ impl SoundTab {
         source: luminol_audio::Source,
         audio_file: luminol_data::rpg::AudioFile,
     ) -> Self {
-        let mut folder_children = filesystem.read_dir(format!("Audio/{source}")).unwrap();
-        folder_children.sort_unstable_by(|a, b| a.file_name().cmp(b.file_name()));
+        let mut folder_children = filesystem
+            .read_dir(format!("Audio/{source}"))
+            .unwrap_or_default();
+        folder_children.sort_unstable_by(|a, b| {
+            lexical_sort::natural_lexical_cmp(a.file_name(), b.file_name())
+        });
         Self {
             source,
             audio_file,
@@ -50,6 +56,8 @@ impl SoundTab {
             filtered_children: folder_children.clone(),
             search_text: String::new(),
             folder_children,
+
+            scrolled_on_first_open: false,
         }
     }
 
@@ -62,18 +70,26 @@ impl SoundTab {
             let volume = self.audio_file.volume;
             let source = self.source;
 
-            if let Err(e) =
+            if let Err(e) = update_state.audio.play(
+                path,
+                update_state.filesystem,
+                volume,
+                pitch,
+                Some(source),
                 update_state
-                    .audio
-                    .play(path, update_state.filesystem, volume, pitch, source)
-            {
+                    .project_config
+                    .as_ref()
+                    .expect("project not loaded")
+                    .project
+                    .volume_scale,
+            ) {
                 luminol_core::error!(
                     update_state.toasts,
                     e.wrap_err("Error playing from audio file")
                 );
             }
         } else {
-            update_state.audio.stop(&self.source);
+            update_state.audio.stop(self.source);
         }
     }
 
@@ -90,7 +106,7 @@ impl SoundTab {
 
                         if ui.button("Stop").clicked() {
                             // Stop sound.
-                            update_state.audio.stop(&self.source);
+                            update_state.audio.stop(self.source);
                         }
                     });
 
@@ -107,9 +123,16 @@ impl SoundTab {
                         // Add a slider.
                         // If it's changed, update the volume.
                         if ui.add(slider).changed() {
-                            update_state
-                                .audio
-                                .set_volume(self.audio_file.volume, &self.source);
+                            update_state.audio.set_volume(
+                                self.audio_file.volume,
+                                self.source,
+                                update_state
+                                    .project_config
+                                    .as_ref()
+                                    .expect("project not loaded")
+                                    .project
+                                    .volume_scale,
+                            );
                         };
 
                         let slider = egui::Slider::new(&mut self.audio_file.pitch, 50..=150)
@@ -121,7 +144,7 @@ impl SoundTab {
                         if ui.add(slider).changed() {
                             update_state
                                 .audio
-                                .set_pitch(self.audio_file.pitch, &self.source);
+                                .set_pitch(self.audio_file.pitch, self.source);
                         };
                     });
                 });
@@ -129,7 +152,9 @@ impl SoundTab {
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Get row height.
-            let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
+            let row_height = ui.spacing().interact_size.y.max(
+                ui.text_style_height(&egui::TextStyle::Button) + 2. * ui.spacing().button_padding.y,
+            );
 
             let persistence_id = update_state
                 .project_config
@@ -158,9 +183,21 @@ impl SoundTab {
                 }
                 ui.separator();
 
-                egui::ScrollArea::both()
+                let audio_file_name = self.audio_file.name.as_ref().and_then(|name| {
+                    update_state
+                        .filesystem
+                        .desensitize(
+                            camino::Utf8Path::new("Audio")
+                                .join(self.source.as_path())
+                                .join(name),
+                        )
+                        .ok()
+                        .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap()))
+                });
+
+                let mut scroll_area_output = egui::ScrollArea::vertical()
                     .id_source((persistence_id, self.source))
-                    .auto_shrink([false, false])
+                    .auto_shrink([false, true])
                     // Show only visible rows.
                     .show_rows(
                         ui,
@@ -168,6 +205,8 @@ impl SoundTab {
                         self.filtered_children.len() + 1, // +1 for (None)
                         |ui, mut row_range| {
                             ui.with_cross_justify(|ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                 // we really want to only show (None) if it's in range, we can collapse this but itd rely on short circuiting
                                 #[allow(clippy::collapsible_if)]
                                 if row_range.contains(&0) {
@@ -186,11 +225,20 @@ impl SoundTab {
                                 {
                                     let faint = (i + row_range.start) % 2 == 0;
                                     let res = ui.with_stripe(faint, |ui| {
-                                        ui.selectable_value(
-                                            &mut self.audio_file.name,
-                                            Some(entry.file_name().into()),
-                                            entry.file_name(),
-                                        )
+                                        let entry_name = camino::Utf8Path::new(entry.file_name());
+                                        let res = ui.add(egui::SelectableLabel::new(
+                                            audio_file_name.as_deref() == Some(entry_name),
+                                            entry_name.as_str(),
+                                        ));
+                                        if res.clicked() {
+                                            self.audio_file.name = Some(
+                                                entry_name
+                                                    .file_stem()
+                                                    .unwrap_or(entry_name.as_str())
+                                                    .into(),
+                                            );
+                                        }
+                                        res
                                     });
                                     // need to move this out because the borrow checker isn't smart enough
                                     // Did the user double click a sound?
@@ -202,6 +250,40 @@ impl SoundTab {
                             });
                         },
                     );
+
+                // Scroll the selected item into view
+                if !self.scrolled_on_first_open {
+                    let row = if self.audio_file.name.is_none() {
+                        Some(0)
+                    } else {
+                        self.filtered_children
+                            .iter()
+                            .enumerate()
+                            .find_map(|(i, entry)| {
+                                (audio_file_name.as_deref() == Some(entry.file_name().into()))
+                                    .then_some(i + 1)
+                            })
+                    };
+                    if let Some(row) = row {
+                        let spacing = ui.spacing().item_spacing.y;
+                        let max = row as f32 * (row_height + spacing) + spacing;
+                        let min = row as f32 * (row_height + spacing) + row_height
+                            - spacing
+                            - scroll_area_output.inner_rect.height();
+                        if scroll_area_output.state.offset.y > max {
+                            scroll_area_output.state.offset.y = max;
+                            scroll_area_output
+                                .state
+                                .store(ui.ctx(), scroll_area_output.id);
+                        } else if scroll_area_output.state.offset.y < min {
+                            scroll_area_output.state.offset.y = min;
+                            scroll_area_output
+                                .state
+                                .store(ui.ctx(), scroll_area_output.id);
+                        }
+                    }
+                    self.scrolled_on_first_open = true;
+                }
             });
         });
     }

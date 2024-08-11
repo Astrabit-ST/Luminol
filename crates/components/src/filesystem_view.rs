@@ -274,10 +274,9 @@ where
         match self.arena[node_id].get_mut() {
             Entry::File { name, selected } => {
                 ui.with_stripe(is_faint, |ui| {
-                    if ui
-                        .selectable_label(*selected, ui.truncate_text(name.to_string()))
-                        .clicked()
-                    {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
+                    if ui.selectable_label(*selected, name.to_string()).clicked() {
                         should_toggle = true;
                     };
                 });
@@ -314,10 +313,12 @@ where
                 header_response = Some(header.show_header(ui, |ui| {
                     ui.with_layout(layout, |ui| {
                         ui.with_stripe(is_faint, |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                             if ui
                                 .selectable_label(
                                     *selected,
-                                    ui.truncate_text(format!(
+                                    format!(
                                         "{}   {}",
                                         if *selected {
                                             '▣'
@@ -328,7 +329,7 @@ where
                                             '⊟'
                                         },
                                         name
-                                    )),
+                                    ),
                                 )
                                 .clicked()
                             {

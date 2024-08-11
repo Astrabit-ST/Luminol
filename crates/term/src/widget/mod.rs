@@ -267,10 +267,15 @@ where
                     Event::ResetTitle => "Luminol Terminal".clone_into(&mut self.title),
                     Event::Bell => {
                         let bell = luminol_macros::include_asset!("assets/sounds/bell.wav");
-                        let cursor = std::io::Cursor::new(bell);
                         update_state
                             .audio
-                            .play_from_file(cursor, false, 25, 100, luminol_audio::Source::SE)
+                            .play_from_slice(
+                                bell,
+                                25,
+                                100,
+                                None,
+                                luminol_audio::VolumeScale::Linear,
+                            )
                             .unwrap();
                     }
                     _ => {}

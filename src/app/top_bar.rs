@@ -173,11 +173,11 @@ impl TopBar {
                     }
                 });
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("Animations [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("Animations").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::animations::Window::default());
+                }
 
                 if ui.button("Common Events").clicked() {
                     update_state

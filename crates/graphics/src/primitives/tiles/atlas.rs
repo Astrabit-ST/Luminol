@@ -48,10 +48,10 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Atlas {
-    pub atlas_texture: Arc<Texture>,
-    pub autotile_width: u32,
-    pub tileset_height: u32,
-    pub autotile_frames: [u32; AUTOTILE_AMOUNT as usize],
+    atlas_texture: Arc<Texture>,
+    tileset_height: u32,
+    pub(super) autotile_width: u32,
+    pub(super) autotile_frames: [u32; AUTOTILE_AMOUNT as usize],
 }
 
 impl Atlas {
@@ -120,7 +120,7 @@ impl Atlas {
 
         let mut encoder = graphics_state.render_state.device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor {
-                label: Some("atlas creation"),
+                label: Some("tilemap atlas creation"),
             },
         );
 
@@ -342,6 +342,18 @@ impl Atlas {
                 egui::vec2(TILE_SIZE as f32 - 0.02, TILE_SIZE as f32 - 0.02),
             ),
         )
+    }
+
+    /// Returns this atlas's texture
+    #[inline]
+    pub fn texture(&self) -> &Arc<Texture> {
+        &self.atlas_texture
+    }
+
+    /// Returns the height of the original tileset texture in pixels
+    #[inline]
+    pub fn tileset_height(&self) -> u32 {
+        self.tileset_height
     }
 }
 

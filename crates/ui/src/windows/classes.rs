@@ -176,23 +176,27 @@ impl luminol_core::Window for Window {
                                         if self.previous_class != Some(class.id) {
                                             self.collapsing_view.clear_animations();
                                         }
-                                        self.collapsing_view.show(
-                                            ui,
-                                            class.id,
-                                            &mut class.learnings,
-                                            |ui, _i, learning| {
-                                                Self::show_learning_header(ui, &skills, learning)
-                                            },
-                                            |ui, i, learning| {
-                                                Self::show_learning_body(
-                                                    ui,
-                                                    update_state,
-                                                    &skills,
-                                                    class.id,
-                                                    (i, learning),
-                                                )
-                                            },
-                                        )
+                                        self.collapsing_view
+                                            .show(
+                                                ui,
+                                                class.id,
+                                                &mut class.learnings,
+                                                |ui, _i, learning| {
+                                                    Self::show_learning_header(
+                                                        ui, &skills, learning,
+                                                    )
+                                                },
+                                                |ui, i, learning| {
+                                                    Self::show_learning_body(
+                                                        ui,
+                                                        update_state,
+                                                        &skills,
+                                                        class.id,
+                                                        (i, learning),
+                                                    )
+                                                },
+                                            )
+                                            .response
                                     },
                                 ))
                                 .changed();

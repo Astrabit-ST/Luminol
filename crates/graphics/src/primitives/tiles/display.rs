@@ -38,7 +38,7 @@ struct LayerData {
     min_alignment_size: u32,
 }
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Copy, Clone, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Data {
     opacity: f32,

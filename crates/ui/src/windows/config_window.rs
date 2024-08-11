@@ -22,8 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use async_std::io::{ReadExt, WriteExt};
 use egui::Widget;
+use futures_lite::{AsyncReadExt, AsyncWriteExt};
 use luminol_core::data_formats::Handler as FormatHandler;
 use luminol_data::rpg;
 use luminol_filesystem::{FileSystem, OpenFlags};
@@ -381,6 +381,20 @@ impl luminol_core::Window for Window {
                                         &mut config.project.rgss_ver,
                                         ver,
                                         ver.to_string(),
+                                    )
+                                    .changed();
+                            }
+                        });
+
+                    egui::ComboBox::from_label("Volume Scale")
+                        .selected_text(config.project.volume_scale.to_string())
+                        .show_ui(ui, |ui| {
+                            for scale in luminol_config::VolumeScale::iter() {
+                                modified |= ui
+                                    .selectable_value(
+                                        &mut config.project.volume_scale,
+                                        scale,
+                                        scale.to_string(),
                                     )
                                     .changed();
                             }

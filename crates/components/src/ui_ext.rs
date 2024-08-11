@@ -57,10 +57,6 @@ pub trait UiExt {
         faint: bool,
         f: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R>;
-
-    /// Modifies the given `egui::WidgetText` to truncate when the text is too long to fit in the
-    /// current layout, rather than wrapping the text or expanding the layout.
-    fn truncate_text(&self, text: impl Into<egui::WidgetText>) -> egui::WidgetText;
 }
 
 impl UiExt for egui::Ui {
@@ -140,17 +136,5 @@ impl UiExt for egui::Ui {
             frame
         }
         .show(self, f)
-    }
-
-    fn truncate_text(&self, text: impl Into<egui::WidgetText>) -> egui::WidgetText {
-        let mut job = Into::<egui::WidgetText>::into(text).into_layout_job(
-            self.style(),
-            egui::TextStyle::Body.into(),
-            self.layout().vertical_align(),
-        );
-        job.wrap.max_width = self.available_width();
-        job.wrap.max_rows = 1;
-        job.wrap.break_anywhere = true;
-        job.into()
     }
 }

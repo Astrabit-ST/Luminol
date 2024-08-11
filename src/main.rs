@@ -269,7 +269,7 @@ const CANVAS_ID: &str = "luminol-canvas";
 #[cfg(target_arch = "wasm32")]
 struct WorkerData {
     report: Option<String>,
-    audio: luminol_audio::AudioWrapper,
+    audio: luminol_audio::Audio,
     modified: luminol_core::ModifiedState,
     prefers_color_scheme_dark: Option<bool>,
     fs_worker_channels: luminol_filesystem::web::WorkerChannels,
@@ -398,7 +398,7 @@ pub fn luminol_main_start() {
 
     *WORKER_DATA.lock() = Some(WorkerData {
         report,
-        audio: luminol_audio::AudioWrapper::default(),
+        audio: luminol_audio::Audio::default(),
         modified: modified.clone(),
         prefers_color_scheme_dark,
         fs_worker_channels,

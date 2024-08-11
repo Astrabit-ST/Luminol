@@ -188,7 +188,7 @@ where
                     ui.set_width(ui.available_width());
 
                     let search_box_response = ui.add(
-                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search 🔎"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
@@ -222,11 +222,10 @@ where
                                     self.reference.binary_search(&(id - first_id)).is_ok();
 
                                 ui.with_stripe(is_faint, |ui| {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                     if ui
-                                        .selectable_label(
-                                            is_id_selected,
-                                            ui.truncate_text((self.formatter)(id)),
-                                        )
+                                        .selectable_label(is_id_selected, (self.formatter)(id))
                                         .clicked()
                                     {
                                         clicked_id = Some(id - first_id);
@@ -345,7 +344,7 @@ where
                     ui.set_width(ui.available_width());
 
                     let search_box_response = ui.add(
-                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search 🔎"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
@@ -380,6 +379,8 @@ where
                                     self.minus.binary_search(&(id - first_id)).is_ok();
 
                                 ui.with_stripe(is_faint, |ui| {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                     // Make the background of the selectable label red if it's
                                     // a minus
                                     if is_id_minus {
@@ -391,13 +392,13 @@ where
                                     if ui
                                         .selectable_label(
                                             is_id_plus || is_id_minus,
-                                            ui.truncate_text(if is_id_plus {
+                                            if is_id_plus {
                                                 format!("+ {label}")
                                             } else if is_id_minus {
                                                 format!("‒ {label}")
                                             } else {
                                                 label
-                                            }),
+                                            },
                                         )
                                         .clicked()
                                     {
@@ -529,7 +530,7 @@ where
                     ui.set_width(ui.available_width());
 
                     let search_box_response = ui.add(
-                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search"),
+                        egui::TextEdit::singleline(&mut state.search_string).hint_text("Search 🔎"),
                     );
 
                     ui.add_space(ui.spacing().item_spacing.y);
@@ -564,6 +565,8 @@ where
                                 .map(|id| (id, self.reference[id + 1]))
                             {
                                 ui.with_stripe(is_faint, |ui| {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                     // Color the background of the selectable label depending on the
                                     // rank
                                     ui.visuals_mut().selection.bg_fill = match rank {
@@ -582,7 +585,7 @@ where
                                     if ui
                                         .selectable_label(
                                             matches!(rank, 1 | 2 | 4 | 5 | 6),
-                                            ui.truncate_text(format!(
+                                            format!(
                                                 "{} - {label}",
                                                 match rank {
                                                     1 => 'A',
@@ -593,7 +596,7 @@ where
                                                     6 => 'F',
                                                     _ => '?',
                                                 }
-                                            )),
+                                            ),
                                         )
                                         .clicked()
                                     {

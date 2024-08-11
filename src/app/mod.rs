@@ -39,10 +39,7 @@ pub struct App {
     log: log_window::LogWindow,
     lumi: Lumi,
 
-    #[cfg(not(target_arch = "wasm32"))]
     audio: luminol_audio::Audio,
-    #[cfg(target_arch = "wasm32")]
-    audio: luminol_audio::AudioWrapper,
 
     graphics: Arc<luminol_graphics::GraphicsState>,
     filesystem: luminol_filesystem::project::FileSystem,
@@ -90,7 +87,7 @@ impl App {
         modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] log_byte_rx: std::sync::mpsc::Receiver<u8>,
         #[cfg(not(target_arch = "wasm32"))] try_load_path: Option<std::ffi::OsString>,
-        #[cfg(target_arch = "wasm32")] audio: luminol_audio::AudioWrapper,
+        #[cfg(target_arch = "wasm32")] audio: luminol_audio::Audio,
         #[cfg(feature = "steamworks")] steamworks: Steamworks,
     ) -> Self {
         luminol_core::set_git_revision(crate::git_revision());

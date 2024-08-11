@@ -23,25 +23,43 @@ use crate::{BindGroupLayoutBuilder, GraphicsState};
 pub struct Graphic {
     data: Data,
     uniform: wgpu::Buffer,
+    opacity: i32,
+    opacity_multiplier: f32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C, align(16))]
+#[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct Data {
-    hue: f32,
     opacity: f32,
-    opacity_multiplier: f32,
-    _padding: u32,
+    /// counterclockwise in degrees
+    rotation: i16,
+    hue: i16,
+    flash_alpha: f32,
+    flash_red: u8,
+    flash_green: u8,
+    flash_blue: u8,
+    _padding: u8,
 }
 
 impl Graphic {
-    pub fn new(graphics_state: &GraphicsState, hue: i32, opacity: i32) -> Self {
-        let hue = (hue % 360) as f32 / 360.0;
-        let opacity = opacity as f32 / 255.;
+    pub fn new(
+        graphics_state: &GraphicsState,
+        opacity: i32,
+        opacity_multiplier: f32,
+        hue: i32,
+        rotation: i16,
+        flash: (u8, u8, u8, f32),
+    ) -> Self {
+        let computed_opacity = opacity as f32 / 255.0 * opacity_multiplier;
+        let (flash_red, flash_green, flash_blue, flash_alpha) = flash;
         let data = Data {
-            hue,
-            opacity,
-            opacity_multiplier: 1.,
+            opacity: computed_opacity,
+            hue: (hue % 360) as i16,
+            rotation,
+            flash_alpha,
+            flash_red,
+            flash_green,
+            flash_blue,
             _padding: 0,
         };
 
@@ -53,15 +71,20 @@ impl Graphic {
             },
         );
 
-        Self { data, uniform }
+        Self {
+            data,
+            uniform,
+            opacity,
+            opacity_multiplier,
+        }
     }
 
     pub fn hue(&self) -> i32 {
-        (self.data.hue * 360.) as i32
+        self.data.hue as i32
     }
 
     pub fn set_hue(&mut self, render_state: &luminol_egui_wgpu::RenderState, hue: i32) {
-        let hue = (hue % 360) as f32 / 360.0;
+        let hue = (hue % 360) as i16;
 
         if self.data.hue != hue {
             self.data.hue = hue;
@@ -74,16 +97,17 @@ impl Graphic {
     }
 
     pub fn set_opacity(&mut self, render_state: &luminol_egui_wgpu::RenderState, opacity: i32) {
-        let opacity = opacity as f32 / 255.0;
+        let computed_opacity = opacity as f32 / 255.0 * self.opacity_multiplier;
 
-        if self.data.opacity != opacity {
-            self.data.opacity = opacity;
+        if computed_opacity != self.data.opacity {
+            self.opacity = opacity;
+            self.data.opacity = computed_opacity;
             self.regen_buffer(render_state);
         }
     }
 
     pub fn opacity_multiplier(&self) -> f32 {
-        self.data.opacity_multiplier
+        self.opacity_multiplier
     }
 
     pub fn set_opacity_multiplier(
@@ -91,8 +115,82 @@ impl Graphic {
         render_state: &luminol_egui_wgpu::RenderState,
         opacity_multiplier: f32,
     ) {
-        if self.data.opacity_multiplier != opacity_multiplier {
-            self.data.opacity_multiplier = opacity_multiplier;
+        let computed_opacity = self.opacity as f32 / 255.0 * opacity_multiplier;
+
+        if computed_opacity != self.data.opacity {
+            self.opacity_multiplier = opacity_multiplier;
+            self.data.opacity = computed_opacity;
+            self.regen_buffer(render_state);
+        }
+    }
+
+    pub fn rotation(&self) -> i16 {
+        self.data.rotation
+    }
+
+    pub fn set_rotation(&mut self, render_state: &luminol_egui_wgpu::RenderState, rotation: i16) {
+        if self.data.rotation != rotation {
+            self.data.rotation = rotation;
+            self.regen_buffer(render_state);
+        }
+    }
+
+    pub fn flash(&self) -> (u8, u8, u8, f32) {
+        (
+            self.data.flash_red,
+            self.data.flash_green,
+            self.data.flash_blue,
+            self.data.flash_alpha,
+        )
+    }
+
+    pub fn set_flash(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        flash: (u8, u8, u8, f32),
+    ) {
+        if (
+            self.data.flash_red,
+            self.data.flash_green,
+            self.data.flash_blue,
+            self.data.flash_alpha,
+        ) != flash
+        {
+            (
+                self.data.flash_red,
+                self.data.flash_green,
+                self.data.flash_blue,
+                self.data.flash_alpha,
+            ) = flash;
+            self.regen_buffer(render_state);
+        }
+    }
+
+    pub fn set(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        opacity: i32,
+        opacity_multiplier: f32,
+        rotation: i16,
+        hue: i32,
+        flash: (u8, u8, u8, f32),
+    ) {
+        let computed_opacity = opacity as f32 / 255.0 * opacity_multiplier;
+        let (flash_red, flash_green, flash_blue, flash_alpha) = flash;
+        let data = Data {
+            opacity: computed_opacity,
+            hue: (hue % 360) as i16,
+            rotation,
+            flash_alpha,
+            flash_red,
+            flash_green,
+            flash_blue,
+            _padding: 0,
+        };
+        if data != self.data {
+            self.opacity = opacity;
+            self.opacity_multiplier = opacity_multiplier;
+            self.data = data;
             self.regen_buffer(render_state);
         }
     }

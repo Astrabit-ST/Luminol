@@ -49,6 +49,11 @@ pub use database_view::DatabaseView;
 mod collapsing_view;
 pub use collapsing_view::CollapsingView;
 
+mod animation_frame_view;
+pub use animation_frame_view::AnimationFrameView;
+mod cellpicker;
+pub use cellpicker::Cellpicker;
+
 mod id_vec;
 pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection, RankSelection};
 
@@ -74,6 +79,8 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
         egui::ComboBox::from_id_source(self.id)
             .selected_text(self.current_value.to_string())
             .show_ui(ui, |ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                 for variant in T::iter() {
                     let text = variant.to_string();
                     ui.selectable_value(self.current_value, variant, text);
@@ -99,6 +106,8 @@ impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for Enu
         let mut response = ui
             .vertical(|ui| {
                 ui.with_cross_justify(|ui| {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                     for variant in T::iter() {
                         let text = variant.to_string();
                         if ui.radio_value(self.current_value, variant, text).changed() {
@@ -150,6 +159,51 @@ where
                 ui.add_space(spacing);
                 ui.add(egui::Label::new(format!("{}:", self.name)).truncate());
                 if ui.add(self.widget).changed() {
+                    changed = true;
+                };
+                ui.add_space(spacing);
+            })
+            .response;
+        if changed {
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+pub struct FieldWithCheckbox<'a, T> {
+    name: String,
+    checked: &'a mut bool,
+    widget: T,
+}
+impl<'a, T> FieldWithCheckbox<'a, T>
+where
+    T: egui::Widget,
+{
+    pub fn new(name: impl Into<String>, checked: &'a mut bool, widget: T) -> Self {
+        Self {
+            name: name.into(),
+            checked,
+            widget,
+        }
+    }
+}
+
+impl<T> egui::Widget for FieldWithCheckbox<'_, T>
+where
+    T: egui::Widget,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+        let mut response = ui
+            .vertical(|ui| {
+                let spacing = ui.spacing().item_spacing.y;
+                ui.add_space(spacing);
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new(format!("{}:", self.name)).truncate());
+                    ui.add(egui::Checkbox::without_text(self.checked));
+                });
+                if ui.add_enabled(*self.checked, self.widget).changed() {
                     changed = true;
                 };
                 ui.add_space(spacing);
@@ -218,7 +272,7 @@ where
                             .selectable_label(
                                 std::mem::discriminant(self.reference)
                                     == std::mem::discriminant(&variant),
-                                ui.truncate_text(variant.to_string()),
+                                variant.to_string(),
                             )
                             .clicked()
                         {
@@ -304,7 +358,7 @@ where
                 let mut search_matched_ids = search_matched_ids_lock.lock();
 
                 let search_box_response =
-                    ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search"));
+                    ui.add(egui::TextEdit::singleline(&mut search_string).hint_text("Search 🔎"));
 
                 ui.add_space(ui.spacing().item_spacing.y);
 
@@ -422,10 +476,7 @@ where
                 if show_none
                     && ui
                         .with_stripe(false, |ui| {
-                            ui.selectable_label(
-                                this.reference.is_none(),
-                                ui.truncate_text("(None)"),
-                            )
+                            ui.selectable_label(this.reference.is_none(), "(None)")
                         })
                         .inner
                         .clicked()
@@ -438,11 +489,10 @@ where
 
                 for id in ids {
                     ui.with_stripe(is_faint, |ui| {
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                         if ui
-                            .selectable_label(
-                                *this.reference == Some(id),
-                                ui.truncate_text((this.formatter)(id)),
-                            )
+                            .selectable_label(*this.reference == Some(id), (this.formatter)(id))
                             .clicked()
                         {
                             *this.reference = Some(id);
@@ -479,11 +529,10 @@ where
 
                 for id in ids {
                     ui.with_stripe(is_faint, |ui| {
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                         if ui
-                            .selectable_label(
-                                *this.reference == id,
-                                ui.truncate_text((this.formatter)(id)),
-                            )
+                            .selectable_label(*this.reference == id, (this.formatter)(id))
                             .clicked()
                         {
                             *this.reference = id;

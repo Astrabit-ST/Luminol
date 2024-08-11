@@ -124,7 +124,7 @@ impl Tab {
         // *sigh*
         // borrow checker.
         let view = luminol_components::MapView::new(update_state, id)?;
-        let tilepicker = luminol_components::Tilepicker::new(update_state, id)?;
+        let tilepicker = luminol_components::Tilepicker::new(update_state, id);
 
         let map = update_state.data.get_or_load_map(
             id,

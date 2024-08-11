@@ -29,6 +29,7 @@ pub struct Sprite {
     pub graphic: graphic::Graphic,
     pub transform: Transform,
     pub blend_mode: luminol_data::BlendMode,
+    pub quad: Quad,
 
     // stored in an Arc so we can use it in rendering
     vertices: Arc<vertices::Vertices>,
@@ -48,9 +49,46 @@ impl Sprite {
         viewport: &Viewport,
         transform: Transform,
     ) -> Self {
+        Self::new_full(
+            graphics_state,
+            quad,
+            hue,
+            opacity,
+            1.,
+            blend_mode,
+            texture,
+            viewport,
+            transform,
+            0,
+            (255, 255, 255, 0.),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_full(
+        graphics_state: &GraphicsState,
+        quad: Quad,
+        hue: i32,
+        opacity: i32,
+        opacity_multiplier: f32,
+        blend_mode: luminol_data::BlendMode,
+        // arranged in order of use in bind group
+        texture: &Texture,
+        viewport: &Viewport,
+        transform: Transform,
+        rotation: i16,
+        flash: (u8, u8, u8, f32),
+    ) -> Self {
         let vertices =
             vertices::Vertices::from_quads(&graphics_state.render_state, &[quad], texture.size());
-        let graphic = graphic::Graphic::new(graphics_state, hue, opacity);
+        let graphic = graphic::Graphic::new(
+            graphics_state,
+            opacity,
+            opacity_multiplier,
+            hue,
+            rotation,
+            flash,
+        );
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
@@ -70,6 +108,7 @@ impl Sprite {
             graphic,
             blend_mode,
             transform,
+            quad,
 
             vertices: Arc::new(vertices),
             bind_group: Arc::new(bind_group),
@@ -110,6 +149,18 @@ impl Sprite {
     // takes the full size of a texture, has no hue, opacity, or blend mode, and uses the identity transform
     pub fn basic(graphics_state: &GraphicsState, texture: &Texture, viewport: &Viewport) -> Self {
         Self::basic_hue(graphics_state, 0, texture, viewport)
+    }
+
+    pub fn set_quad(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        quad: Quad,
+        extents: wgpu::Extent3d,
+    ) {
+        if quad != self.quad {
+            self.quad = quad;
+            self.vertices.set(render_state, &[quad], extents);
+        }
     }
 }
 

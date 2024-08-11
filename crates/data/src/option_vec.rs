@@ -15,7 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::{Index, IndexMut};
+use std::{
+    iter::FusedIterator,
+    ops::{Index, IndexMut},
+};
 
 use alox_48::SerializeHash;
 use serde::ser::SerializeMap;
@@ -27,11 +30,15 @@ pub struct OptionVec<T> {
     num_values: usize,
 }
 
+#[derive(Debug)]
 pub struct Iter<'a, T> {
+    size: usize,
     vec_iter: std::iter::Enumerate<std::slice::Iter<'a, Option<T>>>,
 }
 
+#[derive(Debug)]
 pub struct IterMut<'a, T> {
+    size: usize,
     vec_iter: std::iter::Enumerate<std::slice::IterMut<'a, Option<T>>>,
 }
 
@@ -58,6 +65,10 @@ impl<T> OptionVec<T> {
         self.vec.is_empty()
     }
 
+    pub fn contains(&self, index: usize) -> bool {
+        self.get(index).is_some()
+    }
+
     pub fn get(&self, index: usize) -> Option<&T> {
         self.vec.get(index).and_then(|x| x.as_ref())
     }
@@ -72,6 +83,10 @@ impl<T> OptionVec<T> {
 
     pub fn reserve(&mut self, additional: usize) {
         self.vec.reserve(additional);
+    }
+
+    pub fn clear(&mut self) {
+        self.vec.clear();
     }
 
     pub fn iter(&self) -> Iter<'_, T> {
@@ -154,6 +169,23 @@ impl<T> FromIterator<(usize, T)> for OptionVec<T> {
     }
 }
 
+impl<T> Extend<(usize, T)> for OptionVec<T> {
+    fn extend<I: IntoIterator<Item = (usize, T)>>(&mut self, iterable: I) {
+        for (i, v) in iterable.into_iter() {
+            if i >= self.vec.len() {
+                let additional = i - self.vec.len() + 1;
+                self.vec.reserve(additional);
+                self.vec
+                    .extend(std::iter::repeat_with(|| None).take(additional));
+            }
+            if self.vec[i].is_none() {
+                self.num_values += 1;
+            }
+            self.vec[i] = Some(v);
+        }
+    }
+}
+
 impl<T> Index<usize> for OptionVec<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
@@ -172,6 +204,7 @@ impl<'a, T> IntoIterator for &'a OptionVec<T> {
     type IntoIter = Iter<'a, T>;
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
+            size: self.size(),
             vec_iter: self.vec.iter().enumerate(),
         }
     }
@@ -182,6 +215,7 @@ impl<'a, T> IntoIterator for &'a mut OptionVec<T> {
     type IntoIter = IterMut<'a, T>;
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
+            size: self.size(),
             vec_iter: self.vec.iter_mut().enumerate(),
         }
     }
@@ -192,6 +226,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         for (index, element) in &mut self.vec_iter {
             if let Some(element) = element {
+                self.size -= 1;
                 return Some((index, element));
             }
         }
@@ -199,15 +234,65 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+impl<T> DoubleEndedIterator for Iter<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some((index, element)) = self.vec_iter.next_back() {
+            if let Some(element) = element {
+                self.size -= 1;
+                return Some((index, element));
+            }
+        }
+        None
+    }
+}
+
+impl<T> ExactSizeIterator for Iter<'_, T> {
+    fn len(&self) -> usize {
+        self.size
+    }
+}
+
+impl<T> FusedIterator for Iter<'_, T> {}
+
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = (usize, &'a mut T);
     fn next(&mut self) -> Option<Self::Item> {
         for (index, element) in &mut self.vec_iter {
             if let Some(element) = element {
+                self.size -= 1;
                 return Some((index, element));
             }
         }
         None
+    }
+}
+
+impl<T> DoubleEndedIterator for IterMut<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some((index, element)) = self.vec_iter.next_back() {
+            if let Some(element) = element {
+                self.size -= 1;
+                return Some((index, element));
+            }
+        }
+        None
+    }
+}
+
+impl<T> ExactSizeIterator for IterMut<'_, T> {
+    fn len(&self) -> usize {
+        self.size
+    }
+}
+
+impl<T> FusedIterator for IterMut<'_, T> {}
+
+impl<T> Clone for Iter<'_, T> {
+    fn clone(&self) -> Self {
+        Self {
+            size: self.size,
+            vec_iter: self.vec_iter.clone(),
+        }
     }
 }
 

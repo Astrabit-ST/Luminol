@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use color_eyre::eyre::Context;
+use color_eyre::eyre::WrapErr;
 use egui::Widget;
 use luminol_components::UiExt;
 use luminol_core::prelude::*;
@@ -36,6 +36,8 @@ pub struct Modal {
     tileset_id: usize,
 
     button_sprite: Option<ButtonSprite>,
+
+    scrolled_on_first_open: bool,
 }
 
 enum State {
@@ -69,7 +71,6 @@ enum Selected {
     },
 }
 
-// FIXME DEAR GOD THE FORMATTING
 impl Modal {
     pub fn new(
         update_state: &UpdateState<'_>,
@@ -101,6 +102,8 @@ impl Modal {
             tileset_id,
 
             button_sprite,
+
+            scrolled_on_first_open: false,
         }
     }
 }
@@ -126,7 +129,7 @@ impl luminol_core::Modal for Modal {
 
             if response.clicked() && !is_open {
                 let selected = if let Some(tile_id) = data.tile_id {
-                    let tilepicker = Self::load_tilepicker(update_state, self.tileset_id).unwrap(); // TODO handle
+                    let tilepicker = Self::load_tilepicker(update_state, self.tileset_id);
 
                     Selected::Tile {
                         tile_id,
@@ -185,6 +188,7 @@ impl luminol_core::Modal for Modal {
     fn reset(&mut self, update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
         self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
+        self.scrolled_on_first_open = false;
     }
 }
 
@@ -211,10 +215,7 @@ impl Modal {
         });
     }
 
-    fn load_tilepicker(
-        update_state: &UpdateState<'_>,
-        tileset_id: usize,
-    ) -> color_eyre::Result<Tilepicker> {
+    fn load_tilepicker(update_state: &UpdateState<'_>, tileset_id: usize) -> Tilepicker {
         let tilesets = update_state.data.tilesets();
         let tileset = &tilesets.data[tileset_id];
 
@@ -223,10 +224,10 @@ impl Modal {
             tileset,
             update_state.filesystem,
             true,
-        )?;
+        );
         tilepicker.tiles.auto_opacity = false;
 
-        Ok(tilepicker)
+        tilepicker
     }
 
     fn load_preview_sprite(
@@ -299,7 +300,17 @@ impl Modal {
             blend_mode,
         } = &mut self.state
         else {
+            self.scrolled_on_first_open = false;
             return false;
+        };
+
+        let event_name = match selected {
+            Selected::Graphic { path, .. } => update_state
+                .filesystem
+                .desensitize(format!("Graphics/Characters/{path}"))
+                .ok()
+                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())),
+            Selected::None | Selected::Tile { .. } => None,
         };
 
         egui::Window::new("Event Graphic Picker")
@@ -318,30 +329,41 @@ impl Modal {
                     ui.separator();
 
                     // Get row height.
-                    let row_height = ui.text_style_height(&egui::TextStyle::Body); // i do not trust this
-                    // FIXME scroll to selected on first open
+                    let row_height = ui.spacing().interact_size.y.max(
+                        ui.text_style_height(&egui::TextStyle::Button)
+                            + 2. * ui.spacing().button_padding.y,
+                    );
                     ui.with_cross_justify(|ui| {
-                        egui::ScrollArea::vertical()
+                        let mut scroll_area_output = egui::ScrollArea::vertical()
                             .auto_shrink([false, true])
                             .show_rows(
                                 ui,
                                 row_height,
                                 filtered_entries.len() + 2,
                                 |ui, mut rows| {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                     if rows.contains(&0) {
-                                        let res = ui.selectable_label(matches!(selected, Selected::None), "(None)");
+                                        let checked = matches!(selected, Selected::None);
+                                        let res = ui.selectable_label(checked, "(None)");
                                         if res.clicked() && !matches!(selected, Selected::None) {
                                             *selected = Selected::None;
                                         }
                                     }
 
                                     if rows.contains(&1) {
-                                        let checked = matches!(selected, Selected::Tile {..});
                                         ui.with_stripe(true, |ui| {
-                                            let res =  ui.selectable_label(checked, "(Tileset)");
+                                            let checked = matches!(selected, Selected::Tile { .. });
+                                            let res = ui.selectable_label(checked, "(Tileset)");
                                             if res.clicked() && !checked {
-                                                let tilepicker = Self::load_tilepicker(update_state, self.tileset_id).unwrap(); // TODO handle
-                                                *selected = Selected::Tile { tile_id: 384, tilepicker };
+                                                let tilepicker = Self::load_tilepicker(
+                                                    update_state,
+                                                    self.tileset_id,
+                                                );
+                                                *selected = Selected::Tile {
+                                                    tile_id: 384,
+                                                    tilepicker,
+                                                };
                                             }
                                         });
                                     }
@@ -350,31 +372,84 @@ impl Modal {
                                     rows.start = rows.start.saturating_sub(2);
                                     rows.end = rows.end.saturating_sub(2);
 
-                                    for (i, Entry { path ,invalid}) in filtered_entries[rows.clone()].iter_mut().enumerate() {
-                                        let checked =
-                                            matches!(selected, Selected::Graphic { path: p, .. } if p == path);
+                                    for (i, Entry { path, invalid }) in
+                                        filtered_entries[rows.clone()].iter_mut().enumerate()
+                                    {
+                                        let checked = event_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
                                         }
                                         let faint = (i + rows.start) % 2 == 1;
                                         ui.with_stripe(faint, |ui| {
-                                            let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
+                                            let res = ui.add_enabled(
+                                                !*invalid,
+                                                egui::SelectableLabel::new(checked, text),
+                                            );
 
                                             if res.clicked() {
-                                                let sprite = match Self::load_preview_sprite(update_state, path, *hue, *opacity) {
+                                                let name = camino::Utf8PathBuf::from(
+                                                    path.file_stem().unwrap_or(path.as_str()),
+                                                );
+                                                let sprite = match Self::load_preview_sprite(
+                                                    update_state,
+                                                    &name,
+                                                    *hue,
+                                                    *opacity,
+                                                ) {
                                                     Ok(sprite) => sprite,
                                                     Err(e) => {
-                                                        luminol_core::error!(update_state.toasts, e);
+                                                        luminol_core::error!(
+                                                            update_state.toasts,
+                                                            e
+                                                        );
                                                         *invalid = true; // FIXME update non-filtered entry too
                                                         return;
                                                     }
                                                 };
-                                                *selected = Selected::Graphic { path: path.clone(), direction: 2, pattern: 0, sprite };
+                                                *selected = Selected::Graphic {
+                                                    path: name,
+                                                    direction: 2,
+                                                    pattern: 0,
+                                                    sprite,
+                                                };
                                             }
                                         });
                                     }
-                            });
+                                },
+                            );
+
+                        // Scroll the selected item into view
+                        if !self.scrolled_on_first_open {
+                            let row = match selected {
+                                Selected::None => Some(0),
+                                Selected::Tile { .. } => Some(1),
+                                Selected::Graphic { .. } => {
+                                    filtered_entries.iter().enumerate().find_map(|(i, entry)| {
+                                        (event_name.as_ref() == Some(&entry.path)).then_some(i + 2)
+                                    })
+                                }
+                            };
+                            if let Some(row) = row {
+                                let spacing = ui.spacing().item_spacing.y;
+                                let max = row as f32 * (row_height + spacing) + spacing;
+                                let min = row as f32 * (row_height + spacing) + row_height
+                                    - spacing
+                                    - scroll_area_output.inner_rect.height();
+                                if scroll_area_output.state.offset.y > max {
+                                    scroll_area_output.state.offset.y = max;
+                                    scroll_area_output
+                                        .state
+                                        .store(ui.ctx(), scroll_area_output.id);
+                                } else if scroll_area_output.state.offset.y < min {
+                                    scroll_area_output.state.offset.y = min;
+                                    scroll_area_output
+                                        .state
+                                        .store(ui.ctx(), scroll_area_output.id);
+                                }
+                            }
+                            self.scrolled_on_first_open = true;
+                        }
                     });
                 });
 
@@ -384,24 +459,33 @@ impl Modal {
                         ui.label("Opacity");
                         if ui.add(egui::Slider::new(opacity, 0..=255)).changed() {
                             match selected {
-                                Selected::Graphic { sprite,.. } => {
-                                    sprite.sprite.graphic.set_opacity(&update_state.graphics.render_state, *opacity)
-                                },
-                                Selected::Tile { tilepicker,.. } => {
-                                    tilepicker.tiles.display.set_opacity(&update_state.graphics.render_state, *opacity as f32 / 255., 0)
+                                Selected::Graphic { sprite, .. } => sprite
+                                    .sprite
+                                    .graphic
+                                    .set_opacity(&update_state.graphics.render_state, *opacity),
+                                Selected::Tile { tilepicker, .. } => {
+                                    tilepicker.tiles.display.set_opacity(
+                                        &update_state.graphics.render_state,
+                                        *opacity as f32 / 255.,
+                                        0,
+                                    )
                                 }
                                 Selected::None => {}
                             }
-
                         }
                         ui.label("Hue");
                         if ui.add(egui::Slider::new(hue, 0..=360)).changed() {
                             match selected {
-                                Selected::Graphic { sprite,.. } => {
-                                    sprite.sprite.graphic.set_hue(&update_state.graphics.render_state, *hue)
-                                },
-                                Selected::Tile { tilepicker,.. } => {
-                                    tilepicker.tiles.display.set_hue(&update_state.graphics.render_state, *hue as f32 / 360., 0)
+                                Selected::Graphic { sprite, .. } => sprite
+                                    .sprite
+                                    .graphic
+                                    .set_hue(&update_state.graphics.render_state, *hue),
+                                Selected::Tile { tilepicker, .. } => {
+                                    tilepicker.tiles.display.set_hue(
+                                        &update_state.graphics.render_state,
+                                        *hue as f32 / 360.,
+                                        0,
+                                    )
                                 }
                                 Selected::None => {}
                             }
@@ -409,7 +493,11 @@ impl Modal {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Blend Mode");
-                        luminol_components::EnumComboBox::new(self.id_source.with("blend_mode"), blend_mode).ui(ui);
+                        luminol_components::EnumComboBox::new(
+                            self.id_source.with("blend_mode"),
+                            blend_mode,
+                        )
+                        .ui(ui);
                     });
                     ui.add_space(1.0); // pad out the bottom
                 });
@@ -419,29 +507,48 @@ impl Modal {
                 });
 
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    egui::ScrollArea::both().auto_shrink([false,false]).show_viewport(ui, |ui, viewport| {
-                        match selected {
+                    egui::ScrollArea::both()
+                        .auto_shrink([false, false])
+                        .show_viewport(ui, |ui, viewport| match selected {
                             Selected::None => {}
-                            Selected::Graphic { direction, pattern, sprite, .. } => {
+                            Selected::Graphic {
+                                direction,
+                                pattern,
+                                sprite,
+                                ..
+                            } => {
                                 let response = sprite.ui(ui, viewport, update_state);
 
                                 let ch = sprite.sprite_size.y / 4.;
                                 let cw = sprite.sprite_size.x / 4.;
 
-                                let min = egui::pos2(*pattern as f32 * cw, (*direction as f32 - 2.) * ch / 2.);
+                                let min = egui::pos2(
+                                    *pattern as f32 * cw,
+                                    (*direction as f32 - 2.) * ch / 2.,
+                                );
                                 let size = egui::vec2(cw, ch);
-                                let rect = egui::Rect::from_min_size(min, size).translate(response.rect.min.to_vec2());
-                                ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+                                let rect = egui::Rect::from_min_size(min, size)
+                                    .translate(response.rect.min.to_vec2());
+                                ui.painter().rect_stroke(
+                                    rect,
+                                    5.0,
+                                    egui::Stroke::new(1.0, egui::Color32::WHITE),
+                                );
 
                                 if response.clicked() {
-                                    let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / egui::vec2(cw, ch);
+                                    let pos = (response.interact_pointer_pos().unwrap()
+                                        - response.rect.min)
+                                        / egui::vec2(cw, ch);
                                     *direction = pos.y as i32 * 2 + 2;
                                     *pattern = pos.x as i32;
                                 }
                             }
-                            Selected::Tile { tile_id, tilepicker } => {
+                            Selected::Tile {
+                                tile_id,
+                                tilepicker,
+                            } => {
                                 let (canvas_rect, response) = ui.allocate_exact_size(
-                                    egui::vec2(256., tilepicker.atlas.tileset_height as f32),
+                                    egui::vec2(256., tilepicker.atlas.tileset_height() as f32),
                                     egui::Sense::click(),
                                 );
 
@@ -449,7 +556,8 @@ impl Modal {
                                     .ctx()
                                     .screen_rect()
                                     .intersect(viewport.translate(canvas_rect.min.to_vec2()));
-                                let scroll_rect = absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
+                                let scroll_rect =
+                                    absolute_scroll_rect.translate(-canvas_rect.min.to_vec2());
 
                                 tilepicker.grid.display.set_pixels_per_point(
                                     &update_state.graphics.render_state,
@@ -467,10 +575,13 @@ impl Modal {
                                     glam::Vec2::ONE,
                                 );
 
-                                tilepicker
-                                    .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
+                                tilepicker.update_animation(
+                                    &update_state.graphics.render_state,
+                                    ui.input(|i| i.time),
+                                );
 
-                                let painter = Painter::new(tilepicker.prepare(&update_state.graphics));
+                                let painter =
+                                    Painter::new(tilepicker.prepare(&update_state.graphics));
                                 ui.painter()
                                     .add(luminol_egui_wgpu::Callback::new_paint_callback(
                                         absolute_scroll_rect,
@@ -479,16 +590,25 @@ impl Modal {
 
                                 let tile_x = (*tile_id - 384) % 8;
                                 let tile_y = (*tile_id - 384) / 8;
-                                let rect = egui::Rect::from_min_size(egui::Pos2::new(tile_x as f32, tile_y as f32) * 32., egui::Vec2::splat(32.)).translate(canvas_rect.min.to_vec2());
-                                ui.painter().rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+                                let rect = egui::Rect::from_min_size(
+                                    egui::Pos2::new(tile_x as f32, tile_y as f32) * 32.,
+                                    egui::Vec2::splat(32.),
+                                )
+                                .translate(canvas_rect.min.to_vec2());
+                                ui.painter().rect_stroke(
+                                    rect,
+                                    5.0,
+                                    egui::Stroke::new(1.0, egui::Color32::WHITE),
+                                );
 
                                 if response.clicked() {
-                                    let pos = (response.interact_pointer_pos().unwrap() - response.rect.min) / 32.;
+                                    let pos = (response.interact_pointer_pos().unwrap()
+                                        - response.rect.min)
+                                        / 32.;
                                     *tile_id = pos.x as usize + pos.y as usize * 8 + 384;
                                 }
                             }
-                        }
-                    });
+                        });
                 });
             });
 
@@ -522,6 +642,7 @@ impl Modal {
 
         if !(win_open && keep_open) {
             self.state = State::Closed;
+            self.scrolled_on_first_open = false;
         }
 
         needs_save

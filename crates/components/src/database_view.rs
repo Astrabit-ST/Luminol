@@ -81,14 +81,14 @@ impl DatabaseView {
                         egui::Layout::bottom_up(ui.layout().horizontal_align()),
                         |ui| {
                             ui.horizontal(|ui| {
-                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                 ui.add(egui::DragValue::new(self.maximum.as_mut().unwrap()));
 
                                 if ui
                                     .add_enabled(
                                         self.maximum != Some(vec.len()),
-                                        egui::Button::new(ui.truncate_text("Set Maximum")),
+                                        egui::Button::new("Set Maximum"),
                                     )
                                     .clicked()
                                 {
@@ -153,7 +153,7 @@ impl DatabaseView {
 
                                         let search_box_response = ui.add(
                                             egui::TextEdit::singleline(&mut search_string)
-                                                .hint_text("Search"),
+                                                .hint_text("Search 🔎"),
                                         );
 
                                         ui.add_space(ui.spacing().item_spacing.y);
@@ -195,11 +195,13 @@ impl DatabaseView {
                                                     let entry = &mut vec[id];
 
                                                     ui.with_stripe(is_faint, |ui| {
+                                                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
                                                         let response = ui
                                                             .selectable_value(
                                                                 &mut self.selected_id,
                                                                 id,
-                                                                ui.truncate_text(formatter(entry)),
+                                                                formatter(entry),
                                                             )
                                                             .interact(egui::Sense::click());
 

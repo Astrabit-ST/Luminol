@@ -68,13 +68,30 @@ impl Transform {
         render_state: &luminol_egui_wgpu::RenderState,
         position: glam::Vec2,
     ) {
-        self.data.position = position;
-        self.regen_buffer(render_state);
+        if position != self.data.position {
+            self.data.position = position;
+            self.regen_buffer(render_state);
+        }
     }
 
     pub fn set_scale(&mut self, render_state: &luminol_egui_wgpu::RenderState, scale: glam::Vec2) {
-        self.data.scale = scale;
-        self.regen_buffer(render_state);
+        if scale != self.data.scale {
+            self.data.scale = scale;
+            self.regen_buffer(render_state);
+        }
+    }
+
+    pub fn set(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        position: glam::Vec2,
+        scale: glam::Vec2,
+    ) {
+        let data = Data { position, scale };
+        if data != self.data {
+            self.data = data;
+            self.regen_buffer(render_state);
+        }
     }
 
     fn regen_buffer(&mut self, render_state: &luminol_egui_wgpu::RenderState) {

@@ -67,7 +67,7 @@ impl Tiles {
 
         let mut bind_group_builder = BindGroupBuilder::new();
         bind_group_builder
-            .append_texture_view(&atlas.atlas_texture.view)
+            .append_texture_view(&atlas.texture().view)
             .append_sampler(&graphics_state.nearest_sampler)
             .append_buffer(viewport.as_buffer())
             .append_buffer(transform.as_buffer())
