@@ -914,7 +914,9 @@ pub fn show_frame_edit(
         state.frame_needs_update = false;
     }
 
-    egui::ScrollArea::horizontal().show_viewport(ui, |ui, scroll_rect| {
+    egui::ScrollArea::horizontal().show_viewport(ui, |ui, mut scroll_rect| {
+        scroll_rect
+            .set_height(luminol_graphics::primitives::cells::CELL_SIZE as f32 * cellpicker.scale);
         cellpicker.ui(update_state, ui, scroll_rect);
     });
 
