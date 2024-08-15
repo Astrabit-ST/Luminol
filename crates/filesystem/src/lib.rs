@@ -247,7 +247,8 @@ pub trait FileSystem: Send + Sync {
     }
 
     /// Corresponds to [`std::fs::write()`].
-    /// Will open a file at the path, create it if it exists (and truncate it) and then write the provided bytes.
+    /// Will open a file at the path, create it if it does not exist (and truncate it)
+    /// and then write the provided bytes.
     fn write(&self, path: impl AsRef<camino::Utf8Path>, data: impl AsRef<[u8]>) -> Result<()> {
         use std::io::Write;
 
