@@ -208,7 +208,7 @@ async-std.workspace = true
 futures-lite.workspace = true
 
 git-version = "0.3.9"
-shadow-rs = "0.32.0"
+shadow-rs = { version = "0.32.0", default-features = false }
 
 # Native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -266,7 +266,7 @@ features = ["webgpu", "webgl"]
 steamworks = ["dep:steamworks"]
 
 [build-dependencies]
-shadow-rs = "0.32.0"
+shadow-rs = { version = "0.32.0", default-features = false }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
