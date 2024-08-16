@@ -64,9 +64,6 @@ impl luminol_core::Window for Window {
                     ui.heading("Luminol");
 
                     ui.separator();
-                    ui.label(format!("Luminol version {}", env!("CARGO_PKG_VERSION")));
-                    ui.label(format!("git-rev {}", update_state.git_revision));
-                    ui.separator();
 
                     ui.label("Luminol is a FOSS version of the RPG Maker XP editor.");
                     ui.separator();
@@ -74,7 +71,31 @@ impl luminol_core::Window for Window {
                     ui.label(format!(
                         "Authors: \n{}",
                         env!("CARGO_PKG_AUTHORS").replace(':', "\n")
-                    ))
+                    ));
+                    ui.separator();
+
+                    ui.label(format!("Luminol version {}", env!("CARGO_PKG_VERSION")));
+                    ui.label("--- Build time info ---");
+                    ui.label(format!(
+                        "git-rev {}",
+                        update_state.build_diagnostics.git_revision
+                    ));
+                    ui.label(format!(
+                        "built on {}",
+                        update_state.build_diagnostics.build_time
+                    ));
+                    ui.label(format!(
+                        "build OS: {}",
+                        update_state.build_diagnostics.build_os
+                    ));
+                    ui.label("--- Build info ---");
+                    ui.label(update_state.build_diagnostics.rustc_version);
+                    ui.label(update_state.build_diagnostics.cargo_version);
+                    if update_state.build_diagnostics.is_debug {
+                        ui.label("Debug build");
+                    } else {
+                        ui.label("Release build");
+                    }
                 })
             });
     }
