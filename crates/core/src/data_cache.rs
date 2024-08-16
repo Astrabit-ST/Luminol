@@ -330,7 +330,7 @@ impl Data {
             .wrap_err("While serializing .luminol/commands")?;
         filesystem
             .write(".luminol/commands", command_db)
-            .wrap_err("While writing .luminol/config")?;
+            .wrap_err("While writing .luminol/commands")?;
 
         // even though Ini uses fmt::write internally, it provides no easy way to write to a string.
         // so we need to open a file instead
