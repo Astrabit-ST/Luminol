@@ -55,8 +55,12 @@ const fn git_revision() -> &'static str {
     {
         git_version::git_version!()
     }
+    // I would reach for unwrap_or but it's not const fn yet
     #[cfg(target_arch = "wasm32")]
-    option_env!("LUMINOL_VERSION").unwrap_or(git_version::git_version!())
+    match option_env!("LUMINOL_VERSION") {
+        Some(v) => v,
+        None => git_version::git_version!(),
+    }
 }
 
 pub const BUILD_DIAGNOSTIC: luminol_core::BuildDiagnostics = luminol_core::BuildDiagnostics {
