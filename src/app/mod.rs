@@ -24,9 +24,9 @@
 
 use std::sync::Arc;
 
-use crate::lumi::Lumi;
 #[cfg(feature = "steamworks")]
 use crate::steam::Steamworks;
+use crate::{lumi::Lumi, BUILD_DIAGNOSTIC};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod log_window;
@@ -344,7 +344,7 @@ impl luminol_eframe::App for App {
             modified: self.modified.clone(),
             modified_during_prev_frame: &mut self.modified_during_prev_frame,
             project_manager: &mut self.project_manager,
-            git_revision: crate::git_revision(),
+            build_diagnostics: &BUILD_DIAGNOSTIC,
         };
 
         // If a file/folder picker is open, prevent the user from interacting with the application

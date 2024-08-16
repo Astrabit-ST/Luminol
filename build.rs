@@ -35,4 +35,6 @@ fn main() {
 
         let _ = res.compile();
     }
+
+    shadow_rs::new().unwrap();
 }

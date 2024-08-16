@@ -88,7 +88,16 @@ pub struct UpdateState<'res> {
     pub modified_during_prev_frame: &'res mut bool,
     pub project_manager: &'res mut ProjectManager,
 
+    pub build_diagnostics: &'static BuildDiagnostics,
+}
+
+pub struct BuildDiagnostics {
+    pub build_time: &'static str,
     pub git_revision: &'static str,
+    pub rustc_version: &'static str,
+    pub cargo_version: &'static str,
+    pub build_os: &'static str,
+    pub is_debug: bool,
 }
 
 /// This stores whether or not there are unsaved changes in any file in the current project and is
@@ -206,7 +215,7 @@ impl<'res> UpdateState<'res> {
             modified: self.modified.clone(),
             modified_during_prev_frame: self.modified_during_prev_frame,
             project_manager: self.project_manager,
-            git_revision: self.git_revision,
+            build_diagnostics: self.build_diagnostics,
         }
     }
 
@@ -230,7 +239,7 @@ impl<'res> UpdateState<'res> {
             modified: self.modified.clone(),
             modified_during_prev_frame: self.modified_during_prev_frame,
             project_manager: self.project_manager,
-            git_revision: self.git_revision,
+            build_diagnostics: self.build_diagnostics,
         }
     }
 

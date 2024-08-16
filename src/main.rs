@@ -14,7 +14,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-//cargo r
 //     Additional permission under GNU GPL version 3 section 7
 //
 // If you modify this Program, or any covered work, by linking or combining
@@ -24,6 +23,8 @@
 #![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![cfg_attr(target_arch = "wasm32", no_main)] // there is no main function in web builds
+
+shadow_rs::shadow!(build);
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
@@ -49,7 +50,7 @@ compile_error!("Steamworks is not supported on webassembly");
 #[cfg(feature = "steamworks")]
 mod steam;
 
-pub fn git_revision() -> &'static str {
+const fn git_revision() -> &'static str {
     #[cfg(not(target_arch = "wasm32"))]
     {
         git_version::git_version!()
@@ -57,6 +58,15 @@ pub fn git_revision() -> &'static str {
     #[cfg(target_arch = "wasm32")]
     option_env!("LUMINOL_VERSION").unwrap_or(git_version::git_version!())
 }
+
+pub const BUILD_DIAGNOSTIC: luminol_core::BuildDiagnostics = luminol_core::BuildDiagnostics {
+    build_time: build::BUILD_TIME,
+    rustc_version: build::RUST_VERSION,
+    cargo_version: build::CARGO_VERSION,
+    build_os: build::BUILD_OS,
+    git_revision: git_revision(),
+    is_debug: cfg!(debug_assertions),
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
