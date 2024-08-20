@@ -191,6 +191,7 @@ fn run_app(
     report: Option<String>,
     ctx_cell: sync::Arc<OnceCell<egui::Context>>,
     log_byte_rx: sync::mpsc::Receiver<u8>,
+    #[cfg(feature = "steamworks")] steamworks: crate::steam::Steamworks,
 ) -> Result<()> {
     let icon_image = image::load_from_memory(ICON)?;
 
@@ -261,7 +262,13 @@ pub fn run() -> Result<()> {
     let (ctx_cell, log_byte_rx) = init_log();
 
     /* Show the graphical user interface */
-    run_app(report, ctx_cell, log_byte_rx)?;
+    run_app(
+        report,
+        ctx_cell,
+        log_byte_rx,
+        #[cfg(feature = "steamworks")]
+        steamworks,
+    )?;
 
     Ok(())
 }
