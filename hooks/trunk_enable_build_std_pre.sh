@@ -8,10 +8,10 @@ git_version=$(git describe --always --dirty=-modified)
 echo "{\"epoch\":0,\"rev\":\"$git_version\",\"profile\":\"$TRUNK_PROFILE\"}" > $TRUNK_STAGING_DIR/buildinfo.json
 
 # Enable std support for multithreading and set the LUMINOL_VERSION environment variable
-[ ! -f $TRUNK_SOURCE_DIR/.cargo/config.toml.bak ] || mv $TRUNK_SOURCE_DIR/.cargo/config.toml.bak $TRUNK_SOURCE_DIR/.cargo/config.toml
-cp $TRUNK_SOURCE_DIR/.cargo/config.toml $TRUNK_SOURCE_DIR/.cargo/config.toml.bak
+[ ! -f .cargo/config.toml.bak ] || mv .cargo/config.toml.bak .cargo/config.toml
+cp .cargo/config.toml .cargo/config.toml.bak
 
-echo "LUMINOL_VERSION = { value = \"$git_version\", force = true }" >> $TRUNK_SOURCE_DIR/.cargo/config.toml
+echo "LUMINOL_VERSION = { value = \"$git_version\", force = true }" >> .cargo/config.toml
 
-echo '[unstable]' >> $TRUNK_SOURCE_DIR/.cargo/config.toml
-echo 'build-std = ["std", "panic_abort"]' >> $TRUNK_SOURCE_DIR/.cargo/config.toml
+echo '[unstable]' >> .cargo/config.toml
+echo 'build-std = ["std", "panic_abort"]' >> .cargo/config.toml

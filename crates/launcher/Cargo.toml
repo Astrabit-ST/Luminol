@@ -1,0 +1,123 @@
+[package]
+name = "luminol"
+description = "Luminol is a FOSS recreation of RPG Maker XP in Rust with love ❤️"
+build = "build.rs"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+luminol-eframe.workspace = true
+luminol-egui-wgpu.workspace = true
+luminol-macros.workspace = true
+egui.workspace = true
+egui_extras.workspace = true
+
+wgpu.workspace = true
+
+rfd.workspace = true
+
+parking_lot.workspace = true
+once_cell.workspace = true
+
+image.workspace = true
+
+tracing-subscriber = "0.3.17"
+color-eyre.workspace = true
+
+luminol-audio.workspace = true
+luminol-core.workspace = true
+luminol-config.workspace = true
+luminol-filesystem.workspace = true
+luminol-graphics.workspace = true
+luminol-ui.workspace = true
+luminol-result.workspace = true
+# luminol-windows = { version = "0.1.0", path = "../windows/" }
+# luminol-tabs = { version = "0.1.0", path = "../tabs/" }
+
+camino.workspace = true
+
+strum.workspace = true
+
+zstd = "0.13.0"
+
+async-std.workspace = true
+futures-lite.workspace = true
+
+git-version = "0.3.9"
+shadow-rs = { version = "0.32.0", default-features = false }
+
+# Native
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+steamworks = { version = "0.10.0", optional = true }
+tokio = { version = "1.33", features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt-multi-thread",
+    "parking_lot",
+] } # *sigh*
+tempfile.workspace = true
+luminol-term.workspace = true
+
+# Set poll promise features here based on the target
+# I'd much rather do it in the workspace, but cargo doesn't support that yet
+#
+# Doing this also relies on a quirk of features, that any crate specifying features applies to ALL crates
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.poll-promise]
+workspace = true
+features = ["tokio"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.poll-promise]
+workspace = true
+features = ["web"]
+
+# Web
+# Look into somehow pinning these as workspace dependencies
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+
+oneshot.workspace = true
+
+luminol-web = { version = "0.4.0", path = "../web/" }
+
+tracing-wasm = "0.2"
+tracing-log = "0.1.3"
+tracing.workspace = true
+
+web-sys = { workspace = true, features = [
+    "BeforeUnloadEvent",
+    "Window",
+    "Worker",
+    "WorkerOptions",
+    "WorkerType",
+    "Document",
+    "Element",
+    "CssStyleDeclaration",
+] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.wgpu]
+workspace = true
+features = ["webgpu", "webgl"]
+
+[features]
+steamworks = ["dep:steamworks", "luminol-result/steamworks"]
+
+[build-dependencies]
+shadow-rs = { version = "0.32.0", default-features = false }
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[package.metadata.winres]
+OriginalFilename = "Luminol.exe"
+ProductName = "Luminol"

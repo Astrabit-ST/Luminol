@@ -1,7 +1,7 @@
 #! Rust Build Output
 /target
 /marshal/target
-/dist
+/crates/launcher/dist
 
 #! GDB-related files
 .gdb_*

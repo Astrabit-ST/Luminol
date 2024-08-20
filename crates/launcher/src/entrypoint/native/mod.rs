@@ -138,7 +138,7 @@ fn setup_hooks() -> Result<()> {
         let report = panic_hook.panic_report(info).to_string();
         eprintln!("{report}");
 
-        if !RESTART_AFTER_PANIC.load(atomic::Ordering::Relaxed) {
+        if !crate::RESTART_AFTER_PANIC.load(atomic::Ordering::Relaxed) {
             return;
         }
 
