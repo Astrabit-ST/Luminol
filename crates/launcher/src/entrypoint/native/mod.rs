@@ -235,7 +235,8 @@ fn run_app(
                 steamworks,
             )))
         }),
-    );
+    )
+    .expect("failed to start luminol");
 
     Ok(())
 }
