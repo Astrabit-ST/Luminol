@@ -23,9 +23,8 @@ luminol-config.workspace = true
 luminol-data.workspace = true
 luminol-graphics.workspace = true
 luminol-filesystem.workspace = true
-luminol-components.workspace = true
-luminol-modals.workspace = true
 luminol-macros.workspace = true
+luminol-egui-wgpu.workspace = true
 
 egui.workspace = true
 egui-modal.workspace = true
@@ -54,6 +53,8 @@ zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
 parking_lot.workspace = true
 once_cell.workspace = true
 qp-trie.workspace = true
+indextree = "4.6.0"
+lexical-sort.workspace = true
 
 itertools.workspace = true
 
@@ -64,6 +65,18 @@ wgpu.workspace = true
 murmur3.workspace = true
 indexmap = "2.2.6"
 alox-48.workspace = true
+
+fuzzy-matcher = "0.3.7"
+
+glam.workspace = true
+
+oneshot.workspace = true
+
+image.workspace = true
+
+syntect = { version = "5.1.0", default-features = false, features = [
+    "default-fancy",
+] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 luminol-term = { version = "0.4.0", path = "../term/" }

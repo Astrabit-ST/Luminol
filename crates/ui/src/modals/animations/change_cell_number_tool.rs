@@ -22,17 +22,16 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::Field;
+
 pub struct Modal {
     state: State,
     id_source: egui::Id,
     pub frames_len: usize,
     pub start_frame: usize,
     pub end_frame: usize,
-    pub start_cell: usize,
-    pub end_cell: usize,
-    pub tween_pattern: bool,
-    pub tween_position: bool,
-    pub tween_shading: bool,
+    pub first_cell: usize,
+    pub second_cell: usize,
 }
 
 enum State {
@@ -48,11 +47,8 @@ impl Modal {
             frames_len: 1,
             start_frame: 0,
             end_frame: 0,
-            start_cell: 0,
-            end_cell: 15,
-            tween_pattern: true,
-            tween_position: true,
-            tween_shading: true,
+            first_cell: 0,
+            second_cell: 0,
         }
     }
 }
@@ -66,7 +62,7 @@ impl luminol_core::Modal for Modal {
         _update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
-            let response = ui.button("Tween");
+            let response = ui.button("Change cell number");
             if response.clicked() {
                 self.state = State::Open;
             }
@@ -96,102 +92,74 @@ impl Modal {
 
         if !matches!(self.state, State::Open) {
             self.frames_len = frames_len;
-            self.start_frame = frames_len
-                .saturating_sub(2)
-                .min(current_frame.saturating_sub(1));
-            self.end_frame = 2.max(current_frame + 1);
+            self.start_frame = current_frame;
+            self.end_frame = current_frame;
             return false;
         }
 
-        egui::Window::new("Tween")
+        egui::Window::new("Change Cell Number")
             .open(&mut win_open)
-            .id(self.id_source.with("tween_tool"))
+            .id(self.id_source.with("change_cell_number_tool"))
             .show(ctx, |ui| {
                 ui.columns(2, |columns| {
                     self.start_frame += 1;
-                    columns[0].add(luminol_components::Field::new(
+                    columns[0].add(Field::new(
                         "Starting Frame",
-                        egui::DragValue::new(&mut self.start_frame)
-                            .range(1..=self.frames_len.saturating_sub(2)),
+                        egui::DragValue::new(&mut self.start_frame).range(1..=self.frames_len),
                     ));
                     self.start_frame -= 1;
 
-                    if self.start_frame + 2 > self.end_frame {
-                        self.end_frame = self.start_frame + 2;
+                    if self.start_frame > self.end_frame {
+                        self.end_frame = self.start_frame;
                     }
 
                     self.end_frame += 1;
-                    columns[1].add(luminol_components::Field::new(
+                    columns[1].add(Field::new(
                         "Ending Frame",
-                        egui::DragValue::new(&mut self.end_frame).range(3..=self.frames_len),
+                        egui::DragValue::new(&mut self.end_frame).range(1..=self.frames_len),
                     ));
                     self.end_frame -= 1;
 
-                    if self.end_frame - 2 < self.start_frame {
-                        self.start_frame = self.end_frame - 2;
+                    if self.end_frame < self.start_frame {
+                        self.start_frame = self.end_frame;
                     }
                 });
 
                 ui.columns(2, |columns| {
-                    self.start_cell += 1;
-                    columns[0].add(luminol_components::Field::new(
-                        "Starting Cell",
-                        egui::DragValue::new(&mut self.start_cell).range(1..=i16::MAX as usize + 1),
+                    self.first_cell += 1;
+                    columns[0].add(Field::new(
+                        "Cell Index",
+                        egui::DragValue::new(&mut self.first_cell).range(1..=i16::MAX as usize + 1),
                     ));
-                    self.start_cell -= 1;
+                    self.first_cell -= 1;
 
-                    if self.start_cell > self.end_cell {
-                        self.end_cell = self.start_cell;
-                    }
-
-                    self.end_cell += 1;
-                    columns[1].add(luminol_components::Field::new(
-                        "Ending Cell",
-                        egui::DragValue::new(&mut self.end_cell).range(1..=i16::MAX as usize + 1),
+                    self.second_cell += 1;
+                    columns[1].add(Field::new(
+                        "Cell Index",
+                        egui::DragValue::new(&mut self.second_cell)
+                            .range(1..=i16::MAX as usize + 1),
                     ));
-                    self.end_cell -= 1;
-
-                    if self.end_cell < self.start_cell {
-                        self.start_cell = self.end_cell;
-                    }
+                    self.second_cell -= 1;
                 });
 
-                ui.checkbox(&mut self.tween_pattern, "Pattern");
-                ui.checkbox(&mut self.tween_position, "Position, scale and rotation");
-                ui.checkbox(&mut self.tween_shading, "Opacity and blending");
-
-                let mut vec = Vec::with_capacity(3);
-                if self.tween_pattern {
-                    vec.push("pattern");
-                }
-                if self.tween_position {
-                    vec.push("position, scale, rotation");
-                }
-                if self.tween_shading {
-                    vec.push("opacity, blending");
-                }
-                ui.label(if vec.is_empty() {
-                    "Do nothing".to_string()
-                } else if self.start_cell == self.end_cell {
+                ui.label(if self.start_frame == self.end_frame {
                     format!(
-                        "Linearly interpolate cell {} for cell {} from frame {} to frame {}",
-                        vec.join(", "),
-                        self.start_cell + 1,
+                        "Swap the numbers of cell {} and cell {} in frame {}",
+                        self.first_cell + 1,
+                        self.second_cell + 1,
                         self.start_frame + 1,
-                        self.end_frame + 1,
                     )
                 } else {
                     format!(
-                        "Linearly interpolate cell {} for cells {}–{} from frame {} to frame {}",
-                        vec.join(", "),
-                        self.start_cell + 1,
-                        self.end_cell + 1,
+                        "Swap the numbers of cell {} and cell {} in frames {}–{}",
+                        self.first_cell + 1,
+                        self.second_cell + 1,
                         self.start_frame + 1,
                         self.end_frame + 1,
                     )
                 });
 
-                luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
             });
 
         if !(win_open && keep_open) {

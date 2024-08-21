@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::{EnumComboBox, Field};
 use egui::Widget;
 use luminol_core::Modal;
 
@@ -101,9 +102,9 @@ pub fn show_timing_body(
                 columns[0].columns(2, |columns| {
                     let old_condition = timing.condition;
                     let changed = columns[1]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Condition",
-                            luminol_components::EnumComboBox::new(
+                            EnumComboBox::new(
                                 (animation.id, timing_index, "condition"),
                                 &mut timing.condition,
                             ),
@@ -215,25 +216,22 @@ pub fn show_timing_body(
 
                     let old_frame = timing.frame;
                     let changed = columns[0]
-                        .add(luminol_components::Field::new(
-                            "Frame",
-                            |ui: &mut egui::Ui| {
-                                let mut frame = state.previous_frame.unwrap_or(timing.frame + 1);
-                                let mut response = egui::DragValue::new(&mut frame)
-                                    .range(1..=animation.frames.len())
-                                    .update_while_editing(false)
-                                    .ui(ui);
-                                response.changed = false;
-                                if response.dragged() {
-                                    state.previous_frame = Some(frame);
-                                } else if state.previous_frame.is_some() {
-                                    timing.frame = frame - 1;
-                                    state.previous_frame = None;
-                                    response.changed = true;
-                                }
-                                response
-                            },
-                        ))
+                        .add(Field::new("Frame", |ui: &mut egui::Ui| {
+                            let mut frame = state.previous_frame.unwrap_or(timing.frame + 1);
+                            let mut response = egui::DragValue::new(&mut frame)
+                                .range(1..=animation.frames.len())
+                                .update_while_editing(false)
+                                .ui(ui);
+                            response.changed = false;
+                            if response.dragged() {
+                                state.previous_frame = Some(frame);
+                            } else if state.previous_frame.is_some() {
+                                timing.frame = frame - 1;
+                                state.previous_frame = None;
+                                response.changed = true;
+                            }
+                            response
+                        }))
                         .changed();
                     if changed {
                         update_flash_maps(timing.condition, |condition| match timing.flash_scope {
@@ -265,7 +263,7 @@ pub fn show_timing_body(
                 });
 
                 modified |= columns[1]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "SE",
                         state.se_picker.button(&mut timing.se, update_state),
                     ))
@@ -275,9 +273,9 @@ pub fn show_timing_body(
             let old_scope = timing.flash_scope;
             let (scope_changed, duration_changed) = if timing.flash_scope == Scope::None {
                 (
-                    ui.add(luminol_components::Field::new(
+                    ui.add(Field::new(
                         "Flash",
-                        luminol_components::EnumComboBox::new(
+                        EnumComboBox::new(
                             (animation.id, timing_index, "flash_scope"),
                             &mut timing.flash_scope,
                         ),
@@ -289,16 +287,16 @@ pub fn show_timing_body(
                 ui.columns(2, |columns| {
                     (
                         columns[0]
-                            .add(luminol_components::Field::new(
+                            .add(Field::new(
                                 "Flash",
-                                luminol_components::EnumComboBox::new(
+                                EnumComboBox::new(
                                     (animation.id, timing_index, "flash_scope"),
                                     &mut timing.flash_scope,
                                 ),
                             ))
                             .changed(),
                         columns[1]
-                            .add(luminol_components::Field::new(
+                            .add(Field::new(
                                 "Flash Duration",
                                 egui::DragValue::new(&mut timing.flash_duration)
                                     .range(1..=animation.frames.len()),
@@ -390,26 +388,23 @@ pub fn show_timing_body(
 
             if matches!(timing.flash_scope, Scope::Target | Scope::Screen) {
                 let changed = ui
-                    .add(luminol_components::Field::new(
-                        "Flash Color",
-                        |ui: &mut egui::Ui| {
-                            let mut color = [
-                                timing.flash_color.red.clamp(0., 255.).round() as u8,
-                                timing.flash_color.green.clamp(0., 255.).round() as u8,
-                                timing.flash_color.blue.clamp(0., 255.).round() as u8,
-                                timing.flash_color.alpha.clamp(0., 255.).round() as u8,
-                            ];
-                            ui.spacing_mut().interact_size.x = ui.available_width(); // make the color picker button as wide as possible
-                            let response = ui.color_edit_button_srgba_unmultiplied(&mut color);
-                            if response.changed() {
-                                timing.flash_color.red = color[0] as f64;
-                                timing.flash_color.green = color[1] as f64;
-                                timing.flash_color.blue = color[2] as f64;
-                                timing.flash_color.alpha = color[3] as f64;
-                            }
-                            response
-                        },
-                    ))
+                    .add(Field::new("Flash Color", |ui: &mut egui::Ui| {
+                        let mut color = [
+                            timing.flash_color.red.clamp(0., 255.).round() as u8,
+                            timing.flash_color.green.clamp(0., 255.).round() as u8,
+                            timing.flash_color.blue.clamp(0., 255.).round() as u8,
+                            timing.flash_color.alpha.clamp(0., 255.).round() as u8,
+                        ];
+                        ui.spacing_mut().interact_size.x = ui.available_width(); // make the color picker button as wide as possible
+                        let response = ui.color_edit_button_srgba_unmultiplied(&mut color);
+                        if response.changed() {
+                            timing.flash_color.red = color[0] as f64;
+                            timing.flash_color.green = color[1] as f64;
+                            timing.flash_color.blue = color[2] as f64;
+                            timing.flash_color.alpha = color[3] as f64;
+                        }
+                        response
+                    }))
                     .changed();
                 if changed {
                     update_flash_maps(timing.condition, |condition| match timing.flash_scope {

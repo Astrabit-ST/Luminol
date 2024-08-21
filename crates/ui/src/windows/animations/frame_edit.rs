@@ -22,9 +22,12 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_core::Modal;
-
 use super::HistoryEntry;
+use crate::{
+    components::{AnimationFrameView, Cellpicker, EnumComboBox, Field},
+    modals::{self, animations::batch_edit_tool},
+};
+use luminol_core::Modal;
 use luminol_data::BlendMode;
 use luminol_graphics::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 
@@ -85,7 +88,7 @@ pub fn show_frame_edit(
             update_state.filesystem,
             animation.animation_name.as_deref(),
         );
-        let mut frame_view = luminol_components::AnimationFrameView::new(update_state, atlas);
+        let mut frame_view = AnimationFrameView::new(update_state, atlas);
         if let Some(battler_name) = &system.battler_name {
             match update_state.graphics.texture_loader.load_now(
                 update_state.filesystem,
@@ -122,8 +125,7 @@ pub fn show_frame_edit(
         cellpicker
     } else {
         let atlas = frame_view.frame.atlas.clone();
-        let mut cellpicker =
-            luminol_components::Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
+        let mut cellpicker = Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
         cellpicker.view.display.set_hue(
             &update_state.graphics.render_state,
             animation.animation_hue as f32 / 360.,
@@ -135,11 +137,10 @@ pub fn show_frame_edit(
     let animation_graphic_picker = if let Some(modal) = &mut state.animation_graphic_picker {
         modal
     } else {
-        state.animation_graphic_picker =
-            Some(luminol_modals::graphic_picker::animation::Modal::new(
-                animation,
-                "animation_graphic_picker".into(),
-            ));
+        state.animation_graphic_picker = Some(modals::graphic_picker::animation::Modal::new(
+            animation,
+            "animation_graphic_picker".into(),
+        ));
         state.animation_graphic_picker.as_mut().unwrap()
     };
 
@@ -220,7 +221,7 @@ pub fn show_frame_edit(
     }
 
     ui.horizontal(|ui| {
-        ui.add(luminol_components::Field::new(
+        ui.add(Field::new(
             "Editor Scale",
             egui::Slider::new(&mut frame_view.scale, 15.0..=300.0)
                 .suffix("%")
@@ -238,7 +239,7 @@ pub fn show_frame_edit(
         let changed = ui
             .add_enabled(
                 state.animation_state.is_none(),
-                luminol_components::Field::new(
+                Field::new(
                     "Frame",
                     egui::DragValue::new(&mut state.frame_index).range(1..=animation.frames.len()),
                 ),
@@ -251,22 +252,22 @@ pub fn show_frame_edit(
         }
 
         state.frame_needs_update |= ui
-            .add(luminol_components::Field::new(
+            .add(Field::new(
                 "Condition",
-                luminol_components::EnumComboBox::new("condition", &mut state.condition)
+                EnumComboBox::new("condition", &mut state.condition)
                     .max_width(18.)
                     .wrap_mode(egui::TextWrapMode::Extend),
             ))
             .changed();
 
-        ui.add(luminol_components::Field::new(
+        ui.add(Field::new(
             "Onion Skin",
             egui::Checkbox::without_text(&mut state.enable_onion_skin),
         ));
 
         let old_fps = state.animation_fps;
         let changed = ui
-            .add(luminol_components::Field::new(
+            .add(Field::new(
                 "FPS",
                 egui::DragValue::new(&mut state.animation_fps).range(0.1..=f64::MAX),
             ))
@@ -506,7 +507,7 @@ pub fn show_frame_edit(
                     .history
                     .push(animation.id, i, vec![HistoryEntry::new_cell(data, j)]);
                 match modals.batch_edit.mode {
-                    luminol_modals::animations::batch_edit_tool::Mode::Set => {
+                    batch_edit_tool::Mode::Set => {
                         if modals.batch_edit.set_pattern_enabled {
                             data[(j, 0)] = modals.batch_edit.set_pattern;
                         }
@@ -532,7 +533,7 @@ pub fn show_frame_edit(
                             data[(j, 7)] = modals.batch_edit.set_blending;
                         }
                     }
-                    luminol_modals::animations::batch_edit_tool::Mode::Add => {
+                    batch_edit_tool::Mode::Add => {
                         data[(j, 0)] = data[(j, 0)]
                             .saturating_add(modals.batch_edit.add_pattern)
                             .clamp(
@@ -567,7 +568,7 @@ pub fn show_frame_edit(
                             data[(j, 7)] = data[(j, 7)].rem_euclid(3);
                         }
                     }
-                    luminol_modals::animations::batch_edit_tool::Mode::Mul => {
+                    batch_edit_tool::Mode::Mul => {
                         data[(j, 0)] = ((data[(j, 0)] + 1) as f64 * modals.batch_edit.mul_pattern)
                             .clamp(1., frame_view.frame.atlas.num_patterns() as f64)
                             .round_ties_even() as i16
@@ -794,7 +795,7 @@ pub fn show_frame_edit(
             ui.columns(4, |columns| {
                 let mut pattern = frame.cell_data[(i, 0)] + 1;
                 let changed = columns[0]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Pattern",
                         egui::DragValue::new(&mut pattern)
                             .range(1..=frame_view.frame.atlas.num_patterns() as i16),
@@ -806,7 +807,7 @@ pub fn show_frame_edit(
                 }
 
                 properties_modified |= columns[1]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "X",
                         egui::DragValue::new(&mut frame.cell_data[(i, 1)])
                             .range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
@@ -814,7 +815,7 @@ pub fn show_frame_edit(
                     .changed();
 
                 properties_modified |= columns[2]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Y",
                         egui::DragValue::new(&mut frame.cell_data[(i, 2)])
                             .range(-(FRAME_HEIGHT as i16 / 2)..=FRAME_HEIGHT as i16 / 2),
@@ -822,7 +823,7 @@ pub fn show_frame_edit(
                     .changed();
 
                 properties_modified |= columns[3]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Scale",
                         egui::DragValue::new(&mut frame.cell_data[(i, 3)])
                             .range(1..=i16::MAX)
@@ -833,7 +834,7 @@ pub fn show_frame_edit(
 
             ui.columns(4, |columns| {
                 properties_modified |= columns[0]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Rotation",
                         egui::DragValue::new(&mut frame.cell_data[(i, 4)])
                             .range(0..=360)
@@ -843,10 +844,7 @@ pub fn show_frame_edit(
 
                 let mut flip = frame.cell_data[(i, 5)] == 1;
                 let changed = columns[1]
-                    .add(luminol_components::Field::new(
-                        "Flip",
-                        egui::Checkbox::without_text(&mut flip),
-                    ))
+                    .add(Field::new("Flip", egui::Checkbox::without_text(&mut flip)))
                     .changed();
                 if changed {
                     frame.cell_data[(i, 5)] = if flip { 1 } else { 0 };
@@ -854,7 +852,7 @@ pub fn show_frame_edit(
                 }
 
                 properties_modified |= columns[2]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Opacity",
                         egui::DragValue::new(&mut frame.cell_data[(i, 6)]).range(0..=255),
                     ))
@@ -866,9 +864,9 @@ pub fn show_frame_edit(
                     _ => BlendMode::Normal,
                 };
                 let changed = columns[3]
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Blending",
-                        luminol_components::EnumComboBox::new(
+                        EnumComboBox::new(
                             (animation.id, state.frame_index, i, 7usize),
                             &mut blend_mode,
                         ),
@@ -1106,8 +1104,7 @@ pub fn show_frame_edit(
         frame_view
             .frame
             .rebuild_all_cells(&update_state.graphics, animation, state.frame_index);
-        let mut cellpicker =
-            luminol_components::Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
+        let mut cellpicker = Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
         cellpicker.view.display.set_hue(
             &update_state.graphics.render_state,
             animation.animation_hue as f32 / 360.,

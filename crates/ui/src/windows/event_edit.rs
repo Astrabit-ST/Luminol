@@ -22,12 +22,13 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use egui::Widget;
-use luminol_core::prelude::*;
-use luminol_modals::{
+use crate::components::{EnumComboBox, EnumMenuButton, EnumRadioList};
+use crate::modals::{
     database_modal::{SwitchModal, VariableModal},
     graphic_picker::event::Modal as GraphicPicker,
 };
+use egui::Widget;
+use luminol_core::prelude::*;
 
 /// The event editor window.
 pub struct Window {
@@ -191,7 +192,7 @@ impl luminol_core::Window for Window {
                             let res = ui.add_enabled(
                                 // FIXME ensure shrink
                                 page.condition.self_switch_valid,
-                                luminol_components::EnumMenuButton::new(
+                                EnumMenuButton::new(
                                     &mut page.condition.self_switch_ch,
                                     id_source.with("self_switch_ch"),
                                 ),
@@ -219,7 +220,7 @@ impl luminol_core::Window for Window {
                                 // FIXME these expand to fit, which is kinda annoying
                                 ui.horizontal(|ui| {
                                     ui.label("Move Type");
-                                    modified |= luminol_components::EnumComboBox::new(
+                                    modified |= EnumComboBox::new(
                                         id_source.with("move_type"),
                                         &mut page.move_type,
                                     )
@@ -232,7 +233,7 @@ impl luminol_core::Window for Window {
                                 ); // TODO
                                 ui.horizontal(|ui| {
                                     ui.label("Move Speed");
-                                    modified |= luminol_components::EnumComboBox::new(
+                                    modified |= EnumComboBox::new(
                                         id_source.with("move_speed"),
                                         &mut page.move_speed,
                                     )
@@ -241,7 +242,7 @@ impl luminol_core::Window for Window {
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("Move Frequency");
-                                    modified |= luminol_components::EnumComboBox::new(
+                                    modified |= EnumComboBox::new(
                                         id_source.with("move_frequency"),
                                         &mut page.move_frequency,
                                     )
@@ -278,9 +279,7 @@ impl luminol_core::Window for Window {
 
                         right.label("Trigger");
                         right.group(|ui| {
-                            modified |= luminol_components::EnumRadioList::new(&mut page.trigger)
-                                .ui(ui)
-                                .changed();
+                            modified |= EnumRadioList::new(&mut page.trigger).ui(ui).changed();
                         });
                     });
                 });

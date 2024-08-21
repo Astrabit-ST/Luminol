@@ -22,9 +22,9 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::{EnumComboBox, UiExt};
 use color_eyre::eyre::WrapErr;
 use egui::Widget;
-use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 use super::{ButtonSprite, Entry, PreviewSprite};
@@ -493,17 +493,13 @@ impl Modal {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Blend Mode");
-                        luminol_components::EnumComboBox::new(
-                            self.id_source.with("blend_mode"),
-                            blend_mode,
-                        )
-                        .ui(ui);
+                        EnumComboBox::new(self.id_source.with("blend_mode"), blend_mode).ui(ui);
                     });
                     ui.add_space(1.0); // pad out the bottom
                 });
                 egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
                     ui.add_space(ui.style().spacing.item_spacing.y);
-                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                    crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                 });
 
                 egui::CentralPanel::default().show_inside(ui, |ui| {

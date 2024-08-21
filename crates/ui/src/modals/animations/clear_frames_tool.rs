@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::Field;
+
 pub struct Modal {
     state: State,
     id_source: egui::Id,
@@ -97,7 +99,7 @@ impl Modal {
             .show(ctx, |ui| {
                 ui.columns(2, |columns| {
                     self.start_frame += 1;
-                    columns[0].add(luminol_components::Field::new(
+                    columns[0].add(Field::new(
                         "Starting Frame",
                         egui::DragValue::new(&mut self.start_frame).range(1..=self.frames_len),
                     ));
@@ -108,7 +110,7 @@ impl Modal {
                     }
 
                     self.end_frame += 1;
-                    columns[1].add(luminol_components::Field::new(
+                    columns[1].add(Field::new(
                         "Ending Frame",
                         egui::DragValue::new(&mut self.end_frame).range(1..=self.frames_len),
                     ));
@@ -129,7 +131,7 @@ impl Modal {
                     )
                 });
 
-                luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
             });
 
         if !(win_open && keep_open) {

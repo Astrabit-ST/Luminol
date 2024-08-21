@@ -22,11 +22,15 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::Field;
+
 pub struct Modal {
     state: State,
     id_source: egui::Id,
     pub frames_len: usize,
-    pub new_frames_len: usize,
+    pub src_frame: usize,
+    pub dst_frame: usize,
+    pub frame_count: usize,
 }
 
 enum State {
@@ -40,7 +44,9 @@ impl Modal {
             state: State::Closed,
             id_source: id_source.into(),
             frames_len: 1,
-            new_frames_len: 1,
+            src_frame: 0,
+            dst_frame: 0,
+            frame_count: 1,
         }
     }
 }
@@ -54,7 +60,7 @@ impl luminol_core::Modal for Modal {
         _update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
-            let response = ui.button("Change frame count");
+            let response = ui.button("Copy frames");
             if response.clicked() {
                 self.state = State::Open;
             }
@@ -72,48 +78,67 @@ impl Modal {
         self.state = State::Closed;
     }
 
-    pub fn show_window(&mut self, ctx: &egui::Context, frames_len: usize) -> bool {
+    pub fn show_window(
+        &mut self,
+        ctx: &egui::Context,
+        current_frame: usize,
+        frames_len: usize,
+    ) -> bool {
         let mut win_open = true;
         let mut keep_open = true;
         let mut needs_save = false;
 
         if !matches!(self.state, State::Open) {
             self.frames_len = frames_len;
-            self.new_frames_len = frames_len;
+            self.src_frame = current_frame;
+            self.dst_frame = current_frame;
+            self.frame_count = 1;
             return false;
         }
 
-        egui::Window::new("Change Frame Count")
+        egui::Window::new("Copy Frames")
             .open(&mut win_open)
-            .id(self.id_source.with("change_frame_count_tool"))
+            .id(self.id_source.with("copy_frames_tool"))
             .show(ctx, |ui| {
-                ui.add(luminol_components::Field::new(
-                    "Frame Count",
-                    egui::DragValue::new(&mut self.new_frames_len).range(1..=usize::MAX),
-                ));
+                ui.columns(3, |columns| {
+                    self.src_frame += 1;
+                    columns[0].add(Field::new(
+                        "Source Frame",
+                        egui::DragValue::new(&mut self.src_frame).range(1..=self.frames_len),
+                    ));
+                    self.src_frame -= 1;
 
-                if self.frames_len <= 999 && self.new_frames_len > 999 {
-                    egui::Frame::none().show(ui, |ui| {
-                        ui.style_mut()
-                            .visuals
-                            .widgets
-                            .noninteractive
-                            .bg_stroke
-                            .color = ui.style().visuals.warn_fg_color;
-                        egui::Frame::group(ui.style())
-                            .fill(ui.visuals().gray_out(ui.visuals().gray_out(
-                                ui.visuals().gray_out(ui.style().visuals.warn_fg_color),
-                            )))
-                            .show(ui, |ui| {
-                                ui.set_width(ui.available_width());
-                                ui.label(egui::RichText::new("Setting the frame count above 999 may introduce performance issues and instability").color(ui.style().visuals.warn_fg_color));
-                            });
-                    });
-                }
+                    self.dst_frame += 1;
+                    columns[1].add(Field::new(
+                        "Destination Frame",
+                        egui::DragValue::new(&mut self.dst_frame).range(1..=self.frames_len),
+                    ));
+                    self.dst_frame -= 1;
 
-                ui.label(format!("Change the number of frames in this animation from {} to {}", self.frames_len, self.new_frames_len));
+                    columns[2].add(Field::new(
+                        "Frame Count",
+                        egui::DragValue::new(&mut self.frame_count)
+                            .range(1..=self.frames_len - self.src_frame.max(self.dst_frame)),
+                    ));
+                });
 
-                luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                ui.label(if self.frame_count == 1 {
+                    format!(
+                        "Copy frame {} to frame {}",
+                        self.src_frame + 1,
+                        self.dst_frame + 1,
+                    )
+                } else {
+                    format!(
+                        "Copy frames {}–{} to frames {}–{}",
+                        self.src_frame + 1,
+                        self.src_frame + self.frame_count,
+                        self.dst_frame + 1,
+                        self.dst_frame + self.frame_count,
+                    )
+                });
+
+                crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
             });
 
         if !(win_open && keep_open) {

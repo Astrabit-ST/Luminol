@@ -140,7 +140,6 @@ js-sys = "0.3"
 lexical-sort = "0.3.1"
 
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
-luminol-components = { version = "0.4.0", path = "crates/components/" }
 luminol-config = { version = "0.4.0", path = "crates/config/" }
 luminol-core = { version = "0.4.0", path = "crates/core/" }
 luminol-data = { version = "0.4.0", path = "crates/data/" }
@@ -148,7 +147,6 @@ luminol-filesystem = { version = "0.4.0", path = "crates/filesystem/" }
 luminol-graphics = { version = "0.4.0", path = "crates/graphics/" }
 luminol-macros = { version = "0.4.0", path = "crates/macros/" }
 luminol-proc-macros = { version = "0.4.0", path = "crates/proc-macros/" }
-luminol-modals = { version = "0.4.0", path = "crates/modals/" }
 luminol-term = { version = "0.4.0", path = "crates/term/" }
 luminol-ui = { version = "0.4.0", path = "crates/ui/" }
 luminol-result = { version = "0.4.0", path = "crates/result" }

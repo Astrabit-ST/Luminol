@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::UiExt;
+use super::UiExt;
 
 pub struct SoundTab {
     /// The source for this tab.

@@ -163,7 +163,7 @@ impl MapView {
         ui: &mut egui::Ui,
         update_state: &luminol_core::UpdateState<'_>,
         map: &luminol_data::rpg::Map,
-        tilepicker: &crate::Tilepicker,
+        tilepicker: &super::Tilepicker,
         dragging_event: bool,
         drawing_shape: bool,
         drawing_shape_pos: Option<egui::Pos2>,

@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::components::{EnumComboBox, Field, FieldWithCheckbox, UiExt};
 use luminol_core::prelude::frame::{FRAME_HEIGHT, FRAME_WIDTH};
 use luminol_data::BlendMode;
 
@@ -191,7 +191,7 @@ impl Modal {
                 ui.with_padded_stripe(true, |ui| {
                     ui.columns(2, |columns| {
                         self.start_frame += 1;
-                        columns[0].add(luminol_components::Field::new(
+                        columns[0].add(Field::new(
                             "Starting Frame",
                             egui::DragValue::new(&mut self.start_frame).range(1..=self.frames_len),
                         ));
@@ -202,7 +202,7 @@ impl Modal {
                         }
 
                         self.end_frame += 1;
-                        columns[1].add(luminol_components::Field::new(
+                        columns[1].add(Field::new(
                             "Ending Frame",
                             egui::DragValue::new(&mut self.end_frame).range(1..=self.frames_len),
                         ));
@@ -219,7 +219,7 @@ impl Modal {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 self.set_pattern += 1;
-                                columns[0].add(luminol_components::FieldWithCheckbox::new(
+                                columns[0].add(FieldWithCheckbox::new(
                                     "Pattern",
                                     &mut self.set_pattern_enabled,
                                     egui::DragValue::new(&mut self.set_pattern)
@@ -227,14 +227,14 @@ impl Modal {
                                 ));
                                 self.set_pattern -= 1;
 
-                                columns[1].add(luminol_components::FieldWithCheckbox::new(
+                                columns[1].add(FieldWithCheckbox::new(
                                     "X",
                                     &mut self.set_x_enabled,
                                     egui::DragValue::new(&mut self.set_x)
                                         .range(-(FRAME_WIDTH as i16 / 2)..=FRAME_WIDTH as i16 / 2),
                                 ));
 
-                                columns[2].add(luminol_components::FieldWithCheckbox::new(
+                                columns[2].add(FieldWithCheckbox::new(
                                     "Y",
                                     &mut self.set_y_enabled,
                                     egui::DragValue::new(&mut self.set_y).range(
@@ -242,7 +242,7 @@ impl Modal {
                                     ),
                                 ));
 
-                                columns[3].add(luminol_components::FieldWithCheckbox::new(
+                                columns[3].add(FieldWithCheckbox::new(
                                     "Scale",
                                     &mut self.set_scale_enabled,
                                     egui::DragValue::new(&mut self.set_scale)
@@ -254,7 +254,7 @@ impl Modal {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(4, |columns| {
-                                columns[0].add(luminol_components::FieldWithCheckbox::new(
+                                columns[0].add(FieldWithCheckbox::new(
                                     "Rotation",
                                     &mut self.set_rotation_enabled,
                                     egui::DragValue::new(&mut self.set_rotation)
@@ -263,14 +263,14 @@ impl Modal {
                                 ));
 
                                 let mut flip = self.set_flip == 1;
-                                columns[1].add(luminol_components::FieldWithCheckbox::new(
+                                columns[1].add(FieldWithCheckbox::new(
                                     "Flip",
                                     &mut self.set_flip_enabled,
                                     egui::Checkbox::without_text(&mut flip),
                                 ));
                                 self.set_flip = if flip { 1 } else { 0 };
 
-                                columns[2].add(luminol_components::FieldWithCheckbox::new(
+                                columns[2].add(FieldWithCheckbox::new(
                                     "Opacity",
                                     &mut self.set_opacity_enabled,
                                     egui::DragValue::new(&mut self.set_opacity).range(0..=255),
@@ -281,10 +281,10 @@ impl Modal {
                                     2 => BlendMode::Subtract,
                                     _ => BlendMode::Normal,
                                 };
-                                columns[3].add(luminol_components::FieldWithCheckbox::new(
+                                columns[3].add(FieldWithCheckbox::new(
                                     "Blending",
                                     &mut self.set_blending_enabled,
-                                    luminol_components::EnumComboBox::new(
+                                    EnumComboBox::new(
                                         self.id_source.with("set_blending"),
                                         &mut blend_mode,
                                     ),
@@ -324,25 +324,25 @@ impl Modal {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 let limit = num_patterns.saturating_sub(1) as i16;
-                                columns[0].add(luminol_components::Field::new(
+                                columns[0].add(Field::new(
                                     "Pattern",
                                     egui::DragValue::new(&mut self.add_pattern)
                                         .range(-limit..=limit),
                                 ));
 
-                                columns[1].add(luminol_components::Field::new(
+                                columns[1].add(Field::new(
                                     "X",
                                     egui::DragValue::new(&mut self.add_x)
                                         .range(-(FRAME_WIDTH as i16)..=FRAME_WIDTH as i16),
                                 ));
 
-                                columns[2].add(luminol_components::Field::new(
+                                columns[2].add(Field::new(
                                     "Y",
                                     egui::DragValue::new(&mut self.add_y)
                                         .range(-(FRAME_HEIGHT as i16)..=FRAME_HEIGHT as i16),
                                 ));
 
-                                columns[3].add(luminol_components::Field::new(
+                                columns[3].add(Field::new(
                                     "Scale",
                                     egui::DragValue::new(&mut self.add_scale).suffix("%"),
                                 ));
@@ -351,24 +351,24 @@ impl Modal {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(4, |columns| {
-                                columns[0].add(luminol_components::Field::new(
+                                columns[0].add(Field::new(
                                     "Rotation",
                                     egui::DragValue::new(&mut self.add_rotation)
                                         .range(-360..=360)
                                         .suffix("°"),
                                 ));
 
-                                columns[1].add(luminol_components::Field::new(
+                                columns[1].add(Field::new(
                                     "Flip",
                                     egui::Checkbox::without_text(&mut self.add_flip),
                                 ));
 
-                                columns[2].add(luminol_components::Field::new(
+                                columns[2].add(Field::new(
                                     "Opacity",
                                     egui::DragValue::new(&mut self.add_opacity).range(-255..=255),
                                 ));
 
-                                columns[3].add(luminol_components::Field::new(
+                                columns[3].add(Field::new(
                                     "Blending",
                                     egui::DragValue::new(&mut self.add_blending).range(-2..=2),
                                 ));
@@ -393,7 +393,7 @@ impl Modal {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 self.mul_pattern *= 100.;
-                                columns[0].add(luminol_components::Field::new(
+                                columns[0].add(Field::new(
                                     "Pattern",
                                     egui::DragValue::new(&mut self.mul_pattern)
                                         .range(
@@ -405,7 +405,7 @@ impl Modal {
                                 self.mul_pattern /= 100.;
 
                                 self.mul_x *= 100.;
-                                columns[1].add(luminol_components::Field::new(
+                                columns[1].add(Field::new(
                                     "X",
                                     egui::DragValue::new(&mut self.mul_x)
                                         .range(
@@ -417,7 +417,7 @@ impl Modal {
                                 self.mul_x /= 100.;
 
                                 self.mul_y *= 100.;
-                                columns[2].add(luminol_components::Field::new(
+                                columns[2].add(Field::new(
                                     "Y",
                                     egui::DragValue::new(&mut self.mul_y)
                                         .range(
@@ -429,7 +429,7 @@ impl Modal {
                                 self.mul_y /= 100.;
 
                                 self.mul_scale *= 100.;
-                                columns[3].add(luminol_components::Field::new(
+                                columns[3].add(Field::new(
                                     "Scale",
                                     egui::DragValue::new(&mut self.mul_scale)
                                         .range(0.0..=i16::MAX as f64 * 100.0)
@@ -442,7 +442,7 @@ impl Modal {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 self.mul_rotation *= 100.;
-                                columns[0].add(luminol_components::Field::new(
+                                columns[0].add(Field::new(
                                     "Rotation",
                                     egui::DragValue::new(&mut self.mul_rotation)
                                         .range(-360. * 100.0..=360.0 * 100.0)
@@ -451,7 +451,7 @@ impl Modal {
                                 self.mul_rotation /= 100.;
 
                                 self.mul_opacity *= 100.;
-                                columns[1].add(luminol_components::Field::new(
+                                columns[1].add(Field::new(
                                     "Opacity",
                                     egui::DragValue::new(&mut self.mul_opacity)
                                         .range(0.0..=255. * 100.0)
@@ -521,7 +521,7 @@ impl Modal {
                             }
                         });
 
-                        luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                        crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                         ui.add_space(spacing);
                     });
                 });

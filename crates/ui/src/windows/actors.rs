@@ -22,12 +22,12 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::{Field, OptionalIdComboBox, UiExt};
 use itertools::Itertools;
-use luminol_components::UiExt;
 
+use crate::modals::graphic_picker::actor::Modal as GraphicPicker;
 use luminol_core::Modal;
 use luminol_data::rpg::armor::Kind;
-use luminol_modals::graphic_picker::actor::Modal as GraphicPicker;
 
 pub struct Window {
     selected_actor_name: Option<String>,
@@ -38,7 +38,7 @@ pub struct Window {
     exp_view_is_total: bool,
     exp_view_is_depersisted: bool,
 
-    view: luminol_components::DatabaseView,
+    view: crate::components::DatabaseView,
 }
 
 impl Window {
@@ -61,7 +61,7 @@ impl Window {
             exp_view_is_depersisted: false,
             exp_view_is_total: false,
 
-            view: luminol_components::DatabaseView::new(),
+            view: crate::components::DatabaseView::new(),
         }
     }
 }
@@ -273,7 +273,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.horizontal(|ui| {
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Icon",
                                         self.graphic_picker.button(
                                             (&mut actor.character_name, &mut actor.character_hue),
@@ -290,7 +290,7 @@ impl luminol_core::Window for Window {
                                 }
 
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Name",
                                         egui::TextEdit::singleline(&mut actor.name)
                                             .desired_width(f32::INFINITY),
@@ -301,9 +301,9 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Class",
-                                    luminol_components::OptionalIdComboBox::new(
+                                    OptionalIdComboBox::new(
                                         update_state,
                                         (actor.id, "class"),
                                         &mut actor.class_id,
@@ -330,289 +330,248 @@ impl luminol_core::Window for Window {
                         let class = classes.data.get(actor.class_id);
 
                         ui.with_padded_stripe(false, |ui| {
-                            ui.add(luminol_components::Field::new(
-                                "Starting Weapon",
-                                |ui: &mut egui::Ui| {
-                                    egui::Frame::none()
-                                        .show(ui, |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(
-                                                        luminol_components::OptionalIdComboBox::new(
-                                                            update_state,
-                                                            (actor.id, "weapon_id"),
-                                                            &mut actor.weapon_id,
-                                                            class
-                                                                .map_or_else(
-                                                                    Default::default,
-                                                                    |c| {
-                                                                        c.weapon_set.iter().copied()
-                                                                    },
-                                                                )
-                                                                .filter(|id| {
-                                                                    (0..weapons.data.len())
-                                                                        .contains(id)
-                                                                }),
-                                                            |id| {
-                                                                weapons.data.get(id).map_or_else(
-                                                                    || "".into(),
-                                                                    |w| {
-                                                                        format!(
-                                                                            "{:0>4}: {}",
-                                                                            id + 1,
-                                                                            w.name
-                                                                        )
-                                                                    },
+                            ui.add(Field::new("Starting Weapon", |ui: &mut egui::Ui| {
+                                egui::Frame::none()
+                                    .show(ui, |ui| {
+                                        ui.columns(2, |columns| {
+                                            modified |= columns[0]
+                                                .add(OptionalIdComboBox::new(
+                                                    update_state,
+                                                    (actor.id, "weapon_id"),
+                                                    &mut actor.weapon_id,
+                                                    class
+                                                        .map_or_else(Default::default, |c| {
+                                                            c.weapon_set.iter().copied()
+                                                        })
+                                                        .filter(|id| {
+                                                            (0..weapons.data.len()).contains(id)
+                                                        }),
+                                                    |id| {
+                                                        weapons.data.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |w| {
+                                                                format!(
+                                                                    "{:0>4}: {}",
+                                                                    id + 1,
+                                                                    w.name
                                                                 )
                                                             },
-                                                        ),
-                                                    )
-                                                    .changed();
-                                                modified |= columns[1]
-                                                    .checkbox(&mut actor.weapon_fix, "Fixed")
-                                                    .changed();
-                                            });
-                                        })
-                                        .response
-                                },
-                            ));
+                                                        )
+                                                    },
+                                                ))
+                                                .changed();
+                                            modified |= columns[1]
+                                                .checkbox(&mut actor.weapon_fix, "Fixed")
+                                                .changed();
+                                        });
+                                    })
+                                    .response
+                            }));
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            ui.add(luminol_components::Field::new(
-                                "Starting Shield",
-                                |ui: &mut egui::Ui| {
-                                    egui::Frame::none()
-                                        .show(ui, |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(
-                                                        luminol_components::OptionalIdComboBox::new(
-                                                            update_state,
-                                                            (actor.id, "armor1_id"),
-                                                            &mut actor.armor1_id,
-                                                            class
-                                                                .map_or_else(
-                                                                    Default::default,
-                                                                    |c| c.armor_set.iter().copied(),
-                                                                )
-                                                                .filter(|id| {
-                                                                    (0..armors.data.len())
-                                                                        .contains(id)
-                                                                        && armors
-                                                                            .data
-                                                                            .get(*id)
-                                                                            .is_some_and(|a| {
-                                                                                matches!(
-                                                                                    a.kind,
-                                                                                    Kind::Shield
-                                                                                )
-                                                                            })
-                                                                }),
-                                                            |id| {
-                                                                armors.data.get(id).map_or_else(
-                                                                    || "".into(),
+                            ui.add(Field::new("Starting Shield", |ui: &mut egui::Ui| {
+                                egui::Frame::none()
+                                    .show(ui, |ui| {
+                                        ui.columns(2, |columns| {
+                                            modified |= columns[0]
+                                                .add(OptionalIdComboBox::new(
+                                                    update_state,
+                                                    (actor.id, "armor1_id"),
+                                                    &mut actor.armor1_id,
+                                                    class
+                                                        .map_or_else(Default::default, |c| {
+                                                            c.armor_set.iter().copied()
+                                                        })
+                                                        .filter(|id| {
+                                                            (0..armors.data.len()).contains(id)
+                                                                && armors.data.get(*id).is_some_and(
                                                                     |a| {
-                                                                        format!(
-                                                                            "{:0>4}: {}",
-                                                                            id + 1,
-                                                                            a.name,
+                                                                        matches!(
+                                                                            a.kind,
+                                                                            Kind::Shield
                                                                         )
                                                                     },
                                                                 )
+                                                        }),
+                                                    |id| {
+                                                        armors.data.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |a| {
+                                                                format!(
+                                                                    "{:0>4}: {}",
+                                                                    id + 1,
+                                                                    a.name,
+                                                                )
                                                             },
-                                                        ),
-                                                    )
-                                                    .changed();
-                                                modified |= columns[1]
-                                                    .checkbox(&mut actor.armor1_fix, "Fixed")
-                                                    .changed();
-                                            });
-                                        })
-                                        .response
-                                },
-                            ));
+                                                        )
+                                                    },
+                                                ))
+                                                .changed();
+                                            modified |= columns[1]
+                                                .checkbox(&mut actor.armor1_fix, "Fixed")
+                                                .changed();
+                                        });
+                                    })
+                                    .response
+                            }));
                         });
 
                         ui.with_padded_stripe(false, |ui| {
-                            ui.add(luminol_components::Field::new(
-                                "Starting Helmet",
-                                |ui: &mut egui::Ui| {
-                                    egui::Frame::none()
-                                        .show(ui, |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(
-                                                        luminol_components::OptionalIdComboBox::new(
-                                                            update_state,
-                                                            (actor.id, "armor2_id"),
-                                                            &mut actor.armor2_id,
-                                                            class
-                                                                .map_or_else(
-                                                                    Default::default,
-                                                                    |c| c.armor_set.iter().copied(),
-                                                                )
-                                                                .filter(|id| {
-                                                                    (0..armors.data.len())
-                                                                        .contains(id)
-                                                                        && armors
-                                                                            .data
-                                                                            .get(*id)
-                                                                            .is_some_and(|a| {
-                                                                                matches!(
-                                                                                    a.kind,
-                                                                                    Kind::Helmet
-                                                                                )
-                                                                            })
-                                                                }),
-                                                            |id| {
-                                                                armors.data.get(id).map_or_else(
-                                                                    || "".into(),
+                            ui.add(Field::new("Starting Helmet", |ui: &mut egui::Ui| {
+                                egui::Frame::none()
+                                    .show(ui, |ui| {
+                                        ui.columns(2, |columns| {
+                                            modified |= columns[0]
+                                                .add(OptionalIdComboBox::new(
+                                                    update_state,
+                                                    (actor.id, "armor2_id"),
+                                                    &mut actor.armor2_id,
+                                                    class
+                                                        .map_or_else(Default::default, |c| {
+                                                            c.armor_set.iter().copied()
+                                                        })
+                                                        .filter(|id| {
+                                                            (0..armors.data.len()).contains(id)
+                                                                && armors.data.get(*id).is_some_and(
                                                                     |a| {
-                                                                        format!(
-                                                                            "{:0>4}: {}",
-                                                                            id + 1,
-                                                                            a.name,
+                                                                        matches!(
+                                                                            a.kind,
+                                                                            Kind::Helmet
                                                                         )
                                                                     },
                                                                 )
+                                                        }),
+                                                    |id| {
+                                                        armors.data.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |a| {
+                                                                format!(
+                                                                    "{:0>4}: {}",
+                                                                    id + 1,
+                                                                    a.name,
+                                                                )
                                                             },
-                                                        ),
-                                                    )
-                                                    .changed();
-                                                modified |= columns[1]
-                                                    .checkbox(&mut actor.armor2_fix, "Fixed")
-                                                    .changed();
-                                            });
-                                        })
-                                        .response
-                                },
-                            ));
+                                                        )
+                                                    },
+                                                ))
+                                                .changed();
+                                            modified |= columns[1]
+                                                .checkbox(&mut actor.armor2_fix, "Fixed")
+                                                .changed();
+                                        });
+                                    })
+                                    .response
+                            }));
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            ui.add(luminol_components::Field::new(
-                                "Starting Body Armor",
-                                |ui: &mut egui::Ui| {
-                                    egui::Frame::none()
-                                        .show(ui, |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(
-                                                        luminol_components::OptionalIdComboBox::new(
-                                                            update_state,
-                                                            (actor.id, "armor3_id"),
-                                                            &mut actor.armor3_id,
-                                                            class
-                                                                .map_or_else(
-                                                                    Default::default,
-                                                                    |c| c.armor_set.iter().copied(),
-                                                                )
-                                                                .filter(|id| {
-                                                                    (0..armors.data.len())
-                                                                        .contains(id)
-                                                                        && armors
-                                                                            .data
-                                                                            .get(*id)
-                                                                            .is_some_and(|a| {
-                                                                                matches!(
-                                                                                    a.kind,
-                                                                                    Kind::BodyArmor
-                                                                                )
-                                                                            })
-                                                                }),
-                                                            |id| {
-                                                                armors.data.get(id).map_or_else(
-                                                                    || "".into(),
+                            ui.add(Field::new("Starting Body Armor", |ui: &mut egui::Ui| {
+                                egui::Frame::none()
+                                    .show(ui, |ui| {
+                                        ui.columns(2, |columns| {
+                                            modified |= columns[0]
+                                                .add(OptionalIdComboBox::new(
+                                                    update_state,
+                                                    (actor.id, "armor3_id"),
+                                                    &mut actor.armor3_id,
+                                                    class
+                                                        .map_or_else(Default::default, |c| {
+                                                            c.armor_set.iter().copied()
+                                                        })
+                                                        .filter(|id| {
+                                                            (0..armors.data.len()).contains(id)
+                                                                && armors.data.get(*id).is_some_and(
                                                                     |a| {
-                                                                        format!(
-                                                                            "{:0>4}: {}",
-                                                                            id + 1,
-                                                                            a.name,
+                                                                        matches!(
+                                                                            a.kind,
+                                                                            Kind::BodyArmor
                                                                         )
                                                                     },
                                                                 )
+                                                        }),
+                                                    |id| {
+                                                        armors.data.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |a| {
+                                                                format!(
+                                                                    "{:0>4}: {}",
+                                                                    id + 1,
+                                                                    a.name,
+                                                                )
                                                             },
-                                                        ),
-                                                    )
-                                                    .changed();
-                                                modified |= columns[1]
-                                                    .checkbox(&mut actor.armor3_fix, "Fixed")
-                                                    .changed();
-                                            });
-                                        })
-                                        .response
-                                },
-                            ));
+                                                        )
+                                                    },
+                                                ))
+                                                .changed();
+                                            modified |= columns[1]
+                                                .checkbox(&mut actor.armor3_fix, "Fixed")
+                                                .changed();
+                                        });
+                                    })
+                                    .response
+                            }));
                         });
 
                         ui.with_padded_stripe(false, |ui| {
-                            ui.add(luminol_components::Field::new(
-                                "Starting Accessory",
-                                |ui: &mut egui::Ui| {
-                                    egui::Frame::none()
-                                        .show(ui, |ui| {
-                                            ui.columns(2, |columns| {
-                                                modified |= columns[0]
-                                                    .add(
-                                                        luminol_components::OptionalIdComboBox::new(
-                                                            update_state,
-                                                            (actor.id, "armor4_id"),
-                                                            &mut actor.armor4_id,
-                                                            class
-                                                                .map_or_else(
-                                                                    Default::default,
-                                                                    |c| c.armor_set.iter().copied(),
-                                                                )
-                                                                .filter(|id| {
-                                                                    (0..armors.data.len())
-                                                                        .contains(id)
-                                                                        && armors
-                                                                            .data
-                                                                            .get(*id)
-                                                                            .is_some_and(|a| {
-                                                                                matches!(
-                                                                                    a.kind,
-                                                                                    Kind::Accessory
-                                                                                )
-                                                                            })
-                                                                }),
-                                                            |id| {
-                                                                armors.data.get(id).map_or_else(
-                                                                    || "".into(),
+                            ui.add(Field::new("Starting Accessory", |ui: &mut egui::Ui| {
+                                egui::Frame::none()
+                                    .show(ui, |ui| {
+                                        ui.columns(2, |columns| {
+                                            modified |= columns[0]
+                                                .add(OptionalIdComboBox::new(
+                                                    update_state,
+                                                    (actor.id, "armor4_id"),
+                                                    &mut actor.armor4_id,
+                                                    class
+                                                        .map_or_else(Default::default, |c| {
+                                                            c.armor_set.iter().copied()
+                                                        })
+                                                        .filter(|id| {
+                                                            (0..armors.data.len()).contains(id)
+                                                                && armors.data.get(*id).is_some_and(
                                                                     |a| {
-                                                                        format!(
-                                                                            "{:0>4}: {}",
-                                                                            id + 1,
-                                                                            a.name,
+                                                                        matches!(
+                                                                            a.kind,
+                                                                            Kind::Accessory
                                                                         )
                                                                     },
                                                                 )
+                                                        }),
+                                                    |id| {
+                                                        armors.data.get(id).map_or_else(
+                                                            || "".into(),
+                                                            |a| {
+                                                                format!(
+                                                                    "{:0>4}: {}",
+                                                                    id + 1,
+                                                                    a.name,
+                                                                )
                                                             },
-                                                        ),
-                                                    )
-                                                    .changed();
-                                                modified |= columns[1]
-                                                    .checkbox(&mut actor.armor4_fix, "Fixed")
-                                                    .changed();
-                                            });
-                                        })
-                                        .response
-                                },
-                            ));
+                                                        )
+                                                    },
+                                                ))
+                                                .changed();
+                                            modified |= columns[1]
+                                                .checkbox(&mut actor.armor4_fix, "Fixed")
+                                                .changed();
+                                        });
+                                    })
+                                    .response
+                            }));
                         });
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Initial Level",
                                         egui::Slider::new(&mut actor.initial_level, 1..=99),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Final Level",
                                         egui::Slider::new(
                                             &mut actor.final_level,
@@ -654,14 +613,14 @@ impl luminol_core::Window for Window {
 
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "EXP Curve Basis",
                                         egui::Slider::new(&mut actor.exp_basis, 10..=50),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "EXP Curve Inflation",
                                         egui::Slider::new(&mut actor.exp_inflation, 10..=50),
                                     ))
@@ -671,91 +630,73 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0].add(luminol_components::Field::new(
-                                    "Max HP",
-                                    |ui: &mut egui::Ui| {
-                                        draw_graph(
-                                            ui,
-                                            actor,
-                                            0,
-                                            1..=9999,
-                                            egui::Color32::from_rgb(204, 0, 0),
-                                        )
-                                    },
-                                ));
+                                columns[0].add(Field::new("Max HP", |ui: &mut egui::Ui| {
+                                    draw_graph(
+                                        ui,
+                                        actor,
+                                        0,
+                                        1..=9999,
+                                        egui::Color32::from_rgb(204, 0, 0),
+                                    )
+                                }));
 
-                                columns[1].add(luminol_components::Field::new(
-                                    "Max SP",
-                                    |ui: &mut egui::Ui| {
-                                        draw_graph(
-                                            ui,
-                                            actor,
-                                            1,
-                                            1..=9999,
-                                            egui::Color32::from_rgb(245, 123, 0),
-                                        )
-                                    },
-                                ));
+                                columns[1].add(Field::new("Max SP", |ui: &mut egui::Ui| {
+                                    draw_graph(
+                                        ui,
+                                        actor,
+                                        1,
+                                        1..=9999,
+                                        egui::Color32::from_rgb(245, 123, 0),
+                                    )
+                                }));
                             });
                         });
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0].add(luminol_components::Field::new(
-                                    "STR",
-                                    |ui: &mut egui::Ui| {
-                                        draw_graph(
-                                            ui,
-                                            actor,
-                                            2,
-                                            1..=999,
-                                            egui::Color32::from_rgb(237, 213, 0),
-                                        )
-                                    },
-                                ));
+                                columns[0].add(Field::new("STR", |ui: &mut egui::Ui| {
+                                    draw_graph(
+                                        ui,
+                                        actor,
+                                        2,
+                                        1..=999,
+                                        egui::Color32::from_rgb(237, 213, 0),
+                                    )
+                                }));
 
-                                columns[1].add(luminol_components::Field::new(
-                                    "DEX",
-                                    |ui: &mut egui::Ui| {
-                                        draw_graph(
-                                            ui,
-                                            actor,
-                                            3,
-                                            1..=999,
-                                            egui::Color32::from_rgb(116, 210, 22),
-                                        )
-                                    },
-                                ));
+                                columns[1].add(Field::new("DEX", |ui: &mut egui::Ui| {
+                                    draw_graph(
+                                        ui,
+                                        actor,
+                                        3,
+                                        1..=999,
+                                        egui::Color32::from_rgb(116, 210, 22),
+                                    )
+                                }));
                             });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                columns[0].add(luminol_components::Field::new(
-                                    "AGI",
-                                    |ui: &mut egui::Ui| {
-                                        draw_graph(
-                                            ui,
-                                            actor,
-                                            4,
-                                            1..=999,
-                                            egui::Color32::from_rgb(52, 101, 164),
-                                        )
-                                    },
-                                ));
+                                columns[0].add(Field::new("AGI", |ui: &mut egui::Ui| {
+                                    draw_graph(
+                                        ui,
+                                        actor,
+                                        4,
+                                        1..=999,
+                                        egui::Color32::from_rgb(52, 101, 164),
+                                    )
+                                }));
 
-                                columns[1].add(luminol_components::Field::new(
-                                    "INT",
-                                    |ui: &mut egui::Ui| {
-                                        draw_graph(
-                                            ui,
-                                            actor,
-                                            5,
-                                            1..=999,
-                                            egui::Color32::from_rgb(117, 80, 123),
-                                        )
-                                    },
-                                ));
+                                columns[1].add(Field::new("INT", |ui: &mut egui::Ui| {
+                                    draw_graph(
+                                        ui,
+                                        actor,
+                                        5,
+                                        1..=999,
+                                        egui::Color32::from_rgb(117, 80, 123),
+                                    )
+                                }));
                             });
                         });
 
