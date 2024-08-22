@@ -21,7 +21,7 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
-
+use crate::components::SelectedTile;
 use itertools::Itertools;
 
 impl super::Tab {
@@ -34,8 +34,7 @@ impl super::Tab {
         map: &mut luminol_data::rpg::Map,
     ) {
         let map_pos = egui::pos2(map_x as f32, map_y as f32);
-        let initial_tile =
-            luminol_components::SelectedTile::from_id(map.data[(map_x, map_y, tile_layer)]);
+        let initial_tile = SelectedTile::from_id(map.data[(map_x, map_y, tile_layer)]);
         let left = self.tilepicker.selected_tiles_left;
         let right = self.tilepicker.selected_tiles_right;
         let top = self.tilepicker.selected_tiles_top;
@@ -129,9 +128,7 @@ impl super::Tab {
                             continue;
                         }
 
-                        if luminol_components::SelectedTile::from_id(map.data[position])
-                            == initial_tile
-                        {
+                        if SelectedTile::from_id(map.data[position]) == initial_tile {
                             stack.push(position);
                         }
                     }

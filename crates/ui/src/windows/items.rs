@@ -22,11 +22,14 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::{
+    components::{
+        DatabaseView, EnumComboBox, Field, IdVecPlusMinusSelection, IdVecSelection,
+        OptionalIdComboBox, UiExt,
+    },
+    modals::{graphic_picker::basic::Modal as GraphicPicker, sound_picker::Modal as SoundPicker},
+};
 use luminol_core::Modal;
-
-use luminol_modals::graphic_picker::basic::Modal as GraphicPicker;
-use luminol_modals::sound_picker::Modal as SoundPicker;
 
 /// Database - Items management window.
 pub struct Window {
@@ -37,7 +40,7 @@ pub struct Window {
 
     previous_item: Option<usize>,
 
-    view: luminol_components::DatabaseView,
+    view: DatabaseView,
 }
 
 impl Window {
@@ -55,7 +58,7 @@ impl Window {
                 "item_icon_picker",
             ),
             previous_item: None,
-            view: luminol_components::DatabaseView::new(),
+            view: DatabaseView::new(),
         }
     }
 }
@@ -110,7 +113,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.horizontal(|ui| {
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Icon",
                                         self.graphic_picker
                                             .button(&mut item.icon_name, update_state),
@@ -122,7 +125,7 @@ impl luminol_core::Window for Window {
                                 }
 
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Name",
                                         egui::TextEdit::singleline(&mut item.name)
                                             .desired_width(f32::INFINITY),
@@ -131,7 +134,7 @@ impl luminol_core::Window for Window {
                             });
 
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Description",
                                     egui::TextEdit::multiline(&mut item.description)
                                         .desired_width(f32::INFINITY),
@@ -142,19 +145,16 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Scope",
-                                        luminol_components::EnumComboBox::new(
-                                            (item.id, "scope"),
-                                            &mut item.scope,
-                                        ),
+                                        EnumComboBox::new((item.id, "scope"), &mut item.scope),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Occasion",
-                                        luminol_components::EnumComboBox::new(
+                                        EnumComboBox::new(
                                             (item.id, "occasion"),
                                             &mut item.occasion,
                                         ),
@@ -166,9 +166,9 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "User Animation",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (item.id, "animation1_id"),
                                             &mut item.animation1_id,
@@ -184,9 +184,9 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Target Animation",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (item.id, "animation2_id"),
                                             &mut item.animation2_id,
@@ -206,7 +206,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Menu Use SE",
                                         self.menu_se_picker.button(&mut item.menu_se, update_state),
                                     ))
@@ -217,9 +217,9 @@ impl luminol_core::Window for Window {
                                 }
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Common Event",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (item.id, "common_event_id"),
                                             &mut item.common_event_id,
@@ -239,14 +239,14 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Price",
                                         egui::DragValue::new(&mut item.price).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Consumable",
                                         egui::Checkbox::without_text(&mut item.consumable),
                                     ))
@@ -257,9 +257,9 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             if item.parameter_type.is_none() {
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Parameter",
-                                        luminol_components::EnumComboBox::new(
+                                        EnumComboBox::new(
                                             "parameter_type",
                                             &mut item.parameter_type,
                                         ),
@@ -268,9 +268,9 @@ impl luminol_core::Window for Window {
                             } else {
                                 ui.columns(2, |columns| {
                                     modified |= columns[0]
-                                        .add(luminol_components::Field::new(
+                                        .add(Field::new(
                                             "Parameter",
-                                            luminol_components::EnumComboBox::new(
+                                            EnumComboBox::new(
                                                 "parameter_type",
                                                 &mut item.parameter_type,
                                             ),
@@ -278,7 +278,7 @@ impl luminol_core::Window for Window {
                                         .changed();
 
                                     modified |= columns[1]
-                                        .add(luminol_components::Field::new(
+                                        .add(Field::new(
                                             "Parameter Increment",
                                             egui::DragValue::new(&mut item.parameter_points)
                                                 .range(0..=i32::MAX),
@@ -291,7 +291,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Recover HP %",
                                         egui::Slider::new(&mut item.recover_hp_rate, 0..=100)
                                             .suffix("%"),
@@ -299,7 +299,7 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Recover HP Points",
                                         egui::DragValue::new(&mut item.recover_hp)
                                             .range(0..=i32::MAX),
@@ -311,7 +311,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Recover SP %",
                                         egui::Slider::new(&mut item.recover_sp_rate, 0..=100)
                                             .suffix("%"),
@@ -319,7 +319,7 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Recover SP Points",
                                         egui::DragValue::new(&mut item.recover_sp)
                                             .range(0..=i32::MAX),
@@ -331,14 +331,14 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Hit Rate",
                                         egui::Slider::new(&mut item.hit, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Variance",
                                         egui::Slider::new(&mut item.variance, 0..=100).suffix("%"),
                                     ))
@@ -349,14 +349,14 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "PDEF-F",
                                         egui::Slider::new(&mut item.pdef_f, 0..=100).suffix("%"),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "MDEF-F",
                                         egui::Slider::new(&mut item.mdef_f, 0..=100).suffix("%"),
                                     ))
@@ -366,7 +366,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                let mut selection = luminol_components::IdVecSelection::new(
+                                let mut selection = IdVecSelection::new(
                                     update_state,
                                     (item.id, "element_set"),
                                     &mut item.element_set,
@@ -381,29 +381,27 @@ impl luminol_core::Window for Window {
                                 if self.previous_item != Some(item.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[0]
-                                    .add(luminol_components::Field::new("Elements", selection))
-                                    .changed();
+                                modified |=
+                                    columns[0].add(Field::new("Elements", selection)).changed();
 
-                                let mut selection =
-                                    luminol_components::IdVecPlusMinusSelection::new(
-                                        update_state,
-                                        (item.id, "state_set"),
-                                        &mut item.plus_state_set,
-                                        &mut item.minus_state_set,
-                                        0..states.data.len(),
-                                        |id| {
-                                            states.data.get(id).map_or_else(
-                                                || "".into(),
-                                                |s| format!("{:0>4}: {}", id + 1, s.name),
-                                            )
-                                        },
-                                    );
+                                let mut selection = IdVecPlusMinusSelection::new(
+                                    update_state,
+                                    (item.id, "state_set"),
+                                    &mut item.plus_state_set,
+                                    &mut item.minus_state_set,
+                                    0..states.data.len(),
+                                    |id| {
+                                        states.data.get(id).map_or_else(
+                                            || "".into(),
+                                            |s| format!("{:0>4}: {}", id + 1, s.name),
+                                        )
+                                    },
+                                );
                                 if self.previous_item != Some(item.id) {
                                     selection.clear_search();
                                 }
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new("State Change", selection))
+                                    .add(Field::new("State Change", selection))
                                     .changed();
                             });
                         });

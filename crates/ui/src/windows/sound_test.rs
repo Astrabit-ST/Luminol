@@ -29,7 +29,7 @@ use strum::IntoEnumIterator;
 
 /// A simple sound test window.
 pub struct Window {
-    sources: Vec<luminol_components::SoundTab>,
+    sources: Vec<crate::components::SoundTab>,
     selected_source: luminol_audio::Source,
 }
 
@@ -38,7 +38,7 @@ impl Window {
         Self {
             // Create all sources.
             sources: luminol_audio::Source::iter()
-                .map(|s| luminol_components::SoundTab::new(filesystem, s, Default::default()))
+                .map(|s| crate::components::SoundTab::new(filesystem, s, Default::default()))
                 .collect(),
             // By default, bgm is selected.
             selected_source: luminol_audio::Source::BGM,

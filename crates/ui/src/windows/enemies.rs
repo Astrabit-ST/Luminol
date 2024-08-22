@@ -22,9 +22,11 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::components::{
+    CollapsingView, DatabaseView, EnumComboBox, Field, OptionalIdComboBox, RankSelection, UiExt,
+};
+use crate::modals::graphic_picker::hue::Modal as GraphicPicker;
 use luminol_core::Modal;
-use luminol_modals::graphic_picker::hue::Modal as GraphicPicker;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 #[derive(strum::Display, strum::EnumIter)]
@@ -43,8 +45,8 @@ pub struct Window {
 
     graphic_picker: GraphicPicker,
 
-    collapsing_view: luminol_components::CollapsingView,
-    view: luminol_components::DatabaseView,
+    collapsing_view: CollapsingView,
+    view: DatabaseView,
 }
 
 impl Window {
@@ -64,8 +66,8 @@ impl Window {
                 "enemy_battler_picker",
             ),
 
-            collapsing_view: luminol_components::CollapsingView::new(),
-            view: luminol_components::DatabaseView::new(),
+            collapsing_view: CollapsingView::new(),
+            view: DatabaseView::new(),
         }
     }
 
@@ -135,14 +137,14 @@ impl Window {
             .show(ui, |ui| {
                 ui.columns(2, |columns| {
                     modified |= columns[0]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Turn Offset",
                             egui::DragValue::new(&mut action.condition_turn_a).range(0..=i32::MAX),
                         ))
                         .changed();
 
                     modified |= columns[1]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Turn Interval",
                             egui::DragValue::new(&mut action.condition_turn_b).range(0..=i32::MAX),
                         ))
@@ -151,14 +153,14 @@ impl Window {
 
                 ui.columns(2, |columns| {
                     modified |= columns[0]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Max HP %",
                             egui::Slider::new(&mut action.condition_hp, 0..=100).suffix("%"),
                         ))
                         .changed();
 
                     modified |= columns[1]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Min Level",
                             egui::Slider::new(&mut action.condition_level, 1..=99),
                         ))
@@ -166,9 +168,9 @@ impl Window {
                 });
 
                 modified |= ui
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Switch",
-                        luminol_components::OptionalIdComboBox::new(
+                        OptionalIdComboBox::new(
                             update_state,
                             (enemy_id, action_index, "condition_switch_id"),
                             &mut action.condition_switch_id,
@@ -185,21 +187,18 @@ impl Window {
 
                 ui.columns(2, |columns| {
                     modified |= columns[0]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Kind",
-                            luminol_components::EnumComboBox::new(
-                                (enemy_id, action_index, "kind"),
-                                &mut action.kind,
-                            ),
+                            EnumComboBox::new((enemy_id, action_index, "kind"), &mut action.kind),
                         ))
                         .changed();
 
                     match action.kind {
                         luminol_data::rpg::enemy::Kind::Basic => {
                             modified |= columns[1]
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Basic Type",
-                                    luminol_components::EnumComboBox::new(
+                                    EnumComboBox::new(
                                         (enemy_id, action_index, "basic"),
                                         &mut action.basic,
                                     ),
@@ -208,9 +207,9 @@ impl Window {
                         }
                         luminol_data::rpg::enemy::Kind::Skill => {
                             modified |= columns[1]
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Skill",
-                                    luminol_components::OptionalIdComboBox::new(
+                                    OptionalIdComboBox::new(
                                         update_state,
                                         (enemy_id, action_index, "skill_id"),
                                         &mut action.skill_id,
@@ -229,7 +228,7 @@ impl Window {
                 });
 
                 modified |= ui
-                    .add(luminol_components::Field::new(
+                    .add(Field::new(
                         "Rating",
                         egui::Slider::new(&mut action.rating, 1..=10),
                     ))
@@ -297,7 +296,7 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.horizontal(|ui| {
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Graphic",
                                         self.graphic_picker.button(
                                             (&mut enemy.battler_name, &mut enemy.battler_hue),
@@ -314,7 +313,7 @@ impl luminol_core::Window for Window {
                                 }
 
                                 modified |= ui
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Name",
                                         egui::TextEdit::singleline(&mut enemy.name)
                                             .desired_width(f32::INFINITY),
@@ -326,9 +325,9 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Attacker Animation",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (enemy.id, "animation1_id"),
                                             &mut enemy.animation1_id,
@@ -344,9 +343,9 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Target Animation",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (enemy.id, "animation2_id"),
                                             &mut enemy.animation2_id,
@@ -366,28 +365,28 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "EXP",
                                         egui::DragValue::new(&mut enemy.exp).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Gold",
                                         egui::DragValue::new(&mut enemy.gold).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Max HP",
                                         egui::DragValue::new(&mut enemy.maxhp).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Max SP",
                                         egui::DragValue::new(&mut enemy.maxsp).range(0..=i32::MAX),
                                     ))
@@ -398,28 +397,28 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "STR",
                                         egui::DragValue::new(&mut enemy.str).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "DEX",
                                         egui::DragValue::new(&mut enemy.dex).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "AGI",
                                         egui::DragValue::new(&mut enemy.agi).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "INT",
                                         egui::DragValue::new(&mut enemy.int).range(0..=i32::MAX),
                                     ))
@@ -430,28 +429,28 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "ATK",
                                         egui::DragValue::new(&mut enemy.atk).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "EVA",
                                         egui::DragValue::new(&mut enemy.eva).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "PDEF",
                                         egui::DragValue::new(&mut enemy.pdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "MDEF",
                                         egui::DragValue::new(&mut enemy.mdef).range(0..=i32::MAX),
                                     ))
@@ -472,9 +471,9 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Treasure Type",
-                                        luminol_components::EnumComboBox::new(
+                                        EnumComboBox::new(
                                             (enemy.id, "treasure_type"),
                                             &mut treasure_type,
                                         ),
@@ -482,7 +481,7 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Treasure Probability",
                                         egui::Slider::new(&mut enemy.treasure_prob, 0..=100)
                                             .suffix("%"),
@@ -504,9 +503,9 @@ impl luminol_core::Window for Window {
                                         enemy.item_id = Some(0);
                                     }
                                     modified |= ui
-                                        .add(luminol_components::Field::new(
+                                        .add(Field::new(
                                             "Treasure",
-                                            luminol_components::OptionalIdComboBox::new(
+                                            OptionalIdComboBox::new(
                                                 update_state,
                                                 (enemy.id, "item_id"),
                                                 &mut enemy.item_id,
@@ -530,9 +529,9 @@ impl luminol_core::Window for Window {
                                         enemy.weapon_id = Some(0);
                                     }
                                     modified |= ui
-                                        .add(luminol_components::Field::new(
+                                        .add(Field::new(
                                             "Treasure",
-                                            luminol_components::OptionalIdComboBox::new(
+                                            OptionalIdComboBox::new(
                                                 update_state,
                                                 (enemy.id, "weapon_id"),
                                                 &mut enemy.weapon_id,
@@ -556,9 +555,9 @@ impl luminol_core::Window for Window {
                                         enemy.armor_id = Some(0);
                                     }
                                     modified |= ui
-                                        .add(luminol_components::Field::new(
+                                        .add(Field::new(
                                             "Treasure",
-                                            luminol_components::OptionalIdComboBox::new(
+                                            OptionalIdComboBox::new(
                                                 update_state,
                                                 (enemy.id, "armor_id"),
                                                 &mut enemy.armor_id,
@@ -579,34 +578,31 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Actions",
-                                    |ui: &mut egui::Ui| {
-                                        if self.previous_enemy != Some(enemy.id) {
-                                            self.collapsing_view.clear_animations();
-                                        }
-                                        self.collapsing_view
-                                            .show(
-                                                ui,
-                                                enemy.id,
-                                                &mut enemy.actions,
-                                                |ui, _i, action| {
-                                                    Self::show_action_header(ui, &skills, action)
-                                                },
-                                                |ui, i, action| {
-                                                    Self::show_action_body(
-                                                        ui,
-                                                        update_state,
-                                                        &system,
-                                                        &skills,
-                                                        enemy.id,
-                                                        (i, action),
-                                                    )
-                                                },
-                                            )
-                                            .response
-                                    },
-                                ))
+                                .add(Field::new("Actions", |ui: &mut egui::Ui| {
+                                    if self.previous_enemy != Some(enemy.id) {
+                                        self.collapsing_view.clear_animations();
+                                    }
+                                    self.collapsing_view
+                                        .show(
+                                            ui,
+                                            enemy.id,
+                                            &mut enemy.actions,
+                                            |ui, _i, action| {
+                                                Self::show_action_header(ui, &skills, action)
+                                            },
+                                            |ui, i, action| {
+                                                Self::show_action_body(
+                                                    ui,
+                                                    update_state,
+                                                    &system,
+                                                    &skills,
+                                                    enemy.id,
+                                                    (i, action),
+                                                )
+                                            },
+                                        )
+                                        .response
+                                }))
                                 .changed();
                         });
 
@@ -615,7 +611,7 @@ impl luminol_core::Window for Window {
                                 enemy
                                     .element_ranks
                                     .resize_with_value(system.elements.len(), 3);
-                                let mut selection = luminol_components::RankSelection::new(
+                                let mut selection = RankSelection::new(
                                     update_state,
                                     (enemy.id, "element_ranks"),
                                     &mut enemy.element_ranks,
@@ -629,14 +625,13 @@ impl luminol_core::Window for Window {
                                 if self.previous_enemy != Some(enemy.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[0]
-                                    .add(luminol_components::Field::new("Elements", selection))
-                                    .changed();
+                                modified |=
+                                    columns[0].add(Field::new("Elements", selection)).changed();
 
                                 enemy
                                     .state_ranks
                                     .resize_with_value(states.data.len() + 1, 3);
-                                let mut selection = luminol_components::RankSelection::new(
+                                let mut selection = RankSelection::new(
                                     update_state,
                                     (enemy.id, "state_ranks"),
                                     &mut enemy.state_ranks,
@@ -650,9 +645,8 @@ impl luminol_core::Window for Window {
                                 if self.previous_enemy != Some(enemy.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[1]
-                                    .add(luminol_components::Field::new("States", selection))
-                                    .changed();
+                                modified |=
+                                    columns[1].add(Field::new("States", selection)).changed();
                             });
                         });
 

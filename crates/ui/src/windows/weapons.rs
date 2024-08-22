@@ -22,14 +22,16 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::components::{
+    Field, IdVecPlusMinusSelection, IdVecSelection, OptionalIdComboBox, UiExt,
+};
 
 #[derive(Default)]
 pub struct Window {
     selected_weapon_name: Option<String>,
     previous_weapon: Option<usize>,
 
-    view: luminol_components::DatabaseView,
+    view: crate::components::DatabaseView,
 }
 
 impl Window {
@@ -86,7 +88,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Name",
                                     egui::TextEdit::singleline(&mut weapon.name)
                                         .desired_width(f32::INFINITY),
@@ -94,7 +96,7 @@ impl luminol_core::Window for Window {
                                 .changed();
 
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Description",
                                     egui::TextEdit::multiline(&mut weapon.description)
                                         .desired_width(f32::INFINITY),
@@ -105,9 +107,9 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "User Animation",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (weapon.id, "animation1_id"),
                                             &mut weapon.animation1_id,
@@ -123,9 +125,9 @@ impl luminol_core::Window for Window {
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Target Animation",
-                                        luminol_components::OptionalIdComboBox::new(
+                                        OptionalIdComboBox::new(
                                             update_state,
                                             (weapon.id, "animation2_id"),
                                             &mut weapon.animation2_id,
@@ -145,28 +147,28 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "Price",
                                         egui::DragValue::new(&mut weapon.price).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "ATK",
                                         egui::DragValue::new(&mut weapon.atk).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "PDEF",
                                         egui::DragValue::new(&mut weapon.pdef).range(0..=i32::MAX),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "MDEF",
                                         egui::DragValue::new(&mut weapon.mdef).range(0..=i32::MAX),
                                     ))
@@ -177,28 +179,28 @@ impl luminol_core::Window for Window {
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(4, |columns| {
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "STR+",
                                         egui::DragValue::new(&mut weapon.str_plus),
                                     ))
                                     .changed();
 
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "DEX+",
                                         egui::DragValue::new(&mut weapon.dex_plus),
                                     ))
                                     .changed();
 
                                 modified |= columns[2]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "AGI+",
                                         egui::DragValue::new(&mut weapon.agi_plus),
                                     ))
                                     .changed();
 
                                 modified |= columns[3]
-                                    .add(luminol_components::Field::new(
+                                    .add(Field::new(
                                         "INT+",
                                         egui::DragValue::new(&mut weapon.int_plus),
                                     ))
@@ -208,7 +210,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.columns(2, |columns| {
-                                let mut selection = luminol_components::IdVecSelection::new(
+                                let mut selection = IdVecSelection::new(
                                     update_state,
                                     (weapon.id, "element_set"),
                                     &mut weapon.element_set,
@@ -223,29 +225,27 @@ impl luminol_core::Window for Window {
                                 if self.previous_weapon != Some(weapon.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[0]
-                                    .add(luminol_components::Field::new("Elements", selection))
-                                    .changed();
+                                modified |=
+                                    columns[0].add(Field::new("Elements", selection)).changed();
 
-                                let mut selection =
-                                    luminol_components::IdVecPlusMinusSelection::new(
-                                        update_state,
-                                        (weapon.id, "state_set"),
-                                        &mut weapon.plus_state_set,
-                                        &mut weapon.minus_state_set,
-                                        0..states.data.len(),
-                                        |id| {
-                                            states.data.get(id).map_or_else(
-                                                || "".into(),
-                                                |s| format!("{:0>4}: {}", id + 1, s.name),
-                                            )
-                                        },
-                                    );
+                                let mut selection = IdVecPlusMinusSelection::new(
+                                    update_state,
+                                    (weapon.id, "state_set"),
+                                    &mut weapon.plus_state_set,
+                                    &mut weapon.minus_state_set,
+                                    0..states.data.len(),
+                                    |id| {
+                                        states.data.get(id).map_or_else(
+                                            || "".into(),
+                                            |s| format!("{:0>4}: {}", id + 1, s.name),
+                                        )
+                                    },
+                                );
                                 if self.previous_weapon != Some(weapon.id) {
                                     selection.clear_search();
                                 }
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new("State Change", selection))
+                                    .add(Field::new("State Change", selection))
                                     .changed();
                             });
                         });

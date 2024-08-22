@@ -22,8 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::modals::database_modal;
 use luminol_core::Modal;
-use luminol_modals::database_modal;
 
 /// The common event editor.
 pub struct Window {
@@ -75,7 +75,7 @@ pub struct CommonEventTab {
     event: luminol_data::rpg::CommonEvent,
     force_close: bool,
     switch_modal: database_modal::SwitchModal,
-    command_view: luminol_components::CommandView,
+    command_view: crate::components::CommandView,
 }
 
 impl luminol_core::Tab for CommonEventTab {

@@ -22,16 +22,21 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::{Cellpicker, UiExt};
+use crate::components::UiExt;
+use color_eyre::eyre::WrapErr;
 use luminol_core::prelude::*;
 
-use super::Entry;
+use super::{ButtonSprite, Entry, PreviewSprite, Selected};
 
 pub struct Modal {
     state: State,
     id_source: egui::Id,
-    animation_name: Option<camino::Utf8PathBuf>,
-    animation_hue: i32,
+
+    button_size: egui::Vec2,
+    directory: camino::Utf8PathBuf, // do we make this &'static Utf8Path?
+
+    button_sprite: Option<ButtonSprite>,
+
     scrolled_on_first_open: bool,
 }
 
@@ -41,52 +46,84 @@ enum State {
         entries: Vec<Entry>,
         filtered_entries: Vec<Entry>,
         search_text: String,
-        cellpicker: luminol_components::Cellpicker,
+
+        selected: Selected,
     },
 }
 
 impl Modal {
-    pub fn new(animation: &rpg::Animation, id_source: egui::Id) -> Self {
+    pub fn new(
+        update_state: &UpdateState<'_>,
+        directory: camino::Utf8PathBuf,
+        path: Option<&camino::Utf8Path>,
+        button_size: egui::Vec2,
+        id_source: impl Into<egui::Id>,
+    ) -> Self {
+        let button_sprite = path.map(|path| {
+            let texture = update_state
+                .graphics
+                .texture_loader
+                .load_now_dir(update_state.filesystem, &directory, path)
+                .unwrap(); // FIXME
+
+            let button_viewport = Viewport::new(&update_state.graphics, Default::default());
+            let sprite = Sprite::basic(&update_state.graphics, &texture, &button_viewport);
+            ButtonSprite {
+                sprite,
+                sprite_size: texture.size_vec2(),
+                viewport: button_viewport,
+            }
+        });
+
         Self {
             state: State::Closed,
-            id_source,
-            animation_name: animation.animation_name.clone(),
-            animation_hue: animation.animation_hue,
+            id_source: id_source.into(),
+            button_size,
+            directory,
+            button_sprite,
             scrolled_on_first_open: false,
         }
     }
 }
 
 impl luminol_core::Modal for Modal {
-    type Data<'m> = &'m mut luminol_data::rpg::Animation;
+    type Data<'m> = &'m mut Option<camino::Utf8PathBuf>;
 
     fn button<'m>(
         &'m mut self,
         data: Self::Data<'m>,
-        update_state: &'m mut UpdateState<'_>,
+        update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
-        move |ui: &mut egui::Ui| {
+        |ui: &mut egui::Ui| {
+            let desired_size = self.button_size + ui.spacing().button_padding * 2.0;
             let is_open = matches!(self.state, State::Open { .. });
-
-            let button_text = if let Some(name) = &data.animation_name {
-                format!("Graphics/Animations/{name}")
-            } else {
-                "(None)".to_string()
-            };
-            let mut response = ui.button(button_text);
+            let mut response = ButtonSprite::ui(
+                self.button_sprite.as_mut(),
+                ui,
+                update_state,
+                is_open,
+                desired_size,
+            );
 
             if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, "Graphics/Animations".into());
+                let selected = match data.clone() {
+                    Some(path) => {
+                        // FIXME error handling
+                        let sprite =
+                            Self::load_preview_sprite(update_state, &self.directory, &path)
+                                .unwrap();
+                        Selected::Entry { path, sprite }
+                    }
+                    None => Selected::None,
+                };
+
+                let entries = Entry::load(update_state, &self.directory);
 
                 self.state = State::Open {
                     filtered_entries: entries.clone(),
                     entries,
-                    cellpicker: Self::load_cellpicker(
-                        update_state,
-                        &self.animation_name,
-                        self.animation_hue,
-                    ),
                     search_text: String::new(),
+                    selected,
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -97,43 +134,75 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, _update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
-        self.animation_name.clone_from(&data.animation_name);
-        self.animation_hue = data.animation_hue;
+    fn reset(&mut self, update_state: &mut luminol_core::UpdateState<'_>, data: Self::Data<'_>) {
+        self.update_graphic(update_state, data); // we need to update the button sprite to prevent desyncs
         self.state = State::Closed;
         self.scrolled_on_first_open = false;
     }
 }
 
 impl Modal {
-    fn load_cellpicker(
-        update_state: &mut luminol_core::UpdateState<'_>,
-        animation_name: &Option<camino::Utf8PathBuf>,
-        animation_hue: i32,
-    ) -> Cellpicker {
-        let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
+    fn load_preview_sprite(
+        update_state: &luminol_core::UpdateState<'_>,
+        directory: &camino::Utf8Path,
+        path: &camino::Utf8Path,
+    ) -> color_eyre::Result<PreviewSprite> {
+        let texture = update_state
+            .graphics
+            .texture_loader
+            .load_now_dir(update_state.filesystem, directory, path)
+            .wrap_err("While loading a preview sprite")?;
+
+        Ok(Self::create_preview_sprite_from_texture(
+            update_state,
+            &texture,
+        ))
+    }
+
+    fn create_preview_sprite_from_texture(
+        update_state: &luminol_core::UpdateState<'_>,
+        texture: &Texture,
+    ) -> PreviewSprite {
+        let viewport = Viewport::new(
             &update_state.graphics,
-            update_state.filesystem,
-            animation_name.as_deref(),
+            glam::vec2(texture.width() as f32, texture.height() as f32),
         );
-        let mut cellpicker = luminol_components::Cellpicker::new(
-            &update_state.graphics,
-            atlas,
-            Some(luminol_graphics::primitives::cells::ANIMATION_COLUMNS),
-            1.,
-        );
-        cellpicker.view.display.set_hue(
-            &update_state.graphics.render_state,
-            animation_hue as f32 / 360.,
-        );
-        cellpicker
+
+        let sprite = Sprite::basic(&update_state.graphics, texture, &viewport);
+        PreviewSprite {
+            sprite,
+            sprite_size: texture.size_vec2(),
+            viewport,
+        }
+    }
+
+    fn update_graphic(
+        &mut self,
+        update_state: &UpdateState<'_>,
+        data: &Option<camino::Utf8PathBuf>,
+    ) {
+        self.button_sprite = data.as_ref().map(|path| {
+            let texture = update_state
+                .graphics
+                .texture_loader
+                .load_now_dir(update_state.filesystem, &self.directory, path)
+                .unwrap(); // FIXME
+
+            let button_viewport = Viewport::new(&update_state.graphics, Default::default());
+            let sprite = Sprite::basic(&update_state.graphics, &texture, &button_viewport);
+            ButtonSprite {
+                sprite,
+                sprite_size: texture.size_vec2(),
+                viewport: button_viewport,
+            }
+        });
     }
 
     fn show_window(
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
-        data: &mut rpg::Animation,
+        data: &mut Option<camino::Utf8PathBuf>,
     ) -> bool {
         let mut win_open = true;
         let mut keep_open = true;
@@ -143,22 +212,14 @@ impl Modal {
             entries,
             filtered_entries,
             search_text,
-            cellpicker,
+            selected,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let animation_name = self.animation_name.as_ref().and_then(|name| {
-            update_state
-                .filesystem
-                .desensitize(format!("Graphics/Animations/{name}"))
-                .ok()
-                .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
-        });
-
-        egui::Window::new("Animation Graphic Picker")
+        egui::Window::new("Graphic Picker")
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))
@@ -189,12 +250,10 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = self.animation_name.is_none();
+                                        let checked = matches!(selected, Selected::None);
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && self.animation_name.is_some() {
-                                            self.animation_name = None;
-                                            *cellpicker =
-                                                Self::load_cellpicker(update_state, &None, 0);
+                                        if res.clicked() && !matches!(selected, Selected::None) {
+                                            *selected = Selected::None;
                                         }
                                     }
 
@@ -202,46 +261,37 @@ impl Modal {
                                     rows.start = rows.start.saturating_sub(1);
                                     rows.end = rows.end.saturating_sub(1);
 
-                                    for (i, Entry { path, invalid }) in
-                                        filtered_entries[rows.clone()].iter_mut().enumerate()
-                                    {
-                                        let checked = animation_name.as_ref() == Some(path);
-                                        let mut text = egui::RichText::new(path.as_str());
-                                        if *invalid {
-                                            text = text.color(egui::Color32::LIGHT_RED);
-                                        }
-                                        let faint = (i + rows.start) % 2 == 0;
-                                        ui.with_stripe(faint, |ui| {
-                                            let res = ui.add_enabled(
-                                                !*invalid,
-                                                egui::SelectableLabel::new(checked, text),
-                                            );
-
-                                            if res.clicked() {
-                                                self.animation_name = Some(
-                                                    path.file_stem()
-                                                        .unwrap_or(path.as_str())
-                                                        .into(),
-                                                );
-                                                *cellpicker = Self::load_cellpicker(
-                                                    update_state,
-                                                    &self.animation_name,
-                                                    self.animation_hue,
-                                                );
-                                            }
-                                        });
-                                    }
+                                    Entry::ui(
+                                        filtered_entries,
+                                        &self.directory,
+                                        update_state,
+                                        ui,
+                                        rows,
+                                        selected,
+                                        |path| {
+                                            Self::load_preview_sprite(
+                                                update_state,
+                                                &self.directory,
+                                                path,
+                                            )
+                                            .unwrap()
+                                        },
+                                    )
                                 },
                             );
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if self.animation_name.is_none() {
+                            let row = if matches!(selected, Selected::None) {
                                 Some(0)
                             } else {
-                                filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (animation_name.as_ref() == Some(&entry.path)).then_some(i + 1)
-                                })
+                                Entry::find_matching_entry(
+                                    filtered_entries,
+                                    &self.directory,
+                                    update_state,
+                                    selected,
+                                )
+                                .map(|i| i + 1)
                             };
                             if let Some(row) = row {
                                 let spacing = ui.spacing().item_spacing.y;
@@ -266,39 +316,30 @@ impl Modal {
                     });
                 });
 
-                egui::TopBottomPanel::top(self.id_source.with("top")).show_inside(ui, |ui| {
-                    ui.add_space(1.0); // pad out the top
-                    ui.horizontal(|ui| {
-                        ui.label("Hue");
-                        if ui
-                            .add(egui::Slider::new(&mut self.animation_hue, 0..=360))
-                            .changed()
-                        {
-                            cellpicker.view.display.set_hue(
-                                &update_state.graphics.render_state,
-                                self.animation_hue as f32 / 360.,
-                            );
-                        }
-                    });
-                    ui.add_space(1.0); // pad out the bottom
-                });
                 egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
                     ui.add_space(ui.style().spacing.item_spacing.y);
-                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                    crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                 });
 
                 egui::CentralPanel::default().show_inside(ui, |ui| {
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
-                        .show_viewport(ui, |ui, scroll_rect| {
-                            cellpicker.ui(update_state, ui, scroll_rect);
+                        .show_viewport(ui, |ui, viewport| match selected {
+                            Selected::None => {}
+                            Selected::Entry { sprite, .. } => {
+                                sprite.ui(ui, viewport, update_state);
+                            }
                         });
                 });
             });
 
         if needs_save {
-            data.animation_name.clone_from(&self.animation_name);
-            data.animation_hue = self.animation_hue;
+            match selected {
+                Selected::None => *data = None,
+                Selected::Entry { path, .. } => *data = Some(path.clone()),
+            }
+
+            self.update_graphic(update_state, data);
         }
 
         if !(win_open && keep_open) {

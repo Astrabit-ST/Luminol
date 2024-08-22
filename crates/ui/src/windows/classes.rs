@@ -22,15 +22,18 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::components::{
+    CollapsingView, DatabaseView, EnumComboBox, Field, IdVecSelection, OptionalIdComboBox,
+    RankSelection, UiExt,
+};
 
 #[derive(Default)]
 pub struct Window {
     selected_class_name: Option<String>,
     previous_class: Option<usize>,
 
-    collapsing_view: luminol_components::CollapsingView,
-    view: luminol_components::DatabaseView,
+    collapsing_view: CollapsingView,
+    view: DatabaseView,
 }
 
 impl Window {
@@ -64,16 +67,16 @@ impl Window {
             .show(ui, |ui| {
                 ui.columns(2, |columns| {
                     modified |= columns[0]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Level",
                             egui::Slider::new(&mut learning.level, 1..=99),
                         ))
                         .changed();
 
                     modified |= columns[1]
-                        .add(luminol_components::Field::new(
+                        .add(Field::new(
                             "Skill",
-                            luminol_components::OptionalIdComboBox::new(
+                            OptionalIdComboBox::new(
                                 update_state,
                                 (class_id, learning_index, "skill_id"),
                                 &mut learning.skill_id,
@@ -148,7 +151,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Name",
                                     egui::TextEdit::singleline(&mut class.name)
                                         .desired_width(f32::INFINITY),
@@ -158,53 +161,45 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Position",
-                                    luminol_components::EnumComboBox::new(
-                                        (class.id, "position"),
-                                        &mut class.position,
-                                    ),
+                                    EnumComboBox::new((class.id, "position"), &mut class.position),
                                 ))
                                 .changed();
                         });
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
-                                    "Skills",
-                                    |ui: &mut egui::Ui| {
-                                        if self.previous_class != Some(class.id) {
-                                            self.collapsing_view.clear_animations();
-                                        }
-                                        self.collapsing_view
-                                            .show(
-                                                ui,
-                                                class.id,
-                                                &mut class.learnings,
-                                                |ui, _i, learning| {
-                                                    Self::show_learning_header(
-                                                        ui, &skills, learning,
-                                                    )
-                                                },
-                                                |ui, i, learning| {
-                                                    Self::show_learning_body(
-                                                        ui,
-                                                        update_state,
-                                                        &skills,
-                                                        class.id,
-                                                        (i, learning),
-                                                    )
-                                                },
-                                            )
-                                            .response
-                                    },
-                                ))
+                                .add(Field::new("Skills", |ui: &mut egui::Ui| {
+                                    if self.previous_class != Some(class.id) {
+                                        self.collapsing_view.clear_animations();
+                                    }
+                                    self.collapsing_view
+                                        .show(
+                                            ui,
+                                            class.id,
+                                            &mut class.learnings,
+                                            |ui, _i, learning| {
+                                                Self::show_learning_header(ui, &skills, learning)
+                                            },
+                                            |ui, i, learning| {
+                                                Self::show_learning_body(
+                                                    ui,
+                                                    update_state,
+                                                    &skills,
+                                                    class.id,
+                                                    (i, learning),
+                                                )
+                                            },
+                                        )
+                                        .response
+                                }))
                                 .changed();
                         });
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.columns(2, |columns| {
-                                let mut selection = luminol_components::IdVecSelection::new(
+                                let mut selection = IdVecSelection::new(
                                     update_state,
                                     (class.id, "weapon_set"),
                                     &mut class.weapon_set,
@@ -220,13 +215,10 @@ impl luminol_core::Window for Window {
                                     selection.clear_search();
                                 }
                                 modified |= columns[0]
-                                    .add(luminol_components::Field::new(
-                                        "Equippable Weapons",
-                                        selection,
-                                    ))
+                                    .add(Field::new("Equippable Weapons", selection))
                                     .changed();
 
-                                let mut selection = luminol_components::IdVecSelection::new(
+                                let mut selection = IdVecSelection::new(
                                     update_state,
                                     (class.id, "armor_set"),
                                     &mut class.armor_set,
@@ -242,10 +234,7 @@ impl luminol_core::Window for Window {
                                     selection.clear_search();
                                 }
                                 modified |= columns[1]
-                                    .add(luminol_components::Field::new(
-                                        "Equippable Armor",
-                                        selection,
-                                    ))
+                                    .add(Field::new("Equippable Armor", selection))
                                     .changed();
                             });
                         });
@@ -255,7 +244,7 @@ impl luminol_core::Window for Window {
                                 class
                                     .element_ranks
                                     .resize_with_value(system.elements.len(), 3);
-                                let mut selection = luminol_components::RankSelection::new(
+                                let mut selection = RankSelection::new(
                                     update_state,
                                     (class.id, "element_ranks"),
                                     &mut class.element_ranks,
@@ -269,14 +258,13 @@ impl luminol_core::Window for Window {
                                 if self.previous_class != Some(class.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[0]
-                                    .add(luminol_components::Field::new("Elements", selection))
-                                    .changed();
+                                modified |=
+                                    columns[0].add(Field::new("Elements", selection)).changed();
 
                                 class
                                     .state_ranks
                                     .resize_with_value(states.data.len() + 1, 3);
-                                let mut selection = luminol_components::RankSelection::new(
+                                let mut selection = RankSelection::new(
                                     update_state,
                                     (class.id, "state_ranks"),
                                     &mut class.state_ranks,
@@ -290,9 +278,8 @@ impl luminol_core::Window for Window {
                                 if self.previous_class != Some(class.id) {
                                     selection.clear_search();
                                 }
-                                modified |= columns[1]
-                                    .add(luminol_components::Field::new("States", selection))
-                                    .changed();
+                                modified |=
+                                    columns[1].add(Field::new("States", selection)).changed();
                             });
                         });
 

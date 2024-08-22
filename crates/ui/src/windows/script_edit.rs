@@ -179,7 +179,7 @@ impl luminol_core::Tab for ScriptTab {
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job = luminol_components::syntax_highlighting::highlight(
+            let mut layout_job = crate::components::syntax_highlighting::highlight(
                 ui.ctx(),
                 update_state.global_config.theme,
                 string,

@@ -206,7 +206,7 @@ impl luminol_core::Window for Window {
 
                         ui.vertical(|ui| {
                             ui.label("Code sample");
-                            ui.label(luminol_components::syntax_highlighting::highlight(
+                            ui.label(crate::components::syntax_highlighting::highlight(
                                 ui.ctx(),
                                 update_state.global_config.theme,
                                 CODE_SAMPLE,
@@ -307,9 +307,9 @@ impl luminol_core::Window for Window {
                     //     config.font.size = self.font_size;
                     // }
                     // });
-                    luminol_components::Field::new(
+                    crate::components::Field::new(
                         "Cursor blinking",
-                        luminol_components::EnumComboBox::new(
+                        crate::components::EnumComboBox::new(
                             "luminol_term_config_ui_cursor_blinking",
                             &mut config.cursor_blinking,
                         )

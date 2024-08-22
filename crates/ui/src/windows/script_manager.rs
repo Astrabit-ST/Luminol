@@ -22,8 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::{EnumComboBox, FileSystemView, UiExt};
 use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
-use luminol_components::UiExt;
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
 /// The script manager for creating and extracting Scripts.rxdata.
@@ -37,14 +37,14 @@ type Scripts = Vec<luminol_data::rpg::Script>;
 
 enum Mode {
     Extract {
-        view: Option<luminol_components::FileSystemView<ScriptsFileSystem>>,
+        view: Option<FileSystemView<ScriptsFileSystem>>,
         load_promise:
             Option<poll_promise::Promise<luminol_filesystem::Result<(ScriptsFileSystem, String)>>>,
         save_promise: Option<poll_promise::Promise<luminol_filesystem::Result<()>>>,
         progress_total: usize,
     },
     Create {
-        view: Option<luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>>,
+        view: Option<FileSystemView<luminol_filesystem::host::FileSystem>>,
         load_promise: Option<
             poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
         >,
@@ -272,7 +272,7 @@ impl luminol_core::Window for Window {
                     Mode::Extract { view, .. } => {
                         if let Some((path, vec)) = get_scripts_from_filesystem(scripts_path, &host)
                         {
-                            *view = Some(luminol_components::FileSystemView::new(
+                            *view = Some(FileSystemView::new(
                                 "luminol_script_manager_extract_view".into(),
                                 ScriptsFileSystem::new(vec.into_iter()),
                                 path,
@@ -282,7 +282,7 @@ impl luminol_core::Window for Window {
 
                     Mode::Create { view, .. } => {
                         let name = host.root_path().to_string();
-                        *view = Some(luminol_components::FileSystemView::new(
+                        *view = Some(FileSystemView::new(
                             "luminol_script_manager_create_view".into(),
                             host,
                             name,
@@ -439,7 +439,7 @@ impl Window {
                 if let Some(p) = load_promise.take() {
                     match p.try_take() {
                         Ok(Ok((fs, name))) => {
-                            *view = Some(luminol_components::FileSystemView::new(
+                            *view = Some(FileSystemView::new(
                                 "luminol_script_manager_extract_view".into(),
                                 fs,
                                 name,
@@ -621,7 +621,7 @@ impl Window {
                     match p.try_take() {
                         Ok(Ok(handle)) => {
                             let name = handle.root_path().to_string();
-                            *view = Some(luminol_components::FileSystemView::new(
+                            *view = Some(FileSystemView::new(
                                 "luminol_script_manager_create_view".into(),
                                 handle,
                                 name,
@@ -644,7 +644,7 @@ impl Window {
 
                 ui.horizontal(|ui| {
                     ui.label("Output Format:");
-                    ui.add(luminol_components::EnumComboBox::new(
+                    ui.add(EnumComboBox::new(
                         "luminol_script_manager_create_format",
                         format,
                     ));
@@ -882,7 +882,7 @@ impl Window {
 
                 ui.horizontal(|ui| {
                     ui.label("Output Format:");
-                    ui.add(luminol_components::EnumComboBox::new(
+                    ui.add(EnumComboBox::new(
                         "luminol_script_manager_convert_format",
                         format,
                     ));
@@ -1059,7 +1059,7 @@ impl Window {
     }
 
     fn find_files(
-        view: &luminol_components::FileSystemView<impl luminol_filesystem::ReadDir>,
+        view: &FileSystemView<impl luminol_filesystem::ReadDir>,
     ) -> luminol_filesystem::Result<Vec<camino::Utf8PathBuf>> {
         let mut vec = Vec::new();
         for metadata in view {

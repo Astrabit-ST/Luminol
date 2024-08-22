@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::components::{FileSystemView, UiExt};
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
 static CREATE_DEFAULT_SELECTED_DIRS: once_cell::sync::Lazy<
@@ -44,7 +44,7 @@ pub struct Window {
 enum Mode {
     Extract {
         view: Option<
-            luminol_components::FileSystemView<
+            FileSystemView<
                 luminol_filesystem::archiver::FileSystem<luminol_filesystem::host::File>,
             >,
         >,
@@ -57,7 +57,7 @@ enum Mode {
         progress_total: usize,
     },
     Create {
-        view: Option<luminol_components::FileSystemView<luminol_filesystem::host::FileSystem>>,
+        view: Option<FileSystemView<luminol_filesystem::host::FileSystem>>,
         load_promise: Option<
             poll_promise::Promise<luminol_filesystem::Result<luminol_filesystem::host::FileSystem>>,
         >,
@@ -116,7 +116,7 @@ impl luminol_core::Window for Window {
                                 })
                                 .transpose()
                         })() {
-                            *view = Some(luminol_components::FileSystemView::new(
+                            *view = Some(FileSystemView::new(
                                 "luminol_archive_manager_extract_view".into(),
                                 archive,
                                 entry.path.to_string(),
@@ -126,7 +126,7 @@ impl luminol_core::Window for Window {
 
                     Mode::Create { view, .. } => {
                         let name = host.root_path().to_string();
-                        *view = Some(luminol_components::FileSystemView::new(
+                        *view = Some(FileSystemView::new(
                             "luminol_archive_manager_create_view".into(),
                             host,
                             name,
@@ -246,7 +246,7 @@ impl Window {
                         Ok(Ok((handle, name))) => {
                             match luminol_filesystem::archiver::FileSystem::new(handle) {
                                 Ok(archiver) => {
-                                    *view = Some(luminol_components::FileSystemView::new(
+                                    *view = Some(FileSystemView::new(
                                         "luminol_archive_manager_extract_view".into(),
                                         archiver,
                                         name,
@@ -386,7 +386,7 @@ impl Window {
                     match p.try_take() {
                         Ok(Ok(handle)) => {
                             let name = handle.root_path().to_string();
-                            *view = Some(luminol_components::FileSystemView::new(
+                            *view = Some(FileSystemView::new(
                                 "luminol_archive_manager_create_view".into(),
                                 handle,
                                 name,
@@ -551,7 +551,7 @@ impl Window {
     }
 
     fn find_files(
-        view: &luminol_components::FileSystemView<impl luminol_filesystem::ReadDir>,
+        view: &FileSystemView<impl luminol_filesystem::ReadDir>,
     ) -> luminol_filesystem::Result<Vec<camino::Utf8PathBuf>> {
         let mut vec = Vec::new();
         for metadata in view {

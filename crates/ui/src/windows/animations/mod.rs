@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::CollapsingView;
+
 mod frame_edit;
 mod timing;
 mod util;
@@ -37,9 +39,9 @@ pub struct Window {
     frame_edit_state: FrameEditState,
     timing_edit_state: TimingEditState,
 
-    collapsing_view: luminol_components::CollapsingView,
+    collapsing_view: crate::components::CollapsingView,
     modals: Modals,
-    view: luminol_components::DatabaseView,
+    view: crate::components::DatabaseView,
 }
 
 struct FrameEditState {
@@ -47,9 +49,9 @@ struct FrameEditState {
     frame_index: usize,
     condition: luminol_data::rpg::animation::Condition,
     enable_onion_skin: bool,
-    frame_view: Option<luminol_components::AnimationFrameView>,
-    cellpicker: Option<luminol_components::Cellpicker>,
-    animation_graphic_picker: Option<luminol_modals::graphic_picker::animation::Modal>,
+    frame_view: Option<crate::components::AnimationFrameView>,
+    cellpicker: Option<crate::components::Cellpicker>,
+    animation_graphic_picker: Option<crate::modals::graphic_picker::animation::Modal>,
     flash_maps: luminol_data::OptionVec<util::FlashMaps>,
     animation_state: Option<AnimationState>,
     saved_frame_index: Option<usize>,
@@ -76,7 +78,7 @@ struct AnimationState {
 
 struct TimingEditState {
     previous_frame: Option<usize>,
-    se_picker: luminol_modals::sound_picker::Modal,
+    se_picker: crate::modals::sound_picker::Modal,
 }
 
 #[derive(Debug, Default)]
@@ -190,12 +192,12 @@ impl HistoryEntry {
 }
 
 struct Modals {
-    copy_frames: luminol_modals::animations::copy_frames_tool::Modal,
-    clear_frames: luminol_modals::animations::clear_frames_tool::Modal,
-    tween: luminol_modals::animations::tween_tool::Modal,
-    batch_edit: luminol_modals::animations::batch_edit_tool::Modal,
-    change_frame_count: luminol_modals::animations::change_frame_count_tool::Modal,
-    change_cell_number: luminol_modals::animations::change_cell_number_tool::Modal,
+    copy_frames: crate::modals::animations::copy_frames_tool::Modal,
+    clear_frames: crate::modals::animations::clear_frames_tool::Modal,
+    tween: crate::modals::animations::tween_tool::Modal,
+    batch_edit: crate::modals::animations::batch_edit_tool::Modal,
+    change_frame_count: crate::modals::animations::change_frame_count_tool::Modal,
+    change_cell_number: crate::modals::animations::change_cell_number_tool::Modal,
 }
 
 impl Modals {
@@ -237,31 +239,31 @@ impl Default for Window {
             },
             timing_edit_state: TimingEditState {
                 previous_frame: None,
-                se_picker: luminol_modals::sound_picker::Modal::new(
+                se_picker: crate::modals::sound_picker::Modal::new(
                     luminol_audio::Source::SE,
                     "animations_timing_se_picker",
                 ),
             },
-            collapsing_view: luminol_components::CollapsingView::new(),
+            collapsing_view: CollapsingView::new(),
             modals: Modals {
-                copy_frames: luminol_modals::animations::copy_frames_tool::Modal::new(
+                copy_frames: crate::modals::animations::copy_frames_tool::Modal::new(
                     "animations_copy_frames_tool",
                 ),
-                clear_frames: luminol_modals::animations::clear_frames_tool::Modal::new(
+                clear_frames: crate::modals::animations::clear_frames_tool::Modal::new(
                     "animations_clear_frames_tool",
                 ),
-                tween: luminol_modals::animations::tween_tool::Modal::new("animations_tween_tool"),
-                batch_edit: luminol_modals::animations::batch_edit_tool::Modal::new(
+                tween: crate::modals::animations::tween_tool::Modal::new("animations_tween_tool"),
+                batch_edit: crate::modals::animations::batch_edit_tool::Modal::new(
                     "animations_batch_edit_tool",
                 ),
-                change_frame_count: luminol_modals::animations::change_frame_count_tool::Modal::new(
+                change_frame_count: crate::modals::animations::change_frame_count_tool::Modal::new(
                     "change_frame_count_tool",
                 ),
-                change_cell_number: luminol_modals::animations::change_cell_number_tool::Modal::new(
+                change_cell_number: crate::modals::animations::change_cell_number_tool::Modal::new(
                     "change_cell_number_tool",
                 ),
             },
-            view: luminol_components::DatabaseView::new(),
+            view: crate::components::DatabaseView::new(),
         }
     }
 }

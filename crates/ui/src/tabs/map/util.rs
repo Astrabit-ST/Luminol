@@ -145,7 +145,7 @@ impl super::Tab {
     pub(super) fn set_tile(
         &self,
         map: &mut luminol_data::rpg::Map,
-        tile: luminol_components::SelectedTile,
+        tile: crate::components::SelectedTile,
         position: (usize, usize, usize),
     ) {
         if self.brush_density != 1. {

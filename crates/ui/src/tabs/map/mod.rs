@@ -23,6 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 #![allow(unused_imports)]
+use crate::components::{MapView, SelectedLayer, Tilepicker};
 use egui::Pos2;
 use std::{cell::RefMut, collections::HashMap, collections::VecDeque};
 
@@ -52,8 +53,8 @@ pub struct Tab {
     /// ID of the map that is being edited.
     pub id: usize,
     /// The tilemap.
-    pub view: luminol_components::MapView,
-    pub tilepicker: luminol_components::Tilepicker,
+    pub view: MapView,
+    pub tilepicker: Tilepicker,
 
     drawing_shape: bool,
     event_windows: luminol_core::Windows,
@@ -123,8 +124,8 @@ impl Tab {
     ) -> color_eyre::Result<Self> {
         // *sigh*
         // borrow checker.
-        let view = luminol_components::MapView::new(update_state, id)?;
-        let tilepicker = luminol_components::Tilepicker::new(update_state, id);
+        let view = MapView::new(update_state, id)?;
+        let tilepicker = Tilepicker::new(update_state, id);
 
         let map = update_state.data.get_or_load_map(
             id,
@@ -242,8 +243,8 @@ impl luminol_core::Tab for Tab {
                         ui.menu_button(
                             // Format the text based on what layer is selected.
                             match self.view.selected_layer {
-                                luminol_components::SelectedLayer::Events => "Events ⏷".to_string(),
-                                luminol_components::SelectedLayer::Tiles(layer) => {
+                                SelectedLayer::Events => "Events ⏷".to_string(),
+                                SelectedLayer::Tiles(layer) => {
                                     format!("Layer {} ⏷", layer + 1)
                                 }
                             },
@@ -270,7 +271,7 @@ impl luminol_core::Tab for Tab {
                                             ui.columns(1, |columns| {
                                                 columns[0].selectable_value(
                                                     &mut self.view.selected_layer,
-                                                    luminol_components::SelectedLayer::Tiles(index),
+                                                    SelectedLayer::Tiles(index),
                                                     format!("Layer {}", index + 1),
                                                 );
                                             });
@@ -282,7 +283,7 @@ impl luminol_core::Tab for Tab {
                                         ui.columns(1, |columns| {
                                             columns[0].selectable_value(
                                                 &mut self.view.selected_layer,
-                                                luminol_components::SelectedLayer::Events,
+                                                SelectedLayer::Events,
                                                 egui::RichText::new("Events").italics(),
                                             );
                                         });
@@ -381,9 +382,7 @@ impl luminol_core::Tab for Tab {
                 let tileset = &tilesets.data[map.tileset_id];
 
                 // Save the state of the selected layer into the cache
-                if let luminol_components::SelectedLayer::Tiles(tile_layer) =
-                    self.view.selected_layer
-                {
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
                     self.layer_cache
                         .copy_from_slice(map.data.layer_as_slice(tile_layer));
                 }
@@ -466,9 +465,7 @@ impl luminol_core::Tab for Tab {
                     }
                 }
 
-                if let luminol_components::SelectedLayer::Tiles(tile_layer) =
-                    self.view.selected_layer
-                {
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
                     // Tile drawing
                     if response.is_pointer_button_down_on()
                         && ui.input(|i| {
@@ -663,9 +660,7 @@ impl luminol_core::Tab for Tab {
                     event.extra_data.is_editor_open = false;
                 }
 
-                if let luminol_components::SelectedLayer::Tiles(tile_layer) =
-                    self.view.selected_layer
-                {
+                if let SelectedLayer::Tiles(tile_layer) = self.view.selected_layer {
                     // Write the buffered tile changes to the tilemap
                     for y in 0..map.data.ysize() {
                         for x in 0..map.data.xsize() {

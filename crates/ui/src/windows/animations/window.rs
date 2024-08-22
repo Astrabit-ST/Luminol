@@ -22,7 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use luminol_components::UiExt;
+use crate::components::{Cellpicker, Field, UiExt};
 use luminol_core::Modal;
 use strum::IntoEnumIterator;
 
@@ -97,7 +97,7 @@ impl luminol_core::Window for super::Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
-                                .add(luminol_components::Field::new(
+                                .add(Field::new(
                                     "Name",
                                     egui::TextEdit::singleline(&mut animation.name)
                                         .desired_width(f32::INFINITY),
@@ -107,36 +107,31 @@ impl luminol_core::Window for super::Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             let changed = ui
-                                .add(luminol_components::Field::new(
-                                    "Battler Position",
-                                    |ui: &mut egui::Ui| {
-                                        let mut modified = false;
-                                        let mut response = egui::Frame::none()
-                                            .show(ui, |ui| {
-                                                ui.columns(Position::iter().count(), |columns| {
-                                                    for (i, position) in
-                                                        Position::iter().enumerate()
+                                .add(Field::new("Battler Position", |ui: &mut egui::Ui| {
+                                    let mut modified = false;
+                                    let mut response = egui::Frame::none()
+                                        .show(ui, |ui| {
+                                            ui.columns(Position::iter().count(), |columns| {
+                                                for (i, position) in Position::iter().enumerate() {
+                                                    if columns[i]
+                                                        .radio_value(
+                                                            &mut animation.position,
+                                                            position,
+                                                            position.to_string(),
+                                                        )
+                                                        .changed()
                                                     {
-                                                        if columns[i]
-                                                            .radio_value(
-                                                                &mut animation.position,
-                                                                position,
-                                                                position.to_string(),
-                                                            )
-                                                            .changed()
-                                                        {
-                                                            modified = true;
-                                                        }
+                                                        modified = true;
                                                     }
-                                                });
-                                            })
-                                            .response;
-                                        if modified {
-                                            response.mark_changed();
-                                        }
-                                        response
-                                    },
-                                ))
+                                                }
+                                            });
+                                        })
+                                        .response;
+                                    if modified {
+                                        response.mark_changed();
+                                    }
+                                    response
+                                }))
                                 .changed();
                             if changed {
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
@@ -255,12 +250,8 @@ impl luminol_core::Window for super::Window {
                                     .map(|cellpicker| cellpicker.selected_cell)
                                     .unwrap_or_default()
                                     .min(atlas.num_patterns().saturating_sub(1));
-                                let mut cellpicker = luminol_components::Cellpicker::new(
-                                    &update_state.graphics,
-                                    atlas,
-                                    None,
-                                    0.5,
-                                );
+                                let mut cellpicker =
+                                    Cellpicker::new(&update_state.graphics, atlas, None, 0.5);
                                 cellpicker.view.display.set_hue(
                                     &update_state.graphics.render_state,
                                     animation.animation_hue as f32 / 360.,
@@ -287,45 +278,42 @@ impl luminol_core::Window for super::Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             let changed = ui
-                                .add(luminol_components::Field::new(
-                                    "SE and Flash",
-                                    |ui: &mut egui::Ui| {
-                                        if *update_state.modified_during_prev_frame {
-                                            self.collapsing_view.request_sort();
-                                        }
-                                        if self.previous_animation != Some(animation.id) {
-                                            self.collapsing_view.clear_animations();
-                                            self.timing_edit_state.se_picker.close_window();
-                                        } else if self.collapsing_view.is_animating() {
-                                            self.timing_edit_state.se_picker.close_window();
-                                        }
+                                .add(Field::new("SE and Flash", |ui: &mut egui::Ui| {
+                                    if *update_state.modified_during_prev_frame {
+                                        self.collapsing_view.request_sort();
+                                    }
+                                    if self.previous_animation != Some(animation.id) {
+                                        self.collapsing_view.clear_animations();
+                                        self.timing_edit_state.se_picker.close_window();
+                                    } else if self.collapsing_view.is_animating() {
+                                        self.timing_edit_state.se_picker.close_window();
+                                    }
 
-                                        let mut timings = std::mem::take(&mut animation.timings);
-                                        let egui::InnerResponse { inner, response } =
-                                            self.collapsing_view.show_with_sort(
-                                                ui,
-                                                animation.id,
-                                                &mut timings,
-                                                |ui, _i, timing| {
-                                                    super::timing::show_timing_header(ui, timing)
-                                                },
-                                                |ui, i, previous_timings, timing| {
-                                                    super::timing::show_timing_body(
-                                                        ui,
-                                                        update_state,
-                                                        animation,
-                                                        flash_maps,
-                                                        &mut self.timing_edit_state,
-                                                        (i, previous_timings, timing),
-                                                    )
-                                                },
-                                                |a, b| a.frame.cmp(&b.frame),
-                                            );
-                                        collapsing_view_inner = inner;
-                                        animation.timings = timings;
-                                        response
-                                    },
-                                ))
+                                    let mut timings = std::mem::take(&mut animation.timings);
+                                    let egui::InnerResponse { inner, response } =
+                                        self.collapsing_view.show_with_sort(
+                                            ui,
+                                            animation.id,
+                                            &mut timings,
+                                            |ui, _i, timing| {
+                                                super::timing::show_timing_header(ui, timing)
+                                            },
+                                            |ui, i, previous_timings, timing| {
+                                                super::timing::show_timing_body(
+                                                    ui,
+                                                    update_state,
+                                                    animation,
+                                                    flash_maps,
+                                                    &mut self.timing_edit_state,
+                                                    (i, previous_timings, timing),
+                                                )
+                                            },
+                                            |a, b| a.frame.cmp(&b.frame),
+                                        );
+                                    collapsing_view_inner = inner;
+                                    animation.timings = timings;
+                                    response
+                                }))
                                 .changed();
                             if changed {
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {

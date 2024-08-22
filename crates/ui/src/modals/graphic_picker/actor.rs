@@ -22,8 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use crate::components::UiExt;
 use color_eyre::eyre::WrapErr;
-use luminol_components::UiExt;
 use luminol_core::prelude::*;
 
 use super::{ButtonSprite, Entry, PreviewSprite, Selected};
@@ -69,11 +69,20 @@ impl Modal {
                 .load_now_dir(update_state.filesystem, &directory, path)
                 .unwrap(); // FIXME
 
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2() / 4.);
+            let quad = Quad::new(rect, rect);
+
             let button_viewport = Viewport::new(&update_state.graphics, Default::default());
-            let sprite = Sprite::basic_hue(&update_state.graphics, hue, &texture, &button_viewport);
+            let sprite = Sprite::basic_hue_quad(
+                &update_state.graphics,
+                hue,
+                quad,
+                &texture,
+                &button_viewport,
+            );
             ButtonSprite {
                 sprite,
-                sprite_size: texture.size_vec2(),
+                sprite_size: texture.size_vec2() / 4.,
                 viewport: button_viewport,
             }
         });
@@ -192,12 +201,20 @@ impl Modal {
                 .load_now_dir(update_state.filesystem, &self.directory, path)
                 .unwrap(); // FIXME
 
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2() / 4.);
+            let quad = Quad::new(rect, rect);
+
             let button_viewport = Viewport::new(&update_state.graphics, Default::default());
-            let sprite =
-                Sprite::basic_hue(&update_state.graphics, *data.1, &texture, &button_viewport);
+            let sprite = Sprite::basic_hue_quad(
+                &update_state.graphics,
+                *data.1,
+                quad,
+                &texture,
+                &button_viewport,
+            );
             ButtonSprite {
                 sprite,
-                sprite_size: texture.size_vec2(),
+                sprite_size: texture.size_vec2() / 4.,
                 viewport: button_viewport,
             }
         });
@@ -343,7 +360,7 @@ impl Modal {
 
                 egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
                     ui.add_space(ui.style().spacing.item_spacing.y);
-                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                    crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                 });
 
                 egui::CentralPanel::default().show_inside(ui, |ui| {

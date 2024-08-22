@@ -24,7 +24,7 @@
 
 use std::marker::PhantomData;
 
-use luminol_components::UiExt;
+use crate::components::UiExt;
 
 mod variable;
 pub use variable::Variable;
@@ -198,7 +198,7 @@ where
                 }
 
                 ui.horizontal(|ui| {
-                    luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                    crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
 
                     if let Some(size) = new_size {
                         ui.add(egui::DragValue::new(size).range(1..=usize::MAX));

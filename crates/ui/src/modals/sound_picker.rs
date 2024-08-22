@@ -31,7 +31,7 @@ pub struct Modal {
 
 enum State {
     Closed,
-    Open { tab: luminol_components::SoundTab },
+    Open { tab: crate::components::SoundTab },
 }
 
 impl Modal {
@@ -62,7 +62,7 @@ impl luminol_core::Modal for Modal {
             let mut button_response = ui.button(button_text);
 
             if button_response.clicked() {
-                let tab = luminol_components::SoundTab::new(
+                let tab = crate::components::SoundTab::new(
                     update_state.filesystem,
                     self.source,
                     data.clone(),
@@ -110,7 +110,7 @@ impl Modal {
                     ui,
                     |ui| {
                         ui.add_space(1.0);
-                        luminol_components::close_options_ui(ui, &mut keep_open, &mut needs_save);
+                        crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
                     },
                 );
 
