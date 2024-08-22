@@ -111,4 +111,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: luminol-trunk
-          path: ${{ github.workspace }}/dist/
+          path: ${{ github.workspace }}/crates/launcher/dist/
