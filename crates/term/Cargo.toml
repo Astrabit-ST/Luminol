@@ -17,19 +17,25 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
 
+# * Data processing * #
 serde.workspace = true
 
+# * Useful procedural macros * #
+strum.workspace = true
+
+# * Luminol's crates * #
 luminol-core.workspace = true
 luminol-config.workspace = true
 luminol-macros.workspace = true
 luminol-audio.workspace = true
 color-eyre.workspace = true
 
-strum.workspace = true
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-crossbeam-channel = "0.5"
+# * Window management, graphical user interface and 3D rendering * #
+alacritty_terminal.workspace = true
 
-alacritty_terminal = "0.22.0"
+# * More efficient implementations of individual components of Rust's Standard Library * #
+crossbeam-channel = "0.5" # Multi-producer multi-consumer channels
