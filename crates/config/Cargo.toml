@@ -35,7 +35,7 @@ once_cell.workspace = true
 luminol-data.workspace = true
 
 # * Misc. * #
-indexmap = "2.2.6" # A hash table with consistent order and fast iteration
+indexmap.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # * Window management, graphical user interface and 3D rendering * #

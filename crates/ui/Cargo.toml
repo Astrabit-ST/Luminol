@@ -76,7 +76,6 @@ zip = { version = "0.6.6", default-features = false, features = [
     "deflate",
 ] } # Library to support the reading and writing of zip files
 indextree = "4.6.0" # Arena based tree structure by using indices instead of reference counted pointers
-indexmap = "2.2.6" # A hash table with consistent order and fast iteration
 fuzzy-matcher = "0.3.7" # Fuzzy matching algorithms
 syntect = { version = "5.1.0", default-features = false, features = [
     "default-fancy",
@@ -84,6 +83,7 @@ syntect = { version = "5.1.0", default-features = false, features = [
 qp-trie.workspace = true
 lexical-sort.workspace = true
 itertools.workspace = true
+indexmap.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 luminol-term = { version = "0.4.0", path = "../term/" }

@@ -177,6 +177,7 @@ qp-trie = "0.8.2" # An idiomatic and fast QP-trie implementation
 itertools = "0.11.0" # Extra iterator adaptors, methods, functions and macros
 rand = "0.8.5" # Random number generators and other randomness functionality
 lexical-sort = "0.3.1" # Functions that compare and sort strings lexicographically
+indexmap = "2.2.6" # A hash table with consistent order and fast iteration
 
 # Fast and performant.
 [profile.release]
