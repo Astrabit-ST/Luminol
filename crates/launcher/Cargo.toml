@@ -14,49 +14,55 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-luminol-eframe.workspace = true
-luminol-egui-wgpu.workspace = true
-luminol-macros.workspace = true
+# * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
 egui_extras.workspace = true
+luminol-eframe.workspace = true
+luminol-egui-wgpu.workspace = true
+rfd.workspace = true
 
 wgpu.workspace = true
 
-rfd.workspace = true
-
-parking_lot.workspace = true
-once_cell.workspace = true
-
 image.workspace = true
 
-tracing-subscriber = "0.3.17"
+# * Logging and diagnostics * #
+tracing-subscriber = "0.3.17" # Utilities for implementing `tracing` subscribers
 color-eyre.workspace = true
 
+# * Useful procedural macros * #
+strum.workspace = true
+
+# * More efficient implementations of individual components of Rust's Standard Library * #
+parking_lot.workspace = true
+once_cell.workspace = true
+futures-lite.workspace = true
+
+# * Tools to aid concurrent programming * #
+async-std.workspace = true
+
+# * File system interfaces * #
+camino.workspace = true
+
+# * Luminol's crates * #
 luminol-audio.workspace = true
 luminol-core.workspace = true
 luminol-config.workspace = true
 luminol-filesystem.workspace = true
 luminol-graphics.workspace = true
+luminol-macros.workspace = true
 luminol-ui.workspace = true
 luminol-result.workspace = true
 # luminol-windows = { version = "0.1.0", path = "../windows/" }
 # luminol-tabs = { version = "0.1.0", path = "../tabs/" }
 
-camino.workspace = true
-
-strum.workspace = true
-
-zstd = "0.13.0"
-
-async-std.workspace = true
-futures-lite.workspace = true
-
-git-version = "0.3.9"
-shadow-rs = { version = "0.32.0", default-features = false }
+# * Misc * #
+zstd = "0.13.0"                                              # Bindings to the zstd compression library
+git-version = "0.3.9"                                        # Git version and dirty state in compile time
+shadow-rs = { version = "0.32.0", default-features = false } # Build-time information about the project and it's git repository
 
 # Native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-steamworks = { version = "0.10.0", optional = true }
+# * Tools to aid concurrent programming * #
 tokio = { version = "1.33", features = [
     "sync",
     "macros",
@@ -64,8 +70,15 @@ tokio = { version = "1.33", features = [
     "rt-multi-thread",
     "parking_lot",
 ] } # *sigh*
+
+# * File system interfaces * #
 tempfile.workspace = true
+
+# * Luminol's crates * #
 luminol-term.workspace = true
+
+# * Misc. * #
+steamworks = { version = "0.10.0", optional = true } # Bindings to the Steamworks API
 
 # Set poll promise features here based on the target
 # I'd much rather do it in the workspace, but cargo doesn't support that yet
@@ -80,19 +93,23 @@ workspace = true
 features = ["web"]
 
 # Web
-# Look into somehow pinning these as workspace dependencies
+# FIXME: Look into somehow pinning these as workspace dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# * Logging and diagnostics * #
+tracing.workspace = true
+tracing-wasm = "0.2"     # tracing subscriber for WebAssembly
+tracing-log = "0.1.3"    # Provides compatibility between `tracing` and `log` crates
+
+# * Tools to aid concurrent programming * #
+oneshot.workspace = true
+
+# * Luminol's crates * #
+luminol-web = { version = "0.4.0", path = "../web/" }
+
+# * Adapters for web APIs * #
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
-
-oneshot.workspace = true
-
-luminol-web = { version = "0.4.0", path = "../web/" }
-
-tracing-wasm = "0.2"
-tracing-log = "0.1.3"
-tracing.workspace = true
 
 web-sys = { workspace = true, features = [
     "BeforeUnloadEvent",
@@ -113,10 +130,10 @@ features = ["webgpu", "webgl"]
 steamworks = ["dep:steamworks", "luminol-result/steamworks"]
 
 [build-dependencies]
-shadow-rs = { version = "0.32.0", default-features = false }
+shadow-rs = { version = "0.32.0", default-features = false } # Build-time information about the project and it's git repository
 
 [target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
+winres = "0.1" # Metainformation and icons for Windows
 
 [package.metadata.winres]
 OriginalFilename = "Luminol.exe"
