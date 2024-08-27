@@ -20,5 +20,6 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-syn = "2.0"
-quote = "1.0"
+# * Misc. * #
+syn = "2.0"   # Rust source code parser
+quote = "1.0" # Quasi-quoating macro
