@@ -17,54 +17,69 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-rfd.workspace = true
-
-color-eyre.workspace = true
-thiserror.workspace = true
-bitflags.workspace = true
-
-camino.workspace = true
-
-itertools.workspace = true
-
-dashmap.workspace = true
-parking_lot.workspace = true
-futures-lite.workspace = true
-async-std.workspace = true
-pin-project.workspace = true
-
+# * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
 
+rfd.workspace = true
+
+# * Data processing * #
 ron.workspace = true
 rust-ini.workspace = true
 
+# * Logging and diagnostics * #
 tracing.workspace = true
+color-eyre.workspace = true
 
+# * Useful procedural macros * #
+thiserror.workspace = true
+bitflags.workspace = true
+
+# * More efficient implementations of individual components of Rust's Standard Library * #
+parking_lot.workspace = true
+dashmap.workspace = true
+futures-lite.workspace = true
+
+# * Tools to aid concurrent programming * #
+async-std.workspace = true
+async_io_stream = "0.3.3"  # Better futures-util::IntoAsyncRead
+
+# * File system interfaces * #
+camino.workspace = true
+
+# * Luminol's crates * #
 luminol-config.workspace = true
 
-rand.workspace = true
-
-iter-read = "1.0.1"
-async_io_stream = "0.3.3"
-
-qp-trie.workspace = true
+# * Misc. * #
+pin-project.workspace = true
 slab.workspace = true
+qp-trie.workspace = true
+itertools.workspace = true
+rand.workspace = true
+iter-read = "1.0.1"          # A Read implementation for iterators over u8 and related data types
 
 [target.'cfg(windows)'.dependencies]
-winreg = "0.51.0"
+# * System calls * #
+winreg = "0.51.0" # Rust bindings to the Windows Registry API
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# * More efficient implementations of individual components of Rust's Standard Library * #
+async-fs = "2.1.0" # Asynchronous version of `std::fs`
+
+# * File system interfaces * #
 tempfile.workspace = true
-async-fs = "2.1.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# * More efficient implementations of individual components of Rust's Standard Library * #
 once_cell.workspace = true
 
-luminol-web = { version = "0.4.0", path = "../web/" }
-
+# * Tools to aid concurrent programming * #
 flume.workspace = true
 oneshot.workspace = true
 
+# * Luminol's crates * #
+luminol-web = { version = "0.4.0", path = "../web/" }
+
+# * Adapters for web APIs * #
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
