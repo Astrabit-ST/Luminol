@@ -17,32 +17,42 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+# * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
 egui_dock.workspace = true
 egui-notify.workspace = true
 egui-modal.workspace = true
 
-poll-promise.workspace = true
-once_cell.workspace = true
+# * Data processing * #
+serde.workspace = true
+serde_path_to_error = "0.1.0" # Path to the element that failed to deserialise
+alox-48.workspace = true
+serde_json.workspace = true
+ron.workspace = true
 
+# * Logging and diagnostics * #
 tracing.workspace = true
 color-eyre.workspace = true
 
+# * Useful procedural macros * #
+strum.workspace = true
+
+# * More efficient implementations of individual components of Rust's Standard Library * #
+once_cell.workspace = true
+
+# * Tools to aid concurrent programming * #
+poll-promise.workspace = true
+
+# * File system interfaces * #
 camino.workspace = true
 
-itertools.workspace = true
-
-strum.workspace = true
-serde.workspace = true
-serde_path_to_error = "0.1.0"
-alox-48.workspace = true
-serde_json = "1.0.120"
-ron.workspace = true
-
-rand.workspace = true
-
+# * Luminol's crates * #
 luminol-audio.workspace = true
 luminol-config.workspace = true
 luminol-data.workspace = true
 luminol-filesystem.workspace = true
 luminol-graphics.workspace = true
+
+# * Misc. * #
+itertools.workspace = true
+rand.workspace = true
