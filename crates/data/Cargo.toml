@@ -17,16 +17,24 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-num_enum = "0.7.0"
-
-rand.workspace = true
-
-flate2 = "1.0"
-base64 = "0.22.1"
-
+# * Data processing * #
 serde.workspace = true
 alox-48.workspace = true
+
+# * Mathematics * #
 bytemuck.workspace = true
+
+# * Useful procedural macros * #
+num_enum = "0.7.0"     # Procedural macros to make inter-operation between primitives and enums easier
 strum.workspace = true
 paste.workspace = true
+
+# * Cryptography and hashing * #
+base64 = "0.22.1" # Implementation of the base64 hashing algorithm
+
+# * File system interfaces * #
 camino.workspace = true
+
+# * Misc * #
+rand.workspace = true
+flate2 = "1.0"        # DEFLATE compression and decompression exposed as Read/BufRead/Write streams

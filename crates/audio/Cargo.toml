@@ -17,31 +17,50 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-rustysynth = "1.3.1"
+# * Audio * #
+rustysynth = "1.3.1" # SoundFont MIDI synthesizer
 
-strum.workspace = true
-parking_lot.workspace = true
-camino.workspace = true
-once_cell.workspace = true
-
+# * Logging and diagnostics * #
 color-eyre.workspace = true
+
+# * Useful procedural macros * #
+strum.workspace = true
 thiserror.workspace = true
 
-luminol-config.workspace = true
-luminol-filesystem.workspace = true
+# * More efficient implementations of individual components of Rust's Standard Library * #
+parking_lot.workspace = true
+once_cell.workspace = true
+
+# * Tools to aid concurrent programming * #
 fragile.workspace = true
 
+# * File system interfaces * #
+camino.workspace = true
+
+# * Luminol's crates * #
+luminol-config.workspace = true
+luminol-filesystem.workspace = true
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = "0.19.0"
+# * Audio * #
+rodio = "0.19.0" # Audio playback
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rodio = { version = "0.19.0", features = ["wasm-bindgen"] }
+# * Audio * #
+rodio = { version = "0.19.0", features = [
+    "wasm-bindgen",
+] } # Audio playback (web)
 
-web-sys.workspace = true
-wasm-bindgen-futures.workspace = true
+# * More efficient implementations of individual components of Rust's Standard Library * #
+once_cell.workspace = true
 
+# * Tools to aid concurrent programming * #
 flume.workspace = true
 oneshot.workspace = true
 
-once_cell.workspace = true
+# * Adapters for web APIs * #
+web-sys.workspace = true
+wasm-bindgen-futures.workspace = true
+
+# * Misc. * #
 slab.workspace = true

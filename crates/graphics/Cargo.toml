@@ -17,30 +17,38 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-image = "0.24.7"
-
+# * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
 luminol-egui-wgpu.workspace = true
-wgpu.workspace = true
-glam.workspace = true
 
+wgpu.workspace = true
 naga.workspace = true
 naga_oil.workspace = true
 
-crossbeam.workspace = true
-dashmap.workspace = true
-parking_lot.workspace = true
+image = "0.24.7"
 
-color-eyre.workspace = true
-
+# * Mathematics * #
+glam.workspace = true
 bytemuck.workspace = true
 
-itertools.workspace = true
+# * Logging and diagnostics * #
+color-eyre.workspace = true
 
+# * More efficient implementations of individual components of Rust's Standard Library * #
+parking_lot.workspace = true
+crossbeam.workspace = true
+dashmap.workspace = true
+
+# * Tools to aid concurrent programming * #
+fragile.workspace = true
+
+# * File system interfaces * #
 camino.workspace = true
 
+# * Luminol's crates * #
 luminol-data.workspace = true
 luminol-filesystem.workspace = true
 luminol-macros.workspace = true
 
-fragile.workspace = true
+# * Misc. * #
+itertools.workspace = true

@@ -17,17 +17,26 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+# * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
-rust-ini.workspace = true
+
+# * Data processing * #
 serde.workspace = true
-
-strum.workspace = true
 ron.workspace = true
+rust-ini.workspace = true
 
+# * Useful procedural macros * #
+strum.workspace = true
+
+# * More efficient implementations of individual components of Rust's Standard Library * #
 once_cell.workspace = true
 
+# * Luminol's crates * #
 luminol-data.workspace = true
-indexmap = "2.2.6"
+
+# * Misc. * #
+indexmap.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# * Window management, graphical user interface and 3D rendering * #
 alacritty_terminal.workspace = true

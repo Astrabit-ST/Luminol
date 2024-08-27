@@ -17,6 +17,49 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# * Window management, graphical user interface and 3D rendering * #
+egui.workspace = true
+egui-modal.workspace = true
+
+wgpu.workspace = true
+
+image.workspace = true
+
+# * Data processing * #
+serde.workspace = true
+serde_json.workspace = true
+serde_yml.workspace = true
+alox-48.workspace = true
+ron.workspace = true
+
+# * Mathematics * #
+glam.workspace = true
+
+# * Logging and diagnostics * #
+color-eyre.workspace = true
+
+# * Useful procedural macros * #
+strum.workspace = true
+target-triple = "0.1.2" # $TARGET and $HOST triples in runtime source code
+
+# * Cryptography and hashing * #
+murmur3.workspace = true
+
+# * More efficient implementations of individual components of Rust's Standard Library * #
+parking_lot.workspace = true
+once_cell.workspace = true
+futures-lite.workspace = true
+
+# * Tools to aid concurrent programming * #
+futures-util = "0.3.30"       # Common utilities and extension traits for the futures-rs library
+oneshot.workspace = true
+async-std.workspace = true
+poll-promise.workspace = true
+
+# * File system interfaces * #
+camino.workspace = true
+
+# * Luminol's crates * #
 luminol-audio.workspace = true
 luminol-core.workspace = true
 luminol-config.workspace = true
@@ -26,57 +69,21 @@ luminol-filesystem.workspace = true
 luminol-macros.workspace = true
 luminol-egui-wgpu.workspace = true
 
-egui.workspace = true
-egui-modal.workspace = true
-
-camino.workspace = true
-
-strum.workspace = true
-
-serde.workspace = true
-serde_json.workspace = true
-serde_yml.workspace = true
-ron.workspace = true
-
-target-triple = "0.1.2"
-
-strip-ansi-escapes = "0.2.0"
-
-poll-promise.workspace = true
-async-std.workspace = true
-futures-lite.workspace = true
-futures-util = "0.3.30"
-reqwest = { version = "0.11.23", features = ["json"] }
-
-zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
-
-parking_lot.workspace = true
-once_cell.workspace = true
-qp-trie.workspace = true
-indextree = "4.6.0"
-lexical-sort.workspace = true
-
-itertools.workspace = true
-
-color-eyre.workspace = true
-
-wgpu.workspace = true
-
-murmur3.workspace = true
-indexmap = "2.2.6"
-alox-48.workspace = true
-
-fuzzy-matcher = "0.3.7"
-
-glam.workspace = true
-
-oneshot.workspace = true
-
-image.workspace = true
-
+# * Misc. #
+strip-ansi-escapes = "0.2.0" # Strip ANSI escape sequences from byte streams
+reqwest = { version = "0.11.23", features = ["json"] } # HTTP client
+zip = { version = "0.6.6", default-features = false, features = [
+    "deflate",
+] } # Library to support the reading and writing of zip files
+indextree = "4.6.0" # Arena based tree structure by using indices instead of reference counted pointers
+fuzzy-matcher = "0.3.7" # Fuzzy matching algorithms
 syntect = { version = "5.1.0", default-features = false, features = [
     "default-fancy",
-] }
+] } # High-quality syntax highlighting and code intelligence using Sublime Text's grammars
+qp-trie.workspace = true
+lexical-sort.workspace = true
+itertools.workspace = true
+indexmap.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 luminol-term = { version = "0.4.0", path = "../term/" }

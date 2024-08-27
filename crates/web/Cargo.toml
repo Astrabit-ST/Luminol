@@ -13,13 +13,11 @@ categories.workspace = true
 [lints]
 workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+# * Adapters for web APIs * #
+indexed_db_futures = "0.4.1" # Future bindings for IndexedDB
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
-indexed_db_futures = "0.4.1"
-
 js-sys.workspace = true
 web-sys = { workspace = true, features = [
     "DedicatedWorkerGlobalScope",

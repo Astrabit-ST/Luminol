@@ -45,10 +45,13 @@ categories = ["games"]
 
 # Shared dependencies
 [workspace.dependencies]
-egui = "0.28.1"
-egui_extras = { version = "0.28.1", features = ["svg", "image"] }
-epaint = "0.28.1"
-
+# * Window management, graphical user interface and 3D rendering * #
+egui = "0.28.1" # Real-time stateless graphical user interface framework
+egui_extras = { version = "0.28.1", features = [
+    "svg",
+    "image",
+] } # Official add-ons to egui, like "Table", "TableBody", "Column", "DatePickerButton", etc.
+epaint = "0.28.1" # 2D graphics library for turning simple two dimensional shapes into textured triangles
 luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "wgpu",
     "accesskit",
@@ -56,89 +59,103 @@ luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "default_fonts",
     "x11",
     "wayland",
-], default-features = false }
-luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" }
-egui-winit = "0.28.1"
+], default-features = false } # Egui initialisation library. Responsible for creating and managing the main window and all appropriate graphics contexts
+luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" } # Bindings between wgpu and egui
+egui-winit = "0.28.1" # Winit event translation library for egui
+egui_dock = "0.13.0" # Docking support for egui
+egui-notify = "0.15.0" # In-app toast notification library for egui
+egui-modal = "0.4.0" # "Modals" for egui. A "Modal" is a window with custom content that requires user's immediate attention
+rfd = "0.14.1" # File picker and message dialogs
 
-egui_dock = "0.13.0"
-egui-notify = "0.15.0"
-egui-modal = "0.4.0"
+raw-window-handle = "0.6.0"                              # Window interoperability library that provides a platform-specific native handle to the specified window
+winit = { version = "0.29.4", default-features = false } # Window creation and management library
 
-wgpu = { version = "0.20.0", features = ["naga-ir"] }
-naga = "0.20.0"
-naga_oil = "0.14.0"
-glam = { version = "0.24.2", features = ["bytemuck"] }
-image = { version = "0.25.0", features = ["png"] }
+wgpu = { version = "0.20.0", features = [
+    "naga-ir",
+] } # An abstraction layer for OpenGL, Vulkan, DirectX/Direct3D and Metal
+naga = "0.20.0" # Wgpu shader parser
+naga_oil = "0.14.0" # An extension to naga. Allows combining and manipulating wgpu shaders (for example, through '#import' statements)
+glutin = "0.31" # Cross-platform OpenGL context provider
+glutin-winit = "0.4" # Bootstrapping helpers with winit for Glutin
 
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yml = "0.0.10"
-alox-48 = { version = "0.6.0" }
-ron = "0.8.1"
-rust-ini = "0.20.0"
+image = { version = "0.25.0", features = [
+    "png",
+] } # Image processing library. Supported image formats: https://crates.io/crates/image#supported-image-formats
 
+alacritty_terminal = "0.22.0" # A library for writing terminal emulators, based on Alacritty, a fast, cross-platform OpenGL terminal emulator
+
+# * Data processing * #
+serde = { version = "1.0", features = [
+    "derive",
+] } # Data serialisation/deserialisation framework
+serde_json = "1.0" # JSON (de)serialisation library, based on serde 
+serde_yml = "0.0.10" # YAML (de)serialisation library, based on serde
+alox-48 = { version = "0.6.0" } # An in-house Ruby Marshal data format (de)serialisation library
+ron = "0.8.1" # RON (de)serialisation library, based on serde
+rust-ini = "0.20.0" # INI (de)serialisation library
+
+# * Mathematics * #
+glam = { version = "0.24.2", features = [
+    "bytemuck",
+] } # 3D math library, adds types like two/three dimensional vectors and supplementary methods
 bytemuck = { version = "1.14.0", features = [
     "extern_crate_alloc",
     "derive",
     "min_const_generics",
-] }
+] } # Bit casting between data types
 
-tracing = "0.1.37"
+# * Logging and diagnostics * #
+log = { version = "0.4", features = [
+    "std",
+] } # Logging facade to be replaced by a proper logger
+tracing = "0.1.37" # Structured, event-based, application-level diagnostics
+color-eyre = "0.6.2" # An error report handler for panics, based on the 'eyre' crate
+puffin = "0.19" # Instrumentation profiler
 
-strum = { version = "0.25.0", features = ["derive"] }
-paste = "1.0.14"
-thiserror = "1.0.37"
-bitflags = "2.4.0"
-color-eyre = "0.6.2"
+# * Useful procedural macros * #
+strum = { version = "0.25.0", features = [
+    "derive",
+] } # Useful 'derive' macros for enumerations, like 'EnumString' which converts strings to enum variants
+paste = "1.0.14" # A flexible way ot paste together identifiers in a macro, including using pasted identifiers to define new ones. Does not rely on a nightly feature 'concat_idents'
+thiserror = "1.0.37" # derive(Error)
+bitflags = "2.4.0" # A way to generate bitflags out of enumerations
+document-features = "0.2.8" # Macro that extracts documentation comments from Cargo.toml
 
-puffin = "0.19"
-raw-window-handle = "0.6.0"
-winit = { version = "0.29.4", default-features = false }
-log = { version = "0.4", features = ["std"] }
-document-features = "0.2.8"
-web-time = "0.2"
-ahash = "0.8.11"
-glutin = "0.31"
-glutin-winit = "0.4"
+# * Platform interoperability interfaces * #
+web-time = "0.2" # Drop-in replacement for std::time on WebAssembly platforms
 
+# * Cryptography and hashing * #
+ahash = "0.8.11"  # A non-cryptographic hash function using AES-NI
+murmur3 = "0.5.2" # An implementation of the Murmur3 hash
+
+# * More efficient implementations of individual components of Rust's Standard Library * #
 parking_lot = { version = "0.12.3", features = [
     "nightly",            # This is required for parking_lot to work properly in WebAssembly builds with atomics support
     "deadlock_detection",
-] }
-once_cell = "1.18.0"
-crossbeam = "0.8.2"
-dashmap = "5.5.3"
-flume = "0.11.0"
-oneshot = "0.1.6"
-futures-lite = "2.1.0"
-async-std = "1.12.0"
-pin-project = "1"
-fragile = "2.0"
+] } # More compact and efficient implementations of the standard synchronisation primitives (Mutex, RwLock, Condvar and Once)
+once_cell = "1.18.0" # Single assignment cells and lazy values
+crossbeam = "0.8.2" # Functions for better concurrent programming (replaces functions like std::sync::mpsc:channel)
+dashmap = "5.5.3" # More efficient replacement of the HashMap structure
+futures-lite = "2.1.0" # Lightweight, more safe replacement of 'futures'
 
-poll-promise = { version = "0.3.0" }
+# * Tools to aid concurrent programming * #
+flume = "0.11.0"       # Fast multi-producer, multi-consumer channel
+oneshot = "0.1.6"      # Oneshot single-producer, single-consumer channels
+async-std = "1.12.0"   # Asynchronous version of the Rust Standard Library
+fragile = "2.0"        # Provides wrapper types for sending non-Send values to other threads
+poll-promise = "0.3.0" # A crate for polling the result of an asynchronous operation
 
-camino = "1.1.6"
+# * File system interfaces * #
+camino = "1.1.6"   # UTF-8 paths
+tempfile = "3.8.1" # A crate for creating and managing temporary directories and files
 
-slab = { version = "0.4.9", features = ["serde"] }
-qp-trie = "0.8.2"
+# * Adapters for web APIs * #
+wasm-bindgen = "0.2.91"         # Easy support for interacting between Javacript and Rust
+wasm-bindgen-futures = "0.4.42" # Conversion between Rust's Futures and JavaScript's Promises
+web-sys = "0.3.67"              # Bindings for all web APIs
+js-sys = "0.3"                  # Bindings for all JS objects and functions
 
-itertools = "0.11.0"
-
-rfd = "0.14.1"
-tempfile = "3.8.1"
-
-rand = "0.8.5"
-murmur3 = "0.5.2"
-
-alacritty_terminal = "0.22.0"
-
-wasm-bindgen = "0.2.91"
-wasm-bindgen-futures = "0.4.42"
-web-sys = "0.3.67"
-js-sys = "0.3"
-
-lexical-sort = "0.3.1"
-
+# * Luminol's crates * #
 luminol-audio = { version = "0.4.0", path = "crates/audio/" }
 luminol-config = { version = "0.4.0", path = "crates/config/" }
 luminol-core = { version = "0.4.0", path = "crates/core/" }
@@ -151,8 +168,16 @@ luminol-term = { version = "0.4.0", path = "crates/term/" }
 luminol-ui = { version = "0.4.0", path = "crates/ui/" }
 luminol-result = { version = "0.4.0", path = "crates/result" }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+# * Misc. * #
+pin-project = "1" # Safe and ergonomic pin-projection
+slab = { version = "0.4.9", features = [
+    "serde",
+] } # Pre-allocated storage for a uniform data type
+qp-trie = "0.8.2" # An idiomatic and fast QP-trie implementation
+itertools = "0.11.0" # Extra iterator adaptors, methods, functions and macros
+rand = "0.8.5" # Random number generators and other randomness functionality
+lexical-sort = "0.3.1" # Functions that compare and sort strings lexicographically
+indexmap = "2.2.6" # A hash table with consistent order and fast iteration
 
 # Fast and performant.
 [profile.release]
