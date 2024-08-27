@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+# * Luminol's crates * #
 luminol-proc-macros.workspace = true
 
 [lints]
