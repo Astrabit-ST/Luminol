@@ -16,16 +16,24 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-thiserror.workspace = true
-color-eyre.workspace = true
-tempfile.workspace = true
+# * Window management, graphical user interface and 3D rendering * #
 image.workspace = true
 
+# * Logging and diagnostics * #
+color-eyre.workspace = true
+
+# * Useful procedural macros * #
+thiserror.workspace = true
+
+# * File system interfaces * #
+tempfile.workspace = true
+
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-tracing-log = "0.1.3"
+tracing-log = "0.1.3" # Provides compatibility between `tracing` and `log` crates
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-steamworks = { optional = true, version = "0.10.0" }
+steamworks = { optional = true, version = "0.10.0" } # Bindings to the Steamworks API
 
 [features]
 steamworks = ["dep:steamworks"]
