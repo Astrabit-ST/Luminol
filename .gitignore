@@ -1,14 +1,9 @@
 #! Rust Build Output
 /target
-/marshal/target
-/crates/launcher/dist
+dist/
 
 #! GDB-related files
 .gdb_*
-
-#! Ruby Output Files
-/marshal_ruby
-/marshal_luminol
 
 #! conventional commits config
 git-conventional-commits.yaml

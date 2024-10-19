@@ -1955,8 +1955,9 @@ checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 
 [[package]]
 name = "flume"
-version = "0.11.0"
-source = "git+https://github.com/Astrabit-ST/flume?rev=d323799efea329c87a3a5a5b45cc76f46da278c2#d323799efea329c87a3a5a5b45cc76f46da278c2"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da0e4dd2a88388a1f4ccc7c9ce104604dab68d9f408dc34cd45823d5a9069095"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -3050,6 +3051,7 @@ dependencies = [
  "color-eyre",
  "egui",
  "egui_extras",
+ "flume",
  "futures-lite 2.2.0",
  "git-version",
  "image 0.25.2",
