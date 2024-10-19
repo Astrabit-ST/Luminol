@@ -1,6 +1,8 @@
 [package]
 name = "luminol-proc-macros"
 
+description = "Various uility proc-macros used by Luminol"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

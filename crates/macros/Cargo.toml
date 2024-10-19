@@ -1,5 +1,8 @@
 [package]
 name = "luminol-macros"
+
+description = "Various utility macros used by Luminol"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

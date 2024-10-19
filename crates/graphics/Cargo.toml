@@ -1,6 +1,8 @@
 [package]
 name = "luminol-graphics"
 
+description = "Luminol's graphics backend, used for rendering sprites and tilemaps"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

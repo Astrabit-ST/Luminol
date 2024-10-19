@@ -1,6 +1,8 @@
 [package]
 name = "luminol-config"
 
+description = "Luminol's configuration"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

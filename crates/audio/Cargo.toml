@@ -1,6 +1,8 @@
 [package]
 name = "luminol-audio"
 
+description = "Luminol's audio backend"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

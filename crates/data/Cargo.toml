@@ -1,6 +1,8 @@
 [package]
 name = "luminol-data"
 
+description = "Luminol's RPG Maker data structures"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

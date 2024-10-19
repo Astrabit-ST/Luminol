@@ -1,6 +1,8 @@
 [package]
 name = "luminol-core"
 
+description = "The core crate of Luminol, which all of Luminol's UI is built on top of"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

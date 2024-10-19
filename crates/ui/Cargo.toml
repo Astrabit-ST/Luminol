@@ -1,6 +1,8 @@
 [package]
 name = "luminol-ui"
 
+description = "Luminol's UI code"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

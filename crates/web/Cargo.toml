@@ -1,5 +1,8 @@
 [package]
 name = "luminol-web"
+
+description = "Web-specific code for running Luminol"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

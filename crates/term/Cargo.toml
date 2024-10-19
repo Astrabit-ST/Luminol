@@ -1,6 +1,8 @@
 [package]
 name = "luminol-term"
 
+description = "Luminol's in-built terminal"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

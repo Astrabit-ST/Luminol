@@ -1,6 +1,8 @@
 [package]
 name = "luminol-filesystem"
 
+description = "Luminol's virtual filesystem"
+
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

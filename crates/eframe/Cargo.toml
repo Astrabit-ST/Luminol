@@ -135,10 +135,7 @@ x11 = [
 __screenshot = []
 
 [dependencies]
-egui = { workspace = true, features = [
-  "bytemuck",
-  "log",
-] }
+egui = { workspace = true, features = ["bytemuck", "log"] }
 
 ahash.workspace = true
 document-features.workspace = true
@@ -162,11 +159,8 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, features = [
-  "clipboard",
-  "links",
-] }
-image = { workspace = true, features = ["png"] } # Needed for app icon
+egui-winit = { workspace = true, features = ["clipboard", "links"] }
+image = { workspace = true, features = ["png"] }                              # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
