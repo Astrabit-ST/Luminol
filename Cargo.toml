@@ -46,7 +46,9 @@ categories = ["games"]
 # Shared dependencies
 [workspace.dependencies]
 # * Window management, graphical user interface and 3D rendering * #
-egui = "0.28.1" # Real-time stateless graphical user interface framework
+egui = { version = "0.28.1", features = [
+    "serde",
+] } # Real-time stateless graphical user interface framework
 egui_extras = { version = "0.28.1", features = [
     "svg",
     "image",
