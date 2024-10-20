@@ -58,3 +58,15 @@ luminol-graphics.workspace = true
 # * Misc. * #
 itertools.workspace = true
 rand.workspace = true
+
+# Set poll promise features here based on the target
+# I'd much rather do it in the workspace, but cargo doesn't support that yet
+#
+# Doing this also relies on a quirk of features, that any crate specifying features applies to ALL crates
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.poll-promise]
+workspace = true
+features = ["tokio"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.poll-promise]
+workspace = true
+features = ["web"]
