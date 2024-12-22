@@ -1,6 +1,6 @@
 #! Rust Build Output
 /target
-dist/
+dist
 
 #! GDB-related files
 .gdb_*

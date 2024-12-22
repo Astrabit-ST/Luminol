@@ -22,14 +22,29 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use itertools::Itertools;
 use luminol_core::Modal;
 
-use crate::components::{DatabaseView, Field, Tilepicker, UiExt};
+use crate::components::{DatabaseView, EnumComboBox, Field, Tilepicker, UiExt};
 use crate::modals::graphic_picker::tileset::Modal as TilesetModal;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Passage {
+    X,
+    O,
+    Square,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(strum::Display, strum::EnumIter)]
+enum Property {
+    Passage,
+}
 
 /// Database - Tilesets management window.
 pub struct Window {
     selected_tileset_name: Option<String>,
+    property: Property,
 
     previous_tileset: Option<usize>,
 
@@ -45,6 +60,7 @@ impl Window {
         let tileset = &tilesets.data[0];
         Self {
             selected_tileset_name: None,
+            property: Property::Passage,
             previous_tileset: None,
             tilepicker: None,
             tileset_modal: TilesetModal::new(tileset, "tileset_graphic_picker".into()),
@@ -131,11 +147,62 @@ impl luminol_core::Window for Window {
                             ));
                         }
 
+                        ui.add(EnumComboBox::new(
+                            (tileset.id, "property"),
+                            &mut self.property,
+                        ));
+
                         egui::ScrollArea::both().show_viewport(ui, |ui, scroll_rect| {
-                            self.tilepicker
-                                .as_mut()
-                                .unwrap()
-                                .ui(update_state, ui, scroll_rect);
+                            let tilepicker = self.tilepicker.as_mut().unwrap();
+                            let response = tilepicker.ui(update_state, ui, scroll_rect);
+
+                            let bottom = tilepicker.view.atlas.tileset_height() as usize / 32;
+                            let first_row =
+                                ((scroll_rect.top().max(0.) / 32.).floor() as usize).min(bottom);
+                            let last_row =
+                                ((scroll_rect.bottom().max(0.) / 32.).ceil() as usize).min(bottom);
+                            let first_col =
+                                ((scroll_rect.left().max(0.) / 32.).floor() as usize).min(7);
+                            let last_col =
+                                ((scroll_rect.right().max(0.) / 32.).ceil() as usize).min(7);
+
+                            for (y, x) in
+                                (first_row..=last_row).cartesian_product(first_col..=last_col)
+                            {
+                                let tile_id = if y == 0 {
+                                    x * 48
+                                } else {
+                                    (y - 1) * 8 + x + 384
+                                };
+                                let passage =
+                                    if y == 0 && tileset.passages[tile_id] & 0b10000 == 0b10000 {
+                                        Passage::Square
+                                    } else if tileset.passages[tile_id] & 0b1111 == 0b1111 {
+                                        Passage::X
+                                    } else {
+                                        Passage::O
+                                    };
+
+                                ui.painter().text(
+                                    egui::pos2((x as f32 + 0.5) * 32., (y as f32 + 0.5) * 32.)
+                                        + response.rect.min.to_vec2(),
+                                    egui::Align2::CENTER_CENTER,
+                                    match passage {
+                                        Passage::X => '\u{f00d}',
+                                        Passage::O => '\u{eabc}',
+                                        Passage::Square => '\u{f0a14}',
+                                    },
+                                    egui::FontId {
+                                        size: match passage {
+                                            Passage::X => 16.,
+                                            Passage::O => 24.,
+                                            Passage::Square => 32.,
+                                        },
+                                        family: egui::FontFamily::Name("Iosevka Term".into()),
+                                    },
+                                    egui::Color32::WHITE,
+                                );
+                            }
                         });
 
                         self.previous_tileset = Some(tileset.id);
