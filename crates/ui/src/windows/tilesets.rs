@@ -38,9 +38,100 @@ enum Passage {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+enum Direction {
+    Down,
+    Left,
+    Right,
+    Up,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Overlay {
+    Passage(Passage),
+    Direction(Direction),
+    Character(char),
+    Dot,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(strum::Display, strum::EnumIter)]
 enum Property {
     Passage,
+}
+
+fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Overlay) {
+    let text = match overlay {
+        Overlay::Passage(Passage::X) => '\u{f00d}',
+        Overlay::Passage(Passage::O) => '\u{eabc}',
+        Overlay::Passage(Passage::Square) => '\u{f0a14}',
+        Overlay::Direction(Direction::Down) => '\u{eb6e}',
+        Overlay::Direction(Direction::Left) => '\u{eb6f}',
+        Overlay::Direction(Direction::Right) => '\u{eb70}',
+        Overlay::Direction(Direction::Up) => '\u{eb71}',
+        Overlay::Character(c) => c,
+        Overlay::Dot => '\u{b7}',
+    };
+
+    ui.painter().text(
+        pos + match overlay {
+            Overlay::Passage(Passage::O) => egui::vec2(1., 0.),
+            _ => egui::Vec2::ZERO,
+        },
+        egui::Align2::CENTER_CENTER,
+        text,
+        egui::FontId {
+            size: match overlay {
+                Overlay::Passage(Passage::X) => 10.,
+                Overlay::Passage(Passage::O) => 14.,
+                Overlay::Passage(Passage::Square) => 18.,
+                Overlay::Direction(_) => 16.,
+                Overlay::Character(_) => 10.,
+                Overlay::Dot => 32.,
+            },
+            family: egui::FontFamily::Name("Iosevka Term".into()),
+        },
+        egui::Color32::BLACK.gamma_multiply(if hovered { 0.8 } else { 0.3 }),
+    );
+
+    ui.painter().text(
+        pos + match overlay {
+            Overlay::Passage(Passage::Square) => egui::vec2(0., 1.),
+            Overlay::Dot => egui::vec2(0., 1.),
+            _ => egui::Vec2::ZERO,
+        },
+        egui::Align2::CENTER_CENTER,
+        text,
+        egui::FontId {
+            size: match overlay {
+                Overlay::Passage(Passage::X) => 19.,
+                Overlay::Passage(Passage::O) => 27.,
+                Overlay::Passage(Passage::Square) => 38.,
+                Overlay::Direction(_) => 19.,
+                Overlay::Character(_) => 19.,
+                Overlay::Dot => 38.,
+            },
+            family: egui::FontFamily::Name("Iosevka Term".into()),
+        },
+        egui::Color32::BLACK.gamma_multiply(if hovered { 0.8 } else { 0.3 }),
+    );
+
+    ui.painter().text(
+        pos,
+        egui::Align2::CENTER_CENTER,
+        text,
+        egui::FontId {
+            size: match overlay {
+                Overlay::Passage(Passage::X) => 16.,
+                Overlay::Passage(Passage::O) => 24.,
+                Overlay::Passage(Passage::Square) => 32.,
+                Overlay::Direction(_) => 16.,
+                Overlay::Character(_) => 16.,
+                Overlay::Dot => 32.,
+            },
+            family: egui::FontFamily::Name("Iosevka Term".into()),
+        },
+        egui::Color32::WHITE.gamma_multiply(if hovered { 0.9 } else { 0.5 }),
+    );
 }
 
 /// Database - Tilesets management window.
@@ -99,200 +190,155 @@ impl luminol_core::Window for Window {
             "Tileset Editor".into()
         };
 
-        let response =
-            egui::Window::new(name)
-                .id(self.id())
-                .default_width(500.)
-                .open(open)
-                .show(ctx, |ui| {
-                    self.view.show(
-                        ui,
-                        update_state,
-                        "Tilesets",
-                        &mut tilesets.data,
-                        |tileset| format!("{:0>4}: {}", tileset.id + 1, tileset.name),
-                        |ui, tilesets, id, update_state| {
-                            let tileset = &mut tilesets[id];
-                            self.selected_tileset_name = Some(tileset.name.clone());
-                            let mut needs_update = self.previous_tileset != Some(tileset.id);
+        let response = egui::Window::new(name)
+            .id(self.id())
+            .default_width(500.)
+            .open(open)
+            .show(ctx, |ui| {
+                self.view.show(
+                    ui,
+                    update_state,
+                    "Tilesets",
+                    &mut tilesets.data,
+                    |tileset| format!("{:0>4}: {}", tileset.id + 1, tileset.name),
+                    |ui, tilesets, id, update_state| {
+                        let tileset = &mut tilesets[id];
+                        self.selected_tileset_name = Some(tileset.name.clone());
+                        let mut needs_update = self.previous_tileset != Some(tileset.id);
 
-                            ui.with_padded_stripe(false, |ui| {
-                                modified |= ui
-                                    .add(Field::new(
-                                        "Name",
-                                        egui::TextEdit::singleline(&mut tileset.name)
-                                            .desired_width(f32::INFINITY),
-                                    ))
-                                    .changed();
-                            });
+                        ui.with_padded_stripe(false, |ui| {
+                            modified |= ui
+                                .add(Field::new(
+                                    "Name",
+                                    egui::TextEdit::singleline(&mut tileset.name)
+                                        .desired_width(f32::INFINITY),
+                                ))
+                                .changed();
+                        });
 
-                            ui.with_padded_stripe(true, |ui| {
-                                let changed = ui
-                                    .add(Field::new(
-                                        "Graphic",
-                                        self.tileset_modal.button(tileset, update_state),
-                                    ))
-                                    .changed();
-                                if changed {
+                        ui.with_padded_stripe(true, |ui| {
+                            let changed = ui
+                                .add(Field::new(
+                                    "Graphic",
+                                    self.tileset_modal.button(tileset, update_state),
+                                ))
+                                .changed();
+                            if changed {
+                                modified = true;
+                                needs_update = true;
+                            }
+                        });
+
+                        if needs_update {
+                            self.tileset_modal.reset(update_state, tileset);
+                            self.tilepicker = Some(
+                                Tilepicker::new(
+                                    update_state,
+                                    tileset.tileset_name.as_deref(),
+                                    &tileset.autotile_names,
+                                    &tileset.passages,
+                                    None,
+                                )
+                                .hide_selection(),
+                            );
+                        }
+
+                        ui.add(EnumComboBox::new(
+                            (tileset.id, "property"),
+                            &mut self.property,
+                        ));
+
+                        egui::ScrollArea::both().show_viewport(ui, |ui, scroll_rect| {
+                            let tilepicker = self.tilepicker.as_mut().unwrap();
+                            let tilepicker_response = tilepicker.ui(update_state, ui, scroll_rect);
+
+                            let bottom = tilepicker.view.atlas.tileset_height() as usize / 32;
+                            let first_row =
+                                ((scroll_rect.top().max(0.) / 32.).floor() as usize).min(bottom);
+                            let last_row =
+                                ((scroll_rect.bottom().max(0.) / 32.).ceil() as usize).min(bottom);
+                            let first_col =
+                                ((scroll_rect.left().max(0.) / 32.).floor() as usize).min(7);
+                            let last_col =
+                                ((scroll_rect.right().max(0.) / 32.).ceil() as usize).min(7);
+
+                            for (y, x) in
+                                (first_row..=last_row).cartesian_product(first_col..=last_col)
+                            {
+                                let tile_id = if y == 0 {
+                                    x * 48
+                                } else {
+                                    (y - 1) * 8 + x + 384
+                                };
+
+                                // Determine what the passage type is for this tile ID
+                                let value = if tile_id >= tileset.passages.len() {
+                                    0
+                                } else {
+                                    tileset.passages[tile_id]
+                                };
+                                let passage = if y == 0 && value & 0b10000 == 0b10000 {
+                                    Passage::Square
+                                } else if value & 0b01111 == 0b01111 {
+                                    Passage::X
+                                } else {
+                                    Passage::O
+                                };
+
+                                // Determine the egui coordinates of this tile in the tilepicker
+                                let rect = egui::Rect::from_min_size(
+                                    egui::pos2(x as f32 * 32., y as f32 * 32.)
+                                        + tilepicker_response.rect.min.to_vec2(),
+                                    egui::Vec2::splat(32.),
+                                );
+                                let response = ui.allocate_rect(rect, egui::Sense::click());
+
+                                // Handle clicking on a tile to change its passage
+                                let passage = if response.clicked() {
+                                    let passage = match passage {
+                                        Passage::X if y == 0 => Passage::Square,
+                                        Passage::X | Passage::Square => Passage::O,
+                                        Passage::O => Passage::X,
+                                    };
+                                    let range = if y == 0 { 0..48 } else { 0..1 };
+                                    if tile_id + range.end > tileset.passages.len() {
+                                        tileset.passages.resize(tile_id + range.end);
+                                    }
+                                    for i in range {
+                                        let new_value = match passage {
+                                            Passage::X => 0b01111,
+                                            Passage::O => 0b00000,
+                                            Passage::Square => {
+                                                if SQUARE_PASSAGE_MASK.binary_search(&i).is_ok() {
+                                                    0b10000
+                                                } else {
+                                                    0b11111
+                                                }
+                                            }
+                                        };
+                                        tileset.passages[tile_id + i] =
+                                            new_value | (tileset.passages[tile_id + i] & !0b11111);
+                                    }
                                     modified = true;
-                                    needs_update = true;
-                                }
-                            });
+                                    passage
+                                } else {
+                                    passage
+                                };
 
-                            if needs_update {
-                                self.tileset_modal.reset(update_state, tileset);
-                                self.tilepicker = Some(
-                                    Tilepicker::new(
-                                        update_state,
-                                        tileset.tileset_name.as_deref(),
-                                        &tileset.autotile_names,
-                                        &tileset.passages,
-                                        None,
-                                    )
-                                    .hide_selection(),
+                                // Draw a symbol on top of the tile depending on the passage
+                                paint_overlay(
+                                    ui,
+                                    rect.center(),
+                                    response.hovered(),
+                                    Overlay::Passage(passage),
                                 );
                             }
+                        });
 
-                            ui.add(EnumComboBox::new(
-                                (tileset.id, "property"),
-                                &mut self.property,
-                            ));
-
-                            egui::ScrollArea::both().show_viewport(ui, |ui, scroll_rect| {
-                                let tilepicker = self.tilepicker.as_mut().unwrap();
-                                let tilepicker_response =
-                                    tilepicker.ui(update_state, ui, scroll_rect);
-
-                                let bottom = tilepicker.view.atlas.tileset_height() as usize / 32;
-                                let first_row = ((scroll_rect.top().max(0.) / 32.).floor()
-                                    as usize)
-                                    .min(bottom);
-                                let last_row = ((scroll_rect.bottom().max(0.) / 32.).ceil()
-                                    as usize)
-                                    .min(bottom);
-                                let first_col =
-                                    ((scroll_rect.left().max(0.) / 32.).floor() as usize).min(7);
-                                let last_col =
-                                    ((scroll_rect.right().max(0.) / 32.).ceil() as usize).min(7);
-
-                                for (y, x) in
-                                    (first_row..=last_row).cartesian_product(first_col..=last_col)
-                                {
-                                    let tile_id = if y == 0 {
-                                        x * 48
-                                    } else {
-                                        (y - 1) * 8 + x + 384
-                                    };
-
-                                    // Determine what the passage type is for this tile ID
-                                    let value = if tile_id >= tileset.passages.len() {
-                                        0
-                                    } else {
-                                        tileset.passages[tile_id]
-                                    };
-                                    let passage = if y == 0 && value & 0b10000 == 0b10000 {
-                                        Passage::Square
-                                    } else if value & 0b01111 == 0b01111 {
-                                        Passage::X
-                                    } else {
-                                        Passage::O
-                                    };
-
-                                    // Determine the egui coordinates of this tile in the tilepicker
-                                    let rect = egui::Rect::from_min_size(
-                                        egui::pos2(x as f32 * 32., y as f32 * 32.)
-                                            + tilepicker_response.rect.min.to_vec2(),
-                                        egui::Vec2::splat(32.),
-                                    );
-                                    let response = ui.allocate_rect(rect, egui::Sense::click());
-
-                                    // Handle clicking on a tile to change its passage
-                                    let passage = if response.clicked() {
-                                        let passage = match passage {
-                                            Passage::X if y == 0 => Passage::Square,
-                                            Passage::X | Passage::Square => Passage::O,
-                                            Passage::O => Passage::X,
-                                        };
-                                        let range = if y == 0 { 0..48 } else { 0..1 };
-                                        if tile_id + range.end > tileset.passages.len() {
-                                            tileset.passages.resize(tile_id + range.end);
-                                        }
-                                        for i in range {
-                                            let new_value = match passage {
-                                                Passage::X => 0b01111,
-                                                Passage::O => 0b00000,
-                                                Passage::Square => {
-                                                    if SQUARE_PASSAGE_MASK.binary_search(&i).is_ok()
-                                                    {
-                                                        0b10000
-                                                    } else {
-                                                        0b11111
-                                                    }
-                                                }
-                                            };
-                                            tileset.passages[tile_id + i] = new_value
-                                                | (tileset.passages[tile_id + i] & !0b11111);
-                                        }
-                                        modified = true;
-                                        passage
-                                    } else {
-                                        passage
-                                    };
-
-                                    // Draw a symbol on top of the tile depending on the passage
-                                    let character = match passage {
-                                        Passage::X => '\u{f00d}',
-                                        Passage::O => '\u{eabc}',
-                                        Passage::Square => '\u{f0a14}',
-                                    };
-                                    let size = match passage {
-                                        Passage::X => 16.,
-                                        Passage::O => 24.,
-                                        Passage::Square => 32.,
-                                    };
-                                    ui.painter().text(
-                                        rect.center(),
-                                        egui::Align2::CENTER_CENTER,
-                                        character,
-                                        egui::FontId {
-                                            size: size * 0.5,
-                                            family: egui::FontFamily::Name("Iosevka Term".into()),
-                                        },
-                                        egui::Color32::BLACK.gamma_multiply(
-                                            if response.hovered() { 1. } else { 0.2 },
-                                        ),
-                                    );
-                                    ui.painter().text(
-                                        rect.center(),
-                                        egui::Align2::CENTER_CENTER,
-                                        character,
-                                        egui::FontId {
-                                            size: size * 1.25,
-                                            family: egui::FontFamily::Name("Iosevka Term".into()),
-                                        },
-                                        egui::Color32::BLACK.gamma_multiply(
-                                            if response.hovered() { 1. } else { 0.2 },
-                                        ),
-                                    );
-                                    ui.painter().text(
-                                        rect.center(),
-                                        egui::Align2::CENTER_CENTER,
-                                        character,
-                                        egui::FontId {
-                                            size,
-                                            family: egui::FontFamily::Name("Iosevka Term".into()),
-                                        },
-                                        egui::Color32::WHITE.gamma_multiply(
-                                            if response.hovered() { 1. } else { 0.4 },
-                                        ),
-                                    );
-                                }
-                            });
-
-                            self.previous_tileset = Some(tileset.id);
-                        },
-                    )
-                });
+                        self.previous_tileset = Some(tileset.id);
+                    },
+                )
+            });
 
         if response.is_some_and(|ir| ir.inner.is_some_and(|ir| ir.inner.modified)) {
             modified = true;
