@@ -28,6 +28,8 @@ use luminol_core::Modal;
 use crate::components::{DatabaseView, EnumComboBox, Field, Tilepicker, UiExt};
 use crate::modals::graphic_picker::tileset::Modal as TilesetModal;
 
+const SQUARE_PASSAGE_MASK: [usize; 14] = [20, 21, 22, 23, 33, 34, 35, 36, 37, 42, 43, 45, 46, 47];
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Passage {
     X,
@@ -138,13 +140,16 @@ impl luminol_core::Window for Window {
 
                         if needs_update {
                             self.tileset_modal.reset(update_state, tileset);
-                            self.tilepicker = Some(Tilepicker::new(
-                                update_state,
-                                tileset.tileset_name.as_deref(),
-                                &tileset.autotile_names,
-                                &tileset.passages,
-                                None,
-                            ));
+                            self.tilepicker = Some(
+                                Tilepicker::new(
+                                    update_state,
+                                    tileset.tileset_name.as_deref(),
+                                    &tileset.autotile_names,
+                                    &tileset.passages,
+                                    None,
+                                )
+                                .hide_selection(),
+                            );
                         }
 
                         ui.add(EnumComboBox::new(
@@ -154,7 +159,7 @@ impl luminol_core::Window for Window {
 
                         egui::ScrollArea::both().show_viewport(ui, |ui, scroll_rect| {
                             let tilepicker = self.tilepicker.as_mut().unwrap();
-                            let response = tilepicker.ui(update_state, ui, scroll_rect);
+                            let tilepicker_response = tilepicker.ui(update_state, ui, scroll_rect);
 
                             let bottom = tilepicker.view.atlas.tileset_height() as usize / 32;
                             let first_row =
@@ -174,18 +179,64 @@ impl luminol_core::Window for Window {
                                 } else {
                                     (y - 1) * 8 + x + 384
                                 };
-                                let passage =
-                                    if y == 0 && tileset.passages[tile_id] & 0b10000 == 0b10000 {
-                                        Passage::Square
-                                    } else if tileset.passages[tile_id] & 0b1111 == 0b1111 {
-                                        Passage::X
-                                    } else {
-                                        Passage::O
-                                    };
 
+                                // Determine what the passage type is for this tile ID
+                                let value = if tile_id >= tileset.passages.len() {
+                                    0
+                                } else {
+                                    tileset.passages[tile_id]
+                                };
+                                let passage = if y == 0 && value & 0b10000 == 0b10000 {
+                                    Passage::Square
+                                } else if value & 0b01111 == 0b01111 {
+                                    Passage::X
+                                } else {
+                                    Passage::O
+                                };
+
+                                // Determine the egui coordinates of this tile in the tilepicker
+                                let rect = egui::Rect::from_min_size(
+                                    egui::pos2(x as f32 * 32., y as f32 * 32.)
+                                        + tilepicker_response.rect.min.to_vec2(),
+                                    egui::Vec2::splat(32.),
+                                );
+                                let response = ui.allocate_rect(rect, egui::Sense::click());
+
+                                // Handle clicking on a tile to change its passage
+                                let passage = if response.clicked() {
+                                    let passage = match passage {
+                                        Passage::X if y == 0 => Passage::Square,
+                                        Passage::X | Passage::Square => Passage::O,
+                                        Passage::O => Passage::X,
+                                    };
+                                    let range = if y == 0 { 0..48 } else { 0..1 };
+                                    if tile_id + range.end > tileset.passages.len() {
+                                        tileset.passages.resize(tile_id + range.end);
+                                    }
+                                    for i in range {
+                                        let new_value = match passage {
+                                            Passage::X => 0b01111,
+                                            Passage::O => 0b00000,
+                                            Passage::Square => {
+                                                if SQUARE_PASSAGE_MASK.binary_search(&i).is_ok() {
+                                                    0b10000
+                                                } else {
+                                                    0b11111
+                                                }
+                                            }
+                                        };
+                                        tileset.passages[tile_id + i] =
+                                            new_value | (tileset.passages[tile_id + i] & !0b11111);
+                                    }
+                                    modified = true;
+                                    passage
+                                } else {
+                                    passage
+                                };
+
+                                // Draw a symbol on top of the tile depending on the passage
                                 ui.painter().text(
-                                    egui::pos2((x as f32 + 0.5) * 32., (y as f32 + 0.5) * 32.)
-                                        + response.rect.min.to_vec2(),
+                                    rect.center(),
                                     egui::Align2::CENTER_CENTER,
                                     match passage {
                                         Passage::X => '\u{f00d}',

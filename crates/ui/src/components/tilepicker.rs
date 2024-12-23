@@ -31,6 +31,9 @@ pub struct Tilepicker {
     pub brush_random: bool,
     /// Seed for the PRNG used for the brush when brush tile ID randomization is enabled.
     brush_seed: [u8; 16],
+
+    /// Whether or not the rectangle showing which tiles are selected should be visible.
+    pub show_selection: bool,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -102,7 +105,15 @@ impl Tilepicker {
             drag_origin: None,
             brush_seed,
             brush_random: false,
+
+            show_selection: true,
         }
+    }
+
+    #[inline]
+    pub fn hide_selection(mut self) -> Self {
+        self.show_selection = false;
+        self
     }
 
     pub fn get_tile_from_offset(
@@ -188,13 +199,17 @@ impl Tilepicker {
                 painter,
             ));
 
-        let rect = egui::Rect::from_x_y_ranges(
-            (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,
-            (self.selected_tiles_top * 32) as f32..=((self.selected_tiles_bottom + 1) * 32) as f32,
-        )
-        .translate(canvas_rect.min.to_vec2());
-        ui.painter()
-            .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        if self.show_selection {
+            let rect = egui::Rect::from_x_y_ranges(
+                (self.selected_tiles_left * 32) as f32
+                    ..=((self.selected_tiles_right + 1) * 32) as f32,
+                (self.selected_tiles_top * 32) as f32
+                    ..=((self.selected_tiles_bottom + 1) * 32) as f32,
+            )
+            .translate(canvas_rect.min.to_vec2());
+            ui.painter()
+                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        }
 
         let Some(pos) = response.interact_pointer_pos() else {
             return response;
