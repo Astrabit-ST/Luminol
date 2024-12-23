@@ -324,7 +324,9 @@ impl MapView {
         self.map
             .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
         ui.ctx()
-            .request_repaint_after(std::time::Duration::from_secs_f32(16. / 60.));
+            .request_repaint_after(std::time::Duration::from_secs_f64(
+                16. / 60. - ui.input(|i| i.time).rem_euclid(16. / 60.),
+            ));
 
         let painter = luminol_graphics::Painter::new(self.map.prepare(&update_state.graphics));
         ui.painter()
