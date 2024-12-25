@@ -79,6 +79,7 @@ naga = "0.20.0" # Wgpu shader parser
 naga_oil = "0.14.0" # An extension to naga. Allows combining and manipulating wgpu shaders (for example, through '#import' statements)
 glutin = "0.31" # Cross-platform OpenGL context provider
 glutin-winit = "0.4" # Bootstrapping helpers with winit for Glutin
+aligned-vec = "0.6.1" # Implementations of `Vec` and `Box` with runtime-definable memory alignment
 
 image = { version = "0.25.0", features = [
     "png",
@@ -105,6 +106,7 @@ bytemuck = { version = "1.14.0", features = [
     "derive",
     "min_const_generics",
 ] } # Bit casting between data types
+num-integer = "0.1.46" # Integer trait and implementations of some integer algorithms such as GCD and LCM
 
 # * Logging and diagnostics * #
 log = { version = "0.4", features = [

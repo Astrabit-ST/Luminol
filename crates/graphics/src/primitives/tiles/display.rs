@@ -22,6 +22,7 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use num_integer::Integer;
 use wgpu::util::DeviceExt;
 
 use crate::{BindGroupLayoutBuilder, GraphicsState};
@@ -34,8 +35,8 @@ pub struct Display {
 
 #[derive(Debug)]
 struct LayerData {
-    data: Vec<u8>,
-    min_alignment_size: u32,
+    data: aligned_vec::AVec<u8, aligned_vec::RuntimeAlign>,
+    min_alignment_size: usize,
 }
 
 #[repr(C, align(16))]
@@ -47,11 +48,8 @@ pub struct Data {
 }
 
 impl Data {
-    fn aligned_size_of(min_alignment_size: u32) -> usize {
-        wgpu::util::align_to(
-            std::mem::size_of::<Self>(),
-            (min_alignment_size as usize).max(std::mem::align_of::<Data>()),
-        )
+    fn aligned_size_of(min_alignment_size: usize) -> usize {
+        wgpu::util::align_to(std::mem::size_of::<Self>(), min_alignment_size)
     }
 }
 
@@ -90,11 +88,12 @@ impl Display {
         layers: usize,
     ) -> Self {
         let limits = graphics_state.render_state.device.limits();
-        let min_alignment_size = limits.min_uniform_buffer_offset_alignment;
+        let min_alignment_size = (limits.min_uniform_buffer_offset_alignment as usize)
+            .lcm(&std::mem::align_of::<Data>());
 
         let data_size = Data::aligned_size_of(min_alignment_size);
         let mut layer_data = LayerData {
-            data: vec![0; data_size * layers],
+            data: aligned_vec::avec_rt![[min_alignment_size]| 0; data_size * layers],
             min_alignment_size,
         };
 
