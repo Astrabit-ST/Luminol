@@ -85,7 +85,7 @@ image = { version = "0.25.0", features = [
     "png",
 ] } # Image processing library. Supported image formats: https://crates.io/crates/image#supported-image-formats
 
-alacritty_terminal = "0.22.0" # A library for writing terminal emulators, based on Alacritty, a fast, cross-platform OpenGL terminal emulator
+alacritty_terminal = "0.24.2" # A library for writing terminal emulators, based on Alacritty, a fast, cross-platform OpenGL terminal emulator
 
 # * Data processing * #
 serde = { version = "1.0", features = [
