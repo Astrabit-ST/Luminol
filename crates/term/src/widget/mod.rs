@@ -85,6 +85,8 @@ impl ProcessTerminal {
                 .map(|program| alacritty_terminal::tty::Shell::new(program, exec.args)),
             working_directory: exec.working_directory,
             hold: false,
+            // maybe should make this an option, or pass in Luminol's environment vars
+            env: std::collections::HashMap::new(),
         };
         let backend = crate::backends::Process::new(&options, update_state)?;
         Ok(Self::new(

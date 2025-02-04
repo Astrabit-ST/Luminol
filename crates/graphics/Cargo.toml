@@ -26,12 +26,14 @@ luminol-egui-wgpu.workspace = true
 wgpu.workspace = true
 naga.workspace = true
 naga_oil.workspace = true
+aligned-vec.workspace = true
 
 image = "0.24.7"
 
 # * Mathematics * #
 glam.workspace = true
 bytemuck.workspace = true
+num-integer.workspace = true
 
 # * Logging and diagnostics * #
 color-eyre.workspace = true
