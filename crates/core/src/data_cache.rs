@@ -74,7 +74,7 @@ macro_rules! from_defaults {
     ($parent:ident, $child:ident) => {
         RefCell::new(rpg::$parent {
             data: vec![rpg::$child::default()],
-            ..Default::default()
+            modified: true,
         })
     };
 }
@@ -184,11 +184,12 @@ impl Data {
         map_infos.insert(1, rpg::MapInfo::default());
         let map_infos = RefCell::new(rpg::MapInfos {
             data: map_infos,
-            ..Default::default()
+            modified: true,
         });
 
         let system = rpg::System {
             magic_number: rand::random(),
+            modified: true,
             ..Default::default()
         };
         let system = RefCell::new(system);
@@ -196,7 +197,7 @@ impl Data {
         let scripts = vec![]; // FIXME legality of providing defualt scripts is unclear
         let scripts = RefCell::new(rpg::Scripts {
             data: scripts,
-            ..Default::default()
+            modified: true,
         });
 
         let mut maps = std::collections::HashMap::with_capacity(32);
@@ -319,6 +320,12 @@ impl Data {
         let pretty_config = ron::ser::PrettyConfig::new()
             .struct_names(true)
             .enumerate_arrays(true);
+
+        // this is autocreated on load. however:
+        // since we're creating project config now, we need this directory
+        filesystem
+            .create_dir(".luminol")
+            .wrap_err("While creating .luminol")?;
 
         let project_config = ron::ser::to_string_pretty(&config.project, pretty_config.clone())
             .wrap_err("While serializing .luminol/config")?;
