@@ -181,7 +181,13 @@ impl Data {
 
     pub fn from_defaults() -> Self {
         let mut map_infos = std::collections::HashMap::with_capacity(16);
-        map_infos.insert(1, rpg::MapInfo::default());
+        map_infos.insert(
+            1,
+            rpg::MapInfo {
+                order: 1,
+                ..Default::default()
+            },
+        );
         let map_infos = RefCell::new(rpg::MapInfos {
             data: map_infos,
             modified: true,
@@ -201,7 +207,13 @@ impl Data {
         });
 
         let mut maps = std::collections::HashMap::with_capacity(32);
-        maps.insert(1, rpg::Map::default());
+        maps.insert(
+            1,
+            rpg::Map {
+                modified: true,
+                ..Default::default()
+            },
+        );
         let maps = RefCell::new(maps);
 
         Self::Loaded {
