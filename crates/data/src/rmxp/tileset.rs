@@ -28,7 +28,7 @@ pub struct Tileset {
     #[serde(with = "optional_path_serde")]
     #[marshal(with = "optional_path_alox")]
     pub tileset_name: Path,
-    pub autotile_names: Vec<String>,
+    pub autotile_names: [String; 7],
     #[serde(with = "optional_path_serde")]
     #[marshal(with = "optional_path_alox")]
     pub panorama_name: Path,
