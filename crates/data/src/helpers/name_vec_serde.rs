@@ -15,14 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Option<String>>, D::Error>
+pub fn deserialize<'de, D>(deserializer: D) -> Result<[Option<String>; 7], D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     struct Visitor;
 
     impl<'de> serde::de::Visitor<'de> for Visitor {
-        type Value = Vec<Option<String>>;
+        type Value = [Option<String>; 7];
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             formatter.write_str("a vec of strings")
@@ -32,10 +32,16 @@ where
         where
             A: serde::de::SeqAccess<'de>,
         {
-            let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+            const DEFAULT_VALUE: Option<String> = None;
+            let mut values = [DEFAULT_VALUE; 7];
+            let mut i = 0;
 
             while let Some(value) = seq.next_element::<String>()? {
-                values.push((!value.is_empty()).then_some(value));
+                values[i] = (!value.is_empty()).then_some(value);
+                i += 1;
+                if i == 7 {
+                    break;
+                }
             }
 
             Ok(values)
@@ -45,7 +51,7 @@ where
     deserializer.deserialize_seq(Visitor)
 }
 
-pub fn serialize<S>(values: &Vec<Option<String>>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(values: &[Option<String>; 7], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

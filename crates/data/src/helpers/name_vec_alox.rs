@@ -15,14 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-pub fn deserialize_with<'de, D>(deserializer: D) -> Result<Vec<Option<String>>, alox_48::DeError>
+pub fn deserialize_with<'de, D>(deserializer: D) -> Result<[Option<String>; 7], alox_48::DeError>
 where
     D: alox_48::DeserializerTrait<'de>,
 {
     struct Visitor;
 
     impl<'de> alox_48::Visitor<'de> for Visitor {
-        type Value = Vec<Option<String>>;
+        type Value = [Option<String>; 7];
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             formatter.write_str("a vec of strings")
@@ -32,10 +32,16 @@ where
         where
             A: alox_48::ArrayAccess<'de>,
         {
-            let mut values = Vec::with_capacity(array.len());
+            const DEFAULT_VALUE: Option<String> = None;
+            let mut values = [DEFAULT_VALUE; 7];
+            let mut i = 0;
 
             while let Some(value) = array.next_element::<String>()? {
-                values.push((!value.is_empty()).then_some(value));
+                values[i] = (!value.is_empty()).then_some(value);
+                i += 1;
+                if i == 7 {
+                    break;
+                }
             }
 
             Ok(values)
@@ -46,7 +52,7 @@ where
 }
 
 pub fn serialize_with<S>(
-    values: &Vec<Option<String>>,
+    values: &[Option<String>; 7],
     serializer: S,
 ) -> Result<S::Ok, alox_48::SerError>
 where

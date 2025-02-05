@@ -31,7 +31,7 @@ pub struct Modal {
     state: State,
     id_source: egui::Id,
     tileset_name: Option<camino::Utf8PathBuf>,
-    autotile_names: Vec<Option<String>>,
+    autotile_names: [Option<String>; 7],
     passages: luminol_data::Table1,
     scrolled_on_first_open: bool,
 }
