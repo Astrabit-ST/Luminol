@@ -65,7 +65,7 @@ shadow-rs = { version = "0.32.0", default-features = false } # Build-time inform
 # Native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # * Tools to aid concurrent programming * #
-tokio = { version = "1.33", features = [
+tokio = { version = "1.38", features = [
     "sync",
     "macros",
     "io-util",
