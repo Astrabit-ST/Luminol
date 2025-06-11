@@ -124,7 +124,7 @@ impl Data {
         ];
 
         for script_path in scripts_paths {
-            match handler.read_data(filesystem, format!("{script_path}")) {
+            match handler.read_data(filesystem, &script_path) {
                 Ok(s) => {
                     config.project.scripts_path = script_path;
                     scripts = Some(rpg::Scripts {
