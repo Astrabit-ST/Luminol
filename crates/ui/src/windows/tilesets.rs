@@ -50,6 +50,8 @@ enum Overlay {
     Passage(Passage),
     Direction(Direction),
     Character(char),
+    Approx,
+    Diamond,
     Dot,
 }
 
@@ -59,6 +61,13 @@ enum Property {
     Passage,
     #[strum(to_string = "Passage (4-directional)")]
     Passage4Directional,
+    Priority,
+    #[strum(to_string = "Bush Flag")]
+    BushFlag,
+    #[strum(to_string = "Counter Flag")]
+    CounterFlag,
+    #[strum(to_string = "Terrain Tag")]
+    TerrainTag,
 }
 
 fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Overlay) {
@@ -71,6 +80,8 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
         Overlay::Direction(Direction::Right) => '\u{eb70}',
         Overlay::Direction(Direction::Up) => '\u{eb71}',
         Overlay::Character(c) => c,
+        Overlay::Approx => '\u{2248}',
+        Overlay::Diamond => '\u{25c6}',
         Overlay::Dot => '\u{b7}',
     };
 
@@ -89,6 +100,8 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
                 Overlay::Passage(Passage::Square) => 18.,
                 Overlay::Direction(_) => 16.,
                 Overlay::Character(_) => 10.,
+                Overlay::Approx => 24.,
+                Overlay::Diamond => 24.,
                 Overlay::Dot => 32.,
             },
             family: egui::FontFamily::Name("Iosevka Term".into()),
@@ -112,6 +125,8 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
                 Overlay::Passage(Passage::Square) => 38.,
                 Overlay::Direction(_) => 19.,
                 Overlay::Character(_) => 19.,
+                Overlay::Approx => 27.,
+                Overlay::Diamond => 27.,
                 Overlay::Dot => 38.,
             },
             family: egui::FontFamily::Name("Iosevka Term".into()),
@@ -133,6 +148,8 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
                 Overlay::Passage(Passage::Square) => 32.,
                 Overlay::Direction(_) => 16.,
                 Overlay::Character(_) => 16.,
+                Overlay::Approx => 24.,
+                Overlay::Diamond => 24.,
                 Overlay::Dot => 32.,
             },
             family: egui::FontFamily::Name("Iosevka Term".into()),
@@ -280,10 +297,22 @@ impl luminol_core::Window for Window {
 
                                 let tile_range = if y == 0 { 0..48 } else { 0..1 };
 
-                                let tile_value = if tile_id >= tileset.passages.len() {
+                                let tile_passage_value = if tile_id >= tileset.passages.len() {
                                     0
                                 } else {
                                     tileset.passages[tile_id]
+                                };
+
+                                let tile_priority_value = if tile_id >= tileset.priorities.len() {
+                                    0
+                                } else {
+                                    tileset.priorities[tile_id]
+                                };
+
+                                let tile_terrain_value = if tile_id >= tileset.terrain_tags.len() {
+                                    0
+                                } else {
+                                    tileset.terrain_tags[tile_id]
                                 };
 
                                 // Determine the egui coordinates of this tile in the tilepicker
@@ -297,13 +326,14 @@ impl luminol_core::Window for Window {
                                 match self.property {
                                     Property::Passage => {
                                         // Determine what the passage type is for this tile ID
-                                        let passage = if y == 0 && tile_value & 0b10000 == 0b10000 {
-                                            Passage::Square
-                                        } else if tile_value & 0b01111 == 0b01111 {
-                                            Passage::X
-                                        } else {
-                                            Passage::O
-                                        };
+                                        let passage =
+                                            if y == 0 && tile_passage_value & 0b10000 == 0b10000 {
+                                                Passage::Square
+                                            } else if tile_passage_value & 0b01111 == 0b01111 {
+                                                Passage::X
+                                            } else {
+                                                Passage::O
+                                            };
 
                                         // Handle clicking on a tile to change its passage
                                         let passage = if response.clicked() {
@@ -316,7 +346,7 @@ impl luminol_core::Window for Window {
                                                 tileset.passages.resize(tile_id + tile_range.end);
                                             }
                                             for i in tile_range {
-                                                let new_tile_value = match passage {
+                                                let new_tile_passage_value = match passage {
                                                     Passage::X => 0b01111,
                                                     Passage::O => 0b00000,
                                                     Passage::Square => {
@@ -330,8 +360,10 @@ impl luminol_core::Window for Window {
                                                         }
                                                     }
                                                 };
-                                                tileset.passages[tile_id + i] = new_tile_value
-                                                    | (tileset.passages[tile_id + i] & !0b11111);
+                                                tileset.passages[tile_id + i] =
+                                                    new_tile_passage_value
+                                                        | (tileset.passages[tile_id + i]
+                                                            & !0b11111);
                                             }
                                             modified = true;
                                             passage
@@ -377,23 +409,30 @@ impl luminol_core::Window for Window {
                                             .flatten();
 
                                         // Handle clicking to change passage
-                                        let (tile_value, tile_value_changed) = match response
-                                            .clicked()
-                                            .then_some(direction)
-                                            .flatten()
-                                        {
-                                            Some(Direction::Down) => (tile_value ^ 0b00001, true),
-                                            Some(Direction::Left) => (tile_value ^ 0b00010, true),
-                                            Some(Direction::Right) => (tile_value ^ 0b00100, true),
-                                            Some(Direction::Up) => (tile_value ^ 0b01000, true),
-                                            _ => (tile_value, false),
-                                        };
-                                        if tile_value_changed {
+                                        let (tile_passage_value, tile_passage_value_changed) =
+                                            match response.clicked().then_some(direction).flatten()
+                                            {
+                                                Some(Direction::Down) => {
+                                                    (tile_passage_value ^ 0b00001, true)
+                                                }
+                                                Some(Direction::Left) => {
+                                                    (tile_passage_value ^ 0b00010, true)
+                                                }
+                                                Some(Direction::Right) => {
+                                                    (tile_passage_value ^ 0b00100, true)
+                                                }
+                                                Some(Direction::Up) => {
+                                                    (tile_passage_value ^ 0b01000, true)
+                                                }
+                                                _ => (tile_passage_value, false),
+                                            };
+                                        if tile_passage_value_changed {
                                             if tile_id + tile_range.end > tileset.passages.len() {
                                                 tileset.passages.resize(tile_id + tile_range.end);
                                             }
                                             for i in tile_range {
-                                                tileset.passages[tile_id + i] = tile_value
+                                                tileset.passages[tile_id + i] = (tile_passage_value
+                                                    & 0b11111)
                                                     | (tileset.passages[tile_id + i] & !0b11111);
                                             }
                                             modified = true;
@@ -403,7 +442,7 @@ impl luminol_core::Window for Window {
                                             ui,
                                             tile_rect.center().lerp(tile_rect.center_bottom(), 0.5),
                                             direction == Some(Direction::Down),
-                                            if tile_value & 0b00001 == 0 {
+                                            if tile_passage_value & 0b00001 == 0 {
                                                 Overlay::Direction(Direction::Down)
                                             } else {
                                                 Overlay::Dot
@@ -414,7 +453,7 @@ impl luminol_core::Window for Window {
                                             ui,
                                             tile_rect.center().lerp(tile_rect.left_center(), 0.5),
                                             direction == Some(Direction::Left),
-                                            if tile_value & 0b00010 == 0 {
+                                            if tile_passage_value & 0b00010 == 0 {
                                                 Overlay::Direction(Direction::Left)
                                             } else {
                                                 Overlay::Dot
@@ -425,7 +464,7 @@ impl luminol_core::Window for Window {
                                             ui,
                                             tile_rect.center().lerp(tile_rect.right_center(), 0.5),
                                             direction == Some(Direction::Right),
-                                            if tile_value & 0b00100 == 0 {
+                                            if tile_passage_value & 0b00100 == 0 {
                                                 Overlay::Direction(Direction::Right)
                                             } else {
                                                 Overlay::Dot
@@ -436,10 +475,155 @@ impl luminol_core::Window for Window {
                                             ui,
                                             tile_rect.center().lerp(tile_rect.center_top(), 0.5),
                                             direction == Some(Direction::Up),
-                                            if tile_value & 0b01000 == 0 {
+                                            if tile_passage_value & 0b01000 == 0 {
                                                 Overlay::Direction(Direction::Up)
                                             } else {
                                                 Overlay::Dot
+                                            },
+                                        );
+                                    }
+
+                                    Property::Priority => {
+                                        // Handle clicking to change priority
+                                        let tile_priority_value = if response.clicked() {
+                                            if tile_id + tile_range.end > tileset.priorities.len() {
+                                                tileset.priorities.resize(tile_id + tile_range.end);
+                                            }
+                                            let new_tile_priority_value =
+                                                if (0..=6).contains(&tile_priority_value) {
+                                                    tile_priority_value
+                                                } else {
+                                                    0
+                                                };
+                                            let new_tile_priority_value =
+                                                (new_tile_priority_value + 1) % 6;
+                                            for i in tile_range {
+                                                tileset.priorities[tile_id + i] =
+                                                    new_tile_priority_value;
+                                            }
+                                            modified = true;
+                                            new_tile_priority_value
+                                        } else {
+                                            tile_priority_value
+                                        };
+
+                                        // Draw a symbol on top of the tile depending on the
+                                        // priority
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center(),
+                                            response.hovered(),
+                                            match tile_priority_value {
+                                                1 => Overlay::Character('1'),
+                                                2 => Overlay::Character('2'),
+                                                3 => Overlay::Character('3'),
+                                                4 => Overlay::Character('4'),
+                                                5 => Overlay::Character('5'),
+                                                _ => Overlay::Dot,
+                                            },
+                                        );
+                                    }
+
+                                    Property::BushFlag => {
+                                        // Handle clicking to change bush flag
+                                        let tile_passage_value = if response.clicked() {
+                                            if tile_id + tile_range.end > tileset.passages.len() {
+                                                tileset.passages.resize(tile_id + tile_range.end);
+                                            }
+                                            for i in tile_range {
+                                                tileset.passages[tile_id + i] ^= 0b01000000;
+                                            }
+                                            modified = true;
+                                            tile_passage_value ^ 0b01000000
+                                        } else {
+                                            tile_passage_value
+                                        };
+
+                                        // Draw a symbol on top of the tile depending on the
+                                        // bush flag
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center(),
+                                            response.hovered(),
+                                            if tile_passage_value & 0b01000000 != 0 {
+                                                Overlay::Approx
+                                            } else {
+                                                Overlay::Dot
+                                            },
+                                        );
+                                    }
+
+                                    Property::CounterFlag => {
+                                        // Handle clicking to change counter flag
+                                        let tile_passage_value = if response.clicked() {
+                                            if tile_id + tile_range.end > tileset.passages.len() {
+                                                tileset.passages.resize(tile_id + tile_range.end);
+                                            }
+                                            for i in tile_range {
+                                                tileset.passages[tile_id + i] ^= 0b10000000;
+                                            }
+                                            modified = true;
+                                            tile_passage_value ^ 0b10000000
+                                        } else {
+                                            tile_passage_value
+                                        };
+
+                                        // Draw a symbol on top of the tile depending on the
+                                        // counter flag
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center(),
+                                            response.hovered(),
+                                            if tile_passage_value & 0b10000000 != 0 {
+                                                Overlay::Diamond
+                                            } else {
+                                                Overlay::Dot
+                                            },
+                                        );
+                                    }
+
+                                    Property::TerrainTag => {
+                                        // Handle clicking to change terrain tag
+                                        let tile_terrain_value = if response.clicked() {
+                                            if tile_id + tile_range.end > tileset.terrain_tags.len()
+                                            {
+                                                tileset
+                                                    .terrain_tags
+                                                    .resize(tile_id + tile_range.end);
+                                            }
+                                            let new_tile_terrain_value =
+                                                if (0..=8).contains(&tile_terrain_value) {
+                                                    tile_terrain_value
+                                                } else {
+                                                    0
+                                                };
+                                            let new_tile_terrain_value =
+                                                (new_tile_terrain_value + 1) % 8;
+                                            for i in tile_range {
+                                                tileset.terrain_tags[tile_id + i] =
+                                                    new_tile_terrain_value;
+                                            }
+                                            modified = true;
+                                            new_tile_terrain_value
+                                        } else {
+                                            tile_terrain_value
+                                        };
+
+                                        // Draw a symbol on top of the tile depending on the
+                                        // terrain tag
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center(),
+                                            response.hovered(),
+                                            match tile_terrain_value & 0b111 {
+                                                1 => Overlay::Character('1'),
+                                                2 => Overlay::Character('2'),
+                                                3 => Overlay::Character('3'),
+                                                4 => Overlay::Character('4'),
+                                                5 => Overlay::Character('5'),
+                                                6 => Overlay::Character('6'),
+                                                7 => Overlay::Character('7'),
+                                                _ => Overlay::Dot,
                                             },
                                         );
                                     }
