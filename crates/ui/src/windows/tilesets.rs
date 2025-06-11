@@ -57,6 +57,8 @@ enum Overlay {
 #[derive(strum::Display, strum::EnumIter)]
 enum Property {
     Passage,
+    #[strum(to_string = "Passage (4-directional)")]
+    Passage4Directional,
 }
 
 fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Overlay) {
@@ -75,6 +77,7 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
     ui.painter().text(
         pos + match overlay {
             Overlay::Passage(Passage::O) => egui::vec2(1., 0.),
+            Overlay::Direction(_) => egui::vec2(-1., 0.),
             _ => egui::Vec2::ZERO,
         },
         egui::Align2::CENTER_CENTER,
@@ -96,6 +99,7 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
     ui.painter().text(
         pos + match overlay {
             Overlay::Passage(Passage::Square) => egui::vec2(0., 1.),
+            Overlay::Direction(_) => egui::vec2(-1., 0.),
             Overlay::Dot => egui::vec2(0., 1.),
             _ => egui::Vec2::ZERO,
         },
@@ -116,7 +120,10 @@ fn paint_overlay(ui: &mut egui::Ui, pos: egui::Pos2, hovered: bool, overlay: Ove
     );
 
     ui.painter().text(
-        pos,
+        pos + match overlay {
+            Overlay::Direction(_) => egui::vec2(-1., 0.),
+            _ => egui::Vec2::ZERO,
+        },
         egui::Align2::CENTER_CENTER,
         text,
         egui::FontId {
@@ -271,67 +278,172 @@ impl luminol_core::Window for Window {
                                     (y - 1) * 8 + x + 384
                                 };
 
-                                // Determine what the passage type is for this tile ID
-                                let value = if tile_id >= tileset.passages.len() {
+                                let tile_range = if y == 0 { 0..48 } else { 0..1 };
+
+                                let tile_value = if tile_id >= tileset.passages.len() {
                                     0
                                 } else {
                                     tileset.passages[tile_id]
                                 };
-                                let passage = if y == 0 && value & 0b10000 == 0b10000 {
-                                    Passage::Square
-                                } else if value & 0b01111 == 0b01111 {
-                                    Passage::X
-                                } else {
-                                    Passage::O
-                                };
 
                                 // Determine the egui coordinates of this tile in the tilepicker
-                                let rect = egui::Rect::from_min_size(
+                                let tile_rect = egui::Rect::from_min_size(
                                     egui::pos2(x as f32 * 32., y as f32 * 32.)
                                         + tilepicker_response.rect.min.to_vec2(),
                                     egui::Vec2::splat(32.),
                                 );
-                                let response = ui.allocate_rect(rect, egui::Sense::click());
+                                let response = ui.allocate_rect(tile_rect, egui::Sense::click());
 
-                                // Handle clicking on a tile to change its passage
-                                let passage = if response.clicked() {
-                                    let passage = match passage {
-                                        Passage::X if y == 0 => Passage::Square,
-                                        Passage::X | Passage::Square => Passage::O,
-                                        Passage::O => Passage::X,
-                                    };
-                                    let range = if y == 0 { 0..48 } else { 0..1 };
-                                    if tile_id + range.end > tileset.passages.len() {
-                                        tileset.passages.resize(tile_id + range.end);
-                                    }
-                                    for i in range {
-                                        let new_value = match passage {
-                                            Passage::X => 0b01111,
-                                            Passage::O => 0b00000,
-                                            Passage::Square => {
-                                                if SQUARE_PASSAGE_MASK.binary_search(&i).is_ok() {
-                                                    0b10000
-                                                } else {
-                                                    0b11111
-                                                }
-                                            }
+                                match self.property {
+                                    Property::Passage => {
+                                        // Determine what the passage type is for this tile ID
+                                        let passage = if y == 0 && tile_value & 0b10000 == 0b10000 {
+                                            Passage::Square
+                                        } else if tile_value & 0b01111 == 0b01111 {
+                                            Passage::X
+                                        } else {
+                                            Passage::O
                                         };
-                                        tileset.passages[tile_id + i] =
-                                            new_value | (tileset.passages[tile_id + i] & !0b11111);
-                                    }
-                                    modified = true;
-                                    passage
-                                } else {
-                                    passage
-                                };
 
-                                // Draw a symbol on top of the tile depending on the passage
-                                paint_overlay(
-                                    ui,
-                                    rect.center(),
-                                    response.hovered(),
-                                    Overlay::Passage(passage),
-                                );
+                                        // Handle clicking on a tile to change its passage
+                                        let passage = if response.clicked() {
+                                            let passage = match passage {
+                                                Passage::X if y == 0 => Passage::Square,
+                                                Passage::X | Passage::Square => Passage::O,
+                                                Passage::O => Passage::X,
+                                            };
+                                            if tile_id + tile_range.end > tileset.passages.len() {
+                                                tileset.passages.resize(tile_id + tile_range.end);
+                                            }
+                                            for i in tile_range {
+                                                let new_tile_value = match passage {
+                                                    Passage::X => 0b01111,
+                                                    Passage::O => 0b00000,
+                                                    Passage::Square => {
+                                                        if SQUARE_PASSAGE_MASK
+                                                            .binary_search(&i)
+                                                            .is_ok()
+                                                        {
+                                                            0b10000
+                                                        } else {
+                                                            0b11111
+                                                        }
+                                                    }
+                                                };
+                                                tileset.passages[tile_id + i] = new_tile_value
+                                                    | (tileset.passages[tile_id + i] & !0b11111);
+                                            }
+                                            modified = true;
+                                            passage
+                                        } else {
+                                            passage
+                                        };
+
+                                        // Draw a symbol on top of the tile depending on the passage
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center(),
+                                            response.hovered(),
+                                            Overlay::Passage(passage),
+                                        );
+                                    }
+
+                                    Property::Passage4Directional => {
+                                        // Find the direction within the tile that the cursor is
+                                        // hovering over
+                                        let direction = response
+                                            .hovered()
+                                            .then(|| {
+                                                response.hover_pos().map(|pos| {
+                                                    let (min_index, _) = [
+                                                        (pos - tile_rect.center_bottom()).length(),
+                                                        (pos - tile_rect.left_center()).length(),
+                                                        (pos - tile_rect.right_center()).length(),
+                                                        (pos - tile_rect.center_top()).length(),
+                                                    ]
+                                                    .iter()
+                                                    .enumerate()
+                                                    .min_by(|(_, a), (_, b)| a.total_cmp(b))
+                                                    .unwrap();
+                                                    match min_index {
+                                                        0 => Direction::Down,
+                                                        1 => Direction::Left,
+                                                        2 => Direction::Right,
+                                                        3 => Direction::Up,
+                                                        _ => unreachable!(),
+                                                    }
+                                                })
+                                            })
+                                            .flatten();
+
+                                        // Handle clicking to change passage
+                                        let (tile_value, tile_value_changed) = match response
+                                            .clicked()
+                                            .then_some(direction)
+                                            .flatten()
+                                        {
+                                            Some(Direction::Down) => (tile_value ^ 0b00001, true),
+                                            Some(Direction::Left) => (tile_value ^ 0b00010, true),
+                                            Some(Direction::Right) => (tile_value ^ 0b00100, true),
+                                            Some(Direction::Up) => (tile_value ^ 0b01000, true),
+                                            _ => (tile_value, false),
+                                        };
+                                        if tile_value_changed {
+                                            if tile_id + tile_range.end > tileset.passages.len() {
+                                                tileset.passages.resize(tile_id + tile_range.end);
+                                            }
+                                            for i in tile_range {
+                                                tileset.passages[tile_id + i] = tile_value
+                                                    | (tileset.passages[tile_id + i] & !0b11111);
+                                            }
+                                            modified = true;
+                                        }
+
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center().lerp(tile_rect.center_bottom(), 0.5),
+                                            direction == Some(Direction::Down),
+                                            if tile_value & 0b00001 == 0 {
+                                                Overlay::Direction(Direction::Down)
+                                            } else {
+                                                Overlay::Dot
+                                            },
+                                        );
+
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center().lerp(tile_rect.left_center(), 0.5),
+                                            direction == Some(Direction::Left),
+                                            if tile_value & 0b00010 == 0 {
+                                                Overlay::Direction(Direction::Left)
+                                            } else {
+                                                Overlay::Dot
+                                            },
+                                        );
+
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center().lerp(tile_rect.right_center(), 0.5),
+                                            direction == Some(Direction::Right),
+                                            if tile_value & 0b00100 == 0 {
+                                                Overlay::Direction(Direction::Right)
+                                            } else {
+                                                Overlay::Dot
+                                            },
+                                        );
+
+                                        paint_overlay(
+                                            ui,
+                                            tile_rect.center().lerp(tile_rect.center_top(), 0.5),
+                                            direction == Some(Direction::Up),
+                                            if tile_value & 0b01000 == 0 {
+                                                Overlay::Direction(Direction::Up)
+                                            } else {
+                                                Overlay::Dot
+                                            },
+                                        );
+                                    }
+                                };
                             }
                         });
 
