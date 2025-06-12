@@ -26,6 +26,7 @@ use itertools::Itertools;
 use luminol_core::Modal;
 
 use crate::components::{DatabaseView, EnumComboBox, Field, Tilepicker, UiExt};
+use crate::modals::graphic_picker::autotile::Modal as AutotileModal;
 use crate::modals::graphic_picker::tileset::Modal as TilesetModal;
 
 const SQUARE_PASSAGE_MASK: [usize; 14] = [20, 21, 22, 23, 33, 34, 35, 36, 37, 42, 43, 45, 46, 47];
@@ -165,10 +166,13 @@ pub struct Window {
 
     previous_tileset: Option<usize>,
 
+    autotile_modals: [AutotileModal; 7],
     tileset_modal: TilesetModal,
 
     tilepicker: Option<Tilepicker>,
     view: DatabaseView,
+
+    autotiles_view_is_depersisted: bool,
 }
 
 impl Window {
@@ -180,8 +184,15 @@ impl Window {
             property: Property::Passage,
             previous_tileset: None,
             tilepicker: None,
+            autotile_modals: core::array::from_fn(|i| {
+                AutotileModal::new(
+                    &tileset.autotile_names[i],
+                    format!("autotile_graphic_picker_{i}").into(),
+                )
+            }),
             tileset_modal: TilesetModal::new(tileset, "tileset_graphic_picker".into()),
             view: DatabaseView::new(),
+            autotiles_view_is_depersisted: false,
         }
     }
 }
@@ -253,8 +264,66 @@ impl luminol_core::Window for Window {
                             }
                         });
 
+                        ui.with_padded_stripe(false, |ui| {
+                            // Forget whether the collapsing header was open from the last time
+                            // the editor was open
+                            let ui_id = ui.make_persistent_id("autotiles_collapsing_header");
+                            if !self.autotiles_view_is_depersisted {
+                                self.autotiles_view_is_depersisted = true;
+                                if let Some(h) =
+                                    egui::collapsing_header::CollapsingState::load(ui.ctx(), ui_id)
+                                {
+                                    h.remove(ui.ctx());
+                                }
+                                ui.ctx().animate_bool_with_time(ui_id, false, 0.);
+                            }
+
+                            egui::collapsing_header::CollapsingState::load_with_default_open(
+                                ui.ctx(),
+                                ui_id,
+                                false,
+                            )
+                            .show_header(ui, |ui| {
+                                ui.with_cross_justify(|ui| {
+                                    ui.label("Autotiles");
+                                });
+                            })
+                            .body(|ui| {
+                                let atlas_dirty = (0..7).any(|i| {
+                                    ui.with_padded_stripe(i % 2 == 0, |ui| {
+                                        ui.add(Field::new(
+                                            format!("Autotile {}", i + 1),
+                                            self.autotile_modals[i].button(
+                                                &mut tileset.autotile_names[i],
+                                                update_state,
+                                            ),
+                                        ))
+                                        .changed()
+                                    })
+                                    .inner
+                                });
+
+                                if atlas_dirty {
+                                    modified = true;
+                                    needs_update = true;
+                                    // TODO: reload everything that uses this atlas
+                                    update_state
+                                        .graphics
+                                        .atlas_loader
+                                        .remove_atlas(tileset.tileset_name.as_deref());
+                                }
+                            });
+                        });
+
                         if needs_update {
                             self.tileset_modal.reset(update_state, tileset);
+                            for (modal, name) in self
+                                .autotile_modals
+                                .iter_mut()
+                                .zip(tileset.autotile_names.iter_mut())
+                            {
+                                modal.reset(update_state, name);
+                            }
                             self.tilepicker = Some(
                                 Tilepicker::new(
                                     update_state,

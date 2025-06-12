@@ -131,6 +131,12 @@ impl Loader {
             .clone()
     }
 
+    pub fn remove_atlas(&self, tileset_name: Option<&camino::Utf8Path>) -> Option<Atlas> {
+        self.atlases
+            .remove(tileset_name.unwrap_or(&camino::Utf8PathBuf::default()))
+            .map(|(_, atlas)| atlas)
+    }
+
     pub fn clear(&self) {
         self.atlases.clear();
         self.animation_atlases.clear();

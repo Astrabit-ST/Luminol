@@ -27,6 +27,7 @@ use luminol_core::prelude::*;
 
 pub mod actor;
 pub mod animation;
+pub mod autotile;
 pub mod basic;
 pub mod event;
 pub mod hue;
