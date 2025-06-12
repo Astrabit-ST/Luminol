@@ -68,7 +68,18 @@ impl Atlas {
                 .wrap_err_with(|| format!("Error loading atlas tileset {tileset_name:?}"));
             // we don't actually need to unwrap this to a placeholder image because we fill in the atlas texture with the placeholder image.
             match result {
-                Ok(img) => Some(img.into_rgba8()),
+                Ok(img) => Some({
+                    let img = img.into_rgba8();
+                    if img.width() < TILESET_WIDTH {
+                        // If the image is less than TILESET_WIDTH pixels wide, pad the image with
+                        // empty pixels on the right
+                        let mut background = image::RgbaImage::new(TILESET_WIDTH, img.height());
+                        image::imageops::overlay(&mut background, &img, 0, 0);
+                        background
+                    } else {
+                        img
+                    }
+                }),
                 Err(e) => {
                     graphics_state.send_texture_error(e);
                     None
