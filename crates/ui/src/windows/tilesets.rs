@@ -306,7 +306,6 @@ impl luminol_core::Window for Window {
                                 if atlas_dirty {
                                     modified = true;
                                     needs_update = true;
-                                    // TODO: reload everything that uses this atlas
                                     update_state
                                         .graphics
                                         .atlas_loader
@@ -316,6 +315,7 @@ impl luminol_core::Window for Window {
                         });
 
                         if needs_update {
+                            tileset.nonce += 1;
                             self.tileset_modal.reset(update_state, tileset);
                             for (modal, name) in self
                                 .autotile_modals

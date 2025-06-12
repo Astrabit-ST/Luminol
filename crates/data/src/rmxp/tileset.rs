@@ -53,4 +53,10 @@ pub struct Tileset {
     pub passages: Table1,
     pub priorities: Table1,
     pub terrain_tags: Table1,
+
+    /// Gets incremented every time the tileset texture gets modified by the tileset editor so that
+    /// we can detect when we need to update other editors that are currently using this tileset
+    #[serde(skip)]
+    #[marshal(skip)]
+    pub nonce: u64,
 }

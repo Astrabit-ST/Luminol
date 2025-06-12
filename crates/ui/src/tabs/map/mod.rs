@@ -96,9 +96,9 @@ pub struct Tab {
     /// Asynchronous task used to save the map as an image file
     save_as_image_promise: Option<poll_promise::Promise<color_eyre::Result<()>>>,
 
-    /// Stores the name of the tileset texture used the previous frame so we can detect when the
-    /// user changes it in the tileset editor
-    previous_tileset_name: Option<camino::Utf8PathBuf>,
+    /// Stores the nonce of the tileset used the previous frame so we can detect when the user
+    /// modifies the tileset in the tileset editor
+    previous_tileset_nonce: u64,
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -198,7 +198,7 @@ impl Tab {
 
             save_as_image_promise: None,
 
-            previous_tileset_name: tileset.tileset_name.clone(),
+            previous_tileset_nonce: tileset.nonce,
         })
     }
 }
@@ -369,7 +369,7 @@ impl luminol_core::Tab for Tab {
             let tileset = &tilesets.data[map.tileset_id];
 
             // Rebuild the map graphics and tilepicker if the tileset texture has changed
-            if tileset.tileset_name != self.previous_tileset_name {
+            if tileset.nonce != self.previous_tileset_nonce {
                 let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
                 luminol_graphics::Collision::calculate_passages(
                     &tileset.passages,
@@ -396,7 +396,7 @@ impl luminol_core::Tab for Tab {
                     Some(self.id),
                 );
 
-                self.previous_tileset_name.clone_from(&tileset.tileset_name);
+                self.previous_tileset_nonce = tileset.nonce;
             }
         }
 
