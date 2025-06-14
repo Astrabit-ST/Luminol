@@ -175,22 +175,17 @@ pub struct Window {
     autotiles_view_is_depersisted: bool,
 }
 
-impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let tilesets = update_state.data.tilesets();
-        let tileset = &tilesets.data[0];
+impl Default for Window {
+    fn default() -> Self {
         Self {
             selected_tileset_name: None,
             property: Property::Passage,
             previous_tileset: None,
             tilepicker: None,
             autotile_modals: core::array::from_fn(|i| {
-                AutotileModal::new(
-                    &tileset.autotile_names[i],
-                    format!("autotile_graphic_picker_{i}").into(),
-                )
+                AutotileModal::new(format!("autotile_graphic_picker_{i}").into(), i)
             }),
-            tileset_modal: TilesetModal::new(tileset, "tileset_graphic_picker".into()),
+            tileset_modal: TilesetModal::new("tileset_graphic_picker".into()),
             view: DatabaseView::new(),
             autotiles_view_is_depersisted: false,
         }
@@ -293,10 +288,7 @@ impl luminol_core::Window for Window {
                                     ui.with_padded_stripe(i % 2 == 0, |ui| {
                                         ui.add(Field::new(
                                             format!("Autotile {}", i + 1),
-                                            self.autotile_modals[i].button(
-                                                &mut tileset.autotile_names[i],
-                                                update_state,
-                                            ),
+                                            self.autotile_modals[i].button(tileset, update_state),
                                         ))
                                         .changed()
                                     })
@@ -317,12 +309,8 @@ impl luminol_core::Window for Window {
                         if needs_update {
                             tileset.nonce += 1;
                             self.tileset_modal.reset(update_state, tileset);
-                            for (modal, name) in self
-                                .autotile_modals
-                                .iter_mut()
-                                .zip(tileset.autotile_names.iter_mut())
-                            {
-                                modal.reset(update_state, name);
+                            for modal in self.autotile_modals.iter_mut() {
+                                modal.reset(update_state, tileset);
                             }
                             self.tilepicker = Some(
                                 Tilepicker::new(

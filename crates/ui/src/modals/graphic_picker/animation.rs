@@ -30,8 +30,6 @@ use super::Entry;
 pub struct Modal {
     state: State,
     id_source: egui::Id,
-    animation_name: Option<camino::Utf8PathBuf>,
-    animation_hue: i32,
     scrolled_on_first_open: bool,
 }
 
@@ -42,16 +40,16 @@ enum State {
         filtered_entries: Vec<Entry>,
         search_text: String,
         cellpicker: Cellpicker,
+        animation_name: Option<camino::Utf8PathBuf>,
+        animation_hue: i32,
     },
 }
 
 impl Modal {
-    pub fn new(animation: &rpg::Animation, id_source: egui::Id) -> Self {
+    pub fn new(id_source: egui::Id) -> Self {
         Self {
             state: State::Closed,
             id_source,
-            animation_name: animation.animation_name.clone(),
-            animation_hue: animation.animation_hue,
             scrolled_on_first_open: false,
         }
     }
@@ -83,10 +81,12 @@ impl luminol_core::Modal for Modal {
                     entries,
                     cellpicker: Self::load_cellpicker(
                         update_state,
-                        &self.animation_name,
-                        self.animation_hue,
+                        &data.animation_name,
+                        data.animation_hue,
                     ),
                     search_text: String::new(),
+                    animation_name: data.animation_name.clone(),
+                    animation_hue: data.animation_hue,
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -97,9 +97,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, _update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
-        self.animation_name.clone_from(&data.animation_name);
-        self.animation_hue = data.animation_hue;
+    fn reset(&mut self, _update_state: &mut UpdateState<'_>, _data: Self::Data<'_>) {
         self.state = State::Closed;
         self.scrolled_on_first_open = false;
     }
@@ -144,13 +142,15 @@ impl Modal {
             filtered_entries,
             search_text,
             cellpicker,
+            animation_name,
+            animation_hue,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let animation_name = self.animation_name.as_ref().and_then(|name| {
+        let desensitized_animation_name = animation_name.as_ref().and_then(|name| {
             update_state
                 .filesystem
                 .desensitize(format!("Graphics/Animations/{name}"))
@@ -189,10 +189,10 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = self.animation_name.is_none();
+                                        let checked = animation_name.is_none();
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && self.animation_name.is_some() {
-                                            self.animation_name = None;
+                                        if res.clicked() && animation_name.is_some() {
+                                            *animation_name = None;
                                             *cellpicker =
                                                 Self::load_cellpicker(update_state, &None, 0);
                                         }
@@ -205,7 +205,8 @@ impl Modal {
                                     for (i, Entry { path, invalid }) in
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
-                                        let checked = animation_name.as_ref() == Some(path);
+                                        let checked =
+                                            desensitized_animation_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -218,15 +219,15 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                self.animation_name = Some(
+                                                *animation_name = Some(
                                                     path.file_stem()
                                                         .unwrap_or(path.as_str())
                                                         .into(),
                                                 );
                                                 *cellpicker = Self::load_cellpicker(
                                                     update_state,
-                                                    &self.animation_name,
-                                                    self.animation_hue,
+                                                    animation_name,
+                                                    *animation_hue,
                                                 );
                                             }
                                         });
@@ -236,11 +237,12 @@ impl Modal {
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if self.animation_name.is_none() {
+                            let row = if animation_name.is_none() {
                                 Some(0)
                             } else {
                                 filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (animation_name.as_ref() == Some(&entry.path)).then_some(i + 1)
+                                    (desensitized_animation_name.as_ref() == Some(&entry.path))
+                                        .then_some(i + 1)
                                 })
                             };
                             if let Some(row) = row {
@@ -270,13 +272,10 @@ impl Modal {
                     ui.add_space(1.0); // pad out the top
                     ui.horizontal(|ui| {
                         ui.label("Hue");
-                        if ui
-                            .add(egui::Slider::new(&mut self.animation_hue, 0..=360))
-                            .changed()
-                        {
+                        if ui.add(egui::Slider::new(animation_hue, 0..=360)).changed() {
                             cellpicker.view.display.set_hue(
                                 &update_state.graphics.render_state,
-                                self.animation_hue as f32 / 360.,
+                                *animation_hue as f32 / 360.,
                             );
                         }
                     });
@@ -297,8 +296,8 @@ impl Modal {
             });
 
         if needs_save {
-            data.animation_name.clone_from(&self.animation_name);
-            data.animation_hue = self.animation_hue;
+            data.animation_name.clone_from(animation_name);
+            data.animation_hue = *animation_hue;
         }
 
         if !(win_open && keep_open) {

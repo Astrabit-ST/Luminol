@@ -170,7 +170,7 @@ impl TopBar {
                 if ui.button("Tilesets").clicked() {
                     update_state
                         .edit_windows
-                        .add_window(luminol_ui::windows::tilesets::Window::new(update_state));
+                        .add_window(luminol_ui::windows::tilesets::Window::default());
                 }
 
                 if ui.button("Animations").clicked() {

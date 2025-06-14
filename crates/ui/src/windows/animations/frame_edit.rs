@@ -138,7 +138,6 @@ pub fn show_frame_edit(
         modal
     } else {
         state.animation_graphic_picker = Some(modals::graphic_picker::animation::Modal::new(
-            animation,
             "animation_graphic_picker".into(),
         ));
         state.animation_graphic_picker.as_mut().unwrap()

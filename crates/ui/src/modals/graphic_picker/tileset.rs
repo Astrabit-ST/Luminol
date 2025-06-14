@@ -30,9 +30,6 @@ use super::Entry;
 pub struct Modal {
     state: State,
     id_source: egui::Id,
-    tileset_name: Option<camino::Utf8PathBuf>,
-    autotile_names: [Option<String>; 7],
-    passages: luminol_data::Table1,
     scrolled_on_first_open: bool,
 }
 
@@ -43,17 +40,15 @@ enum State {
         filtered_entries: Vec<Entry>,
         search_text: String,
         tilepicker: Tilepicker,
+        tileset_name: Option<camino::Utf8PathBuf>,
     },
 }
 
 impl Modal {
-    pub fn new(tileset: &rpg::Tileset, id_source: egui::Id) -> Self {
+    pub fn new(id_source: egui::Id) -> Self {
         Self {
             state: State::Closed,
             id_source,
-            tileset_name: tileset.tileset_name.clone(),
-            autotile_names: tileset.autotile_names.clone(),
-            passages: tileset.passages.clone(),
             scrolled_on_first_open: false,
         }
     }
@@ -89,11 +84,12 @@ impl luminol_core::Modal for Modal {
                     entries,
                     tilepicker: Self::load_tilepicker(
                         update_state,
-                        self.tileset_name.as_deref(),
-                        &self.autotile_names,
-                        &self.passages,
+                        data.tileset_name.as_deref(),
+                        &data.autotile_names,
+                        &data.passages,
                     ),
                     search_text: String::new(),
+                    tileset_name: data.tileset_name.clone(),
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -104,8 +100,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, _update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
-        self.tileset_name.clone_from(&data.tileset_name);
+    fn reset(&mut self, _update_state: &mut UpdateState<'_>, _data: Self::Data<'_>) {
         self.state = State::Closed;
         self.scrolled_on_first_open = false;
     }
@@ -136,13 +131,14 @@ impl Modal {
             filtered_entries,
             search_text,
             tilepicker,
+            tileset_name,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let tileset_name = self.tileset_name.as_ref().and_then(|name| {
+        let desensitized_tileset_name = tileset_name.as_ref().and_then(|name| {
             update_state
                 .filesystem
                 .desensitize(format!("Graphics/Tilesets/{name}"))
@@ -181,15 +177,15 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = self.tileset_name.is_none();
+                                        let checked = tileset_name.is_none();
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && self.tileset_name.is_some() {
-                                            self.tileset_name = None;
+                                        if res.clicked() && tileset_name.is_some() {
+                                            *tileset_name = None;
                                             *tilepicker = Self::load_tilepicker(
                                                 update_state,
-                                                self.tileset_name.as_deref(),
-                                                &self.autotile_names,
-                                                &self.passages,
+                                                tileset_name.as_deref(),
+                                                &data.autotile_names,
+                                                &data.passages,
                                             );
                                         }
                                     }
@@ -201,7 +197,8 @@ impl Modal {
                                     for (i, Entry { path, invalid }) in
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
-                                        let checked = tileset_name.as_ref() == Some(path);
+                                        let checked =
+                                            desensitized_tileset_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -214,16 +211,16 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                self.tileset_name = Some(
+                                                *tileset_name = Some(
                                                     path.file_stem()
                                                         .unwrap_or(path.as_str())
                                                         .into(),
                                                 );
                                                 *tilepicker = Self::load_tilepicker(
                                                     update_state,
-                                                    self.tileset_name.as_deref(),
-                                                    &self.autotile_names,
-                                                    &self.passages,
+                                                    tileset_name.as_deref(),
+                                                    &data.autotile_names,
+                                                    &data.passages,
                                                 );
                                             }
                                         });
@@ -233,11 +230,12 @@ impl Modal {
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if self.tileset_name.is_none() {
+                            let row = if tileset_name.is_none() {
                                 Some(0)
                             } else {
                                 filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (tileset_name.as_ref() == Some(&entry.path)).then_some(i + 1)
+                                    (desensitized_tileset_name.as_ref() == Some(&entry.path))
+                                        .then_some(i + 1)
                                 })
                             };
                             if let Some(row) = row {
@@ -278,7 +276,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.tileset_name.clone_from(&self.tileset_name);
+            data.tileset_name.clone_from(tileset_name);
         }
 
         if !(win_open && keep_open) {

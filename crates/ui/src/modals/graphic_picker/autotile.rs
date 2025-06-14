@@ -31,7 +31,7 @@ use super::Entry;
 pub struct Modal {
     state: State,
     id_source: egui::Id,
-    autotile_name: Option<String>,
+    autotile_index: usize,
     scrolled_on_first_open: bool,
 }
 
@@ -42,22 +42,23 @@ enum State {
         filtered_entries: Vec<Entry>,
         search_text: String,
         sprite: Option<PreviewSprite>,
+        autotile_name: Option<String>,
     },
 }
 
 impl Modal {
-    pub fn new(autotile_name: &Option<String>, id_source: egui::Id) -> Self {
+    pub fn new(id_source: egui::Id, autotile_index: usize) -> Self {
         Self {
             state: State::Closed,
             id_source,
-            autotile_name: autotile_name.clone(),
+            autotile_index,
             scrolled_on_first_open: false,
         }
     }
 }
 
 impl luminol_core::Modal for Modal {
-    type Data<'m> = &'m mut Option<String>;
+    type Data<'m> = &'m mut luminol_data::rpg::Tileset;
 
     fn button<'m>(
         &'m mut self,
@@ -67,7 +68,7 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = data {
+            let button_text = if let Some(name) = &data.autotile_names[self.autotile_index] {
                 format!("Graphics/Autotiles/{name}")
             } else {
                 "(None)".to_string()
@@ -77,35 +78,46 @@ impl luminol_core::Modal for Modal {
             if response.clicked() && !is_open {
                 let entries = Entry::load(update_state, "Graphics/Autotiles".into());
 
-                let autotile_name = self.autotile_name.as_ref().and_then(|name| {
-                    update_state
-                        .filesystem
-                        .desensitize(format!("Graphics/Autotiles/{name}"))
-                        .ok()
-                        .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
-                });
+                let desensitized_autotile_name = data.autotile_names[self.autotile_index]
+                    .as_ref()
+                    .and_then(|name| {
+                        update_state
+                            .filesystem
+                            .desensitize(format!("Graphics/Autotiles/{name}"))
+                            .ok()
+                            .map(|path| {
+                                camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())
+                            })
+                    });
 
-                let sprite = autotile_name.as_ref().and_then(|autotile_name| {
-                    let texture = update_state
-                        .graphics
-                        .texture_loader
-                        .load_now_dir(update_state.filesystem, "Graphics/Autotiles", autotile_name)
-                        .map_err(|e| update_state.graphics.send_texture_error(e))
-                        .ok()?;
-                    let viewport = Viewport::new(&update_state.graphics, Default::default());
-                    let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
-                    Some(PreviewSprite {
-                        sprite,
-                        sprite_size: texture.size_vec2(),
-                        viewport,
-                    })
-                });
+                let sprite = desensitized_autotile_name
+                    .as_ref()
+                    .and_then(|autotile_name| {
+                        let texture = update_state
+                            .graphics
+                            .texture_loader
+                            .load_now_dir(
+                                update_state.filesystem,
+                                "Graphics/Autotiles",
+                                autotile_name,
+                            )
+                            .map_err(|e| update_state.graphics.send_texture_error(e))
+                            .ok()?;
+                        let viewport = Viewport::new(&update_state.graphics, Default::default());
+                        let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
+                        Some(PreviewSprite {
+                            sprite,
+                            sprite_size: texture.size_vec2(),
+                            viewport,
+                        })
+                    });
 
                 self.state = State::Open {
                     filtered_entries: entries.clone(),
                     entries,
                     sprite,
                     search_text: String::new(),
+                    autotile_name: data.autotile_names[self.autotile_index].clone(),
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -116,8 +128,7 @@ impl luminol_core::Modal for Modal {
         }
     }
 
-    fn reset(&mut self, _update_state: &mut UpdateState<'_>, data: Self::Data<'_>) {
-        self.autotile_name.clone_from(data);
+    fn reset(&mut self, _update_state: &mut UpdateState<'_>, _data: Self::Data<'_>) {
         self.state = State::Closed;
         self.scrolled_on_first_open = false;
     }
@@ -128,7 +139,7 @@ impl Modal {
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
-        data: &mut Option<String>,
+        data: &mut luminol_data::rpg::Tileset,
     ) -> bool {
         let mut win_open = true;
         let mut keep_open = true;
@@ -139,13 +150,14 @@ impl Modal {
             filtered_entries,
             search_text,
             sprite,
+            autotile_name,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let autotile_name = self.autotile_name.as_ref().and_then(|name| {
+        let desensitized_autotile_name = autotile_name.as_ref().and_then(|name| {
             update_state
                 .filesystem
                 .desensitize(format!("Graphics/Autotiles/{name}"))
@@ -184,10 +196,10 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = self.autotile_name.is_none();
+                                        let checked = autotile_name.is_none();
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && self.autotile_name.is_some() {
-                                            self.autotile_name = None;
+                                        if res.clicked() && autotile_name.is_some() {
+                                            *autotile_name = None;
                                             *sprite = None;
                                         }
                                     }
@@ -199,7 +211,8 @@ impl Modal {
                                     for (i, Entry { path, invalid }) in
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
-                                        let checked = autotile_name.as_ref() == Some(path);
+                                        let checked =
+                                            desensitized_autotile_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -212,14 +225,14 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                self.autotile_name = Some(
+                                                *autotile_name = Some(
                                                     path.file_stem()
                                                         .unwrap_or(path.as_str())
                                                         .into(),
                                                 );
 
                                                 let autotile_name =
-                                                    self.autotile_name.as_ref().and_then(|name| {
+                                                    autotile_name.as_ref().and_then(|name| {
                                                         update_state
                                                             .filesystem
                                                             .desensitize(format!(
@@ -274,11 +287,12 @@ impl Modal {
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if self.autotile_name.is_none() {
+                            let row = if autotile_name.is_none() {
                                 Some(0)
                             } else {
                                 filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (autotile_name.as_ref() == Some(&entry.path)).then_some(i + 1)
+                                    (desensitized_autotile_name.as_ref() == Some(&entry.path))
+                                        .then_some(i + 1)
                                 })
                             };
                             if let Some(row) = row {
@@ -321,7 +335,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.clone_from(&self.autotile_name);
+            data.autotile_names[self.autotile_index].clone_from(autotile_name);
         }
 
         if !(win_open && keep_open) {
