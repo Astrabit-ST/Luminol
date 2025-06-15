@@ -26,8 +26,10 @@ use itertools::Itertools;
 use luminol_core::Modal;
 
 use crate::components::{DatabaseView, EnumComboBox, Field, Tilepicker, UiExt};
-use crate::modals::graphic_picker::autotile::Modal as AutotileModal;
-use crate::modals::graphic_picker::tileset::Modal as TilesetModal;
+use crate::modals::graphic_picker::{
+    autotile::Modal as AutotileModal, battleback::Modal as BattlebackModal, fog::Modal as FogModal,
+    panorama::Modal as PanoramaModal, tileset::Modal as TilesetModal,
+};
 
 const SQUARE_PASSAGE_MASK: [usize; 14] = [20, 21, 22, 23, 33, 34, 35, 36, 37, 42, 43, 45, 46, 47];
 
@@ -168,6 +170,9 @@ pub struct Window {
 
     autotile_modals: [AutotileModal; 7],
     tileset_modal: TilesetModal,
+    panorama_modal: PanoramaModal,
+    fog_modal: FogModal,
+    battleback_modal: BattlebackModal,
 
     tilepicker: Option<Tilepicker>,
     view: DatabaseView,
@@ -186,6 +191,9 @@ impl Default for Window {
                 AutotileModal::new(format!("autotile_graphic_picker_{i}").into(), i)
             }),
             tileset_modal: TilesetModal::new("tileset_graphic_picker".into()),
+            panorama_modal: PanoramaModal::new("panorama_graphic_picker".into()),
+            fog_modal: FogModal::new("fog_graphic_picker".into()),
+            battleback_modal: BattlebackModal::new("battleback_graphic_picker".into()),
             view: DatabaseView::new(),
             autotiles_view_is_depersisted: false,
         }
@@ -306,9 +314,51 @@ impl luminol_core::Window for Window {
                             });
                         });
 
+                        ui.with_padded_stripe(true, |ui| {
+                            let changed = ui
+                                .add(Field::new(
+                                    "Panorama",
+                                    self.panorama_modal.button(tileset, update_state),
+                                ))
+                                .changed();
+                            if changed {
+                                modified = true;
+                                needs_update = true;
+                            }
+                        });
+
+                        ui.with_padded_stripe(false, |ui| {
+                            let changed = ui
+                                .add(Field::new(
+                                    "Fog",
+                                    self.fog_modal.button(tileset, update_state),
+                                ))
+                                .changed();
+                            if changed {
+                                modified = true;
+                                needs_update = true;
+                            }
+                        });
+
+                        ui.with_padded_stripe(true, |ui| {
+                            let changed = ui
+                                .add(Field::new(
+                                    "Battleback",
+                                    self.battleback_modal.button(tileset, update_state),
+                                ))
+                                .changed();
+                            if changed {
+                                modified = true;
+                                needs_update = true;
+                            }
+                        });
+
                         if needs_update {
                             tileset.nonce += 1;
                             self.tileset_modal.reset(update_state, tileset);
+                            self.panorama_modal.reset(update_state, tileset);
+                            self.fog_modal.reset(update_state, tileset);
+                            self.battleback_modal.reset(update_state, tileset);
                             for modal in self.autotile_modals.iter_mut() {
                                 modal.reset(update_state, tileset);
                             }

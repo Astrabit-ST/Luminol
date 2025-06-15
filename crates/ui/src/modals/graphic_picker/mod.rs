@@ -29,8 +29,11 @@ pub mod actor;
 pub mod animation;
 pub mod autotile;
 pub mod basic;
+pub mod battleback;
 pub mod event;
+pub mod fog;
 pub mod hue;
+pub mod panorama;
 pub mod tileset;
 
 #[derive(Default)]
