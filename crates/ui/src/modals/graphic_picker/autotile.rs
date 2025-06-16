@@ -101,7 +101,7 @@ impl luminol_core::Modal for Modal {
                                 "Graphics/Autotiles",
                                 autotile_name,
                             )
-                            .map_err(|e| update_state.graphics.send_texture_error(e))
+                            .map_err(|e| luminol_core::error!(update_state.toasts, e))
                             .ok()?;
                         let viewport = Viewport::new(&update_state.graphics, Default::default());
                         let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
@@ -258,9 +258,10 @@ impl Modal {
                                                                 autotile_name,
                                                             )
                                                             .map_err(|e| {
-                                                                update_state
-                                                                    .graphics
-                                                                    .send_texture_error(e)
+                                                                luminol_core::error!(
+                                                                    update_state.toasts,
+                                                                    e
+                                                                )
                                                             })
                                                             .ok()?;
                                                         let viewport = Viewport::new(

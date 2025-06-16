@@ -60,9 +60,12 @@ impl Default for ParameterEditState {
 }
 
 impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let actors = update_state.data.actors();
-        let actor = &actors.data[0];
+    pub fn new(update_state: &mut luminol_core::UpdateState<'_>) -> Self {
+        let (name, hue) = {
+            let actors = update_state.data.actors();
+            let actor = &actors.data[0];
+            (actor.character_name.clone(), actor.character_hue)
+        };
         Self {
             selected_actor_name: None,
             previous_actor: None,
@@ -70,8 +73,8 @@ impl Window {
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Characters".into(),
-                actor.character_name.as_deref(),
-                actor.character_hue,
+                name.as_deref(),
+                hue,
                 egui::vec2(64., 96.),
                 "actor_graphic_picker",
             ),

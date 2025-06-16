@@ -100,15 +100,11 @@ impl ButtonSprite {
 }
 
 impl Entry {
-    fn load(
-        // FIXME error handling
-        update_state: &UpdateState<'_>,
-        directory: &camino::Utf8Path,
-    ) -> Vec<Self> {
+    fn load(update_state: &UpdateState<'_>, directory: &camino::Utf8Path) -> Vec<Self> {
         let mut entries: Vec<_> = update_state
             .filesystem
             .read_dir(directory)
-            .unwrap()
+            .unwrap_or_default()
             .into_iter()
             .map(|m| Entry {
                 path: m.path.file_name().unwrap_or_default().into(),
@@ -133,11 +129,14 @@ impl Entry {
     fn ui(
         entries: &mut [Self],
         directory: &camino::Utf8Path,
-        update_state: &UpdateState<'_>,
+        update_state: &mut UpdateState<'_>,
         ui: &mut egui::Ui,
         rows: std::ops::Range<usize>,
         selected: &mut Selected,
-        load_preview_sprite: impl Fn(&camino::Utf8Path) -> PreviewSprite,
+        mut load_preview_sprite: impl FnMut(
+            &mut UpdateState<'_>,
+            &camino::Utf8Path,
+        ) -> Option<PreviewSprite>,
     ) {
         let selected_name = match &selected {
             Selected::Entry { path, .. } => update_state
@@ -159,10 +158,15 @@ impl Entry {
                 let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
 
                 if res.clicked() {
-                    *selected = Selected::Entry {
-                        sprite: load_preview_sprite(path.file_name().unwrap_or_default().into()),
-                        path: path.file_stem().unwrap_or_default().into(),
-                    };
+                    if let Some(sprite) = load_preview_sprite(
+                        update_state,
+                        path.file_name().unwrap_or_default().into(),
+                    ) {
+                        *selected = Selected::Entry {
+                            sprite,
+                            path: path.file_stem().unwrap_or_default().into(),
+                        };
+                    }
                 }
             });
         }

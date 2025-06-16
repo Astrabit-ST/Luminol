@@ -53,26 +53,27 @@ enum State {
 
 impl Modal {
     pub fn new(
-        update_state: &UpdateState<'_>,
+        update_state: &mut UpdateState<'_>,
         directory: camino::Utf8PathBuf,
         path: Option<&camino::Utf8Path>,
         button_size: egui::Vec2,
         id_source: impl Into<egui::Id>,
     ) -> Self {
-        let button_sprite = path.map(|path| {
+        let button_sprite = path.and_then(|path| {
             let texture = update_state
                 .graphics
                 .texture_loader
                 .load_now_dir(update_state.filesystem, &directory, path)
-                .unwrap(); // FIXME
+                .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                .ok()?;
 
             let button_viewport = Viewport::new(&update_state.graphics, Default::default());
             let sprite = Sprite::basic(&update_state.graphics, &texture, &button_viewport);
-            ButtonSprite {
+            Some(ButtonSprite {
                 sprite,
                 sprite_size: texture.size_vec2(),
                 viewport: button_viewport,
-            }
+            })
         });
 
         Self {
@@ -108,11 +109,15 @@ impl luminol_core::Modal for Modal {
             if response.clicked() && !is_open {
                 let selected = match data.clone() {
                     Some(path) => {
-                        // FIXME error handling
                         let sprite =
-                            Self::load_preview_sprite(update_state, &self.directory, &path)
-                                .unwrap();
-                        Selected::Entry { path, sprite }
+                            Self::load_preview_sprite(update_state, &self.directory, &path);
+                        match sprite {
+                            Ok(sprite) => Selected::Entry { path, sprite },
+                            Err(e) => {
+                                luminol_core::error!(update_state.toasts, e);
+                                Selected::None
+                            }
+                        }
                     }
                     None => Selected::None,
                 };
@@ -178,23 +183,24 @@ impl Modal {
 
     fn update_graphic(
         &mut self,
-        update_state: &UpdateState<'_>,
+        update_state: &mut UpdateState<'_>,
         data: &Option<camino::Utf8PathBuf>,
     ) {
-        self.button_sprite = data.as_ref().map(|path| {
+        self.button_sprite = data.as_ref().and_then(|path| {
             let texture = update_state
                 .graphics
                 .texture_loader
                 .load_now_dir(update_state.filesystem, &self.directory, path)
-                .unwrap(); // FIXME
+                .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                .ok()?;
 
             let button_viewport = Viewport::new(&update_state.graphics, Default::default());
             let sprite = Sprite::basic(&update_state.graphics, &texture, &button_viewport);
-            ButtonSprite {
+            Some(ButtonSprite {
                 sprite,
                 sprite_size: texture.size_vec2(),
                 viewport: button_viewport,
-            }
+            })
         });
     }
 
@@ -268,13 +274,16 @@ impl Modal {
                                         ui,
                                         rows,
                                         selected,
-                                        |path| {
+                                        |update_state, path| {
                                             Self::load_preview_sprite(
                                                 update_state,
                                                 &self.directory,
                                                 path,
                                             )
-                                            .unwrap()
+                                            .map_err(|e| {
+                                                luminol_core::error!(update_state.toasts, e)
+                                            })
+                                            .ok()
                                         },
                                     )
                                 },

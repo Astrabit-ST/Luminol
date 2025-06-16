@@ -44,16 +44,19 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let items = update_state.data.items();
-        let item = &items.data[0];
+    pub fn new(update_state: &mut luminol_core::UpdateState<'_>) -> Self {
+        let name = {
+            let items = update_state.data.items();
+            let item = &items.data[0];
+            item.icon_name.clone()
+        };
         Self {
             selected_item_name: None,
             menu_se_picker: SoundPicker::new(luminol_audio::Source::SE, "item_menu_se_picker"),
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Icons".into(),
-                item.icon_name.as_deref(),
+                name.as_deref(),
                 egui::vec2(32., 32.),
                 "item_icon_picker",
             ),

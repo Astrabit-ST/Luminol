@@ -206,9 +206,8 @@ impl TopBar {
                 ui.separator();
 
                 if ui.button("Items").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new(update_state));
+                    let window = luminol_ui::windows::items::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
 
                 if ui.button("Skills").clicked() {
@@ -238,9 +237,8 @@ impl TopBar {
                 ui.separator();
 
                 if ui.button("Actors").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::actors::Window::new(update_state));
+                    let window = luminol_ui::windows::actors::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
 
                 if ui.button("Classes").clicked() {
@@ -250,15 +248,13 @@ impl TopBar {
                 }
 
                 if ui.button("Enemies").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::enemies::Window::new(update_state));
+                    let window = luminol_ui::windows::enemies::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
 
                 if ui.button("Troops").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::troops::Window::new(update_state));
+                    let window = luminol_ui::windows::troops::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
             });
         });
@@ -347,9 +343,8 @@ impl TopBar {
             }
 
             if ui.button("WGPU Debug Info").clicked() {
-                update_state
-                    .edit_windows
-                    .add_window(luminol_ui::windows::misc::WgpuDebugInfo::new(update_state));
+                let window = luminol_ui::windows::misc::WgpuDebugInfo::new(update_state);
+                update_state.edit_windows.add_window(window);
             }
 
             #[cfg(not(target_arch = "wasm32"))]

@@ -50,9 +50,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let enemies = update_state.data.enemies();
-        let enemy = &enemies.data[0];
+    pub fn new(update_state: &mut luminol_core::UpdateState<'_>) -> Self {
+        let (name, hue) = {
+            let enemies = update_state.data.enemies();
+            let enemy = &enemies.data[0];
+            (enemy.battler_name.clone(), enemy.battler_hue)
+        };
         Self {
             selected_enemy_name: None,
             previous_enemy: None,
@@ -60,8 +63,8 @@ impl Window {
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Battlers".into(),
-                enemy.battler_name.as_deref(),
-                enemy.battler_hue,
+                name.as_deref(),
+                hue,
                 egui::vec2(196., 256.),
                 "enemy_battler_picker",
             ),
