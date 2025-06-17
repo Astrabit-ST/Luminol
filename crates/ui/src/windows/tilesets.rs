@@ -27,7 +27,7 @@ use luminol_core::Modal;
 
 use crate::components::{DatabaseView, EnumComboBox, Field, Tilepicker, UiExt};
 use crate::modals::graphic_picker::{
-    autotile::Modal as AutotileModal, battleback::Modal as BattlebackModal, fog::Modal as FogModal,
+    autotile::Modal as AutotileModal, fog::Modal as FogModal, label::Modal as LabelModal,
     panorama::Modal as PanoramaModal, tileset::Modal as TilesetModal,
 };
 
@@ -172,7 +172,7 @@ pub struct Window {
     tileset_modal: TilesetModal,
     panorama_modal: PanoramaModal,
     fog_modal: FogModal,
-    battleback_modal: BattlebackModal,
+    battleback_modal: LabelModal,
 
     tilepicker: Option<Tilepicker>,
     view: DatabaseView,
@@ -193,7 +193,10 @@ impl Default for Window {
             tileset_modal: TilesetModal::new("tileset_graphic_picker".into()),
             panorama_modal: PanoramaModal::new("panorama_graphic_picker".into()),
             fog_modal: FogModal::new("fog_graphic_picker".into()),
-            battleback_modal: BattlebackModal::new("battleback_graphic_picker".into()),
+            battleback_modal: LabelModal::new(
+                "battleback_graphic_picker".into(),
+                "Graphics/Battlebacks".into(),
+            ),
             view: DatabaseView::new(),
             autotiles_view_is_depersisted: false,
         }
@@ -344,7 +347,8 @@ impl luminol_core::Window for Window {
                             let changed = ui
                                 .add(Field::new(
                                     "Battleback",
-                                    self.battleback_modal.button(tileset, update_state),
+                                    self.battleback_modal
+                                        .button(&mut tileset.battleback_name, update_state),
                                 ))
                                 .changed();
                             if changed {
@@ -358,7 +362,8 @@ impl luminol_core::Window for Window {
                             self.tileset_modal.reset(update_state, tileset);
                             self.panorama_modal.reset(update_state, tileset);
                             self.fog_modal.reset(update_state, tileset);
-                            self.battleback_modal.reset(update_state, tileset);
+                            self.battleback_modal
+                                .reset(update_state, &mut tileset.battleback_name);
                             for modal in self.autotile_modals.iter_mut() {
                                 modal.reset(update_state, tileset);
                             }

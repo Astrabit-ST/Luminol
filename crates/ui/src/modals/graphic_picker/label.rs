@@ -31,6 +31,7 @@ use super::Entry;
 pub struct Modal {
     state: State,
     id_source: egui::Id,
+    path: camino::Utf8PathBuf,
     scrolled_on_first_open: bool,
 }
 
@@ -41,22 +42,23 @@ enum State {
         filtered_entries: Vec<Entry>,
         search_text: String,
         sprite: Option<PreviewSprite>,
-        battleback_name: Option<camino::Utf8PathBuf>,
+        name: Option<camino::Utf8PathBuf>,
     },
 }
 
 impl Modal {
-    pub fn new(id_source: egui::Id) -> Self {
+    pub fn new(id_source: egui::Id, path: camino::Utf8PathBuf) -> Self {
         Self {
             state: State::Closed,
             id_source,
+            path,
             scrolled_on_first_open: false,
         }
     }
 }
 
 impl luminol_core::Modal for Modal {
-    type Data<'m> = &'m mut luminol_data::rpg::Tileset;
+    type Data<'m> = &'m mut Option<camino::Utf8PathBuf>;
 
     fn button<'m>(
         &'m mut self,
@@ -66,52 +68,46 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.battleback_name {
-                format!("Graphics/Battlebacks/{name}")
+            let button_text = if let Some(name) = data {
+                format!("{}/{name}", self.path)
             } else {
                 "(None)".to_string()
             };
             let mut response = ui.button(button_text);
 
             if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, "Graphics/Battlebacks".into());
+                let entries = Entry::load(update_state, &self.path);
 
-                let desensitized_battleback_name = data.battleback_name.as_ref().and_then(|name| {
+                let desensitized_name = data.as_ref().and_then(|name| {
                     update_state
                         .filesystem
-                        .desensitize(format!("Graphics/Battlebacks/{name}"))
+                        .desensitize(format!("{}/{name}", self.path))
                         .ok()
                         .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
                 });
 
-                let sprite = desensitized_battleback_name
-                    .as_ref()
-                    .and_then(|battleback_name| {
-                        let texture = update_state
-                            .graphics
-                            .texture_loader
-                            .load_now_dir(
-                                update_state.filesystem,
-                                "Graphics/Battlebacks",
-                                battleback_name,
-                            )
-                            .map_err(|e| luminol_core::error!(update_state.toasts, e))
-                            .ok()?;
-                        let viewport = Viewport::new(&update_state.graphics, Default::default());
-                        let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
-                        Some(PreviewSprite {
-                            sprite,
-                            sprite_size: texture.size_vec2(),
-                            viewport,
-                        })
-                    });
+                let sprite = desensitized_name.as_ref().and_then(|name| {
+                    let texture = update_state
+                        .graphics
+                        .texture_loader
+                        .load_now_dir(update_state.filesystem, &self.path, name)
+                        .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                        .ok()?;
+                    let viewport = Viewport::new(&update_state.graphics, Default::default());
+                    let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
+                    Some(PreviewSprite {
+                        sprite,
+                        sprite_size: texture.size_vec2(),
+                        viewport,
+                    })
+                });
 
                 self.state = State::Open {
                     filtered_entries: entries.clone(),
                     entries,
                     sprite,
                     search_text: String::new(),
-                    battleback_name: data.battleback_name.clone(),
+                    name: data.clone(),
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -133,7 +129,7 @@ impl Modal {
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
-        data: &mut luminol_data::rpg::Tileset,
+        data: &mut Option<camino::Utf8PathBuf>,
     ) -> bool {
         let mut win_open = true;
         let mut keep_open = true;
@@ -144,22 +140,22 @@ impl Modal {
             filtered_entries,
             search_text,
             sprite,
-            battleback_name,
+            name,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let desensitized_battleback_name = battleback_name.as_ref().and_then(|name| {
+        let desensitized_name = name.as_ref().and_then(|name| {
             update_state
                 .filesystem
-                .desensitize(format!("Graphics/Battlebacks/{name}"))
+                .desensitize(format!("{}/{name}", self.path))
                 .ok()
                 .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
         });
 
-        egui::Window::new("Battleback Graphic Picker")
+        egui::Window::new("Graphic Picker")
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))
@@ -190,10 +186,10 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = battleback_name.is_none();
+                                        let checked = name.is_none();
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && battleback_name.is_some() {
-                                            *battleback_name = None;
+                                        if res.clicked() && name.is_some() {
+                                            *name = None;
                                             *sprite = None;
                                         }
                                     }
@@ -205,8 +201,7 @@ impl Modal {
                                     for (i, Entry { path, invalid }) in
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
-                                        let checked =
-                                            desensitized_battleback_name.as_ref() == Some(path);
+                                        let checked = desensitized_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -219,61 +214,59 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                *battleback_name = Some(
+                                                *name = Some(
                                                     path.file_stem()
                                                         .unwrap_or(path.as_str())
                                                         .into(),
                                                 );
 
-                                                let battleback_name =
-                                                    battleback_name.as_ref().and_then(|name| {
-                                                        update_state
-                                                            .filesystem
-                                                            .desensitize(format!(
-                                                                "Graphics/Battlebacks/{name}"
-                                                            ))
-                                                            .ok()
-                                                            .map(|path| {
-                                                                camino::Utf8PathBuf::from(
-                                                                    path.file_name()
-                                                                        .unwrap_or_default(),
-                                                                )
-                                                            })
-                                                    });
-
-                                                *sprite = battleback_name.as_ref().and_then(
-                                                    |battleback_name| {
-                                                        let texture = update_state
-                                                            .graphics
-                                                            .texture_loader
-                                                            .load_now_dir(
-                                                                update_state.filesystem,
-                                                                "Graphics/Battlebacks",
-                                                                battleback_name,
+                                                let name = name.as_ref().and_then(|name| {
+                                                    update_state
+                                                        .filesystem
+                                                        .desensitize(format!(
+                                                            "{}/{name}",
+                                                            self.path,
+                                                        ))
+                                                        .ok()
+                                                        .map(|path| {
+                                                            camino::Utf8PathBuf::from(
+                                                                path.file_name()
+                                                                    .unwrap_or_default(),
                                                             )
-                                                            .map_err(|e| {
-                                                                luminol_core::error!(
-                                                                    update_state.toasts,
-                                                                    e
-                                                                )
-                                                            })
-                                                            .ok()?;
-                                                        let viewport = Viewport::new(
-                                                            &update_state.graphics,
-                                                            Default::default(),
-                                                        );
-                                                        let sprite = Sprite::basic(
-                                                            &update_state.graphics,
-                                                            &texture,
-                                                            &viewport,
-                                                        );
-                                                        Some(PreviewSprite {
-                                                            sprite,
-                                                            sprite_size: texture.size_vec2(),
-                                                            viewport,
                                                         })
-                                                    },
-                                                );
+                                                });
+
+                                                *sprite = name.as_ref().and_then(|name| {
+                                                    let texture = update_state
+                                                        .graphics
+                                                        .texture_loader
+                                                        .load_now_dir(
+                                                            update_state.filesystem,
+                                                            &self.path,
+                                                            name,
+                                                        )
+                                                        .map_err(|e| {
+                                                            luminol_core::error!(
+                                                                update_state.toasts,
+                                                                e
+                                                            )
+                                                        })
+                                                        .ok()?;
+                                                    let viewport = Viewport::new(
+                                                        &update_state.graphics,
+                                                        Default::default(),
+                                                    );
+                                                    let sprite = Sprite::basic(
+                                                        &update_state.graphics,
+                                                        &texture,
+                                                        &viewport,
+                                                    );
+                                                    Some(PreviewSprite {
+                                                        sprite,
+                                                        sprite_size: texture.size_vec2(),
+                                                        viewport,
+                                                    })
+                                                });
                                             }
                                         });
                                     }
@@ -282,11 +275,11 @@ impl Modal {
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if battleback_name.is_none() {
+                            let row = if name.is_none() {
                                 Some(0)
                             } else {
                                 filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (desensitized_battleback_name.as_ref() == Some(&entry.path))
+                                    (desensitized_name.as_ref() == Some(&entry.path))
                                         .then_some(i + 1)
                                 })
                             };
@@ -330,7 +323,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.battleback_name.clone_from(battleback_name);
+            data.clone_from(name);
         }
 
         if !(win_open && keep_open) {

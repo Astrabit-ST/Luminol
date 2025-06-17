@@ -197,11 +197,11 @@ impl TopBar {
                     );
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("System [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("System").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::system::Window::default());
+                }
 
                 ui.separator();
 

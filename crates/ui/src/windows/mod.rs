@@ -66,6 +66,8 @@ pub mod skills;
 pub mod sound_test;
 /// The state editor.
 pub mod states;
+/// The system editor.
+pub mod system;
 /// The tileset editor.
 pub mod tilesets;
 /// The troop editor.
