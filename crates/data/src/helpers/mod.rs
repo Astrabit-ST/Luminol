@@ -17,12 +17,10 @@
 
 pub mod id_serde;
 pub mod id_vec_serde;
-pub mod name_vec_serde;
 pub mod nil_padded_serde;
 
 pub mod id_alox;
 pub mod id_vec_alox;
-pub mod name_vec_alox;
 pub mod nil_padded_alox;
 
 mod parameter_type;
