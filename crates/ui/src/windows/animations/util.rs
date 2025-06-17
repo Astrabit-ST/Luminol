@@ -325,7 +325,7 @@ pub fn load_se(
     timing: &luminol_data::rpg::animation::Timing,
 ) {
     // Do nothing if this timing has no sound effect
-    let Some(se_name) = &timing.se.name else {
+    let Some(se_name) = &timing.se.name.0 else {
         return;
     };
 

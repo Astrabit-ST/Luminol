@@ -67,7 +67,7 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.panorama_name {
+            let button_text = if let Some(name) = &data.panorama_name.0 {
                 format!("Graphics/Panoramas/{name}")
             } else {
                 "(None)".to_string()
@@ -77,7 +77,7 @@ impl luminol_core::Modal for Modal {
             if response.clicked() && !is_open {
                 let entries = Entry::load(update_state, "Graphics/Panoramas".into());
 
-                let desensitized_panorama_name = data.panorama_name.as_ref().and_then(|name| {
+                let desensitized_panorama_name = data.panorama_name.0.as_ref().and_then(|name| {
                     update_state
                         .filesystem
                         .desensitize(format!("Graphics/Panoramas/{name}"))
@@ -117,7 +117,7 @@ impl luminol_core::Modal for Modal {
                     entries,
                     sprite,
                     search_text: String::new(),
-                    panorama_name: data.panorama_name.clone(),
+                    panorama_name: data.panorama_name.0.clone(),
                     panorama_hue: data.panorama_hue,
                 };
             }
@@ -353,7 +353,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.panorama_name.clone_from(panorama_name);
+            data.panorama_name.0.clone_from(panorama_name);
         }
 
         if !(win_open && keep_open) {

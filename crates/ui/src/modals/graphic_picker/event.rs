@@ -81,7 +81,7 @@ impl Modal {
         let atlas = update_state
             .graphics
             .atlas_loader
-            .get_expect(tileset.tileset_name.as_deref()); // atlas should be loaded by this point
+            .get_expect(tileset.tileset_name.0.as_deref()); // atlas should be loaded by this point
 
         let viewport = Viewport::new(&update_state.graphics, Default::default());
         let button_sprite = Event::new_standalone(
@@ -130,14 +130,14 @@ impl luminol_core::Modal for Modal {
             );
 
             if response.clicked() && !is_open {
-                let selected = if let Some(tile_id) = data.tile_id {
+                let selected = if let Some(tile_id) = data.tile_id.0 {
                     let tilepicker = Self::load_tilepicker(update_state, self.tileset_id);
 
                     Selected::Tile {
                         tile_id,
                         tilepicker,
                     }
-                } else if let Some(path) = data.character_name.clone() {
+                } else if let Some(path) = data.character_name.0.clone() {
                     let sprite = match Self::load_preview_sprite(
                         update_state,
                         &path,
@@ -201,7 +201,7 @@ impl Modal {
         let atlas = update_state
             .graphics
             .atlas_loader
-            .get_expect(tileset.tileset_name.as_deref()); // atlas should be loaded by this point
+            .get_expect(tileset.tileset_name.0.as_deref()); // atlas should be loaded by this point
 
         let viewport = Viewport::new(&update_state.graphics, Default::default());
         self.button_sprite = Event::new_standalone(
@@ -224,7 +224,7 @@ impl Modal {
 
         let mut tilepicker = Tilepicker::new(
             &update_state.graphics,
-            tileset.tileset_name.as_deref(),
+            tileset.tileset_name.0.as_deref(),
             &tileset.autotile_names,
             &tileset.passages,
             update_state.filesystem,
@@ -616,12 +616,12 @@ impl Modal {
         if needs_save {
             match selected {
                 Selected::None => {
-                    data.tile_id = None;
-                    data.character_name = None;
+                    data.tile_id = None.into();
+                    data.character_name = None.into();
                 }
                 Selected::Tile { tile_id, .. } => {
-                    data.tile_id = Some(*tile_id);
-                    data.character_name = None;
+                    data.tile_id = Some(*tile_id).into();
+                    data.character_name = None.into();
                 }
                 Selected::Graphic {
                     ref path,
@@ -629,8 +629,8 @@ impl Modal {
                     pattern,
                     ..
                 } => {
-                    data.tile_id = None;
-                    data.character_name = Some(path.clone());
+                    data.tile_id = None.into();
+                    data.character_name = Some(path.clone()).into();
                     data.direction = *direction;
                     data.pattern = *pattern;
                 }

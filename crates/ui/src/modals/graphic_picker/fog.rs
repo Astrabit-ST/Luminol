@@ -72,7 +72,7 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.fog_name {
+            let button_text = if let Some(name) = &data.fog_name.0 {
                 format!("Graphics/Fogs/{name}")
             } else {
                 "(None)".to_string()
@@ -82,7 +82,7 @@ impl luminol_core::Modal for Modal {
             if response.clicked() && !is_open {
                 let entries = Entry::load(update_state, "Graphics/Fogs".into());
 
-                let desensitized_fog_name = data.fog_name.as_ref().and_then(|name| {
+                let desensitized_fog_name = data.fog_name.0.as_ref().and_then(|name| {
                     update_state
                         .filesystem
                         .desensitize(format!("Graphics/Fogs/{name}"))
@@ -116,7 +116,7 @@ impl luminol_core::Modal for Modal {
                     entries,
                     sprite,
                     search_text: String::new(),
-                    fog_name: data.fog_name.clone(),
+                    fog_name: data.fog_name.0.clone(),
                     fog_hue: data.fog_hue,
                     fog_opacity: data.fog_opacity,
                     fog_blend_type: data.fog_blend_type,
@@ -396,7 +396,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.fog_name.clone_from(fog_name);
+            data.fog_name.0.clone_from(fog_name);
         }
 
         if !(win_open && keep_open) {

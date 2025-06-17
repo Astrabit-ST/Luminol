@@ -312,7 +312,7 @@ impl luminol_core::Window for Window {
                                     update_state
                                         .graphics
                                         .atlas_loader
-                                        .remove_atlas(tileset.tileset_name.as_deref());
+                                        .remove_atlas(tileset.tileset_name.0.as_deref());
                                 }
                             });
                         });
@@ -348,7 +348,7 @@ impl luminol_core::Window for Window {
                                 .add(Field::new(
                                     "Battleback",
                                     self.battleback_modal
-                                        .button(&mut tileset.battleback_name, update_state),
+                                        .button(&mut tileset.battleback_name.0, update_state),
                                 ))
                                 .changed();
                             if changed {
@@ -363,14 +363,14 @@ impl luminol_core::Window for Window {
                             self.panorama_modal.reset(update_state, tileset);
                             self.fog_modal.reset(update_state, tileset);
                             self.battleback_modal
-                                .reset(update_state, &mut tileset.battleback_name);
+                                .reset(update_state, &mut tileset.battleback_name.0);
                             for modal in self.autotile_modals.iter_mut() {
                                 modal.reset(update_state, tileset);
                             }
                             self.tilepicker = Some(
                                 Tilepicker::new(
                                     update_state,
-                                    tileset.tileset_name.as_deref(),
+                                    tileset.tileset_name.0.as_deref(),
                                     &tileset.autotile_names,
                                     &tileset.passages,
                                     None,

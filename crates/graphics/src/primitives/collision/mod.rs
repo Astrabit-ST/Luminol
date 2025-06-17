@@ -105,6 +105,7 @@ impl Collision {
                     let tile_event =
                         page.graphic
                             .tile_id
+                            .0
                             .map_or((15, 1, CollisionType::Event), |id| {
                                 let tile_id = id + 1;
                                 if tile_id >= tileset_size {

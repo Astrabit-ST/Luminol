@@ -148,9 +148,9 @@ impl luminol_core::Window for super::Window {
                         });
 
                         ui.with_padded_stripe(false, |ui| {
-                            if self.previous_battler_name != system.battler_name {
+                            if self.previous_battler_name != system.battler_name.0 {
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
-                                    if let Some(battler_name) = &system.battler_name {
+                                    if let Some(battler_name) = &system.battler_name.0 {
                                         match update_state.graphics.texture_loader.load_now(
                                             update_state.filesystem,
                                             format!("Graphics/Battlers/{battler_name}"),
@@ -183,7 +183,8 @@ impl luminol_core::Window for super::Window {
                                     );
                                 }
 
-                                self.previous_battler_name.clone_from(&system.battler_name);
+                                self.previous_battler_name
+                                    .clone_from(&system.battler_name.0);
                             }
 
                             if self.previous_animation != Some(animation.id) {
@@ -214,7 +215,7 @@ impl luminol_core::Window for super::Window {
                                     update_state.graphics.atlas_loader.load_animation_atlas(
                                         &update_state.graphics,
                                         update_state.filesystem,
-                                        animation.animation_name.as_deref(),
+                                        animation.animation_name.0.as_deref(),
                                     );
 
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {

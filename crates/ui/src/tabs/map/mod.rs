@@ -140,7 +140,7 @@ impl Tab {
 
         let tilepicker = Tilepicker::new(
             update_state,
-            tileset.tileset_name.as_deref(),
+            tileset.tileset_name.0.as_deref(),
             &tileset.autotile_names,
             &tileset.passages,
             Some(id),
@@ -390,7 +390,7 @@ impl luminol_core::Tab for Tab {
 
                 self.tilepicker = Tilepicker::new(
                     update_state,
-                    tileset.tileset_name.as_deref(),
+                    tileset.tileset_name.0.as_deref(),
                     &tileset.autotile_names,
                     &tileset.passages,
                     Some(self.id),

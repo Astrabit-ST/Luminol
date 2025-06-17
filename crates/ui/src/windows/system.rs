@@ -143,7 +143,7 @@ impl luminol_core::Window for Window {
                                 .add(Field::new(
                                     "Windowskin",
                                     self.windowskin_modal
-                                        .button(&mut system.windowskin_name, update_state),
+                                        .button(&mut system.windowskin_name.0, update_state),
                                 ))
                                 .changed();
                         });
@@ -153,7 +153,7 @@ impl luminol_core::Window for Window {
                                 .add(Field::new(
                                     "Title Graphic",
                                     self.title_modal
-                                        .button(&mut system.title_name, update_state),
+                                        .button(&mut system.title_name.0, update_state),
                                 ))
                                 .changed();
                         });
@@ -163,7 +163,7 @@ impl luminol_core::Window for Window {
                                 .add(Field::new(
                                     "Gameover Graphic",
                                     self.gameover_modal
-                                        .button(&mut system.gameover_name, update_state),
+                                        .button(&mut system.gameover_name.0, update_state),
                                 ))
                                 .changed();
                         });
@@ -173,7 +173,7 @@ impl luminol_core::Window for Window {
                                 .add(Field::new(
                                     "Battle Transition",
                                     self.battle_transition_modal
-                                        .button(&mut system.battle_transition, update_state),
+                                        .button(&mut system.battle_transition.0, update_state),
                                 ))
                                 .changed();
                         });

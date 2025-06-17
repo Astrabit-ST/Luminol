@@ -59,7 +59,7 @@ impl Atlas {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset_name: Option<&camino::Utf8Path>,
-        autotile_names: &[Option<String>],
+        autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
     ) -> Atlas {
         let tileset_img = tileset_name.as_ref().and_then(|tileset_name| {
             let result = filesystem
@@ -95,7 +95,7 @@ impl Atlas {
         let autotiles = autotile_names
             .iter()
             .map(|s| {
-                if let Some(s) = s {
+                if let Some(s) = s.0.as_ref() {
                     graphics_state
                         .texture_loader
                         .load_now_dir(filesystem, "Graphics/Autotiles", s)

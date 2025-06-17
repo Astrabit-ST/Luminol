@@ -66,7 +66,7 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.animation_name {
+            let button_text = if let Some(name) = &data.animation_name.0 {
                 format!("Graphics/Animations/{name}")
             } else {
                 "(None)".to_string()
@@ -81,11 +81,11 @@ impl luminol_core::Modal for Modal {
                     entries,
                     cellpicker: Self::load_cellpicker(
                         update_state,
-                        &data.animation_name,
+                        &data.animation_name.0,
                         data.animation_hue,
                     ),
                     search_text: String::new(),
-                    animation_name: data.animation_name.clone(),
+                    animation_name: data.animation_name.0.clone(),
                     animation_hue: data.animation_hue,
                 };
             }
@@ -296,7 +296,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.animation_name.clone_from(animation_name);
+            data.animation_name.0.clone_from(animation_name);
             data.animation_hue = *animation_hue;
         }
 

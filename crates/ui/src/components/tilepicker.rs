@@ -69,7 +69,7 @@ impl Tilepicker {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
         tileset_name: Option<&camino::Utf8Path>,
-        autotile_names: &[Option<String>],
+        autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
         passages: &luminol_data::Table1,
         map_id: Option<usize>,
     ) -> Tilepicker {

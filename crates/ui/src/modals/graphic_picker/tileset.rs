@@ -65,7 +65,7 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.tileset_name {
+            let button_text = if let Some(name) = &data.tileset_name.0 {
                 format!("Graphics/Tilesets/{name}")
             } else {
                 "(None)".to_string()
@@ -84,12 +84,12 @@ impl luminol_core::Modal for Modal {
                     entries,
                     tilepicker: Self::load_tilepicker(
                         update_state,
-                        data.tileset_name.as_deref(),
+                        data.tileset_name.0.as_deref(),
                         &data.autotile_names,
                         &data.passages,
                     ),
                     search_text: String::new(),
-                    tileset_name: data.tileset_name.clone(),
+                    tileset_name: data.tileset_name.0.clone(),
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -110,7 +110,7 @@ impl Modal {
     fn load_tilepicker(
         update_state: &mut luminol_core::UpdateState<'_>,
         tileset_name: Option<&camino::Utf8Path>,
-        autotile_names: &[Option<String>],
+        autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
         passages: &luminol_data::Table1,
     ) -> Tilepicker {
         Tilepicker::new(update_state, tileset_name, autotile_names, passages, None)
@@ -276,7 +276,7 @@ impl Modal {
             });
 
         if needs_save {
-            data.tileset_name.clone_from(tileset_name);
+            data.tileset_name.0.clone_from(tileset_name);
         }
 
         if !(win_open && keep_open) {

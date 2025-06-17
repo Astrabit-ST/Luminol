@@ -15,10 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{
-    id_alox, id_serde, name_vec_alox, name_vec_serde, optional_path_alox, optional_path_serde,
-    BlendMode, Path, Table1,
-};
+use crate::{id_alox, id_serde, BlendMode, Path, Table1};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -28,18 +25,10 @@ pub struct Tileset {
     #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub tileset_name: Path,
-    #[serde(with = "name_vec_serde")]
-    #[marshal(with = "name_vec_alox")]
-    pub autotile_names: [Option<String>; 7],
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
+    pub autotile_names: [Path; 7],
     pub panorama_name: Path,
     pub panorama_hue: i32,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub fog_name: Path,
     pub fog_hue: i32,
     pub fog_opacity: i32,
@@ -47,8 +36,6 @@ pub struct Tileset {
     pub fog_zoom: i32,
     pub fog_sx: i32,
     pub fog_sy: i32,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub battleback_name: Path,
     pub passages: Table1,
     pub priorities: Table1,

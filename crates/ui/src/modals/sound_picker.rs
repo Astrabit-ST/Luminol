@@ -53,7 +53,7 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
-            let button_text = if let Some(track) = &data.name {
+            let button_text = if let Some(track) = &data.name.0 {
                 format!("Audio/{}/{}", self.source, track)
             } else {
                 "(None)".to_string()

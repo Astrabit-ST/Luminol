@@ -73,7 +73,7 @@ impl Window {
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Characters".into(),
-                name.as_deref(),
+                name.0.as_deref(),
                 hue,
                 egui::vec2(64., 96.),
                 "actor_graphic_picker",
@@ -363,7 +363,7 @@ impl luminol_core::Window for Window {
                                     .add(Field::new(
                                         "Icon",
                                         self.graphic_picker.button(
-                                            (&mut actor.character_name, &mut actor.character_hue),
+                                            (&mut actor.character_name.0, &mut actor.character_hue),
                                             update_state,
                                         ),
                                     ))
@@ -372,7 +372,7 @@ impl luminol_core::Window for Window {
                                     // avoid desyncs by resetting the modal if the item has changed
                                     self.graphic_picker.reset(
                                         update_state,
-                                        (&mut actor.character_name, &mut actor.character_hue),
+                                        (&mut actor.character_name.0, &mut actor.character_hue),
                                     );
                                 }
 
@@ -425,7 +425,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "weapon_id"),
-                                                    &mut actor.weapon_id,
+                                                    &mut actor.weapon_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.weapon_set.iter().copied()
@@ -465,7 +465,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor1_id"),
-                                                    &mut actor.armor1_id,
+                                                    &mut actor.armor1_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -513,7 +513,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor2_id"),
-                                                    &mut actor.armor2_id,
+                                                    &mut actor.armor2_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -561,7 +561,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor3_id"),
-                                                    &mut actor.armor3_id,
+                                                    &mut actor.armor3_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -609,7 +609,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor4_id"),
-                                                    &mut actor.armor4_id,
+                                                    &mut actor.armor4_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()

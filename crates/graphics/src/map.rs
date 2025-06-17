@@ -52,7 +52,7 @@ impl Map {
         let atlas = graphics_state.atlas_loader.load_atlas(
             graphics_state,
             filesystem,
-            tileset.tileset_name.as_deref(),
+            tileset.tileset_name.0.as_deref(),
             &tileset.autotile_names,
         );
 
@@ -82,7 +82,7 @@ impl Map {
             passages,
         );
 
-        let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
+        let panorama = if let Some(panorama_name) = tileset.panorama_name.0.as_ref() {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
@@ -107,7 +107,7 @@ impl Map {
         } else {
             None
         };
-        let fog = if let Some(ref fog_name) = tileset.fog_name {
+        let fog = if let Some(fog_name) = tileset.fog_name.0.as_ref() {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Fogs", fog_name)

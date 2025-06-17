@@ -42,7 +42,7 @@ enum State {
         filtered_entries: Vec<Entry>,
         search_text: String,
         sprite: Option<PreviewSprite>,
-        autotile_name: Option<String>,
+        autotile_name: Option<camino::Utf8PathBuf>,
     },
 }
 
@@ -68,7 +68,7 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.autotile_names[self.autotile_index] {
+            let button_text = if let Some(name) = &data.autotile_names[self.autotile_index].0 {
                 format!("Graphics/Autotiles/{name}")
             } else {
                 "(None)".to_string()
@@ -79,6 +79,7 @@ impl luminol_core::Modal for Modal {
                 let entries = Entry::load(update_state, "Graphics/Autotiles".into());
 
                 let desensitized_autotile_name = data.autotile_names[self.autotile_index]
+                    .0
                     .as_ref()
                     .and_then(|name| {
                         update_state
@@ -117,7 +118,7 @@ impl luminol_core::Modal for Modal {
                     entries,
                     sprite,
                     search_text: String::new(),
-                    autotile_name: data.autotile_names[self.autotile_index].clone(),
+                    autotile_name: data.autotile_names[self.autotile_index].clone().into(),
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -336,7 +337,9 @@ impl Modal {
             });
 
         if needs_save {
-            data.autotile_names[self.autotile_index].clone_from(autotile_name);
+            data.autotile_names[self.autotile_index]
+                .0
+                .clone_from(autotile_name);
         }
 
         if !(win_open && keep_open) {

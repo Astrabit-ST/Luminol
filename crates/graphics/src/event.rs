@@ -40,7 +40,7 @@ impl Event {
         };
 
         let mut is_placeholder = false;
-        let texture = if let Some(ref filename) = page.graphic.character_name {
+        let texture = if let Some(filename) = page.graphic.character_name.0.as_ref() {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Characters", filename)
@@ -53,13 +53,13 @@ impl Event {
                     graphics_state.texture_loader.placeholder_texture()
                 }
             }
-        } else if page.graphic.tile_id.is_some() {
+        } else if page.graphic.tile_id.0.is_some() {
             atlas.texture().clone()
         } else {
             return None;
         };
 
-        let (quad, sprite_size) = if let Some(id) = page.graphic.tile_id {
+        let (quad, sprite_size) = if let Some(id) = page.graphic.tile_id.0 {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
@@ -122,7 +122,7 @@ impl Event {
         atlas: &Atlas,
     ) -> Option<Self> {
         let mut is_placeholder = false;
-        let texture = if let Some(ref filename) = graphic.character_name {
+        let texture = if let Some(filename) = graphic.character_name.0.as_ref() {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Characters", filename)
@@ -135,13 +135,13 @@ impl Event {
                     graphics_state.texture_loader.placeholder_texture()
                 }
             }
-        } else if graphic.tile_id.is_some() {
+        } else if graphic.tile_id.0.is_some() {
             atlas.texture().clone()
         } else {
             return None;
         };
 
-        let (quad, sprite_size) = if let Some(id) = graphic.tile_id {
+        let (quad, sprite_size) = if let Some(id) = graphic.tile_id.0 {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 

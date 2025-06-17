@@ -122,7 +122,7 @@ impl HistoryEntry {
         }
         let member = &mut troop.members[self.member_index];
         if let Some(enemy_id) = &mut self.enemy_id {
-            std::mem::swap(enemy_id, &mut member.enemy_id);
+            std::mem::swap(enemy_id, &mut member.enemy_id.0);
         }
         std::mem::swap(&mut self.x, &mut member.x);
         std::mem::swap(&mut self.y, &mut member.y);
@@ -131,7 +131,7 @@ impl HistoryEntry {
         while troop
             .members
             .last()
-            .is_some_and(|member| member.enemy_id.is_none())
+            .is_some_and(|member| member.enemy_id.0.is_none())
         {
             troop.members.pop();
         }
@@ -254,14 +254,14 @@ impl luminol_core::Window for Window {
                             }
 
                             if self.troop_view.selected_member_index.is_some_and(|i| {
-                                i >= troop.members.len() || troop.members[i].enemy_id.is_none()
+                                i >= troop.members.len() || troop.members[i].enemy_id.0.is_none()
                             }) {
                                 self.troop_view.selected_member_index = None;
                             }
 
                             if self.troop_view.selected_member_index.is_none()
                                 && self.saved_selected_member_index.is_some_and(|i| {
-                                    i < troop.members.len() && troop.members[i].enemy_id.is_some()
+                                    i < troop.members.len() && troop.members[i].enemy_id.0.is_some()
                                 })
                             {
                                 self.troop_view.selected_member_index =
@@ -269,7 +269,7 @@ impl luminol_core::Window for Window {
                             }
 
                             if self.troop_view.hovered_member_index.is_some_and(|i| {
-                                i >= troop.members.len() || troop.members[i].enemy_id.is_none()
+                                i >= troop.members.len() || troop.members[i].enemy_id.0.is_none()
                             }) {
                                 self.troop_view.hovered_member_index = None;
                                 self.troop_view.hovered_member_drag_pos = None;
@@ -335,14 +335,14 @@ impl luminol_core::Window for Window {
                                         immortal: troop.members[i].hidden,
                                     };
 
-                                    let old_enemy_id = troop.members[i].enemy_id;
+                                    let old_enemy_id = troop.members[i].enemy_id.0;
                                     let changed = ui
                                         .add(Field::new(
                                             "Enemy Type",
                                             OptionalIdComboBox::new(
                                                 update_state,
                                                 (troop.id, i, "enemy_id"),
-                                                &mut troop.members[i].enemy_id,
+                                                &mut troop.members[i].enemy_id.0,
                                                 0..enemies.data.len(),
                                                 |id| {
                                                     enemies.data.get(id).map_or_else(
@@ -451,7 +451,7 @@ impl luminol_core::Window for Window {
                                 .troop_view
                                 .selected_member_index
                                 .and_then(|i| troop.members.get(i))
-                                .and_then(|member| member.enemy_id)
+                                .and_then(|member| member.enemy_id.0)
                             {
                                 self.previous_enemy_id = enemy_id;
                             }
@@ -499,7 +499,7 @@ impl luminol_core::Window for Window {
                                         while troop
                                             .members
                                             .last()
-                                            .is_some_and(|member| member.enemy_id.is_none())
+                                            .is_some_and(|member| member.enemy_id.0.is_none())
                                         {
                                             troop.members.pop();
                                         }
@@ -515,7 +515,8 @@ impl luminol_core::Window for Window {
                                         troop.members.push(luminol_data::rpg::troop::Member {
                                             enemy_id: Some(
                                                 self.previous_enemy_id.min(enemies.data.len() - 1),
-                                            ),
+                                            )
+                                            .into(),
                                             x,
                                             y,
                                             hidden: false,
@@ -534,7 +535,7 @@ impl luminol_core::Window for Window {
                                 // Handle pressing delete or backspace to delete troops
                                 if let Some(i) = self.troop_view.selected_member_index {
                                     if i < troop.members.len()
-                                        && troop.members[i].enemy_id.is_some()
+                                        && troop.members[i].enemy_id.0.is_some()
                                         && response.has_focus()
                                         && ui.input(|i| {
                                             i.key_pressed(egui::Key::Delete)
@@ -546,7 +547,7 @@ impl luminol_core::Window for Window {
                                             troop.id,
                                             HistoryEntry {
                                                 member_index: i,
-                                                enemy_id: Some(member.enemy_id),
+                                                enemy_id: Some(member.enemy_id.0),
                                                 x: member.x,
                                                 y: member.y,
                                                 hidden: member.hidden,
@@ -556,7 +557,7 @@ impl luminol_core::Window for Window {
                                         while troop
                                             .members
                                             .last()
-                                            .is_some_and(|member| member.enemy_id.is_none())
+                                            .is_some_and(|member| member.enemy_id.0.is_none())
                                         {
                                             troop.members.pop();
                                         }

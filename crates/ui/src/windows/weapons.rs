@@ -112,7 +112,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (weapon.id, "animation1_id"),
-                                            &mut weapon.animation1_id,
+                                            &mut weapon.animation1_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -130,7 +130,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (weapon.id, "animation2_id"),
-                                            &mut weapon.animation2_id,
+                                            &mut weapon.animation2_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(

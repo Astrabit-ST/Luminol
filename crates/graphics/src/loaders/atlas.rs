@@ -29,7 +29,7 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset_name: Option<&camino::Utf8Path>,
-        autotile_names: &[Option<String>],
+        autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
     ) -> Atlas {
         self.atlases
             .entry(
@@ -62,7 +62,7 @@ impl Loader {
         graphics_state: &GraphicsState,
         filesystem: &impl luminol_filesystem::FileSystem,
         tileset_name: Option<&camino::Utf8Path>,
-        autotile_names: &[Option<String>],
+        autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
     ) -> Atlas {
         self.atlases
             .entry(

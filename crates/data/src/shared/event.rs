@@ -14,10 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{
-    id_alox, id_serde, optional_id_alox, optional_id_serde, optional_path_alox,
-    optional_path_serde, rpg::MoveRoute, BlendMode, ParameterType, Path,
-};
+use crate::{id_alox, id_serde, rpg::MoveRoute, BlendMode, ParameterType, Path, RpgOption};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -184,11 +181,7 @@ impl Default for EventPage {
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Event::Page::Graphic")]
 pub struct Graphic {
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub tile_id: Option<usize>,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
+    pub tile_id: RpgOption<usize>,
     pub character_name: Path,
     pub character_hue: i32,
     pub direction: i32,
@@ -200,8 +193,8 @@ pub struct Graphic {
 impl Default for Graphic {
     fn default() -> Self {
         Self {
-            tile_id: None,
-            character_name: None,
+            tile_id: None.into(),
+            character_name: None.into(),
             character_hue: 0,
             direction: 2,
             pattern: 0,

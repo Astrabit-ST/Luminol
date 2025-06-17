@@ -22,7 +22,6 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use num_integer::Integer;
 use wgpu::util::DeviceExt;
 
 use crate::{BindGroupLayoutBuilder, GraphicsState};
@@ -88,8 +87,10 @@ impl Display {
         layers: usize,
     ) -> Self {
         let limits = graphics_state.render_state.device.limits();
-        let min_alignment_size = (limits.min_uniform_buffer_offset_alignment as usize)
-            .lcm(&std::mem::align_of::<Data>());
+        let min_alignment_size = num::integer::lcm(
+            limits.min_uniform_buffer_offset_alignment as usize,
+            std::mem::align_of::<Data>(),
+        );
 
         let data_size = Data::aligned_size_of(min_alignment_size);
         let mut layer_data = LayerData {

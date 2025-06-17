@@ -63,7 +63,7 @@ impl Window {
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Battlers".into(),
-                name.as_deref(),
+                name.0.as_deref(),
                 hue,
                 egui::vec2(196., 256.),
                 "enemy_battler_picker",
@@ -100,7 +100,7 @@ impl Window {
         if action.condition_level > 1 {
             conditions.push(format!("Level {}", action.condition_level,));
         }
-        if let Some(id) = action.condition_switch_id {
+        if let Some(id) = action.condition_switch_id.0 {
             conditions.push(format!("Switch {:0>4}", id + 1));
         }
 
@@ -176,7 +176,7 @@ impl Window {
                         OptionalIdComboBox::new(
                             update_state,
                             (enemy_id, action_index, "condition_switch_id"),
-                            &mut action.condition_switch_id,
+                            &mut action.condition_switch_id.0,
                             0..system.switches.len(),
                             |id| {
                                 system
@@ -302,7 +302,7 @@ impl luminol_core::Window for Window {
                                     .add(Field::new(
                                         "Graphic",
                                         self.graphic_picker.button(
-                                            (&mut enemy.battler_name, &mut enemy.battler_hue),
+                                            (&mut enemy.battler_name.0, &mut enemy.battler_hue),
                                             update_state,
                                         ),
                                     ))
@@ -311,7 +311,7 @@ impl luminol_core::Window for Window {
                                     // avoid desyncs by resetting the modal if the item has changed
                                     self.graphic_picker.reset(
                                         update_state,
-                                        (&mut enemy.battler_name, &mut enemy.battler_hue),
+                                        (&mut enemy.battler_name.0, &mut enemy.battler_hue),
                                     );
                                 }
 
@@ -333,7 +333,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (enemy.id, "animation1_id"),
-                                            &mut enemy.animation1_id,
+                                            &mut enemy.animation1_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -351,7 +351,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (enemy.id, "animation2_id"),
-                                            &mut enemy.animation2_id,
+                                            &mut enemy.animation2_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -461,11 +461,11 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        let mut treasure_type = if enemy.item_id.is_some() {
+                        let mut treasure_type = if enemy.item_id.0.is_some() {
                             TreasureType::Item
-                        } else if enemy.weapon_id.is_some() {
+                        } else if enemy.weapon_id.0.is_some() {
                             TreasureType::Weapon
-                        } else if enemy.armor_id.is_some() {
+                        } else if enemy.armor_id.0.is_some() {
                             TreasureType::Armor
                         } else {
                             TreasureType::None
@@ -494,16 +494,16 @@ impl luminol_core::Window for Window {
 
                             match treasure_type {
                                 TreasureType::None => {
-                                    enemy.item_id = None;
-                                    enemy.weapon_id = None;
-                                    enemy.armor_id = None;
+                                    enemy.item_id = None.into();
+                                    enemy.weapon_id = None.into();
+                                    enemy.armor_id = None.into();
                                 }
 
                                 TreasureType::Item => {
-                                    enemy.weapon_id = None;
-                                    enemy.armor_id = None;
-                                    if enemy.item_id.is_none() {
-                                        enemy.item_id = Some(0);
+                                    enemy.weapon_id = None.into();
+                                    enemy.armor_id = None.into();
+                                    if enemy.item_id.0.is_none() {
+                                        enemy.item_id = Some(0).into();
                                     }
                                     modified |= ui
                                         .add(Field::new(
@@ -511,7 +511,7 @@ impl luminol_core::Window for Window {
                                             OptionalIdComboBox::new(
                                                 update_state,
                                                 (enemy.id, "item_id"),
-                                                &mut enemy.item_id,
+                                                &mut enemy.item_id.0,
                                                 0..items.data.len(),
                                                 |id| {
                                                     items.data.get(id).map_or_else(
@@ -526,10 +526,10 @@ impl luminol_core::Window for Window {
                                 }
 
                                 TreasureType::Weapon => {
-                                    enemy.item_id = None;
-                                    enemy.armor_id = None;
-                                    if enemy.weapon_id.is_none() {
-                                        enemy.weapon_id = Some(0);
+                                    enemy.item_id = None.into();
+                                    enemy.armor_id = None.into();
+                                    if enemy.weapon_id.0.is_none() {
+                                        enemy.weapon_id = Some(0).into();
                                     }
                                     modified |= ui
                                         .add(Field::new(
@@ -537,7 +537,7 @@ impl luminol_core::Window for Window {
                                             OptionalIdComboBox::new(
                                                 update_state,
                                                 (enemy.id, "weapon_id"),
-                                                &mut enemy.weapon_id,
+                                                &mut enemy.weapon_id.0,
                                                 0..weapons.data.len(),
                                                 |id| {
                                                     weapons.data.get(id).map_or_else(
@@ -552,10 +552,10 @@ impl luminol_core::Window for Window {
                                 }
 
                                 TreasureType::Armor => {
-                                    enemy.item_id = None;
-                                    enemy.weapon_id = None;
-                                    if enemy.armor_id.is_none() {
-                                        enemy.armor_id = Some(0);
+                                    enemy.item_id = None.into();
+                                    enemy.weapon_id = None.into();
+                                    if enemy.armor_id.0.is_none() {
+                                        enemy.armor_id = Some(0).into();
                                     }
                                     modified |= ui
                                         .add(Field::new(
@@ -563,7 +563,7 @@ impl luminol_core::Window for Window {
                                             OptionalIdComboBox::new(
                                                 update_state,
                                                 (enemy.id, "armor_id"),
-                                                &mut enemy.armor_id,
+                                                &mut enemy.armor_id.0,
                                                 0..armors.data.len(),
                                                 |id| {
                                                     armors.data.get(id).map_or_else(

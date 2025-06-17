@@ -125,8 +125,9 @@ impl Troop {
     ) -> Option<Member> {
         member
             .enemy_id
+            .0
             .map(|enemy_id| {
-                let filename = enemies.data.get(enemy_id)?.battler_name.as_ref()?;
+                let filename = enemies.data.get(enemy_id)?.battler_name.0.as_ref()?;
                 let texture = graphics_state
                     .texture_loader
                     .load_now_dir(filesystem, "Graphics/Battlers", filename)

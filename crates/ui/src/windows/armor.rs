@@ -116,7 +116,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (armor.id, "auto_state"),
-                                            &mut armor.auto_state_id,
+                                            &mut armor.auto_state_id.0,
                                             0..states.data.len(),
                                             |id| {
                                                 states.data.get(id).map_or_else(

@@ -62,7 +62,7 @@ impl SoundTab {
     }
 
     fn play(&self, update_state: &mut luminol_core::UpdateState<'_>) {
-        if let Some(track) = &self.audio_file.name {
+        if let Some(track) = &self.audio_file.name.0 {
             let path = camino::Utf8Path::new("Audio")
                 .join(self.source.as_path())
                 .join(track);
@@ -183,7 +183,7 @@ impl SoundTab {
                 }
                 ui.separator();
 
-                let audio_file_name = self.audio_file.name.as_ref().and_then(|name| {
+                let audio_file_name = self.audio_file.name.0.as_ref().and_then(|name| {
                     update_state
                         .filesystem
                         .desensitize(
@@ -211,7 +211,11 @@ impl SoundTab {
                                 #[allow(clippy::collapsible_if)]
                                 if row_range.contains(&0) {
                                     if ui
-                                        .selectable_value(&mut self.audio_file.name, None, "(None)")
+                                        .selectable_value(
+                                            &mut self.audio_file.name,
+                                            None.into(),
+                                            "(None)",
+                                        )
                                         .double_clicked()
                                     {
                                         self.play(update_state);
@@ -231,7 +235,7 @@ impl SoundTab {
                                             entry_name.as_str(),
                                         ));
                                         if res.clicked() {
-                                            self.audio_file.name = Some(
+                                            self.audio_file.name.0 = Some(
                                                 entry_name
                                                     .file_stem()
                                                     .unwrap_or(entry_name.as_str())
@@ -253,7 +257,7 @@ impl SoundTab {
 
                 // Scroll the selected item into view
                 if !self.scrolled_on_first_open {
-                    let row = if self.audio_file.name.is_none() {
+                    let row = if self.audio_file.name.0.is_none() {
                         Some(0)
                     } else {
                         self.filtered_children

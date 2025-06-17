@@ -103,7 +103,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (state.id, "animation_id"),
-                                            &mut state.animation_id,
+                                            &mut state.animation_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
