@@ -149,184 +149,184 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Title Graphic",
                                     self.title_modal
                                         .button(&mut system.title_name.0, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Gameover Graphic",
                                     self.gameover_modal
                                         .button(&mut system.gameover_name.0, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Battle Transition",
                                     self.battle_transition_modal
                                         .button(&mut system.battle_transition.0, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Battle BGM",
                                     self.battle_bgm_modal
                                         .button(&mut system.battle_bgm, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Battle End ME",
                                     self.battle_end_me_modal
                                         .button(&mut system.battle_end_me, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Gameover ME",
                                     self.gameover_me_modal
                                         .button(&mut system.gameover_me, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Cursor SE",
                                     self.cursor_se_modal
                                         .button(&mut system.cursor_se, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Decision SE",
                                     self.decision_se_modal
                                         .button(&mut system.decision_se, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Cancel SE",
                                     self.cancel_se_modal
                                         .button(&mut system.cancel_se, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Buzzer SE",
                                     self.buzzer_se_modal
                                         .button(&mut system.buzzer_se, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Equip SE",
                                     self.equip_se_modal
                                         .button(&mut system.equip_se, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Shop SE",
                                     self.shop_se_modal.button(&mut system.shop_se, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Save SE",
                                     self.save_se_modal.button(&mut system.save_se, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Load SE",
                                     self.load_se_modal.button(&mut system.load_se, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Battle Start SE",
                                     self.battle_start_se_modal
                                         .button(&mut system.battle_start_se, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Escape SE",
                                     self.escape_se_modal
                                         .button(&mut system.escape_se, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            modified |= ui
+                            ui.columns(2, |columns| {
+                            modified |= columns[0]
                                 .add(Field::new(
                                     "Actor Collapse SE",
                                     self.actor_collapse_se_modal
                                         .button(&mut system.actor_collapse_se, update_state),
                                 ))
                                 .changed();
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            modified |= ui
+                            modified |= columns[1]
                                 .add(Field::new(
                                     "Enemy Collapse SE",
                                     self.enemy_collapse_se_modal
                                         .button(&mut system.enemy_collapse_se, update_state),
                                 ))
                                 .changed();
+                            });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            ui.columns(2, |columns| {
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(Field::new(
                                         "Currency",
@@ -342,12 +342,8 @@ impl luminol_core::Window for Window {
                                             .desired_width(f32::INFINITY),
                                     ))
                                     .changed();
-                            });
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                modified |= columns[2]
                                     .add(Field::new(
                                         "SP",
                                         egui::TextEdit::singleline(&mut system.words.sp)
@@ -355,7 +351,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                modified |= columns[3]
                                     .add(Field::new(
                                         "STR",
                                         egui::TextEdit::singleline(&mut system.words.str)
@@ -366,7 +362,7 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            ui.columns(2, |columns| {
+                            ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(Field::new(
                                         "DEX",
@@ -382,12 +378,8 @@ impl luminol_core::Window for Window {
                                             .desired_width(f32::INFINITY),
                                     ))
                                     .changed();
-                            });
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                modified |= columns[2]
                                     .add(Field::new(
                                         "INT",
                                         egui::TextEdit::singleline(&mut system.words.int)
@@ -395,7 +387,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                modified |= columns[3]
                                     .add(Field::new(
                                         "ATK",
                                         egui::TextEdit::singleline(&mut system.words.atk)
@@ -405,8 +397,8 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            ui.columns(2, |columns| {
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(Field::new(
                                         "PDEF",
@@ -422,12 +414,8 @@ impl luminol_core::Window for Window {
                                             .desired_width(f32::INFINITY),
                                     ))
                                     .changed();
-                            });
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                modified |= columns[2]
                                     .add(Field::new(
                                         "Weapon",
                                         egui::TextEdit::singleline(&mut system.words.weapon)
@@ -435,7 +423,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                modified |= columns[3]
                                     .add(Field::new(
                                         "Shield",
                                         egui::TextEdit::singleline(&mut system.words.armor1)
@@ -446,7 +434,7 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            ui.columns(2, |columns| {
+                            ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(Field::new(
                                         "Helmet",
@@ -462,12 +450,8 @@ impl luminol_core::Window for Window {
                                             .desired_width(f32::INFINITY),
                                     ))
                                     .changed();
-                            });
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                modified |= columns[2]
                                     .add(Field::new(
                                         "Accessory",
                                         egui::TextEdit::singleline(&mut system.words.armor4)
@@ -475,7 +459,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                modified |= columns[3]
                                     .add(Field::new(
                                         "Attack",
                                         egui::TextEdit::singleline(&mut system.words.attack)
@@ -485,8 +469,8 @@ impl luminol_core::Window for Window {
                             });
                         });
 
-                        ui.with_padded_stripe(true, |ui| {
-                            ui.columns(2, |columns| {
+                        ui.with_padded_stripe(false, |ui| {
+                            ui.columns(4, |columns| {
                                 modified |= columns[0]
                                     .add(Field::new(
                                         "Skill",
@@ -502,12 +486,8 @@ impl luminol_core::Window for Window {
                                             .desired_width(f32::INFINITY),
                                     ))
                                     .changed();
-                            });
-                        });
 
-                        ui.with_padded_stripe(false, |ui| {
-                            ui.columns(2, |columns| {
-                                modified |= columns[0]
+                                modified |= columns[2]
                                     .add(Field::new(
                                         "Item",
                                         egui::TextEdit::singleline(&mut system.words.item)
@@ -515,7 +495,7 @@ impl luminol_core::Window for Window {
                                     ))
                                     .changed();
 
-                                modified |= columns[1]
+                                modified |= columns[3]
                                     .add(Field::new(
                                         "Equipment",
                                         egui::TextEdit::singleline(&mut system.words.equip)

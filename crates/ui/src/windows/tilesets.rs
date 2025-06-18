@@ -258,19 +258,59 @@ impl luminol_core::Window for Window {
                         });
 
                         ui.with_padded_stripe(true, |ui| {
-                            let changed = ui
-                                .add(Field::new(
-                                    "Graphic",
-                                    self.tileset_modal.button(tileset, update_state),
-                                ))
-                                .changed();
-                            if changed {
-                                modified = true;
-                                needs_update = true;
-                            }
+                            ui.columns(2, |columns| {
+                                let changed = columns[0]
+                                    .add(Field::new(
+                                        "Graphic",
+                                        self.tileset_modal.button(tileset, update_state),
+                                    ))
+                                    .changed();
+                                if changed {
+                                    modified = true;
+                                    needs_update = true;
+                                }
+
+                                let changed = columns[1]
+                                    .add(Field::new(
+                                        "Panorama",
+                                        self.panorama_modal.button(tileset, update_state),
+                                    ))
+                                    .changed();
+                                if changed {
+                                    modified = true;
+                                    needs_update = true;
+                                }
+                            });
                         });
 
                         ui.with_padded_stripe(false, |ui| {
+                            ui.columns(2, |columns| {
+                                let changed = columns[0]
+                                    .add(Field::new(
+                                        "Fog",
+                                        self.fog_modal.button(tileset, update_state),
+                                    ))
+                                    .changed();
+                                if changed {
+                                    modified = true;
+                                    needs_update = true;
+                                }
+
+                                let changed = columns[1]
+                                    .add(Field::new(
+                                        "Battleback",
+                                        self.battleback_modal
+                                            .button(&mut tileset.battleback_name.0, update_state),
+                                    ))
+                                    .changed();
+                                if changed {
+                                    modified = true;
+                                    needs_update = true;
+                                }
+                            });
+                        });
+
+                        ui.with_padded_stripe(true, |ui| {
                             // Forget whether the collapsing header was open from the last time
                             // the editor was open
                             let ui_id = ui.make_persistent_id("autotiles_collapsing_header");
@@ -295,16 +335,29 @@ impl luminol_core::Window for Window {
                                 });
                             })
                             .body(|ui| {
-                                let atlas_dirty = (0..7).any(|i| {
-                                    ui.with_padded_stripe(i % 2 == 0, |ui| {
-                                        ui.add(Field::new(
-                                            format!("Autotile {}", i + 1),
-                                            self.autotile_modals[i].button(tileset, update_state),
-                                        ))
-                                        .changed()
-                                    })
-                                    .inner
-                                });
+                                let num_columns = 2;
+
+                                let atlas_dirty =
+                                    (0..7).chunks(num_columns).into_iter().enumerate().any(
+                                        |(row_index, row)| {
+                                            let mut row = row.peekable();
+                                            let first_in_row = *row.peek().unwrap();
+                                            ui.with_padded_stripe(row_index % 2 != 0, |ui| {
+                                                ui.columns(num_columns, |columns| {
+                                                    row.any(|i| {
+                                                        columns[i - first_in_row]
+                                                            .add(Field::new(
+                                                                format!("Autotile {}", i + 1),
+                                                                self.autotile_modals[i]
+                                                                    .button(tileset, update_state),
+                                                            ))
+                                                            .changed()
+                                                    })
+                                                })
+                                            })
+                                            .inner
+                                        },
+                                    );
 
                                 if atlas_dirty {
                                     modified = true;
@@ -315,46 +368,6 @@ impl luminol_core::Window for Window {
                                         .remove_atlas(tileset.tileset_name.0.as_deref());
                                 }
                             });
-                        });
-
-                        ui.with_padded_stripe(true, |ui| {
-                            let changed = ui
-                                .add(Field::new(
-                                    "Panorama",
-                                    self.panorama_modal.button(tileset, update_state),
-                                ))
-                                .changed();
-                            if changed {
-                                modified = true;
-                                needs_update = true;
-                            }
-                        });
-
-                        ui.with_padded_stripe(false, |ui| {
-                            let changed = ui
-                                .add(Field::new(
-                                    "Fog",
-                                    self.fog_modal.button(tileset, update_state),
-                                ))
-                                .changed();
-                            if changed {
-                                modified = true;
-                                needs_update = true;
-                            }
-                        });
-
-                        ui.with_padded_stripe(true, |ui| {
-                            let changed = ui
-                                .add(Field::new(
-                                    "Battleback",
-                                    self.battleback_modal
-                                        .button(&mut tileset.battleback_name.0, update_state),
-                                ))
-                                .changed();
-                            if changed {
-                                modified = true;
-                                needs_update = true;
-                            }
                         });
 
                         if needs_update {
