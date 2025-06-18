@@ -62,7 +62,6 @@ impl Window {
                             ..*ui.layout()
                         },
                         |ui| {
-                            ui.label("Autotiles");
                             // Has the user
                             if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
                                 *open_map_id = Some(id)
@@ -80,9 +79,18 @@ impl Window {
             // Just display a label otherwise.
             ui.horizontal(|ui| {
                 ui.add_space(ui.spacing().indent);
-                if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                    *open_map_id = Some(id)
-                }
+                ui.with_layout(
+                    egui::Layout {
+                        main_align: egui::Align::Min,
+                        main_justify: true,
+                        ..*ui.layout()
+                    },
+                    |ui| {
+                        if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
+                            *open_map_id = Some(id)
+                        }
+                    },
+                );
             });
         }
     }
