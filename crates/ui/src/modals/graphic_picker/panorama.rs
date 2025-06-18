@@ -168,6 +168,8 @@ impl Modal {
         });
 
         egui::Window::new("Panorama Graphic Picker")
+            .min_width(480.)
+            .default_size([640., 480.])
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))

@@ -319,6 +319,8 @@ impl Modal {
         };
 
         egui::Window::new("Event Graphic Picker")
+            .min_width(640.)
+            .default_size([640., 300.])
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))

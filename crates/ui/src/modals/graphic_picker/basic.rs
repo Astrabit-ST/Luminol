@@ -226,6 +226,8 @@ impl Modal {
         };
 
         egui::Window::new("Graphic Picker")
+            .min_width(480.)
+            .default_size([480., 300.])
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))

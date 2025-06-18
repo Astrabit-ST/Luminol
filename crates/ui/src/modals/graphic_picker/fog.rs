@@ -177,6 +177,8 @@ impl Modal {
         });
 
         egui::Window::new("Fog Graphic Picker")
+            .min_width(640.)
+            .default_size([640., 480.])
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))
@@ -329,7 +331,7 @@ impl Modal {
                 egui::TopBottomPanel::top(self.id_source.with("top")).show_inside(ui, |ui| {
                     ui.add_space(1.0); // pad out the top
 
-                    ui.columns(3, |columns| {
+                    ui.columns(2, |columns| {
                         columns[0].horizontal(|ui| {
                             ui.label("Hue");
                             if ui.add(egui::Slider::new(fog_hue, 0..=360)).changed() {
@@ -353,25 +355,27 @@ impl Modal {
                                 }
                             }
                         });
+                    });
 
-                        columns[2].horizontal(|ui| {
+                    ui.columns(2, |columns| {
+                        columns[0].horizontal(|ui| {
                             ui.label("Blend Type");
                             ui.add(EnumComboBox::new("blend_type", fog_blend_type));
                         });
-                    });
 
-                    ui.columns(3, |columns| {
-                        columns[0].horizontal(|ui| {
+                        columns[1].horizontal(|ui| {
                             ui.label("Zoom");
                             ui.add(egui::DragValue::new(fog_zoom).range(100..=800));
                         });
+                    });
 
-                        columns[1].horizontal(|ui| {
+                    ui.columns(2, |columns| {
+                        columns[0].horizontal(|ui| {
                             ui.label("SX");
                             ui.add(egui::DragValue::new(fog_sx).range(-256..=256));
                         });
 
-                        columns[2].horizontal(|ui| {
+                        columns[1].horizontal(|ui| {
                             ui.label("SY");
                             ui.add(egui::DragValue::new(fog_sy).range(-256..=256));
                         });

@@ -234,6 +234,7 @@ impl luminol_core::Window for Window {
         let response = egui::Window::new(name)
             .id(self.id())
             .default_width(500.)
+            .min_height(600.)
             .open(open)
             .show(ctx, |ui| {
                 self.view.show(
@@ -398,62 +399,71 @@ impl luminol_core::Window for Window {
                             &mut self.property,
                         ));
 
-                        egui::ScrollArea::both().show_viewport(ui, |ui, scroll_rect| {
-                            let tilepicker = self.tilepicker.as_mut().unwrap();
-                            let tilepicker_response = tilepicker.ui(update_state, ui, scroll_rect);
+                        egui::ScrollArea::both()
+                            .min_scrolled_height(256.)
+                            .show_viewport(ui, |ui, scroll_rect| {
+                                let tilepicker = self.tilepicker.as_mut().unwrap();
+                                let tilepicker_response =
+                                    tilepicker.ui(update_state, ui, scroll_rect);
 
-                            let bottom = tilepicker.view.atlas.tileset_height() as usize / 32;
-                            let first_row =
-                                ((scroll_rect.top().max(0.) / 32.).floor() as usize).min(bottom);
-                            let last_row =
-                                ((scroll_rect.bottom().max(0.) / 32.).ceil() as usize).min(bottom);
-                            let first_col =
-                                ((scroll_rect.left().max(0.) / 32.).floor() as usize).min(7);
-                            let last_col =
-                                ((scroll_rect.right().max(0.) / 32.).ceil() as usize).min(7);
+                                let bottom = tilepicker.view.atlas.tileset_height() as usize / 32;
+                                let first_row = ((scroll_rect.top().max(0.) / 32.).floor()
+                                    as usize)
+                                    .min(bottom);
+                                let last_row = ((scroll_rect.bottom().max(0.) / 32.).ceil()
+                                    as usize)
+                                    .min(bottom);
+                                let first_col =
+                                    ((scroll_rect.left().max(0.) / 32.).floor() as usize).min(7);
+                                let last_col =
+                                    ((scroll_rect.right().max(0.) / 32.).ceil() as usize).min(7);
 
-                            for (y, x) in
-                                (first_row..=last_row).cartesian_product(first_col..=last_col)
-                            {
-                                let tile_id = if y == 0 {
-                                    x * 48
-                                } else {
-                                    (y - 1) * 8 + x + 384
-                                };
+                                for (y, x) in
+                                    (first_row..=last_row).cartesian_product(first_col..=last_col)
+                                {
+                                    let tile_id = if y == 0 {
+                                        x * 48
+                                    } else {
+                                        (y - 1) * 8 + x + 384
+                                    };
 
-                                let tile_range = if y == 0 { 0..48 } else { 0..1 };
+                                    let tile_range = if y == 0 { 0..48 } else { 0..1 };
 
-                                let tile_passage_value = if tile_id >= tileset.passages.len() {
-                                    0
-                                } else {
-                                    tileset.passages[tile_id]
-                                };
+                                    let tile_passage_value = if tile_id >= tileset.passages.len() {
+                                        0
+                                    } else {
+                                        tileset.passages[tile_id]
+                                    };
 
-                                let tile_priority_value = if tile_id >= tileset.priorities.len() {
-                                    0
-                                } else {
-                                    tileset.priorities[tile_id]
-                                };
+                                    let tile_priority_value = if tile_id >= tileset.priorities.len()
+                                    {
+                                        0
+                                    } else {
+                                        tileset.priorities[tile_id]
+                                    };
 
-                                let tile_terrain_value = if tile_id >= tileset.terrain_tags.len() {
-                                    0
-                                } else {
-                                    tileset.terrain_tags[tile_id]
-                                };
+                                    let tile_terrain_value =
+                                        if tile_id >= tileset.terrain_tags.len() {
+                                            0
+                                        } else {
+                                            tileset.terrain_tags[tile_id]
+                                        };
 
-                                // Determine the egui coordinates of this tile in the tilepicker
-                                let tile_rect = egui::Rect::from_min_size(
-                                    egui::pos2(x as f32 * 32., y as f32 * 32.)
-                                        + tilepicker_response.rect.min.to_vec2(),
-                                    egui::Vec2::splat(32.),
-                                );
-                                let response = ui.allocate_rect(tile_rect, egui::Sense::click());
+                                    // Determine the egui coordinates of this tile in the tilepicker
+                                    let tile_rect = egui::Rect::from_min_size(
+                                        egui::pos2(x as f32 * 32., y as f32 * 32.)
+                                            + tilepicker_response.rect.min.to_vec2(),
+                                        egui::Vec2::splat(32.),
+                                    );
+                                    let response =
+                                        ui.allocate_rect(tile_rect, egui::Sense::click());
 
-                                match self.property {
-                                    Property::Passage => {
-                                        // Determine what the passage type is for this tile ID
-                                        let passage =
-                                            if y == 0 && tile_passage_value & 0b10000 == 0b10000 {
+                                    match self.property {
+                                        Property::Passage => {
+                                            // Determine what the passage type is for this tile ID
+                                            let passage = if y == 0
+                                                && tile_passage_value & 0b10000 == 0b10000
+                                            {
                                                 Passage::Square
                                             } else if tile_passage_value & 0b01111 == 0b01111 {
                                                 Passage::X
@@ -461,332 +471,361 @@ impl luminol_core::Window for Window {
                                                 Passage::O
                                             };
 
-                                        // Handle clicking on a tile to change its passage
-                                        let passage = if response.clicked()
-                                            || response.secondary_clicked()
-                                        {
-                                            let passage = if response.secondary_clicked() {
-                                                match passage {
-                                                    Passage::O if y == 0 => Passage::Square,
-                                                    Passage::O | Passage::Square => Passage::X,
-                                                    Passage::X => Passage::O,
-                                                }
-                                            } else {
-                                                match passage {
-                                                    Passage::X if y == 0 => Passage::Square,
-                                                    Passage::X | Passage::Square => Passage::O,
-                                                    Passage::O => Passage::X,
-                                                }
-                                            };
-                                            if tile_id + tile_range.end > tileset.passages.len() {
-                                                tileset.passages.resize(tile_id + tile_range.end);
-                                            }
-                                            for i in tile_range {
-                                                let new_tile_passage_value = match passage {
-                                                    Passage::X => 0b01111,
-                                                    Passage::O => 0b00000,
-                                                    Passage::Square => {
-                                                        if SQUARE_PASSAGE_MASK
-                                                            .binary_search(&i)
-                                                            .is_ok()
-                                                        {
-                                                            0b10000
-                                                        } else {
-                                                            0b11111
-                                                        }
+                                            // Handle clicking on a tile to change its passage
+                                            let passage = if response.clicked()
+                                                || response.secondary_clicked()
+                                            {
+                                                let passage = if response.secondary_clicked() {
+                                                    match passage {
+                                                        Passage::O if y == 0 => Passage::Square,
+                                                        Passage::O | Passage::Square => Passage::X,
+                                                        Passage::X => Passage::O,
+                                                    }
+                                                } else {
+                                                    match passage {
+                                                        Passage::X if y == 0 => Passage::Square,
+                                                        Passage::X | Passage::Square => Passage::O,
+                                                        Passage::O => Passage::X,
                                                     }
                                                 };
-                                                tileset.passages[tile_id + i] =
-                                                    new_tile_passage_value
-                                                        | (tileset.passages[tile_id + i]
-                                                            & !0b11111);
-                                            }
-                                            modified = true;
-                                            passage
-                                        } else {
-                                            passage
-                                        };
-
-                                        // Draw a symbol on top of the tile depending on the passage
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center(),
-                                            response.hovered(),
-                                            Overlay::Passage(passage),
-                                        );
-                                    }
-
-                                    Property::Passage4Directional => {
-                                        // Find the direction within the tile that the cursor is
-                                        // hovering over
-                                        let direction = response
-                                            .hovered()
-                                            .then(|| {
-                                                response.hover_pos().map(|pos| {
-                                                    let (min_index, _) = [
-                                                        (pos - tile_rect.center_bottom()).length(),
-                                                        (pos - tile_rect.left_center()).length(),
-                                                        (pos - tile_rect.right_center()).length(),
-                                                        (pos - tile_rect.center_top()).length(),
-                                                    ]
-                                                    .iter()
-                                                    .enumerate()
-                                                    .min_by(|(_, a), (_, b)| a.total_cmp(b))
-                                                    .unwrap();
-                                                    match min_index {
-                                                        0 => Direction::Down,
-                                                        1 => Direction::Left,
-                                                        2 => Direction::Right,
-                                                        3 => Direction::Up,
-                                                        _ => unreachable!(),
-                                                    }
-                                                })
-                                            })
-                                            .flatten();
-
-                                        // Handle clicking to change passage
-                                        let (tile_passage_value, tile_passage_value_changed) =
-                                            match (response.clicked()
-                                                || response.secondary_clicked())
-                                            .then_some(direction)
-                                            .flatten()
-                                            {
-                                                Some(Direction::Down) => {
-                                                    (tile_passage_value ^ 0b00001, true)
+                                                if tile_id + tile_range.end > tileset.passages.len()
+                                                {
+                                                    tileset
+                                                        .passages
+                                                        .resize(tile_id + tile_range.end);
                                                 }
-                                                Some(Direction::Left) => {
-                                                    (tile_passage_value ^ 0b00010, true)
+                                                for i in tile_range {
+                                                    let new_tile_passage_value = match passage {
+                                                        Passage::X => 0b01111,
+                                                        Passage::O => 0b00000,
+                                                        Passage::Square => {
+                                                            if SQUARE_PASSAGE_MASK
+                                                                .binary_search(&i)
+                                                                .is_ok()
+                                                            {
+                                                                0b10000
+                                                            } else {
+                                                                0b11111
+                                                            }
+                                                        }
+                                                    };
+                                                    tileset.passages[tile_id + i] =
+                                                        new_tile_passage_value
+                                                            | (tileset.passages[tile_id + i]
+                                                                & !0b11111);
                                                 }
-                                                Some(Direction::Right) => {
-                                                    (tile_passage_value ^ 0b00100, true)
-                                                }
-                                                Some(Direction::Up) => {
-                                                    (tile_passage_value ^ 0b01000, true)
-                                                }
-                                                _ => (tile_passage_value, false),
+                                                modified = true;
+                                                passage
+                                            } else {
+                                                passage
                                             };
-                                        if tile_passage_value_changed {
-                                            if tile_id + tile_range.end > tileset.passages.len() {
-                                                tileset.passages.resize(tile_id + tile_range.end);
-                                            }
-                                            for i in tile_range {
-                                                tileset.passages[tile_id + i] = (tile_passage_value
-                                                    & 0b11111)
-                                                    | (tileset.passages[tile_id + i] & !0b11111);
-                                            }
-                                            modified = true;
+
+                                            // Draw a symbol on top of the tile depending on the passage
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect.center(),
+                                                response.hovered(),
+                                                Overlay::Passage(passage),
+                                            );
                                         }
 
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center().lerp(tile_rect.center_bottom(), 0.5),
-                                            direction == Some(Direction::Down),
-                                            if tile_passage_value & 0b00001 == 0 {
-                                                Overlay::Direction(Direction::Down)
-                                            } else {
-                                                Overlay::Dot
-                                            },
-                                        );
+                                        Property::Passage4Directional => {
+                                            // Find the direction within the tile that the cursor is
+                                            // hovering over
+                                            let direction = response
+                                                .hovered()
+                                                .then(|| {
+                                                    response.hover_pos().map(|pos| {
+                                                        let (min_index, _) = [
+                                                            (pos - tile_rect.center_bottom())
+                                                                .length(),
+                                                            (pos - tile_rect.left_center())
+                                                                .length(),
+                                                            (pos - tile_rect.right_center())
+                                                                .length(),
+                                                            (pos - tile_rect.center_top()).length(),
+                                                        ]
+                                                        .iter()
+                                                        .enumerate()
+                                                        .min_by(|(_, a), (_, b)| a.total_cmp(b))
+                                                        .unwrap();
+                                                        match min_index {
+                                                            0 => Direction::Down,
+                                                            1 => Direction::Left,
+                                                            2 => Direction::Right,
+                                                            3 => Direction::Up,
+                                                            _ => unreachable!(),
+                                                        }
+                                                    })
+                                                })
+                                                .flatten();
 
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center().lerp(tile_rect.left_center(), 0.5),
-                                            direction == Some(Direction::Left),
-                                            if tile_passage_value & 0b00010 == 0 {
-                                                Overlay::Direction(Direction::Left)
-                                            } else {
-                                                Overlay::Dot
-                                            },
-                                        );
-
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center().lerp(tile_rect.right_center(), 0.5),
-                                            direction == Some(Direction::Right),
-                                            if tile_passage_value & 0b00100 == 0 {
-                                                Overlay::Direction(Direction::Right)
-                                            } else {
-                                                Overlay::Dot
-                                            },
-                                        );
-
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center().lerp(tile_rect.center_top(), 0.5),
-                                            direction == Some(Direction::Up),
-                                            if tile_passage_value & 0b01000 == 0 {
-                                                Overlay::Direction(Direction::Up)
-                                            } else {
-                                                Overlay::Dot
-                                            },
-                                        );
-                                    }
-
-                                    Property::Priority => {
-                                        // Handle clicking to change priority
-                                        let tile_priority_value = if response.clicked()
-                                            || response.secondary_clicked()
-                                        {
-                                            if tile_id + tile_range.end > tileset.priorities.len() {
-                                                tileset.priorities.resize(tile_id + tile_range.end);
-                                            }
-                                            let new_tile_priority_value =
-                                                if (0..=6).contains(&tile_priority_value) {
-                                                    tile_priority_value
-                                                } else {
-                                                    0
+                                            // Handle clicking to change passage
+                                            let (tile_passage_value, tile_passage_value_changed) =
+                                                match (response.clicked()
+                                                    || response.secondary_clicked())
+                                                .then_some(direction)
+                                                .flatten()
+                                                {
+                                                    Some(Direction::Down) => {
+                                                        (tile_passage_value ^ 0b00001, true)
+                                                    }
+                                                    Some(Direction::Left) => {
+                                                        (tile_passage_value ^ 0b00010, true)
+                                                    }
+                                                    Some(Direction::Right) => {
+                                                        (tile_passage_value ^ 0b00100, true)
+                                                    }
+                                                    Some(Direction::Up) => {
+                                                        (tile_passage_value ^ 0b01000, true)
+                                                    }
+                                                    _ => (tile_passage_value, false),
                                                 };
-                                            let new_tile_priority_value =
-                                                if response.secondary_clicked() {
-                                                    new_tile_priority_value - 1
-                                                } else {
-                                                    new_tile_priority_value + 1
+                                            if tile_passage_value_changed {
+                                                if tile_id + tile_range.end > tileset.passages.len()
+                                                {
+                                                    tileset
+                                                        .passages
+                                                        .resize(tile_id + tile_range.end);
                                                 }
-                                                .rem_euclid(6);
-                                            for i in tile_range {
-                                                tileset.priorities[tile_id + i] =
-                                                    new_tile_priority_value;
+                                                for i in tile_range {
+                                                    tileset.passages[tile_id + i] =
+                                                        (tile_passage_value & 0b11111)
+                                                            | (tileset.passages[tile_id + i]
+                                                                & !0b11111);
+                                                }
+                                                modified = true;
                                             }
-                                            modified = true;
-                                            new_tile_priority_value
-                                        } else {
-                                            tile_priority_value
-                                        };
 
-                                        // Draw a symbol on top of the tile depending on the
-                                        // priority
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center(),
-                                            response.hovered(),
-                                            match tile_priority_value {
-                                                1 => Overlay::Character('1'),
-                                                2 => Overlay::Character('2'),
-                                                3 => Overlay::Character('3'),
-                                                4 => Overlay::Character('4'),
-                                                5 => Overlay::Character('5'),
-                                                _ => Overlay::Dot,
-                                            },
-                                        );
-                                    }
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect
+                                                    .center()
+                                                    .lerp(tile_rect.center_bottom(), 0.5),
+                                                direction == Some(Direction::Down),
+                                                if tile_passage_value & 0b00001 == 0 {
+                                                    Overlay::Direction(Direction::Down)
+                                                } else {
+                                                    Overlay::Dot
+                                                },
+                                            );
 
-                                    Property::BushFlag => {
-                                        // Handle clicking to change bush flag
-                                        let tile_passage_value = if response.clicked()
-                                            || response.secondary_clicked()
-                                        {
-                                            if tile_id + tile_range.end > tileset.passages.len() {
-                                                tileset.passages.resize(tile_id + tile_range.end);
-                                            }
-                                            for i in tile_range {
-                                                tileset.passages[tile_id + i] ^= 0b01000000;
-                                            }
-                                            modified = true;
-                                            tile_passage_value ^ 0b01000000
-                                        } else {
-                                            tile_passage_value
-                                        };
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect
+                                                    .center()
+                                                    .lerp(tile_rect.left_center(), 0.5),
+                                                direction == Some(Direction::Left),
+                                                if tile_passage_value & 0b00010 == 0 {
+                                                    Overlay::Direction(Direction::Left)
+                                                } else {
+                                                    Overlay::Dot
+                                                },
+                                            );
 
-                                        // Draw a symbol on top of the tile depending on the
-                                        // bush flag
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center(),
-                                            response.hovered(),
-                                            if tile_passage_value & 0b01000000 != 0 {
-                                                Overlay::Approx
-                                            } else {
-                                                Overlay::Dot
-                                            },
-                                        );
-                                    }
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect
+                                                    .center()
+                                                    .lerp(tile_rect.right_center(), 0.5),
+                                                direction == Some(Direction::Right),
+                                                if tile_passage_value & 0b00100 == 0 {
+                                                    Overlay::Direction(Direction::Right)
+                                                } else {
+                                                    Overlay::Dot
+                                                },
+                                            );
 
-                                    Property::CounterFlag => {
-                                        // Handle clicking to change counter flag
-                                        let tile_passage_value = if response.clicked()
-                                            || response.secondary_clicked()
-                                        {
-                                            if tile_id + tile_range.end > tileset.passages.len() {
-                                                tileset.passages.resize(tile_id + tile_range.end);
-                                            }
-                                            for i in tile_range {
-                                                tileset.passages[tile_id + i] ^= 0b10000000;
-                                            }
-                                            modified = true;
-                                            tile_passage_value ^ 0b10000000
-                                        } else {
-                                            tile_passage_value
-                                        };
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect
+                                                    .center()
+                                                    .lerp(tile_rect.center_top(), 0.5),
+                                                direction == Some(Direction::Up),
+                                                if tile_passage_value & 0b01000 == 0 {
+                                                    Overlay::Direction(Direction::Up)
+                                                } else {
+                                                    Overlay::Dot
+                                                },
+                                            );
+                                        }
 
-                                        // Draw a symbol on top of the tile depending on the
-                                        // counter flag
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center(),
-                                            response.hovered(),
-                                            if tile_passage_value & 0b10000000 != 0 {
-                                                Overlay::Diamond
-                                            } else {
-                                                Overlay::Dot
-                                            },
-                                        );
-                                    }
-
-                                    Property::TerrainTag => {
-                                        // Handle clicking to change terrain tag
-                                        let tile_terrain_value = if response.clicked()
-                                            || response.secondary_clicked()
-                                        {
-                                            if tile_id + tile_range.end > tileset.terrain_tags.len()
+                                        Property::Priority => {
+                                            // Handle clicking to change priority
+                                            let tile_priority_value = if response.clicked()
+                                                || response.secondary_clicked()
                                             {
-                                                tileset
-                                                    .terrain_tags
-                                                    .resize(tile_id + tile_range.end);
-                                            }
-                                            let new_tile_terrain_value =
-                                                if (0..=8).contains(&tile_terrain_value) {
-                                                    tile_terrain_value
-                                                } else {
-                                                    0
-                                                };
-                                            let new_tile_terrain_value =
-                                                if response.secondary_clicked() {
-                                                    new_tile_terrain_value - 1
-                                                } else {
-                                                    new_tile_terrain_value + 1
+                                                if tile_id + tile_range.end
+                                                    > tileset.priorities.len()
+                                                {
+                                                    tileset
+                                                        .priorities
+                                                        .resize(tile_id + tile_range.end);
                                                 }
-                                                .rem_euclid(8);
-                                            for i in tile_range {
-                                                tileset.terrain_tags[tile_id + i] =
-                                                    new_tile_terrain_value;
-                                            }
-                                            modified = true;
-                                            new_tile_terrain_value
-                                        } else {
-                                            tile_terrain_value
-                                        };
+                                                let new_tile_priority_value =
+                                                    if (0..=6).contains(&tile_priority_value) {
+                                                        tile_priority_value
+                                                    } else {
+                                                        0
+                                                    };
+                                                let new_tile_priority_value =
+                                                    if response.secondary_clicked() {
+                                                        new_tile_priority_value - 1
+                                                    } else {
+                                                        new_tile_priority_value + 1
+                                                    }
+                                                    .rem_euclid(6);
+                                                for i in tile_range {
+                                                    tileset.priorities[tile_id + i] =
+                                                        new_tile_priority_value;
+                                                }
+                                                modified = true;
+                                                new_tile_priority_value
+                                            } else {
+                                                tile_priority_value
+                                            };
 
-                                        // Draw a symbol on top of the tile depending on the
-                                        // terrain tag
-                                        paint_overlay(
-                                            ui,
-                                            tile_rect.center(),
-                                            response.hovered(),
-                                            match tile_terrain_value & 0b111 {
-                                                1 => Overlay::Character('1'),
-                                                2 => Overlay::Character('2'),
-                                                3 => Overlay::Character('3'),
-                                                4 => Overlay::Character('4'),
-                                                5 => Overlay::Character('5'),
-                                                6 => Overlay::Character('6'),
-                                                7 => Overlay::Character('7'),
-                                                _ => Overlay::Dot,
-                                            },
-                                        );
-                                    }
-                                };
-                            }
-                        });
+                                            // Draw a symbol on top of the tile depending on the
+                                            // priority
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect.center(),
+                                                response.hovered(),
+                                                match tile_priority_value {
+                                                    1 => Overlay::Character('1'),
+                                                    2 => Overlay::Character('2'),
+                                                    3 => Overlay::Character('3'),
+                                                    4 => Overlay::Character('4'),
+                                                    5 => Overlay::Character('5'),
+                                                    _ => Overlay::Dot,
+                                                },
+                                            );
+                                        }
+
+                                        Property::BushFlag => {
+                                            // Handle clicking to change bush flag
+                                            let tile_passage_value = if response.clicked()
+                                                || response.secondary_clicked()
+                                            {
+                                                if tile_id + tile_range.end > tileset.passages.len()
+                                                {
+                                                    tileset
+                                                        .passages
+                                                        .resize(tile_id + tile_range.end);
+                                                }
+                                                for i in tile_range {
+                                                    tileset.passages[tile_id + i] ^= 0b01000000;
+                                                }
+                                                modified = true;
+                                                tile_passage_value ^ 0b01000000
+                                            } else {
+                                                tile_passage_value
+                                            };
+
+                                            // Draw a symbol on top of the tile depending on the
+                                            // bush flag
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect.center(),
+                                                response.hovered(),
+                                                if tile_passage_value & 0b01000000 != 0 {
+                                                    Overlay::Approx
+                                                } else {
+                                                    Overlay::Dot
+                                                },
+                                            );
+                                        }
+
+                                        Property::CounterFlag => {
+                                            // Handle clicking to change counter flag
+                                            let tile_passage_value = if response.clicked()
+                                                || response.secondary_clicked()
+                                            {
+                                                if tile_id + tile_range.end > tileset.passages.len()
+                                                {
+                                                    tileset
+                                                        .passages
+                                                        .resize(tile_id + tile_range.end);
+                                                }
+                                                for i in tile_range {
+                                                    tileset.passages[tile_id + i] ^= 0b10000000;
+                                                }
+                                                modified = true;
+                                                tile_passage_value ^ 0b10000000
+                                            } else {
+                                                tile_passage_value
+                                            };
+
+                                            // Draw a symbol on top of the tile depending on the
+                                            // counter flag
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect.center(),
+                                                response.hovered(),
+                                                if tile_passage_value & 0b10000000 != 0 {
+                                                    Overlay::Diamond
+                                                } else {
+                                                    Overlay::Dot
+                                                },
+                                            );
+                                        }
+
+                                        Property::TerrainTag => {
+                                            // Handle clicking to change terrain tag
+                                            let tile_terrain_value = if response.clicked()
+                                                || response.secondary_clicked()
+                                            {
+                                                if tile_id + tile_range.end
+                                                    > tileset.terrain_tags.len()
+                                                {
+                                                    tileset
+                                                        .terrain_tags
+                                                        .resize(tile_id + tile_range.end);
+                                                }
+                                                let new_tile_terrain_value =
+                                                    if (0..=8).contains(&tile_terrain_value) {
+                                                        tile_terrain_value
+                                                    } else {
+                                                        0
+                                                    };
+                                                let new_tile_terrain_value =
+                                                    if response.secondary_clicked() {
+                                                        new_tile_terrain_value - 1
+                                                    } else {
+                                                        new_tile_terrain_value + 1
+                                                    }
+                                                    .rem_euclid(8);
+                                                for i in tile_range {
+                                                    tileset.terrain_tags[tile_id + i] =
+                                                        new_tile_terrain_value;
+                                                }
+                                                modified = true;
+                                                new_tile_terrain_value
+                                            } else {
+                                                tile_terrain_value
+                                            };
+
+                                            // Draw a symbol on top of the tile depending on the
+                                            // terrain tag
+                                            paint_overlay(
+                                                ui,
+                                                tile_rect.center(),
+                                                response.hovered(),
+                                                match tile_terrain_value & 0b111 {
+                                                    1 => Overlay::Character('1'),
+                                                    2 => Overlay::Character('2'),
+                                                    3 => Overlay::Character('3'),
+                                                    4 => Overlay::Character('4'),
+                                                    5 => Overlay::Character('5'),
+                                                    6 => Overlay::Character('6'),
+                                                    7 => Overlay::Character('7'),
+                                                    _ => Overlay::Dot,
+                                                },
+                                            );
+                                        }
+                                    };
+                                }
+                            });
 
                         self.previous_tileset = Some(tileset.id);
                     },
