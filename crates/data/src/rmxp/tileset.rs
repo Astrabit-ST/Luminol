@@ -45,5 +45,12 @@ pub struct Tileset {
     /// we can detect when we need to update other editors that are currently using this tileset
     #[serde(skip)]
     #[marshal(skip)]
-    pub nonce: u64,
+    pub texture_nonce: u64,
+
+    /// Gets incremented every time the passages or priorities get modified by the tileset editor
+    /// so that we can detect when we need to update other editors that are currently using this
+    /// tileset
+    #[serde(skip)]
+    #[marshal(skip)]
+    pub passages_nonce: u64,
 }

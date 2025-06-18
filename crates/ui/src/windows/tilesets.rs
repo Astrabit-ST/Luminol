@@ -249,7 +249,8 @@ impl luminol_core::Window for Window {
                     |ui, tilesets, id, update_state| {
                         let tileset = &mut tilesets[id];
                         self.selected_tileset_name = Some(tileset.name.clone());
-                        let mut needs_update = self.previous_tileset != Some(tileset.id);
+                        let mut needs_update = false;
+                        let selected_tileset_changed = self.previous_tileset != Some(tileset.id);
 
                         ui.with_padded_stripe(false, |ui| {
                             modified |= ui
@@ -378,7 +379,10 @@ impl luminol_core::Window for Window {
                         });
 
                         if needs_update {
-                            tileset.nonce += 1;
+                            tileset.texture_nonce += 1;
+                        }
+
+                        if selected_tileset_changed || needs_update {
                             self.tilepicker = Some(
                                 Tilepicker::new(
                                     update_state,
@@ -512,6 +516,7 @@ impl luminol_core::Window for Window {
                                                             | (tileset.passages[tile_id + i]
                                                                 & !0b11111);
                                                 }
+                                                tileset.passages_nonce += 1;
                                                 modified = true;
                                                 passage
                                             } else {
@@ -592,6 +597,7 @@ impl luminol_core::Window for Window {
                                                             | (tileset.passages[tile_id + i]
                                                                 & !0b11111);
                                                 }
+                                                tileset.passages_nonce += 1;
                                                 modified = true;
                                             }
 
@@ -677,6 +683,7 @@ impl luminol_core::Window for Window {
                                                     tileset.priorities[tile_id + i] =
                                                         new_tile_priority_value;
                                                 }
+                                                tileset.passages_nonce += 1;
                                                 modified = true;
                                                 new_tile_priority_value
                                             } else {

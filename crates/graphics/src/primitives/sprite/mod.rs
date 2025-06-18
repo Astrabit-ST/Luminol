@@ -31,6 +31,8 @@ pub struct Sprite {
     pub blend_mode: luminol_data::BlendMode,
     pub quad: Quad,
 
+    size: wgpu::Extent3d,
+
     // stored in an Arc so we can use it in rendering
     vertices: Arc<vertices::Vertices>,
     bind_group: Arc<wgpu::BindGroup>,
@@ -110,6 +112,8 @@ impl Sprite {
             transform,
             quad,
 
+            size: texture.size(),
+
             vertices: Arc::new(vertices),
             bind_group: Arc::new(bind_group),
         }
@@ -151,15 +155,15 @@ impl Sprite {
         Self::basic_hue(graphics_state, 0, texture, viewport)
     }
 
-    pub fn set_quad(
-        &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
-        quad: Quad,
-        extents: wgpu::Extent3d,
-    ) {
+    #[inline]
+    pub fn size(&self) -> wgpu::Extent3d {
+        self.size
+    }
+
+    pub fn set_quad(&mut self, render_state: &luminol_egui_wgpu::RenderState, quad: Quad) {
         if quad != self.quad {
             self.quad = quad;
-            self.vertices.set(render_state, &[quad], extents);
+            self.vertices.set(render_state, &[quad], self.size);
         }
     }
 }

@@ -96,9 +96,34 @@ pub struct Tab {
     /// Asynchronous task used to save the map as an image file
     save_as_image_promise: Option<poll_promise::Promise<color_eyre::Result<()>>>,
 
-    /// Stores the nonce of the tileset used the previous frame so we can detect when the user
-    /// modifies the tileset in the tileset editor
-    previous_tileset_nonce: u64,
+    /// Stores the nonce of the tileset texture used the previous frame so we can detect when the
+    /// user  modifies the tileset in the tileset editor
+    previous_tileset_texture_nonce: u64,
+
+    /// Stores the nonce of the tileset passages used the previous frame so we can detect when the
+    /// user modifies the tileset in the tileset editor
+    previous_tileset_passages_nonce: u64,
+
+    /// Stores the name of the panorama used the previous frame so we can detect when it's changed
+    previous_panorama_name: Option<camino::Utf8PathBuf>,
+
+    /// Stores the panorama hue used the previous frame so we can detect when it's changed
+    previous_panorama_hue: i32,
+
+    /// Stores the name of the fog used the previous frame so we can detect when it's changed
+    previous_fog_name: Option<camino::Utf8PathBuf>,
+
+    /// Stores the fog hue used the previous frame so we can detect when it's changed
+    previous_fog_hue: i32,
+
+    /// Stores the fog opacity used the previous frame so we can detect when it's changed
+    previous_fog_opacity: i32,
+
+    /// Stores the fog blend type used the previous frame so we can detect when it's changed
+    previous_fog_blend_type: luminol_data::BlendMode,
+
+    /// Stores the fog zoom used the previous frame so we can detect when it's changed
+    previous_fog_zoom: i32,
 }
 
 // TODO: If we add support for changing event IDs, these need to be added as history entries
@@ -199,7 +224,17 @@ impl Tab {
 
             save_as_image_promise: None,
 
-            previous_tileset_nonce: tileset.nonce,
+            previous_tileset_texture_nonce: tileset.texture_nonce,
+            previous_tileset_passages_nonce: tileset.passages_nonce,
+
+            previous_panorama_name: tileset.panorama_name.0.clone(),
+            previous_panorama_hue: tileset.panorama_hue,
+
+            previous_fog_name: tileset.fog_name.0.clone(),
+            previous_fog_hue: tileset.fog_hue,
+            previous_fog_opacity: tileset.fog_opacity,
+            previous_fog_blend_type: tileset.fog_blend_type,
+            previous_fog_zoom: tileset.fog_zoom,
         })
     }
 }
@@ -271,7 +306,7 @@ impl luminol_core::Tab for Tab {
                                     .striped(true)
                                     .show(ui, |ui| {
                                         ui.label(egui::RichText::new("Panorama").underline());
-                                        ui.checkbox(&mut self.view.map.pano_enabled, "👁");
+                                        ui.checkbox(&mut self.view.map.settings.pano_enabled, "👁");
                                         ui.end_row();
 
                                         for (index, layer) in self
@@ -301,19 +336,19 @@ impl luminol_core::Tab for Tab {
                                                 egui::RichText::new("Events").italics(),
                                             );
                                         });
-                                        ui.checkbox(&mut self.view.map.event_enabled, "👁");
+                                        ui.checkbox(&mut self.view.map.settings.event_enabled, "👁");
                                         ui.end_row();
 
                                         ui.label(egui::RichText::new("Fog").underline());
-                                        ui.checkbox(&mut self.view.map.fog_enabled, "👁");
+                                        ui.checkbox(&mut self.view.map.settings.fog_enabled, "👁");
                                         ui.end_row();
 
                                         ui.label(egui::RichText::new("Collision").underline());
-                                        ui.checkbox(&mut self.view.map.coll_enabled, "👁");
+                                        ui.checkbox(&mut self.view.map.settings.coll_enabled, "👁");
                                         ui.end_row();
 
                                         ui.label(egui::RichText::new("Grid").underline());
-                                        ui.checkbox(&mut self.view.map.grid_enabled, "👁");
+                                        ui.checkbox(&mut self.view.map.settings.grid_enabled, "👁");
                                         ui.end_row();
                                     });
                             },
@@ -370,7 +405,7 @@ impl luminol_core::Tab for Tab {
             let tileset = &tilesets.data[map.tileset_id];
 
             // Rebuild the map graphics and tilepicker if the tileset texture has changed
-            if tileset.nonce != self.previous_tileset_nonce {
+            if tileset.texture_nonce != self.previous_tileset_texture_nonce {
                 let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
                 luminol_graphics::Collision::calculate_passages(
                     &tileset.passages,
@@ -381,6 +416,7 @@ impl luminol_core::Tab for Tab {
                     |x, y, passage| passages[(x, y)] = passage,
                 );
 
+                let map_settings = self.view.map.settings;
                 self.view.map = luminol_graphics::Map::new(
                     &update_state.graphics,
                     update_state.filesystem,
@@ -388,6 +424,7 @@ impl luminol_core::Tab for Tab {
                     tileset,
                     &passages,
                 );
+                self.view.map.settings = map_settings;
 
                 self.tilepicker = Tilepicker::new(
                     update_state,
@@ -398,7 +435,100 @@ impl luminol_core::Tab for Tab {
                     false,
                 );
 
-                self.previous_tileset_nonce = tileset.nonce;
+                self.previous_tileset_texture_nonce = tileset.texture_nonce;
+                self.previous_panorama_name
+                    .clone_from(&tileset.panorama_name.0);
+                self.previous_panorama_hue = tileset.panorama_hue;
+                self.previous_fog_name.clone_from(&tileset.fog_name.0);
+                self.previous_fog_hue = tileset.fog_hue;
+                self.previous_fog_opacity = tileset.fog_opacity;
+                self.previous_fog_blend_type = tileset.fog_blend_type;
+                self.previous_fog_zoom = tileset.fog_zoom;
+            } else {
+                // Update the collision if needed
+                if tileset.passages_nonce != self.previous_tileset_passages_nonce {
+                    let mut passages =
+                        luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
+                    luminol_graphics::Collision::calculate_passages(
+                        &tileset.passages,
+                        &tileset.priorities,
+                        &map.data,
+                        Some(&map.events),
+                        (0..map.data.zsize()).rev(),
+                        |x, y, passage| passages[(x, y)] = passage,
+                    );
+                    self.view
+                        .map
+                        .collision
+                        .set_passages(&update_state.graphics.render_state, &passages);
+                    self.previous_tileset_passages_nonce = tileset.passages_nonce;
+                }
+
+                // Update the panorama if it's changed
+                if tileset.panorama_name.0 != self.previous_panorama_name {
+                    self.view.map.reload_panorama(
+                        &update_state.graphics,
+                        update_state.filesystem,
+                        &map,
+                        tileset,
+                    );
+                    self.previous_panorama_name
+                        .clone_from(&tileset.panorama_name.0);
+                    self.previous_panorama_hue = tileset.panorama_hue;
+                } else if tileset.panorama_hue != self.previous_panorama_hue {
+                    if let Some(panorama) = &mut self.view.map.panorama {
+                        panorama
+                            .sprite
+                            .graphic
+                            .set_hue(&update_state.graphics.render_state, tileset.panorama_hue);
+                    }
+                    self.previous_panorama_hue = tileset.panorama_hue;
+                }
+
+                // Update the fog if it's changed
+                if tileset.fog_name.0 != self.previous_fog_name {
+                    self.view.map.reload_fog(
+                        &update_state.graphics,
+                        update_state.filesystem,
+                        &map,
+                        tileset,
+                    );
+                    self.previous_fog_name.clone_from(&tileset.fog_name.0);
+                    self.previous_fog_hue = tileset.fog_hue;
+                    self.previous_fog_opacity = tileset.fog_opacity;
+                    self.previous_fog_blend_type = tileset.fog_blend_type;
+                    self.previous_fog_zoom = tileset.fog_zoom;
+                } else {
+                    if tileset.fog_hue != self.previous_fog_hue {
+                        if let Some(fog) = &mut self.view.map.fog {
+                            fog.sprite
+                                .graphic
+                                .set_hue(&update_state.graphics.render_state, tileset.fog_hue);
+                        }
+                        self.previous_fog_hue = tileset.fog_hue;
+                    }
+                    if tileset.fog_opacity != self.previous_fog_opacity {
+                        if let Some(fog) = &mut self.view.map.fog {
+                            fog.sprite.graphic.set_opacity(
+                                &update_state.graphics.render_state,
+                                tileset.fog_opacity,
+                            );
+                        }
+                        self.previous_fog_hue = tileset.fog_hue;
+                    }
+                    if tileset.fog_blend_type != self.previous_fog_blend_type {
+                        if let Some(fog) = &mut self.view.map.fog {
+                            fog.sprite.blend_mode = tileset.fog_blend_type;
+                        }
+                        self.previous_fog_blend_type = tileset.fog_blend_type;
+                    }
+                    if tileset.fog_zoom != self.previous_fog_zoom {
+                        if let Some(fog) = &mut self.view.map.fog {
+                            fog.set_zoom(&update_state.graphics.render_state, tileset.fog_zoom);
+                        }
+                        self.previous_fog_zoom = tileset.fog_zoom;
+                    }
+                }
             }
         }
 
@@ -419,8 +549,8 @@ impl luminol_core::Tab for Tab {
                             .persistence_id,
                     )
                     .show_viewport(ui, |ui, rect| {
-                        self.tilepicker.view.coll_enabled = self.view.map.coll_enabled;
-                        self.tilepicker.view.grid_enabled = self.view.map.grid_enabled;
+                        self.tilepicker.view.coll_enabled = self.view.map.settings.coll_enabled;
+                        self.tilepicker.view.grid_enabled = self.view.map.settings.grid_enabled;
                         self.tilepicker.ui(update_state, ui, rect);
                         ui.separator();
                     });
@@ -734,7 +864,7 @@ impl luminol_core::Tab for Tab {
                     &tileset.passages,
                     &tileset.priorities,
                     &map.data,
-                    if self.view.map.event_enabled {
+                    if self.view.map.settings.event_enabled {
                         Some(&map.events)
                     } else {
                         None

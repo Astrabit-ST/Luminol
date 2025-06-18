@@ -62,6 +62,21 @@ impl Plane {
 
         Self { sprite }
     }
+
+    pub fn set_zoom(&mut self, render_state: &luminol_egui_wgpu::RenderState, zoom: i32) {
+        let zoom = zoom as f32 / 100.;
+        let map_width = self.sprite.quad.pos.width() * 32.;
+        let map_height = self.sprite.quad.pos.height() * 32.;
+
+        let tex_coords = egui::Rect::from_min_size(
+            egui::pos2(0.0, 0.0),
+            egui::vec2(map_width / zoom, map_height / zoom),
+        );
+
+        let quad = Quad::new(self.sprite.quad.pos, tex_coords);
+
+        self.sprite.set_quad(render_state, quad);
+    }
 }
 
 impl Renderable for Plane {

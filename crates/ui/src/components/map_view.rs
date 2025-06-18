@@ -363,12 +363,13 @@ impl MapView {
         )
         .intersect(map_rect);
 
-        if !self.map.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
+        if !self.map.settings.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events)
+        {
             self.selected_event_id = None;
         }
         self.selected_event_is_hovered = false;
 
-        if self.map.event_enabled {
+        if self.map.settings.event_enabled {
             let mut selected_event = None;
             let mut selected_event_rect = None;
 

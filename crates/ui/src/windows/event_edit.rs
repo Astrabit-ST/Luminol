@@ -41,9 +41,9 @@ pub struct Window {
     variable_modal: VariableModal,
     graphic_modal: GraphicPicker,
 
-    /// Stores the nonce of the tileset used the previous frame so we can detect when the user
-    /// modifies the tileset in the tileset editor
-    previous_tileset_nonce: u64,
+    /// Stores the nonce of the tileset texture used the previous frame so we can detect when the
+    /// user modifies the tileset in the tileset editor
+    previous_tileset_texture_nonce: u64,
 }
 
 impl Window {
@@ -73,7 +73,7 @@ impl Window {
             variable_modal: VariableModal::new(id_source.with("variable_modal")),
             graphic_modal,
 
-            previous_tileset_nonce: tileset.nonce,
+            previous_tileset_texture_nonce: tileset.texture_nonce,
         }
     }
 }
@@ -104,9 +104,9 @@ impl luminol_core::Window for Window {
         let tileset_changed = {
             let tilesets = update_state.data.tilesets();
             let tileset = &tilesets.data[tileset_id];
-            let tileset_changed = self.previous_tileset_nonce != tileset.nonce;
+            let tileset_changed = self.previous_tileset_texture_nonce != tileset.texture_nonce;
             if tileset_changed {
-                self.previous_tileset_nonce = tileset.nonce;
+                self.previous_tileset_texture_nonce = tileset.texture_nonce;
             }
             tileset_changed
         };
