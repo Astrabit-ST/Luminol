@@ -293,7 +293,7 @@ impl luminol_core::Window for super::Window {
                                     ),
                                 ))
                                 .changed();
-                            if changed {
+                            if changed && self.previous_battler_name != system.battler_name.0 {
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
                                     if let Some(battler_name) = &system.battler_name.0 {
                                         match update_state.graphics.texture_loader.load_now(

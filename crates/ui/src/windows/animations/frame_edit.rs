@@ -99,7 +99,12 @@ pub fn show_frame_edit(
                 }
                 Err(e) => {
                     frame_view.frame.battler_texture = None;
-                    super::util::log_battler_error(update_state, system, animation, e);
+                    if !matches!(
+                        e.root_cause().downcast_ref(),
+                        Some(luminol_filesystem::Error::NotExist)
+                    ) {
+                        super::util::log_battler_error(update_state, system, animation, e);
+                    }
                 }
             }
         }
