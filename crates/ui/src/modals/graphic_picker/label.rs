@@ -47,6 +47,11 @@ enum State {
 }
 
 impl Modal {
+    pub fn close_window(&mut self) {
+        self.state = State::Closed;
+        self.scrolled_on_first_open = false;
+    }
+
     pub fn new(id_source: egui::Id, path: camino::Utf8PathBuf) -> Self {
         Self {
             state: State::Closed,
@@ -119,8 +124,7 @@ impl luminol_core::Modal for Modal {
     }
 
     fn reset(&mut self, _update_state: &mut UpdateState<'_>, _data: Self::Data<'_>) {
-        self.state = State::Closed;
-        self.scrolled_on_first_open = false;
+        self.close_window();
     }
 }
 

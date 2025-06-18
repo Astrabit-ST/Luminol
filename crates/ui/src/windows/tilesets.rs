@@ -27,8 +27,8 @@ use luminol_core::Modal;
 
 use crate::components::{DatabaseView, EnumComboBox, Field, Tilepicker, UiExt};
 use crate::modals::graphic_picker::{
-    autotile::Modal as AutotileModal, fog::Modal as FogModal, label::Modal as LabelModal,
-    panorama::Modal as PanoramaModal, tileset::Modal as TilesetModal,
+    autotile::Modal as AutotileModal, fog::Modal as FogModal, hue_label::Modal as HueLabelModal,
+    label::Modal as LabelModal, tileset::Modal as TilesetModal,
 };
 
 const SQUARE_PASSAGE_MASK: [usize; 14] = [20, 21, 22, 23, 33, 34, 35, 36, 37, 42, 43, 45, 46, 47];
@@ -170,7 +170,7 @@ pub struct Window {
 
     autotile_modals: [AutotileModal; 7],
     tileset_modal: TilesetModal,
-    panorama_modal: PanoramaModal,
+    panorama_modal: HueLabelModal,
     fog_modal: FogModal,
     battleback_modal: LabelModal,
 
@@ -191,7 +191,10 @@ impl Default for Window {
                 AutotileModal::new(format!("autotile_graphic_picker_{i}").into(), i)
             }),
             tileset_modal: TilesetModal::new("tileset_graphic_picker".into()),
-            panorama_modal: PanoramaModal::new("panorama_graphic_picker".into()),
+            panorama_modal: HueLabelModal::new(
+                "panorama_graphic_picker".into(),
+                "Graphics/Panoramas".into(),
+            ),
             fog_modal: FogModal::new("fog_graphic_picker".into()),
             battleback_modal: LabelModal::new(
                 "battleback_graphic_picker".into(),
@@ -274,7 +277,13 @@ impl luminol_core::Window for Window {
                                 let changed = columns[1]
                                     .add(Field::new(
                                         "Panorama",
-                                        self.panorama_modal.button(tileset, update_state),
+                                        self.panorama_modal.button(
+                                            (
+                                                &mut tileset.panorama_name.0,
+                                                &mut tileset.panorama_hue,
+                                            ),
+                                            update_state,
+                                        ),
                                     ))
                                     .changed();
                                 if changed {
@@ -374,7 +383,10 @@ impl luminol_core::Window for Window {
                         if needs_update {
                             tileset.nonce += 1;
                             self.tileset_modal.reset(update_state, tileset);
-                            self.panorama_modal.reset(update_state, tileset);
+                            self.panorama_modal.reset(
+                                update_state,
+                                (&mut tileset.panorama_name.0, &mut tileset.panorama_hue),
+                            );
                             self.fog_modal.reset(update_state, tileset);
                             self.battleback_modal
                                 .reset(update_state, &mut tileset.battleback_name.0);

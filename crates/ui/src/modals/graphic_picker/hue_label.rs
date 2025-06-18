@@ -31,6 +31,7 @@ use super::Entry;
 pub struct Modal {
     state: State,
     id_source: egui::Id,
+    path: camino::Utf8PathBuf,
     scrolled_on_first_open: bool,
 }
 
@@ -41,23 +42,29 @@ enum State {
         filtered_entries: Vec<Entry>,
         search_text: String,
         sprite: Option<PreviewSprite>,
-        panorama_name: Option<camino::Utf8PathBuf>,
-        panorama_hue: i32,
+        name: Option<camino::Utf8PathBuf>,
+        hue: i32,
     },
 }
 
 impl Modal {
-    pub fn new(id_source: egui::Id) -> Self {
+    pub fn close_window(&mut self) {
+        self.state = State::Closed;
+        self.scrolled_on_first_open = false;
+    }
+
+    pub fn new(id_source: egui::Id, path: camino::Utf8PathBuf) -> Self {
         Self {
             state: State::Closed,
             id_source,
+            path,
             scrolled_on_first_open: false,
         }
     }
 }
 
 impl luminol_core::Modal for Modal {
-    type Data<'m> = &'m mut luminol_data::rpg::Tileset;
+    type Data<'m> = (&'m mut Option<camino::Utf8PathBuf>, &'m mut i32);
 
     fn button<'m>(
         &'m mut self,
@@ -67,58 +74,48 @@ impl luminol_core::Modal for Modal {
         move |ui: &mut egui::Ui| {
             let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.panorama_name.0 {
-                format!("Graphics/Panoramas/{name}")
+            let button_text = if let Some(name) = data.0 {
+                format!("{}/{name}", self.path)
             } else {
                 "(None)".to_string()
             };
             let mut response = ui.button(button_text);
 
             if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, "Graphics/Panoramas".into());
+                let entries = Entry::load(update_state, &self.path);
 
-                let desensitized_panorama_name = data.panorama_name.0.as_ref().and_then(|name| {
+                let desensitized_name = data.0.as_ref().and_then(|name| {
                     update_state
                         .filesystem
-                        .desensitize(format!("Graphics/Panoramas/{name}"))
+                        .desensitize(format!("{}/{name}", self.path))
                         .ok()
                         .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
                 });
 
-                let sprite = desensitized_panorama_name
-                    .as_ref()
-                    .and_then(|panorama_name| {
-                        let texture = update_state
-                            .graphics
-                            .texture_loader
-                            .load_now_dir(
-                                update_state.filesystem,
-                                "Graphics/Panoramas",
-                                panorama_name,
-                            )
-                            .map_err(|e| luminol_core::error!(update_state.toasts, e))
-                            .ok()?;
-                        let viewport = Viewport::new(&update_state.graphics, Default::default());
-                        let sprite = Sprite::basic_hue(
-                            &update_state.graphics,
-                            data.panorama_hue,
-                            &texture,
-                            &viewport,
-                        );
-                        Some(PreviewSprite {
-                            sprite,
-                            sprite_size: texture.size_vec2(),
-                            viewport,
-                        })
-                    });
+                let sprite = desensitized_name.as_ref().and_then(|name| {
+                    let texture = update_state
+                        .graphics
+                        .texture_loader
+                        .load_now_dir(update_state.filesystem, &self.path, name)
+                        .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                        .ok()?;
+                    let viewport = Viewport::new(&update_state.graphics, Default::default());
+                    let sprite =
+                        Sprite::basic_hue(&update_state.graphics, *data.1, &texture, &viewport);
+                    Some(PreviewSprite {
+                        sprite,
+                        sprite_size: texture.size_vec2(),
+                        viewport,
+                    })
+                });
 
                 self.state = State::Open {
                     filtered_entries: entries.clone(),
                     entries,
                     sprite,
                     search_text: String::new(),
-                    panorama_name: data.panorama_name.0.clone(),
-                    panorama_hue: data.panorama_hue,
+                    name: data.0.clone(),
+                    hue: *data.1,
                 };
             }
             if self.show_window(update_state, ui.ctx(), data) {
@@ -130,8 +127,7 @@ impl luminol_core::Modal for Modal {
     }
 
     fn reset(&mut self, _update_state: &mut UpdateState<'_>, _data: Self::Data<'_>) {
-        self.state = State::Closed;
-        self.scrolled_on_first_open = false;
+        self.close_window();
     }
 }
 
@@ -140,7 +136,7 @@ impl Modal {
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
-        data: &mut luminol_data::rpg::Tileset,
+        data: (&mut Option<camino::Utf8PathBuf>, &mut i32),
     ) -> bool {
         let mut win_open = true;
         let mut keep_open = true;
@@ -151,23 +147,23 @@ impl Modal {
             filtered_entries,
             search_text,
             sprite,
-            panorama_name,
-            panorama_hue,
+            name,
+            hue,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let desensitized_panorama_name = panorama_name.as_ref().and_then(|name| {
+        let desensitized_name = name.as_ref().and_then(|name| {
             update_state
                 .filesystem
-                .desensitize(format!("Graphics/Panoramas/{name}"))
+                .desensitize(format!("{}/{name}", self.path))
                 .ok()
                 .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
         });
 
-        egui::Window::new("Panorama Graphic Picker")
+        egui::Window::new("Graphic Picker")
             .min_width(480.)
             .default_size([640., 480.])
             .resizable(true)
@@ -200,10 +196,10 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = panorama_name.is_none();
+                                        let checked = name.is_none();
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && panorama_name.is_some() {
-                                            *panorama_name = None;
+                                        if res.clicked() && name.is_some() {
+                                            *name = None;
                                             *sprite = None;
                                         }
                                     }
@@ -215,8 +211,7 @@ impl Modal {
                                     for (i, Entry { path, invalid }) in
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
-                                        let checked =
-                                            desensitized_panorama_name.as_ref() == Some(path);
+                                        let checked = desensitized_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -229,61 +224,60 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                *panorama_name = Some(
+                                                *name = Some(
                                                     path.file_stem()
                                                         .unwrap_or(path.as_str())
                                                         .into(),
                                                 );
 
-                                                let panorama_name =
-                                                    panorama_name.as_ref().and_then(|name| {
-                                                        update_state
-                                                            .filesystem
-                                                            .desensitize(format!(
-                                                                "Graphics/Panoramas/{name}"
-                                                            ))
-                                                            .ok()
-                                                            .map(|path| {
-                                                                camino::Utf8PathBuf::from(
-                                                                    path.file_name()
-                                                                        .unwrap_or_default(),
-                                                                )
-                                                            })
-                                                    });
-
-                                                *sprite = panorama_name.as_ref().and_then(
-                                                    |panorama_name| {
-                                                        let texture = update_state
-                                                            .graphics
-                                                            .texture_loader
-                                                            .load_now_dir(
-                                                                update_state.filesystem,
-                                                                "Graphics/Panoramas",
-                                                                panorama_name,
+                                                let name = name.as_ref().and_then(|name| {
+                                                    update_state
+                                                        .filesystem
+                                                        .desensitize(format!(
+                                                            "{}/{name}",
+                                                            self.path,
+                                                        ))
+                                                        .ok()
+                                                        .map(|path| {
+                                                            camino::Utf8PathBuf::from(
+                                                                path.file_name()
+                                                                    .unwrap_or_default(),
                                                             )
-                                                            .map_err(|e| {
-                                                                luminol_core::error!(
-                                                                    update_state.toasts,
-                                                                    e
-                                                                )
-                                                            })
-                                                            .ok()?;
-                                                        let viewport = Viewport::new(
-                                                            &update_state.graphics,
-                                                            Default::default(),
-                                                        );
-                                                        let sprite = Sprite::basic(
-                                                            &update_state.graphics,
-                                                            &texture,
-                                                            &viewport,
-                                                        );
-                                                        Some(PreviewSprite {
-                                                            sprite,
-                                                            sprite_size: texture.size_vec2(),
-                                                            viewport,
                                                         })
-                                                    },
-                                                );
+                                                });
+
+                                                *sprite = name.as_ref().and_then(|name| {
+                                                    let texture = update_state
+                                                        .graphics
+                                                        .texture_loader
+                                                        .load_now_dir(
+                                                            update_state.filesystem,
+                                                            &self.path,
+                                                            name,
+                                                        )
+                                                        .map_err(|e| {
+                                                            luminol_core::error!(
+                                                                update_state.toasts,
+                                                                e
+                                                            )
+                                                        })
+                                                        .ok()?;
+                                                    let viewport = Viewport::new(
+                                                        &update_state.graphics,
+                                                        Default::default(),
+                                                    );
+                                                    let sprite = Sprite::basic_hue(
+                                                        &update_state.graphics,
+                                                        *hue,
+                                                        &texture,
+                                                        &viewport,
+                                                    );
+                                                    Some(PreviewSprite {
+                                                        sprite,
+                                                        sprite_size: texture.size_vec2(),
+                                                        viewport,
+                                                    })
+                                                });
                                             }
                                         });
                                     }
@@ -292,11 +286,11 @@ impl Modal {
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if panorama_name.is_none() {
+                            let row = if name.is_none() {
                                 Some(0)
                             } else {
                                 filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (desensitized_panorama_name.as_ref() == Some(&entry.path))
+                                    (desensitized_name.as_ref() == Some(&entry.path))
                                         .then_some(i + 1)
                                 })
                             };
@@ -327,12 +321,12 @@ impl Modal {
                     ui.add_space(1.0); // pad out the top
                     ui.horizontal(|ui| {
                         ui.label("Hue");
-                        if ui.add(egui::Slider::new(panorama_hue, 0..=360)).changed() {
+                        if ui.add(egui::Slider::new(hue, 0..=360)).changed() {
                             if let Some(sprite) = sprite {
                                 sprite
                                     .sprite
                                     .graphic
-                                    .set_hue(&update_state.graphics.render_state, *panorama_hue);
+                                    .set_hue(&update_state.graphics.render_state, *hue);
                             }
                         }
                     });
@@ -355,7 +349,8 @@ impl Modal {
             });
 
         if needs_save {
-            data.panorama_name.0.clone_from(panorama_name);
+            data.0.clone_from(name);
+            *data.1 = *hue;
         }
 
         if !(win_open && keep_open) {

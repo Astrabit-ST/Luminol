@@ -32,8 +32,8 @@ pub mod basic;
 pub mod event;
 pub mod fog;
 pub mod hue;
+pub mod hue_label;
 pub mod label;
-pub mod panorama;
 pub mod tileset;
 
 #[derive(Default)]
