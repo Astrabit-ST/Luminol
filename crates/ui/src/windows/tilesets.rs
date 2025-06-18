@@ -288,7 +288,6 @@ impl luminol_core::Window for Window {
                                     .changed();
                                 if changed {
                                     modified = true;
-                                    needs_update = true;
                                 }
                             });
                         });
@@ -303,7 +302,6 @@ impl luminol_core::Window for Window {
                                     .changed();
                                 if changed {
                                     modified = true;
-                                    needs_update = true;
                                 }
 
                                 let changed = columns[1]
@@ -315,7 +313,6 @@ impl luminol_core::Window for Window {
                                     .changed();
                                 if changed {
                                     modified = true;
-                                    needs_update = true;
                                 }
                             });
                         });
@@ -382,17 +379,6 @@ impl luminol_core::Window for Window {
 
                         if needs_update {
                             tileset.nonce += 1;
-                            self.tileset_modal.reset(update_state, tileset);
-                            self.panorama_modal.reset(
-                                update_state,
-                                (&mut tileset.panorama_name.0, &mut tileset.panorama_hue),
-                            );
-                            self.fog_modal.reset(update_state, tileset);
-                            self.battleback_modal
-                                .reset(update_state, &mut tileset.battleback_name.0);
-                            for modal in self.autotile_modals.iter_mut() {
-                                modal.reset(update_state, tileset);
-                            }
                             self.tilepicker = Some(
                                 Tilepicker::new(
                                     update_state,
