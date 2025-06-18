@@ -119,7 +119,8 @@ impl Modal {
             atlas,
             Some(luminol_graphics::primitives::cells::ANIMATION_COLUMNS),
             1.,
-        );
+        )
+        .hide_selection();
         cellpicker.view.display.set_hue(
             &update_state.graphics.render_state,
             animation_hue as f32 / 360.,

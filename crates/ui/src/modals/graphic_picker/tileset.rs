@@ -121,6 +121,7 @@ impl Modal {
             None,
             true,
         )
+        .hide_selection()
     }
 
     fn show_window(
