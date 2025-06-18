@@ -448,11 +448,21 @@ impl luminol_core::Window for Window {
                                             };
 
                                         // Handle clicking on a tile to change its passage
-                                        let passage = if response.clicked() {
-                                            let passage = match passage {
-                                                Passage::X if y == 0 => Passage::Square,
-                                                Passage::X | Passage::Square => Passage::O,
-                                                Passage::O => Passage::X,
+                                        let passage = if response.clicked()
+                                            || response.secondary_clicked()
+                                        {
+                                            let passage = if response.secondary_clicked() {
+                                                match passage {
+                                                    Passage::O if y == 0 => Passage::Square,
+                                                    Passage::O | Passage::Square => Passage::X,
+                                                    Passage::X => Passage::O,
+                                                }
+                                            } else {
+                                                match passage {
+                                                    Passage::X if y == 0 => Passage::Square,
+                                                    Passage::X | Passage::Square => Passage::O,
+                                                    Passage::O => Passage::X,
+                                                }
                                             };
                                             if tile_id + tile_range.end > tileset.passages.len() {
                                                 tileset.passages.resize(tile_id + tile_range.end);
@@ -522,7 +532,10 @@ impl luminol_core::Window for Window {
 
                                         // Handle clicking to change passage
                                         let (tile_passage_value, tile_passage_value_changed) =
-                                            match response.clicked().then_some(direction).flatten()
+                                            match (response.clicked()
+                                                || response.secondary_clicked())
+                                            .then_some(direction)
+                                            .flatten()
                                             {
                                                 Some(Direction::Down) => {
                                                     (tile_passage_value ^ 0b00001, true)
@@ -597,7 +610,9 @@ impl luminol_core::Window for Window {
 
                                     Property::Priority => {
                                         // Handle clicking to change priority
-                                        let tile_priority_value = if response.clicked() {
+                                        let tile_priority_value = if response.clicked()
+                                            || response.secondary_clicked()
+                                        {
                                             if tile_id + tile_range.end > tileset.priorities.len() {
                                                 tileset.priorities.resize(tile_id + tile_range.end);
                                             }
@@ -608,7 +623,12 @@ impl luminol_core::Window for Window {
                                                     0
                                                 };
                                             let new_tile_priority_value =
-                                                (new_tile_priority_value + 1) % 6;
+                                                if response.secondary_clicked() {
+                                                    new_tile_priority_value - 1
+                                                } else {
+                                                    new_tile_priority_value + 1
+                                                }
+                                                .rem_euclid(6);
                                             for i in tile_range {
                                                 tileset.priorities[tile_id + i] =
                                                     new_tile_priority_value;
@@ -638,7 +658,9 @@ impl luminol_core::Window for Window {
 
                                     Property::BushFlag => {
                                         // Handle clicking to change bush flag
-                                        let tile_passage_value = if response.clicked() {
+                                        let tile_passage_value = if response.clicked()
+                                            || response.secondary_clicked()
+                                        {
                                             if tile_id + tile_range.end > tileset.passages.len() {
                                                 tileset.passages.resize(tile_id + tile_range.end);
                                             }
@@ -667,7 +689,9 @@ impl luminol_core::Window for Window {
 
                                     Property::CounterFlag => {
                                         // Handle clicking to change counter flag
-                                        let tile_passage_value = if response.clicked() {
+                                        let tile_passage_value = if response.clicked()
+                                            || response.secondary_clicked()
+                                        {
                                             if tile_id + tile_range.end > tileset.passages.len() {
                                                 tileset.passages.resize(tile_id + tile_range.end);
                                             }
@@ -696,7 +720,9 @@ impl luminol_core::Window for Window {
 
                                     Property::TerrainTag => {
                                         // Handle clicking to change terrain tag
-                                        let tile_terrain_value = if response.clicked() {
+                                        let tile_terrain_value = if response.clicked()
+                                            || response.secondary_clicked()
+                                        {
                                             if tile_id + tile_range.end > tileset.terrain_tags.len()
                                             {
                                                 tileset
@@ -710,7 +736,12 @@ impl luminol_core::Window for Window {
                                                     0
                                                 };
                                             let new_tile_terrain_value =
-                                                (new_tile_terrain_value + 1) % 8;
+                                                if response.secondary_clicked() {
+                                                    new_tile_terrain_value - 1
+                                                } else {
+                                                    new_tile_terrain_value + 1
+                                                }
+                                                .rem_euclid(8);
                                             for i in tile_range {
                                                 tileset.terrain_tags[tile_id + i] =
                                                     new_tile_terrain_value;
