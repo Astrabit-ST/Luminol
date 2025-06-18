@@ -70,66 +70,71 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
-            let is_open = matches!(self.state, State::Open { .. });
+            ui.with_cross_justify(|ui| {
+                let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.fog_name.0 {
-                format!("Graphics/Fogs/{name}")
-            } else {
-                "(None)".to_string()
-            };
-            let mut response = ui.button(button_text);
-
-            if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, "Graphics/Fogs".into());
-
-                let desensitized_fog_name = data.fog_name.0.as_ref().and_then(|name| {
-                    update_state
-                        .filesystem
-                        .desensitize(format!("Graphics/Fogs/{name}"))
-                        .ok()
-                        .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
-                });
-
-                let sprite = desensitized_fog_name.as_ref().and_then(|fog_name| {
-                    let texture = update_state
-                        .graphics
-                        .texture_loader
-                        .load_now_dir(update_state.filesystem, "Graphics/Fogs", fog_name)
-                        .map_err(|e| luminol_core::error!(update_state.toasts, e))
-                        .ok()?;
-                    let viewport = Viewport::new(&update_state.graphics, Default::default());
-                    let sprite = Sprite::basic_hue(
-                        &update_state.graphics,
-                        data.fog_hue,
-                        &texture,
-                        &viewport,
-                    );
-                    Some(PreviewSprite {
-                        sprite,
-                        sprite_size: texture.size_vec2(),
-                        viewport,
-                    })
-                });
-
-                self.state = State::Open {
-                    filtered_entries: entries.clone(),
-                    entries,
-                    sprite,
-                    search_text: String::new(),
-                    fog_name: data.fog_name.0.clone(),
-                    fog_hue: data.fog_hue,
-                    fog_opacity: data.fog_opacity,
-                    fog_blend_type: data.fog_blend_type,
-                    fog_zoom: data.fog_zoom,
-                    fog_sx: data.fog_sx,
-                    fog_sy: data.fog_sy,
+                let button_text = if let Some(name) = &data.fog_name.0 {
+                    format!("Graphics/Fogs/{name}")
+                } else {
+                    "(None)".to_string()
                 };
-            }
-            if self.show_window(update_state, ui.ctx(), data) {
-                response.mark_changed();
-            }
+                let mut response = ui.add(egui::Button::new(button_text).truncate());
 
-            response
+                if response.clicked() && !is_open {
+                    let entries = Entry::load(update_state, "Graphics/Fogs".into());
+
+                    let desensitized_fog_name = data.fog_name.0.as_ref().and_then(|name| {
+                        update_state
+                            .filesystem
+                            .desensitize(format!("Graphics/Fogs/{name}"))
+                            .ok()
+                            .map(|path| {
+                                camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())
+                            })
+                    });
+
+                    let sprite = desensitized_fog_name.as_ref().and_then(|fog_name| {
+                        let texture = update_state
+                            .graphics
+                            .texture_loader
+                            .load_now_dir(update_state.filesystem, "Graphics/Fogs", fog_name)
+                            .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                            .ok()?;
+                        let viewport = Viewport::new(&update_state.graphics, Default::default());
+                        let sprite = Sprite::basic_hue(
+                            &update_state.graphics,
+                            data.fog_hue,
+                            &texture,
+                            &viewport,
+                        );
+                        Some(PreviewSprite {
+                            sprite,
+                            sprite_size: texture.size_vec2(),
+                            viewport,
+                        })
+                    });
+
+                    self.state = State::Open {
+                        filtered_entries: entries.clone(),
+                        entries,
+                        sprite,
+                        search_text: String::new(),
+                        fog_name: data.fog_name.0.clone(),
+                        fog_hue: data.fog_hue,
+                        fog_opacity: data.fog_opacity,
+                        fog_blend_type: data.fog_blend_type,
+                        fog_zoom: data.fog_zoom,
+                        fog_sx: data.fog_sx,
+                        fog_sy: data.fog_sy,
+                    };
+                }
+                if self.show_window(update_state, ui.ctx(), data) {
+                    response.mark_changed();
+                }
+
+                response
+            })
+            .inner
         }
     }
 

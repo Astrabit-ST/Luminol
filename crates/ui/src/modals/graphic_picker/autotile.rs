@@ -66,66 +66,70 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
-            let is_open = matches!(self.state, State::Open { .. });
+            ui.with_cross_justify(|ui| {
+                let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.autotile_names[self.autotile_index].0 {
-                format!("Graphics/Autotiles/{name}")
-            } else {
-                "(None)".to_string()
-            };
-            let mut response = ui.button(button_text);
-
-            if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, "Graphics/Autotiles".into());
-
-                let desensitized_autotile_name = data.autotile_names[self.autotile_index]
-                    .0
-                    .as_ref()
-                    .and_then(|name| {
-                        update_state
-                            .filesystem
-                            .desensitize(format!("Graphics/Autotiles/{name}"))
-                            .ok()
-                            .map(|path| {
-                                camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())
-                            })
-                    });
-
-                let sprite = desensitized_autotile_name
-                    .as_ref()
-                    .and_then(|autotile_name| {
-                        let texture = update_state
-                            .graphics
-                            .texture_loader
-                            .load_now_dir(
-                                update_state.filesystem,
-                                "Graphics/Autotiles",
-                                autotile_name,
-                            )
-                            .map_err(|e| luminol_core::error!(update_state.toasts, e))
-                            .ok()?;
-                        let viewport = Viewport::new(&update_state.graphics, Default::default());
-                        let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
-                        Some(PreviewSprite {
-                            sprite,
-                            sprite_size: texture.size_vec2(),
-                            viewport,
-                        })
-                    });
-
-                self.state = State::Open {
-                    filtered_entries: entries.clone(),
-                    entries,
-                    sprite,
-                    search_text: String::new(),
-                    autotile_name: data.autotile_names[self.autotile_index].clone().into(),
+                let button_text = if let Some(name) = &data.autotile_names[self.autotile_index].0 {
+                    format!("Graphics/Autotiles/{name}")
+                } else {
+                    "(None)".to_string()
                 };
-            }
-            if self.show_window(update_state, ui.ctx(), data) {
-                response.mark_changed();
-            }
+                let mut response = ui.add(egui::Button::new(button_text).truncate());
 
-            response
+                if response.clicked() && !is_open {
+                    let entries = Entry::load(update_state, "Graphics/Autotiles".into());
+
+                    let desensitized_autotile_name = data.autotile_names[self.autotile_index]
+                        .0
+                        .as_ref()
+                        .and_then(|name| {
+                            update_state
+                                .filesystem
+                                .desensitize(format!("Graphics/Autotiles/{name}"))
+                                .ok()
+                                .map(|path| {
+                                    camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())
+                                })
+                        });
+
+                    let sprite = desensitized_autotile_name
+                        .as_ref()
+                        .and_then(|autotile_name| {
+                            let texture = update_state
+                                .graphics
+                                .texture_loader
+                                .load_now_dir(
+                                    update_state.filesystem,
+                                    "Graphics/Autotiles",
+                                    autotile_name,
+                                )
+                                .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                                .ok()?;
+                            let viewport =
+                                Viewport::new(&update_state.graphics, Default::default());
+                            let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
+                            Some(PreviewSprite {
+                                sprite,
+                                sprite_size: texture.size_vec2(),
+                                viewport,
+                            })
+                        });
+
+                    self.state = State::Open {
+                        filtered_entries: entries.clone(),
+                        entries,
+                        sprite,
+                        search_text: String::new(),
+                        autotile_name: data.autotile_names[self.autotile_index].clone().into(),
+                    };
+                }
+                if self.show_window(update_state, ui.ctx(), data) {
+                    response.mark_changed();
+                }
+
+                response
+            })
+            .inner
         }
     }
 

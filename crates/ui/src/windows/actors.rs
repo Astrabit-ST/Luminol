@@ -689,9 +689,16 @@ impl luminol_core::Window for Window {
                                 false,
                             )
                             .show_header(ui, |ui| {
-                                ui.with_cross_justify(|ui| {
-                                    ui.label("EXP Curve");
-                                });
+                                ui.with_layout(
+                                    egui::Layout {
+                                        main_align: egui::Align::Min,
+                                        main_justify: true,
+                                        ..*ui.layout()
+                                    },
+                                    |ui| {
+                                        ui.label("EXP Curve");
+                                    },
+                                );
                             })
                             .body(|ui| {
                                 draw_exp(ui, actor, &mut self.exp_view_is_total);

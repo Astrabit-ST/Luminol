@@ -72,57 +72,62 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
-            let is_open = matches!(self.state, State::Open { .. });
+            ui.with_cross_justify(|ui| {
+                let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = data.0 {
-                format!("{}/{name}", self.path)
-            } else {
-                "(None)".to_string()
-            };
-            let mut response = ui.button(button_text);
-
-            if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, &self.path);
-
-                let desensitized_name = data.0.as_ref().and_then(|name| {
-                    update_state
-                        .filesystem
-                        .desensitize(format!("{}/{name}", self.path))
-                        .ok()
-                        .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
-                });
-
-                let sprite = desensitized_name.as_ref().and_then(|name| {
-                    let texture = update_state
-                        .graphics
-                        .texture_loader
-                        .load_now_dir(update_state.filesystem, &self.path, name)
-                        .map_err(|e| luminol_core::error!(update_state.toasts, e))
-                        .ok()?;
-                    let viewport = Viewport::new(&update_state.graphics, Default::default());
-                    let sprite =
-                        Sprite::basic_hue(&update_state.graphics, *data.1, &texture, &viewport);
-                    Some(PreviewSprite {
-                        sprite,
-                        sprite_size: texture.size_vec2(),
-                        viewport,
-                    })
-                });
-
-                self.state = State::Open {
-                    filtered_entries: entries.clone(),
-                    entries,
-                    sprite,
-                    search_text: String::new(),
-                    name: data.0.clone(),
-                    hue: *data.1,
+                let button_text = if let Some(name) = data.0 {
+                    format!("{}/{name}", self.path)
+                } else {
+                    "(None)".to_string()
                 };
-            }
-            if self.show_window(update_state, ui.ctx(), data) {
-                response.mark_changed();
-            }
+                let mut response = ui.add(egui::Button::new(button_text).truncate());
 
-            response
+                if response.clicked() && !is_open {
+                    let entries = Entry::load(update_state, &self.path);
+
+                    let desensitized_name = data.0.as_ref().and_then(|name| {
+                        update_state
+                            .filesystem
+                            .desensitize(format!("{}/{name}", self.path))
+                            .ok()
+                            .map(|path| {
+                                camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())
+                            })
+                    });
+
+                    let sprite = desensitized_name.as_ref().and_then(|name| {
+                        let texture = update_state
+                            .graphics
+                            .texture_loader
+                            .load_now_dir(update_state.filesystem, &self.path, name)
+                            .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                            .ok()?;
+                        let viewport = Viewport::new(&update_state.graphics, Default::default());
+                        let sprite =
+                            Sprite::basic_hue(&update_state.graphics, *data.1, &texture, &viewport);
+                        Some(PreviewSprite {
+                            sprite,
+                            sprite_size: texture.size_vec2(),
+                            viewport,
+                        })
+                    });
+
+                    self.state = State::Open {
+                        filtered_entries: entries.clone(),
+                        entries,
+                        sprite,
+                        search_text: String::new(),
+                        name: data.0.clone(),
+                        hue: *data.1,
+                    };
+                }
+                if self.show_window(update_state, ui.ctx(), data) {
+                    response.mark_changed();
+                }
+
+                response
+            })
+            .inner
         }
     }
 

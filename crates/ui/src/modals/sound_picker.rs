@@ -21,6 +21,8 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+
+use crate::components::UiExt;
 use luminol_core::prelude::*;
 
 pub struct Modal {
@@ -53,27 +55,30 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut luminol_core::UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         |ui: &mut egui::Ui| {
-            let button_text = if let Some(track) = &data.name.0 {
-                format!("Audio/{}/{}", self.source, track)
-            } else {
-                "(None)".to_string()
-            };
+            ui.with_cross_justify(|ui| {
+                let button_text = if let Some(track) = &data.name.0 {
+                    format!("Audio/{}/{}", self.source, track)
+                } else {
+                    "(None)".to_string()
+                };
 
-            let mut button_response = ui.button(button_text);
+                let mut button_response = ui.add(egui::Button::new(button_text).truncate());
 
-            if button_response.clicked() {
-                let tab = crate::components::SoundTab::new(
-                    update_state.filesystem,
-                    self.source,
-                    data.clone(),
-                );
-                self.state = State::Open { tab };
-            }
-            if self.show_window(update_state, ui.ctx(), data) {
-                button_response.mark_changed()
-            }
+                if button_response.clicked() {
+                    let tab = crate::components::SoundTab::new(
+                        update_state.filesystem,
+                        self.source,
+                        data.clone(),
+                    );
+                    self.state = State::Open { tab };
+                }
+                if self.show_window(update_state, ui.ctx(), data) {
+                    button_response.mark_changed()
+                }
 
-            button_response
+                button_response
+            })
+            .inner
         }
     }
 

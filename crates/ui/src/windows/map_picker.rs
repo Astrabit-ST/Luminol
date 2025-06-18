@@ -55,10 +55,20 @@ impl Window {
 
             header
                 .show_header(ui, |ui| {
-                    // Has the user
-                    if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
-                        *open_map_id = Some(id)
-                    }
+                    ui.with_layout(
+                        egui::Layout {
+                            main_align: egui::Align::Min,
+                            main_justify: true,
+                            ..*ui.layout()
+                        },
+                        |ui| {
+                            ui.label("Autotiles");
+                            // Has the user
+                            if ui.text_edit_singleline(&mut map_info.name).double_clicked() {
+                                *open_map_id = Some(id)
+                            }
+                        },
+                    );
                 })
                 .body(|ui| {
                     for id in children_data.get(&id).unwrap() {

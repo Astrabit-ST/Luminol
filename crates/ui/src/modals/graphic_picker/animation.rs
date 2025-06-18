@@ -64,36 +64,39 @@ impl luminol_core::Modal for Modal {
         update_state: &'m mut UpdateState<'_>,
     ) -> impl egui::Widget + 'm {
         move |ui: &mut egui::Ui| {
-            let is_open = matches!(self.state, State::Open { .. });
+            ui.with_cross_justify(|ui| {
+                let is_open = matches!(self.state, State::Open { .. });
 
-            let button_text = if let Some(name) = &data.animation_name.0 {
-                format!("Graphics/Animations/{name}")
-            } else {
-                "(None)".to_string()
-            };
-            let mut response = ui.button(button_text);
-
-            if response.clicked() && !is_open {
-                let entries = Entry::load(update_state, "Graphics/Animations".into());
-
-                self.state = State::Open {
-                    filtered_entries: entries.clone(),
-                    entries,
-                    cellpicker: Self::load_cellpicker(
-                        update_state,
-                        &data.animation_name.0,
-                        data.animation_hue,
-                    ),
-                    search_text: String::new(),
-                    animation_name: data.animation_name.0.clone(),
-                    animation_hue: data.animation_hue,
+                let button_text = if let Some(name) = &data.animation_name.0 {
+                    format!("Graphics/Animations/{name}")
+                } else {
+                    "(None)".to_string()
                 };
-            }
-            if self.show_window(update_state, ui.ctx(), data) {
-                response.mark_changed();
-            }
+                let mut response = ui.add(egui::Button::new(button_text).truncate());
 
-            response
+                if response.clicked() && !is_open {
+                    let entries = Entry::load(update_state, "Graphics/Animations".into());
+
+                    self.state = State::Open {
+                        filtered_entries: entries.clone(),
+                        entries,
+                        cellpicker: Self::load_cellpicker(
+                            update_state,
+                            &data.animation_name.0,
+                            data.animation_hue,
+                        ),
+                        search_text: String::new(),
+                        animation_name: data.animation_name.0.clone(),
+                        animation_hue: data.animation_hue,
+                    };
+                }
+                if self.show_window(update_state, ui.ctx(), data) {
+                    response.mark_changed();
+                }
+
+                response
+            })
+            .inner
         }
     }
 
