@@ -72,6 +72,7 @@ impl Tilepicker {
         autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
         passages: &luminol_data::Table1,
         map_id: Option<usize>,
+        exclude_autotiles: bool,
     ) -> Tilepicker {
         let view = luminol_graphics::Tilepicker::new(
             &update_state.graphics,
@@ -79,7 +80,7 @@ impl Tilepicker {
             autotile_names,
             passages,
             update_state.filesystem,
-            false,
+            exclude_autotiles,
         );
 
         let mut brush_seed = [0u8; 16];

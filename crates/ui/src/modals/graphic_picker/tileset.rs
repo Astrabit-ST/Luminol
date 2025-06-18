@@ -113,7 +113,14 @@ impl Modal {
         autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
         passages: &luminol_data::Table1,
     ) -> Tilepicker {
-        Tilepicker::new(update_state, tileset_name, autotile_names, passages, None)
+        Tilepicker::new(
+            update_state,
+            tileset_name,
+            autotile_names,
+            passages,
+            None,
+            true,
+        )
     }
 
     fn show_window(

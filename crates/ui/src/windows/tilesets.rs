@@ -374,6 +374,7 @@ impl luminol_core::Window for Window {
                                     &tileset.autotile_names,
                                     &tileset.passages,
                                     None,
+                                    false,
                                 )
                                 .hide_selection(),
                             );

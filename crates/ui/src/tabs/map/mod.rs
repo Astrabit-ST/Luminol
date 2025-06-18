@@ -144,6 +144,7 @@ impl Tab {
             &tileset.autotile_names,
             &tileset.passages,
             Some(id),
+            false,
         );
 
         let mut passages = luminol_data::Table2::new(map.data.xsize(), map.data.ysize());
@@ -394,6 +395,7 @@ impl luminol_core::Tab for Tab {
                     &tileset.autotile_names,
                     &tileset.passages,
                     Some(self.id),
+                    false,
                 );
 
                 self.previous_tileset_nonce = tileset.nonce;
