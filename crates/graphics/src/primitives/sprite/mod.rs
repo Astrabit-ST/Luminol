@@ -126,9 +126,28 @@ impl Sprite {
         texture: &Texture,
         viewport: &Viewport,
     ) -> Self {
+        Self::basic_hue_opacity(graphics_state, hue, 255, texture, viewport)
+    }
+
+    pub fn basic_hue_opacity(
+        graphics_state: &GraphicsState,
+        hue: i32,
+        opacity: i32,
+        texture: &Texture,
+        viewport: &Viewport,
+    ) -> Self {
         let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, texture.size_vec2());
         let quad = Quad::new(rect, rect);
-        Self::basic_hue_quad(graphics_state, hue, quad, texture, viewport)
+        Self::new(
+            graphics_state,
+            quad,
+            hue,
+            opacity,
+            luminol_data::BlendMode::Normal,
+            texture,
+            viewport,
+            Transform::unit(graphics_state),
+        )
     }
 
     pub fn basic_hue_quad(

@@ -101,9 +101,10 @@ impl luminol_core::Modal for Modal {
                             .map_err(|e| luminol_core::error!(update_state.toasts, e))
                             .ok()?;
                         let viewport = Viewport::new(&update_state.graphics, Default::default());
-                        let sprite = Sprite::basic_hue(
+                        let sprite = Sprite::basic_hue_opacity(
                             &update_state.graphics,
                             data.fog_hue,
+                            data.fog_opacity,
                             &texture,
                             &viewport,
                         );
@@ -283,8 +284,10 @@ impl Modal {
                                                         &update_state.graphics,
                                                         Default::default(),
                                                     );
-                                                    let sprite = Sprite::basic(
+                                                    let sprite = Sprite::basic_hue_opacity(
                                                         &update_state.graphics,
+                                                        data.fog_hue,
+                                                        data.fog_opacity,
                                                         &texture,
                                                         &viewport,
                                                     );
