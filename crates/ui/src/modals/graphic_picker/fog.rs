@@ -406,6 +406,12 @@ impl Modal {
 
         if needs_save {
             data.fog_name.0.clone_from(fog_name);
+            data.fog_hue = *fog_hue;
+            data.fog_opacity = *fog_opacity;
+            data.fog_blend_type = *fog_blend_type;
+            data.fog_zoom = *fog_zoom;
+            data.fog_sx = *fog_sx;
+            data.fog_sy = *fog_sy;
         }
 
         if !(win_open && keep_open) {
