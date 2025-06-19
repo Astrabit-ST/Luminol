@@ -31,7 +31,7 @@ missing_safety_doc = "warn"
 [workspace.package]
 version = "0.4.0"
 authors = [
-    "Melody Madeline Lyons <melody@nowaffles.com>",
+    "Melody Madeline Lyons <melody@melody-is.gay>",
     "Hao Liu <whiteaxe@tuta.io>",
     "Egor Poleshko <somedevfox@gmail.com>",
 ]
@@ -39,7 +39,7 @@ edition = "2021"
 rust-version = "1.78"
 license = "GPL-3.0"
 readme = "README.md"
-repository = "https://github.com/Speak2Erase/Luminol"
+repository = "https://github.com/melody-rs/Luminol"
 keywords = ["gamedev", "rpg", "rpg-maker"]
 categories = ["games"]
 
