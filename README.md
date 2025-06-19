@@ -6,7 +6,7 @@ Luminol is an experimental remake of the RGSS RPG Maker editors in Rust with lov
 
 ### Join [our discord](https://discord.gg/8jZKmesKJy) if you're interested in the project!
 
-Luminol targets native builds with eframe. Luminol currently reads *only* rxdata (not rvdata or rvdata2, sorry VX and VX Ace users). In the past, Luminol used to exclusively read rusty object notation (ron) files made from [rmxp_extractor](https://github.com/Speak2Erase/rmxp-extractor). Now, it uses [alox-48](https://github.com/Speak2Erase/alox-48) to deserialize rxdata. It is not 100% perfect, if it does not open your project properly, [please file an issue](https://github.com/Astrabit-ST/Luminol/issues).
+Luminol targets native builds with eframe. Luminol currently reads *only* rxdata (not rvdata or rvdata2, sorry VX and VX Ace users). In the past, Luminol used to exclusively read rusty object notation (ron) files made from [rmxp_extractor](https://github.com/melody-rs/rmxp-extractor). Now, it uses [alox-48](https://github.com/melody-rs/alox-48) to deserialize rxdata. It is not 100% perfect, if it does not open your project properly, [please file an issue](https://github.com/Astrabit-ST/Luminol/issues).
 
 In the future a custom `.lumina` format is planned, as well as [ron](https://github.com/ron-rs/ron), `rvdata1` & `rvdata1`, and `json`.
 
@@ -69,7 +69,7 @@ Luminol's native build currently can compile on stable Rust, however we pin the 
 
 ## Credits
 
-- [@Speak2Erase](https://github.com/Speak2Erase): Luminol's creator
+- [@melody-rs](https://github.com/melody-rs): Luminol's creator
 - [@somedevfox](https://github.com/somedevfox): Occasional contributor and creator of rsgss (a sister project of Luminol)
 - [@white-axe](https://github.com/white-axe): Brought back Luminol's Web build
 - [@Lionmeow](https://github.com/Lionmeow): Designer of Luminol's icon and Lumi
