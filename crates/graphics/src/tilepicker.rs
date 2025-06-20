@@ -43,6 +43,51 @@ pub struct Tilepicker {
     ani_time: Option<f64>,
 }
 
+fn compute_tilepicker_data(tileset_height: u32, exclude_autotiles: bool) -> luminol_data::Table3 {
+    let tilepicker_data = if exclude_autotiles {
+        (384..(tileset_height as i16 / 32 * 8 + 384)).collect_vec()
+    } else {
+        (47..(384 + 47))
+            .step_by(48)
+            .chain(384..(tileset_height as i16 / 32 * 8 + 384))
+            .collect_vec()
+    };
+
+    luminol_data::Table3::new_data(
+        8,
+        !exclude_autotiles as usize + (tileset_height / 32) as usize,
+        1,
+        tilepicker_data,
+    )
+}
+
+fn compute_passages(
+    passages: &luminol_data::Table1,
+    tilepicker_data: &luminol_data::Table3,
+) -> luminol_data::Table2 {
+    let mut computed_passages =
+        luminol_data::Table2::new(tilepicker_data.xsize(), tilepicker_data.ysize());
+
+    for x in 0..8 {
+        computed_passages[(x, 0)] = {
+            let tile_id = tilepicker_data[(x, 0, 0)].try_into().unwrap_or_default();
+            if tile_id >= passages.len() {
+                0
+            } else {
+                passages[tile_id]
+            }
+        };
+    }
+
+    let length =
+        (computed_passages.len().saturating_sub(8)).min(passages.len().saturating_sub(384));
+
+    computed_passages.as_mut_slice()[8..8 + length]
+        .copy_from_slice(&passages.as_slice()[384..384 + length]);
+
+    computed_passages
+}
+
 impl Tilepicker {
     pub fn new(
         graphics_state: &GraphicsState,
@@ -59,20 +104,7 @@ impl Tilepicker {
             autotile_names,
         );
 
-        let tilepicker_data = if exclude_autotiles {
-            (384..(atlas.tileset_height() as i16 / 32 * 8 + 384)).collect_vec()
-        } else {
-            (47..(384 + 47))
-                .step_by(48)
-                .chain(384..(atlas.tileset_height() as i16 / 32 * 8 + 384))
-                .collect_vec()
-        };
-        let tilepicker_data = luminol_data::Table3::new_data(
-            8,
-            !exclude_autotiles as usize + (atlas.tileset_height() / 32) as usize,
-            1,
-            tilepicker_data,
-        );
+        let tilepicker_data = compute_tilepicker_data(atlas.tileset_height(), exclude_autotiles);
 
         let viewport = Viewport::new(
             graphics_state,
@@ -95,27 +127,11 @@ impl Tilepicker {
             tilepicker_data.ysize() as u32,
         );
 
-        let mut computed_passages =
-            luminol_data::Table2::new(tilepicker_data.xsize(), tilepicker_data.ysize());
-        for x in 0..8 {
-            computed_passages[(x, 0)] = {
-                let tile_id = tilepicker_data[(x, 0, 0)].try_into().unwrap_or_default();
-                if tile_id >= passages.len() {
-                    0
-                } else {
-                    passages[tile_id]
-                }
-            };
-        }
-        let length =
-            (computed_passages.len().saturating_sub(8)).min(passages.len().saturating_sub(384));
-        computed_passages.as_mut_slice()[8..8 + length]
-            .copy_from_slice(&passages.as_slice()[384..384 + length]);
         let collision = Collision::new(
             graphics_state,
             &viewport,
             Transform::unit(graphics_state),
-            &computed_passages,
+            &compute_passages(passages, &tilepicker_data),
         );
 
         Self {
@@ -130,6 +146,21 @@ impl Tilepicker {
             grid_enabled: true,
             ani_time: None,
         }
+    }
+
+    pub fn update_collision(
+        &mut self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        passages: &luminol_data::Table1,
+        exclude_autotiles: bool,
+    ) {
+        self.collision.set_passages(
+            render_state,
+            &compute_passages(
+                passages,
+                &compute_tilepicker_data(self.atlas.tileset_height(), exclude_autotiles),
+            ),
+        )
     }
 
     pub fn update_animation(&mut self, render_state: &luminol_egui_wgpu::RenderState, time: f64) {

@@ -457,10 +457,18 @@ impl luminol_core::Tab for Tab {
                         (0..map.data.zsize()).rev(),
                         |x, y, passage| passages[(x, y)] = passage,
                     );
+
                     self.view
                         .map
                         .collision
                         .set_passages(&update_state.graphics.render_state, &passages);
+
+                    self.tilepicker.view.update_collision(
+                        &update_state.graphics.render_state,
+                        &tileset.passages,
+                        false,
+                    );
+
                     self.previous_tileset_passages_nonce = tileset.passages_nonce;
                 }
 
