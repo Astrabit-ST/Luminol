@@ -14,10 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{
-    id_alox, id_serde, id_vec_alox, id_vec_serde, optional_id_alox, optional_id_serde,
-    optional_path_alox, optional_path_serde, Path,
-};
+use crate::{id_alox, id_serde, id_vec_alox, id_vec_serde, Path, RpgOption};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -27,14 +24,10 @@ pub struct Armor {
     #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub icon_name: Path,
     pub description: String,
     pub kind: Kind,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub auto_state_id: Option<usize>,
+    pub auto_state_id: RpgOption<usize>,
     pub price: i32,
     pub pdef: i32,
     pub mdef: i32,

@@ -31,6 +31,9 @@ pub struct Tilepicker {
     pub brush_random: bool,
     /// Seed for the PRNG used for the brush when brush tile ID randomization is enabled.
     brush_seed: [u8; 16],
+
+    /// Whether or not the rectangle showing which tiles are selected should be visible.
+    pub show_selection: bool,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -65,21 +68,19 @@ impl Default for SelectedTile {
 impl Tilepicker {
     pub fn new(
         update_state: &luminol_core::UpdateState<'_>,
-        map_id: usize, // FIXME
+        tileset_name: Option<&camino::Utf8Path>,
+        autotile_names: &[luminol_data::RpgOption<camino::Utf8PathBuf>],
+        passages: &luminol_data::Table1,
+        map_id: Option<usize>,
+        exclude_autotiles: bool,
     ) -> Tilepicker {
-        let map = update_state.data.get_or_load_map(
-            map_id,
-            update_state.filesystem,
-            update_state.project_config.as_ref().unwrap(),
-        );
-        let tilesets = update_state.data.tilesets();
-        let tileset = &tilesets.data[map.tileset_id];
-
         let view = luminol_graphics::Tilepicker::new(
             &update_state.graphics,
-            tileset,
+            tileset_name,
+            autotile_names,
+            passages,
             update_state.filesystem,
-            false,
+            exclude_autotiles,
         );
 
         let mut brush_seed = [0u8; 16];
@@ -92,7 +93,7 @@ impl Tilepicker {
                 .persistence_id
                 .to_le_bytes(),
         );
-        brush_seed[8..16].copy_from_slice(&(map_id as u64).to_le_bytes());
+        brush_seed[8..16].copy_from_slice(&(map_id.unwrap_or_default() as u64).to_le_bytes());
 
         Self {
             view,
@@ -105,7 +106,15 @@ impl Tilepicker {
             drag_origin: None,
             brush_seed,
             brush_random: false,
+
+            show_selection: true,
         }
+    }
+
+    #[inline]
+    pub fn hide_selection(mut self) -> Self {
+        self.show_selection = false;
+        self
     }
 
     pub fn get_tile_from_offset(
@@ -183,6 +192,10 @@ impl Tilepicker {
         );
         self.view
             .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f64(
+                16. / 60. - ui.input(|i| i.time).rem_euclid(16. / 60.),
+            ));
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
         ui.painter()
@@ -191,13 +204,17 @@ impl Tilepicker {
                 painter,
             ));
 
-        let rect = egui::Rect::from_x_y_ranges(
-            (self.selected_tiles_left * 32) as f32..=((self.selected_tiles_right + 1) * 32) as f32,
-            (self.selected_tiles_top * 32) as f32..=((self.selected_tiles_bottom + 1) * 32) as f32,
-        )
-        .translate(canvas_rect.min.to_vec2());
-        ui.painter()
-            .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        if self.show_selection {
+            let rect = egui::Rect::from_x_y_ranges(
+                (self.selected_tiles_left * 32) as f32
+                    ..=((self.selected_tiles_right + 1) * 32) as f32,
+                (self.selected_tiles_top * 32) as f32
+                    ..=((self.selected_tiles_bottom + 1) * 32) as f32,
+            )
+            .translate(canvas_rect.min.to_vec2());
+            ui.painter()
+                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        }
 
         let Some(pos) = response.interact_pointer_pos() else {
             return response;

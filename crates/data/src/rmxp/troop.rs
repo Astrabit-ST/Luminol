@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{id_alox, id_serde, optional_id_alox, optional_id_serde, rpg::EventCommand};
+use crate::{id_alox, id_serde, rpg::EventCommand, RpgOption};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -32,9 +32,7 @@ pub struct Troop {
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
 #[marshal(class = "RPG::Troop::Member")]
 pub struct Member {
-    #[serde(with = "id_serde")]
-    #[marshal(with = "id_alox")]
-    pub enemy_id: usize,
+    pub enemy_id: RpgOption<usize>,
     pub x: i32,
     pub y: i32,
     pub hidden: bool,
@@ -62,11 +60,7 @@ pub struct Condition {
     pub turn_b: i32,
     pub enemy_index: usize,
     pub enemy_hp: i32,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub actor_id: Option<usize>,
+    pub actor_id: RpgOption<usize>,
     pub actor_hp: i32,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub switch_id: Option<usize>,
+    pub switch_id: RpgOption<usize>,
 }

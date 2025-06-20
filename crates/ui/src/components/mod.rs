@@ -54,6 +54,9 @@ pub use animation_frame_view::AnimationFrameView;
 mod cellpicker;
 pub use cellpicker::Cellpicker;
 
+mod troop_view;
+pub use troop_view::TroopView;
+
 mod id_vec;
 pub use id_vec::{IdVecPlusMinusSelection, IdVecSelection, RankSelection};
 

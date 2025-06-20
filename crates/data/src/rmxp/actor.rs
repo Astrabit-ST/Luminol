@@ -14,10 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-use crate::{
-    id_alox, id_serde, optional_id_alox, optional_id_serde, optional_path_alox,
-    optional_path_serde, Path, Table2,
-};
+use crate::{id_alox, id_serde, Path, RpgOption, Table2};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -34,30 +31,16 @@ pub struct Actor {
     pub final_level: i32,
     pub exp_basis: i32,
     pub exp_inflation: i32,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub character_name: Path,
     pub character_hue: i32,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub battler_name: Path,
     pub battler_hue: i32,
     pub parameters: Table2,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub weapon_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub armor1_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub armor2_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub armor3_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub armor4_id: Option<usize>,
+    pub weapon_id: RpgOption<usize>,
+    pub armor1_id: RpgOption<usize>,
+    pub armor2_id: RpgOption<usize>,
+    pub armor3_id: RpgOption<usize>,
+    pub armor4_id: RpgOption<usize>,
     pub weapon_fix: bool,
     pub armor1_fix: bool,
     pub armor2_fix: bool,

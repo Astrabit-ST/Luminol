@@ -167,11 +167,11 @@ impl TopBar {
                         .add_window(luminol_ui::windows::map_picker::Window::default());
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("Tilesets [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("Tilesets").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::tilesets::Window::default());
+                }
 
                 if ui.button("Animations").clicked() {
                     update_state
@@ -197,18 +197,17 @@ impl TopBar {
                     );
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("System [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("System").clicked() {
+                    update_state
+                        .edit_windows
+                        .add_window(luminol_ui::windows::system::Window::default());
+                }
 
                 ui.separator();
 
                 if ui.button("Items").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::items::Window::new(update_state));
+                    let window = luminol_ui::windows::items::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
 
                 if ui.button("Skills").clicked() {
@@ -238,9 +237,8 @@ impl TopBar {
                 ui.separator();
 
                 if ui.button("Actors").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::actors::Window::new(update_state));
+                    let window = luminol_ui::windows::actors::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
 
                 if ui.button("Classes").clicked() {
@@ -250,16 +248,14 @@ impl TopBar {
                 }
 
                 if ui.button("Enemies").clicked() {
-                    update_state
-                        .edit_windows
-                        .add_window(luminol_ui::windows::enemies::Window::new(update_state));
+                    let window = luminol_ui::windows::enemies::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
                 }
 
-                ui.add_enabled_ui(false, |ui| {
-                    if ui.button("Troops [TODO]").clicked() {
-                        todo!();
-                    }
-                });
+                if ui.button("Troops").clicked() {
+                    let window = luminol_ui::windows::troops::Window::new(update_state);
+                    update_state.edit_windows.add_window(window);
+                }
             });
         });
 
@@ -347,9 +343,8 @@ impl TopBar {
             }
 
             if ui.button("WGPU Debug Info").clicked() {
-                update_state
-                    .edit_windows
-                    .add_window(luminol_ui::windows::misc::WgpuDebugInfo::new(update_state));
+                let window = luminol_ui::windows::misc::WgpuDebugInfo::new(update_state);
+                update_state.edit_windows.add_window(window);
             }
 
             #[cfg(not(target_arch = "wasm32"))]

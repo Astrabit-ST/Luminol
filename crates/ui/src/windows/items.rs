@@ -44,16 +44,19 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let items = update_state.data.items();
-        let item = &items.data[0];
+    pub fn new(update_state: &mut luminol_core::UpdateState<'_>) -> Self {
+        let name = {
+            let items = update_state.data.items();
+            let item = &items.data[0];
+            item.icon_name.0.clone()
+        };
         Self {
             selected_item_name: None,
             menu_se_picker: SoundPicker::new(luminol_audio::Source::SE, "item_menu_se_picker"),
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Icons".into(),
-                item.icon_name.as_deref(),
+                name.as_deref(),
                 egui::vec2(32., 32.),
                 "item_icon_picker",
             ),
@@ -116,12 +119,13 @@ impl luminol_core::Window for Window {
                                     .add(Field::new(
                                         "Icon",
                                         self.graphic_picker
-                                            .button(&mut item.icon_name, update_state),
+                                            .button(&mut item.icon_name.0, update_state),
                                     ))
                                     .changed();
                                 if self.previous_item != Some(item.id) {
                                     // avoid desyncs by resetting the modal if the item has changed
-                                    self.graphic_picker.reset(update_state, &mut item.icon_name);
+                                    self.graphic_picker
+                                        .reset(update_state, &mut item.icon_name.0);
                                 }
 
                                 modified |= ui
@@ -171,7 +175,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (item.id, "animation1_id"),
-                                            &mut item.animation1_id,
+                                            &mut item.animation1_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -189,7 +193,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (item.id, "animation2_id"),
-                                            &mut item.animation2_id,
+                                            &mut item.animation2_id.0,
                                             0..animations.data.len(),
                                             |id| {
                                                 animations.data.get(id).map_or_else(
@@ -222,7 +226,7 @@ impl luminol_core::Window for Window {
                                         OptionalIdComboBox::new(
                                             update_state,
                                             (item.id, "common_event_id"),
-                                            &mut item.common_event_id,
+                                            &mut item.common_event_id.0,
                                             0..common_events.data.len(),
                                             |id| {
                                                 common_events.data.get(id).map_or_else(

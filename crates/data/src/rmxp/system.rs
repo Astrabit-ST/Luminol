@@ -16,8 +16,7 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 pub use crate::{
     id_alox, id_serde, id_vec_alox, id_vec_serde, nil_padded_alox, nil_padded_serde,
-    optional_id_alox, optional_id_serde, optional_path_alox, optional_path_serde, rpg::AudioFile,
-    Path,
+    rpg::AudioFile, Path, RpgOption,
 };
 
 #[derive(Default, Debug)]
@@ -39,17 +38,9 @@ pub struct System {
     #[serde(with = "nil_padded_serde")]
     pub variables: Vec<String>,
 
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub windowskin_name: Path,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub title_name: Path,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub gameover_name: Path,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub battle_transition: Path,
     pub title_bgm: AudioFile,
     pub battle_bgm: AudioFile,
@@ -71,19 +62,13 @@ pub struct System {
     #[serde(skip)]
     // #[marshal(skip)]
     pub test_battlers: alox_48::Value,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub test_troop_id: Option<usize>,
+    pub test_troop_id: RpgOption<usize>,
     #[serde(with = "id_serde")]
     #[marshal(with = "id_alox")]
     pub start_map_id: usize,
     pub start_x: i32,
     pub start_y: i32,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub battleback_name: Path,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub battler_name: Path,
     pub battler_hue: i32,
     pub edit_map_id: usize,
@@ -98,26 +83,26 @@ pub struct System {
 #[marshal(class = "RPG::System::Words")]
 #[serde(default)]
 pub struct Words {
-    gold: String,
-    hp: String,
-    sp: String,
-    str: String,
-    dex: String,
-    agi: String,
-    int: String,
-    atk: String,
-    pdef: String,
-    mdef: String,
-    weapon: String,
-    armor1: String,
-    armor2: String,
-    armor3: String,
-    armor4: String,
-    attack: String,
-    skill: String,
-    guard: String,
-    item: String,
-    equip: String,
+    pub gold: String,
+    pub hp: String,
+    pub sp: String,
+    pub str: String,
+    pub dex: String,
+    pub agi: String,
+    pub int: String,
+    pub atk: String,
+    pub pdef: String,
+    pub mdef: String,
+    pub weapon: String,
+    pub armor1: String,
+    pub armor2: String,
+    pub armor3: String,
+    pub armor4: String,
+    pub attack: String,
+    pub skill: String,
+    pub guard: String,
+    pub item: String,
+    pub equip: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
@@ -129,19 +114,9 @@ pub struct TestBattler {
     #[serde(with = "id_serde")]
     #[marshal(with = "id_alox")]
     actor_id: usize,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    weapon_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    armor1_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    armor2_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    armor3_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    armor4_id: Option<usize>,
+    weapon_id: RpgOption<usize>,
+    armor1_id: RpgOption<usize>,
+    armor2_id: RpgOption<usize>,
+    armor3_id: RpgOption<usize>,
+    armor4_id: RpgOption<usize>,
 }

@@ -86,10 +86,10 @@ pub fn show_frame_edit(
         let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
             &update_state.graphics,
             update_state.filesystem,
-            animation.animation_name.as_deref(),
+            animation.animation_name.0.as_deref(),
         );
         let mut frame_view = AnimationFrameView::new(update_state, atlas);
-        if let Some(battler_name) = &system.battler_name {
+        if let Some(battler_name) = &system.battler_name.0 {
             match update_state.graphics.texture_loader.load_now(
                 update_state.filesystem,
                 format!("Graphics/Battlers/{battler_name}"),
@@ -99,7 +99,12 @@ pub fn show_frame_edit(
                 }
                 Err(e) => {
                     frame_view.frame.battler_texture = None;
-                    super::util::log_battler_error(update_state, system, animation, e);
+                    if !matches!(
+                        e.root_cause().downcast_ref(),
+                        Some(luminol_filesystem::Error::NotExist)
+                    ) {
+                        super::util::log_battler_error(update_state, system, animation, e);
+                    }
                 }
             }
         }
@@ -138,7 +143,6 @@ pub fn show_frame_edit(
         modal
     } else {
         state.animation_graphic_picker = Some(modals::graphic_picker::animation::Modal::new(
-            animation,
             "animation_graphic_picker".into(),
         ));
         state.animation_graphic_picker.as_mut().unwrap()
@@ -174,7 +178,7 @@ pub fn show_frame_edit(
             if !super::util::filter_timing(timing, state.condition) {
                 continue;
             }
-            if let Some(se_name) = &timing.se.name {
+            if let Some(se_name) = &timing.se.name.0 {
                 super::util::load_se(update_state, animation_state, state.condition, timing);
                 let Some(Some(audio_data)) = animation_state.audio_data.get(se_name.as_str())
                 else {
@@ -1098,7 +1102,7 @@ pub fn show_frame_edit(
         let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
             &update_state.graphics,
             update_state.filesystem,
-            animation.animation_name.as_deref(),
+            animation.animation_name.0.as_deref(),
         );
         frame_view.frame.atlas = atlas.clone();
         frame_view

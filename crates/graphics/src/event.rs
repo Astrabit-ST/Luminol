@@ -32,13 +32,15 @@ impl Event {
         viewport: &Viewport,
         event: &luminol_data::rpg::Event,
         atlas: &Atlas,
-    ) -> color_eyre::Result<Option<Self>> {
+    ) -> Option<Self> {
         let Some(page) = event.pages.first() else {
-            color_eyre::eyre::bail!("event does not have first page");
+            graphics_state
+                .send_texture_error(color_eyre::eyre::eyre!("Event does not have first page"));
+            return None;
         };
 
         let mut is_placeholder = false;
-        let texture = if let Some(ref filename) = page.graphic.character_name {
+        let texture = if let Some(filename) = page.graphic.character_name.0.as_ref() {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Characters", filename)
@@ -51,13 +53,13 @@ impl Event {
                     graphics_state.texture_loader.placeholder_texture()
                 }
             }
-        } else if page.graphic.tile_id.is_some() {
+        } else if page.graphic.tile_id.0.is_some() {
             atlas.texture().clone()
         } else {
-            return Ok(None);
+            return None;
         };
 
-        let (quad, sprite_size) = if let Some(id) = page.graphic.tile_id {
+        let (quad, sprite_size) = if let Some(id) = page.graphic.tile_id.0 {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
@@ -106,10 +108,10 @@ impl Event {
             transform,
         );
 
-        Ok(Some(Self {
+        Some(Self {
             sprite,
             sprite_size,
-        }))
+        })
     }
 
     pub fn new_standalone(
@@ -118,9 +120,9 @@ impl Event {
         viewport: &Viewport,
         graphic: &luminol_data::rpg::Graphic,
         atlas: &Atlas,
-    ) -> color_eyre::Result<Option<Self>> {
+    ) -> Option<Self> {
         let mut is_placeholder = false;
-        let texture = if let Some(ref filename) = graphic.character_name {
+        let texture = if let Some(filename) = graphic.character_name.0.as_ref() {
             let texture = graphics_state
                 .texture_loader
                 .load_now_dir(filesystem, "Graphics/Characters", filename)
@@ -133,13 +135,13 @@ impl Event {
                     graphics_state.texture_loader.placeholder_texture()
                 }
             }
-        } else if graphic.tile_id.is_some() {
+        } else if graphic.tile_id.0.is_some() {
             atlas.texture().clone()
         } else {
-            return Ok(None);
+            return None;
         };
 
-        let (quad, sprite_size) = if let Some(id) = graphic.tile_id {
+        let (quad, sprite_size) = if let Some(id) = graphic.tile_id.0 {
             // Why does this have to be + 1?
             let quad = atlas.calc_quad((id + 1) as i16);
 
@@ -186,10 +188,10 @@ impl Event {
             transform,
         );
 
-        Ok(Some(Self {
+        Some(Self {
             sprite,
             sprite_size,
-        }))
+        })
     }
 
     pub fn set_position(&mut self, render_state: &luminol_egui_wgpu::RenderState, x: i32, y: i32) {

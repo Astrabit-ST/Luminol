@@ -74,6 +74,17 @@ impl Instances {
         )
     }
 
+    pub fn set_passages(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        passages: &luminol_data::Table2,
+    ) {
+        let instances = Self::calculate_instances(passages);
+        render_state
+            .queue
+            .write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances))
+    }
+
     fn calculate_instances(passages: &luminol_data::Table2) -> Vec<Instance> {
         passages
             .iter()

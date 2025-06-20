@@ -105,7 +105,7 @@ impl MapView {
             &map,
             tileset,
             &passages,
-        )?;
+        );
 
         let data_id = egui::Id::new("luminol_map_view")
             .with(
@@ -324,7 +324,9 @@ impl MapView {
         self.map
             .update_animation(&update_state.graphics.render_state, ui.input(|i| i.time));
         ui.ctx()
-            .request_repaint_after(std::time::Duration::from_secs_f32(16. / 60.));
+            .request_repaint_after(std::time::Duration::from_secs_f64(
+                16. / 60. - ui.input(|i| i.time).rem_euclid(16. / 60.),
+            ));
 
         let painter = luminol_graphics::Painter::new(self.map.prepare(&update_state.graphics));
         ui.painter()
@@ -361,12 +363,13 @@ impl MapView {
         )
         .intersect(map_rect);
 
-        if !self.map.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events) {
+        if !self.map.settings.event_enabled || !matches!(self.selected_layer, SelectedLayer::Events)
+        {
             self.selected_event_id = None;
         }
         self.selected_event_is_hovered = false;
 
-        if self.map.event_enabled {
+        if self.map.settings.event_enabled {
             let mut selected_event = None;
             let mut selected_event_rect = None;
 
@@ -379,8 +382,7 @@ impl MapView {
                         &self.map.viewport,
                         event,
                         &self.map.atlas,
-                    )
-                    .unwrap(); // FIXME handle
+                    );
                     if let Some(sprite) = sprite {
                         self.map.events.insert(event.id, sprite);
                     } else {
@@ -481,8 +483,7 @@ impl MapView {
                                             graphic,
                                             &self.map.atlas,
                                         )
-                                        .unwrap()
-                                        .unwrap(); // FIXME: handle error
+                                        .unwrap();
                                         PreviewEvent { viewport, sprite }
                                     });
 

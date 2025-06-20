@@ -192,6 +192,7 @@ impl HistoryEntry {
 }
 
 struct Modals {
+    battler: crate::modals::graphic_picker::hue_label::Modal,
     copy_frames: crate::modals::animations::copy_frames_tool::Modal,
     clear_frames: crate::modals::animations::clear_frames_tool::Modal,
     tween: crate::modals::animations::tween_tool::Modal,
@@ -207,6 +208,7 @@ impl Modals {
     }
 
     fn close_all_except_frame_count(&mut self) {
+        self.battler.close_window();
         self.copy_frames.close_window();
         self.clear_frames.close_window();
         self.tween.close_window();
@@ -246,6 +248,10 @@ impl Default for Window {
             },
             collapsing_view: CollapsingView::new(),
             modals: Modals {
+                battler: crate::modals::graphic_picker::hue_label::Modal::new(
+                    "animations_battler_modal".into(),
+                    "Graphics/Battlers".into(),
+                ),
                 copy_frames: crate::modals::animations::copy_frames_tool::Modal::new(
                     "animations_copy_frames_tool",
                 ),

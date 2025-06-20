@@ -14,10 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{
-    id_alox, id_serde, id_vec_alox, id_vec_serde, optional_id_alox, optional_id_serde,
-    optional_path_alox, optional_path_serde, rpg::AudioFile, Path,
-};
+pub use crate::{id_alox, id_serde, id_vec_alox, id_vec_serde, rpg::AudioFile, Path, RpgOption};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -27,22 +24,14 @@ pub struct Skill {
     #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub icon_name: Path,
     pub description: String,
     pub scope: crate::rpg::Scope,
     pub occasion: crate::rpg::Occasion,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub animation1_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub animation2_id: Option<usize>,
+    pub animation1_id: RpgOption<usize>,
+    pub animation2_id: RpgOption<usize>,
     pub menu_se: AudioFile,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub common_event_id: Option<usize>,
+    pub common_event_id: RpgOption<usize>,
     pub sp_cost: i32,
     pub power: i32,
     pub atk_f: i32,

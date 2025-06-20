@@ -22,7 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
-use crate::components::{Cellpicker, UiExt};
+use super::PreviewSprite;
+use crate::components::UiExt;
 use luminol_core::prelude::*;
 
 use super::Entry;
@@ -30,6 +31,7 @@ use super::Entry;
 pub struct Modal {
     state: State,
     id_source: egui::Id,
+    autotile_index: usize,
     scrolled_on_first_open: bool,
 }
 
@@ -39,24 +41,24 @@ enum State {
         entries: Vec<Entry>,
         filtered_entries: Vec<Entry>,
         search_text: String,
-        cellpicker: Cellpicker,
-        animation_name: Option<camino::Utf8PathBuf>,
-        animation_hue: i32,
+        sprite: Option<PreviewSprite>,
+        autotile_name: Option<camino::Utf8PathBuf>,
     },
 }
 
 impl Modal {
-    pub fn new(id_source: egui::Id) -> Self {
+    pub fn new(id_source: egui::Id, autotile_index: usize) -> Self {
         Self {
             state: State::Closed,
             id_source,
+            autotile_index,
             scrolled_on_first_open: false,
         }
     }
 }
 
 impl luminol_core::Modal for Modal {
-    type Data<'m> = &'m mut luminol_data::rpg::Animation;
+    type Data<'m> = &'m mut luminol_data::rpg::Tileset;
 
     fn button<'m>(
         &'m mut self,
@@ -67,27 +69,58 @@ impl luminol_core::Modal for Modal {
             ui.with_cross_justify(|ui| {
                 let is_open = matches!(self.state, State::Open { .. });
 
-                let button_text = if let Some(name) = &data.animation_name.0 {
-                    format!("Graphics/Animations/{name}")
+                let button_text = if let Some(name) = &data.autotile_names[self.autotile_index].0 {
+                    format!("Graphics/Autotiles/{name}")
                 } else {
                     "(None)".to_string()
                 };
                 let mut response = ui.add(egui::Button::new(button_text).truncate());
 
                 if response.clicked() && !is_open {
-                    let entries = Entry::load(update_state, "Graphics/Animations".into());
+                    let entries = Entry::load(update_state, "Graphics/Autotiles".into());
+
+                    let desensitized_autotile_name = data.autotile_names[self.autotile_index]
+                        .0
+                        .as_ref()
+                        .and_then(|name| {
+                            update_state
+                                .filesystem
+                                .desensitize(format!("Graphics/Autotiles/{name}"))
+                                .ok()
+                                .map(|path| {
+                                    camino::Utf8PathBuf::from(path.file_name().unwrap_or_default())
+                                })
+                        });
+
+                    let sprite = desensitized_autotile_name
+                        .as_ref()
+                        .and_then(|autotile_name| {
+                            let texture = update_state
+                                .graphics
+                                .texture_loader
+                                .load_now_dir(
+                                    update_state.filesystem,
+                                    "Graphics/Autotiles",
+                                    autotile_name,
+                                )
+                                .map_err(|e| luminol_core::error!(update_state.toasts, e))
+                                .ok()?;
+                            let viewport =
+                                Viewport::new(&update_state.graphics, Default::default());
+                            let sprite = Sprite::basic(&update_state.graphics, &texture, &viewport);
+                            Some(PreviewSprite {
+                                sprite,
+                                sprite_size: texture.size_vec2(),
+                                viewport,
+                            })
+                        });
 
                     self.state = State::Open {
                         filtered_entries: entries.clone(),
                         entries,
-                        cellpicker: Self::load_cellpicker(
-                            update_state,
-                            &data.animation_name.0,
-                            data.animation_hue,
-                        ),
+                        sprite,
                         search_text: String::new(),
-                        animation_name: data.animation_name.0.clone(),
-                        animation_hue: data.animation_hue,
+                        autotile_name: data.autotile_names[self.autotile_index].clone().into(),
                     };
                 }
                 if self.show_window(update_state, ui.ctx(), data) {
@@ -107,35 +140,11 @@ impl luminol_core::Modal for Modal {
 }
 
 impl Modal {
-    fn load_cellpicker(
-        update_state: &mut luminol_core::UpdateState<'_>,
-        animation_name: &Option<camino::Utf8PathBuf>,
-        animation_hue: i32,
-    ) -> Cellpicker {
-        let atlas = update_state.graphics.atlas_loader.load_animation_atlas(
-            &update_state.graphics,
-            update_state.filesystem,
-            animation_name.as_deref(),
-        );
-        let mut cellpicker = Cellpicker::new(
-            &update_state.graphics,
-            atlas,
-            Some(luminol_graphics::primitives::cells::ANIMATION_COLUMNS),
-            1.,
-        )
-        .hide_selection();
-        cellpicker.view.display.set_hue(
-            &update_state.graphics.render_state,
-            animation_hue as f32 / 360.,
-        );
-        cellpicker
-    }
-
     fn show_window(
         &mut self,
         update_state: &mut luminol_core::UpdateState<'_>,
         ctx: &egui::Context,
-        data: &mut rpg::Animation,
+        data: &mut luminol_data::rpg::Tileset,
     ) -> bool {
         let mut win_open = true;
         let mut keep_open = true;
@@ -145,24 +154,23 @@ impl Modal {
             entries,
             filtered_entries,
             search_text,
-            cellpicker,
-            animation_name,
-            animation_hue,
+            sprite,
+            autotile_name,
         } = &mut self.state
         else {
             self.scrolled_on_first_open = false;
             return false;
         };
 
-        let desensitized_animation_name = animation_name.as_ref().and_then(|name| {
+        let desensitized_autotile_name = autotile_name.as_ref().and_then(|name| {
             update_state
                 .filesystem
-                .desensitize(format!("Graphics/Animations/{name}"))
+                .desensitize(format!("Graphics/Autotiles/{name}"))
                 .ok()
                 .map(|path| camino::Utf8PathBuf::from(path.file_name().unwrap_or_default()))
         });
 
-        egui::Window::new("Animation Graphic Picker")
+        egui::Window::new("Autotile Graphic Picker")
             .min_width(480.)
             .default_size([480., 300.])
             .resizable(true)
@@ -195,12 +203,11 @@ impl Modal {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                                     if rows.contains(&0) {
-                                        let checked = animation_name.is_none();
+                                        let checked = autotile_name.is_none();
                                         let res = ui.selectable_label(checked, "(None)");
-                                        if res.clicked() && animation_name.is_some() {
-                                            *animation_name = None;
-                                            *cellpicker =
-                                                Self::load_cellpicker(update_state, &None, 0);
+                                        if res.clicked() && autotile_name.is_some() {
+                                            *autotile_name = None;
+                                            *sprite = None;
                                         }
                                     }
 
@@ -212,7 +219,7 @@ impl Modal {
                                         filtered_entries[rows.clone()].iter_mut().enumerate()
                                     {
                                         let checked =
-                                            desensitized_animation_name.as_ref() == Some(path);
+                                            desensitized_autotile_name.as_ref() == Some(path);
                                         let mut text = egui::RichText::new(path.as_str());
                                         if *invalid {
                                             text = text.color(egui::Color32::LIGHT_RED);
@@ -225,15 +232,60 @@ impl Modal {
                                             );
 
                                             if res.clicked() {
-                                                *animation_name = Some(
+                                                *autotile_name = Some(
                                                     path.file_stem()
                                                         .unwrap_or(path.as_str())
                                                         .into(),
                                                 );
-                                                *cellpicker = Self::load_cellpicker(
-                                                    update_state,
-                                                    animation_name,
-                                                    *animation_hue,
+
+                                                let autotile_name =
+                                                    autotile_name.as_ref().and_then(|name| {
+                                                        update_state
+                                                            .filesystem
+                                                            .desensitize(format!(
+                                                                "Graphics/Autotiles/{name}"
+                                                            ))
+                                                            .ok()
+                                                            .map(|path| {
+                                                                camino::Utf8PathBuf::from(
+                                                                    path.file_name()
+                                                                        .unwrap_or_default(),
+                                                                )
+                                                            })
+                                                    });
+
+                                                *sprite = autotile_name.as_ref().and_then(
+                                                    |autotile_name| {
+                                                        let texture = update_state
+                                                            .graphics
+                                                            .texture_loader
+                                                            .load_now_dir(
+                                                                update_state.filesystem,
+                                                                "Graphics/Autotiles",
+                                                                autotile_name,
+                                                            )
+                                                            .map_err(|e| {
+                                                                luminol_core::error!(
+                                                                    update_state.toasts,
+                                                                    e
+                                                                )
+                                                            })
+                                                            .ok()?;
+                                                        let viewport = Viewport::new(
+                                                            &update_state.graphics,
+                                                            Default::default(),
+                                                        );
+                                                        let sprite = Sprite::basic(
+                                                            &update_state.graphics,
+                                                            &texture,
+                                                            &viewport,
+                                                        );
+                                                        Some(PreviewSprite {
+                                                            sprite,
+                                                            sprite_size: texture.size_vec2(),
+                                                            viewport,
+                                                        })
+                                                    },
                                                 );
                                             }
                                         });
@@ -243,11 +295,11 @@ impl Modal {
 
                         // Scroll the selected item into view
                         if !self.scrolled_on_first_open {
-                            let row = if animation_name.is_none() {
+                            let row = if autotile_name.is_none() {
                                 Some(0)
                             } else {
                                 filtered_entries.iter().enumerate().find_map(|(i, entry)| {
-                                    (desensitized_animation_name.as_ref() == Some(&entry.path))
+                                    (desensitized_autotile_name.as_ref() == Some(&entry.path))
                                         .then_some(i + 1)
                                 })
                             };
@@ -274,19 +326,6 @@ impl Modal {
                     });
                 });
 
-                egui::TopBottomPanel::top(self.id_source.with("top")).show_inside(ui, |ui| {
-                    ui.add_space(1.0); // pad out the top
-                    ui.horizontal(|ui| {
-                        ui.label("Hue");
-                        if ui.add(egui::Slider::new(animation_hue, 0..=360)).changed() {
-                            cellpicker.view.display.set_hue(
-                                &update_state.graphics.render_state,
-                                *animation_hue as f32 / 360.,
-                            );
-                        }
-                    });
-                    ui.add_space(1.0); // pad out the bottom
-                });
                 egui::TopBottomPanel::bottom(self.id_source.with("bottom")).show_inside(ui, |ui| {
                     ui.add_space(ui.style().spacing.item_spacing.y);
                     crate::components::close_options_ui(ui, &mut keep_open, &mut needs_save);
@@ -296,14 +335,17 @@ impl Modal {
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
                         .show_viewport(ui, |ui, scroll_rect| {
-                            cellpicker.ui(update_state, ui, scroll_rect);
+                            if let Some(sprite) = sprite {
+                                sprite.ui(ui, scroll_rect, update_state);
+                            }
                         });
                 });
             });
 
         if needs_save {
-            data.animation_name.0.clone_from(animation_name);
-            data.animation_hue = *animation_hue;
+            data.autotile_names[self.autotile_index]
+                .0
+                .clone_from(autotile_name);
         }
 
         if !(win_open && keep_open) {

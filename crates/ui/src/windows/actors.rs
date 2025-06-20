@@ -38,13 +38,34 @@ pub struct Window {
     exp_view_is_total: bool,
     exp_view_is_depersisted: bool,
 
+    parameter_edit_state: ParameterEditState,
+
     view: crate::components::DatabaseView,
 }
 
+struct ParameterEditState {
+    param: usize,
+    index: usize,
+    value: i16,
+}
+
+impl Default for ParameterEditState {
+    fn default() -> Self {
+        Self {
+            param: usize::MAX,
+            index: 0,
+            value: 0,
+        }
+    }
+}
+
 impl Window {
-    pub fn new(update_state: &luminol_core::UpdateState<'_>) -> Self {
-        let actors = update_state.data.actors();
-        let actor = &actors.data[0];
+    pub fn new(update_state: &mut luminol_core::UpdateState<'_>) -> Self {
+        let (name, hue) = {
+            let actors = update_state.data.actors();
+            let actor = &actors.data[0];
+            (actor.character_name.clone(), actor.character_hue)
+        };
         Self {
             selected_actor_name: None,
             previous_actor: None,
@@ -52,8 +73,8 @@ impl Window {
             graphic_picker: GraphicPicker::new(
                 update_state,
                 "Graphics/Characters".into(),
-                actor.character_name.as_deref(),
-                actor.character_hue,
+                name.0.as_deref(),
+                hue,
                 egui::vec2(64., 96.),
                 "actor_graphic_picker",
             ),
@@ -61,14 +82,35 @@ impl Window {
             exp_view_is_depersisted: false,
             exp_view_is_total: false,
 
+            parameter_edit_state: Default::default(),
+
             view: crate::components::DatabaseView::new(),
         }
     }
 }
 
+fn iter_parameters(
+    parameters: &luminol_data::Table2,
+    param: usize,
+    range: std::ops::RangeInclusive<usize>,
+    rect: egui::Rect,
+) -> impl std::iter::FusedIterator<Item = egui::Pos2> + Clone + '_ {
+    (1..parameters.ysize()).map(move |i| {
+        rect.left_top()
+            + egui::vec2(
+                ((i - 1) as f32 / (parameters.ysize() - 2) as f32) * rect.width(),
+                ((range.end().saturating_sub(parameters[(param, i)] as usize)) as f32
+                    / range.end().saturating_sub(*range.start()) as f32)
+                    * rect.height(),
+            )
+    })
+}
+
 fn draw_graph(
     ui: &mut egui::Ui,
-    actor: &luminol_data::rpg::Actor,
+    parameter_edit_state: &mut ParameterEditState,
+    modified: &mut bool,
+    actor: &mut luminol_data::rpg::Actor,
     param: usize,
     range: std::ops::RangeInclusive<usize>,
     color: egui::Color32,
@@ -84,18 +126,63 @@ fn draw_graph(
             }
             ui.set_clip_rect(clip_rect);
 
-            let iter = (1..actor.parameters.ysize()).map(|i| {
-                rect.left_top()
-                    + egui::vec2(
-                        ((i - 1) as f32 / (actor.parameters.ysize() - 2) as f32) * rect.width(),
-                        ((range
-                            .end()
-                            .saturating_sub(actor.parameters[(param, i)] as usize))
-                            as f32
-                            / range.end().saturating_sub(*range.start()) as f32)
-                            * rect.height(),
-                    )
-            });
+            // Handle dragging to edit parameter points
+            let response = ui.allocate_response(rect.size(), egui::Sense::click_and_drag());
+            if response.is_pointer_button_down_on()
+                && ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary))
+            {
+                if let Some(hover_pos) = response.hover_pos() {
+                    let width = 1. / (actor.parameters.ysize() - 2) as f32 * rect.width() * 0.5;
+                    let index = iter_parameters(&actor.parameters, param, range.clone(), rect)
+                        .with_position()
+                        .position(|(iter_pos, p)| {
+                            (iter_pos == itertools::Position::First || hover_pos.x >= p.x - width)
+                                && (iter_pos == itertools::Position::Last
+                                    || hover_pos.x < p.x + width)
+                        })
+                        .unwrap()
+                        + 1;
+
+                    let index_range = if parameter_edit_state.param != param
+                        || index == parameter_edit_state.index
+                    {
+                        index..=index
+                    } else if index < parameter_edit_state.index {
+                        index..=parameter_edit_state.index - 1
+                    } else {
+                        parameter_edit_state.index + 1..=index
+                    };
+
+                    let start_value = parameter_edit_state.value;
+                    let end_value = range.end().saturating_sub(
+                        ((hover_pos.y - rect.top()) / rect.height()
+                            * range.end().saturating_sub(*range.start()) as f32)
+                            .round_ties_even() as usize,
+                    ) as i16;
+
+                    let index_range_len = index_range.end() - index_range.start() + 1;
+                    for (i, index) in index_range.enumerate() {
+                        let i = if index >= parameter_edit_state.index {
+                            i + 1
+                        } else {
+                            index_range_len - i
+                        };
+                        actor.parameters[(param, index)] = start_value
+                            + ((end_value - start_value) as f32
+                                * (i as f32 / index_range_len as f32))
+                                .round_ties_even() as i16;
+                    }
+
+                    parameter_edit_state.param = param;
+                    parameter_edit_state.index = index;
+                    parameter_edit_state.value = end_value;
+                    *modified = true;
+                }
+            } else if parameter_edit_state.param == param {
+                *parameter_edit_state = Default::default();
+            }
+
+            let iter = iter_parameters(&actor.parameters, param, range, rect);
 
             // Draw the filled part of the graph by drawing a trapezoid for each area horizontally
             // between two points
@@ -276,7 +363,7 @@ impl luminol_core::Window for Window {
                                     .add(Field::new(
                                         "Icon",
                                         self.graphic_picker.button(
-                                            (&mut actor.character_name, &mut actor.character_hue),
+                                            (&mut actor.character_name.0, &mut actor.character_hue),
                                             update_state,
                                         ),
                                     ))
@@ -285,7 +372,7 @@ impl luminol_core::Window for Window {
                                     // avoid desyncs by resetting the modal if the item has changed
                                     self.graphic_picker.reset(
                                         update_state,
-                                        (&mut actor.character_name, &mut actor.character_hue),
+                                        (&mut actor.character_name.0, &mut actor.character_hue),
                                     );
                                 }
 
@@ -338,7 +425,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "weapon_id"),
-                                                    &mut actor.weapon_id,
+                                                    &mut actor.weapon_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.weapon_set.iter().copied()
@@ -378,7 +465,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor1_id"),
-                                                    &mut actor.armor1_id,
+                                                    &mut actor.armor1_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -426,7 +513,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor2_id"),
-                                                    &mut actor.armor2_id,
+                                                    &mut actor.armor2_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -474,7 +561,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor3_id"),
-                                                    &mut actor.armor3_id,
+                                                    &mut actor.armor3_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -522,7 +609,7 @@ impl luminol_core::Window for Window {
                                                 .add(OptionalIdComboBox::new(
                                                     update_state,
                                                     (actor.id, "armor4_id"),
-                                                    &mut actor.armor4_id,
+                                                    &mut actor.armor4_id.0,
                                                     class
                                                         .map_or_else(Default::default, |c| {
                                                             c.armor_set.iter().copied()
@@ -602,9 +689,16 @@ impl luminol_core::Window for Window {
                                 false,
                             )
                             .show_header(ui, |ui| {
-                                ui.with_cross_justify(|ui| {
-                                    ui.label("EXP Curve");
-                                });
+                                ui.with_layout(
+                                    egui::Layout {
+                                        main_align: egui::Align::Min,
+                                        main_justify: true,
+                                        ..*ui.layout()
+                                    },
+                                    |ui| {
+                                        ui.label("EXP Curve");
+                                    },
+                                );
                             })
                             .body(|ui| {
                                 draw_exp(ui, actor, &mut self.exp_view_is_total);
@@ -633,6 +727,8 @@ impl luminol_core::Window for Window {
                                 columns[0].add(Field::new("Max HP", |ui: &mut egui::Ui| {
                                     draw_graph(
                                         ui,
+                                        &mut self.parameter_edit_state,
+                                        &mut modified,
                                         actor,
                                         0,
                                         1..=9999,
@@ -643,6 +739,8 @@ impl luminol_core::Window for Window {
                                 columns[1].add(Field::new("Max SP", |ui: &mut egui::Ui| {
                                     draw_graph(
                                         ui,
+                                        &mut self.parameter_edit_state,
+                                        &mut modified,
                                         actor,
                                         1,
                                         1..=9999,
@@ -657,6 +755,8 @@ impl luminol_core::Window for Window {
                                 columns[0].add(Field::new("STR", |ui: &mut egui::Ui| {
                                     draw_graph(
                                         ui,
+                                        &mut self.parameter_edit_state,
+                                        &mut modified,
                                         actor,
                                         2,
                                         1..=999,
@@ -667,6 +767,8 @@ impl luminol_core::Window for Window {
                                 columns[1].add(Field::new("DEX", |ui: &mut egui::Ui| {
                                     draw_graph(
                                         ui,
+                                        &mut self.parameter_edit_state,
+                                        &mut modified,
                                         actor,
                                         3,
                                         1..=999,
@@ -681,6 +783,8 @@ impl luminol_core::Window for Window {
                                 columns[0].add(Field::new("AGI", |ui: &mut egui::Ui| {
                                     draw_graph(
                                         ui,
+                                        &mut self.parameter_edit_state,
+                                        &mut modified,
                                         actor,
                                         4,
                                         1..=999,
@@ -691,6 +795,8 @@ impl luminol_core::Window for Window {
                                 columns[1].add(Field::new("INT", |ui: &mut egui::Ui| {
                                     draw_graph(
                                         ui,
+                                        &mut self.parameter_edit_state,
+                                        &mut modified,
                                         actor,
                                         5,
                                         1..=999,

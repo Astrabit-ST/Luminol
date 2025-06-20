@@ -427,11 +427,8 @@ impl Frame {
                     (255, 255, 255, 0.),
                 );
 
-                cell.sprite.set_quad(
-                    &graphics_state.render_state,
-                    self.atlas.calc_quad(id),
-                    self.atlas.texture().size(),
-                );
+                cell.sprite
+                    .set_quad(&graphics_state.render_state, self.atlas.calc_quad(id));
 
                 cell.sprite.blend_mode = blend_mode;
 

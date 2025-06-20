@@ -47,9 +47,10 @@ impl luminol_core::Window for super::Window {
         let data = std::mem::take(update_state.data); // take data to avoid borrow checker issues
         let mut animations = data.animations();
         let animations_len = animations.data.len();
-        let system = data.system();
+        let mut system = data.system();
 
         let mut modified = false;
+        let mut system_modified = false;
 
         self.selected_animation_name = None;
 
@@ -148,9 +149,9 @@ impl luminol_core::Window for super::Window {
                         });
 
                         ui.with_padded_stripe(false, |ui| {
-                            if self.previous_battler_name != system.battler_name {
+                            if self.previous_battler_name != system.battler_name.0 {
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
-                                    if let Some(battler_name) = &system.battler_name {
+                                    if let Some(battler_name) = &system.battler_name.0 {
                                         match update_state.graphics.texture_loader.load_now(
                                             update_state.filesystem,
                                             format!("Graphics/Battlers/{battler_name}"),
@@ -183,7 +184,8 @@ impl luminol_core::Window for super::Window {
                                     );
                                 }
 
-                                self.previous_battler_name.clone_from(&system.battler_name);
+                                self.previous_battler_name
+                                    .clone_from(&system.battler_name.0);
                             }
 
                             if self.previous_animation != Some(animation.id) {
@@ -214,7 +216,7 @@ impl luminol_core::Window for super::Window {
                                     update_state.graphics.atlas_loader.load_animation_atlas(
                                         &update_state.graphics,
                                         update_state.filesystem,
-                                        animation.animation_name.as_deref(),
+                                        animation.animation_name.0.as_deref(),
                                     );
 
                                 if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
@@ -276,7 +278,61 @@ impl luminol_core::Window for super::Window {
                         let mut collapsing_view_inner = Default::default();
                         let flash_maps = self.frame_edit_state.flash_maps.get_mut(id).unwrap();
 
+                        ui.add_space(ui.spacing().item_spacing.y);
+
                         ui.with_padded_stripe(true, |ui| {
+                            // Avoid borrow checker issues from mutably borrowing both `system.battler_name` and `system.battler_hue` at the same time
+                            let system = &mut *system;
+
+                            let changed = ui
+                                .add(Field::new(
+                                    "Battler",
+                                    self.modals.battler.button(
+                                        (&mut system.battler_name.0, &mut system.battler_hue),
+                                        update_state,
+                                    ),
+                                ))
+                                .changed();
+                            if changed && self.previous_battler_name != system.battler_name.0 {
+                                if let Some(frame_view) = &mut self.frame_edit_state.frame_view {
+                                    if let Some(battler_name) = &system.battler_name.0 {
+                                        match update_state.graphics.texture_loader.load_now(
+                                            update_state.filesystem,
+                                            format!("Graphics/Battlers/{battler_name}"),
+                                        ) {
+                                            Ok(texture) => {
+                                                frame_view.frame.battler_texture = Some(texture);
+                                            }
+                                            Err(e) => {
+                                                frame_view.frame.battler_texture = None;
+                                                super::util::log_battler_error(
+                                                    update_state,
+                                                    system,
+                                                    animation,
+                                                    e,
+                                                );
+                                            }
+                                        }
+                                    }
+                                    frame_view.frame.rebuild_battler(
+                                        &update_state.graphics,
+                                        system,
+                                        animation,
+                                        flash_maps
+                                            .target(self.frame_edit_state.condition)
+                                            .compute(self.frame_edit_state.frame_index),
+                                        flash_maps
+                                            .hide(self.frame_edit_state.condition)
+                                            .compute(self.frame_edit_state.frame_index),
+                                    );
+                                    self.previous_battler_name
+                                        .clone_from(&system.battler_name.0);
+                                }
+                                system_modified = true;
+                            }
+                        });
+
+                        ui.with_padded_stripe(false, |ui| {
                             let changed = ui
                                 .add(Field::new("SE and Flash", |ui: &mut egui::Ui| {
                                     if *update_state.modified_during_prev_frame {
@@ -451,6 +507,11 @@ impl luminol_core::Window for super::Window {
         if modified {
             update_state.modified.set(true);
             animations.modified = true;
+        }
+
+        if system_modified {
+            update_state.modified.set(true);
+            system.modified = true;
         }
 
         drop(animations);

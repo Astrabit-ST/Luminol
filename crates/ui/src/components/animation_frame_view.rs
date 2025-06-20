@@ -236,13 +236,14 @@ impl AnimationFrameView {
             })
         {
             self.hovered_cell_drag_offset = None;
-        } else if let (Some(i), None, true) = (
-            self.hovered_cell_index,
+        } else if let (Some(cell), None, true) = (
+            self.hovered_cell_index
+                .and_then(|i| self.frame.cells().get(i)),
             self.hovered_cell_drag_offset,
             response.drag_started_by(egui::PointerButton::Primary),
         ) {
             self.hovered_cell_drag_offset =
-                Some(self.frame.cells()[i].rect.center() - hover_pos_in_frame_coords.unwrap());
+                Some(cell.rect.center() - hover_pos_in_frame_coords.unwrap());
         }
 
         if let Some(drag_offset) = self.hovered_cell_drag_offset {
@@ -298,8 +299,11 @@ impl AnimationFrameView {
             }
 
             // Draw a yellow rectangle on the border of the hovered cell
-            if let Some(i) = self.hovered_cell_index {
-                let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
+            if let Some(cell) = self
+                .hovered_cell_index
+                .and_then(|i| self.frame.cells().get(i))
+            {
+                let cell_rect = (cell.rect * scale).translate(offset);
                 ui.painter().rect_stroke(
                     cell_rect,
                     5.,
@@ -308,8 +312,11 @@ impl AnimationFrameView {
             }
 
             // Draw a magenta rectangle on the border of the selected cell
-            if let Some(i) = self.selected_cell_index {
-                let cell_rect = (self.frame.cells()[i].rect * scale).translate(offset);
+            if let Some(cell) = self
+                .selected_cell_index
+                .and_then(|i| self.frame.cells().get(i))
+            {
+                let cell_rect = (cell.rect * scale).translate(offset);
                 ui.painter().rect_stroke(
                     cell_rect,
                     5.,

@@ -75,10 +75,13 @@ impl Modal {
     pub fn new(
         update_state: &UpdateState<'_>,
         graphic: &rpg::Graphic,
-        tileset_id: usize,
+        tileset: &luminol_data::rpg::Tileset,
         id_source: egui::Id,
     ) -> Self {
-        let atlas = update_state.graphics.atlas_loader.get_expect(tileset_id); // atlas should be loaded by this point
+        let atlas = update_state
+            .graphics
+            .atlas_loader
+            .get_expect(tileset.tileset_name.0.as_deref()); // atlas should be loaded by this point
 
         let viewport = Viewport::new(&update_state.graphics, Default::default());
         let button_sprite = Event::new_standalone(
@@ -88,7 +91,6 @@ impl Modal {
             graphic,
             &atlas,
         )
-        .unwrap() // FIXME
         .map(|sprite| ButtonSprite {
             sprite: sprite.sprite,
             sprite_size: sprite.sprite_size,
@@ -99,7 +101,7 @@ impl Modal {
             state: State::Closed,
             id_source,
 
-            tileset_id,
+            tileset_id: tileset.id,
 
             button_sprite,
 
@@ -128,14 +130,14 @@ impl luminol_core::Modal for Modal {
             );
 
             if response.clicked() && !is_open {
-                let selected = if let Some(tile_id) = data.tile_id {
+                let selected = if let Some(tile_id) = data.tile_id.0 {
                     let tilepicker = Self::load_tilepicker(update_state, self.tileset_id);
 
                     Selected::Tile {
                         tile_id,
                         tilepicker,
                     }
-                } else if let Some(path) = data.character_name.clone() {
+                } else if let Some(path) = data.character_name.0.clone() {
                     let sprite = match Self::load_preview_sprite(
                         update_state,
                         &path,
@@ -194,10 +196,12 @@ impl luminol_core::Modal for Modal {
 
 impl Modal {
     fn update_graphic(&mut self, update_state: &UpdateState<'_>, graphic: &rpg::Graphic) {
+        let tilesets = update_state.data.tilesets();
+        let tileset = &tilesets.data[self.tileset_id];
         let atlas = update_state
             .graphics
             .atlas_loader
-            .get_expect(self.tileset_id); // atlas should be loaded by this point
+            .get_expect(tileset.tileset_name.0.as_deref()); // atlas should be loaded by this point
 
         let viewport = Viewport::new(&update_state.graphics, Default::default());
         self.button_sprite = Event::new_standalone(
@@ -207,7 +211,6 @@ impl Modal {
             graphic,
             &atlas,
         )
-        .unwrap() // FIXME
         .map(|sprite| ButtonSprite {
             sprite: sprite.sprite,
             sprite_size: sprite.sprite_size,
@@ -221,7 +224,9 @@ impl Modal {
 
         let mut tilepicker = Tilepicker::new(
             &update_state.graphics,
-            tileset,
+            tileset.tileset_name.0.as_deref(),
+            &tileset.autotile_names,
+            &tileset.passages,
             update_state.filesystem,
             true,
         );
@@ -314,6 +319,8 @@ impl Modal {
         };
 
         egui::Window::new("Event Graphic Picker")
+            .min_width(640.)
+            .default_size([640., 300.])
             .resizable(true)
             .open(&mut win_open)
             .id(self.id_source.with("window"))
@@ -611,12 +618,12 @@ impl Modal {
         if needs_save {
             match selected {
                 Selected::None => {
-                    data.tile_id = None;
-                    data.character_name = None;
+                    data.tile_id = None.into();
+                    data.character_name = None.into();
                 }
                 Selected::Tile { tile_id, .. } => {
-                    data.tile_id = Some(*tile_id);
-                    data.character_name = None;
+                    data.tile_id = Some(*tile_id).into();
+                    data.character_name = None.into();
                 }
                 Selected::Graphic {
                     ref path,
@@ -624,8 +631,8 @@ impl Modal {
                     pattern,
                     ..
                 } => {
-                    data.tile_id = None;
-                    data.character_name = Some(path.clone());
+                    data.tile_id = None.into();
+                    data.character_name = Some(path.clone()).into();
                     data.direction = *direction;
                     data.pattern = *pattern;
                 }

@@ -36,12 +36,14 @@ pub mod frame;
 pub mod map;
 pub mod plane;
 pub mod tilepicker;
+pub mod troop;
 
 pub use event::Event;
 pub use frame::Frame;
 pub use map::Map;
 pub use plane::Plane;
 pub use tilepicker::Tilepicker;
+pub use troop::Troop;
 
 pub struct GraphicsState {
     pub texture_loader: loaders::texture::Loader,

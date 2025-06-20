@@ -106,7 +106,7 @@ bytemuck = { version = "1.14.0", features = [
     "derive",
     "min_const_generics",
 ] } # Bit casting between data types
-num-integer = "0.1.46" # Integer trait and implementations of some integer algorithms such as GCD and LCM
+num = "0.4.3" # Integer trait and implementations of some integer algorithms such as GCD and LCM
 
 # * Logging and diagnostics * #
 log = { version = "0.4", features = [

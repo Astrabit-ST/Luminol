@@ -38,7 +38,7 @@ pub fn show_timing_header(ui: &mut egui::Ui, timing: &Timing) {
         luminol_data::rpg::animation::Condition::Miss => vec.push("on miss".into()),
     }
 
-    if let Some(path) = &timing.se.name {
+    if let Some(path) = &timing.se.name.0 {
         vec.push(format!("play {:?}", path.file_name().unwrap_or_default()));
     };
 

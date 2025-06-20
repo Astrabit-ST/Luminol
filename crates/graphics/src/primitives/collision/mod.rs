@@ -80,6 +80,14 @@ impl Collision {
         self.instances.set_passage(render_state, passage, position)
     }
 
+    pub fn set_passages(
+        &self,
+        render_state: &luminol_egui_wgpu::RenderState,
+        passages: &luminol_data::Table2,
+    ) {
+        self.instances.set_passages(render_state, passages);
+    }
+
     /// Determines the passage values for every position on the map, running `f(x, y, passage)` for
     /// every position.
     ///
@@ -105,6 +113,7 @@ impl Collision {
                     let tile_event =
                         page.graphic
                             .tile_id
+                            .0
                             .map_or((15, 1, CollisionType::Event), |id| {
                                 let tile_id = id + 1;
                                 if tile_id >= tileset_size {

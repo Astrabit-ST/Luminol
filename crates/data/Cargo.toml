@@ -25,6 +25,7 @@ alox-48.workspace = true
 
 # * Mathematics * #
 bytemuck.workspace = true
+num.workspace = true
 
 # * Useful procedural macros * #
 num_enum = "0.7.0"     # Procedural macros to make inter-operation between primitives and enums easier

@@ -14,10 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
-pub use crate::{
-    id_alox, id_serde, optional_id_alox, optional_id_serde, optional_path_alox,
-    optional_path_serde, Path, Table1,
-};
+pub use crate::{id_alox, id_serde, Path, RpgOption, Table1};
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 #[derive(alox_48::Deserialize, alox_48::Serialize)]
@@ -27,8 +24,6 @@ pub struct Enemy {
     #[marshal(with = "id_alox")]
     pub id: usize,
     pub name: String,
-    #[serde(with = "optional_path_serde")]
-    #[marshal(with = "optional_path_alox")]
     pub battler_name: Path,
     pub battler_hue: i32,
     pub maxhp: i32,
@@ -41,27 +36,17 @@ pub struct Enemy {
     pub pdef: i32,
     pub mdef: i32,
     pub eva: i32,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub animation1_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub animation2_id: Option<usize>,
+    pub animation1_id: RpgOption<usize>,
+    pub animation2_id: RpgOption<usize>,
     pub element_ranks: Table1,
     pub state_ranks: Table1,
     pub actions: Vec<Action>,
     pub exp: i32,
     // FIXME: make optional
     pub gold: i32,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub item_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub weapon_id: Option<usize>,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub armor_id: Option<usize>,
+    pub item_id: RpgOption<usize>,
+    pub weapon_id: RpgOption<usize>,
+    pub armor_id: RpgOption<usize>,
     pub treasure_prob: i32,
 }
 
@@ -78,9 +63,7 @@ pub struct Action {
     pub condition_turn_b: i32,
     pub condition_hp: i32,
     pub condition_level: i32,
-    #[serde(with = "optional_id_serde")]
-    #[marshal(with = "optional_id_alox")]
-    pub condition_switch_id: Option<usize>,
+    pub condition_switch_id: RpgOption<usize>,
     pub rating: i32,
 }
 
@@ -94,7 +77,7 @@ impl Default for Action {
             condition_turn_b: 1,
             condition_hp: 100,
             condition_level: 1,
-            condition_switch_id: None,
+            condition_switch_id: None.into(),
             rating: 5,
         }
     }

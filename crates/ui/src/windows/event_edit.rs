@@ -40,6 +40,10 @@ pub struct Window {
     switch_2_modal: SwitchModal,
     variable_modal: VariableModal,
     graphic_modal: GraphicPicker,
+
+    /// Stores the nonce of the tileset texture used the previous frame so we can detect when the
+    /// user modifies the tileset in the tileset editor
+    previous_tileset_texture_nonce: u64,
 }
 
 impl Window {
@@ -48,7 +52,7 @@ impl Window {
         update_state: &UpdateState<'_>,
         event: &rpg::Event,
         map_id: usize,
-        tileset_id: usize,
+        tileset: &luminol_data::rpg::Tileset,
     ) -> Self {
         let id_source = egui::Id::new("luminol_event_edit")
             .with(event.id)
@@ -56,7 +60,7 @@ impl Window {
         let graphic_modal = GraphicPicker::new(
             update_state,
             &event.pages[0].graphic,
-            tileset_id,
+            tileset,
             id_source.with("graphic_modal"),
         );
         Self {
@@ -68,6 +72,8 @@ impl Window {
             switch_2_modal: SwitchModal::new(id_source.with("switch_2_modal")),
             variable_modal: VariableModal::new(id_source.with("variable_modal")),
             graphic_modal,
+
+            previous_tileset_texture_nonce: tileset.texture_nonce,
         }
     }
 }
@@ -88,11 +94,22 @@ impl luminol_core::Window for Window {
         // to avoid borrowing issues, we temporarily remove the event from the map.
         // this is a pretty cheap operation because it's Option::take.
         let mut map = update_state.data.get_map(self.map_id);
+        let tileset_id = map.tileset_id;
         let Some(mut event) = map.events.option_remove(self.event_id) else {
             *open = false;
             return;
         };
         drop(map);
+
+        let tileset_changed = {
+            let tilesets = update_state.data.tilesets();
+            let tileset = &tilesets.data[tileset_id];
+            let tileset_changed = self.previous_tileset_texture_nonce != tileset.texture_nonce;
+            if tileset_changed {
+                self.previous_tileset_texture_nonce = tileset.texture_nonce;
+            }
+            tileset_changed
+        };
 
         let mut modified = false;
         let mut graphic_modified = false;
@@ -142,7 +159,7 @@ impl luminol_core::Window for Window {
                 });
 
                 let page = &mut event.pages[self.selected_page];
-                if self.selected_page != previous_page {
+                if tileset_changed || self.selected_page != previous_page {
                     // reset the modal if we've changed pages
                     self.graphic_modal.reset(update_state, &mut page.graphic);
                 }

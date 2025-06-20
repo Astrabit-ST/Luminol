@@ -16,12 +16,32 @@
 // along with Luminol.  If not, see <http://www.gnu.org/licenses/>.
 
 use color_eyre::eyre::Context;
-use itertools::Itertools;
 
 use crate::{
     Atlas, Collision, Drawable, Event, GraphicsState, Grid, Plane, Renderable, Tiles, Transform,
     Viewport,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub struct MapSettings {
+    pub fog_enabled: bool,
+    pub pano_enabled: bool,
+    pub coll_enabled: bool,
+    pub grid_enabled: bool,
+    pub event_enabled: bool,
+}
+
+impl Default for MapSettings {
+    fn default() -> Self {
+        Self {
+            fog_enabled: true,
+            pano_enabled: true,
+            coll_enabled: false,
+            grid_enabled: true,
+            event_enabled: true,
+        }
+    }
+}
 
 pub struct Map {
     pub tiles: Tiles,
@@ -35,11 +55,75 @@ pub struct Map {
     pub viewport: Viewport,
     ani_time: Option<f64>,
 
-    pub fog_enabled: bool,
-    pub pano_enabled: bool,
-    pub coll_enabled: bool,
-    pub grid_enabled: bool,
-    pub event_enabled: bool,
+    pub settings: MapSettings,
+}
+
+fn load_panorama(
+    graphics_state: &GraphicsState,
+    viewport: &Viewport,
+    filesystem: &impl luminol_filesystem::FileSystem,
+    map: &luminol_data::rpg::Map,
+    tileset: &luminol_data::rpg::Tileset,
+) -> Option<Plane> {
+    if let Some(panorama_name) = tileset.panorama_name.0.as_ref() {
+        let texture = graphics_state
+            .texture_loader
+            .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
+            .wrap_err_with(|| format!("Error loading map panorama {panorama_name:?}"))
+            .unwrap_or_else(|e| {
+                graphics_state.send_texture_error(e);
+
+                graphics_state.texture_loader.placeholder_texture()
+            });
+
+        Some(Plane::new(
+            graphics_state,
+            viewport,
+            &texture,
+            tileset.panorama_hue,
+            100,
+            luminol_data::BlendMode::Normal,
+            255,
+            map.width,
+            map.height,
+        ))
+    } else {
+        None
+    }
+}
+
+fn load_fog(
+    graphics_state: &GraphicsState,
+    viewport: &Viewport,
+    filesystem: &impl luminol_filesystem::FileSystem,
+    map: &luminol_data::rpg::Map,
+    tileset: &luminol_data::rpg::Tileset,
+) -> Option<Plane> {
+    if let Some(fog_name) = tileset.fog_name.0.as_ref() {
+        let texture = graphics_state
+            .texture_loader
+            .load_now_dir(filesystem, "Graphics/Fogs", fog_name)
+            .wrap_err_with(|| format!("Error loading map fog {fog_name:?}"))
+            .unwrap_or_else(|e| {
+                graphics_state.send_texture_error(e);
+
+                graphics_state.texture_loader.placeholder_texture()
+            });
+
+        Some(Plane::new(
+            graphics_state,
+            viewport,
+            &texture,
+            tileset.fog_hue,
+            tileset.fog_zoom,
+            tileset.fog_blend_type,
+            tileset.fog_opacity,
+            map.width,
+            map.height,
+        ))
+    } else {
+        None
+    }
 }
 
 impl Map {
@@ -49,10 +133,13 @@ impl Map {
         map: &luminol_data::rpg::Map,
         tileset: &luminol_data::rpg::Tileset,
         passages: &luminol_data::Table2,
-    ) -> color_eyre::Result<Self> {
-        let atlas = graphics_state
-            .atlas_loader
-            .load_atlas(graphics_state, filesystem, tileset);
+    ) -> Self {
+        let atlas = graphics_state.atlas_loader.load_atlas(
+            graphics_state,
+            filesystem,
+            tileset.tileset_name.0.as_deref(),
+            &tileset.autotile_names,
+        );
 
         let viewport = Viewport::new(
             graphics_state,
@@ -80,68 +167,19 @@ impl Map {
             passages,
         );
 
-        let panorama = if let Some(ref panorama_name) = tileset.panorama_name {
-            let texture = graphics_state
-                .texture_loader
-                .load_now_dir(filesystem, "Graphics/Panoramas", panorama_name)
-                .wrap_err_with(|| format!("Error loading map panorama {panorama_name:?}"))
-                .unwrap_or_else(|e| {
-                    graphics_state.send_texture_error(e);
-
-                    graphics_state.texture_loader.placeholder_texture()
-                });
-
-            Some(Plane::new(
-                graphics_state,
-                &viewport,
-                &texture,
-                tileset.panorama_hue,
-                100,
-                luminol_data::BlendMode::Normal,
-                255,
-                map.width,
-                map.height,
-            ))
-        } else {
-            None
-        };
-        let fog = if let Some(ref fog_name) = tileset.fog_name {
-            let texture = graphics_state
-                .texture_loader
-                .load_now_dir(filesystem, "Graphics/Fogs", fog_name)
-                .wrap_err_with(|| format!("Error loading map fog {fog_name:?}"))
-                .unwrap_or_else(|e| {
-                    graphics_state.send_texture_error(e);
-
-                    graphics_state.texture_loader.placeholder_texture()
-                });
-
-            Some(Plane::new(
-                graphics_state,
-                &viewport,
-                &texture,
-                tileset.fog_hue,
-                tileset.fog_zoom,
-                tileset.fog_blend_type,
-                tileset.fog_opacity,
-                map.width,
-                map.height,
-            ))
-        } else {
-            None
-        };
+        let panorama = load_panorama(graphics_state, &viewport, filesystem, map, tileset);
+        let fog = load_fog(graphics_state, &viewport, filesystem, map, tileset);
 
         let events = map
             .events
             .iter()
-            .map(|(id, event)| {
+            .filter_map(|(id, event)| {
                 Event::new_map(graphics_state, filesystem, &viewport, event, &atlas)
-                    .map(|opt_e| opt_e.map(|e| (id, e)))
+                    .map(|e| (id, e))
             })
-            .flatten_ok()
-            .try_collect()?;
+            .collect();
 
-        Ok(Self {
+        Self {
             tiles,
             panorama,
             fog,
@@ -153,12 +191,8 @@ impl Map {
 
             ani_time: None,
 
-            fog_enabled: true,
-            pano_enabled: true,
-            coll_enabled: false,
-            grid_enabled: true,
-            event_enabled: true,
-        })
+            settings: MapSettings::default(),
+        }
     }
 
     pub fn set_tile(
@@ -181,13 +215,33 @@ impl Map {
 
     pub fn update_animation(&mut self, render_state: &luminol_egui_wgpu::RenderState, time: f64) {
         if let Some(ani_time) = self.ani_time {
-            if time - ani_time >= 16. / 60. {
+            if time - ani_time >= 16. / 60. - ani_time.rem_euclid(16. / 60.) {
                 self.ani_time = Some(time);
                 self.tiles.autotiles.inc_ani_index(render_state);
             }
         } else {
             self.ani_time = Some(time);
         }
+    }
+
+    pub fn reload_panorama(
+        &mut self,
+        graphics_state: &GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        map: &luminol_data::rpg::Map,
+        tileset: &luminol_data::rpg::Tileset,
+    ) {
+        self.panorama = load_panorama(graphics_state, &self.viewport, filesystem, map, tileset);
+    }
+
+    pub fn reload_fog(
+        &mut self,
+        graphics_state: &GraphicsState,
+        filesystem: &impl luminol_filesystem::FileSystem,
+        map: &luminol_data::rpg::Map,
+        tileset: &luminol_data::rpg::Tileset,
+    ) {
+        self.fog = load_fog(graphics_state, &self.viewport, filesystem, map, tileset);
     }
 }
 
@@ -208,18 +262,22 @@ impl Renderable for Map {
         let panorama = self
             .panorama
             .as_mut()
-            .filter(|_| self.pano_enabled)
+            .filter(|_| self.settings.pano_enabled)
             .map(|pano| pano.prepare(graphics_state));
         let fog = self
             .fog
             .as_mut()
-            .filter(|_| self.fog_enabled)
+            .filter(|_| self.settings.fog_enabled)
             .map(|fog| fog.prepare(graphics_state));
         let collision = self
+            .settings
             .coll_enabled
             .then(|| self.collision.prepare(graphics_state));
-        let grid = self.grid_enabled.then(|| self.grid.prepare(graphics_state));
-        let events = if self.event_enabled {
+        let grid = self
+            .settings
+            .grid_enabled
+            .then(|| self.grid.prepare(graphics_state));
+        let events = if self.settings.event_enabled {
             self.events
                 .iter_mut()
                 .map(|(_, event)| event.prepare(graphics_state))

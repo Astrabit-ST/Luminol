@@ -26,6 +26,9 @@ pub struct Cellpicker {
     pub view: Cells,
     pub cols: u32,
     pub scale: f32,
+
+    /// Whether or not the rectangle showing which tiles are selected should be visible.
+    pub show_selection: bool,
 }
 
 impl Cellpicker {
@@ -62,7 +65,14 @@ impl Cellpicker {
             view,
             cols,
             scale,
+            show_selection: true,
         }
+    }
+
+    #[inline]
+    pub fn hide_selection(mut self) -> Self {
+        self.show_selection = false;
+        self
     }
 
     #[inline]
@@ -108,16 +118,18 @@ impl Cellpicker {
                 painter,
             ));
 
-        let rect = (egui::Rect::from_min_size(
-            egui::pos2(
-                ((self.selected_cell % self.cols) * CELL_SIZE) as f32,
-                ((self.selected_cell / self.cols) * CELL_SIZE) as f32,
-            ),
-            egui::Vec2::splat(CELL_SIZE as f32),
-        ) * self.scale)
-            .translate(canvas_rect.min.to_vec2());
-        ui.painter()
-            .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        if self.show_selection {
+            let rect = (egui::Rect::from_min_size(
+                egui::pos2(
+                    ((self.selected_cell % self.cols) * CELL_SIZE) as f32,
+                    ((self.selected_cell / self.cols) * CELL_SIZE) as f32,
+                ),
+                egui::Vec2::splat(CELL_SIZE as f32),
+            ) * self.scale)
+                .translate(canvas_rect.min.to_vec2());
+            ui.painter()
+                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+        }
 
         if response.clicked() {
             if let Some(pos) = response.interact_pointer_pos() {

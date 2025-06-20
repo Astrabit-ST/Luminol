@@ -203,6 +203,7 @@ impl super::Tab {
         &mut self,
         update_state: &luminol_core::UpdateState<'_>,
         map: &mut luminol_data::rpg::Map,
+        tileset: &luminol_data::rpg::Tileset,
     ) -> Option<usize> {
         let mut first_vacant_id = 1;
         let mut max_event_id = 0;
@@ -242,7 +243,7 @@ impl super::Tab {
                 update_state,
                 &event,
                 self.id,
-                map.tileset_id,
+                tileset,
             ));
 
         map.events.insert(new_event_id, event);

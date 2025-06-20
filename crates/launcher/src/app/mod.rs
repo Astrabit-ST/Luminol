@@ -110,14 +110,12 @@ impl App {
             ),
         );
 
-        #[cfg(not(target_arch = "wasm32"))]
         let fd = zstd::bulk::decompress(
             luminol_macros::include_asset!("assets/fonts/IosevkaTermNerdFont-Extended.ttf.zst"),
             11849324,
         )
         .unwrap();
 
-        #[cfg(not(target_arch = "wasm32"))]
         fonts
             .font_data
             .insert("Iosevka Term".to_owned(), egui::FontData::from_owned(fd));
@@ -132,8 +130,6 @@ impl App {
             .get_mut(&egui::FontFamily::Monospace)
             .unwrap()
             .push("Source Han Sans Regular".to_owned());
-
-        #[cfg(not(target_arch = "wasm32"))]
         fonts.families.insert(
             egui::FontFamily::Name("Iosevka Term".into()),
             vec![
