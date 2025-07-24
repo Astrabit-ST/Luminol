@@ -34,14 +34,6 @@ use crate::{lumi::Lumi, BUILD_DIAGNOSTIC};
 mod log_window;
 mod top_bar;
 
-/// Custom implementation of `eframe::Frame` for Luminol.
-/// We need this because the normal `eframe::App` uses a struct with private fields in its
-/// definition of `update()`, and that prevents us from implementing custom app runners.
-pub struct Frame<'a>(
-    #[cfg(not(target_arch = "wasm32"))] pub &'a mut eframe::Frame,
-    #[cfg(target_arch = "wasm32")] pub std::marker::PhantomData<&'a ()>,
-);
-
 /// Custom implementation of `eframe::App` for Luminol.
 /// We need this because the normal `eframe::App` uses a struct with private fields in its
 /// definition of `update()`, and that prevents us from implementing custom app runners.
@@ -49,7 +41,7 @@ pub trait AppTrait
 where
     Self: eframe::App,
 {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame<'_>);
+    fn update(&mut self, ctx: &egui::Context);
 }
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
@@ -314,7 +306,7 @@ impl App {
 
 impl AppTrait for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
+    fn update(&mut self, ctx: &egui::Context) {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
@@ -460,8 +452,8 @@ impl AppTrait for App {
 
 impl eframe::App for App {
     #[cfg(not(target_arch = "wasm32"))]
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        AppTrait::update(self, ctx, &mut Frame(frame))
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        AppTrait::update(self, ctx)
     }
 
     #[cfg(target_arch = "wasm32")]

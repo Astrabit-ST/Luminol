@@ -172,7 +172,7 @@ fn get_canvases() -> (web_sys::HtmlCanvasElement, web_sys::OffscreenCanvas) {
         .unchecked_into::<web_sys::HtmlCanvasElement>();
     document
         .get_element_by_id(CANVAS_ID)
-        .expect(format!("could not find an element with the id of `{CANVAS_ID}`").as_str())
+        .unwrap_or_else(|| panic!("could not find an element with the id of `{CANVAS_ID}`"))
         .replace_children_with_node_1(&canvas);
     let offscreen_canvas = canvas
         .transfer_control_to_offscreen()

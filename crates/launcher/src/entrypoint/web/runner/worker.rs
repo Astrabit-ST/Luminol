@@ -155,11 +155,7 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
             state.input.max_texture_side =
                 Some(state.render_state.device.limits().max_texture_dimension_2d as usize);
             let output = state.context.run(state.input.clone(), |context| {
-                crate::app::AppTrait::update(
-                    &mut *state.app,
-                    context,
-                    &mut crate::app::Frame(std::marker::PhantomData),
-                )
+                crate::app::AppTrait::update(&mut *state.app, context)
             });
             state
                 .channels
