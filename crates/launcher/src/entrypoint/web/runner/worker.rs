@@ -42,9 +42,9 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
 
         state.input.events.clear();
 
+        let old_native_pixels_per_point = state.native_pixels_per_point;
         let mut needs_repaint = false;
         let mut needs_save = false;
-        let mut needs_resize = false;
 
         // Handle each event that was sent from the main thread
         for event in state.channels.event_rx.try_iter() {
@@ -89,8 +89,7 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
                 } => {
                     state.width = inner_width;
                     state.height = inner_height;
-                    state.pixel_ratio = device_pixel_ratio;
-                    needs_resize = true;
+                    state.native_pixels_per_point = device_pixel_ratio;
                 }
 
                 super::Event::Modifiers(new_modifiers) => {
@@ -125,17 +124,14 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
 
         let now = state.worker.performance().unwrap().now();
 
-        // Resize the canvas and rerender immediately if the screen size has changed
-        if needs_resize {
-            state.surface_configuration.width =
-                (state.width as f32 * state.pixel_ratio).round() as u32;
-            state.surface_configuration.height =
-                (state.height as f32 * state.pixel_ratio).round() as u32;
-            state.canvas.set_width(state.surface_configuration.width);
-            state.canvas.set_height(state.surface_configuration.height);
-            state
-                .surface
-                .configure(&state.render_state.device, &state.surface_configuration);
+        // If the screen size or pixel ratio has changed, trigger a rerender
+        if state.native_pixels_per_point != old_native_pixels_per_point || {
+            let pixels_per_point = state.context.zoom_factor() * state.native_pixels_per_point;
+            let width_pixels = (state.width as f32 * pixels_per_point).round() as u32;
+            let height_pixels = (state.height as f32 * pixels_per_point).round() as u32;
+            state.surface_configuration.width != width_pixels
+                || state.surface_configuration.height != height_pixels
+        } {
             needs_repaint = true;
         }
 
@@ -154,6 +150,13 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
             state.input.time = Some(now / 1000.);
             state.input.max_texture_side =
                 Some(state.render_state.device.limits().max_texture_dimension_2d as usize);
+            state
+                .input
+                .viewports
+                .entry(egui::ViewportId::ROOT)
+                .or_default()
+                .native_pixels_per_point = Some(state.native_pixels_per_point);
+            state.app.raw_input_hook(&state.context, &mut state.input);
             let output = state.context.run(state.input.clone(), |context| {
                 crate::app::AppTrait::update(&mut *state.app, context)
             });
@@ -171,6 +174,21 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
                 .context
                 .tessellate(output.shapes, output.pixels_per_point);
 
+            // Resize the screen if needed
+            let width_pixels = (state.width as f32 * output.pixels_per_point).round() as u32;
+            let height_pixels = (state.height as f32 * output.pixels_per_point).round() as u32;
+            if state.surface_configuration.width != width_pixels
+                || state.surface_configuration.height != height_pixels
+            {
+                state.surface_configuration.width = width_pixels;
+                state.surface_configuration.height = height_pixels;
+                state.canvas.set_width(width_pixels);
+                state.canvas.set_height(height_pixels);
+                state
+                    .surface
+                    .configure(&state.render_state.device, &state.surface_configuration);
+            }
+
             let mut encoder =
                 state
                     .render_state
@@ -183,7 +201,7 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
                     state.surface_configuration.width,
                     state.surface_configuration.height,
                 ],
-                pixels_per_point: state.pixel_ratio,
+                pixels_per_point: output.pixels_per_point,
             };
 
             // Upload textures to GPU that are changed or newly created in the current frame
@@ -237,14 +255,6 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
                 renderer.render(&mut render_pass, &paint_jobs[..], &screen_descriptor);
             }
 
-            // Remove textures that are no longer needed after this frame
-            {
-                let mut renderer = state.render_state.renderer.write();
-                for id in output.textures_delta.free.iter() {
-                    renderer.free_texture(id);
-                }
-            }
-
             // Copy from the internal drawing buffer onto the HTML canvas
             state.render_state.queue.submit(
                 command_buffers
@@ -252,6 +262,14 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
                     .chain(std::iter::once(encoder.finish())),
             );
             render_texture.present();
+
+            // Remove textures that are no longer needed after this frame
+            {
+                let mut renderer = state.render_state.renderer.write();
+                for id in output.textures_delta.free.iter() {
+                    renderer.free_texture(id);
+                }
+            }
         }
 
         // Save if requested

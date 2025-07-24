@@ -184,7 +184,7 @@ struct WorkerState {
     /// Current height of the canvas in points
     height: u32,
     /// Current length of a pixel divided by current length of a point
-    pixel_ratio: f32,
+    native_pixels_per_point: f32,
     /// The touch ID of the most recent touch event received by the main thread
     touch: Option<egui::TouchId>,
     /// The input data that will be provided to the egui app the next time its `update()` function
@@ -367,6 +367,9 @@ impl Runner {
             tracing::warn!("No memory found for {app_id}");
         }
 
+        // Prevent Ctrl+Plus/Ctrl+Minus from changing egui's internal zoom factor
+        context.options_mut(|o| o.zoom_with_keyboard = false);
+
         let storage = Storage(self.channels.output_tx.clone());
 
         worker::runner_worker(std::rc::Rc::new(std::cell::RefCell::new(WorkerState {
@@ -397,7 +400,7 @@ impl Runner {
             render_state,
             width: 0,
             height: 0,
-            pixel_ratio: 1.,
+            native_pixels_per_point: 1.,
             touch: None,
             input: egui::RawInput::default(),
             repaint_time,
