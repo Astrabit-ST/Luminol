@@ -441,7 +441,7 @@ impl luminol_core::Window for Window {
             });
 
         if let Some(convert) = self.convert.take() {
-            let modal = egui_modal::Modal::new(ctx, "converting_project_modal");
+            let modal = luminol_egui_modal::Modal::new(ctx, "converting_project_modal");
             modal.show(|ui| {
                 modal.title(ui, "Converting Project...");
 

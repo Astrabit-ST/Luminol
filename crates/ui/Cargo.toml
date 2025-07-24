@@ -21,7 +21,7 @@ workspace = true
 [dependencies]
 # * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
-egui-modal.workspace = true
+luminol-egui-modal.workspace = true
 egui-wgpu.workspace = true
 
 wgpu.workspace = true

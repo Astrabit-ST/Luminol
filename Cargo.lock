@@ -1539,15 +1539,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui-modal"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3915089109907acf93b79d613b908d5c006d9c17a1bc2664606d3f4eb84e031c"
-dependencies = [
- "egui",
-]
-
-[[package]]
 name = "egui-notify"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3132,13 +3123,13 @@ dependencies = [
  "camino",
  "color-eyre",
  "egui",
- "egui-modal",
  "egui-notify",
  "egui_dock",
  "itertools 0.11.0",
  "luminol-audio",
  "luminol-config",
  "luminol-data",
+ "luminol-egui-modal",
  "luminol-filesystem",
  "luminol-graphics",
  "once_cell",
@@ -3167,6 +3158,14 @@ dependencies = [
  "rand",
  "serde",
  "strum",
+]
+
+[[package]]
+name = "luminol-egui-modal"
+version = "0.4.0"
+dependencies = [
+ "eframe",
+ "egui",
 ]
 
 [[package]]
@@ -3285,7 +3284,6 @@ dependencies = [
  "camino",
  "color-eyre",
  "egui",
- "egui-modal",
  "egui-wgpu",
  "futures-lite 2.6.0",
  "futures-util",
@@ -3300,6 +3298,7 @@ dependencies = [
  "luminol-config",
  "luminol-core",
  "luminol-data",
+ "luminol-egui-modal",
  "luminol-filesystem",
  "luminol-graphics",
  "luminol-macros",

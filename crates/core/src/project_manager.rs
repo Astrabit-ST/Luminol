@@ -23,7 +23,7 @@
 // Program grant you additional permission to convey the resulting work.
 
 pub struct ProjectManager {
-    pub(crate) modal: egui_modal::Modal,
+    pub(crate) modal: luminol_egui_modal::Modal,
     pub(crate) closure: Option<Box<ProjectManagerClosure>>,
 
     pub create_project_promise: Option<poll_promise::Promise<CreateProjectPromiseResult>>,
@@ -63,7 +63,7 @@ pub fn spawn_future<T: Send>(
 impl ProjectManager {
     pub fn new(ctx: &egui::Context) -> Self {
         Self {
-            modal: egui_modal::Modal::new(ctx, "luminol_save_modal"),
+            modal: luminol_egui_modal::Modal::new(ctx, "luminol_save_modal"),
             closure: None,
             create_project_promise: None,
             load_filesystem_promise: None,

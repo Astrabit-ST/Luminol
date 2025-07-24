@@ -23,7 +23,7 @@ workspace = true
 egui.workspace = true
 egui_dock.workspace = true
 egui-notify.workspace = true
-egui-modal.workspace = true
+luminol-egui-modal.workspace = true
 
 # * Data processing * #
 serde.workspace = true

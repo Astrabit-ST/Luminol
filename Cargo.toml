@@ -66,7 +66,7 @@ egui-wgpu = "0.30.0" # Bindings between wgpu and egui
 egui-winit = "0.30.0" # Winit event translation library for egui
 egui_dock = "0.15.0" # Docking support for egui
 egui-notify = "0.18.0" # In-app toast notification library for egui
-egui-modal = "0.6.0" # "Modals" for egui. A "Modal" is a window with custom content that requires user's immediate attention
+luminol-egui-modal = { version = "0.4.0", path = "crates/egui-modal/" } # "Modals" for egui. A "Modal" is a window with custom content that requires user's immediate attention
 rfd = "0.14.1" # File picker and message dialogs
 
 wgpu = { version = "23.0.1", features = [
