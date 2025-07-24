@@ -139,6 +139,7 @@ impl eframe::Storage for Storage {
 /// Custom egui web runner for Luminol that runs an egui app in a worker thread
 pub struct Runner {
     channels: WorkerChannels,
+    prefers_color_scheme_dark: Option<bool>,
 }
 
 /// State of the web runner that belongs to the main thread
@@ -213,6 +214,12 @@ impl Runner {
             PANIC_HOOK_INSTALLED.store(true, portable_atomic::Ordering::Relaxed);
         }
 
+        let prefers_color_scheme_dark = window
+            .match_media("(prefers-color-scheme: dark)")
+            .ok()
+            .flatten()
+            .map(|query| query.matches());
+
         let (event_tx, event_rx) = flume::unbounded();
         let (output_tx, output_rx) = flume::unbounded();
         let (panic_tx, panic_rx) = oneshot::channel();
@@ -235,6 +242,7 @@ impl Runner {
                 output_tx,
                 panic_tx: Some(panic_tx),
             },
+            prefers_color_scheme_dark,
         })
     }
 
@@ -344,16 +352,31 @@ impl Runner {
                 oneshot_tx,
             })
             .unwrap();
-        if let Some(memory) = oneshot_rx.await.ok().flatten() {
+
+        let is_new_memory = if let Some(memory) = oneshot_rx.await.ok().flatten() {
             match ron::from_str(&memory) {
                 Ok(memory) => {
                     context.memory_mut(|m| *m = memory);
                     tracing::info!("Successfully restored memory for {app_id}");
+                    false
                 }
-                Err(e) => tracing::warn!("Failed to restore memory for {app_id}: {e}"),
+                Err(e) => {
+                    tracing::warn!("Failed to restore memory for {app_id}: {e}");
+                    true
+                }
             }
         } else {
             tracing::warn!("No memory found for {app_id}");
+            true
+        };
+
+        if is_new_memory {
+            // Set default egui visuals depending on the user's dark mode preference
+            if let Some(prefers_color_scheme_dark) = self.prefers_color_scheme_dark {
+                context.set_visuals(
+                    egui::Theme::from_dark_mode(prefers_color_scheme_dark).default_visuals(),
+                );
+            }
         }
 
         // Prevent Ctrl+Plus/Ctrl+Minus from changing egui's internal zoom factor
