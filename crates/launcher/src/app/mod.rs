@@ -310,7 +310,7 @@ impl AppTrait for App {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
-                super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Relaxed);
+                super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Release);
 
                 let path = f.path.clone().expect("dropped file has no path");
                 let path = camino::Utf8PathBuf::from_path_buf(path).expect("path was not utf8");
@@ -431,7 +431,7 @@ impl AppTrait for App {
 
         self.lumi.ui(ctx);
 
-        super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Relaxed);
+        super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Release);
 
         self.bytes_loader.load_unloaded_files(ctx, &self.filesystem);
 

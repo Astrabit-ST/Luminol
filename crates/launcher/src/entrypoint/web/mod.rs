@@ -272,7 +272,7 @@ pub fn run() -> Result<()> {
                     );
                 }
 
-                if RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Relaxed) {
+                if RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Acquire) {
                     set_panic_report(report);
                 } else {
                     handle_fatal_error_str(report);
