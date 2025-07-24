@@ -26,6 +26,7 @@ const FILTERS: &[&str] = &[
     "cocoa::",
     "tokio::",
     "winit::",
+    "eframe::",
     "accesskit",
     "std::rt::",
     "std::sys_",
@@ -36,7 +37,6 @@ const FILTERS: &[&str] = &[
     "egui_dock::",
     "std::panic::",
     "egui::context::",
-    "luminol_eframe::",
     "std::panicking::",
     "egui::containers::",
     "glPushClientAttrib",
@@ -195,9 +195,9 @@ fn run_app(
 ) -> Result<()> {
     let icon_image = image::load_from_memory(ICON)?;
 
-    luminol_eframe::run_native(
+    eframe::run_native(
         "Luminol",
-        luminol_eframe::NativeOptions {
+        eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
                 .with_drag_and_drop(true)
                 .with_icon(egui::IconData {
@@ -206,7 +206,7 @@ fn run_app(
                     rgba: icon_image.to_rgba8().to_vec(),
                 })
                 .with_app_id("astrabit.luminol"),
-            wgpu_options: luminol_egui_wgpu::WgpuConfiguration {
+            wgpu_options: egui_wgpu::WgpuConfiguration {
                 supported_backends: wgpu::util::backend_bits_from_env()
                     .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::SECONDARY),
                 // TODO: Load this value from a settings file

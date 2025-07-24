@@ -144,11 +144,10 @@ impl TroopView {
         );
 
         let painter = luminol_graphics::Painter::new(self.troop.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                canvas_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            canvas_rect,
+            painter,
+        ));
 
         let offset = canvas_center.to_vec2() + self.pan;
 

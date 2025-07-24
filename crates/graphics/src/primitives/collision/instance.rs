@@ -34,10 +34,7 @@ struct Instance {
 }
 
 impl Instances {
-    pub fn new(
-        render_state: &luminol_egui_wgpu::RenderState,
-        passages: &luminol_data::Table2,
-    ) -> Self {
+    pub fn new(render_state: &egui_wgpu::RenderState, passages: &luminol_data::Table2) -> Self {
         let instances = Self::calculate_instances(passages);
         let instance_buffer =
             render_state
@@ -58,7 +55,7 @@ impl Instances {
 
     pub fn set_passage(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         passage: i16,
         position: (usize, usize),
     ) {
@@ -76,7 +73,7 @@ impl Instances {
 
     pub fn set_passages(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         passages: &luminol_data::Table2,
     ) {
         let instances = Self::calculate_instances(passages);

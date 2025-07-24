@@ -194,7 +194,7 @@ impl Event {
         })
     }
 
-    pub fn set_position(&mut self, render_state: &luminol_egui_wgpu::RenderState, x: i32, y: i32) {
+    pub fn set_position(&mut self, render_state: &egui_wgpu::RenderState, x: i32, y: i32) {
         let x = x as f32 * 32. + (32. - self.sprite_size.x) / 2.;
         let y = y as f32 * 32. + (32. - self.sprite_size.y);
         self.sprite

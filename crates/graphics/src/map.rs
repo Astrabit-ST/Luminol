@@ -197,7 +197,7 @@ impl Map {
 
     pub fn set_tile(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {
@@ -206,14 +206,14 @@ impl Map {
 
     pub fn set_passage(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         passage: i16,
         position: (usize, usize),
     ) {
         self.collision.set_passage(render_state, passage, position);
     }
 
-    pub fn update_animation(&mut self, render_state: &luminol_egui_wgpu::RenderState, time: f64) {
+    pub fn update_animation(&mut self, render_state: &egui_wgpu::RenderState, time: f64) {
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. - ani_time.rem_euclid(16. / 60.) {
                 self.ani_time = Some(time);

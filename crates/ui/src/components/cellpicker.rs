@@ -112,11 +112,10 @@ impl Cellpicker {
         );
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                absolute_scroll_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            absolute_scroll_rect,
+            painter,
+        ));
 
         if self.show_selection {
             let rect = (egui::Rect::from_min_size(

@@ -24,7 +24,7 @@ pub struct Vertices {
 
 impl Vertices {
     pub fn from_quads(
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         quads: &[Quad],
         extents: wgpu::Extent3d,
     ) -> Self {
@@ -34,7 +34,7 @@ impl Vertices {
 
     pub fn set(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         quads: &[Quad],
         extents: wgpu::Extent3d,
     ) {

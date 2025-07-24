@@ -48,7 +48,7 @@ pub use troop::Troop;
 pub struct GraphicsState {
     pub texture_loader: loaders::texture::Loader,
     pub atlas_loader: loaders::atlas::Loader,
-    pub render_state: luminol_egui_wgpu::RenderState,
+    pub render_state: egui_wgpu::RenderState,
 
     pub nearest_sampler: wgpu::Sampler,
 
@@ -60,7 +60,7 @@ pub struct GraphicsState {
 }
 
 impl GraphicsState {
-    pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
+    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         let bind_group_layouts = primitives::BindGroupLayouts::new(&render_state);
         let pipelines = primitives::Pipelines::new(&render_state, &bind_group_layouts);
 
@@ -127,12 +127,12 @@ impl<T> Painter<T> {
     }
 }
 
-impl<T: Drawable> luminol_egui_wgpu::CallbackTrait for Painter<T> {
+impl<T: Drawable> egui_wgpu::CallbackTrait for Painter<T> {
     fn paint<'a>(
         &'a self,
         _: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        _: &'a luminol_egui_wgpu::CallbackResources,
+        _: &'a egui_wgpu::CallbackResources,
     ) {
         self.prepared.get().draw(render_pass);
     }

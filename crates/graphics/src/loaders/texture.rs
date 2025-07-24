@@ -35,7 +35,7 @@ pub struct Loader {
     blank_autotile_texture: Arc<Texture>,
     placeholder_image: image::RgbaImage,
 
-    render_state: luminol_egui_wgpu::RenderState,
+    render_state: egui_wgpu::RenderState,
 }
 
 pub struct Texture {
@@ -43,7 +43,7 @@ pub struct Texture {
     pub view: wgpu::TextureView,
     pub texture_id: egui::TextureId,
 
-    render_state: luminol_egui_wgpu::RenderState,
+    render_state: egui_wgpu::RenderState,
 }
 
 impl Drop for Texture {
@@ -108,7 +108,7 @@ fn load_wgpu_texture_from_image(
 }
 
 fn register_native_texture(
-    render_state: luminol_egui_wgpu::RenderState,
+    render_state: egui_wgpu::RenderState,
     texture: wgpu::Texture,
     label: Option<&str>,
 ) -> Arc<Texture> {
@@ -148,7 +148,7 @@ impl Texture {
 }
 
 impl Loader {
-    pub fn new(render_state: luminol_egui_wgpu::RenderState) -> Self {
+    pub fn new(render_state: egui_wgpu::RenderState) -> Self {
         let placeholder_image =
             image::load_from_memory(luminol_macros::include_asset!("assets/placeholder.png"))
                 .expect("assets/placeholder.png is not a valid image")

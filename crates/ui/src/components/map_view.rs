@@ -329,11 +329,10 @@ impl MapView {
             ));
 
         let painter = luminol_graphics::Painter::new(self.map.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                canvas_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            canvas_rect,
+            painter,
+        ));
 
         ui.painter().rect_stroke(
             map_rect,
@@ -498,12 +497,10 @@ impl MapView {
                                     let painter = luminol_graphics::Painter::new(
                                         preview.sprite.prepare(&update_state.graphics),
                                     );
-                                    ui.painter().add(
-                                        luminol_egui_wgpu::Callback::new_paint_callback(
-                                            clipped_rect,
-                                            painter,
-                                        ),
-                                    );
+                                    ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                                        clipped_rect,
+                                        painter,
+                                    ));
 
                                     self.preview_events.insert(event.id, preview);
                                 }

@@ -92,7 +92,7 @@ impl ProjectManager {
     /// Closes the application after asking the user to save unsaved changes.
     pub fn quit(&mut self) {
         self.run_custom(|update_state| {
-            // Disable the modified flag so `luminol_eframe::App::on_close_event` doesn't recurse
+            // Disable the modified flag so `eframe::App::on_close_event` doesn't recurse
             update_state.modified.set(false);
 
             update_state

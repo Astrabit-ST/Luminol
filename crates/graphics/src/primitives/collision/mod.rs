@@ -73,7 +73,7 @@ impl Collision {
 
     pub fn set_passage(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         passage: i16,
         position: (usize, usize),
     ) {
@@ -82,7 +82,7 @@ impl Collision {
 
     pub fn set_passages(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         passages: &luminol_data::Table2,
     ) {
         self.instances.set_passages(render_state, passages);
@@ -223,9 +223,7 @@ impl Drawable for Prepared {
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
 
     Viewport::add_to_bind_group_layout(&mut builder);

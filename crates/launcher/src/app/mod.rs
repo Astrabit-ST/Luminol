@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+#![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
+
 use std::sync::Arc;
 
 #[cfg(feature = "steamworks")]
@@ -31,6 +33,24 @@ use crate::{lumi::Lumi, BUILD_DIAGNOSTIC};
 #[cfg(not(target_arch = "wasm32"))]
 mod log_window;
 mod top_bar;
+
+/// Custom implementation of `eframe::Frame` for Luminol.
+/// We need this because the normal `eframe::App` uses a struct with private fields in its
+/// definition of `update()`, and that prevents us from implementing custom app runners.
+pub struct Frame<'a>(
+    #[cfg(not(target_arch = "wasm32"))] pub &'a mut eframe::Frame,
+    #[cfg(target_arch = "wasm32")] pub std::marker::PhantomData<&'a ()>,
+);
+
+/// Custom implementation of `eframe::App` for Luminol.
+/// We need this because the normal `eframe::App` uses a struct with private fields in its
+/// definition of `update()`, and that prevents us from implementing custom app runners.
+pub trait AppTrait
+where
+    Self: eframe::App,
+{
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame<'_>);
+}
 
 /// The main Luminol struct. Handles rendering, GUI state, that sort of thing.
 pub struct App {
@@ -82,7 +102,7 @@ impl App {
     /// Called once before the first frame.
     #[must_use]
     pub fn new(
-        cc: &luminol_eframe::CreationContext<'_>,
+        cc: &eframe::CreationContext<'_>,
         report: Option<String>,
         modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] log_byte_rx: std::sync::mpsc::Receiver<u8>,
@@ -200,7 +220,7 @@ impl App {
 
         let_with_mut_on_native!(
             global_config,
-            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default()
+            eframe::get_value(storage, "SavedState").unwrap_or_default()
         );
         let_with_mut_on_native!(project_config, None);
 
@@ -226,7 +246,7 @@ impl App {
             }
         }
 
-        if let Some(style) = luminol_eframe::get_value::<egui::Style>(storage, "EguiStyle") {
+        if let Some(style) = eframe::get_value::<egui::Style>(storage, "EguiStyle") {
             cc.egui_ctx.set_style(style);
         }
 
@@ -292,9 +312,9 @@ impl App {
     }
 }
 
-impl luminol_eframe::App for App {
+impl AppTrait for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut luminol_eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
@@ -436,11 +456,21 @@ impl luminol_eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
         }
     }
+}
+
+impl eframe::App for App {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        AppTrait::update(self, ctx, &mut Frame(frame))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn update(&mut self, _ctx: &egui::Context, _frame: &mut eframe::Frame) {}
 
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn luminol_eframe::Storage) {
-        luminol_eframe::set_value(storage, "EguiStyle", &self.egui_ctx.style());
-        luminol_eframe::set_value(storage, "SavedState", &self.global_config);
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, "EguiStyle", &self.egui_ctx.style());
+        eframe::set_value(storage, "SavedState", &self.global_config);
     }
 
     fn persist_egui_memory(&self) -> bool {

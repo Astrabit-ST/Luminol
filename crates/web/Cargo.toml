@@ -26,5 +26,4 @@ web-sys = { workspace = true, features = [
     "DedicatedWorkerGlobalScope",
     "FileSystemDirectoryHandle",
     "FileSystemHandle",
-    "Performance",
 ] }

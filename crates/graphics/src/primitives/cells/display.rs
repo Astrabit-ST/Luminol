@@ -63,14 +63,14 @@ impl Display {
         &self.uniform
     }
 
-    pub fn set_hue(&mut self, render_state: &luminol_egui_wgpu::RenderState, hue: f32) {
+    pub fn set_hue(&mut self, render_state: &egui_wgpu::RenderState, hue: f32) {
         if self.data.hue != hue {
             self.data.hue = hue;
             self.regen_buffer(render_state);
         }
     }
 
-    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         render_state
             .queue
             .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));

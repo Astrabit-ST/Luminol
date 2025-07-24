@@ -23,7 +23,7 @@ use crate::{primitives::BindGroupLayouts, Vertex};
 
 fn create_shader(
     composer: &mut naga_oil::compose::Composer,
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> Result<wgpu::RenderPipeline, ComposerError> {
@@ -126,7 +126,7 @@ const BLEND_SUBTRACT: wgpu::BlendState = wgpu::BlendState {
 
 pub fn create_sprite_shaders(
     composer: &mut naga_oil::compose::Composer,
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
 ) -> Result<HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>, ComposerError> {
     [

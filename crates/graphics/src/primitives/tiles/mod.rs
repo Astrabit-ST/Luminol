@@ -95,7 +95,7 @@ impl Tiles {
 
     pub fn set_tile(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {
@@ -162,9 +162,7 @@ impl Drawable for Prepared {
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
     builder
         .append(

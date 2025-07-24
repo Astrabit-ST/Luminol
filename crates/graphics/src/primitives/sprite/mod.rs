@@ -179,7 +179,7 @@ impl Sprite {
         self.size
     }
 
-    pub fn set_quad(&mut self, render_state: &luminol_egui_wgpu::RenderState, quad: Quad) {
+    pub fn set_quad(&mut self, render_state: &egui_wgpu::RenderState, quad: Quad) {
         if quad != self.quad {
             self.quad = quad;
             self.vertices.set(render_state, &[quad], self.size);
@@ -222,9 +222,7 @@ impl Drawable for Prepared {
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
     builder
         .append(

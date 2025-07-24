@@ -54,7 +54,7 @@ egui_extras = { version = "0.28.1", features = [
     "image",
 ] } # Official add-ons to egui, like "Table", "TableBody", "Column", "DatePickerButton", etc.
 epaint = "0.28.1" # 2D graphics library for turning simple two dimensional shapes into textured triangles
-luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
+eframe = { version = "0.28.1", features = [
     "wgpu",
     "accesskit",
     "persistence",
@@ -62,7 +62,7 @@ luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "x11",
     "wayland",
 ], default-features = false } # Egui initialisation library. Responsible for creating and managing the main window and all appropriate graphics contexts
-luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" } # Bindings between wgpu and egui
+egui-wgpu = "0.28.1" # Bindings between wgpu and egui
 egui-winit = "0.28.1" # Winit event translation library for egui
 egui_dock = "0.13.0" # Docking support for egui
 egui-notify = "0.15.0" # In-app toast notification library for egui
@@ -148,6 +148,7 @@ oneshot = "0.1.6"      # Oneshot single-producer, single-consumer channels
 async-std = "1.12.0"   # Asynchronous version of the Rust Standard Library
 fragile = "2.0"        # Provides wrapper types for sending non-Send values to other threads
 poll-promise = "0.3.0" # A crate for polling the result of an asynchronous operation
+portable-atomic = { version = "1.11.1", features = ["float"] } # Implements atomic versions of f32 and f64
 
 # * File system interfaces * #
 camino = "1.1.6"   # UTF-8 paths
@@ -200,7 +201,7 @@ opt-level = 1
 [profile.dev.package.egui]
 opt-level = 3
 
-[profile.dev.package.luminol-eframe]
+[profile.dev.package.eframe]
 opt-level = 3
 
 # Audio

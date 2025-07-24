@@ -134,7 +134,7 @@ impl Display {
 
     pub fn set_opacity(
         &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         opacity: f32,
         layer: usize,
     ) {
@@ -149,12 +149,7 @@ impl Display {
         self.data.read_data_at(layer).hue
     }
 
-    pub fn set_hue(
-        &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
-        hue: f32,
-        layer: usize,
-    ) {
+    pub fn set_hue(&mut self, render_state: &egui_wgpu::RenderState, hue: f32, layer: usize) {
         let layer_data = self.data.read_data_at_mut(layer);
         if layer_data.hue != hue {
             layer_data.hue = hue;
@@ -176,7 +171,7 @@ impl Display {
         self.data.range_of_layer(layer).start as u32
     }
 
-    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState, data: &[u8]) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState, data: &[u8]) {
         render_state.queue.write_buffer(self.as_buffer(), 0, data);
     }
 }

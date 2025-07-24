@@ -151,11 +151,10 @@ impl AnimationFrameView {
         );
 
         let painter = luminol_graphics::Painter::new(self.frame.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                canvas_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            canvas_rect,
+            painter,
+        ));
 
         let screen_alpha = (egui::ecolor::linear_from_gamma(screen_color.alpha as f32 / 255.)
             * 255.)

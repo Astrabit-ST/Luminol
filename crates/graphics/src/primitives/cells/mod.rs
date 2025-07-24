@@ -79,7 +79,7 @@ impl Cells {
 
     pub fn set_cell(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         cell_id: i16,
         position: (usize, usize),
     ) {
@@ -121,9 +121,7 @@ impl Drawable for Prepared {
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
     builder
         .append(

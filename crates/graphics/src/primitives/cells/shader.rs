@@ -20,7 +20,7 @@ use crate::primitives::BindGroupLayouts;
 
 pub fn create_render_pipeline(
     composer: &mut naga_oil::compose::Composer,
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
     composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {

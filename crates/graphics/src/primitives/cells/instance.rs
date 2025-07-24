@@ -33,10 +33,7 @@ struct Instance {
 }
 
 impl Instances {
-    pub fn new(
-        render_state: &luminol_egui_wgpu::RenderState,
-        cells_data: &luminol_data::Table2,
-    ) -> Self {
+    pub fn new(render_state: &egui_wgpu::RenderState, cells_data: &luminol_data::Table2) -> Self {
         let instances = Self::calculate_instances(cells_data);
         let instance_buffer =
             render_state
@@ -57,7 +54,7 @@ impl Instances {
 
     pub fn set_cell(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         cell_id: i16,
         position: (usize, usize),
     ) {

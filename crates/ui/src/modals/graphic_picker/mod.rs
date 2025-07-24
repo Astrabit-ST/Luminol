@@ -88,7 +88,7 @@ impl ButtonSprite {
                 glam::vec2(translation.x, translation.y),
                 glam::Vec2::ONE,
             );
-            let callback = luminol_egui_wgpu::Callback::new_paint_callback(
+            let callback = egui_wgpu::Callback::new_paint_callback(
                 rect,
                 Painter::new(this.sprite.prepare(&update_state.graphics)),
             );
@@ -225,11 +225,10 @@ impl PreviewSprite {
         );
 
         let painter = Painter::new(self.sprite.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                absolute_scroll_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            absolute_scroll_rect,
+            painter,
+        ));
 
         response
     }
