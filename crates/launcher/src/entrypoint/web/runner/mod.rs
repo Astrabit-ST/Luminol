@@ -22,6 +22,8 @@
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
 
+use wasm_bindgen::JsCast;
+
 mod events;
 mod worker;
 
@@ -148,6 +150,10 @@ struct MainState {
     event_tx: flume::Sender<Event>,
     /// The HTML canvas element that the web runner is rendering to
     canvas: web_sys::HtmlCanvasElement,
+    /// The HTML input element that handles input method editors and mobile keyboards
+    input: web_sys::HtmlInputElement,
+    /// Value of the `ime` field of the egui platform output from the previous frame
+    ime: Option<egui::output::IMEOutput>,
     /// The current egui zoom factor (`ctx.zoom_factor()`)
     zoom_factor: f32,
     /// JavaScript touch ID currently being tracked by the web runner
@@ -203,6 +209,12 @@ impl Runner {
         let Some(window) = web_sys::window() else {
             panic!("cannot create a `luminol_launcher::Runner` outside of the main thread");
         };
+        let Some(document) = window.document() else {
+            panic!("cannot create a `luminol_launcher::Runner` outside of the main thread");
+        };
+        let Some(body) = document.body() else {
+            panic!("cannot create a `luminol_launcher::Runner` outside of the main thread");
+        };
 
         // Install a hook to set `HAS_PANICKED` to true when a panic occurs on any thread
         if !PANIC_HOOK_INSTALLED.load(portable_atomic::Ordering::Relaxed) {
@@ -211,6 +223,9 @@ impl Runner {
                 HAS_PANICKED.store(true, portable_atomic::Ordering::Release);
                 old_panic_hook(info);
             }));
+            if let Some(input) = document.get_element_by_id("luminol-ime") {
+                input.remove();
+            }
             PANIC_HOOK_INSTALLED.store(true, portable_atomic::Ordering::Relaxed);
         }
 
@@ -220,6 +235,26 @@ impl Runner {
             .flatten()
             .map(|query| query.matches());
 
+        // Initialize handler for input method editors
+        let input = if let Some(input) = document.get_element_by_id("luminol-ime") {
+            input.dyn_into()?
+        } else {
+            let input = document
+                .create_element("input")?
+                .unchecked_into::<web_sys::HtmlInputElement>();
+            input.set_id("luminol-ime");
+            input.set_type("text");
+            let style = input.style();
+            style.set_property("opacity", "0")?;
+            style.set_property("width", "1px")?;
+            style.set_property("height", "1px")?;
+            style.set_property("position", "absolute")?;
+            style.set_property("top", "0")?;
+            style.set_property("left", "0")?;
+            body.append_child(&input)?;
+            input
+        };
+
         let (event_tx, event_rx) = flume::unbounded();
         let (output_tx, output_rx) = flume::unbounded();
         let (panic_tx, panic_rx) = oneshot::channel();
@@ -228,12 +263,15 @@ impl Runner {
             MainState {
                 event_tx,
                 canvas,
+                input,
+                ime: None,
                 zoom_factor: 1.,
                 touch_id: None,
             },
             output_rx,
             panic_rx,
             window,
+            document,
         )?;
 
         Ok(Self {

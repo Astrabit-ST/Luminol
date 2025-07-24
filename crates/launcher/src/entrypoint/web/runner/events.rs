@@ -45,9 +45,8 @@ where
     E: AsRef<web_sys::Event> + wasm_bindgen::JsCast,
 {
     let closure = wasm_bindgen::closure::Closure::new(move |event: web_sys::Event| {
-        let mut state = state_cell.borrow_mut();
         if !super::has_panicked() {
-            listener(&mut state, event.unchecked_into());
+            listener(&mut state_cell.borrow_mut(), event.unchecked_into());
         }
     });
 
@@ -142,6 +141,7 @@ pub(super) fn register_events(
     output_rx: flume::Receiver<super::Output>,
     panic_rx: oneshot::Receiver<()>,
     window: web_sys::Window,
+    document: web_sys::Document,
 ) -> Result<(), wasm_bindgen::JsValue> {
     // Set up panic handler to unsubscribe all event handlers on panic
     wasm_bindgen_futures::spawn_local(async move {
@@ -156,10 +156,11 @@ pub(super) fn register_events(
         });
     });
 
-    let document = window.document().unwrap();
-
     let state_cell = std::rc::Rc::new(std::cell::RefCell::new(state));
-    let canvas = state_cell.borrow().canvas.clone();
+    let state = state_cell.borrow();
+    let canvas = state.canvas.clone();
+    let input = state.input.clone();
+    drop(state);
 
     // Register event listener for screen resizing
     let listener = {
@@ -451,14 +452,13 @@ pub(super) fn register_events(
     // Register event listener for keyboard key presses and releases
     let listener_builder = |pressed| {
         move |state: &mut super::MainState, event: web_sys::KeyboardEvent| {
-            // TODO: handle input method editors
             let modifiers = event.egui_modifiers();
             state
                 .event_tx
                 .send(super::Event::Modifiers(modifiers))
                 .unwrap();
             let key = event.key();
-            if pressed && !modifiers.command && key.len() == 1 {
+            if pressed && !modifiers.command && state.ime.is_none() && key.len() == 1 {
                 state
                     .event_tx
                     .send(super::Event::Egui(egui::Event::Text(key.clone())))
@@ -515,6 +515,68 @@ pub(super) fn register_events(
         "keyup",
         listener_builder(false),
     )?;
+
+    // Register event listener for inputting text while the egui app wants text input
+    let listener = move |state: &mut super::MainState, event: web_sys::InputEvent| {
+        if state.ime.is_none() || event.is_composing() {
+            return;
+        }
+        let text = state.input.value();
+        if text.is_empty() {
+            return;
+        }
+        state
+            .event_tx
+            .send(super::Event::Egui(egui::Event::Text(text)))
+            .unwrap();
+        state.input.set_value("");
+    };
+    add_event_listener(state_cell.clone(), &input, "input", listener)?;
+
+    // Register event listener for starting to compose text an input method editor while the egui
+    // app wants text input
+    let listener = move |state: &mut super::MainState, _event: web_sys::CompositionEvent| {
+        state
+            .event_tx
+            .send(super::Event::Egui(egui::Event::Ime(
+                egui::ImeEvent::Enabled,
+            )))
+            .unwrap();
+        state.input.set_value("");
+    };
+    add_event_listener(state_cell.clone(), &input, "compositionstart", listener)?;
+
+    // Register event listener for submitting composed text from an input method editor while the
+    // egui app wants text input
+    let listener = move |state: &mut super::MainState, event: web_sys::CompositionEvent| {
+        let Some(text) = event.data() else {
+            return;
+        };
+        state
+            .event_tx
+            .send(super::Event::Egui(egui::Event::Ime(
+                egui::ImeEvent::Commit(text),
+            )))
+            .unwrap();
+        state.input.set_value("");
+    };
+    add_event_listener(state_cell.clone(), &input, "compositionend", listener)?;
+
+    // Register event listener for when the preview of the text in an input method editor updates
+    // while the egui wapp wants text input
+    let listener = move |state: &mut super::MainState, event: web_sys::CompositionEvent| {
+        let Some(text) = event.data() else {
+            return;
+        };
+        state
+            .event_tx
+            .send(super::Event::Egui(egui::Event::Ime(
+                egui::ImeEvent::Preedit(text),
+            )))
+            .unwrap();
+        state.input.set_value("");
+    };
+    add_event_listener(state_cell.clone(), &input, "compositionupdate", listener)?;
 
     // Register event listener for text pasting
     let listener = move |state: &mut super::MainState, event: web_sys::ClipboardEvent| {
@@ -608,6 +670,7 @@ pub(super) fn register_events(
                     zoom_factor,
                     screen_reader_enabled,
                 } => {
+                    // Update the cursor icon to the one specified by the app for this frame
                     let _ = body_style.set_property(
                         "cursor",
                         match output.cursor_icon {
@@ -654,8 +717,47 @@ pub(super) fn register_events(
                         },
                     );
 
-                    // TODO: handle input method editors and screen readers here
-                    let _ = screen_reader_enabled;
+                    // Speak the text description output by the app, if applicable
+                    if screen_reader_enabled {
+                        let text = output.events_description();
+                        if !text.is_empty() {
+                            if let (Ok(speech_synthesis), Ok(utterance)) = (
+                                window.speech_synthesis(),
+                                web_sys::SpeechSynthesisUtterance::new_with_text(&text),
+                            ) {
+                                speech_synthesis.cancel();
+                                speech_synthesis.speak(&utterance);
+                            }
+                        }
+                    }
+
+                    {
+                        let mut state = state_cell.borrow_mut();
+
+                        // Focus the input handler if the app wants keyboard input, otherwise focus
+                        // the canvas
+                        if let Some(ime) = output.ime {
+                            if state.ime != Some(ime) {
+                                // Move the input handler to the position the app wants input method
+                                // editors to show up at
+                                let pos = ime.cursor_rect.center();
+                                let style = state.input.style();
+                                let _ = style.set_property("left", &format!("{}px", pos.x));
+                                let _ = style.set_property("top", &format!("{}px", pos.y));
+                                // Workaround for the input method editor sometimes opening in the
+                                // location the input handler was previously located at instead of
+                                // the new location we just moved it to when using Firefox
+                                let _ = state.input.focus();
+                                let _ = state.input.blur();
+                            }
+                            let _ = state.input.focus();
+                        } else {
+                            let _ = state.canvas.focus();
+                        }
+                        state.ime = output.ime;
+
+                        state.zoom_factor = zoom_factor;
+                    }
 
                     if !output.copied_text.is_empty() {
                         if let Err(e) = wasm_bindgen_futures::JsFuture::from(
@@ -684,8 +786,6 @@ pub(super) fn register_events(
                             );
                         }
                     }
-
-                    state_cell.borrow_mut().zoom_factor = zoom_factor;
                 }
 
                 super::Output::StorageGet { key, oneshot_tx } => {
