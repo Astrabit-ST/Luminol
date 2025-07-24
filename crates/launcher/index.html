@@ -128,6 +128,10 @@
     <!-- Due to the Spectre vulnerability, shared memory is disabled in many browsers unless we enable -->
     <!-- Cross-Origin Isolation using this shim. -->
     <script src="./sw.js"></script>
+    <script>
+        // Send a dummy message every 5 seconds to prevent sw.js from being killed by Firefox for taking too long to fetch large files
+        setInterval(function () { navigator.serviceWorker.controller.postMessage({ type: "heartbeat" }); }, 5000);
+    </script>
 
     <script type="module" src="./main.js"></script>
 </body>
