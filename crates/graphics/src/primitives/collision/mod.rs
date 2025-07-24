@@ -212,11 +212,11 @@ impl Renderable for Collision {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.push_debug_group("tilemap collision renderer");
         render_pass.set_pipeline(&self.graphics_state.pipelines.collision);
 
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.set_bind_group(0, &*self.bind_group, &[]);
 
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();

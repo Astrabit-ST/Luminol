@@ -926,177 +926,185 @@ pub fn show_frame_edit(
         .add(animation_graphic_picker.button(animation, update_state))
         .changed();
 
-    ui.allocate_ui_at_rect(canvas_rect, |ui| {
-        frame_view.frame.enable_onion_skin =
-            state.enable_onion_skin && state.frame_index != 0 && state.animation_state.is_none();
-        let egui::InnerResponse {
-            inner: hover_pos,
-            response,
-        } = frame_view.ui(
-            ui,
-            update_state,
-            clip_rect,
-            flash_maps
-                .screen(state.condition)
-                .compute(state.frame_index),
-            state.animation_state.is_none(),
-        );
-        if response.clicked() {
-            state.saved_selected_cell_index = frame_view.selected_cell_index;
-        }
-
-        // If the pointer is hovering over the frame view, prevent parent widgets
-        // from receiving scroll events so that scaling the frame view with the
-        // scroll wheel doesn't also scroll the scroll area that the frame view is
-        // in
-        if response.hovered() {
-            ui.ctx()
-                .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
-        }
-
-        let frame = &mut animation.frames[state.frame_index];
-
-        // Create new cell on double click
-        if let Some((x, y)) = hover_pos {
-            if response.double_clicked() {
-                let next_cell_index = frame.len();
-
-                let mut entries = Vec::with_capacity(2);
-
-                entries.push(HistoryEntry::ResizeCells(frame.len()));
-                super::util::resize_frame(frame, next_cell_index + 1);
-
-                entries.push(HistoryEntry::new_cell(&frame.cell_data, next_cell_index));
-                frame.cell_data[(next_cell_index, 0)] = cellpicker.selected_cell as i16;
-                frame.cell_data[(next_cell_index, 1)] = x;
-                frame.cell_data[(next_cell_index, 2)] = y;
-                frame.cell_data[(next_cell_index, 3)] = 100;
-                frame.cell_data[(next_cell_index, 4)] = 0;
-                frame.cell_data[(next_cell_index, 5)] = 0;
-                frame.cell_data[(next_cell_index, 6)] = 255;
-                frame.cell_data[(next_cell_index, 7)] = 1;
-
-                state.history.push(animation.id, state.frame_index, entries);
-
-                frame_view.frame.update_cell(
-                    &update_state.graphics,
-                    animation,
-                    state.frame_index,
-                    next_cell_index,
-                );
-                frame_view.selected_cell_index = Some(next_cell_index);
-
-                modified = true;
+    ui.allocate_new_ui(
+        egui::UiBuilder {
+            max_rect: Some(canvas_rect),
+            ..Default::default()
+        },
+        |ui| {
+            frame_view.frame.enable_onion_skin = state.enable_onion_skin
+                && state.frame_index != 0
+                && state.animation_state.is_none();
+            let egui::InnerResponse {
+                inner: hover_pos,
+                response,
+            } = frame_view.ui(
+                ui,
+                update_state,
+                clip_rect,
+                flash_maps
+                    .screen(state.condition)
+                    .compute(state.frame_index),
+                state.animation_state.is_none(),
+            );
+            if response.clicked() {
+                state.saved_selected_cell_index = frame_view.selected_cell_index;
             }
-        }
 
-        let frame = &mut animation.frames[state.frame_index];
+            // If the pointer is hovering over the frame view, prevent parent widgets
+            // from receiving scroll events so that scaling the frame view with the
+            // scroll wheel doesn't also scroll the scroll area that the frame view is
+            // in
+            if response.hovered() {
+                ui.ctx()
+                    .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
+            }
 
-        // Handle pressing delete or backspace to delete cells
-        if let (Some(i), true) = (
-            frame_view.selected_cell_index,
-            state.animation_state.is_none(),
-        ) {
-            if i < frame.len()
-                && frame.cell_data[(i, 0)] >= 0
-                && response.has_focus()
-                && ui.input(|i| {
-                    i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
-                })
-            {
-                let mut entries = Vec::with_capacity(2);
+            let frame = &mut animation.frames[state.frame_index];
 
-                entries.push(HistoryEntry::new_cell(&frame.cell_data, i));
-                frame.cell_data[(i, 0)] = -1;
+            // Create new cell on double click
+            if let Some((x, y)) = hover_pos {
+                if response.double_clicked() {
+                    let next_cell_index = frame.len();
 
-                if i + 1 == frame.len() {
+                    let mut entries = Vec::with_capacity(2);
+
                     entries.push(HistoryEntry::ResizeCells(frame.len()));
-                    super::util::resize_frame(
-                        frame,
-                        (0..frame.len().saturating_sub(1))
-                            .rev()
-                            .find_map(|i| (frame.cell_data[(i, 0)] >= 0).then_some(i + 1))
-                            .unwrap_or(0),
+                    super::util::resize_frame(frame, next_cell_index + 1);
+
+                    entries.push(HistoryEntry::new_cell(&frame.cell_data, next_cell_index));
+                    frame.cell_data[(next_cell_index, 0)] = cellpicker.selected_cell as i16;
+                    frame.cell_data[(next_cell_index, 1)] = x;
+                    frame.cell_data[(next_cell_index, 2)] = y;
+                    frame.cell_data[(next_cell_index, 3)] = 100;
+                    frame.cell_data[(next_cell_index, 4)] = 0;
+                    frame.cell_data[(next_cell_index, 5)] = 0;
+                    frame.cell_data[(next_cell_index, 6)] = 255;
+                    frame.cell_data[(next_cell_index, 7)] = 1;
+
+                    state.history.push(animation.id, state.frame_index, entries);
+
+                    frame_view.frame.update_cell(
+                        &update_state.graphics,
+                        animation,
+                        state.frame_index,
+                        next_cell_index,
+                    );
+                    frame_view.selected_cell_index = Some(next_cell_index);
+
+                    modified = true;
+                }
+            }
+
+            let frame = &mut animation.frames[state.frame_index];
+
+            // Handle pressing delete or backspace to delete cells
+            if let (Some(i), true) = (
+                frame_view.selected_cell_index,
+                state.animation_state.is_none(),
+            ) {
+                if i < frame.len()
+                    && frame.cell_data[(i, 0)] >= 0
+                    && response.has_focus()
+                    && ui.input(|i| {
+                        i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)
+                    })
+                {
+                    let mut entries = Vec::with_capacity(2);
+
+                    entries.push(HistoryEntry::new_cell(&frame.cell_data, i));
+                    frame.cell_data[(i, 0)] = -1;
+
+                    if i + 1 == frame.len() {
+                        entries.push(HistoryEntry::ResizeCells(frame.len()));
+                        super::util::resize_frame(
+                            frame,
+                            (0..frame.len().saturating_sub(1))
+                                .rev()
+                                .find_map(|i| (frame.cell_data[(i, 0)] >= 0).then_some(i + 1))
+                                .unwrap_or(0),
+                        );
+                    }
+
+                    state.history.push(animation.id, state.frame_index, entries);
+
+                    frame_view.frame.update_cell(
+                        &update_state.graphics,
+                        animation,
+                        state.frame_index,
+                        i,
+                    );
+                    frame_view.selected_cell_index = None;
+                    modified = true;
+                }
+            }
+
+            if response.has_focus() {
+                ui.memory_mut(|m| {
+                    m.set_focus_lock_filter(
+                        response.id,
+                        egui::EventFilter {
+                            tab: false,
+                            horizontal_arrows: true,
+                            vertical_arrows: false,
+                            escape: false,
+                        },
+                    )
+                });
+
+                if state.animation_state.is_none() {
+                    // Press left/right arrow keys to change frame
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+                        state.frame_index = state.frame_index.saturating_sub(1);
+                        state.saved_frame_index = Some(state.frame_index);
+                        state.frame_needs_update = true;
+                    }
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+                        state.frame_index = state
+                            .frame_index
+                            .saturating_add(1)
+                            .min(animation.frames.len().saturating_sub(1));
+                        state.saved_frame_index = Some(state.frame_index);
+                        state.frame_needs_update = true;
+                    }
+
+                    let frame = &mut animation.frames[state.frame_index];
+
+                    // Ctrl+Z for undo
+                    if ui.input(|i| {
+                        i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
+                    }) {
+                        state.history.undo(animation.id, state.frame_index, frame);
+                        state.frame_needs_update = true;
+                    }
+
+                    // Ctrl+Y or Ctrl+Shift+Z for redo
+                    if ui.input(|i| {
+                        i.modifiers.command
+                            && (i.key_pressed(egui::Key::Y)
+                                || (i.modifiers.shift && i.key_pressed(egui::Key::Z)))
+                    }) {
+                        state.history.redo(animation.id, state.frame_index, frame);
+                        state.frame_needs_update = true;
+                    }
+                }
+
+                // Press space or enter to start/stop animation playback
+                if ui.input(|i| i.key_pressed(egui::Key::Space) || i.key_pressed(egui::Key::Enter))
+                {
+                    start_animation_playback(
+                        update_state,
+                        animation,
+                        &mut state.animation_state,
+                        &mut state.frame_index,
+                        &mut state.saved_frame_index,
+                        &mut state.frame_needs_update,
+                        state.condition,
                     );
                 }
-
-                state.history.push(animation.id, state.frame_index, entries);
-
-                frame_view.frame.update_cell(
-                    &update_state.graphics,
-                    animation,
-                    state.frame_index,
-                    i,
-                );
-                frame_view.selected_cell_index = None;
-                modified = true;
             }
-        }
-
-        if response.has_focus() {
-            ui.memory_mut(|m| {
-                m.set_focus_lock_filter(
-                    response.id,
-                    egui::EventFilter {
-                        tab: false,
-                        horizontal_arrows: true,
-                        vertical_arrows: false,
-                        escape: false,
-                    },
-                )
-            });
-
-            if state.animation_state.is_none() {
-                // Press left/right arrow keys to change frame
-                if ui.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
-                    state.frame_index = state.frame_index.saturating_sub(1);
-                    state.saved_frame_index = Some(state.frame_index);
-                    state.frame_needs_update = true;
-                }
-                if ui.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
-                    state.frame_index = state
-                        .frame_index
-                        .saturating_add(1)
-                        .min(animation.frames.len().saturating_sub(1));
-                    state.saved_frame_index = Some(state.frame_index);
-                    state.frame_needs_update = true;
-                }
-
-                let frame = &mut animation.frames[state.frame_index];
-
-                // Ctrl+Z for undo
-                if ui.input(|i| {
-                    i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Z)
-                }) {
-                    state.history.undo(animation.id, state.frame_index, frame);
-                    state.frame_needs_update = true;
-                }
-
-                // Ctrl+Y or Ctrl+Shift+Z for redo
-                if ui.input(|i| {
-                    i.modifiers.command
-                        && (i.key_pressed(egui::Key::Y)
-                            || (i.modifiers.shift && i.key_pressed(egui::Key::Z)))
-                }) {
-                    state.history.redo(animation.id, state.frame_index, frame);
-                    state.frame_needs_update = true;
-                }
-            }
-
-            // Press space or enter to start/stop animation playback
-            if ui.input(|i| i.key_pressed(egui::Key::Space) || i.key_pressed(egui::Key::Enter)) {
-                start_animation_playback(
-                    update_state,
-                    animation,
-                    &mut state.animation_state,
-                    &mut state.frame_index,
-                    &mut state.saved_frame_index,
-                    &mut state.frame_needs_update,
-                    state.condition,
-                );
-            }
-        }
-    });
+        },
+    );
 
     if animation_graphic_changed {
         let atlas = update_state.graphics.atlas_loader.load_animation_atlas(

@@ -79,7 +79,7 @@ impl Instances {
             .collect_vec()
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         let count = (self.cells_width * self.cells_height) as u32;
 
         let start = 0 as wgpu::BufferAddress;

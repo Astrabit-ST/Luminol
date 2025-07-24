@@ -101,7 +101,7 @@ impl Instances {
             .collect_vec()
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         // Calculate the start and end index of the buffer, as well as the amount of instances.
         let start_index = 0;
         let end_index = self.map_width * self.map_height;

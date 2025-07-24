@@ -212,10 +212,10 @@ impl Renderable for Sprite {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.push_debug_group("sprite render");
         render_pass.set_pipeline(&self.graphics_state.pipelines.sprites[&self.blend_mode]);
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.set_bind_group(0, &*self.bind_group, &[]);
 
         self.vertices.draw(render_pass);
         render_pass.pop_debug_group();

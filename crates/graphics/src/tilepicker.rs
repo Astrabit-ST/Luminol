@@ -208,7 +208,7 @@ impl Renderable for Tilepicker {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         self.tiles.draw(render_pass);
 
         if self.coll_enabled {

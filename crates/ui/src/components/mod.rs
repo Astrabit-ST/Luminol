@@ -79,7 +79,7 @@ impl<'e, T> EnumMenuButton<'e, T> {
 
 impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'e, T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        egui::ComboBox::from_id_source(self.id)
+        egui::ComboBox::from_id_salt(self.id)
             .selected_text(self.current_value.to_string())
             .show_ui(ui, |ui| {
                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
@@ -262,7 +262,7 @@ where
         let mut changed = false;
         let available_width = ui.available_width() - ui.spacing().item_spacing.x;
         let width = self.max_width.min(available_width);
-        let mut response = egui::ComboBox::from_id_source(&self.id_source)
+        let mut response = egui::ComboBox::from_id_salt(&self.id_source)
             .wrap()
             .width(width)
             .selected_text(self.reference.to_string())
@@ -339,7 +339,7 @@ where
         let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
         let mut changed = false;
-        let inner_response = egui::ComboBox::from_id_source(&self.id_source)
+        let inner_response = egui::ComboBox::from_id_salt(&self.id_source)
             .wrap()
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(formatter(&self))

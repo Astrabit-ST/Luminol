@@ -139,7 +139,6 @@ impl eframe::Storage for Storage {
 /// Custom egui web runner for Luminol that runs an egui app in a worker thread
 pub struct Runner {
     channels: WorkerChannels,
-    prefers_color_scheme_dark: Option<bool>,
 }
 
 /// State of the web runner that belongs to the main thread
@@ -214,12 +213,6 @@ impl Runner {
             PANIC_HOOK_INSTALLED.store(true, portable_atomic::Ordering::Relaxed);
         }
 
-        let prefers_color_scheme_dark = window
-            .match_media("(prefers-color-scheme: dark)")
-            .ok()
-            .flatten()
-            .map(|query| query.matches());
-
         let (event_tx, event_rx) = flume::unbounded();
         let (output_tx, output_rx) = flume::unbounded();
         let (panic_tx, panic_rx) = oneshot::channel();
@@ -242,7 +235,6 @@ impl Runner {
                 output_tx,
                 panic_tx: Some(panic_tx),
             },
-            prefers_color_scheme_dark,
         })
     }
 
@@ -263,12 +255,25 @@ impl Runner {
         // occur on the first frame after the web runner starts up
         let repaint_time = std::sync::Arc::new(portable_atomic::AtomicF64::new(f64::NEG_INFINITY));
 
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: web_options.wgpu_options.supported_backends,
-            flags: wgpu::InstanceFlags::default(),
-            dx12_shader_compiler: wgpu::Dx12Compiler::default(),
-            gles_minor_version: wgpu::Gles3MinorVersion::default(),
-        });
+        #[allow(clippy::arc_with_non_send_sync)]
+        let instance = match web_options.wgpu_options.wgpu_setup {
+            egui_wgpu::WgpuSetup::CreateNew {
+                supported_backends,
+                power_preference: _,
+                device_descriptor: _,
+            } => std::sync::Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
+                backends: supported_backends,
+                flags: wgpu::InstanceFlags::default(),
+                dx12_shader_compiler: wgpu::Dx12Compiler::default(),
+                gles_minor_version: wgpu::Gles3MinorVersion::default(),
+            })),
+            egui_wgpu::WgpuSetup::Existing {
+                ref instance,
+                adapter: _,
+                device: _,
+                queue: _,
+            } => instance.clone(),
+        };
 
         let surface =
             instance.create_surface(wgpu::SurfaceTarget::OffscreenCanvas(canvas.clone()))?;
@@ -279,22 +284,12 @@ impl Runner {
             &surface,
             egui_wgpu::depth_format_from_bits(0, 0),
             1,
+            web_options.dithering,
         )
         .await?;
 
         let location = worker.location();
         let integration_info = eframe::IntegrationInfo {
-            system_theme: if web_options.follow_system_theme {
-                self.prefers_color_scheme_dark.map(|x| {
-                    if x {
-                        eframe::Theme::Dark
-                    } else {
-                        eframe::Theme::Light
-                    }
-                })
-            } else {
-                None
-            },
             web_info: eframe::WebInfo {
                 user_agent: worker.navigator().user_agent().unwrap_or_default(),
                 location: eframe::Location {
@@ -319,12 +314,6 @@ impl Runner {
         context.set_os(egui::os::OperatingSystem::from_user_agent(
             integration_info.web_info.user_agent.as_str(),
         ));
-        context.set_visuals(
-            integration_info
-                .system_theme
-                .unwrap_or(web_options.default_theme)
-                .egui_visuals(),
-        );
         {
             let repaint_time = repaint_time.clone();
             context.set_request_repaint_callback(move |repaint_info| {

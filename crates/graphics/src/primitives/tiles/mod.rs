@@ -144,7 +144,7 @@ impl Renderable for Tiles {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.push_debug_group("tilemap tiles renderer");
         render_pass.set_pipeline(&self.graphics_state.pipelines.tiles);
 
@@ -154,7 +154,7 @@ impl Drawable for Prepared {
             .enumerate()
             .filter_map(|(layer, enabled)| enabled.then_some(layer))
         {
-            render_pass.set_bind_group(0, &self.bind_group, &[self.layer_offsets[layer]]);
+            render_pass.set_bind_group(0, &*self.bind_group, &[self.layer_offsets[layer]]);
 
             self.instances.draw(render_pass, layer);
         }

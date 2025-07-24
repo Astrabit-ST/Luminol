@@ -212,7 +212,7 @@ where
                             + 2. * ui.spacing().button_padding.y,
                     );
                     egui::ScrollArea::vertical()
-                        .id_source(state_id.with("scroll_area"))
+                        .id_salt(state_id.with("scroll_area"))
                         .min_scrolled_height(200.)
                         .show_rows(ui, button_height, search_matched_ids.len(), |ui, range| {
                             let mut is_faint = range.start % 2 != 0;
@@ -368,7 +368,7 @@ where
                             + 2. * ui.spacing().button_padding.y,
                     );
                     egui::ScrollArea::vertical()
-                        .id_source(state_id.with("scroll_area"))
+                        .id_salt(state_id.with("scroll_area"))
                         .min_scrolled_height(200.)
                         .show_rows(ui, button_height, search_matched_ids.len(), |ui, range| {
                             let mut is_faint = range.start % 2 != 0;
@@ -554,7 +554,7 @@ where
                             + 2. * ui.spacing().button_padding.y,
                     );
                     egui::ScrollArea::vertical()
-                        .id_source(state_id.with("scroll_area"))
+                        .id_salt(state_id.with("scroll_area"))
                         .min_scrolled_height(200.)
                         .show_rows(ui, button_height, search_matched_ids.len(), |ui, range| {
                             let mut is_faint = range.start % 2 != 0;

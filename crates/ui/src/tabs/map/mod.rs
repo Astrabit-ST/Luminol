@@ -548,7 +548,7 @@ impl luminol_core::Tab for Tab {
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both()
-                    .id_source(
+                    .id_salt(
                         update_state
                             .project_config
                             .as_ref()

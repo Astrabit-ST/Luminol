@@ -226,9 +226,9 @@ pub fn launch_worker(
 
     canvas.focus().expect("could not focus the canvas");
 
-    let mut worker_options = web_sys::WorkerOptions::new();
-    worker_options.name("luminol-primary");
-    worker_options.type_(web_sys::WorkerType::Module);
+    let worker_options = web_sys::WorkerOptions::new();
+    worker_options.set_name("luminol-primary");
+    worker_options.set_type(web_sys::WorkerType::Module);
     let worker = web_sys::Worker::new_with_options("./worker.js", &worker_options)
         .expect("failed to spawn web worker");
     worker_cell.set(worker.clone()).unwrap();

@@ -58,7 +58,7 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 egui::SidePanel::left("script_edit_script_panel").show_inside(ui, |ui| {
                     egui::ScrollArea::both()
-                        .id_source(
+                        .id_salt(
                             update_state
                                 .project_config
                                 .as_ref()
@@ -190,7 +190,7 @@ impl luminol_core::Tab for ScriptTab {
         };
 
         egui::ScrollArea::vertical()
-            .id_source(
+            .id_salt(
                 update_state
                     .project_config
                     .as_ref()

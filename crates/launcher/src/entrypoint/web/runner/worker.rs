@@ -233,7 +233,7 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
             {
                 let renderer = state.render_state.renderer.read();
                 let view = render_texture.texture.create_view(&Default::default());
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Luminol Web Runner Renderer"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &view,
@@ -252,7 +252,11 @@ pub(super) fn runner_worker(state_cell: std::rc::Rc<std::cell::RefCell<super::Wo
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
-                renderer.render(&mut render_pass, &paint_jobs[..], &screen_descriptor);
+                renderer.render(
+                    &mut render_pass.forget_lifetime(),
+                    &paint_jobs[..],
+                    &screen_descriptor,
+                );
             }
 
             // Copy from the internal drawing buffer onto the HTML canvas

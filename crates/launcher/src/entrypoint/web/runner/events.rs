@@ -221,8 +221,8 @@ pub(super) fn register_events(
                 });
             });
         let observer = web_sys::MutationObserver::new(callback.as_ref().unchecked_ref())?;
-        let mut options = web_sys::MutationObserverInit::new();
-        options.attributes(true);
+        let options = web_sys::MutationObserverInit::new();
+        options.set_attributes(true);
         observer.observe_with_options(&canvas, &options)?;
         // We don't need to unregister this mutation observer on panic because it auto-deregisters
         // when the target (the canvas) is removed from the DOM and garbage-collected
@@ -662,7 +662,6 @@ pub(super) fn register_events(
                             window
                                 .navigator()
                                 .clipboard()
-                                .unwrap()
                                 .write_text(&output.copied_text),
                         )
                         .await

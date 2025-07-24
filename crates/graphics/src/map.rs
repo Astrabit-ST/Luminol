@@ -298,7 +298,7 @@ impl Renderable for Map {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         if let Some(ref pano) = self.panorama {
             pano.draw(render_pass);
         }

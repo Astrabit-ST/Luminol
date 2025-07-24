@@ -122,7 +122,7 @@ impl luminol_core::Window for Window {
                         }
 
                         egui::ScrollArea::both()
-                            .id_source(scroll_area_id_source)
+                            .id_salt(scroll_area_id_source)
                             .max_height(
                                 ui.available_height()
                                     - ui.spacing().interact_size.y.max(

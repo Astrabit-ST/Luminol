@@ -196,7 +196,7 @@ impl SoundTab {
                 });
 
                 let mut scroll_area_output = egui::ScrollArea::vertical()
-                    .id_source((persistence_id, self.source))
+                    .id_salt((persistence_id, self.source))
                     .auto_shrink([false, true])
                     // Show only visible rows.
                     .show_rows(

@@ -113,13 +113,13 @@ impl App {
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             String::from("Source Han Sans Regular"),
-            egui::FontData::from_owned(
+            std::sync::Arc::new(egui::FontData::from_owned(
                 zstd::bulk::decompress(
                     luminol_macros::include_asset!("assets/fonts/SourceHanSans-Regular.ttc.zst"),
                     19485724,
                 )
                 .unwrap(),
-            ),
+            )),
         );
 
         let fd = zstd::bulk::decompress(
@@ -128,9 +128,10 @@ impl App {
         )
         .unwrap();
 
-        fonts
-            .font_data
-            .insert("Iosevka Term".to_owned(), egui::FontData::from_owned(fd));
+        fonts.font_data.insert(
+            "Iosevka Term".to_owned(),
+            std::sync::Arc::new(egui::FontData::from_owned(fd)),
+        );
 
         fonts
             .families

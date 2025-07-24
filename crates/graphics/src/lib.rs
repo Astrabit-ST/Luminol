@@ -112,7 +112,7 @@ pub trait Renderable {
 }
 
 pub trait Drawable {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>);
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>);
 }
 
 pub struct Painter<T> {
@@ -128,11 +128,11 @@ impl<T> Painter<T> {
 }
 
 impl<T: Drawable> egui_wgpu::CallbackTrait for Painter<T> {
-    fn paint<'a>(
-        &'a self,
+    fn paint(
+        &self,
         _: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        _: &'a egui_wgpu::CallbackResources,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        _: &egui_wgpu::CallbackResources,
     ) {
         self.prepared.get().draw(render_pass);
     }

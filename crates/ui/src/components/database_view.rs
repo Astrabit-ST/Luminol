@@ -181,7 +181,7 @@ impl DatabaseView {
                                             );
                                         }
 
-                                        egui::ScrollArea::vertical().id_source(p).show_rows(
+                                        egui::ScrollArea::vertical().id_salt(p).show_rows(
                                             ui,
                                             button_height,
                                             search_matched_ids.len(),
@@ -251,7 +251,7 @@ impl DatabaseView {
         ui.with_left_margin(ui.spacing().window_margin.left, |ui| {
             ui.with_cross_justify(|ui| {
                 egui::ScrollArea::vertical()
-                    .id_source(p)
+                    .id_salt(p)
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.set_min_width(

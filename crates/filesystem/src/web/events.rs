@@ -186,9 +186,9 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                         // If write and create permissions were both requested, then the file should be
                         // created if the file does not exist but all the parent directories do
-                        let mut options = web_sys::FileSystemGetFileOptions::new();
+                        let options = web_sys::FileSystemGetFileOptions::new();
                         if flags.contains(OpenFlags::Write) && flags.contains(OpenFlags::Create) {
-                            options.create(true);
+                            options.set_create(true);
                         }
 
                         if let Ok(file_handle) = to_future::<web_sys::FileSystemFileHandle>(
@@ -206,8 +206,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                             };
                             // If write permissions were requested, try to get a write handle on the
                             // file, with truncation if requested
-                            let mut options = web_sys::FileSystemCreateWritableOptions::new();
-                            options.keep_existing_data(!flags.contains(OpenFlags::Truncate));
+                            let options = web_sys::FileSystemCreateWritableOptions::new();
+                            options.set_keep_existing_data(!flags.contains(OpenFlags::Truncate));
                             handle.write_handle = if flags.contains(OpenFlags::Write) {
                                 to_future(handle.file_handle.create_writable_with_options(&options))
                                     .await
@@ -224,8 +224,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                                 } else {
                                     true
                                 };
-                            let mut options = web_sys::FileSystemCreateWritableOptions::new();
-                            options.keep_existing_data(true);
+                            let options = web_sys::FileSystemCreateWritableOptions::new();
+                            options.set_keep_existing_data(true);
                             if flags.contains(OpenFlags::Truncate) && handle.write_handle.is_some()
                             {
                                 handle.write_handle = to_future(
@@ -320,8 +320,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                         .is_ok()
                         {
                             // If the path is a directory
-                            let mut options = web_sys::FileSystemRemoveOptions::new();
-                            options.recursive(true);
+                            let options = web_sys::FileSystemRemoveOptions::new();
+                            options.set_recursive(true);
                             to_future::<JsValue>(
                                 subdir.remove_entry_with_options(dirname, &options),
                             )
@@ -459,8 +459,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
 
                         let filename = generate_key();
 
-                        let mut options = web_sys::FileSystemGetFileOptions::new();
-                        options.create(true);
+                        let options = web_sys::FileSystemGetFileOptions::new();
+                        options.set_create(true);
                         let file_handle = to_future::<web_sys::FileSystemFileHandle>(
                             tmp_dir.get_file_handle_with_options(&filename, &options),
                         )
@@ -732,8 +732,8 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                                 format!("Failed to flush file: {}", e.to_string()),
                             )
                         })?;
-                        let mut options = web_sys::FileSystemCreateWritableOptions::new();
-                        options.keep_existing_data(true);
+                        let options = web_sys::FileSystemCreateWritableOptions::new();
+                        options.set_keep_existing_data(true);
                         let write_handle =
                             to_future(file.file_handle.create_writable_with_options(&options))
                                 .await

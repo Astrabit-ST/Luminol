@@ -56,24 +56,24 @@ impl Toasts {
     }
 
     #[doc(hidden)]
-    pub fn _i_inner(&mut self, caption: impl Into<String>) {
+    pub fn _i_inner(&mut self, caption: impl Into<egui::WidgetText>) {
         self.inner
             .info(caption)
-            .set_duration(Some(std::time::Duration::from_secs(7)));
+            .duration(Some(std::time::Duration::from_secs(7)));
     }
 
     #[doc(hidden)]
-    pub fn _w_inner(&mut self, caption: impl Into<String>) {
+    pub fn _w_inner(&mut self, caption: impl Into<egui::WidgetText>) {
         self.inner
             .warning(caption)
-            .set_duration(Some(std::time::Duration::from_secs(7)));
+            .duration(Some(std::time::Duration::from_secs(7)));
     }
 
     #[doc(hidden)]
-    pub fn _b_inner(&mut self, caption: impl Into<String>) {
+    pub fn _b_inner(&mut self, caption: impl Into<egui::WidgetText>) {
         self.inner
             .basic(caption)
-            .set_duration(Some(std::time::Duration::from_secs(7)));
+            .duration(Some(std::time::Duration::from_secs(7)));
     }
 
     #[doc(hidden)]
@@ -102,7 +102,7 @@ impl Toasts {
                 help
             ))
         }
-        .set_duration(Some(std::time::Duration::from_secs(7)));
+        .duration(Some(std::time::Duration::from_secs(7)));
     }
 }
 
