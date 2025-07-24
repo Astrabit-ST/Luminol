@@ -1,5 +1,4 @@
 #![allow(clippy::arc_with_non_send_sync)]
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use once_cell::sync::OnceCell;
 
@@ -207,12 +206,26 @@ fn run_app(
                 })
                 .with_app_id("astrabit.luminol"),
             wgpu_options: egui_wgpu::WgpuConfiguration {
-                supported_backends: wgpu::util::backend_bits_from_env()
-                    .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::SECONDARY),
-                // TODO: Load this value from a settings file
-                power_preference: wgpu::util::power_preference_from_env()
-                    .unwrap_or(wgpu::PowerPreference::LowPower),
-                ..Default::default()
+                present_mode: wgpu::PresentMode::default(),
+                wgpu_setup: egui_wgpu::WgpuSetup::CreateNew {
+                    supported_backends: wgpu::util::backend_bits_from_env()
+                        .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::SECONDARY),
+                    // TODO: Load this value from a settings file
+                    power_preference: wgpu::util::power_preference_from_env()
+                        .unwrap_or(wgpu::PowerPreference::LowPower),
+                    device_descriptor: sync::Arc::new(|adapter| wgpu::DeviceDescriptor {
+                        label: Some("Luminol Graphics Device"),
+                        required_features: wgpu::Features::default(),
+                        required_limits: if adapter.get_info().backend == wgpu::Backend::Gl {
+                            wgpu::Limits::downlevel_webgl2_defaults()
+                        } else {
+                            wgpu::Limits::default()
+                        },
+                        memory_hints: wgpu::MemoryHints::default(),
+                    }),
+                },
+                desired_maximum_frame_latency: None,
+                on_surface_error: sync::Arc::new(|_error| egui_wgpu::SurfaceErrorAction::SkipFrame),
             },
             persist_window: true,
 
