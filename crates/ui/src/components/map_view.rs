@@ -879,7 +879,7 @@ impl MapView {
                     .render_state
                     .device
                     .poll(wgpu::PollType::Wait)
-                    .is_ok()
+                    .is_err()
                 {
                     return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
                 }
