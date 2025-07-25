@@ -126,8 +126,12 @@ impl Cellpicker {
                 egui::Vec2::splat(CELL_SIZE as f32),
             ) * self.scale)
                 .translate(canvas_rect.min.to_vec2());
-            ui.painter()
-                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+            ui.painter().rect_stroke(
+                rect,
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::WHITE),
+                egui::StrokeKind::Middle,
+            );
         }
 
         if response.clicked() {

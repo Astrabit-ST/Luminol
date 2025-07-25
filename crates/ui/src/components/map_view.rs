@@ -338,6 +338,7 @@ impl MapView {
             map_rect,
             5.,
             egui::Stroke::new(3., egui::Color32::DARK_GRAY),
+            egui::StrokeKind::Middle,
         );
 
         let cursor_rect = egui::Rect::from_min_size(
@@ -511,11 +512,13 @@ impl MapView {
                                     response.rect,
                                     5.,
                                     egui::Stroke::new(2., egui::Color32::YELLOW),
+                                    egui::StrokeKind::Middle,
                                 ),
                                 _ => ui.painter().rect_stroke(
                                     response.rect,
                                     5.,
                                     egui::Stroke::new(1., egui::Color32::WHITE),
+                                    egui::StrokeKind::Middle,
                                 ),
                             };
                         });
@@ -565,6 +568,7 @@ impl MapView {
                         box_rect,
                         5.,
                         egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                        egui::StrokeKind::Middle,
                     );
                 }
 
@@ -574,6 +578,7 @@ impl MapView {
                         box_rect,
                         5.,
                         egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
+                        egui::StrokeKind::Middle,
                     );
                 }
             }
@@ -585,8 +590,12 @@ impl MapView {
 
             // Draw white rectangles on the border of all events
             while let Some(rect) = self.event_rects.pop() {
-                ui.painter()
-                    .rect_stroke(rect, 5., egui::Stroke::new(1., egui::Color32::WHITE));
+                ui.painter().rect_stroke(
+                    rect,
+                    5.,
+                    egui::Stroke::new(1., egui::Color32::WHITE),
+                    egui::StrokeKind::Middle,
+                );
             }
 
             // Draw a yellow rectangle on the border of the selected event's graphic
@@ -599,6 +608,7 @@ impl MapView {
                             rect,
                             5.,
                             egui::Stroke::new(3., egui::Color32::YELLOW),
+                            egui::StrokeKind::Middle,
                         );
                     }
                 }
@@ -645,6 +655,7 @@ impl MapView {
                 visible_rect,
                 5.,
                 egui::Stroke::new(1., egui::Color32::YELLOW),
+                egui::StrokeKind::Middle,
             );
         }
 
@@ -659,6 +670,7 @@ impl MapView {
                     drawing_shape_rect,
                     5.,
                     egui::Stroke::new(1., egui::Color32::WHITE),
+                    egui::StrokeKind::Middle,
                 );
             }
         }
@@ -669,12 +681,14 @@ impl MapView {
                 pattern_rect,
                 5.,
                 egui::Stroke::new(1., egui::Color32::WHITE),
+                egui::StrokeKind::Middle,
             );
         }
         ui.painter().rect_stroke(
             cursor_rect,
             5.,
             egui::Stroke::new(1., egui::Color32::YELLOW),
+            egui::StrokeKind::Middle,
         );
 
         ui.ctx().data_mut(|d| {
@@ -814,15 +828,15 @@ impl MapView {
                 drop(render_pass);
 
                 command_encoder.copy_texture_to_buffer(
-                    wgpu::ImageCopyTexture {
+                    wgpu::TexelCopyTextureInfo {
                         texture: &texture,
                         mip_level: 0,
                         origin: wgpu::Origin3d::ZERO,
                         aspect: wgpu::TextureAspect::All,
                     },
-                    wgpu::ImageCopyBuffer {
+                    wgpu::TexelCopyBufferInfo {
                         buffer: &buffer,
-                        layout: wgpu::ImageDataLayout {
+                        layout: wgpu::TexelCopyBufferLayout {
                             offset: 0,
                             bytes_per_row: Some(width_padded * 4),
                             rows_per_image: Some(height),
@@ -864,8 +878,8 @@ impl MapView {
                 if !graphics_state
                     .render_state
                     .device
-                    .poll(wgpu::Maintain::Wait)
-                    .is_queue_empty()
+                    .poll(wgpu::PollType::Wait)
+                    .is_err()
                 {
                     return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
                 }

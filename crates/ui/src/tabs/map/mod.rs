@@ -273,9 +273,9 @@ impl luminol_core::Tab for Tab {
         // Display the toolbar.
         // FIXME: find a proper place for this toolbar! it looks very out of place right now.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
-            egui::Frame::none()
+            egui::Frame::NONE
                 .outer_margin(egui::Margin {
-                    bottom: ui.spacing().item_spacing.y,
+                    bottom: ui.spacing().item_spacing.y.ceil() as i8,
                     ..egui::Margin::ZERO
                 })
                 .show(ui, |ui| {

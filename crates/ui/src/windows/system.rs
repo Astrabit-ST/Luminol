@@ -581,7 +581,7 @@ impl luminol_core::Window for Window {
                                         if system.elements.len().saturating_sub(1) <= 999
                                             && self.max_elements.is_some_and(|m| m > 999)
                                         {
-                                            egui::Frame::none().show(ui, |ui| {
+                                            egui::Frame::NONE.show(ui, |ui| {
                                                 ui.style_mut()
                                                     .visuals
                                                     .widgets

@@ -301,24 +301,23 @@ impl Runner {
         // occur on the first frame after the web runner starts up
         let repaint_time = std::sync::Arc::new(portable_atomic::AtomicF64::new(f64::NEG_INFINITY));
 
-        #[allow(clippy::arc_with_non_send_sync)]
-        let instance = match web_options.wgpu_options.wgpu_setup {
-            egui_wgpu::WgpuSetup::CreateNew {
-                supported_backends,
+        let instance = match &web_options.wgpu_options.wgpu_setup {
+            egui_wgpu::WgpuSetup::CreateNew(egui_wgpu::WgpuSetupCreateNew {
+                instance_descriptor,
                 power_preference: _,
+                native_adapter_selector: _,
                 device_descriptor: _,
-            } => std::sync::Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
-                backends: supported_backends,
+            }) => wgpu::Instance::new(&wgpu::InstanceDescriptor {
+                backends: instance_descriptor.backends,
                 flags: wgpu::InstanceFlags::default(),
-                dx12_shader_compiler: wgpu::Dx12Compiler::default(),
-                gles_minor_version: wgpu::Gles3MinorVersion::default(),
-            })),
-            egui_wgpu::WgpuSetup::Existing {
-                ref instance,
+                backend_options: wgpu::BackendOptions::default(),
+            }),
+            egui_wgpu::WgpuSetup::Existing(egui_wgpu::WgpuSetupExisting {
+                instance,
                 adapter: _,
                 device: _,
                 queue: _,
-            } => instance.clone(),
+            }) => instance.clone(),
         };
 
         let surface =
@@ -327,7 +326,7 @@ impl Runner {
         let render_state = egui_wgpu::RenderState::create(
             &web_options.wgpu_options,
             &instance,
-            &surface,
+            Some(&surface),
             egui_wgpu::depth_format_from_bits(0, 0),
             1,
             web_options.dithering,

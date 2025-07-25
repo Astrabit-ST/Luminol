@@ -211,8 +211,12 @@ impl Tilepicker {
                     ..=((self.selected_tiles_bottom + 1) * 32) as f32,
             )
             .translate(canvas_rect.min.to_vec2());
-            ui.painter()
-                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+            ui.painter().rect_stroke(
+                rect,
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::WHITE),
+                egui::StrokeKind::Middle,
+            );
         }
 
         let Some(pos) = response.interact_pointer_pos() else {

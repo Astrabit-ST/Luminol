@@ -5,7 +5,7 @@ default-members = ["crates/launcher"]
 resolver = "2"
 
 [workspace.lints.rust]
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 # unsafe code is sometimes fine but in general we don't want to use it.
 unsafe_code = "warn"
 # clearly denote where you are using unsafe code in unsafe fns. in a future rust edition this will become a hard error.
@@ -14,7 +14,7 @@ unsafe_op_in_unsafe_fn = "forbid"
 elided_lifetimes_in_paths = "forbid"
 
 [workspace.lints.clippy]
-all = "warn"
+all = { level = "warn", priority = -1 }
 # we should turn these on in the future to avoid possible crashes
 # panic = "warn"
 # panic_in_result_fn = "warn"
@@ -36,7 +36,7 @@ authors = [
     "Egor Poleshko <somedevfox@gmail.com>",
 ]
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.85"
 license = "GPL-3.0"
 readme = "README.md"
 repository = "https://github.com/melody-rs/Luminol"
@@ -46,15 +46,15 @@ categories = ["games"]
 # Shared dependencies
 [workspace.dependencies]
 # * Window management, graphical user interface and 3D rendering * #
-egui = { version = "0.30.0", features = [
+egui = { version = "0.32.0", features = [
     "serde",
 ] } # Real-time stateless graphical user interface framework
-egui_extras = { version = "0.30.0", features = [
+egui_extras = { version = "0.32.0", features = [
     "svg",
     "image",
 ] } # Official add-ons to egui, like "Table", "TableBody", "Column", "DatePickerButton", etc.
-epaint = "0.30.0" # 2D graphics library for turning simple two dimensional shapes into textured triangles
-eframe = { version = "0.30.0", features = [
+epaint = "0.32.0" # 2D graphics library for turning simple two dimensional shapes into textured triangles
+eframe = { version = "0.32.0", features = [
     "wgpu",
     "accesskit",
     "persistence",
@@ -62,18 +62,18 @@ eframe = { version = "0.30.0", features = [
     "x11",
     "wayland",
 ], default-features = false } # Egui initialisation library. Responsible for creating and managing the main window and all appropriate graphics contexts
-egui-wgpu = "0.30.0" # Bindings between wgpu and egui
-egui-winit = "0.30.0" # Winit event translation library for egui
-egui_dock = "0.15.0" # Docking support for egui
-egui-notify = "0.18.0" # In-app toast notification library for egui
+egui-wgpu = "0.32.0" # Bindings between wgpu and egui
+egui-winit = "0.32.0" # Winit event translation library for egui
+egui_dock = "0.17.0" # Docking support for egui
+egui-notify = "0.20.0" # In-app toast notification library for egui
 luminol-egui-modal = { version = "0.4.0", path = "crates/egui-modal/" } # "Modals" for egui. A "Modal" is a window with custom content that requires user's immediate attention
 rfd = "0.14.1" # File picker and message dialogs
 
-wgpu = { version = "23.0.1", features = [
+wgpu = { version = "25.0.2", features = [
     "naga-ir",
 ] } # An abstraction layer for OpenGL, Vulkan, DirectX/Direct3D and Metal
-naga = "23.1.0" # Wgpu shader parser
-naga_oil = "0.16.0" # An extension to naga. Allows combining and manipulating wgpu shaders (for example, through '#import' statements)
+naga = "25.0.1" # Wgpu shader parser
+naga_oil = "0.18.0" # An extension to naga. Allows combining and manipulating wgpu shaders (for example, through '#import' statements)
 aligned-vec = "0.6.1" # Implementations of `Vec` and `Box` with runtime-definable memory alignment
 
 image = { version = "0.25.0", features = [

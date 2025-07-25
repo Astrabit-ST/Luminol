@@ -103,7 +103,7 @@ impl DatabaseView {
                             });
 
                             if vec.len() <= 999 && self.maximum.is_some_and(|m| m > 999) {
-                                egui::Frame::none().show(ui, |ui| {
+                                egui::Frame::NONE.show(ui, |ui| {
                                     ui.style_mut()
                                         .visuals
                                         .widgets

@@ -67,7 +67,7 @@ impl TopBar {
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
             {
-                ui.close_menu();
+                ui.close();
             }
 
             ui.label(if let Some(path) = update_state.filesystem.project_path() {
@@ -123,7 +123,7 @@ impl TopBar {
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
             {
-                ui.close_menu();
+                ui.close();
             }
 
             if ui.button("Preferences").clicked() {
@@ -157,7 +157,7 @@ impl TopBar {
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
             {
-                ui.close_menu();
+                ui.close();
             }
 
             ui.add_enabled_ui(update_state.filesystem.project_loaded(), |ui| {
@@ -272,7 +272,7 @@ impl TopBar {
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
             {
-                ui.close_menu();
+                ui.close();
             }
 
             if ui.button("RGSSAD Archive Manager").clicked() {
@@ -297,7 +297,7 @@ impl TopBar {
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
             {
-                ui.close_menu();
+                ui.close();
             }
 
             ui.button("Contents").clicked();
@@ -316,7 +316,7 @@ impl TopBar {
             if update_state.project_manager.is_modal_open()
                 || update_state.project_manager.is_picker_open()
             {
-                ui.close_menu();
+                ui.close();
             }
 
             if ui.button("Egui Inspection").clicked() {

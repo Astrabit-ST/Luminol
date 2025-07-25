@@ -418,7 +418,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.add(Field::new("Starting Weapon", |ui: &mut egui::Ui| {
-                                egui::Frame::none()
+                                egui::Frame::NONE
                                     .show(ui, |ui| {
                                         ui.columns(2, |columns| {
                                             modified |= columns[0]
@@ -458,7 +458,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.add(Field::new("Starting Shield", |ui: &mut egui::Ui| {
-                                egui::Frame::none()
+                                egui::Frame::NONE
                                     .show(ui, |ui| {
                                         ui.columns(2, |columns| {
                                             modified |= columns[0]
@@ -506,7 +506,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.add(Field::new("Starting Helmet", |ui: &mut egui::Ui| {
-                                egui::Frame::none()
+                                egui::Frame::NONE
                                     .show(ui, |ui| {
                                         ui.columns(2, |columns| {
                                             modified |= columns[0]
@@ -554,7 +554,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(true, |ui| {
                             ui.add(Field::new("Starting Body Armor", |ui: &mut egui::Ui| {
-                                egui::Frame::none()
+                                egui::Frame::NONE
                                     .show(ui, |ui| {
                                         ui.columns(2, |columns| {
                                             modified |= columns[0]
@@ -602,7 +602,7 @@ impl luminol_core::Window for Window {
 
                         ui.with_padded_stripe(false, |ui| {
                             ui.add(Field::new("Starting Accessory", |ui: &mut egui::Ui| {
-                                egui::Frame::none()
+                                egui::Frame::NONE
                                     .show(ui, |ui| {
                                         ui.columns(2, |columns| {
                                             modified |= columns[0]

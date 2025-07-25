@@ -42,10 +42,10 @@ pub trait UiExt {
     fn with_cross_justify_center<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
 
     /// Displays contents inside a container with spacing on the left side.
-    fn with_left_margin<R>(&mut self, m: f32, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
+    fn with_left_margin<R>(&mut self, m: i8, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
 
     /// Displays contents inside a container with spacing on the right side.
-    fn with_right_margin<R>(&mut self, m: f32, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
+    fn with_right_margin<R>(&mut self, m: i8, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
 
     /// Displays contents with a normal or faint background (useful for tables with striped rows).
     fn with_stripe<R>(&mut self, faint: bool, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R>;
@@ -95,8 +95,8 @@ impl UiExt for egui::Ui {
         )
     }
 
-    fn with_left_margin<R>(&mut self, m: f32, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        egui::Frame::none()
+    fn with_left_margin<R>(&mut self, m: i8, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
+        egui::Frame::NONE
             .outer_margin(egui::Margin {
                 left: m,
                 ..egui::Margin::ZERO
@@ -104,8 +104,8 @@ impl UiExt for egui::Ui {
             .show(self, f)
     }
 
-    fn with_right_margin<R>(&mut self, m: f32, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        egui::Frame::none()
+    fn with_right_margin<R>(&mut self, m: i8, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
+        egui::Frame::NONE
             .outer_margin(egui::Margin {
                 right: m,
                 ..egui::Margin::ZERO
@@ -114,7 +114,7 @@ impl UiExt for egui::Ui {
     }
 
     fn with_stripe<R>(&mut self, faint: bool, f: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        let frame = egui::containers::Frame::none();
+        let frame = egui::Frame::NONE;
         if faint {
             frame.fill(self.visuals().faint_bg_color)
         } else {
@@ -128,8 +128,10 @@ impl UiExt for egui::Ui {
         faint: bool,
         f: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        let frame = egui::containers::Frame::none()
-            .inner_margin(egui::Margin::symmetric(self.spacing().item_spacing.x, 0.));
+        let frame = egui::Frame::NONE.inner_margin(egui::Margin::symmetric(
+            self.spacing().item_spacing.x.ceil() as i8,
+            0,
+        ));
         if faint {
             frame.fill(self.visuals().faint_bg_color)
         } else {

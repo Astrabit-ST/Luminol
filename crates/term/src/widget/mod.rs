@@ -29,7 +29,7 @@ use alacritty_terminal::term::cell::{Cell, Flags};
 use alacritty_terminal::term::{LineDamageBounds, TermDamage, TermMode};
 use alacritty_terminal::vte::ansi::CursorShape;
 use alacritty_terminal::Grid;
-use egui::epaint::text::cursor::RCursor;
+use egui::epaint::text::cursor::CCursor;
 use luminol_config::terminal::CursorBlinking;
 
 use crate::backends::Backend;
@@ -112,6 +112,40 @@ const FILTER: egui::EventFilter = egui::EventFilter {
     vertical_arrows: true,
     escape: true,
 };
+
+#[derive(Clone, Copy)]
+struct RCursor {
+    row: usize,
+    column: usize,
+}
+
+impl RCursor {
+    fn from_ccursor(galley: &egui::Galley, cursor: CCursor) -> Self {
+        if let Some(row) = galley.rows.first() {
+            let width = row.char_count_including_newline();
+            Self {
+                row: cursor.index / width,
+                column: cursor.index % width,
+            }
+        } else {
+            Self {
+                row: 0,
+                column: cursor.index,
+            }
+        }
+    }
+
+    fn into_ccursor(&self, galley: &egui::Galley) -> CCursor {
+        CCursor {
+            index: if let Some(row) = galley.rows.first() {
+                row.char_count_including_newline() * self.row + self.column
+            } else {
+                self.column
+            },
+            prefer_next_row: false,
+        }
+    }
+}
 
 impl<T> Terminal<T>
 where
@@ -365,7 +399,7 @@ where
             let background_rect = ime_text_galley.rect.translate(response.rect.min.to_vec2());
             painter.rect_filled(
                 background_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 egui::Color32::from_rgb(40, 39, 39),
             );
             painter.galley(response.rect.min, ime_text_galley, egui::Color32::WHITE);
@@ -421,12 +455,12 @@ where
             ..rcursor_without_offset
         };
 
-        let cursor = galley.from_rcursor(rcursor);
-        let cursor_without_offset = galley.from_rcursor(rcursor_without_offset);
-
-        let mut cursor_pos = galley.pos_from_cursor(&cursor).min + response.rect.min.to_vec2();
-        let mut cursor_pos_without_offset =
-            galley.pos_from_cursor(&cursor_without_offset).min + response.rect.min.to_vec2();
+        let mut cursor_pos =
+            galley.pos_from_cursor(rcursor.into_ccursor(&galley)).min + response.rect.min.to_vec2();
+        let mut cursor_pos_without_offset = galley
+            .pos_from_cursor(rcursor_without_offset.into_ccursor(&galley))
+            .min
+            + response.rect.min.to_vec2();
 
         let cursor_rect = match cursor_shape {
             CursorShape::Block | CursorShape::HollowBlock | CursorShape::Hidden => {
@@ -444,9 +478,10 @@ where
 
         painter.rect(
             cursor_rect,
-            egui::Rounding::ZERO,
+            egui::CornerRadius::ZERO,
             inner_color,
             egui::Stroke::new(1.0, outer_color),
+            egui::StrokeKind::Inside,
         );
 
         // FIXME render to galley.rect, not response.rect. swapping them out mostly works, but the handle doesn't display quite right!
@@ -456,7 +491,7 @@ where
         let sidebar_rect = egui::Rect::from_min_size(min, size);
         painter.rect_filled(
             sidebar_rect,
-            egui::Rounding::ZERO,
+            egui::CornerRadius::ZERO,
             ui.visuals().extreme_bg_color,
         );
 
@@ -474,7 +509,7 @@ where
 
         painter.rect_filled(
             scrollbar_rect,
-            egui::Rounding::same(5.),
+            egui::CornerRadius::same(5),
             ui.visuals().widgets.active.fg_stroke.color,
         );
 
@@ -577,7 +612,8 @@ where
                     ..
                 } => {
                     let relative_pos = pos - response_pos;
-                    let cursor = galley.cursor_from_pos(relative_pos).rcursor;
+                    let cursor =
+                        RCursor::from_ccursor(&galley, galley.cursor_from_pos(relative_pos));
 
                     if term_mode.contains(TermMode::SGR_MOUSE) && modifiers.is_none() {
                         let c = if pressed { 'M' } else { 'm' };
@@ -596,7 +632,8 @@ where
                 }
                 egui::Event::PointerMoved(pos) => {
                     let relative_pos = pos - response_pos;
-                    let cursor = galley.cursor_from_pos(relative_pos).rcursor;
+                    let cursor =
+                        RCursor::from_ccursor(&galley, galley.cursor_from_pos(relative_pos));
 
                     if term_mode.contains(TermMode::SGR_MOUSE) && modifiers.is_none() {
                         let msg = format!("\x1b[<32;{};{}M", cursor.column + 1, cursor.row + 1);
@@ -636,7 +673,9 @@ where
                     term_modified = true;
                 }
                 egui::Event::MouseWheel { unit, delta, .. } => self.handle_scroll(
-                    hover_pos.map(|pos| galley.cursor_from_pos(pos.to_vec2()).rcursor),
+                    hover_pos.map(|pos| {
+                        RCursor::from_ccursor(&galley, galley.cursor_from_pos(pos.to_vec2()))
+                    }),
                     unit,
                     delta,
                 ),

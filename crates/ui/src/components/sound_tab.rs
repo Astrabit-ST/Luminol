@@ -230,7 +230,7 @@ impl SoundTab {
                                     let faint = (i + row_range.start) % 2 == 0;
                                     let res = ui.with_stripe(faint, |ui| {
                                         let entry_name = camino::Utf8Path::new(entry.file_name());
-                                        let res = ui.add(egui::SelectableLabel::new(
+                                        let res = ui.add(egui::Button::selectable(
                                             audio_file_name.as_deref() == Some(entry_name),
                                             entry_name.as_str(),
                                         ));

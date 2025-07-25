@@ -134,9 +134,9 @@ impl luminol_core::Window for Window {
                             .show(ui, |ui| {
                                 ui.add(
                                     egui::TextEdit::multiline(&mut self.normalized_report.as_str())
-                                        .layouter(&mut |ui, text, wrap_width| {
+                                        .layouter(&mut |ui, buffer, wrap_width| {
                                             // Make the text monospace and non-wrapping
-                                            egui::WidgetText::from(text)
+                                            egui::WidgetText::from(buffer.as_str())
                                                 .color(
                                                     ui.visuals()
                                                         .override_text_color

@@ -139,7 +139,7 @@ where
         self.row_index = 0;
         self.pivot_visited = false;
 
-        let response = egui::Frame::none().show(ui, |ui| {
+        let response = egui::Frame::NONE.show(ui, |ui| {
             self.render_subtree(
                 ui,
                 update_state,

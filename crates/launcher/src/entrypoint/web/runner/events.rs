@@ -759,31 +759,36 @@ pub(super) fn register_events(
                         state.zoom_factor = zoom_factor;
                     }
 
-                    if !output.copied_text.is_empty() {
-                        if let Err(e) = wasm_bindgen_futures::JsFuture::from(
-                            window
-                                .navigator()
-                                .clipboard()
-                                .write_text(&output.copied_text),
-                        )
-                        .await
-                        {
-                            tracing::warn!(
-                                "Failed to copy to clipboard: {}",
-                                e.unchecked_into::<js_sys::Error>().to_string()
-                            );
-                        }
-                    }
+                    for command in output.commands {
+                        match command {
+                            egui::OutputCommand::CopyText(text) => {
+                                if !text.is_empty() {
+                                    if let Err(e) = wasm_bindgen_futures::JsFuture::from(
+                                        window.navigator().clipboard().write_text(&text),
+                                    )
+                                    .await
+                                    {
+                                        tracing::warn!(
+                                            "Failed to copy to clipboard: {}",
+                                            e.unchecked_into::<js_sys::Error>().to_string()
+                                        );
+                                    }
+                                }
+                            }
 
-                    if let Some(url) = output.open_url {
-                        if let Err(e) = window.open_with_url_and_target(
-                            &url.url,
-                            if url.new_tab { "_blank" } else { "_self" },
-                        ) {
-                            tracing::warn!(
-                                "Failed to open URL: {}",
-                                e.unchecked_into::<js_sys::Error>().to_string()
-                            );
+                            egui::OutputCommand::CopyImage(_) => {}
+
+                            egui::OutputCommand::OpenUrl(url) => {
+                                if let Err(e) = window.open_with_url_and_target(
+                                    &url.url,
+                                    if url.new_tab { "_blank" } else { "_self" },
+                                ) {
+                                    tracing::warn!(
+                                        "Failed to open URL: {}",
+                                        e.unchecked_into::<js_sys::Error>().to_string()
+                                    );
+                                }
+                            }
                         }
                     }
                 }

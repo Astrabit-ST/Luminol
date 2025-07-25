@@ -295,9 +295,9 @@ pub fn show_frame_edit(
                 ..*ui.layout()
             },
             |ui| {
-                egui::Frame::none()
+                egui::Frame::NONE
                     .outer_margin(egui::Margin {
-                        bottom: 2. * ui.spacing().item_spacing.y,
+                        bottom: (2. * ui.spacing().item_spacing.y).ceil() as i8,
                         ..egui::Margin::ZERO
                     })
                     .show(ui, |ui| {
@@ -786,7 +786,7 @@ pub fn show_frame_edit(
         frame.cell_data[(drag_state.cell_index, 2)] = y;
     }
 
-    egui::Frame::none().show(ui, |ui| {
+    egui::Frame::NONE.show(ui, |ui| {
         let frame = &mut animation.frames[state.frame_index];
         if let (Some(i), true) = (
             frame_view.selected_cell_index,
@@ -926,7 +926,7 @@ pub fn show_frame_edit(
         .add(animation_graphic_picker.button(animation, update_state))
         .changed();
 
-    ui.allocate_new_ui(
+    ui.scope_builder(
         egui::UiBuilder {
             max_rect: Some(canvas_rect),
             ..Default::default()

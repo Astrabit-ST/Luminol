@@ -110,7 +110,7 @@ impl luminol_core::Window for super::Window {
                             let changed = ui
                                 .add(Field::new("Battler Position", |ui: &mut egui::Ui| {
                                     let mut modified = false;
-                                    let mut response = egui::Frame::none()
+                                    let mut response = egui::Frame::NONE
                                         .show(ui, |ui| {
                                             ui.columns(Position::iter().count(), |columns| {
                                                 for (i, position) in Position::iter().enumerate() {

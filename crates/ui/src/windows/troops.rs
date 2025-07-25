@@ -315,7 +315,7 @@ impl luminol_core::Window for Window {
                                 );
                             }
 
-                            egui::Frame::none().show(ui, |ui| {
+                            egui::Frame::NONE.show(ui, |ui| {
                                 if let Some(i) = self.troop_view.selected_member_index {
                                     let mut properties_modified = false;
                                     let mut properties_need_update = false;
@@ -372,47 +372,47 @@ impl luminol_core::Window for Window {
                                     }
 
                                     ui.columns(4, |columns| {
-                                        properties_modified |= columns[0]
-                                            .add(Field::new("X", |ui: &mut egui::Ui| {
-                                                let mut response =
-                                                    egui::DragValue::new(&mut troop.members[i].x)
-                                                        .range(0..=TROOP_WIDTH)
-                                                        .update_while_editing(false)
-                                                        .ui(ui);
-                                                if response.dragged() {
-                                                    response.changed = false;
-                                                    if self.previous_x.is_none() {
-                                                        self.previous_x = Some(original_x);
-                                                    }
-                                                    properties_need_update = true;
-                                                } else if self.previous_x.is_some() {
-                                                    self.previous_x = None;
-                                                    response.changed = true;
+                                        columns[0].add(Field::new("X", |ui: &mut egui::Ui| {
+                                            let response =
+                                                egui::DragValue::new(&mut troop.members[i].x)
+                                                    .range(0..=TROOP_WIDTH)
+                                                    .update_while_editing(false)
+                                                    .ui(ui);
+                                            let mut changed = response.changed();
+                                            if response.dragged() {
+                                                changed = false;
+                                                if self.previous_x.is_none() {
+                                                    self.previous_x = Some(original_x);
                                                 }
-                                                response
-                                            }))
-                                            .changed();
+                                                properties_need_update = true;
+                                            } else if self.previous_x.is_some() {
+                                                self.previous_x = None;
+                                                changed = true;
+                                            }
+                                            properties_modified |= changed;
+                                            response
+                                        }));
 
-                                        properties_modified |= columns[1]
-                                            .add(Field::new("Y", |ui: &mut egui::Ui| {
-                                                let mut response =
-                                                    egui::DragValue::new(&mut troop.members[i].y)
-                                                        .range(0..=TROOP_HEIGHT)
-                                                        .update_while_editing(false)
-                                                        .ui(ui);
-                                                if response.dragged() {
-                                                    response.changed = false;
-                                                    if self.previous_y.is_none() {
-                                                        self.previous_y = Some(original_y);
-                                                    }
-                                                    properties_need_update = true;
-                                                } else if self.previous_y.is_some() {
-                                                    self.previous_y = None;
-                                                    response.changed = true;
+                                        columns[1].add(Field::new("Y", |ui: &mut egui::Ui| {
+                                            let response =
+                                                egui::DragValue::new(&mut troop.members[i].y)
+                                                    .range(0..=TROOP_HEIGHT)
+                                                    .update_while_editing(false)
+                                                    .ui(ui);
+                                            let mut changed = response.changed();
+                                            if response.dragged() {
+                                                changed = false;
+                                                if self.previous_y.is_none() {
+                                                    self.previous_y = Some(original_y);
                                                 }
-                                                response
-                                            }))
-                                            .changed();
+                                                properties_need_update = true;
+                                            } else if self.previous_y.is_some() {
+                                                self.previous_y = None;
+                                                changed = true;
+                                            }
+                                            properties_modified |= changed;
+                                            response
+                                        }));
 
                                         properties_modified |= columns[2]
                                             .add(Field::new(
@@ -474,7 +474,7 @@ impl luminol_core::Window for Window {
                                 }
                             }
 
-                            ui.allocate_new_ui(
+                            ui.scope_builder(
                                 egui::UiBuilder {
                                     max_rect: Some(canvas_rect),
                                     ..Default::default()

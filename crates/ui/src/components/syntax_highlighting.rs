@@ -41,8 +41,8 @@ impl egui::util::cache::ComputerMut<(luminol_config::CodeTheme, &str, &str), Lay
 pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str, theme: luminol_config::CodeTheme) {
     let language = "rb";
 
-    let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), theme, string, language);
+    let mut layouter = |ui: &egui::Ui, buffer: &dyn egui::TextBuffer, _wrap_width: f32| {
+        let layout_job = highlight(ui.ctx(), theme, buffer.as_str(), language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts(|f| f.layout_job(layout_job))
     };
