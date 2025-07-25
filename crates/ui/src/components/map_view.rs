@@ -875,11 +875,11 @@ impl MapView {
                     .map_async(wgpu::MapMode::Read, move |result| {
                         let _ = tx.send(result);
                     });
-                if !graphics_state
+                if graphics_state
                     .render_state
                     .device
                     .poll(wgpu::PollType::Wait)
-                    .is_err()
+                    .is_ok()
                 {
                     return Err(color_eyre::eyre::eyre!("wgpu::Device::poll timed out").wrap_err(c));
                 }

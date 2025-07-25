@@ -24,6 +24,8 @@
 
 use super::UiExt;
 
+/// A tab for a sound (be it BGM, ME, SE, etc)
+/// Optionally can be in 'picker' mode to pick a sound effect.
 pub struct SoundTab {
     /// The source for this tab.
     pub source: luminol_audio::Source,

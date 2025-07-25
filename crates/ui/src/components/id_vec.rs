@@ -146,7 +146,7 @@ where
     }
 }
 
-impl<'a, H, F> egui::Widget for IdVecSelection<'a, H, F>
+impl<H, F> egui::Widget for IdVecSelection<'_, H, F>
 where
     H: std::hash::Hash,
     F: Fn(usize) -> String,
@@ -296,7 +296,7 @@ where
     }
 }
 
-impl<'a, H, F> egui::Widget for IdVecPlusMinusSelection<'a, H, F>
+impl<H, F> egui::Widget for IdVecPlusMinusSelection<'_, H, F>
 where
     H: std::hash::Hash,
     F: Fn(usize) -> String,
@@ -493,7 +493,7 @@ where
     }
 }
 
-impl<'a, H, F> egui::Widget for RankSelection<'a, H, F>
+impl<H, F> egui::Widget for RankSelection<'_, H, F>
 where
     H: std::hash::Hash,
     F: Fn(usize) -> String,

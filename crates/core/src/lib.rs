@@ -194,7 +194,7 @@ impl Default for ToolbarState {
     }
 }
 
-impl<'res> UpdateState<'res> {
+impl UpdateState<'_> {
     pub(crate) fn reborrow_with_edit_window<'this>(
         &'this mut self,
         edit_windows: &'this mut window::EditWindows,

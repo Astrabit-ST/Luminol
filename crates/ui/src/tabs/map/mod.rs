@@ -603,7 +603,7 @@ impl luminol_core::Tab for Tab {
                 if self.event_drag_info.as_ref().is_some_and(|info| {
                     is_delete_pressed
                         || !response.dragged_by(egui::PointerButton::Primary)
-                        || !self.view.selected_event_id.is_some_and(|id| info.id == id)
+                        || self.view.selected_event_id.is_none_or(|id| info.id != id)
                 }) {
                     let info = self.event_drag_info.take().unwrap();
 

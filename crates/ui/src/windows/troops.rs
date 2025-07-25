@@ -282,10 +282,10 @@ impl luminol_core::Window for Window {
                                 self.troop_view.hovered_member_drag_pos,
                             ) {
                                 if (troop.members[i].x, troop.members[i].y) != drag_pos {
-                                    if !self
+                                    if self
                                         .drag_state
                                         .as_ref()
-                                        .is_some_and(|drag_state| drag_state.member_index == i)
+                                        .is_none_or(|drag_state| drag_state.member_index != i)
                                     {
                                         self.drag_state = Some(DragState {
                                             member_index: i,

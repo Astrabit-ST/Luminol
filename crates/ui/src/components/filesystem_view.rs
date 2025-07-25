@@ -648,9 +648,9 @@ where
     edge: Option<indextree::NodeEdge>,
 }
 
-impl<'a, T> std::iter::FusedIterator for SelectedIter<'a, T> where T: luminol_filesystem::ReadDir {}
+impl<T> std::iter::FusedIterator for SelectedIter<'_, T> where T: luminol_filesystem::ReadDir {}
 
-impl<'a, T> Iterator for SelectedIter<'a, T>
+impl<T> Iterator for SelectedIter<'_, T>
 where
     T: luminol_filesystem::ReadDir,
 {

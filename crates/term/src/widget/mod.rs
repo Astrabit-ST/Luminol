@@ -135,7 +135,7 @@ impl RCursor {
         }
     }
 
-    fn into_ccursor(&self, galley: &egui::Galley) -> CCursor {
+    fn into_ccursor(self, galley: &egui::Galley) -> CCursor {
         CCursor {
             index: if let Some(row) = galley.rows.first() {
                 row.char_count_including_newline() * self.row + self.column
@@ -613,7 +613,7 @@ where
                 } => {
                     let relative_pos = pos - response_pos;
                     let cursor =
-                        RCursor::from_ccursor(&galley, galley.cursor_from_pos(relative_pos));
+                        RCursor::from_ccursor(galley, galley.cursor_from_pos(relative_pos));
 
                     if term_mode.contains(TermMode::SGR_MOUSE) && modifiers.is_none() {
                         let c = if pressed { 'M' } else { 'm' };
@@ -633,7 +633,7 @@ where
                 egui::Event::PointerMoved(pos) => {
                     let relative_pos = pos - response_pos;
                     let cursor =
-                        RCursor::from_ccursor(&galley, galley.cursor_from_pos(relative_pos));
+                        RCursor::from_ccursor(galley, galley.cursor_from_pos(relative_pos));
 
                     if term_mode.contains(TermMode::SGR_MOUSE) && modifiers.is_none() {
                         let msg = format!("\x1b[<32;{};{}M", cursor.column + 1, cursor.row + 1);
@@ -674,7 +674,7 @@ where
                 }
                 egui::Event::MouseWheel { unit, delta, .. } => self.handle_scroll(
                     hover_pos.map(|pos| {
-                        RCursor::from_ccursor(&galley, galley.cursor_from_pos(pos.to_vec2()))
+                        RCursor::from_ccursor(galley, galley.cursor_from_pos(pos.to_vec2()))
                     }),
                     unit,
                     delta,

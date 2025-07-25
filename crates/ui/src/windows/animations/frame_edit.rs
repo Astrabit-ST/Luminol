@@ -752,10 +752,10 @@ pub fn show_frame_edit(
         state.animation_state.is_none(),
     ) {
         if (frame.cell_data[(i, 1)], frame.cell_data[(i, 2)]) != drag_pos {
-            if !state
+            if state
                 .drag_state
                 .as_ref()
-                .is_some_and(|drag_state| drag_state.cell_index == i)
+                .is_none_or(|drag_state| drag_state.cell_index != i)
             {
                 state.drag_state = Some(super::DragState {
                     cell_index: i,

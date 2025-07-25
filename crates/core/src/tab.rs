@@ -222,7 +222,7 @@ impl EditTabs {
     }
 }
 
-impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
+impl egui_dock::TabViewer for TabViewer<'_, '_> {
     type Tab = Box<dyn Tab>;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {

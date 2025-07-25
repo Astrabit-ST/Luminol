@@ -116,9 +116,9 @@ fn get_primary_touch(
         .filter_map(|i| event.touches().get(i))
         .chain((0..event.changed_touches().length()).filter_map(|i| event.changed_touches().get(i)))
     {
-        if !state
+        if state
             .touch_id
-            .is_some_and(|id| id != egui::TouchId::from(touch.identifier()))
+            .is_none_or(|id| id == egui::TouchId::from(touch.identifier()))
         {
             state.touch_id = Some(egui::TouchId::from(touch.identifier()));
             state

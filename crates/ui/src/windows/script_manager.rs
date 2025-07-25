@@ -136,7 +136,7 @@ impl luminol_filesystem::ReadDir for ScriptsFileSystem {
                     metadata: if let Some(script) = maybe_script {
                         luminol_filesystem::Metadata {
                             is_file: true,
-                            size: script.script_text.as_bytes().len() as u64,
+                            size: script.script_text.len() as u64,
                         }
                     } else {
                         luminol_filesystem::Metadata {

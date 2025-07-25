@@ -68,7 +68,7 @@ pub struct BindGroupBuilder<'res> {
     entries: Vec<wgpu::BindGroupEntry<'res>>,
 }
 
-impl<'res> Default for BindGroupBuilder<'res> {
+impl Default for BindGroupBuilder<'_> {
     fn default() -> Self {
         Self::new()
     }

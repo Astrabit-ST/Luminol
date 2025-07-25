@@ -77,7 +77,7 @@ impl<'e, T> EnumMenuButton<'e, T> {
     }
 }
 
-impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'e, T> {
+impl<T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'_, T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         egui::ComboBox::from_id_salt(self.id)
             .selected_text(self.current_value.to_string())
@@ -103,7 +103,7 @@ impl<'e, T> EnumRadioList<'e, T> {
     }
 }
 
-impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumRadioList<'e, T> {
+impl<T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumRadioList<'_, T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
         let mut response = ui
@@ -253,7 +253,7 @@ where
     }
 }
 
-impl<'a, H, T> egui::Widget for EnumComboBox<'a, H, T>
+impl<H, T> egui::Widget for EnumComboBox<'_, H, T>
 where
     H: std::hash::Hash,
     T: strum::IntoEnumIterator + ToString,
@@ -442,7 +442,7 @@ where
     }
 }
 
-impl<'a, I, H, F> OptionalIdComboBox<'a, Option<usize>, I, H, F>
+impl<I, H, F> OptionalIdComboBox<'_, Option<usize>, I, H, F>
 where
     I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
@@ -455,7 +455,7 @@ where
     }
 }
 
-impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, I, H, F>
+impl<I, H, F> egui::Widget for OptionalIdComboBox<'_, Option<usize>, I, H, F>
 where
     I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
@@ -511,7 +511,7 @@ where
     }
 }
 
-impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, usize, I, H, F>
+impl<I, H, F> egui::Widget for OptionalIdComboBox<'_, usize, I, H, F>
 where
     I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,

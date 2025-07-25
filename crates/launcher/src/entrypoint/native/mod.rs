@@ -108,7 +108,7 @@ fn detect_deadlocks() {
                 writeln!(description, "{:#?}", t.backtrace()).unwrap();
             }
             rfd::MessageDialog::new()
-                .set_title(&format!("Deadlock #{i}"))
+                .set_title(format!("Deadlock #{i}"))
                 .set_level(rfd::MessageLevel::Error)
                 .set_description(&description)
                 .show();
