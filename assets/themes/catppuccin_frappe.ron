@@ -9,11 +9,11 @@ Visuals(
                 width: 1.0,
                 color: Color32((131, 139, 167, 255)),
             ),
-            rounding: Rounding(
-                nw: 2.0,
-                ne: 2.0,
-                sw: 2.0,
-                se: 2.0,
+            corner_radius: CornerRadius(
+                nw: 2,
+                ne: 2,
+                sw: 2,
+                se: 2,
             ),
             fg_stroke: Stroke(
                 width: 1.0,
@@ -28,11 +28,11 @@ Visuals(
                 width: 0.0,
                 color: Color32((131, 139, 167, 255)),
             ),
-            rounding: Rounding(
-                nw: 2.0,
-                ne: 2.0,
-                sw: 2.0,
-                se: 2.0,
+            corner_radius: CornerRadius(
+                nw: 2,
+                ne: 2,
+                sw: 2,
+                se: 2,
             ),
             fg_stroke: Stroke(
                 width: 1.0,
@@ -47,11 +47,11 @@ Visuals(
                 width: 1.0,
                 color: Color32((131, 139, 167, 255)),
             ),
-            rounding: Rounding(
-                nw: 3.0,
-                ne: 3.0,
-                sw: 3.0,
-                se: 3.0,
+            corner_radius: CornerRadius(
+                nw: 3,
+                ne: 3,
+                sw: 3,
+                se: 3,
             ),
             fg_stroke: Stroke(
                 width: 1.5,
@@ -66,11 +66,11 @@ Visuals(
                 width: 1.0,
                 color: Color32((131, 139, 167, 255)),
             ),
-            rounding: Rounding(
-                nw: 2.0,
-                ne: 2.0,
-                sw: 2.0,
-                se: 2.0,
+            corner_radius: CornerRadius(
+                nw: 2,
+                ne: 2,
+                sw: 2,
+                se: 2,
             ),
             fg_stroke: Stroke(
                 width: 2.0,
@@ -85,11 +85,11 @@ Visuals(
                 width: 1.0,
                 color: Color32((131, 139, 167, 255)),
             ),
-            rounding: Rounding(
-                nw: 2.0,
-                ne: 2.0,
-                sw: 2.0,
-                se: 2.0,
+            corner_radius: CornerRadius(
+                nw: 2,
+                ne: 2,
+                sw: 2,
+                se: 2,
             ),
             fg_stroke: Stroke(
                 width: 1.0,
@@ -111,19 +111,16 @@ Visuals(
     code_bg_color: Color32((41, 44, 60, 255)),
     warn_fg_color: Color32((239, 159, 118, 255)),
     error_fg_color: Color32((234, 153, 156, 255)),
-    window_rounding: Rounding(
-        nw: 6.0,
-        ne: 6.0,
-        sw: 6.0,
-        se: 6.0,
+    window_corner_radius: CornerRadius(
+        nw: 6,
+        ne: 6,
+        sw: 6,
+        se: 6,
     ),
     window_shadow: Shadow(
-        offset: Vec2(
-            x: 10.0,
-            y: 20.0,
-        ),
-        blur: 15.0,
-        spread: 0.0,
+        offset: (10, 20),
+        blur: 15,
+        spread: 0,
         color: Color32((48, 52, 70, 255)),
     ),
     window_fill: Color32((48, 52, 70, 255)),
@@ -132,20 +129,17 @@ Visuals(
         color: Color32((131, 139, 167, 255)),
     ),
     window_highlight_topmost: true,
-    menu_rounding: Rounding(
-        nw: 6.0,
-        ne: 6.0,
-        sw: 6.0,
-        se: 6.0,
+    menu_corner_radius: CornerRadius(
+        nw: 6,
+        ne: 6,
+        sw: 6,
+        se: 6,
     ),
     panel_fill: Color32((48, 52, 70, 255)),
     popup_shadow: Shadow(
-        offset: Vec2(
-            x: 6.0,
-            y: 10.0,
-        ),
-        blur: 8.0,
-        spread: 0.0,
+        offset: (6, 10),
+        blur: 8,
+        spread: 0,
         color: Color32((48, 52, 70, 255)),
     ),
     resize_corner_size: 12.0,
