@@ -226,6 +226,7 @@ impl luminol_core::Window for Window {
                                 "Editor Scale",
                                 egui::Slider::new(&mut self.troop_view.scale, 15.0..=300.0)
                                     .suffix("%")
+                                    .clamping(egui::SliderClamping::Edits)
                                     .logarithmic(true)
                                     .fixed_decimals(0),
                             ));

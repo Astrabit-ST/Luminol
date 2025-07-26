@@ -229,6 +229,7 @@ pub fn show_frame_edit(
             "Editor Scale",
             egui::Slider::new(&mut frame_view.scale, 15.0..=300.0)
                 .suffix("%")
+                .clamping(egui::SliderClamping::Edits)
                 .logarithmic(true)
                 .fixed_decimals(0),
         ));
