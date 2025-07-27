@@ -76,8 +76,13 @@ impl ButtonSprite {
 
         let visuals = ui.style().interact_selectable(&response, is_open);
         let rect = rect.expand(visuals.expansion);
-        ui.painter()
-            .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+        ui.painter().rect(
+            rect,
+            visuals.corner_radius,
+            visuals.bg_fill,
+            visuals.bg_stroke,
+            egui::StrokeKind::Middle,
+        );
 
         if let Some(this) = this {
             let viewport_size = rect.size();
@@ -88,7 +93,7 @@ impl ButtonSprite {
                 glam::vec2(translation.x, translation.y),
                 glam::Vec2::ONE,
             );
-            let callback = luminol_egui_wgpu::Callback::new_paint_callback(
+            let callback = egui_wgpu::Callback::new_paint_callback(
                 rect,
                 Painter::new(this.sprite.prepare(&update_state.graphics)),
             );
@@ -155,7 +160,7 @@ impl Entry {
             }
             let faint = (i + rows.start) % 2 == 0;
             ui.with_stripe(faint, |ui| {
-                let res = ui.add_enabled(!*invalid, egui::SelectableLabel::new(checked, text));
+                let res = ui.add_enabled(!*invalid, egui::Button::selectable(checked, text));
 
                 if res.clicked() {
                     if let Some(sprite) = load_preview_sprite(
@@ -225,11 +230,10 @@ impl PreviewSprite {
         );
 
         let painter = Painter::new(self.sprite.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                absolute_scroll_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            absolute_scroll_rect,
+            painter,
+        ));
 
         response
     }

@@ -120,7 +120,7 @@ impl Tabs {
     fn add_boxed_tab(&mut self, tab: Box<dyn Tab>) {
         // FIXME O(n)
         for (_, node) in self.dock_state.iter_all_nodes() {
-            if let egui_dock::Node::Leaf { tabs, .. } = node {
+            if let egui_dock::Node::Leaf(egui_dock::LeafNode { tabs, .. }) = node {
                 if tabs.iter().any(|t| t.id() == tab.id()) {
                     return;
                 }
@@ -149,7 +149,7 @@ impl Tabs {
                 let mut empty_leaves = Vec::new();
 
                 for (j, node) in tree.iter_mut().enumerate() {
-                    if let egui_dock::Node::Leaf { active, tabs, .. } = node {
+                    if let egui_dock::Node::Leaf(egui_dock::LeafNode { active, tabs, .. }) = node {
                         tabs.retain(&mut f);
 
                         if !tabs.is_empty() {
@@ -222,7 +222,7 @@ impl EditTabs {
     }
 }
 
-impl<'a, 'res> egui_dock::TabViewer for TabViewer<'a, 'res> {
+impl egui_dock::TabViewer for TabViewer<'_, '_> {
     type Tab = Box<dyn Tab>;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {

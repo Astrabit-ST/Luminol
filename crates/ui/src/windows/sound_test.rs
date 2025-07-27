@@ -24,9 +24,6 @@
 
 use strum::IntoEnumIterator;
 
-/// A tab for a sound (be it BGM, ME, SE, etc)
-/// Optionally can be in 'picker' mode to pick a sound effect.
-
 /// A simple sound test window.
 pub struct Window {
     sources: Vec<crate::components::SoundTab>,

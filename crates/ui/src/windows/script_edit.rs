@@ -58,7 +58,7 @@ impl luminol_core::Window for Window {
             .show(ctx, |ui| {
                 egui::SidePanel::left("script_edit_script_panel").show_inside(ui, |ui| {
                     egui::ScrollArea::both()
-                        .id_source(
+                        .id_salt(
                             update_state
                                 .project_config
                                 .as_ref()
@@ -178,11 +178,11 @@ impl luminol_core::Tab for ScriptTab {
             }
         });
 
-        let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+        let mut layouter = |ui: &egui::Ui, buffer: &dyn egui::TextBuffer, wrap_width: f32| {
             let mut layout_job = crate::components::syntax_highlighting::highlight(
                 ui.ctx(),
                 update_state.global_config.theme,
-                string,
+                buffer.as_str(),
                 "rb",
             );
             layout_job.wrap.max_width = wrap_width;
@@ -190,7 +190,7 @@ impl luminol_core::Tab for ScriptTab {
         };
 
         egui::ScrollArea::vertical()
-            .id_source(
+            .id_salt(
                 update_state
                     .project_config
                     .as_ref()

@@ -61,8 +61,8 @@ pub(super) async fn get_subdir_create(
         let Some(path_element) = path_iter.next() else {
             return Some(dir);
         };
-        let mut options = web_sys::FileSystemGetDirectoryOptions::new();
-        options.create(true);
+        let options = web_sys::FileSystemGetDirectoryOptions::new();
+        options.set_create(true);
         if let Ok(subdir) =
             to_future(dir.get_directory_handle_with_options(path_element, &options)).await
         {

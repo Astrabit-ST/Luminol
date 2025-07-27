@@ -273,9 +273,9 @@ impl luminol_core::Tab for Tab {
         // Display the toolbar.
         // FIXME: find a proper place for this toolbar! it looks very out of place right now.
         egui::TopBottomPanel::top(format!("map_{}_toolbar", self.id)).show_inside(ui, |ui| {
-            egui::Frame::none()
+            egui::Frame::NONE
                 .outer_margin(egui::Margin {
-                    bottom: ui.spacing().item_spacing.y,
+                    bottom: ui.spacing().item_spacing.y.ceil() as i8,
                     ..egui::Margin::ZERO
                 })
                 .show(ui, |ui| {
@@ -283,13 +283,15 @@ impl luminol_core::Tab for Tab {
                         ui.add(
                             egui::Slider::new(&mut self.view.scale, 15.0..=300.)
                                 .text("Scale")
+                                .suffix("%")
+                                .clamping(egui::SliderClamping::Edits)
                                 .logarithmic(true)
                                 .fixed_decimals(0),
                         );
 
                         ui.separator();
 
-                        ui.menu_button(
+                        egui::containers::menu::MenuButton::new(
                             // Format the text based on what layer is selected.
                             match self.view.selected_layer {
                                 SelectedLayer::Events => "Events ⏷".to_string(),
@@ -297,84 +299,91 @@ impl luminol_core::Tab for Tab {
                                     format!("Layer {} ⏷", layer + 1)
                                 }
                             },
-                            |ui| {
-                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                        )
+                        .config(
+                            egui::containers::menu::MenuConfig::new()
+                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
+                        )
+                        .ui(ui, |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
-                                // TODO: Add layer enable button
-                                // Display all layers.
-                                egui::Grid::new(self.id().with("layer_select"))
-                                    .striped(true)
-                                    .show(ui, |ui| {
-                                        ui.label(egui::RichText::new("Panorama").underline());
-                                        ui.checkbox(&mut self.view.map.settings.pano_enabled, "👁");
-                                        ui.end_row();
+                            // TODO: Add layer enable button
+                            // Display all layers.
+                            egui::Grid::new(self.id().with("layer_select"))
+                                .striped(true)
+                                .show(ui, |ui| {
+                                    ui.label(egui::RichText::new("Panorama").underline());
+                                    ui.checkbox(&mut self.view.map.settings.pano_enabled, "👁");
+                                    ui.end_row();
 
-                                        for (index, layer) in self
-                                            .view
-                                            .map
-                                            .tiles
-                                            .enabled_layers
-                                            .iter_mut()
-                                            .enumerate()
-                                        {
-                                            ui.columns(1, |columns| {
-                                                columns[0].selectable_value(
-                                                    &mut self.view.selected_layer,
-                                                    SelectedLayer::Tiles(index),
-                                                    format!("Layer {}", index + 1),
-                                                );
-                                            });
-                                            ui.checkbox(layer, "👁");
-                                            ui.end_row();
-                                        }
-
-                                        // Display event layer.
+                                    for (index, layer) in
+                                        self.view.map.tiles.enabled_layers.iter_mut().enumerate()
+                                    {
                                         ui.columns(1, |columns| {
                                             columns[0].selectable_value(
                                                 &mut self.view.selected_layer,
-                                                SelectedLayer::Events,
-                                                egui::RichText::new("Events").italics(),
+                                                SelectedLayer::Tiles(index),
+                                                format!("Layer {}", index + 1),
                                             );
                                         });
-                                        ui.checkbox(&mut self.view.map.settings.event_enabled, "👁");
+                                        ui.checkbox(layer, "👁");
                                         ui.end_row();
+                                    }
 
-                                        ui.label(egui::RichText::new("Fog").underline());
-                                        ui.checkbox(&mut self.view.map.settings.fog_enabled, "👁");
-                                        ui.end_row();
-
-                                        ui.label(egui::RichText::new("Collision").underline());
-                                        ui.checkbox(&mut self.view.map.settings.coll_enabled, "👁");
-                                        ui.end_row();
-
-                                        ui.label(egui::RichText::new("Grid").underline());
-                                        ui.checkbox(&mut self.view.map.settings.grid_enabled, "👁");
-                                        ui.end_row();
+                                    // Display event layer.
+                                    ui.columns(1, |columns| {
+                                        columns[0].selectable_value(
+                                            &mut self.view.selected_layer,
+                                            SelectedLayer::Events,
+                                            egui::RichText::new("Events").italics(),
+                                        );
                                     });
-                            },
-                        );
+                                    ui.checkbox(&mut self.view.map.settings.event_enabled, "👁");
+                                    ui.end_row();
+
+                                    ui.label(egui::RichText::new("Fog").underline());
+                                    ui.checkbox(&mut self.view.map.settings.fog_enabled, "👁");
+                                    ui.end_row();
+
+                                    ui.label(egui::RichText::new("Collision").underline());
+                                    ui.checkbox(&mut self.view.map.settings.coll_enabled, "👁");
+                                    ui.end_row();
+
+                                    ui.label(egui::RichText::new("Grid").underline());
+                                    ui.checkbox(&mut self.view.map.settings.grid_enabled, "👁");
+                                    ui.end_row();
+                                });
+                        });
 
                         ui.separator();
 
-                        ui.menu_button("Display options ⏷", |ui| {
-                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-
-                            ui.checkbox(&mut self.view.visible_display, "Display visible area")
-                                .on_hover_text("Display the visible area in-game (640x480)");
-                            ui.checkbox(&mut self.view.move_preview, "Preview event move routes")
-                                .on_hover_text("Preview event page move routes");
-                            ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
-                                .on_hover_text("Snaps the viewport to the tile grid");
-                            ui.checkbox(
-                                &mut self.view.darken_unselected_layers,
-                                "Darken unselected layers",
+                        egui::containers::menu::MenuButton::new("Display options ⏷")
+                            .config(
+                                egui::containers::menu::MenuConfig::new()
+                                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
                             )
-                            .on_hover_text("Toggles darkening unselected layers");
-                            ui.checkbox(&mut self.view.display_tile_ids, "Display tile IDs")
-                                .on_disabled_hover_text(
-                                    "Display the tile IDs of the currently selected layer",
-                                );
-                        });
+                            .ui(ui, |ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
+                                ui.checkbox(&mut self.view.visible_display, "Display visible area")
+                                    .on_hover_text("Display the visible area in-game (640x480)");
+                                ui.checkbox(
+                                    &mut self.view.move_preview,
+                                    "Preview event move routes",
+                                )
+                                .on_hover_text("Preview event page move routes");
+                                ui.checkbox(&mut self.view.snap_to_grid, "Snap to grid")
+                                    .on_hover_text("Snaps the viewport to the tile grid");
+                                ui.checkbox(
+                                    &mut self.view.darken_unselected_layers,
+                                    "Darken unselected layers",
+                                )
+                                .on_hover_text("Toggles darkening unselected layers");
+                                ui.checkbox(&mut self.view.display_tile_ids, "Display tile IDs")
+                                    .on_disabled_hover_text(
+                                        "Display the tile IDs of the currently selected layer",
+                                    );
+                            });
 
                         ui.separator();
 
@@ -548,7 +557,7 @@ impl luminol_core::Tab for Tab {
             .max_width(tilepicker_default_width)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::both()
-                    .id_source(
+                    .id_salt(
                         update_state
                             .project_config
                             .as_ref()
@@ -603,7 +612,7 @@ impl luminol_core::Tab for Tab {
                 if self.event_drag_info.as_ref().is_some_and(|info| {
                     is_delete_pressed
                         || !response.dragged_by(egui::PointerButton::Primary)
-                        || !self.view.selected_event_id.is_some_and(|id| info.id == id)
+                        || self.view.selected_event_id.is_none_or(|id| info.id != id)
                 }) {
                     let info = self.event_drag_info.take().unwrap();
 

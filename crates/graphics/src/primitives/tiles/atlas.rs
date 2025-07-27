@@ -373,7 +373,7 @@ impl Atlas {
 }
 
 fn write_texture_region<P>(
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     texture: &wgpu::Texture,
     image: image::SubImage<&image::ImageBuffer<P, Vec<P::Subpixel>>>,
     (dest_x, dest_y): (u32, u32),
@@ -391,7 +391,7 @@ fn write_texture_region<P>(
     let offset = (y * inner_width + x) * std::mem::size_of::<P>() as u32;
 
     render_state.queue.write_texture(
-        wgpu::ImageCopyTexture {
+        wgpu::TexelCopyTextureInfo {
             texture,
             mip_level: 0,
             origin: wgpu::Origin3d {
@@ -402,7 +402,7 @@ fn write_texture_region<P>(
             aspect: wgpu::TextureAspect::All,
         },
         bytes,
-        wgpu::ImageDataLayout {
+        wgpu::TexelCopyBufferLayout {
             offset: offset as wgpu::BufferAddress,
             bytes_per_row: Some(stride),
             rows_per_image: None,

@@ -144,11 +144,10 @@ impl TroopView {
         );
 
         let painter = luminol_graphics::Painter::new(self.troop.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                canvas_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            canvas_rect,
+            painter,
+        ));
 
         let offset = canvas_center.to_vec2() + self.pan;
 
@@ -174,6 +173,7 @@ impl TroopView {
             ),
             5.,
             egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+            egui::StrokeKind::Middle,
         );
 
         // Find the troop member that the cursor is hovering over; if multiple are hovered we
@@ -252,6 +252,7 @@ impl TroopView {
                         egui::Color32::WHITE
                     },
                 ),
+                egui::StrokeKind::Middle,
             );
         }
 
@@ -261,8 +262,12 @@ impl TroopView {
             .and_then(|i| self.troop.members().get(i))
         {
             let rect = (member.rect * scale).translate(offset);
-            ui.painter()
-                .rect_stroke(rect, 5., egui::Stroke::new(3., egui::Color32::YELLOW));
+            ui.painter().rect_stroke(
+                rect,
+                5.,
+                egui::Stroke::new(3., egui::Color32::YELLOW),
+                egui::StrokeKind::Middle,
+            );
         }
 
         // Draw a magenta rectangle on the border of the selected member
@@ -275,6 +280,7 @@ impl TroopView {
                 rect,
                 5.,
                 egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
+                egui::StrokeKind::Middle,
             );
         }
 

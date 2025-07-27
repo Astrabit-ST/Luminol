@@ -106,7 +106,7 @@ impl Quad {
     }
 
     pub fn into_buffer(
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         this: &[Self],
         extents: wgpu::Extent3d,
     ) -> (wgpu::Buffer, usize) {

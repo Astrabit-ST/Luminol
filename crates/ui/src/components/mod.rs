@@ -77,9 +77,9 @@ impl<'e, T> EnumMenuButton<'e, T> {
     }
 }
 
-impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'e, T> {
+impl<T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumMenuButton<'_, T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        egui::ComboBox::from_id_source(self.id)
+        egui::ComboBox::from_id_salt(self.id)
             .selected_text(self.current_value.to_string())
             .show_ui(ui, |ui| {
                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
@@ -103,7 +103,7 @@ impl<'e, T> EnumRadioList<'e, T> {
     }
 }
 
-impl<'e, T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumRadioList<'e, T> {
+impl<T: ToString + PartialEq + strum::IntoEnumIterator> egui::Widget for EnumRadioList<'_, T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
         let mut response = ui
@@ -253,7 +253,7 @@ where
     }
 }
 
-impl<'a, H, T> egui::Widget for EnumComboBox<'a, H, T>
+impl<H, T> egui::Widget for EnumComboBox<'_, H, T>
 where
     H: std::hash::Hash,
     T: strum::IntoEnumIterator + ToString,
@@ -262,7 +262,7 @@ where
         let mut changed = false;
         let available_width = ui.available_width() - ui.spacing().item_spacing.x;
         let width = self.max_width.min(available_width);
-        let mut response = egui::ComboBox::from_id_source(&self.id_source)
+        let mut response = egui::ComboBox::from_id_salt(&self.id_source)
             .wrap()
             .width(width)
             .selected_text(self.reference.to_string())
@@ -336,10 +336,10 @@ where
         let source = egui::Id::new(&self.id_source);
         let state_id = ui.make_persistent_id(source).with("OptionalIdComboBox");
         let popup_id = ui.make_persistent_id(source).with("popup");
-        let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
+        let is_popup_open = egui::Popup::is_id_open(ui.ctx(), popup_id);
 
         let mut changed = false;
-        let inner_response = egui::ComboBox::from_id_source(&self.id_source)
+        let inner_response = egui::ComboBox::from_id_salt(&self.id_source)
             .wrap()
             .width(ui.available_width() - ui.spacing().item_spacing.x)
             .selected_text(formatter(&self))
@@ -424,7 +424,7 @@ where
 
         if inner_response.inner == Some(true) {
             // Force the combo box to stay open if the search box was clicked
-            ui.memory_mut(|m| m.open_popup(popup_id));
+            egui::Popup::open_id(ui.ctx(), popup_id);
         } else if inner_response.inner.is_none()
             && ui.data(|d| {
                 d.get_temp::<String>(state_id)
@@ -442,7 +442,7 @@ where
     }
 }
 
-impl<'a, I, H, F> OptionalIdComboBox<'a, Option<usize>, I, H, F>
+impl<I, H, F> OptionalIdComboBox<'_, Option<usize>, I, H, F>
 where
     I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
@@ -455,7 +455,7 @@ where
     }
 }
 
-impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, Option<usize>, I, H, F>
+impl<I, H, F> egui::Widget for OptionalIdComboBox<'_, Option<usize>, I, H, F>
 where
     I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,
@@ -511,7 +511,7 @@ where
     }
 }
 
-impl<'a, I, H, F> egui::Widget for OptionalIdComboBox<'a, usize, I, H, F>
+impl<I, H, F> egui::Widget for OptionalIdComboBox<'_, usize, I, H, F>
 where
     I: Iterator<Item = usize> + Clone,
     H: std::hash::Hash,

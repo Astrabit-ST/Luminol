@@ -292,7 +292,7 @@ where
             },
             |ui| {
                 egui::ScrollArea::vertical()
-                    .id_source("luminol_path_cache_debug_ui")
+                    .id_salt("luminol_path_cache_debug_ui")
                     .show_rows(
                         ui,
                         ui.text_style_height(&egui::TextStyle::Body),

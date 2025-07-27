@@ -142,24 +142,24 @@ impl ModifiedState {
 #[cfg(target_arch = "wasm32")]
 impl ModifiedState {
     pub fn get(&self) -> bool {
-        self.modified.load(std::sync::atomic::Ordering::Relaxed)
+        self.modified.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub fn get_this_frame(&self) -> bool {
         self.modified_this_frame
-            .load(std::sync::atomic::Ordering::Relaxed)
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub fn set(&self, val: bool) {
         self.modified
-            .store(val, std::sync::atomic::Ordering::Relaxed);
+            .store(val, std::sync::atomic::Ordering::SeqCst);
         self.modified_this_frame
-            .store(val, std::sync::atomic::Ordering::Relaxed);
+            .store(val, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub fn set_this_frame(&self, val: bool) {
         self.modified_this_frame
-            .store(val, std::sync::atomic::Ordering::Relaxed);
+            .store(val, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -194,7 +194,7 @@ impl Default for ToolbarState {
     }
 }
 
-impl<'res> UpdateState<'res> {
+impl UpdateState<'_> {
     pub(crate) fn reborrow_with_edit_window<'this>(
         &'this mut self,
         edit_windows: &'this mut window::EditWindows,

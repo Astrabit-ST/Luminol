@@ -21,6 +21,7 @@
 // it with Steamworks API by Valve Corporation, containing parts covered by
 // terms of the Steamworks API by Valve Corporation, the licensors of this
 // Program grant you additional permission to convey the resulting work.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![cfg_attr(target_arch = "wasm32", no_main)] // there is no main function in web builds
 
 shadow_rs::shadow!(build);

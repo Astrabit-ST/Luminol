@@ -25,6 +25,9 @@
 use color_eyre::Section;
 use itertools::Itertools;
 
+const FONT_SIZE: f32 = 16.;
+const DURATION: std::time::Duration = std::time::Duration::from_secs(7);
+
 /// A toasts management struct.
 pub struct Toasts {
     inner: egui_notify::Toasts,
@@ -58,22 +61,22 @@ impl Toasts {
     #[doc(hidden)]
     pub fn _i_inner(&mut self, caption: impl Into<String>) {
         self.inner
-            .info(caption)
-            .set_duration(Some(std::time::Duration::from_secs(7)));
+            .info(egui::RichText::new(caption).size(FONT_SIZE))
+            .duration(Some(DURATION));
     }
 
     #[doc(hidden)]
     pub fn _w_inner(&mut self, caption: impl Into<String>) {
         self.inner
-            .warning(caption)
-            .set_duration(Some(std::time::Duration::from_secs(7)));
+            .warning(egui::RichText::new(caption).size(FONT_SIZE))
+            .duration(Some(DURATION));
     }
 
     #[doc(hidden)]
     pub fn _b_inner(&mut self, caption: impl Into<String>) {
         self.inner
-            .basic(caption)
-            .set_duration(Some(std::time::Duration::from_secs(7)));
+            .basic(egui::RichText::new(caption).size(FONT_SIZE))
+            .duration(Some(DURATION));
     }
 
     #[doc(hidden)]
@@ -92,17 +95,21 @@ impl Toasts {
         #[cfg(target_arch = "wasm32")]
         let help = "Check the browser developer console for more details";
 
-        if error.chain().len() <= 1 {
-            self.inner.error(format!("{}\n\n{}", error, help,))
-        } else {
-            self.inner.error(format!(
-                "{}\n\n{}\n\n{}",
-                error,
-                error.chain().skip(1).map(|e| e.to_string()).join("\n"),
-                help
-            ))
-        }
-        .set_duration(Some(std::time::Duration::from_secs(7)));
+        self.inner
+            .error(
+                egui::RichText::new(if error.chain().len() <= 1 {
+                    format!("{}\n\n{}", error, help,)
+                } else {
+                    format!(
+                        "{}\n\n{}\n\n{}",
+                        error,
+                        error.chain().skip(1).map(|e| e.to_string()).join("\n"),
+                        help,
+                    )
+                })
+                .size(FONT_SIZE),
+            )
+            .duration(Some(DURATION));
     }
 }
 

@@ -112,7 +112,7 @@ impl luminol_core::Window for Window {
             .open(&mut window_open)
             .show(ctx, |ui| {
                 egui::ScrollArea::both()
-                    .id_source(
+                    .id_salt(
                         update_state
                             .project_config
                             .as_ref()

@@ -23,6 +23,7 @@ use crate::FileSystem as _;
 use crate::{archiver, host, list, path_cache};
 use crate::{DirEntry, Error, Metadata, OpenFlags, Result};
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Default)]
 pub enum FileSystem {
     #[default]

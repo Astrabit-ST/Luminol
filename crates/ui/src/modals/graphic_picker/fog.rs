@@ -239,7 +239,7 @@ impl Modal {
                                         ui.with_stripe(faint, |ui| {
                                             let res = ui.add_enabled(
                                                 !*invalid,
-                                                egui::SelectableLabel::new(checked, text),
+                                                egui::Button::selectable(checked, text),
                                             );
 
                                             if res.clicked() {

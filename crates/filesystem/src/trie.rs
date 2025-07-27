@@ -27,9 +27,9 @@ enum FileSystemTrieDirIterInner<'a, T> {
     Prefix(std::iter::Once<(&'a str, Option<&'a T>)>),
 }
 
-impl<'a, T> std::iter::FusedIterator for FileSystemTrieDirIter<'a, T> {}
+impl<T> std::iter::FusedIterator for FileSystemTrieDirIter<'_, T> {}
 
-impl<'a, T> std::iter::ExactSizeIterator for FileSystemTrieDirIter<'a, T> {
+impl<T> std::iter::ExactSizeIterator for FileSystemTrieDirIter<'_, T> {
     fn len(&self) -> usize {
         match &self.0 {
             FileSystemTrieDirIterInner::Direct(_, len) => *len,
@@ -60,7 +60,7 @@ pub struct FileSystemTrieIter<'a, T> {
     dir_iter: Option<(camino::Utf8PathBuf, qp_trie::Iter<'a, BString, Option<T>>)>,
 }
 
-impl<'a, T> std::iter::FusedIterator for FileSystemTrieIter<'a, T> {}
+impl<T> std::iter::FusedIterator for FileSystemTrieIter<'_, T> {}
 
 impl<'a, T> Iterator for FileSystemTrieIter<'a, T> {
     type Item = (camino::Utf8PathBuf, &'a T);
@@ -210,7 +210,7 @@ impl<T> FileSystemTrie<T> {
             return false;
         };
         let dir = path.parent().unwrap_or(camino::Utf8Path::new(""));
-        self.0.get_str(dir.as_str()).map_or(false, |dir_trie| {
+        self.0.get_str(dir.as_str()).is_some_and(|dir_trie| {
             dir_trie
                 .get_str(filename)
                 .and_then(|o| o.as_ref())

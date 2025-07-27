@@ -81,7 +81,7 @@ impl App {
     /// Called once before the first frame.
     #[must_use]
     pub fn new(
-        cc: &luminol_eframe::CreationContext<'_>,
+        cc: &eframe::CreationContext<'_>,
         report: Option<String>,
         modified: luminol_core::ModifiedState,
         #[cfg(not(target_arch = "wasm32"))] log_byte_rx: std::sync::mpsc::Receiver<u8>,
@@ -203,7 +203,7 @@ impl App {
 
         let_with_mut_on_native!(
             global_config,
-            luminol_eframe::get_value(storage, "SavedState").unwrap_or_default()
+            eframe::get_value(storage, "SavedState").unwrap_or_default()
         );
         let_with_mut_on_native!(project_config, None);
 
@@ -229,7 +229,7 @@ impl App {
             }
         }
 
-        if let Some(style) = luminol_eframe::get_value::<egui::Style>(storage, "EguiStyle") {
+        if let Some(style) = eframe::get_value::<egui::Style>(storage, "EguiStyle") {
             cc.egui_ctx.set_style(style);
         }
 
@@ -295,13 +295,13 @@ impl App {
     }
 }
 
-impl luminol_eframe::App for App {
+impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut luminol_eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         ctx.input(|i| {
             if let Some(f) = i.raw.dropped_files.first() {
-                super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Relaxed);
+                super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Release);
 
                 let path = f.path.clone().expect("dropped file has no path");
                 let path = camino::Utf8PathBuf::from_path_buf(path).expect("path was not utf8");
@@ -422,7 +422,7 @@ impl luminol_eframe::App for App {
 
         self.lumi.ui(ctx);
 
-        super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Relaxed);
+        super::RESTART_AFTER_PANIC.store(true, std::sync::atomic::Ordering::Release);
 
         self.bytes_loader.load_unloaded_files(ctx, &self.filesystem);
 
@@ -441,9 +441,9 @@ impl luminol_eframe::App for App {
     }
 
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn luminol_eframe::Storage) {
-        luminol_eframe::set_value(storage, "EguiStyle", &self.egui_ctx.style());
-        luminol_eframe::set_value(storage, "SavedState", &self.global_config);
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, "EguiStyle", &self.egui_ctx.style());
+        eframe::set_value(storage, "SavedState", &self.global_config);
     }
 
     fn persist_egui_memory(&self) -> bool {

@@ -6,8 +6,12 @@ use crate::{
 use std::{rc::Rc, sync::Arc};
 use wasm_bindgen::{closure::Closure, prelude::wasm_bindgen, JsCast};
 
+mod runner;
+
 type PanicSender =
     Arc<parking_lot::lock_api::Mutex<parking_lot::RawMutex, Option<oneshot::Sender<String>>>>;
+
+type BeforeUnloadClosure = Closure<dyn Fn(web_sys::BeforeUnloadEvent)>;
 
 const CANVAS_ID: &str = "luminol-canvas";
 
@@ -17,10 +21,8 @@ struct WorkerData {
     report: Option<String>,
     audio: luminol_audio::Audio,
     modified: luminol_core::ModifiedState,
-    prefers_color_scheme_dark: Option<bool>,
     fs_worker_channels: luminol_filesystem::web::WorkerChannels,
-    runner_worker_channels: luminol_eframe::web::WorkerChannels,
-    runner_panic_tx: std::sync::Arc<parking_lot::Mutex<Option<oneshot::Sender<()>>>>,
+    runner: runner::Runner,
 }
 
 #[wasm_bindgen(
@@ -128,7 +130,10 @@ fn setup_hooks(panic_tx: PanicSender) {
     eyre_hook
         .install()
         .expect("failed to install color-eyre hooks");
+    let old_panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        old_panic_hook(info);
+
         let report = panic_hook.panic_report(info).to_string();
         web_sys::console::log_1(&report.as_str().into());
 
@@ -167,20 +172,13 @@ fn get_canvases() -> (web_sys::HtmlCanvasElement, web_sys::OffscreenCanvas) {
         .unchecked_into::<web_sys::HtmlCanvasElement>();
     document
         .get_element_by_id(CANVAS_ID)
-        .expect(format!("could not find an element with the id of `{CANVAS_ID}`").as_str())
+        .unwrap_or_else(|| panic!("could not find an element with the id of `{CANVAS_ID}`"))
         .replace_children_with_node_1(&canvas);
     let offscreen_canvas = canvas
         .transfer_control_to_offscreen()
         .expect("could not transfer canvas control to offscreen");
 
     (canvas, offscreen_canvas)
-}
-fn prefers_color_scheme_dark() -> Option<bool> {
-    let window = web_sys::window().expect("could not get `window` object");
-    window
-        .match_media("(prefers-color-scheme: dark)")
-        .unwrap()
-        .map(|x| x.matches())
 }
 
 pub fn init_fs() -> luminol_filesystem::web::WorkerChannels {
@@ -193,32 +191,20 @@ pub fn launch_worker(
     canvas: web_sys::HtmlCanvasElement,
     offscreen_canvas: web_sys::OffscreenCanvas,
     report: Option<String>,
-    prefers_color_scheme_dark: Option<bool>,
     fs_worker_channels: luminol_filesystem::web::WorkerChannels,
     worker_cell: Rc<once_cell::unsync::OnceCell<web_sys::Worker>>,
-    before_unload_cell: Rc<std::cell::RefCell<Option<Closure<dyn Fn(web_sys::BeforeUnloadEvent)>>>>,
+    before_unload_cell: Rc<std::cell::RefCell<Option<BeforeUnloadClosure>>>,
 ) {
     let window = web_sys::window().expect("could not get `window` object");
 
-    let (runner_worker_channels, runner_main_channels) = luminol_eframe::web::channels();
-    let runner_panic_tx =
-        luminol_eframe::WebRunner::setup_main_thread_hooks(luminol_eframe::web::MainState {
-            inner: Default::default(),
-            text_agent: Default::default(),
-            canvas: canvas.clone(),
-            channels: runner_main_channels,
-        })
-        .expect("unable to setup web runner main thread hooks");
     let modified_state = luminol_core::ModifiedState::default();
 
     *WORKER_DATA.lock() = Some(WorkerData {
         report,
         audio: luminol_audio::Audio::default(),
         modified: modified_state.clone(),
-        prefers_color_scheme_dark,
         fs_worker_channels,
-        runner_worker_channels,
-        runner_panic_tx,
+        runner: runner::Runner::new(canvas.clone()).expect("could not initialize web runner"),
     });
 
     // Show confirmation dialogue if the user tries to close the browser tab while there are
@@ -240,9 +226,9 @@ pub fn launch_worker(
 
     canvas.focus().expect("could not focus the canvas");
 
-    let mut worker_options = web_sys::WorkerOptions::new();
-    worker_options.name("luminol-primary");
-    worker_options.type_(web_sys::WorkerType::Module);
+    let worker_options = web_sys::WorkerOptions::new();
+    worker_options.set_name("luminol-primary");
+    worker_options.set_type(web_sys::WorkerType::Module);
     let worker = web_sys::Worker::new_with_options("./worker.js", &worker_options)
         .expect("failed to spawn web worker");
     worker_cell.set(worker.clone()).unwrap();
@@ -263,9 +249,7 @@ pub fn run() -> Result<()> {
     let report = get_panic_report();
 
     let worker_cell = Rc::new(once_cell::unsync::OnceCell::<web_sys::Worker>::new());
-    let before_unload_cell = Rc::new(std::cell::RefCell::new(
-        None::<Closure<dyn Fn(web_sys::BeforeUnloadEvent)>>,
-    ));
+    let before_unload_cell = Rc::new(std::cell::RefCell::new(None::<BeforeUnloadClosure>));
     let (panic_tx, panic_rx) = oneshot::channel();
     let panic_tx = Arc::new(parking_lot::Mutex::new(Some(panic_tx)));
 
@@ -288,7 +272,7 @@ pub fn run() -> Result<()> {
                     );
                 }
 
-                if RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Relaxed) {
+                if RESTART_AFTER_PANIC.load(std::sync::atomic::Ordering::Acquire) {
                     set_panic_report(report);
                 } else {
                     handle_fatal_error_str(report);
@@ -315,8 +299,6 @@ pub fn run() -> Result<()> {
 
     /* Create canvases */
     let (canvas, offscreen_canvas) = get_canvases();
-    /* Check if the user prefers the dark colour scheme */
-    let prefers_color_scheme_dark = prefers_color_scheme_dark();
 
     /* Initialise the file system driver */
     let fs_worker_channels = init_fs();
@@ -325,7 +307,6 @@ pub fn run() -> Result<()> {
         canvas,
         offscreen_canvas,
         report,
-        prefers_color_scheme_dark,
         fs_worker_channels,
         worker_cell,
         before_unload_cell,
@@ -340,26 +321,21 @@ pub async fn worker_start(canvas: web_sys::OffscreenCanvas) {
         report,
         audio,
         modified,
-        prefers_color_scheme_dark,
         fs_worker_channels,
-        runner_worker_channels,
-        runner_panic_tx,
+        runner,
     } = WORKER_DATA.lock().take().unwrap();
 
     luminol_filesystem::host::FileSystem::setup_worker_channels(fs_worker_channels);
 
-    let web_options = luminol_eframe::WebOptions::default();
+    let web_options = eframe::WebOptions::default();
 
-    luminol_eframe::WebRunner::new(runner_panic_tx)
-        .start(
+    runner
+        .run(
+            Box::new(|cc| Box::new(crate::app::App::new(cc, report, modified, audio))),
+            "astrabit.luminol",
             canvas,
             web_options,
-            Box::new(|cc| Ok(Box::new(crate::app::App::new(cc, report, modified, audio)))),
-            luminol_eframe::web::WorkerOptions {
-                prefers_color_scheme_dark,
-                channels: runner_worker_channels,
-            },
         )
         .await
-        .expect("failed to start eframe");
+        .expect("failed to start web runner");
 }

@@ -56,7 +56,7 @@ impl Autotiles {
         Autotiles { data, uniform }
     }
 
-    pub fn inc_ani_index(&mut self, render_state: &luminol_egui_wgpu::RenderState) {
+    pub fn inc_ani_index(&mut self, render_state: &egui_wgpu::RenderState) {
         self.data.ani_index = self.data.ani_index.wrapping_add(1);
         self.regen_buffer(render_state);
     }
@@ -65,7 +65,7 @@ impl Autotiles {
         &self.uniform
     }
 
-    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         render_state
             .queue
             .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));

@@ -83,7 +83,7 @@ impl Graphic {
         self.data.hue as i32
     }
 
-    pub fn set_hue(&mut self, render_state: &luminol_egui_wgpu::RenderState, hue: i32) {
+    pub fn set_hue(&mut self, render_state: &egui_wgpu::RenderState, hue: i32) {
         let hue = (hue % 360) as i16;
 
         if self.data.hue != hue {
@@ -96,7 +96,7 @@ impl Graphic {
         (self.data.opacity * 255.) as i32
     }
 
-    pub fn set_opacity(&mut self, render_state: &luminol_egui_wgpu::RenderState, opacity: i32) {
+    pub fn set_opacity(&mut self, render_state: &egui_wgpu::RenderState, opacity: i32) {
         let computed_opacity = opacity as f32 / 255.0 * self.opacity_multiplier;
 
         if computed_opacity != self.data.opacity {
@@ -112,7 +112,7 @@ impl Graphic {
 
     pub fn set_opacity_multiplier(
         &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         opacity_multiplier: f32,
     ) {
         let computed_opacity = self.opacity as f32 / 255.0 * opacity_multiplier;
@@ -128,7 +128,7 @@ impl Graphic {
         self.data.rotation
     }
 
-    pub fn set_rotation(&mut self, render_state: &luminol_egui_wgpu::RenderState, rotation: i16) {
+    pub fn set_rotation(&mut self, render_state: &egui_wgpu::RenderState, rotation: i16) {
         if self.data.rotation != rotation {
             self.data.rotation = rotation;
             self.regen_buffer(render_state);
@@ -144,11 +144,7 @@ impl Graphic {
         )
     }
 
-    pub fn set_flash(
-        &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
-        flash: (u8, u8, u8, f32),
-    ) {
+    pub fn set_flash(&mut self, render_state: &egui_wgpu::RenderState, flash: (u8, u8, u8, f32)) {
         if (
             self.data.flash_red,
             self.data.flash_green,
@@ -168,7 +164,7 @@ impl Graphic {
 
     pub fn set(
         &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         opacity: i32,
         opacity_multiplier: f32,
         rotation: i16,
@@ -199,7 +195,7 @@ impl Graphic {
         &self.uniform
     }
 
-    fn regen_buffer(&self, render_state: &luminol_egui_wgpu::RenderState) {
+    fn regen_buffer(&self, render_state: &egui_wgpu::RenderState) {
         render_state
             .queue
             .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));

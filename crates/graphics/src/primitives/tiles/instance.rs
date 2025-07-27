@@ -33,10 +33,7 @@ struct Instance {
 }
 
 impl Instances {
-    pub fn new(
-        render_state: &luminol_egui_wgpu::RenderState,
-        map_data: &luminol_data::Table3,
-    ) -> Self {
+    pub fn new(render_state: &egui_wgpu::RenderState, map_data: &luminol_data::Table3) -> Self {
         let instances = Self::calculate_instances(map_data);
         let instance_buffer =
             render_state
@@ -58,7 +55,7 @@ impl Instances {
     // I thought we didn't need the z? Well.. we do! To calculate the offset into the instance buffer.
     pub fn set_tile(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {
@@ -88,7 +85,7 @@ impl Instances {
             .collect_vec()
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>, layer: usize) {
+    pub fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>, layer: usize) {
         // Calculate the start and end index of the buffer, as well as the amount of instances.
         let start_index = layer * self.map_width * self.map_height;
         let end_index = (layer + 1) * self.map_width * self.map_height;

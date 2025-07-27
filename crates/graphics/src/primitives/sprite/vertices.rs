@@ -24,7 +24,7 @@ pub struct Vertices {
 
 impl Vertices {
     pub fn from_quads(
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         quads: &[Quad],
         extents: wgpu::Extent3d,
     ) -> Self {
@@ -34,7 +34,7 @@ impl Vertices {
 
     pub fn set(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         quads: &[Quad],
         extents: wgpu::Extent3d,
     ) {
@@ -44,7 +44,7 @@ impl Vertices {
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.draw(0..6, 0..1)
     }

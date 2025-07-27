@@ -63,7 +63,7 @@ impl Plane {
         Self { sprite }
     }
 
-    pub fn set_zoom(&mut self, render_state: &luminol_egui_wgpu::RenderState, zoom: i32) {
+    pub fn set_zoom(&mut self, render_state: &egui_wgpu::RenderState, zoom: i32) {
         let zoom = zoom as f32 / 100.;
         let map_width = self.sprite.quad.pos.width() * 32.;
         let map_height = self.sprite.quad.pos.height() * 32.;

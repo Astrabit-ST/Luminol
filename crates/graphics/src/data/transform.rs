@@ -63,18 +63,14 @@ impl Transform {
         Self::new(graphics_state, glam::Vec2::ZERO, glam::Vec2::ONE)
     }
 
-    pub fn set_position(
-        &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
-        position: glam::Vec2,
-    ) {
+    pub fn set_position(&mut self, render_state: &egui_wgpu::RenderState, position: glam::Vec2) {
         if position != self.data.position {
             self.data.position = position;
             self.regen_buffer(render_state);
         }
     }
 
-    pub fn set_scale(&mut self, render_state: &luminol_egui_wgpu::RenderState, scale: glam::Vec2) {
+    pub fn set_scale(&mut self, render_state: &egui_wgpu::RenderState, scale: glam::Vec2) {
         if scale != self.data.scale {
             self.data.scale = scale;
             self.regen_buffer(render_state);
@@ -83,7 +79,7 @@ impl Transform {
 
     pub fn set(
         &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         position: glam::Vec2,
         scale: glam::Vec2,
     ) {
@@ -94,7 +90,7 @@ impl Transform {
         }
     }
 
-    fn regen_buffer(&mut self, render_state: &luminol_egui_wgpu::RenderState) {
+    fn regen_buffer(&mut self, render_state: &egui_wgpu::RenderState) {
         render_state
             .queue
             .write_buffer(&self.uniform, 0, bytemuck::bytes_of(&self.data));

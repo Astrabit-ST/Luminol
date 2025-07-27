@@ -325,7 +325,7 @@ impl luminol_core::Window for Window {
 
                     if self.selected_data_format != config.project.data_format {
                         // add warning message about needing to edit every single data file
-                        egui::Frame::none().show(ui, |ui| {
+                        egui::Frame::NONE.show(ui, |ui| {
                             ui.style_mut()
                                 .visuals
                                 .widgets
@@ -441,7 +441,7 @@ impl luminol_core::Window for Window {
             });
 
         if let Some(convert) = self.convert.take() {
-            let modal = egui_modal::Modal::new(ctx, "converting_project_modal");
+            let modal = luminol_egui_modal::Modal::new(ctx, "converting_project_modal");
             modal.show(|ui| {
                 modal.title(ui, "Converting Project...");
 

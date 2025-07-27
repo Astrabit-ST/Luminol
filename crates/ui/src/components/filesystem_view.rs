@@ -139,7 +139,7 @@ where
         self.row_index = 0;
         self.pivot_visited = false;
 
-        let response = egui::Frame::none().show(ui, |ui| {
+        let response = egui::Frame::NONE.show(ui, |ui| {
             self.render_subtree(
                 ui,
                 update_state,
@@ -648,9 +648,9 @@ where
     edge: Option<indextree::NodeEdge>,
 }
 
-impl<'a, T> std::iter::FusedIterator for SelectedIter<'a, T> where T: luminol_filesystem::ReadDir {}
+impl<T> std::iter::FusedIterator for SelectedIter<'_, T> where T: luminol_filesystem::ReadDir {}
 
-impl<'a, T> Iterator for SelectedIter<'a, T>
+impl<T> Iterator for SelectedIter<'_, T>
 where
     T: luminol_filesystem::ReadDir,
 {

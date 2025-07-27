@@ -95,7 +95,7 @@ impl Tiles {
 
     pub fn set_tile(
         &self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         tile_id: i16,
         position: (usize, usize, usize),
     ) {
@@ -144,7 +144,7 @@ impl Renderable for Tiles {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.push_debug_group("tilemap tiles renderer");
         render_pass.set_pipeline(&self.graphics_state.pipelines.tiles);
 
@@ -154,7 +154,7 @@ impl Drawable for Prepared {
             .enumerate()
             .filter_map(|(layer, enabled)| enabled.then_some(layer))
         {
-            render_pass.set_bind_group(0, &self.bind_group, &[self.layer_offsets[layer]]);
+            render_pass.set_bind_group(0, &*self.bind_group, &[self.layer_offsets[layer]]);
 
             self.instances.draw(render_pass, layer);
         }
@@ -162,9 +162,7 @@ impl Drawable for Prepared {
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
     builder
         .append(

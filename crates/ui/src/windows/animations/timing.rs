@@ -96,7 +96,7 @@ pub fn show_timing_body(
             .count()
     };
 
-    let mut response = egui::Frame::none()
+    let mut response = egui::Frame::NONE
         .show(ui, |ui| {
             ui.columns(2, |columns| {
                 columns[0].columns(2, |columns| {
@@ -215,24 +215,22 @@ pub fn show_timing_body(
                     }
 
                     let old_frame = timing.frame;
-                    let changed = columns[0]
-                        .add(Field::new("Frame", |ui: &mut egui::Ui| {
-                            let mut frame = state.previous_frame.unwrap_or(timing.frame + 1);
-                            let mut response = egui::DragValue::new(&mut frame)
-                                .range(1..=animation.frames.len())
-                                .update_while_editing(false)
-                                .ui(ui);
-                            response.changed = false;
-                            if response.dragged() {
-                                state.previous_frame = Some(frame);
-                            } else if state.previous_frame.is_some() {
-                                timing.frame = frame - 1;
-                                state.previous_frame = None;
-                                response.changed = true;
-                            }
-                            response
-                        }))
-                        .changed();
+                    let mut changed = false;
+                    columns[0].add(Field::new("Frame", |ui: &mut egui::Ui| {
+                        let mut frame = state.previous_frame.unwrap_or(timing.frame + 1);
+                        let response = egui::DragValue::new(&mut frame)
+                            .range(1..=animation.frames.len())
+                            .update_while_editing(false)
+                            .ui(ui);
+                        if response.dragged() {
+                            state.previous_frame = Some(frame);
+                        } else if state.previous_frame.is_some() {
+                            timing.frame = frame - 1;
+                            state.previous_frame = None;
+                            changed = true;
+                        }
+                        response
+                    }));
                     if changed {
                         update_flash_maps(timing.condition, |condition| match timing.flash_scope {
                             Scope::Target => {

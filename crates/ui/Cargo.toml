@@ -21,7 +21,8 @@ workspace = true
 [dependencies]
 # * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
-egui-modal.workspace = true
+luminol-egui-modal.workspace = true
+egui-wgpu.workspace = true
 
 wgpu.workspace = true
 
@@ -69,7 +70,6 @@ luminol-data.workspace = true
 luminol-graphics.workspace = true
 luminol-filesystem.workspace = true
 luminol-macros.workspace = true
-luminol-egui-wgpu.workspace = true
 
 # * Misc. #
 strip-ansi-escapes = "0.2.0" # Strip ANSI escape sequences from byte streams

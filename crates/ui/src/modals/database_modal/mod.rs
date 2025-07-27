@@ -179,7 +179,7 @@ where
                 });
 
                 if M::current_size(update_state).is_some_and(|size| size <= 999) && new_size.is_some_and(|size| size > 999) {
-                    egui::Frame::none().show(ui, |ui| {
+                    egui::Frame::NONE.show(ui, |ui| {
                         ui.style_mut()
                             .visuals
                             .widgets

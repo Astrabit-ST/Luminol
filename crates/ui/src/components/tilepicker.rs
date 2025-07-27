@@ -198,11 +198,10 @@ impl Tilepicker {
             ));
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                absolute_scroll_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            absolute_scroll_rect,
+            painter,
+        ));
 
         if self.show_selection {
             let rect = egui::Rect::from_x_y_ranges(
@@ -212,8 +211,12 @@ impl Tilepicker {
                     ..=((self.selected_tiles_bottom + 1) * 32) as f32,
             )
             .translate(canvas_rect.min.to_vec2());
-            ui.painter()
-                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+            ui.painter().rect_stroke(
+                rect,
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::WHITE),
+                egui::StrokeKind::Middle,
+            );
         }
 
         let Some(pos) = response.interact_pointer_pos() else {

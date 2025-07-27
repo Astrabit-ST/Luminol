@@ -91,20 +91,18 @@ impl Renderable for Grid {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.push_debug_group("tilemap grid renderer");
         render_pass.set_pipeline(&self.graphics_state.pipelines.grid);
 
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.set_bind_group(0, &*self.bind_group, &[]);
 
         self.instances.draw(render_pass);
         render_pass.pop_debug_group();
     }
 }
 
-pub fn create_bind_group_layout(
-    render_state: &luminol_egui_wgpu::RenderState,
-) -> wgpu::BindGroupLayout {
+pub fn create_bind_group_layout(render_state: &egui_wgpu::RenderState) -> wgpu::BindGroupLayout {
     let mut builder = BindGroupLayoutBuilder::new();
 
     Viewport::add_to_bind_group_layout(&mut builder);

@@ -155,7 +155,7 @@ impl luminol_core::Window for Window {
                 ui.add_enabled_ui(enabled, |ui| {
                     ui.columns(2, |columns| {
                         if columns[0]
-                            .add(egui::SelectableLabel::new(
+                            .add(egui::Button::selectable(
                                 matches!(self.mode, Mode::Extract { .. }),
                                 "Extract from archive",
                             ))
@@ -173,7 +173,7 @@ impl luminol_core::Window for Window {
                             };
                         }
                         if columns[1]
-                            .add(egui::SelectableLabel::new(
+                            .add(egui::Button::selectable(
                                 matches!(self.mode, Mode::Create { .. }),
                                 "Create new archive",
                             ))

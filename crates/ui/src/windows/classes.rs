@@ -63,7 +63,7 @@ impl Window {
         let (learning_index, learning) = learning;
         let mut modified = false;
 
-        let mut response = egui::Frame::none()
+        let mut response = egui::Frame::NONE
             .show(ui, |ui| {
                 ui.columns(2, |columns| {
                     modified |= columns[0]

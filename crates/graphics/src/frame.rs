@@ -484,7 +484,7 @@ impl Renderable for Frame {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         if let Some(sprite) = &self.battler_sprite {
             sprite.draw(render_pass);
         }

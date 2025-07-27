@@ -112,11 +112,10 @@ impl Cellpicker {
         );
 
         let painter = luminol_graphics::Painter::new(self.view.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                absolute_scroll_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            absolute_scroll_rect,
+            painter,
+        ));
 
         if self.show_selection {
             let rect = (egui::Rect::from_min_size(
@@ -127,8 +126,12 @@ impl Cellpicker {
                 egui::Vec2::splat(CELL_SIZE as f32),
             ) * self.scale)
                 .translate(canvas_rect.min.to_vec2());
-            ui.painter()
-                .rect_stroke(rect, 5.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+            ui.painter().rect_stroke(
+                rect,
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::WHITE),
+                egui::StrokeKind::Middle,
+            );
         }
 
         if response.clicked() {

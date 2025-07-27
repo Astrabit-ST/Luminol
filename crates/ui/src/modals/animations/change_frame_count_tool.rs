@@ -95,7 +95,7 @@ impl Modal {
                 ));
 
                 if self.frames_len <= 999 && self.new_frames_len > 999 {
-                    egui::Frame::none().show(ui, |ui| {
+                    egui::Frame::NONE.show(ui, |ui| {
                         ui.style_mut()
                             .visuals
                             .widgets

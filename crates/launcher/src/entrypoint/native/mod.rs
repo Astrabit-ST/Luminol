@@ -1,5 +1,4 @@
 #![allow(clippy::arc_with_non_send_sync)]
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use once_cell::sync::OnceCell;
 
@@ -26,6 +25,7 @@ const FILTERS: &[&str] = &[
     "cocoa::",
     "tokio::",
     "winit::",
+    "eframe::",
     "accesskit",
     "std::rt::",
     "std::sys_",
@@ -36,7 +36,6 @@ const FILTERS: &[&str] = &[
     "egui_dock::",
     "std::panic::",
     "egui::context::",
-    "luminol_eframe::",
     "std::panicking::",
     "egui::containers::",
     "glPushClientAttrib",
@@ -109,7 +108,7 @@ fn detect_deadlocks() {
                 writeln!(description, "{:#?}", t.backtrace()).unwrap();
             }
             rfd::MessageDialog::new()
-                .set_title(&format!("Deadlock #{i}"))
+                .set_title(format!("Deadlock #{i}"))
                 .set_level(rfd::MessageLevel::Error)
                 .set_description(&description)
                 .show();
@@ -138,7 +137,7 @@ fn setup_hooks() -> Result<()> {
         let report = panic_hook.panic_report(info).to_string();
         eprintln!("{report}");
 
-        if !crate::RESTART_AFTER_PANIC.load(atomic::Ordering::Relaxed) {
+        if !crate::RESTART_AFTER_PANIC.load(atomic::Ordering::Acquire) {
             return;
         }
 
@@ -195,9 +194,9 @@ fn run_app(
 ) -> Result<()> {
     let icon_image = image::load_from_memory(ICON)?;
 
-    luminol_eframe::run_native(
+    eframe::run_native(
         "Luminol",
-        luminol_eframe::NativeOptions {
+        eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
                 .with_drag_and_drop(true)
                 .with_icon(egui::IconData {
@@ -206,13 +205,33 @@ fn run_app(
                     rgba: icon_image.to_rgba8().to_vec(),
                 })
                 .with_app_id("astrabit.luminol"),
-            wgpu_options: luminol_egui_wgpu::WgpuConfiguration {
-                supported_backends: wgpu::util::backend_bits_from_env()
-                    .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::SECONDARY),
-                // TODO: Load this value from a settings file
-                power_preference: wgpu::util::power_preference_from_env()
-                    .unwrap_or(wgpu::PowerPreference::LowPower),
-                ..Default::default()
+            wgpu_options: egui_wgpu::WgpuConfiguration {
+                present_mode: wgpu::PresentMode::default(),
+                wgpu_setup: egui_wgpu::WgpuSetup::CreateNew(egui_wgpu::WgpuSetupCreateNew {
+                    instance_descriptor: wgpu::InstanceDescriptor {
+                        backends: wgpu::Backends::from_env()
+                            .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::SECONDARY),
+                        backend_options: wgpu::BackendOptions::from_env_or_default(),
+                        flags: wgpu::InstanceFlags::from_env_or_default(),
+                    },
+                    // TODO: Load this value from a settings file
+                    power_preference: wgpu::PowerPreference::from_env()
+                        .unwrap_or(wgpu::PowerPreference::LowPower),
+                    native_adapter_selector: None,
+                    device_descriptor: sync::Arc::new(|adapter| wgpu::DeviceDescriptor {
+                        label: Some("Luminol Graphics Device"),
+                        required_features: wgpu::Features::default(),
+                        required_limits: if adapter.get_info().backend == wgpu::Backend::Gl {
+                            wgpu::Limits::downlevel_webgl2_defaults()
+                        } else {
+                            wgpu::Limits::default()
+                        },
+                        memory_hints: wgpu::MemoryHints::default(),
+                        trace: wgpu::Trace::Off,
+                    }),
+                }),
+                desired_maximum_frame_latency: None,
+                on_surface_error: sync::Arc::new(|_error| egui_wgpu::SurfaceErrorAction::SkipFrame),
             },
             persist_window: true,
 

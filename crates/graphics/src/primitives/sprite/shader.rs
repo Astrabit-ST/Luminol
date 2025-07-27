@@ -23,7 +23,7 @@ use crate::{primitives::BindGroupLayouts, Vertex};
 
 fn create_shader(
     composer: &mut naga_oil::compose::Composer,
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
     target: wgpu::BlendState,
 ) -> Result<wgpu::RenderPipeline, ComposerError> {
@@ -76,13 +76,13 @@ fn create_shader(
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader_module,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     blend: Some(target),
@@ -96,6 +96,7 @@ fn create_shader(
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         }))
 }
 
@@ -126,7 +127,7 @@ const BLEND_SUBTRACT: wgpu::BlendState = wgpu::BlendState {
 
 pub fn create_sprite_shaders(
     composer: &mut naga_oil::compose::Composer,
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &BindGroupLayouts,
 ) -> Result<HashMap<luminol_data::BlendMode, wgpu::RenderPipeline>, ComposerError> {
     [

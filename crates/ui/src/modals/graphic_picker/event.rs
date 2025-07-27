@@ -391,7 +391,7 @@ impl Modal {
                                         ui.with_stripe(faint, |ui| {
                                             let res = ui.add_enabled(
                                                 !*invalid,
-                                                egui::SelectableLabel::new(checked, text),
+                                                egui::Button::selectable(checked, text),
                                             );
 
                                             if res.clicked() {
@@ -536,6 +536,7 @@ impl Modal {
                                     rect,
                                     5.0,
                                     egui::Stroke::new(1.0, egui::Color32::WHITE),
+                                    egui::StrokeKind::Middle,
                                 );
 
                                 if response.clicked() {
@@ -585,11 +586,10 @@ impl Modal {
 
                                 let painter =
                                     Painter::new(tilepicker.prepare(&update_state.graphics));
-                                ui.painter()
-                                    .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                                        absolute_scroll_rect,
-                                        painter,
-                                    ));
+                                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                                    absolute_scroll_rect,
+                                    painter,
+                                ));
 
                                 let tile_x = (*tile_id - 384) % 8;
                                 let tile_y = (*tile_id - 384) / 8;
@@ -602,6 +602,7 @@ impl Modal {
                                     rect,
                                     5.0,
                                     egui::Stroke::new(1.0, egui::Color32::WHITE),
+                                    egui::StrokeKind::Middle,
                                 );
 
                                 if response.clicked() {

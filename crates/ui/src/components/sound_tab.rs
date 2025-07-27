@@ -24,6 +24,8 @@
 
 use super::UiExt;
 
+/// A tab for a sound (be it BGM, ME, SE, etc)
+/// Optionally can be in 'picker' mode to pick a sound effect.
 pub struct SoundTab {
     /// The source for this tab.
     pub source: luminol_audio::Source,
@@ -196,7 +198,7 @@ impl SoundTab {
                 });
 
                 let mut scroll_area_output = egui::ScrollArea::vertical()
-                    .id_source((persistence_id, self.source))
+                    .id_salt((persistence_id, self.source))
                     .auto_shrink([false, true])
                     // Show only visible rows.
                     .show_rows(
@@ -230,7 +232,7 @@ impl SoundTab {
                                     let faint = (i + row_range.start) % 2 == 0;
                                     let res = ui.with_stripe(faint, |ui| {
                                         let entry_name = camino::Utf8Path::new(entry.file_name());
-                                        let res = ui.add(egui::SelectableLabel::new(
+                                        let res = ui.add(egui::Button::selectable(
                                             audio_file_name.as_deref() == Some(entry_name),
                                             entry_name.as_str(),
                                         ));

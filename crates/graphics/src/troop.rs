@@ -211,7 +211,7 @@ impl Renderable for Troop {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         for sprite in &self.members {
             sprite.draw(render_pass);
         }

@@ -17,8 +17,8 @@ categories.workspace = true
 # * Window management, graphical user interface and 3D rendering * #
 egui.workspace = true
 egui_extras.workspace = true
-luminol-eframe.workspace = true
-luminol-egui-wgpu.workspace = true
+eframe.workspace = true
+egui-wgpu.workspace = true
 rfd.workspace = true
 
 poll-promise.workspace = true
@@ -26,6 +26,9 @@ poll-promise.workspace = true
 wgpu.workspace = true
 
 image.workspace = true
+
+# * Data processing * #
+ron.workspace = true
 
 # * Logging and diagnostics * #
 tracing-subscriber = "0.3.17" # Utilities for implementing `tracing` subscribers
@@ -41,6 +44,7 @@ futures-lite.workspace = true
 
 # * Tools to aid concurrent programming * #
 async-std.workspace = true
+portable-atomic.workspace = true
 
 # * File system interfaces * #
 camino.workspace = true
@@ -108,13 +112,38 @@ js-sys.workspace = true
 
 web-sys = { workspace = true, features = [
     "BeforeUnloadEvent",
+    "console",
+    "ClipboardEvent",
+    "CompositionEvent",
+    "CssStyleDeclaration",
+    "DedicatedWorkerGlobalScope",
+    "Document",
+    "Event",
+    "HtmlElement",
+    "HtmlCanvasElement",
+    "HtmlImageElement",
+    "InputEvent",
+    "KeyboardEvent",
+    "MediaQueryList",
+    "MediaQueryListEvent",
+    "MouseEvent",
+    "MutationObserver",
+    "MutationObserverInit",
+    "MutationRecord",
+    "OffscreenCanvas",
+    "Performance",
+    "SpeechSynthesis",
+    "SpeechSynthesisUtterance",
+    "Touch",
+    "TouchEvent",
+    "WheelEvent",
     "Window",
     "Worker",
+    "WorkerGlobalScope",
+    "WorkerLocation",
+    "WorkerNavigator",
     "WorkerOptions",
     "WorkerType",
-    "Document",
-    "Element",
-    "CssStyleDeclaration",
 ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.wgpu]

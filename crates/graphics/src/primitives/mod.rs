@@ -45,7 +45,7 @@ pub struct Pipelines {
 }
 
 impl BindGroupLayouts {
-    pub fn new(render_state: &luminol_egui_wgpu::RenderState) -> Self {
+    pub fn new(render_state: &egui_wgpu::RenderState) -> Self {
         Self {
             sprite: sprite::create_bind_group_layout(render_state),
             tiles: tiles::create_bind_group_layout(render_state),
@@ -79,7 +79,7 @@ macro_rules! create_pipelines {
 
 impl Pipelines {
     pub fn new(
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         bind_group_layouts: &BindGroupLayouts,
     ) -> Self {
         create_pipelines! {

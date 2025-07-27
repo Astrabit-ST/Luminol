@@ -19,7 +19,7 @@ use super::instance::Instances;
 
 pub fn create_render_pipeline(
     composer: &mut naga_oil::compose::Composer,
-    render_state: &luminol_egui_wgpu::RenderState,
+    render_state: &egui_wgpu::RenderState,
     bind_group_layouts: &crate::primitives::BindGroupLayouts,
 ) -> Result<wgpu::RenderPipeline, naga_oil::compose::ComposerError> {
     composer.add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
@@ -59,13 +59,13 @@ pub fn create_render_pipeline(
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader_module,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[Instances::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     blend: Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -76,5 +76,6 @@ pub fn create_render_pipeline(
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         }))
 }

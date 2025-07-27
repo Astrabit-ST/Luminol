@@ -5,7 +5,7 @@ default-members = ["crates/launcher"]
 resolver = "2"
 
 [workspace.lints.rust]
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 # unsafe code is sometimes fine but in general we don't want to use it.
 unsafe_code = "warn"
 # clearly denote where you are using unsafe code in unsafe fns. in a future rust edition this will become a hard error.
@@ -14,7 +14,7 @@ unsafe_op_in_unsafe_fn = "forbid"
 elided_lifetimes_in_paths = "forbid"
 
 [workspace.lints.clippy]
-all = "warn"
+all = { level = "warn", priority = -1 }
 # we should turn these on in the future to avoid possible crashes
 # panic = "warn"
 # panic_in_result_fn = "warn"
@@ -36,7 +36,7 @@ authors = [
     "Egor Poleshko <somedevfox@gmail.com>",
 ]
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.85"
 license = "GPL-3.0"
 readme = "README.md"
 repository = "https://github.com/melody-rs/Luminol"
@@ -46,15 +46,15 @@ categories = ["games"]
 # Shared dependencies
 [workspace.dependencies]
 # * Window management, graphical user interface and 3D rendering * #
-egui = { version = "0.28.1", features = [
+egui = { version = "0.32.0", features = [
     "serde",
 ] } # Real-time stateless graphical user interface framework
-egui_extras = { version = "0.28.1", features = [
+egui_extras = { version = "0.32.0", features = [
     "svg",
     "image",
 ] } # Official add-ons to egui, like "Table", "TableBody", "Column", "DatePickerButton", etc.
-epaint = "0.28.1" # 2D graphics library for turning simple two dimensional shapes into textured triangles
-luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
+epaint = "0.32.0" # 2D graphics library for turning simple two dimensional shapes into textured triangles
+eframe = { version = "0.32.0", features = [
     "wgpu",
     "accesskit",
     "persistence",
@@ -62,23 +62,18 @@ luminol-eframe = { version = "0.4.0", path = "crates/eframe/", features = [
     "x11",
     "wayland",
 ], default-features = false } # Egui initialisation library. Responsible for creating and managing the main window and all appropriate graphics contexts
-luminol-egui-wgpu = { version = "0.4.0", path = "crates/egui-wgpu/" } # Bindings between wgpu and egui
-egui-winit = "0.28.1" # Winit event translation library for egui
-egui_dock = "0.13.0" # Docking support for egui
-egui-notify = "0.15.0" # In-app toast notification library for egui
-egui-modal = "0.4.0" # "Modals" for egui. A "Modal" is a window with custom content that requires user's immediate attention
+egui-wgpu = "0.32.0" # Bindings between wgpu and egui
+egui-winit = "0.32.0" # Winit event translation library for egui
+egui_dock = "0.17.0" # Docking support for egui
+egui-notify = "0.20.0" # In-app toast notification library for egui
+luminol-egui-modal = { version = "0.4.0", path = "crates/egui-modal/" } # "Modals" for egui. A "Modal" is a window with custom content that requires user's immediate attention
 rfd = "0.14.1" # File picker and message dialogs
 
-raw-window-handle = "0.6.0"                              # Window interoperability library that provides a platform-specific native handle to the specified window
-winit = { version = "0.29.4", default-features = false } # Window creation and management library
-
-wgpu = { version = "0.20.0", features = [
+wgpu = { version = "25.0.2", features = [
     "naga-ir",
 ] } # An abstraction layer for OpenGL, Vulkan, DirectX/Direct3D and Metal
-naga = "0.20.0" # Wgpu shader parser
-naga_oil = "0.14.0" # An extension to naga. Allows combining and manipulating wgpu shaders (for example, through '#import' statements)
-glutin = "0.31" # Cross-platform OpenGL context provider
-glutin-winit = "0.4" # Bootstrapping helpers with winit for Glutin
+naga = "25.0.1" # Wgpu shader parser
+naga_oil = "0.18.0" # An extension to naga. Allows combining and manipulating wgpu shaders (for example, through '#import' statements)
 aligned-vec = "0.6.1" # Implementations of `Vec` and `Box` with runtime-definable memory alignment
 
 image = { version = "0.25.0", features = [
@@ -109,12 +104,8 @@ bytemuck = { version = "1.14.0", features = [
 num = "0.4.3" # Integer trait and implementations of some integer algorithms such as GCD and LCM
 
 # * Logging and diagnostics * #
-log = { version = "0.4", features = [
-    "std",
-] } # Logging facade to be replaced by a proper logger
 tracing = "0.1.37" # Structured, event-based, application-level diagnostics
 color-eyre = "0.6.2" # An error report handler for panics, based on the 'eyre' crate
-puffin = "0.19" # Instrumentation profiler
 
 # * Useful procedural macros * #
 strum = { version = "0.25.0", features = [
@@ -123,13 +114,8 @@ strum = { version = "0.25.0", features = [
 paste = "1.0.14" # A flexible way ot paste together identifiers in a macro, including using pasted identifiers to define new ones. Does not rely on a nightly feature 'concat_idents'
 thiserror = "1.0.37" # derive(Error)
 bitflags = "2.4.0" # A way to generate bitflags out of enumerations
-document-features = "0.2.8" # Macro that extracts documentation comments from Cargo.toml
-
-# * Platform interoperability interfaces * #
-web-time = "0.2" # Drop-in replacement for std::time on WebAssembly platforms
 
 # * Cryptography and hashing * #
-ahash = "0.8.11"  # A non-cryptographic hash function using AES-NI
 murmur3 = "0.5.2" # An implementation of the Murmur3 hash
 
 # * More efficient implementations of individual components of Rust's Standard Library * #
@@ -148,6 +134,7 @@ oneshot = "0.1.6"      # Oneshot single-producer, single-consumer channels
 async-std = "1.12.0"   # Asynchronous version of the Rust Standard Library
 fragile = "2.0"        # Provides wrapper types for sending non-Send values to other threads
 poll-promise = "0.3.0" # A crate for polling the result of an asynchronous operation
+portable-atomic = { version = "1.11.1", features = ["float"] } # Implements atomic versions of f32 and f64
 
 # * File system interfaces * #
 camino = "1.1.6"   # UTF-8 paths
@@ -200,7 +187,7 @@ opt-level = 1
 [profile.dev.package.egui]
 opt-level = 3
 
-[profile.dev.package.luminol-eframe]
+[profile.dev.package.eframe]
 opt-level = 3
 
 # Audio

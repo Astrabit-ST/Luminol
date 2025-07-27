@@ -226,6 +226,7 @@ impl luminol_core::Window for Window {
                                 "Editor Scale",
                                 egui::Slider::new(&mut self.troop_view.scale, 15.0..=300.0)
                                     .suffix("%")
+                                    .clamping(egui::SliderClamping::Edits)
                                     .logarithmic(true)
                                     .fixed_decimals(0),
                             ));
@@ -282,10 +283,10 @@ impl luminol_core::Window for Window {
                                 self.troop_view.hovered_member_drag_pos,
                             ) {
                                 if (troop.members[i].x, troop.members[i].y) != drag_pos {
-                                    if !self
+                                    if self
                                         .drag_state
                                         .as_ref()
-                                        .is_some_and(|drag_state| drag_state.member_index == i)
+                                        .is_none_or(|drag_state| drag_state.member_index != i)
                                     {
                                         self.drag_state = Some(DragState {
                                             member_index: i,
@@ -315,7 +316,7 @@ impl luminol_core::Window for Window {
                                 );
                             }
 
-                            egui::Frame::none().show(ui, |ui| {
+                            egui::Frame::NONE.show(ui, |ui| {
                                 if let Some(i) = self.troop_view.selected_member_index {
                                     let mut properties_modified = false;
                                     let mut properties_need_update = false;
@@ -372,47 +373,47 @@ impl luminol_core::Window for Window {
                                     }
 
                                     ui.columns(4, |columns| {
-                                        properties_modified |= columns[0]
-                                            .add(Field::new("X", |ui: &mut egui::Ui| {
-                                                let mut response =
-                                                    egui::DragValue::new(&mut troop.members[i].x)
-                                                        .range(0..=TROOP_WIDTH)
-                                                        .update_while_editing(false)
-                                                        .ui(ui);
-                                                if response.dragged() {
-                                                    response.changed = false;
-                                                    if self.previous_x.is_none() {
-                                                        self.previous_x = Some(original_x);
-                                                    }
-                                                    properties_need_update = true;
-                                                } else if self.previous_x.is_some() {
-                                                    self.previous_x = None;
-                                                    response.changed = true;
+                                        columns[0].add(Field::new("X", |ui: &mut egui::Ui| {
+                                            let response =
+                                                egui::DragValue::new(&mut troop.members[i].x)
+                                                    .range(0..=TROOP_WIDTH)
+                                                    .update_while_editing(false)
+                                                    .ui(ui);
+                                            let mut changed = response.changed();
+                                            if response.dragged() {
+                                                changed = false;
+                                                if self.previous_x.is_none() {
+                                                    self.previous_x = Some(original_x);
                                                 }
-                                                response
-                                            }))
-                                            .changed();
+                                                properties_need_update = true;
+                                            } else if self.previous_x.is_some() {
+                                                self.previous_x = None;
+                                                changed = true;
+                                            }
+                                            properties_modified |= changed;
+                                            response
+                                        }));
 
-                                        properties_modified |= columns[1]
-                                            .add(Field::new("Y", |ui: &mut egui::Ui| {
-                                                let mut response =
-                                                    egui::DragValue::new(&mut troop.members[i].y)
-                                                        .range(0..=TROOP_HEIGHT)
-                                                        .update_while_editing(false)
-                                                        .ui(ui);
-                                                if response.dragged() {
-                                                    response.changed = false;
-                                                    if self.previous_y.is_none() {
-                                                        self.previous_y = Some(original_y);
-                                                    }
-                                                    properties_need_update = true;
-                                                } else if self.previous_y.is_some() {
-                                                    self.previous_y = None;
-                                                    response.changed = true;
+                                        columns[1].add(Field::new("Y", |ui: &mut egui::Ui| {
+                                            let response =
+                                                egui::DragValue::new(&mut troop.members[i].y)
+                                                    .range(0..=TROOP_HEIGHT)
+                                                    .update_while_editing(false)
+                                                    .ui(ui);
+                                            let mut changed = response.changed();
+                                            if response.dragged() {
+                                                changed = false;
+                                                if self.previous_y.is_none() {
+                                                    self.previous_y = Some(original_y);
                                                 }
-                                                response
-                                            }))
-                                            .changed();
+                                                properties_need_update = true;
+                                            } else if self.previous_y.is_some() {
+                                                self.previous_y = None;
+                                                changed = true;
+                                            }
+                                            properties_modified |= changed;
+                                            response
+                                        }));
 
                                         properties_modified |= columns[2]
                                             .add(Field::new(
@@ -474,123 +475,131 @@ impl luminol_core::Window for Window {
                                 }
                             }
 
-                            ui.allocate_ui_at_rect(canvas_rect, |ui| {
-                                let egui::InnerResponse {
-                                    inner: hover_pos,
-                                    response,
-                                } = self.troop_view.ui(ui, update_state, clip_rect);
-                                if response.clicked() {
-                                    self.saved_selected_member_index =
-                                        self.troop_view.selected_member_index;
-                                }
+                            ui.scope_builder(
+                                egui::UiBuilder {
+                                    max_rect: Some(canvas_rect),
+                                    ..Default::default()
+                                },
+                                |ui| {
+                                    let egui::InnerResponse {
+                                        inner: hover_pos,
+                                        response,
+                                    } = self.troop_view.ui(ui, update_state, clip_rect);
+                                    if response.clicked() {
+                                        self.saved_selected_member_index =
+                                            self.troop_view.selected_member_index;
+                                    }
 
-                                // If the pointer is hovering over the troop view, prevent parent widgets
-                                // from receiving scroll events so that scaling the troop view with the
-                                // scroll wheel doesn't also scroll the scroll area that the troop view is
-                                // in
-                                if response.hovered() {
-                                    ui.ctx()
-                                        .input_mut(|i| i.smooth_scroll_delta = egui::Vec2::ZERO);
-                                }
+                                    // If the pointer is hovering over the troop view, prevent parent widgets
+                                    // from receiving scroll events so that scaling the troop view with the
+                                    // scroll wheel doesn't also scroll the scroll area that the troop view is
+                                    // in
+                                    if response.hovered() {
+                                        ui.ctx().input_mut(|i| {
+                                            i.smooth_scroll_delta = egui::Vec2::ZERO
+                                        });
+                                    }
 
-                                // Create new member on double click
-                                if let Some((x, y)) = hover_pos {
-                                    if response.double_clicked() && !enemies.data.is_empty() {
-                                        while troop
-                                            .members
-                                            .last()
-                                            .is_some_and(|member| member.enemy_id.0.is_none())
-                                        {
-                                            troop.members.pop();
-                                        }
-                                        let next_member_index = troop.members.len();
-                                        self.history.push(
-                                            troop.id,
-                                            HistoryEntry {
+                                    // Create new member on double click
+                                    if let Some((x, y)) = hover_pos {
+                                        if response.double_clicked() && !enemies.data.is_empty() {
+                                            while troop
+                                                .members
+                                                .last()
+                                                .is_some_and(|member| member.enemy_id.0.is_none())
+                                            {
+                                                troop.members.pop();
+                                            }
+                                            let next_member_index = troop.members.len();
+                                            self.history.push(
+                                                troop.id,
+                                                HistoryEntry {
+                                                    member_index: next_member_index,
+                                                    enemy_id: Some(None),
+                                                    ..Default::default()
+                                                },
+                                            );
+                                            troop.members.push(luminol_data::rpg::troop::Member {
+                                                enemy_id: Some(
+                                                    self.previous_enemy_id
+                                                        .min(enemies.data.len() - 1),
+                                                )
+                                                .into(),
+                                                x,
+                                                y,
+                                                hidden: false,
+                                                immortal: false,
+                                            });
+                                            self.needs_update = Some(Update {
                                                 member_index: next_member_index,
-                                                enemy_id: Some(None),
-                                                ..Default::default()
-                                            },
-                                        );
-                                        troop.members.push(luminol_data::rpg::troop::Member {
-                                            enemy_id: Some(
-                                                self.previous_enemy_id.min(enemies.data.len() - 1),
-                                            )
-                                            .into(),
-                                            x,
-                                            y,
-                                            hidden: false,
-                                            immortal: false,
-                                        });
-                                        self.needs_update = Some(Update {
-                                            member_index: next_member_index,
-                                            rebuild: true,
-                                        });
-                                        self.troop_view.selected_member_index =
-                                            Some(next_member_index);
-                                        modified = true;
-                                    }
-                                }
-
-                                // Handle pressing delete or backspace to delete troops
-                                if let Some(i) = self.troop_view.selected_member_index {
-                                    if i < troop.members.len()
-                                        && troop.members[i].enemy_id.0.is_some()
-                                        && response.has_focus()
-                                        && ui.input(|i| {
-                                            i.key_pressed(egui::Key::Delete)
-                                                || i.key_pressed(egui::Key::Backspace)
-                                        })
-                                    {
-                                        let member = std::mem::take(&mut troop.members[i]);
-                                        self.history.push(
-                                            troop.id,
-                                            HistoryEntry {
-                                                member_index: i,
-                                                enemy_id: Some(member.enemy_id.0),
-                                                x: member.x,
-                                                y: member.y,
-                                                hidden: member.hidden,
-                                                immortal: member.immortal,
-                                            },
-                                        );
-                                        while troop
-                                            .members
-                                            .last()
-                                            .is_some_and(|member| member.enemy_id.0.is_none())
-                                        {
-                                            troop.members.pop();
+                                                rebuild: true,
+                                            });
+                                            self.troop_view.selected_member_index =
+                                                Some(next_member_index);
+                                            modified = true;
                                         }
-                                        self.needs_update = Some(Update {
-                                            member_index: i,
-                                            rebuild: true,
-                                        });
-                                        self.troop_view.selected_member_index = None;
-                                        modified = true;
-                                    }
-                                }
-
-                                if response.has_focus() {
-                                    // Ctrl+Z for undo
-                                    if ui.input(|i| {
-                                        i.modifiers.command
-                                            && !i.modifiers.shift
-                                            && i.key_pressed(egui::Key::Z)
-                                    }) {
-                                        self.needs_update = self.history.undo(troop);
                                     }
 
-                                    // Ctrl+Y or Ctrl+Shift+Z for redo
-                                    if ui.input(|i| {
-                                        i.modifiers.command
-                                            && (i.key_pressed(egui::Key::Y)
-                                                || (i.modifiers.shift
-                                                    && i.key_pressed(egui::Key::Z)))
-                                    }) {
-                                        self.needs_update = self.history.redo(troop);
+                                    // Handle pressing delete or backspace to delete troops
+                                    if let Some(i) = self.troop_view.selected_member_index {
+                                        if i < troop.members.len()
+                                            && troop.members[i].enemy_id.0.is_some()
+                                            && response.has_focus()
+                                            && ui.input(|i| {
+                                                i.key_pressed(egui::Key::Delete)
+                                                    || i.key_pressed(egui::Key::Backspace)
+                                            })
+                                        {
+                                            let member = std::mem::take(&mut troop.members[i]);
+                                            self.history.push(
+                                                troop.id,
+                                                HistoryEntry {
+                                                    member_index: i,
+                                                    enemy_id: Some(member.enemy_id.0),
+                                                    x: member.x,
+                                                    y: member.y,
+                                                    hidden: member.hidden,
+                                                    immortal: member.immortal,
+                                                },
+                                            );
+                                            while troop
+                                                .members
+                                                .last()
+                                                .is_some_and(|member| member.enemy_id.0.is_none())
+                                            {
+                                                troop.members.pop();
+                                            }
+                                            self.needs_update = Some(Update {
+                                                member_index: i,
+                                                rebuild: true,
+                                            });
+                                            self.troop_view.selected_member_index = None;
+                                            modified = true;
+                                        }
                                     }
-                                }
-                            });
+
+                                    if response.has_focus() {
+                                        // Ctrl+Z for undo
+                                        if ui.input(|i| {
+                                            i.modifiers.command
+                                                && !i.modifiers.shift
+                                                && i.key_pressed(egui::Key::Z)
+                                        }) {
+                                            self.needs_update = self.history.undo(troop);
+                                        }
+
+                                        // Ctrl+Y or Ctrl+Shift+Z for redo
+                                        if ui.input(|i| {
+                                            i.modifiers.command
+                                                && (i.key_pressed(egui::Key::Y)
+                                                    || (i.modifiers.shift
+                                                        && i.key_pressed(egui::Key::Z)))
+                                        }) {
+                                            self.needs_update = self.history.redo(troop);
+                                        }
+                                    }
+                                },
+                            );
                         });
 
                         self.previous_troop = Some(troop.id);

@@ -151,11 +151,10 @@ impl AnimationFrameView {
         );
 
         let painter = luminol_graphics::Painter::new(self.frame.prepare(&update_state.graphics));
-        ui.painter()
-            .add(luminol_egui_wgpu::Callback::new_paint_callback(
-                canvas_rect,
-                painter,
-            ));
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            canvas_rect,
+            painter,
+        ));
 
         let screen_alpha = (egui::ecolor::linear_from_gamma(screen_color.alpha as f32 / 255.)
             * 255.)
@@ -163,7 +162,7 @@ impl AnimationFrameView {
         if screen_alpha > 0 {
             ui.painter().rect_filled(
                 egui::Rect::EVERYTHING,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 egui::Color32::from_rgba_unmultiplied(
                     screen_color.red.clamp(0., 255.).round() as u8,
                     screen_color.green.clamp(0., 255.).round() as u8,
@@ -198,6 +197,7 @@ impl AnimationFrameView {
                 ),
                 5.,
                 egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                egui::StrokeKind::Middle,
             );
         }
 
@@ -273,6 +273,7 @@ impl AnimationFrameView {
                         cell_rect,
                         5.,
                         egui::Stroke::new(1., egui::Color32::DARK_GRAY),
+                        egui::StrokeKind::Middle,
                     );
                 }
             }
@@ -295,6 +296,7 @@ impl AnimationFrameView {
                             egui::Color32::WHITE
                         },
                     ),
+                    egui::StrokeKind::Middle,
                 );
             }
 
@@ -308,6 +310,7 @@ impl AnimationFrameView {
                     cell_rect,
                     5.,
                     egui::Stroke::new(3., egui::Color32::YELLOW),
+                    egui::StrokeKind::Middle,
                 );
             }
 
@@ -321,6 +324,7 @@ impl AnimationFrameView {
                     cell_rect,
                     5.,
                     egui::Stroke::new(3., egui::Color32::from_rgb(255, 0, 255)),
+                    egui::StrokeKind::Middle,
                 );
             }
         }

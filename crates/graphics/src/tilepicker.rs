@@ -150,7 +150,7 @@ impl Tilepicker {
 
     pub fn update_collision(
         &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
+        render_state: &egui_wgpu::RenderState,
         passages: &luminol_data::Table1,
         exclude_autotiles: bool,
     ) {
@@ -163,7 +163,7 @@ impl Tilepicker {
         )
     }
 
-    pub fn update_animation(&mut self, render_state: &luminol_egui_wgpu::RenderState, time: f64) {
+    pub fn update_animation(&mut self, render_state: &egui_wgpu::RenderState, time: f64) {
         if let Some(ani_time) = self.ani_time {
             if time - ani_time >= 16. / 60. - ani_time.rem_euclid(16. / 60.) {
                 self.ani_time = Some(time);
@@ -174,11 +174,7 @@ impl Tilepicker {
         }
     }
 
-    pub fn set_position(
-        &mut self,
-        render_state: &luminol_egui_wgpu::RenderState,
-        position: glam::Vec2,
-    ) {
+    pub fn set_position(&mut self, render_state: &egui_wgpu::RenderState, position: glam::Vec2) {
         self.tiles.transform.set_position(render_state, position);
         self.collision
             .transform
@@ -212,7 +208,7 @@ impl Renderable for Tilepicker {
 }
 
 impl Drawable for Prepared {
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    fn draw(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         self.tiles.draw(render_pass);
 
         if self.coll_enabled {
