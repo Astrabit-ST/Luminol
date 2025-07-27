@@ -307,11 +307,7 @@ impl Runner {
                 power_preference: _,
                 native_adapter_selector: _,
                 device_descriptor: _,
-            }) => wgpu::Instance::new(&wgpu::InstanceDescriptor {
-                backends: instance_descriptor.backends,
-                flags: wgpu::InstanceFlags::default(),
-                backend_options: wgpu::BackendOptions::default(),
-            }),
+            }) => wgpu::util::new_instance_with_webgpu_detection(&instance_descriptor).await,
             egui_wgpu::WgpuSetup::Existing(egui_wgpu::WgpuSetupExisting {
                 instance,
                 adapter: _,
