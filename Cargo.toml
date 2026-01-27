@@ -130,7 +130,7 @@ futures-lite = "2.1.0" # Lightweight, more safe replacement of 'futures'
 
 # * Tools to aid concurrent programming * #
 flume = "0.11.1"       # Fast multi-producer, multi-consumer channel
-oneshot = "0.1.6"      # Oneshot single-producer, single-consumer channels
+oneshot = "0.1.12"      # Oneshot single-producer, single-consumer channels
 async-std = "1.12.0"   # Asynchronous version of the Rust Standard Library
 fragile = "2.0"        # Provides wrapper types for sending non-Send values to other threads
 poll-promise = "0.3.0" # A crate for polling the result of an asynchronous operation
