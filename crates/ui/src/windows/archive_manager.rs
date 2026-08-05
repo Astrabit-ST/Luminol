@@ -105,12 +105,12 @@ impl luminol_core::Window for Window {
                                 .find(|entry| {
                                     entry.metadata.is_file
                                         && matches!(
-                                            entry.path.extension(),
+                                            camino::Utf8Path::new(&entry.name).extension(),
                                             Some("rgssad" | "rgss2a" | "rgss3a")
                                         )
                                 })
                                 .map(|entry| {
-                                    host.open_file(&entry.path, OpenFlags::Read)
+                                    host.open_file(&entry.name, OpenFlags::Read)
                                         .and_then(luminol_filesystem::archiver::FileSystem::new)
                                         .map(|archive| (entry, archive))
                                 })
@@ -119,7 +119,7 @@ impl luminol_core::Window for Window {
                             *view = Some(FileSystemView::new(
                                 "luminol_archive_manager_extract_view".into(),
                                 archive,
-                                entry.path.to_string(),
+                                entry.name,
                             ))
                         }
                     }
@@ -575,7 +575,12 @@ impl Window {
             vec.push(path.to_owned());
         } else {
             for entry in src_fs.read_dir(path)? {
-                Self::find_files_recurse(vec, src_fs, &entry.path, entry.metadata.is_file)?;
+                Self::find_files_recurse(
+                    vec,
+                    src_fs,
+                    &path.join(entry.name),
+                    entry.metadata.is_file,
+                )?;
             }
         }
         Ok(())

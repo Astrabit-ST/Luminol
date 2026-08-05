@@ -48,9 +48,8 @@ impl SoundTab {
         let mut folder_children = filesystem
             .read_dir(format!("Audio/{source}"))
             .unwrap_or_default();
-        folder_children.sort_unstable_by(|a, b| {
-            lexical_sort::natural_lexical_cmp(a.file_name(), b.file_name())
-        });
+        folder_children
+            .sort_unstable_by(|a, b| lexical_sort::natural_lexical_cmp(&a.name, &b.name));
         Self {
             source,
             audio_file,
@@ -177,7 +176,7 @@ impl SoundTab {
                         .iter()
                         .filter(|entry| {
                             matcher
-                                .fuzzy(entry.file_name(), &self.search_text, false)
+                                .fuzzy(&entry.name, &self.search_text, false)
                                 .is_some()
                         })
                         .cloned()
@@ -231,7 +230,7 @@ impl SoundTab {
                                 {
                                     let faint = (i + row_range.start) % 2 == 0;
                                     let res = ui.with_stripe(faint, |ui| {
-                                        let entry_name = camino::Utf8Path::new(entry.file_name());
+                                        let entry_name = camino::Utf8Path::new(&entry.name);
                                         let res = ui.add(egui::Button::selectable(
                                             audio_file_name.as_deref() == Some(entry_name),
                                             entry_name.as_str(),
@@ -266,8 +265,9 @@ impl SoundTab {
                             .iter()
                             .enumerate()
                             .find_map(|(i, entry)| {
-                                (audio_file_name.as_deref() == Some(entry.file_name().into()))
-                                    .then_some(i + 1)
+                                (audio_file_name.as_deref()
+                                    == Some(camino::Utf8Path::new(&entry.name)))
+                                .then_some(i + 1)
                             })
                     };
                     if let Some(row) = row {

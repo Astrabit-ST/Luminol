@@ -128,11 +128,7 @@ impl luminol_filesystem::ReadDir for ScriptsFileSystem {
             .iter_dir(path)
             .map_or_else(Default::default, |iter| {
                 iter.map(|(name, maybe_script)| luminol_filesystem::DirEntry {
-                    path: if path.as_str().is_empty() {
-                        name.into()
-                    } else {
-                        format!("{path}/{name}").into()
-                    },
+                    name: name.to_string(),
                     metadata: if let Some(script) = maybe_script {
                         luminol_filesystem::Metadata {
                             is_file: true,
@@ -1083,7 +1079,12 @@ impl Window {
             vec.push(path.to_owned());
         } else {
             for entry in src_fs.read_dir(path)? {
-                Self::find_files_recurse(vec, src_fs, &entry.path, entry.metadata.is_file)?;
+                Self::find_files_recurse(
+                    vec,
+                    src_fs,
+                    &path.join(entry.name),
+                    entry.metadata.is_file,
+                )?;
             }
         }
         Ok(())

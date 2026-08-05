@@ -90,8 +90,8 @@ impl FileSystem {
             return Some(luminol_config::RMVer::Ace);
         }
 
-        for path in self.read_dir("").ok()? {
-            let path = path.path();
+        for entry in self.read_dir("").ok()? {
+            let path = camino::Utf8Path::new(&entry.name);
             if path.extension() == Some("rgssad") {
                 return Some(luminol_config::RMVer::XP);
             }
@@ -428,9 +428,12 @@ impl FileSystem {
             .into_iter()
             .find(|entry| {
                 entry.metadata.is_file
-                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+                    && matches!(
+                        camino::Utf8Path::new(&entry.name).extension(),
+                        Some("rgssad" | "rgss2a" | "rgss3a")
+                    )
             })
-            .map(|entry| host.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .map(|entry| host.open_file(entry.name, OpenFlags::Read | OpenFlags::Write))
             .transpose()?
             .map(archiver::FileSystem::new)
             .transpose()?;

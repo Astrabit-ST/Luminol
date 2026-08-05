@@ -112,7 +112,7 @@ impl Entry {
             .unwrap_or_default()
             .into_iter()
             .map(|m| Entry {
-                path: m.path.file_name().unwrap_or_default().into(),
+                path: m.name.into(),
                 invalid: false,
             })
             .collect();

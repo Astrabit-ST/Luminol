@@ -121,31 +121,13 @@ pub struct Metadata {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DirEntry {
-    pub path: camino::Utf8PathBuf,
+    pub name: String,
     pub metadata: Metadata,
 }
 
 impl DirEntry {
-    pub fn new(path: camino::Utf8PathBuf, metadata: Metadata) -> Self {
-        Self { path, metadata }
-    }
-
-    pub fn path(&self) -> &camino::Utf8Path {
-        &self.path
-    }
-
-    pub fn metadata(&self) -> Metadata {
-        self.metadata
-    }
-
-    pub fn file_name(&self) -> &str {
-        self.path
-            .file_name()
-            .expect("path created through DirEntry must have a filename")
-    }
-
-    pub fn into_path(self) -> camino::Utf8PathBuf {
-        self.path
+    pub fn new(name: String, metadata: Metadata) -> Self {
+        Self { name, metadata }
     }
 }
 

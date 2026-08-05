@@ -191,6 +191,7 @@ impl crate::FileSystem for FileSystem {
         path.read_dir_utf8()
             .wrap_err_with(|| c.clone())?
             .map_ok(|entry| {
+                let name = entry.file_name().to_string();
                 let path = entry.into_path();
                 let path = path
                     .strip_prefix(&self.root_path)
@@ -202,7 +203,7 @@ impl crate::FileSystem for FileSystem {
                 let path = path.into_string().replace('\\', "/").into();
 
                 let metadata = self.metadata(&path).wrap_err_with(|| c.clone())?;
-                Ok(DirEntry::new(path, metadata))
+                Ok(DirEntry::new(name, metadata))
             })
             .flatten()
             .try_collect()
