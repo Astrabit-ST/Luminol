@@ -76,41 +76,12 @@ enum ScriptsFormat {
     Ron,
 }
 
-struct ScriptsFileSystem(std::sync::Arc<parking_lot::Mutex<ScriptsFileSystemInner>>);
-
-struct ScriptsFileSystemInner {
-    trie: luminol_filesystem::FileSystemTrie<luminol_data::rpg::Script>,
-    names: Vec<String>,
-}
+struct ScriptsFileSystem(std::sync::Arc<parking_lot::Mutex<Vec<luminol_data::rpg::Script>>>);
 
 impl ScriptsFileSystem {
     fn new(scripts: impl Iterator<Item = luminol_data::rpg::Script>) -> Self {
-        let mut trie = luminol_filesystem::FileSystemTrie::new();
-        let (_, hint) = scripts.size_hint();
-        let mut names = Vec::with_capacity(hint.unwrap_or_default());
-        for script in scripts {
-            let mut name = script.name.replace('\\', "/");
-            loop {
-                let new_name = name.replace("//", "/");
-                if new_name == name {
-                    break;
-                } else {
-                    name = new_name;
-                }
-            }
-            if let Some(stripped) = name.strip_prefix('/') {
-                name = stripped.to_string();
-            }
-            if let Some(stripped) = name.strip_suffix('/') {
-                name = stripped.to_string();
-            }
-            if !name.is_empty() && !script.script_text.is_empty() {
-                trie.create_file(&name, script);
-                names.push(name);
-            }
-        }
         Self(std::sync::Arc::new(parking_lot::Mutex::new(
-            ScriptsFileSystemInner { trie, names },
+            scripts.collect(),
         )))
     }
 }
@@ -118,31 +89,21 @@ impl ScriptsFileSystem {
 impl luminol_filesystem::ReadDir for ScriptsFileSystem {
     fn read_dir(
         &self,
-        path: impl AsRef<camino::Utf8Path>,
+        _path: impl AsRef<camino::Utf8Path>,
     ) -> luminol_filesystem::Result<Vec<luminol_filesystem::DirEntry>> {
-        let path = path.as_ref();
         Ok(self
             .0
             .lock()
-            .trie
-            .iter_dir(path)
-            .map_or_else(Default::default, |iter| {
-                iter.map(|(name, maybe_script)| luminol_filesystem::DirEntry {
-                    name: name.to_string(),
-                    metadata: if let Some(script) = maybe_script {
-                        luminol_filesystem::Metadata {
-                            is_file: true,
-                            size: script.script_text.len() as u64,
-                        }
-                    } else {
-                        luminol_filesystem::Metadata {
-                            is_file: false,
-                            size: 0,
-                        }
-                    },
-                })
-                .collect()
-            }))
+            .iter()
+            .enumerate()
+            .map(|(i, script)| luminol_filesystem::DirEntry {
+                name: format!("{i:0>3}:{}", script.name),
+                metadata: luminol_filesystem::Metadata {
+                    is_file: true,
+                    size: script.script_text.len() as u64,
+                },
+            })
+            .collect())
     }
 }
 
@@ -524,11 +485,11 @@ impl Window {
                                 {
                                     let view = view.as_ref().unwrap();
                                     match Self::find_files(view) {
-                                        Ok(file_paths) => {
+                                        Ok(script_names) => {
                                             let ctx = ui.ctx().clone();
                                             let progress = progress.clone();
                                             let scripts = view.filesystem().0.clone();
-                                            *progress_total = file_paths.len();
+                                            *progress_total = script_names.len();
                                             progress.store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
 
                                             *save_promise = Some(luminol_core::spawn_future(async move {
@@ -537,27 +498,30 @@ impl Window {
                                                 progress.store(0, std::sync::atomic::Ordering::Relaxed);
                                                 ctx.request_repaint();
 
-                                                let mut names_file = dest_fs.open_file("_scripts.txt", OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
-                                                let names_len = scripts.lock().names.len();
-                                                for i in 0..names_len {
-                                                    let name = scripts.lock().names[i].clone();
-                                                    names_file.write_all(name.as_bytes()).await?;
-                                                    names_file.write_all(b"\n").await?;
-                                                }
-                                                names_file.flush().await?;
-                                                drop(names_file);
-
-                                                for mut path in file_paths {
-                                                    if let Some(parent) = path.parent() {
-                                                        dest_fs.create_dir(parent)?;
-                                                    }
-                                                    let src = scripts.lock().trie.get_file(path.as_str()).ok_or(luminol_filesystem::Error::NotExist)?.script_text.clone();
-                                                    let src_data = src.as_bytes();
-                                                    if let Some(filename) = path.file_name() {
-                                                        path.set_file_name(format!("{filename}.rb"));
-                                                    }
-                                                    let mut dest_file = dest_fs.open_file(&path, OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?;
-                                                    async_std::io::copy(&mut async_std::io::Cursor::new(src_data), &mut dest_file).await?;
+                                                for name in script_names {
+                                                    let (index, _) = name.as_str().split_once(':').ok_or(luminol_filesystem::Error::NotExist)?;
+                                                    let index: usize = index.parse().map_err(|_| luminol_filesystem::Error::NotExist)?;
+                                                    let (mut dest_file, script_text) = {
+                                                        let scripts = scripts.lock();
+                                                        let script = scripts.get(index).ok_or(luminol_filesystem::Error::NotExist)?;
+                                                        let mut filename = format!("{index:0>3}:{}.rb", script.name);
+                                                        for forbidden_character in [
+                                                            '%',
+                                                            '"',
+                                                            '*',
+                                                            '/',
+                                                            ':',
+                                                            '<',
+                                                            '>',
+                                                            '?',
+                                                            '\\',
+                                                            '|',
+                                                        ] {
+                                                            filename = filename.replace(forbidden_character, &format!("%{:02X}", forbidden_character as u8));
+                                                        }
+                                                        (dest_fs.open_file(filename, OpenFlags::Write | OpenFlags::Create | OpenFlags::Truncate)?, script.script_text.clone())
+                                                    };
+                                                    async_std::io::copy(&mut async_std::io::Cursor::new(script_text), &mut dest_file).await?;
 
                                                     progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                                     ctx.request_repaint();
