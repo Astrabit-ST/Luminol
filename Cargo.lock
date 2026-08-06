@@ -2834,15 +2834,6 @@ checksum = "a598c1abae8e3456ebda517868b254b6bc2a9bb6501ffd5b9d0875bf332e048b"
 
 [[package]]
 name = "itertools"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
@@ -2855,6 +2846,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
@@ -3162,7 +3162,7 @@ dependencies = [
  "ron 0.8.1",
  "shadow-rs",
  "steamworks",
- "strum 0.25.0",
+ "strum 0.28.0",
  "tempfile",
  "tokio",
  "tracing",
@@ -3193,7 +3193,7 @@ dependencies = [
  "rodio",
  "rustysynth",
  "slab",
- "strum 0.25.0",
+ "strum 0.28.0",
  "thiserror 1.0.69",
  "wasm-bindgen-futures",
  "web-sys",
@@ -3211,7 +3211,7 @@ dependencies = [
  "ron 0.8.1",
  "rust-ini",
  "serde",
- "strum 0.25.0",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -3224,7 +3224,7 @@ dependencies = [
  "egui",
  "egui-notify",
  "egui_dock",
- "itertools 0.11.0",
+ "itertools 0.15.0",
  "luminol-audio",
  "luminol-config",
  "luminol-data",
@@ -3238,7 +3238,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
- "strum 0.25.0",
+ "strum 0.28.0",
  "tracing",
 ]
 
@@ -3256,7 +3256,7 @@ dependencies = [
  "paste",
  "rand",
  "serde",
- "strum 0.25.0",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -3282,7 +3282,7 @@ dependencies = [
  "flume",
  "futures-lite 2.6.0",
  "iter-read",
- "itertools 0.11.0",
+ "itertools 0.15.0",
  "js-sys",
  "luminol-config",
  "luminol-web",
@@ -3320,7 +3320,7 @@ dependencies = [
  "fragile",
  "glam",
  "image 0.24.9",
- "itertools 0.11.0",
+ "itertools 0.15.0",
  "luminol-data",
  "luminol-filesystem",
  "luminol-macros",
@@ -3371,7 +3371,7 @@ dependencies = [
  "luminol-core",
  "luminol-macros",
  "serde",
- "strum 0.25.0",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -3391,7 +3391,7 @@ dependencies = [
  "image 0.25.2",
  "indexmap",
  "indextree",
- "itertools 0.11.0",
+ "itertools 0.15.0",
  "lexical-sort",
  "luminol-audio",
  "luminol-config",
@@ -3414,7 +3414,7 @@ dependencies = [
  "serde_json",
  "serde_yml",
  "strip-ansi-escapes",
- "strum 0.25.0",
+ "strum 0.28.0",
  "syntect",
  "target-triple",
  "wgpu",
@@ -5520,15 +5520,6 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
@@ -5537,16 +5528,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "strum_macros"
-version = "0.25.3"
+name = "strum"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
 dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.104",
+ "strum_macros 0.28.0",
 ]
 
 [[package]]
@@ -5559,6 +5546,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
  "syn 2.0.104",
 ]
 

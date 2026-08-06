@@ -136,9 +136,8 @@ fn draw_graph(
                     let index = iter_parameters(&actor.parameters, param, range.clone(), rect)
                         .with_position()
                         .position(|(iter_pos, p)| {
-                            (iter_pos == itertools::Position::First || hover_pos.x >= p.x - width)
-                                && (iter_pos == itertools::Position::Last
-                                    || hover_pos.x < p.x + width)
+                            (iter_pos.is_first || hover_pos.x >= p.x - width)
+                                && (iter_pos.is_last || hover_pos.x < p.x + width)
                         })
                         .unwrap()
                         + 1;
@@ -195,12 +194,12 @@ fn draw_graph(
                         .map(|(iter_pos, (p, q))| {
                             // Round the horizontal position of each point to the nearest pixel so egui doesn't
                             // try to anti-alias the vertical edges of the trapezoids
-                            let p = if iter_pos == itertools::Position::First {
+                            let p = if iter_pos.is_first {
                                 p
                             } else {
                                 egui::pos2((p.x * ppp).round() / ppp, p.y)
                             };
-                            let q = if iter_pos == itertools::Position::Last {
+                            let q = if iter_pos.is_last {
                                 q
                             } else {
                                 egui::pos2((q.x * ppp).round() / ppp, q.y)
@@ -274,11 +273,7 @@ fn draw_exp(ui: &mut egui::Ui, actor: &luminol_data::rpg::Actor, total: &mut boo
                                         ui.add(
                                             egui::Label::new(if *total {
                                                 exp[i].to_string()
-                                            } else if matches!(
-                                                pos,
-                                                itertools::Position::Last
-                                                    | itertools::Position::Only
-                                            ) {
+                                            } else if pos.is_last {
                                                 "(None)".into()
                                             } else {
                                                 (exp[i + 1] - exp[i]).to_string()
