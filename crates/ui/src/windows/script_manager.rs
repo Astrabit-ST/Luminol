@@ -508,6 +508,7 @@ impl Window {
                                                         let mut filename = format!("{index:0>3}:{}.rb", script.name);
                                                         for forbidden_character in [
                                                             '%',
+                                                            '\0',
                                                             '"',
                                                             '*',
                                                             '/',
