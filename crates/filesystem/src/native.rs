@@ -200,7 +200,7 @@ impl crate::FileSystem for FileSystem {
 
                 // i hate windows.
                 #[cfg(windows)]
-                let path = path.into_string().replace('\\', "/").into();
+                let path = camino::Utf8PathBuf::from(path.into_string().replace('\\', "/"));
 
                 let metadata = self.metadata(&path).wrap_err_with(|| c.clone())?;
                 Ok(DirEntry::new(name, metadata))
