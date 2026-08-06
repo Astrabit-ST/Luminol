@@ -24,6 +24,7 @@
 
 use crate::components::{EnumComboBox, FileSystemView, UiExt};
 use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
+use itertools::Itertools;
 use luminol_filesystem::{File, FileSystem, OpenFlags};
 
 /// The script manager for creating and extracting Scripts.rxdata.
@@ -646,7 +647,7 @@ impl Window {
                                     if let Some(view) = view {
                                         let format = *format;
                                         match Self::find_files(view) {
-                                            Ok(file_paths) => {
+                                            Ok(mut file_paths) => {
                                                 let ctx = ui.ctx().clone();
                                                 let progress = progress.clone();
                                                 let view_filesystem = view.filesystem().clone();
@@ -662,55 +663,80 @@ impl Window {
                                                         progress.store(0, std::sync::atomic::Ordering::Relaxed);
                                                         ctx.request_repaint();
 
-                                                        let mut lines = view_filesystem.exists("_scripts.txt")?
-                                                            .then(|| view_filesystem.open_file("_scripts.txt", OpenFlags::Read))
-                                                            .transpose()?
-                                                            .map(|names_file| async_std::io::BufReader::new(names_file).lines());
-
                                                         let mut scripts = Vec::with_capacity(file_paths.len());
 
-                                                        let mut file_path_trie = qp_trie::Trie::new();
-                                                        for path in file_paths.iter() {
-                                                            let name = path.as_str().replace('\\', "/");
-                                                            let name = if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
-                                                                name.rsplit_once('.').unwrap().0.to_string()
-                                                            } else {
-                                                                continue;
-                                                            };
-                                                            file_path_trie.insert_str(&name, ());
-                                                        }
-                                                        let mut file_path_iter = file_paths.iter();
-
-                                                        while let Some(path) =
-                                                            if let Some(mut l) = lines.take() {
-                                                                let line = loop {
-                                                                    let line = l.next().await;
-                                                                    if !line.as_ref().is_some_and(|line| line.as_ref().is_ok_and(|line| line.is_empty())) {
-                                                                        break line;
-                                                                    }
-                                                                };
-                                                                if line.is_some() {
-                                                                    lines = Some(l);
-                                                                    line.transpose().map(|o| o.map(|line| format!("{line}.rb")))
-                                                                } else {
-                                                                    Ok(file_path_iter.next().map(ToString::to_string))
-                                                                }
-                                                            } else {
-                                                                Ok(file_path_iter.next().map(ToString::to_string))
-                                                            }?
+                                                        let mut trie = qp_trie::Trie::new();
+                                                        if let Some(mut lines) = view_filesystem.exists("_scripts.txt")?
+                                                            .then(|| view_filesystem.open_file("_scripts.txt", OpenFlags::Read))
+                                                            .transpose()?
+                                                            .map(|names_file| async_std::io::BufReader::new(names_file).lines())
                                                         {
-                                                            let name = path.to_string().replace('\\', "/");
-                                                            let name = if [".rb", ".ru"].iter().any(|suffix| name.to_lowercase().ends_with(suffix)) {
-                                                                name.rsplit_once('.').unwrap().0.to_string()
-                                                            } else {
-                                                                continue;
-                                                            };
-
-                                                            if !file_path_trie.contains_key_str(&name) {
-                                                                continue;
+                                                            while let Some(Ok(line)) = lines.next().await {
+                                                                if line.is_empty() {
+                                                                    continue;
+                                                                }
+                                                                if !trie.contains_key_str(&line) {
+                                                                    trie.insert_str(&line, trie.count());
+                                                                }
                                                             }
-                                                            file_path_trie.remove_str(&name);
+                                                        }
 
+                                                        // Remove scripts whose filenames don't end in .rb or .ru
+                                                        file_paths.retain(|path| {
+                                                            ["rb", "ru"].iter().any(|&ruby_extension| path.extension().is_some_and(|extension| extension == ruby_extension))
+                                                        });
+
+                                                        let parse_percent_encoding = |path: &camino::Utf8Path| -> camino::Utf8PathBuf {
+                                                            let mut new_path = String::with_capacity(path.as_str().len());
+                                                            let mut chars_iter = path
+                                                                .as_str()
+                                                                .chars()
+                                                                .chain(std::iter::once('\0'))
+                                                                .circular_array_windows::<3>();
+                                                            while let Some(chars) = chars_iter.next() {
+                                                                if chars[0] == '\0' {
+                                                                    break;
+                                                                }
+                                                                if let Some(escaped_codepoint) = (chars[0] == '%' && chars[1].is_ascii_alphanumeric() && chars[2].is_ascii_alphanumeric())
+                                                                    .then(|| u8::from_str_radix(&format!("{}{}", chars[1], chars[2]), 16).ok())
+                                                                    .flatten()
+                                                                    .filter(|&escaped_codepoint| escaped_codepoint < 0x80)
+                                                                {
+                                                                    new_path.push(escaped_codepoint as char);
+                                                                    chars_iter.next();
+                                                                    chars_iter.next();
+                                                                } else {
+                                                                    new_path.push(chars[0]);
+                                                                }
+                                                            }
+                                                            new_path.into()
+                                                        };
+
+                                                        // Sort the scripts in the following order:
+                                                        //   * Sort the scripts whose paths appear in _scripts.txt in the order in which they appear in _scripts.txt
+                                                        //   * Then sort the remaining scripts whose filenames start with a nonnegative decimal integer followed by a colon by the integer in the filename
+                                                        //   * Then put all the remaining scripts after that in the order in which they appear in the UI
+                                                        file_paths.sort_by(|a, b| {
+                                                            let a = parse_percent_encoding(a);
+                                                            let b = parse_percent_encoding(b);
+                                                            let get_script_index_from_trie = |path: &camino::Utf8Path| -> Option<usize> {
+                                                                trie.get_str(path.as_str().rsplit_once('.').unwrap().0).copied()
+                                                            };
+                                                            if let (Some(a), Some(b)) = (get_script_index_from_trie(&a), get_script_index_from_trie(&b)) {
+                                                                return a.cmp(&b);
+                                                            }
+                                                            let get_script_index_from_prefix = |path: &camino::Utf8Path| -> Option<usize> {
+                                                                let name = path.file_stem().unwrap();
+                                                                let (index, _) = name.split_once(':')?;
+                                                                index.parse().ok()
+                                                            };
+                                                            if let (Some(a), Some(b)) = (get_script_index_from_prefix(&a), get_script_index_from_prefix(&b)) {
+                                                                return a.cmp(&b);
+                                                            }
+                                                            std::cmp::Ordering::Equal
+                                                        });
+
+                                                        for path in file_paths {
                                                             if is_first {
                                                                 is_first = false;
                                                             } else {
@@ -721,8 +747,19 @@ impl Window {
                                                             let mut script_text = String::new();
                                                             view_filesystem.open_file(&path, OpenFlags::Read)?.read_to_string(&mut script_text).await?;
 
+                                                            let script_name = parse_percent_encoding(&path).to_string();
+                                                            let script_name = if let Some((prefix, _)) = script_name.rsplit_once('.') {
+                                                                prefix.to_string()
+                                                            } else {
+                                                                script_name
+                                                            };
+                                                            let script_name = if let Some((_, suffix)) = script_name.split_once(':') {
+                                                                suffix.to_string()
+                                                            } else {
+                                                                script_name
+                                                            };
                                                             let script = luminol_data::rpg::Script::new(
-                                                                name,
+                                                                script_name,
                                                                 script_text,
                                                             );
                                                             scripts.push(script);
