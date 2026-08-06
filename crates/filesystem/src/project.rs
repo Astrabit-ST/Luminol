@@ -521,7 +521,7 @@ impl FileSystem {
     ) -> Result<LoadResult> {
         let entries = host.read_dir("")?;
         if !entries.iter().any(|e| {
-            if let Some(extension) = e.path.extension() {
+            if let Some(extension) = camino::Utf8Path::new(&e.name).extension() {
                 e.metadata.is_file
                     && (extension == "rxproj"
                         || extension == "rvproj"
@@ -549,9 +549,17 @@ impl FileSystem {
             .into_iter()
             .find(|entry| {
                 entry.metadata.is_file
-                    && matches!(entry.path.extension(), Some("rgssad" | "rgss2a" | "rgss3a"))
+                    && matches!(
+                        camino::Utf8Path::new(&entry.name).extension(),
+                        Some("rgssad" | "rgss2a" | "rgss3a")
+                    )
             })
-            .map(|entry| host.open_file(entry.path, OpenFlags::Read | OpenFlags::Write))
+            .map(|entry| {
+                host.open_file(
+                    camino::Utf8Path::new(&entry.name),
+                    OpenFlags::Read | OpenFlags::Write,
+                )
+            })
             .transpose()?
             .map(archiver::FileSystem::new)
             .transpose()?;
