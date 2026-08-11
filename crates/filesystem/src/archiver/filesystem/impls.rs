@@ -818,7 +818,7 @@ where
         );
         if let Some(iter) = trie.iter_dir(path) {
             iter.map(|(name, _)| {
-                let path = if path == "" {
+                let path: camino::Utf8PathBuf = if path == "" {
                     name.into()
                 } else {
                     format!("{path}/{name}").into()
@@ -829,7 +829,10 @@ where
                         format!("While getting the metadata of {path:?} in the archive")
                     })
                     .wrap_err_with(|| c.clone())?;
-                Ok(DirEntry { path, metadata })
+                Ok(DirEntry {
+                    name: name.to_string(),
+                    metadata,
+                })
             })
             .try_collect()
         } else {

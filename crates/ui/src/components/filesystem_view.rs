@@ -208,19 +208,16 @@ where
                 } else if b.metadata.is_file && !a.metadata.is_file {
                     std::cmp::Ordering::Less
                 } else {
-                    let path_a = a.path.iter().next_back().unwrap();
-                    let path_b = b.path.iter().next_back().unwrap();
-                    lexical_sort::natural_lexical_cmp(path_a, path_b)
+                    lexical_sort::natural_lexical_cmp(&a.name, &b.name)
                 }
             });
             length = Some(subentries.len());
 
             for subentry in subentries {
-                let subentry_name = subentry.path.iter().next_back().unwrap().to_string();
                 if subentry.metadata.is_file {
                     node_id.append_value(
                         Entry::File {
-                            name: subentry_name,
+                            name: subentry.name,
                             selected,
                         },
                         &mut self.arena,
@@ -228,10 +225,10 @@ where
                 } else {
                     let should_select = is_root
                         && default_selected_dirs
-                            .is_some_and(|dirs| dirs.contains_key_str(&subentry_name));
+                            .is_some_and(|dirs| dirs.contains_key_str(&subentry.name));
                     let child_id = node_id.append_value(
                         Entry::Dir {
-                            name: subentry_name,
+                            name: subentry.name,
                             selected,
                             initialized: false,
                             depersisted: false,

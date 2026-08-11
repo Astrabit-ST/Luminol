@@ -167,12 +167,12 @@ impl Cache {
             let mut original_name = None;
             let mut new_cactus_index = 0;
             for entry in entries.into_iter() {
-                let entry_name = camino::Utf8Path::new(entry.file_name())
+                let entry_name = camino::Utf8Path::new(&entry.name)
                     .file_stem()
-                    .unwrap_or(entry.file_name())
+                    .unwrap_or(&entry.name)
                     .to_lowercase();
 
-                let entry_extension = camino::Utf8Path::new(entry.file_name())
+                let entry_extension = camino::Utf8Path::new(&entry.name)
                     .extension()
                     .unwrap_or_default()
                     .to_lowercase();
@@ -191,7 +191,7 @@ impl Cache {
                     .copied()
                     .unwrap_or_else(|| {
                         let index = self.cactus.insert(CactusNode {
-                            value: entry.file_name().to_string(),
+                            value: entry.name.clone(),
                             next: cactus_index,
                             len,
                         });
@@ -200,7 +200,7 @@ impl Cache {
                     });
 
                 if entry_name == name {
-                    original_name = Some(entry.file_name().to_string());
+                    original_name = Some(entry.name);
                     new_cactus_index = index;
                 }
             }

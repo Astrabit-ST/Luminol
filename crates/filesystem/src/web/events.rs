@@ -411,7 +411,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                                         to_future::<web_sys::File>(entry.get_file()).await
                                     {
                                         vec.push(DirEntry::new(
-                                            path.join(entry.name()),
+                                            entry.name(),
                                             Metadata {
                                                 is_file: true,
                                                 size: blob.size() as u64,
@@ -421,7 +421,7 @@ pub fn setup_main_thread_hooks(main_channels: super::MainChannels) {
                                 }
                                 web_sys::FileSystemHandleKind::Directory => {
                                     vec.push(DirEntry::new(
-                                        path.join(entry.name()),
+                                        entry.name(),
                                         Metadata {
                                             is_file: false,
                                             size: 0,
